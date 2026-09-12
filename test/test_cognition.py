@@ -12,7 +12,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
-
+from sofia.config.model import ProviderConfiguration
 
 def test_cognitive_system_does_not_use_fallback_when_primary_succeeds():
     class PrimaryEngine(CognitiveEngine):
@@ -398,3 +398,32 @@ def test_test_cognitive_engine_is_a_cognitive_engine():
     )
 
     assert isinstance(engine, CognitiveEngine)
+
+def test_llm_cognitive_engine_is_a_cognitive_engine():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    provider = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=provider,
+    )
+
+    assert isinstance(engine, CognitiveEngine)
+
+def test_llm_cognitive_engine_preserves_provider_configuration():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    provider = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=provider,
+    )
+
+    assert engine.configuration is provider
+
