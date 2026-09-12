@@ -19,6 +19,7 @@ from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 
@@ -47,6 +48,14 @@ IDENTITY_PATH = (
     / "identity.json"
 )
 
+PERSONALITY_PATH = (
+    Path(__file__).parent.parent
+    / "src"
+    / "sofia"
+    / "personality"
+    / "personality.json"
+)
+
 
 def create_runtime(
     identity_path: Path = IDENTITY_PATH,
@@ -56,6 +65,10 @@ def create_runtime(
     verifier = ConstitutionIntegrityVerifier(HASH_PATH)
 
     identity_store = IdentityStore(identity_path)
+
+    personality_store = PersonalityStore(
+        PERSONALITY_PATH,
+    )
 
     memory_store = MemoryStore()
 
@@ -71,6 +84,7 @@ def create_runtime(
         constitution_store=store,
         integrity_verifier=verifier,
         identity_store=identity_store,
+        personality_store=personality_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
@@ -98,6 +112,10 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
         tmp_path / "identity.json",
     )
 
+    personality_store = PersonalityStore(
+        PERSONALITY_PATH,
+    )
+
     class FailingVerifier:
         def verify(self, constitution):
             raise ConstitutionIntegrityError(
@@ -118,6 +136,7 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
         constitution_store=store,
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
+        personality_store=personality_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
@@ -180,6 +199,10 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
         tmp_path / "identity.json",
     )
 
+    personality_store = PersonalityStore(
+        PERSONALITY_PATH,
+    )
+
     class FailingVerifier:
         def verify(self, constitution):
             raise ConstitutionIntegrityError(
@@ -200,6 +223,7 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
         constitution_store=store,
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
+        personality_store=personality_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
