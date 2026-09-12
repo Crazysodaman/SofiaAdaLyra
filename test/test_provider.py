@@ -1,5 +1,5 @@
 ﻿import pytest
-
+from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -120,3 +120,15 @@ def test_llm_provider_factory_rejects_unknown_provider():
         match="Unknown LLM provider: unknown-llm",
     ):
         create_llm_provider(configuration)
+
+def test_llm_provider_factory_creates_ollama_provider():
+    configuration = ProviderConfiguration(
+        provider="ollama",
+        model="test-model",
+    )
+
+    provider = create_llm_provider(
+        configuration,
+    )
+
+    assert isinstance(provider, OllamaProvider)

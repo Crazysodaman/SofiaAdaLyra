@@ -7,6 +7,9 @@ name = "sofia-ada-lyra"
 version = "0.1.0"
 description = "Sofía Ada Lyra"
 requires-python = ">=3.12"
+dependencies = [
+    "ollama",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

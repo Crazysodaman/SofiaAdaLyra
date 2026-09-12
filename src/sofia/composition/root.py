@@ -37,6 +37,16 @@ def _create_cognitive_engine(
             provider=provider,
         )
 
+    if configuration.provider.provider == "ollama":
+        provider = create_llm_provider(
+            configuration.provider,
+        )
+
+        return LLMCognitiveEngine(
+            configuration=configuration.provider,
+            provider=provider,
+        )
+
     raise ValueError(
         f"Unknown cognitive provider: "
         f"{configuration.provider.provider}"
