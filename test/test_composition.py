@@ -1,7 +1,11 @@
 ﻿import hashlib
 from pathlib import Path
+
 import pytest
+
 from sofia.cognition.engine import CognitiveEngine
+from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.providers.test_provider import TestLLMProvider
 from sofia.cognition.system import CognitiveSystem
 from sofia.composition.root import compose
 from sofia.config.model import (
@@ -10,12 +14,9 @@ from sofia.config.model import (
 )
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
+from sofia.memory.system import MemorySystem
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.providers.test_provider import TestLLMProvider
-
-
 
 
 def create_configuration() -> SofiaConfiguration:
@@ -23,6 +24,7 @@ def create_configuration() -> SofiaConfiguration:
         constitution_path=Path("constitution.md"),
         constitution_hash_path=Path("constitution.sha256"),
         identity_path=Path("identity.json"),
+        personality_path=Path("personality.json"),
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -98,6 +100,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -131,6 +134,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         CognitiveEngine,
     )
 
+
 def test_composition_selects_configured_rule_provider(
     tmp_path,
 ):
@@ -138,6 +142,7 @@ def test_composition_selects_configured_rule_provider(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
         provider=ProviderConfiguration(
             provider="rule",
             model="rule-engine",
@@ -152,6 +157,8 @@ def test_composition_selects_configured_rule_provider(
         runtime.cognitive_system.engine,
         RuleEngine,
     )
+
+
 def test_composition_rejects_unknown_provider(
     tmp_path,
 ):
@@ -159,6 +166,7 @@ def test_composition_rejects_unknown_provider(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
         provider=ProviderConfiguration(
             provider="unknown-provider",
             model="unknown-model",
@@ -168,6 +176,7 @@ def test_composition_rejects_unknown_provider(
     with pytest.raises(ValueError, match="Unknown cognitive provider"):
         compose(configuration)
 
+
 def test_composition_selects_test_provider_engine(
     tmp_path,
 ):
@@ -175,6 +184,7 @@ def test_composition_selects_test_provider_engine(
         constitution_path=tmp_path / "constitution.md",
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -190,6 +200,7 @@ def test_composition_selects_test_provider_engine(
         TestCognitiveEngine,
     )
 
+
 def test_composition_passes_provider_configuration_to_test_engine():
     from sofia.cognition.test_engine import TestCognitiveEngine
 
@@ -202,23 +213,8 @@ def test_composition_passes_provider_configuration_to_test_engine():
     assert isinstance(engine, TestCognitiveEngine)
     assert engine.configuration is configuration.provider
 
-def test_composition_passes_provider_configuration_to_test_engine(
-    tmp_path,
-):
-    from sofia.cognition.test_engine import TestCognitiveEngine
-
-    configuration = create_configuration()
-
-    runtime = compose(configuration)
-
-    engine = runtime.cognitive_system.engine
-
-    assert isinstance(engine, TestCognitiveEngine)
-    assert engine.configuration is configuration.provider
 
 def test_composition_creates_memory_system():
-    from sofia.memory.system import MemorySystem
-
     configuration = create_configuration()
 
     runtime = compose(configuration)
@@ -227,11 +223,14 @@ def test_composition_creates_memory_system():
         runtime.memory_system,
         MemorySystem,
     )
+
+
 def test_composition_creates_llm_cognitive_engine():
     configuration = SofiaConfiguration(
         constitution_path="constitution.md",
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
+        personality_path="personality.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -251,6 +250,7 @@ def test_composition_creates_test_llm_provider():
         constitution_path="constitution.md",
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
+        personality_path="personality.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -272,6 +272,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
         constitution_path="constitution.md",
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
+        personality_path="personality.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
