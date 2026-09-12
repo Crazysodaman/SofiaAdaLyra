@@ -15,6 +15,7 @@ from sofia.config.model import (
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime
 
@@ -72,6 +73,21 @@ def test_composition_wires_integrity_verifier():
     assert (
         runtime.integrity_verifier.expected_hash_path
         == configuration.constitution_hash_path
+    )
+
+
+def test_composition_wires_personality_store():
+    configuration = create_configuration()
+
+    runtime = compose(configuration)
+
+    assert isinstance(
+        runtime.personality_store,
+        PersonalityStore,
+    )
+    assert (
+        runtime.personality_store._path
+        == configuration.personality_path
     )
 
 

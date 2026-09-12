@@ -12,6 +12,7 @@ from sofia.constitution.store import ConstitutionStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 
 
@@ -33,12 +34,14 @@ class SofiaRuntime:
         constitution_store: ConstitutionStore,
         integrity_verifier: ConstitutionIntegrityVerifier,
         identity_store: IdentityStore,
+        personality_store: PersonalityStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
     ) -> None:
         self._constitution_store = constitution_store
         self._integrity_verifier = integrity_verifier
         self._identity_store = identity_store
+        self._personality_store = personality_store
         self._memory_system = memory_system
         self._cognitive_system = cognitive_system
 
@@ -73,6 +76,10 @@ class SofiaRuntime:
     @property
     def identity_store(self) -> IdentityStore:
         return self._identity_store
+
+    @property
+    def personality_store(self) -> PersonalityStore:
+        return self._personality_store
 
     @property
     def memory_system(self) -> MemorySystem:
