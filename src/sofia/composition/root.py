@@ -6,7 +6,8 @@ from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.identity.store import IdentityStore
 from sofia.runtime.runtime import SofiaRuntime
-
+from sofia.memory.store import MemoryStore
+from sofia.memory.system import MemorySystem
 
 def _create_cognitive_engine(configuration: SofiaConfiguration):
     """
@@ -51,10 +52,16 @@ def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
     cognitive_system = CognitiveSystem(
         engine=cognitive_engine,
     )
+    memory_store = MemoryStore()
+
+    memory_system = MemorySystem(
+        memory_store,
+    )
 
     return SofiaRuntime(
         constitution_store=constitution_store,
         integrity_verifier=integrity_verifier,
         identity_store=identity_store,
+        memory_system=memory_system,
         cognitive_system=cognitive_system,
     )

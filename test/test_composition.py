@@ -213,3 +213,15 @@ def test_composition_passes_provider_configuration_to_test_engine(
 
     assert isinstance(engine, TestCognitiveEngine)
     assert engine.configuration is configuration.provider
+
+def test_composition_creates_memory_system():
+    from sofia.memory.system import MemorySystem
+
+    configuration = create_configuration()
+
+    runtime = compose(configuration)
+
+    assert isinstance(
+        runtime.memory_system,
+        MemorySystem,
+    )

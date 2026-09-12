@@ -9,7 +9,7 @@ from sofia.constitution.store import ConstitutionStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.runtime.model import RuntimeState
-
+from sofia.memory.system import MemorySystem
 
 class SofiaRuntimeError(Exception):
     """Raised when the Sofia runtime fails to start or operate."""
@@ -21,12 +21,14 @@ class SofiaRuntime:
     """
 
     def __init__(
-        self,
-        constitution_store: ConstitutionStore,
-        integrity_verifier,
-        identity_store: IdentityStore,
-        cognitive_system: CognitiveSystem,
+            self,
+            constitution_store: ConstitutionStore,
+            integrity_verifier,
+            identity_store: IdentityStore,
+            memory_system: MemorySystem,
+            cognitive_system: CognitiveSystem,
     ):
+        self.memory_system = memory_system
         self.constitution_store = constitution_store
         self.integrity_verifier = integrity_verifier
         self.identity_store = identity_store
