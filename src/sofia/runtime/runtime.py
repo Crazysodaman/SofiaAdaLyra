@@ -1,4 +1,8 @@
-﻿from sofia.cognition.system import CognitiveSystem
+﻿from sofia.authority.model import Authority
+from sofia.cognition.context import CognitiveContext
+from sofia.cognition.operation import CognitiveOperation
+from sofia.cognition.model import CognitiveRequest
+from sofia.cognition.system import CognitiveSystem
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -120,13 +124,27 @@ class SofiaRuntime:
                 "Sofía runtime failed during startup."
             ) from exc
 
-    def respond(self, request):
+    def respond(self, request: CognitiveRequest):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
                 "SofiaRuntime must be READY before responding."
             )
 
-        return self._cognitive_system.respond(request)
+        if not isinstance(request, CognitiveRequest):
+            raise TypeError(
+                "SofiaRuntime request must be a CognitiveRequest."
+            )
+
+        operation = CognitiveOperation(
+            context=CognitiveContext(
+                request=request,
+                identity=self._identity,
+                constitution=self._constitution,
+            ),
+            authority=Authority(),
+        )
+
+        return self._cognitive_system.respond(operation)
 
     def shutdown(self) -> None:
         if self._state is RuntimeState.STOPPED:

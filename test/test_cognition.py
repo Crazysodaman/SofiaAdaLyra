@@ -84,7 +84,12 @@ def test_cognitive_system_does_not_use_fallback_when_primary_succeeds():
     )
 
     response = system.respond(
-        CognitiveRequest(messages=()),
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(messages=()),
+            ),
+            authority=Authority(),
+        ),
     )
 
     assert response.content == "Primary response."
@@ -117,7 +122,12 @@ def test_cognitive_system_uses_fallback_after_primary_failure():
     )
 
     response = system.respond(
-        CognitiveRequest(messages=()),
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(messages=()),
+            ),
+            authority=Authority(),
+        ),
     )
 
     assert response.content == "Fallback response."
@@ -143,7 +153,12 @@ def test_cognitive_system_propagates_primary_failure_without_fallback():
         CognitiveEngineError
     ) as exc_info:
         system.respond(
-            CognitiveRequest(messages=()),
+            CognitiveOperation(
+                context=CognitiveContext(
+                    request=CognitiveRequest(messages=()),
+                ),
+                authority=Authority(),
+            ),
         )
 
     assert exc_info.value is primary_error
@@ -181,7 +196,12 @@ def test_cognitive_system_raises_fallback_failure_with_primary_failure_as_cause(
         CognitiveEngineError
     ) as exc_info:
         system.respond(
-            CognitiveRequest(messages=()),
+            CognitiveOperation(
+                context=CognitiveContext(
+                    request=CognitiveRequest(messages=()),
+                ),
+                authority=Authority(),
+            ),
         )
 
     assert exc_info.value is fallback_error
@@ -677,13 +697,18 @@ def test_cognitive_system_uses_fallback_after_llm_provider_failure():
     )
 
     response = system.respond(
-        CognitiveRequest(
-            messages=(
-                CognitiveMessage(
-                    role=CognitiveRole.USER,
-                    content="Hello, Sofía.",
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Hello, Sofía.",
+                        ),
+                    ),
                 ),
             ),
+            authority=Authority(),
         ),
     )
 
