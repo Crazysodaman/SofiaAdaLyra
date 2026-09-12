@@ -12,6 +12,8 @@ from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.providers.test_provider import TestLLMProvider
 
 
 
@@ -225,3 +227,59 @@ def test_composition_creates_memory_system():
         runtime.memory_system,
         MemorySystem,
     )
+def test_composition_creates_llm_cognitive_engine():
+    configuration = SofiaConfiguration(
+        constitution_path="constitution.md",
+        constitution_hash_path="constitution.sha256",
+        identity_path="identity.json",
+        provider=ProviderConfiguration(
+            provider="test-llm",
+            model="test-model",
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    assert isinstance(
+        runtime.cognitive_system.engine,
+        LLMCognitiveEngine,
+    )
+
+
+def test_composition_creates_test_llm_provider():
+    configuration = SofiaConfiguration(
+        constitution_path="constitution.md",
+        constitution_hash_path="constitution.sha256",
+        identity_path="identity.json",
+        provider=ProviderConfiguration(
+            provider="test-llm",
+            model="test-model",
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    engine = runtime.cognitive_system.engine
+
+    assert isinstance(
+        engine.provider,
+        TestLLMProvider,
+    )
+
+
+def test_composition_passes_provider_configuration_to_llm_engine():
+    configuration = SofiaConfiguration(
+        constitution_path="constitution.md",
+        constitution_hash_path="constitution.sha256",
+        identity_path="identity.json",
+        provider=ProviderConfiguration(
+            provider="test-llm",
+            model="test-model",
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    engine = runtime.cognitive_system.engine
+
+    assert engine.configuration is configuration.provider

@@ -1,6 +1,8 @@
-﻿from sofia.cognition.rules import RuleEngine
+﻿from sofia.cognition.providers.factory import create_llm_provider
+from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.cognition.test_engine import TestCognitiveEngine
+from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
@@ -9,7 +11,10 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 
-def _create_cognitive_engine(configuration: SofiaConfiguration):
+
+def _create_cognitive_engine(
+    configuration: SofiaConfiguration,
+):
     """
     Construct the configured cognitive engine.
     """
@@ -22,13 +27,25 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
     if configuration.provider.provider == "rule":
         return RuleEngine()
 
+    if configuration.provider.provider == "test-llm":
+        provider = create_llm_provider(
+            configuration.provider,
+        )
+
+        return LLMCognitiveEngine(
+            configuration=configuration.provider,
+            provider=provider,
+        )
+
     raise ValueError(
         f"Unknown cognitive provider: "
         f"{configuration.provider.provider}"
     )
 
 
-def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
+def compose(
+    configuration: SofiaConfiguration,
+) -> SofiaRuntime:
     """
     Construct Sofía's foundational runtime dependencies.
     """
@@ -52,6 +69,7 @@ def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
     cognitive_system = CognitiveSystem(
         engine=cognitive_engine,
     )
+
     memory_store = MemoryStore()
 
     memory_system = MemorySystem(
