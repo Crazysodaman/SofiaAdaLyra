@@ -1,5 +1,8 @@
 ﻿import pytest
-
+from sofia.cognition.provider import (
+    LLMProvider,
+    LLMProviderError,
+)
 from sofia.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
@@ -427,3 +430,155 @@ def test_llm_cognitive_engine_preserves_provider_configuration():
 
     assert engine.configuration is provider
 
+class RecordingLLMProvider(LLMProvider):
+    """
+    Deterministic provider used to verify the provider boundary.
+    """
+
+    def __init__(
+        self,
+        response: CognitiveResponse,
+    ):
+        self.received_request = None
+        self.response = response
+
+    def respond(
+        self,
+        request: CognitiveRequest,
+    ) -> CognitiveResponse:
+        self.received_request = request
+        return self.response
+
+def test_llm_provider_is_an_abstract_provider():
+    assert issubclass(LLMProvider, object)
+
+
+def test_llm_cognitive_engine_requires_an_llm_provider():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    provider_configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    with pytest.raises(TypeError):
+        LLMCognitiveEngine(
+            configuration=provider_configuration,
+            provider=object(),
+        )
+
+
+def test_llm_cognitive_engine_passes_exact_request_to_provider():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    provider_configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    response = CognitiveResponse(
+        content="Provider response.",
+    )
+
+    provider = RecordingLLMProvider(
+        response=response,
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=provider_configuration,
+        provider=provider,
+    )
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="System message.",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Hello, Sofía.",
+            ),
+        )
+    )
+
+    engine.respond(request)
+
+    assert provider.received_request is request
+
+
+def test_llm_cognitive_engine_returns_provider_response():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    provider_configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    response = CognitiveResponse(
+        content="Provider response.",
+    )
+
+    provider = RecordingLLMProvider(
+        response=response,
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=provider_configuration,
+        provider=provider,
+    )
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Hello, Sofía.",
+            ),
+        )
+    )
+
+    result = engine.respond(request)
+
+    assert result is response
+
+def test_llm_cognitive_engine_is_a_cognitive_engine():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    provider = RecordingLLMProvider(
+        response=CognitiveResponse(
+            content="Test response.",
+        )
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=configuration,
+        provider=provider,
+    )
+
+    assert isinstance(engine, CognitiveEngine)
+
+def test_llm_cognitive_engine_preserves_provider_configuration():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    provider = RecordingLLMProvider(
+        response=CognitiveResponse(
+            content="Test response.",
+        )
+    )
+
+    engine = LLMCognitiveEngine(
+        configuration=configuration,
+        provider=provider,
+    )
+
+    assert engine.configuration is configuration

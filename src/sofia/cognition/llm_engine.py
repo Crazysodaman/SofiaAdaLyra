@@ -3,22 +3,30 @@ from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveResponse,
 )
+from sofia.cognition.provider import LLMProvider
 from sofia.config.model import ProviderConfiguration
 
 
 class LLMCognitiveEngine(CognitiveEngine):
     """
-    Provider-neutral cognitive engine for a real LLM backend.
+    Cognitive engine backed by an external LLM provider.
     """
 
     def __init__(
         self,
         configuration: ProviderConfiguration,
+        provider: LLMProvider,
     ):
+        if not isinstance(provider, LLMProvider):
+            raise TypeError(
+                "LLMCognitiveEngine requires an LLMProvider."
+            )
+
         self.configuration = configuration
+        self.provider = provider
 
     def respond(
         self,
         request: CognitiveRequest,
     ) -> CognitiveResponse:
-        raise NotImplementedError
+        return self.provider.respond(request)
