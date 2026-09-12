@@ -1,9 +1,15 @@
-﻿from sofia.cognition.engine import CognitiveEngine
+﻿from sofia.cognition.engine import (
+    CognitiveEngine,
+    CognitiveEngineError,
+)
 from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveResponse,
 )
-from sofia.cognition.provider import LLMProvider
+from sofia.cognition.provider import (
+    LLMProvider,
+    LLMProviderError,
+)
 from sofia.config.model import ProviderConfiguration
 
 
@@ -29,4 +35,10 @@ class LLMCognitiveEngine(CognitiveEngine):
         self,
         request: CognitiveRequest,
     ) -> CognitiveResponse:
-        return self.provider.respond(request)
+        try:
+            return self.provider.respond(request)
+
+        except LLMProviderError as exc:
+            raise CognitiveEngineError(
+                "LLM provider failed to process the cognitive request."
+            ) from exc

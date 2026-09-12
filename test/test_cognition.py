@@ -1,8 +1,5 @@
 ﻿import pytest
-from sofia.cognition.provider import (
-    LLMProvider,
-    LLMProviderError,
-)
+
 from sofia.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
@@ -13,9 +10,52 @@ from sofia.cognition.model import (
     CognitiveResponse,
     CognitiveRole,
 )
+from sofia.cognition.provider import (
+    LLMProvider,
+    LLMProviderError,
+)
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.model import ProviderConfiguration
+
+
+class RecordingLLMProvider(LLMProvider):
+    """
+    Deterministic provider used to verify the provider boundary.
+    """
+
+    def __init__(
+        self,
+        response: CognitiveResponse,
+    ):
+        self.received_request = None
+        self.response = response
+
+    def respond(
+        self,
+        request: CognitiveRequest,
+    ) -> CognitiveResponse:
+        self.received_request = request
+        return self.response
+
+
+class FailingLLMProvider(LLMProvider):
+    """
+    Deterministic provider used to verify provider failure handling.
+    """
+
+    def __init__(
+        self,
+        error: LLMProviderError,
+    ):
+        self.error = error
+
+    def respond(
+        self,
+        request: CognitiveRequest,
+    ) -> CognitiveResponse:
+        raise self.error
+
 
 def test_cognitive_system_does_not_use_fallback_when_primary_succeeds():
     class PrimaryEngine(CognitiveEngine):
@@ -380,90 +420,90 @@ def test_cognitive_engine_adapter_is_provider_neutral():
 
     assert isinstance(adapter, CognitiveEngine)
 
-def test_test_cognitive_engine_is_a_cognitive_engine():
-    from sofia.cognition.test_engine import TestCognitiveEngine
-
-    engine = TestCognitiveEngine()
-
-    assert isinstance(engine, CognitiveEngine)
 
 def test_test_cognitive_engine_is_a_cognitive_engine():
     from sofia.cognition.test_engine import TestCognitiveEngine
-    from sofia.config.model import ProviderConfiguration
 
-    provider = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test",
         model="test-model",
     )
 
     engine = TestCognitiveEngine(
-        configuration=provider,
+        configuration=configuration,
     )
 
     assert isinstance(engine, CognitiveEngine)
+
 
 def test_llm_cognitive_engine_is_a_cognitive_engine():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
-    provider = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test-llm",
         model="test-model",
     )
 
+    provider = RecordingLLMProvider(
+        response=CognitiveResponse(
+            content="Test response.",
+        )
+    )
+
     engine = LLMCognitiveEngine(
-        configuration=provider,
+        configuration=configuration,
+        provider=provider,
     )
 
     assert isinstance(engine, CognitiveEngine)
 
+
 def test_llm_cognitive_engine_preserves_provider_configuration():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
-    provider = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test-llm",
         model="test-model",
     )
 
-    engine = LLMCognitiveEngine(
-        configuration=provider,
+    provider = RecordingLLMProvider(
+        response=CognitiveResponse(
+            content="Test response.",
+        )
     )
 
-    assert engine.configuration is provider
+    engine = LLMCognitiveEngine(
+        configuration=configuration,
+        provider=provider,
+    )
 
-class RecordingLLMProvider(LLMProvider):
-    """
-    Deterministic provider used to verify the provider boundary.
-    """
+    assert engine.configuration is configuration
 
-    def __init__(
-        self,
-        response: CognitiveResponse,
-    ):
-        self.received_request = None
-        self.response = response
-
-    def respond(
-        self,
-        request: CognitiveRequest,
-    ) -> CognitiveResponse:
-        self.received_request = request
-        return self.response
 
 def test_llm_provider_is_an_abstract_provider():
-    assert issubclass(LLMProvider, object)
+    with pytest.raises(TypeError):
+        LLMProvider()
+
+
+def test_llm_provider_error_is_an_exception():
+    error = LLMProviderError(
+        "Provider failed."
+    )
+
+    assert isinstance(error, Exception)
 
 
 def test_llm_cognitive_engine_requires_an_llm_provider():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
-    provider_configuration = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test-llm",
         model="test-model",
     )
 
     with pytest.raises(TypeError):
         LLMCognitiveEngine(
-            configuration=provider_configuration,
+            configuration=configuration,
             provider=object(),
         )
 
@@ -471,7 +511,7 @@ def test_llm_cognitive_engine_requires_an_llm_provider():
 def test_llm_cognitive_engine_passes_exact_request_to_provider():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
-    provider_configuration = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test-llm",
         model="test-model",
     )
@@ -485,7 +525,7 @@ def test_llm_cognitive_engine_passes_exact_request_to_provider():
     )
 
     engine = LLMCognitiveEngine(
-        configuration=provider_configuration,
+        configuration=configuration,
         provider=provider,
     )
 
@@ -510,7 +550,7 @@ def test_llm_cognitive_engine_passes_exact_request_to_provider():
 def test_llm_cognitive_engine_returns_provider_response():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
-    provider_configuration = ProviderConfiguration(
+    configuration = ProviderConfiguration(
         provider="test-llm",
         model="test-model",
     )
@@ -524,7 +564,7 @@ def test_llm_cognitive_engine_returns_provider_response():
     )
 
     engine = LLMCognitiveEngine(
-        configuration=provider_configuration,
+        configuration=configuration,
         provider=provider,
     )
 
@@ -541,7 +581,8 @@ def test_llm_cognitive_engine_returns_provider_response():
 
     assert result is response
 
-def test_llm_cognitive_engine_is_a_cognitive_engine():
+
+def test_llm_cognitive_engine_translates_provider_failure():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
@@ -549,10 +590,12 @@ def test_llm_cognitive_engine_is_a_cognitive_engine():
         model="test-model",
     )
 
-    provider = RecordingLLMProvider(
-        response=CognitiveResponse(
-            content="Test response.",
-        )
+    provider_error = LLMProviderError(
+        "Provider is unavailable."
+    )
+
+    provider = FailingLLMProvider(
+        error=provider_error,
     )
 
     engine = LLMCognitiveEngine(
@@ -560,9 +603,25 @@ def test_llm_cognitive_engine_is_a_cognitive_engine():
         provider=provider,
     )
 
-    assert isinstance(engine, CognitiveEngine)
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Hello, Sofía.",
+            ),
+        )
+    )
 
-def test_llm_cognitive_engine_preserves_provider_configuration():
+    with pytest.raises(
+        CognitiveEngineError,
+        match="LLM provider failed to process the cognitive request.",
+    ) as exc_info:
+        engine.respond(request)
+
+    assert exc_info.value.__cause__ is provider_error
+
+
+def test_llm_cognitive_engine_does_not_swallow_provider_failure():
     from sofia.cognition.llm_engine import LLMCognitiveEngine
 
     configuration = ProviderConfiguration(
@@ -570,10 +629,12 @@ def test_llm_cognitive_engine_preserves_provider_configuration():
         model="test-model",
     )
 
-    provider = RecordingLLMProvider(
-        response=CognitiveResponse(
-            content="Test response.",
-        )
+    provider_error = LLMProviderError(
+        "Provider is unavailable."
+    )
+
+    provider = FailingLLMProvider(
+        error=provider_error,
     )
 
     engine = LLMCognitiveEngine(
@@ -581,4 +642,47 @@ def test_llm_cognitive_engine_preserves_provider_configuration():
         provider=provider,
     )
 
-    assert engine.configuration is configuration
+    with pytest.raises(CognitiveEngineError):
+        engine.respond(
+            CognitiveRequest(messages=()),
+        )
+
+
+def test_cognitive_system_uses_fallback_after_llm_provider_failure():
+    from sofia.cognition.llm_engine import LLMCognitiveEngine
+
+    configuration = ProviderConfiguration(
+        provider="test-llm",
+        model="test-model",
+    )
+
+    provider = FailingLLMProvider(
+        error=LLMProviderError(
+            "Provider is unavailable."
+        ),
+    )
+
+    primary_engine = LLMCognitiveEngine(
+        configuration=configuration,
+        provider=provider,
+    )
+
+    fallback_engine = RuleEngine()
+
+    system = CognitiveSystem(
+        engine=primary_engine,
+        fallback_engine=fallback_engine,
+    )
+
+    response = system.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Hello, Sofía.",
+                ),
+            ),
+        ),
+    )
+
+    assert response.content == "Hello, Sparks."
