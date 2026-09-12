@@ -23,6 +23,7 @@ class SofiaConfiguration:
     constitution_path: str
     constitution_hash_path: str
     identity_path: str
+    personality_path: str
     provider: ProviderConfiguration
 
     def __post_init__(self) -> None:
@@ -30,4 +31,9 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration provider must be a "
                 "ProviderConfiguration."
+            )
+
+        if not self.personality_path:
+            raise ValueError(
+                "SofiaConfiguration personality_path must not be empty."
             )
