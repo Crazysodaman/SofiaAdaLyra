@@ -58,6 +58,10 @@ class SofiaRuntime:
     def integrity_verifier(self) -> ConstitutionIntegrityVerifier:
         return self._integrity_verifier
 
+    @integrity_verifier.setter
+    def integrity_verifier(self, verifier) -> None:
+        self._integrity_verifier = verifier
+
     @property
     def identity(self) -> SofiaIdentity | None:
         return self._identity
@@ -75,9 +79,12 @@ class SofiaRuntime:
         return self._cognitive_system
 
     def start(self) -> None:
-        if self._state is not RuntimeState.CREATED:
+        if self._state not in (
+            RuntimeState.CREATED,
+            RuntimeState.STOPPED,
+        ):
             raise SofiaRuntimeError(
-                "SofiaRuntime can only start from the CREATED state."
+                "SofiaRuntime can only start from the CREATED or STOPPED state."
             )
 
         self._state = RuntimeState.STARTING
@@ -96,6 +103,8 @@ class SofiaRuntime:
             self._state = RuntimeState.READY
 
         except ConstitutionIntegrityError as exc:
+            self._constitution = None
+            self._identity = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -103,6 +112,8 @@ class SofiaRuntime:
             ) from exc
 
         except Exception as exc:
+            self._constitution = None
+            self._identity = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
