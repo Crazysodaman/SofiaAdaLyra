@@ -1,5 +1,4 @@
 ﻿from sofia.cognition.system import CognitiveSystem
-from sofia.config.model import ProviderConfiguration
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -52,8 +51,20 @@ class SofiaRuntime:
         return self._constitution
 
     @property
+    def constitution_store(self) -> ConstitutionStore:
+        return self._constitution_store
+
+    @property
+    def integrity_verifier(self) -> ConstitutionIntegrityVerifier:
+        return self._integrity_verifier
+
+    @property
     def identity(self) -> SofiaIdentity | None:
         return self._identity
+
+    @property
+    def identity_store(self) -> IdentityStore:
+        return self._identity_store
 
     @property
     def memory_system(self) -> MemorySystem:
@@ -106,13 +117,15 @@ class SofiaRuntime:
 
         return self._cognitive_system.respond(request)
 
-    def stop(self) -> None:
+    def shutdown(self) -> None:
         if self._state is RuntimeState.STOPPED:
-            return
+            raise SofiaRuntimeError(
+                "SofiaRuntime is already stopped."
+            )
 
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
-                "SofiaRuntime can only stop from the READY state."
+                "SofiaRuntime can only shut down from the READY state."
             )
 
         self._constitution = None

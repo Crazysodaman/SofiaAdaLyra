@@ -23,6 +23,20 @@ class ConstitutionIntegrityVerifier:
             encoding="utf-8"
         ).strip()
 
+        if len(expected_hash) != 64:
+            raise ConstitutionIntegrityError(
+                "Trusted Constitution hash must contain exactly "
+                "64 hexadecimal characters."
+            )
+
+        try:
+            int(expected_hash, 16)
+        except ValueError as exc:
+            raise ConstitutionIntegrityError(
+                "Trusted Constitution hash must contain only "
+                "hexadecimal characters."
+            ) from exc
+
         if constitution.content_hash.lower() != expected_hash.lower():
             raise ConstitutionIntegrityError(
                 "Constitution integrity verification failed."
