@@ -2,6 +2,12 @@
 
 import pytest
 
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.constitution.integrity import (
@@ -11,14 +17,10 @@ from sofia.constitution.integrity import (
 from sofia.constitution.store import ConstitutionStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
+from sofia.memory.store import MemoryStore
+from sofia.memory.system import MemorySystem
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-from sofia.cognition.model import (
-    CognitiveMessage,
-    CognitiveRequest,
-    CognitiveRole,
-    CognitiveResponse,
-)
 
 
 CONSTITUTION_PATH = (
@@ -55,6 +57,12 @@ def create_runtime(
 
     identity_store = IdentityStore(identity_path)
 
+    memory_store = MemoryStore()
+
+    memory_system = MemorySystem(
+        memory_store,
+    )
+
     cognitive_system = CognitiveSystem(
         engine=RuleEngine(),
     )
@@ -63,6 +71,7 @@ def create_runtime(
         constitution_store=store,
         integrity_verifier=verifier,
         identity_store=identity_store,
+        memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
 
@@ -84,6 +93,7 @@ def test_start_with_valid_constitution_reaches_ready():
 
 def test_start_with_invalid_constitution_fails(tmp_path: Path):
     store = ConstitutionStore(CONSTITUTION_PATH)
+
     identity_store = IdentityStore(
         tmp_path / "identity.json",
     )
@@ -94,6 +104,12 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
                 "Constitution integrity verification failed."
             )
 
+    memory_store = MemoryStore()
+
+    memory_system = MemorySystem(
+        memory_store,
+    )
+
     cognitive_system = CognitiveSystem(
         engine=RuleEngine(),
     )
@@ -102,6 +118,7 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
         constitution_store=store,
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
+        memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
 
@@ -158,6 +175,7 @@ def test_shutdown_from_created_is_rejected():
 
 def test_shutdown_from_failed_is_rejected(tmp_path: Path):
     store = ConstitutionStore(CONSTITUTION_PATH)
+
     identity_store = IdentityStore(
         tmp_path / "identity.json",
     )
@@ -168,6 +186,12 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
                 "Constitution integrity verification failed."
             )
 
+    memory_store = MemoryStore()
+
+    memory_system = MemorySystem(
+        memory_store,
+    )
+
     cognitive_system = CognitiveSystem(
         engine=RuleEngine(),
     )
@@ -176,6 +200,7 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
         constitution_store=store,
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
+        memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
 
@@ -204,6 +229,7 @@ def test_failed_restart_clears_previous_constitution():
     runtime = create_runtime()
 
     runtime.start()
+
     assert runtime.constitution is not None
 
     runtime.shutdown()
@@ -233,6 +259,7 @@ def test_runtime_identity_is_none_before_start(tmp_path: Path):
 
 def test_runtime_loads_identity_on_start(tmp_path: Path):
     identity_path = tmp_path / "identity.json"
+
     identity_store = IdentityStore(identity_path)
 
     identity_store.save(
@@ -252,6 +279,7 @@ def test_runtime_loads_identity_on_start(tmp_path: Path):
 
 def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
     identity_path = tmp_path / "identity.json"
+
     identity_store = IdentityStore(identity_path)
 
     identity_store.save(
@@ -273,6 +301,7 @@ def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
 
 def test_runtime_reload_identity_on_restart(tmp_path: Path):
     identity_path = tmp_path / "identity.json"
+
     identity_store = IdentityStore(identity_path)
 
     identity_store.save(
@@ -297,41 +326,7 @@ def test_runtime_reload_identity_on_restart(tmp_path: Path):
     assert runtime.identity == SofiaIdentity(
         name="Sofía Ada Lyra",
     )
-def test_ready_runtime_can_process_cognitive_request():
-    runtime = create_runtime()
 
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role="user",
-                content="Hello, Sofía.",
-            ),
-        ),
-    )
-
-    response = runtime.respond(request)
-
-    assert response == CognitiveResponse(
-        content="Hello, Sparks.",
-    )
-
-
-def test_runtime_cannot_process_cognitive_request_before_start():
-    runtime = create_runtime()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role="user",
-                content="Hello, Sofía.",
-            ),
-        ),
-    )
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.respond(request)
 
 def test_ready_runtime_can_process_cognitive_request():
     runtime = create_runtime()
@@ -349,7 +344,9 @@ def test_ready_runtime_can_process_cognitive_request():
 
     response = runtime.respond(request)
 
-    assert response.content == "Hello, Sparks."
+    assert response == CognitiveResponse(
+        content="Hello, Sparks.",
+    )
 
 
 def test_runtime_cannot_process_cognitive_request_before_start():
