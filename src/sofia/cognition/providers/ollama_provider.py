@@ -1,6 +1,4 @@
-﻿from collections.abc import Sequence
-
-from ollama import Client
+﻿from ollama import Client
 from ollama import ResponseError
 
 from sofia.cognition.model import (
