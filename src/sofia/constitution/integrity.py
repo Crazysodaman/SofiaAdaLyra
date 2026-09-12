@@ -16,10 +16,14 @@ class ConstitutionIntegrityVerifier:
     """
 
     def __init__(self, hash_path: str):
-        self._hash_path = Path(hash_path)
+        self._expected_hash_path = Path(hash_path)
+
+    @property
+    def expected_hash_path(self) -> Path:
+        return self._expected_hash_path
 
     def verify(self, constitution: Constitution) -> None:
-        expected_hash = self._hash_path.read_text(
+        expected_hash = self.expected_hash_path.read_text(
             encoding="utf-8"
         ).strip()
 
