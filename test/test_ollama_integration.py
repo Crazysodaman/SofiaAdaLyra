@@ -115,7 +115,7 @@ def test_real_ollama_cognitive_path(tmp_path):
                     "Ollama integration is operational."
                 ),
             ),
-        ),
+        )
     )
 
     response = runtime.respond(request)
@@ -132,7 +132,7 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
     identity_path = tmp_path / "identity.json"
 
     identity_path.write_text(
-        '{"name": "Sofía Context Integration Test"}',
+        '{"name": "Sofía Ada Lyra"}',
         encoding="utf-8",
     )
 
@@ -141,7 +141,7 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
     personality_path.write_text(
         """
         {
-            "name": "Sofía Context Integration Test",
+            "name": "Sofía Ada Lyra",
             "traits": [
                 "rigorous",
                 "direct"
@@ -185,13 +185,11 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
                     "Respond with only the exact configured name."
                 ),
             ),
-        ),
+        )
     )
 
     response = runtime.respond(request)
 
-    assert response.content.strip() == (
-        "Sofía Context Integration Test"
-    )
+    assert response.content.strip() == "Sofía Ada Lyra"
 
     runtime.shutdown()
