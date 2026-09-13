@@ -10,12 +10,11 @@ def create_default_configuration() -> SofiaConfiguration:
     """
     Create the standard local configuration for Sofía.
 
-    The default cognitive provider is Ollama using the configured
-    local model. Paths are resolved relative to the repository root
-    rather than the current working directory.
+    Paths are resolved relative to the repository root rather than
+    the current working directory.
     """
 
-    repository_root = Path(__file__).resolve().parents[2]
+    repository_root = Path(__file__).resolve().parents[3]
 
     state_directory = repository_root / "state"
     state_directory.mkdir(
