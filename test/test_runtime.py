@@ -1,7 +1,8 @@
 ﻿from pathlib import Path
 
 import pytest
-
+import sys
+from sofia.personality.model import PersonalityProfile
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -387,3 +388,23 @@ def test_runtime_cannot_process_cognitive_request_before_start():
 
     with pytest.raises(SofiaRuntimeError):
         runtime.respond(request)
+@pytest.fixture(autouse=True)
+def personality_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    personality_path = tmp_path / "personality.json"
+
+    PersonalityStore(personality_path).save(
+        PersonalityProfile(
+            name="Sofía Ada Lyra",
+            traits=("rigorous", "curious"),
+            communication_style="direct",
+        )
+    )
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "PERSONALITY_PATH",
+        personality_path,
+    )

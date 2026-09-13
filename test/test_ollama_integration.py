@@ -50,10 +50,24 @@ def test_real_ollama_cognitive_path(tmp_path):
         encoding="utf-8",
     )
 
+    personality_path = tmp_path / "personality.json"
+
+    personality_path.write_text(
+        """
+        {
+            "name": "Sofía Ada Lyra",
+            "traits": [],
+            "communication_style": ""
+        }
+        """,
+        encoding="utf-8",
+    )
+
     configuration = SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,
         identity_path=identity_path,
+        personality_path=personality_path,
         provider=ProviderConfiguration(
             provider="ollama",
             model=OLLAMA_MODEL,
