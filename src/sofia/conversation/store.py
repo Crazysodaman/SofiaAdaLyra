@@ -1,27 +1,25 @@
-﻿from datetime import datetime
+﻿from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from uuid import uuid4
 
 from sofia.conversation.model import (
     ConversationMessage,
-    ConversationRole,
+    ConversationSession,
 )
 
 
 class ConversationStore:
     """
-    Persistent storage for conversation messages.
+    SQLite-backed persistent conversation storage.
 
-    Conversation history is distinct from long-term memory.
-    Messages belong to a session and are retrieved in creation order.
+    Stores conversation sessions and their messages.
     """
 
     def __init__(
         self,
         database_path: Path | str,
     ) -> None:
-        self._database_path = database_path
-
         self._connection = sqlite3.connect(
             str(database_path)
         )
@@ -29,6 +27,16 @@ class ConversationStore:
         self._initialize_database()
 
     def _initialize_database(self) -> None:
+        self._connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS conversation_sessions (
+                id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
         self._connection.execute(
             """
             CREATE TABLE IF NOT EXISTS conversation_messages (
@@ -42,6 +50,56 @@ class ConversationStore:
         )
 
         self._connection.commit()
+
+    def create_session(self) -> ConversationSession:
+        now = datetime.now(timezone.utc)
+        session_id = str(uuid4())
+
+        self._connection.execute(
+            """
+            INSERT INTO conversation_sessions (
+                id,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?)
+            """,
+            (
+                session_id,
+                now.isoformat(),
+                now.isoformat(),
+            ),
+        )
+
+        self._connection.commit()
+
+        return ConversationSession(
+            id=session_id,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def get_session(
+        self,
+        session_id: str,
+    ) -> ConversationSession | None:
+        row = self._connection.execute(
+            """
+            SELECT id, created_at, updated_at
+            FROM conversation_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return ConversationSession(
+            id=row[0],
+            created_at=datetime.fromisoformat(row[1]),
+            updated_at=datetime.fromisoformat(row[2]),
+        )
 
     def save(
         self,
@@ -72,6 +130,20 @@ class ConversationStore:
             ),
         )
 
+        self._connection.execute(
+            """
+            UPDATE conversation_sessions
+            SET updated_at = ?
+            WHERE id = ?
+            AND updated_at < ?
+            """,
+            (
+                message.created_at.isoformat(),
+                message.session_id,
+                message.created_at.isoformat(),
+            ),
+        )
+
         self._connection.commit()
 
     def list_messages(
@@ -80,12 +152,7 @@ class ConversationStore:
     ) -> tuple[ConversationMessage, ...]:
         rows = self._connection.execute(
             """
-            SELECT
-                id,
-                session_id,
-                role,
-                content,
-                created_at
+            SELECT id, session_id, role, content, created_at
             FROM conversation_messages
             WHERE session_id = ?
             ORDER BY created_at ASC, id ASC

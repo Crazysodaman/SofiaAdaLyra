@@ -161,3 +161,35 @@ def test_conversation_store_creates_and_persists_session(
     )
 
     assert reloaded_session == session
+
+def test_saving_message_updates_session_timestamp(
+    tmp_path,
+):
+    database_path = tmp_path / "sofia.db"
+
+    store = ConversationStore(database_path)
+
+    session = store.create_session()
+
+    message_time = datetime.fromisoformat(
+        "2026-09-13T19:00:00+00:00"
+    )
+
+    message = ConversationMessage(
+        id="message-1",
+        session_id=session.id,
+        role=ConversationRole.USER,
+        content="Activity should update the session.",
+        created_at=message_time,
+    )
+
+    store.save(message)
+
+    updated_session = store.get_session(
+        session.id
+    )
+
+    assert updated_session is not None
+    assert updated_session.id == session.id
+    assert updated_session.created_at == session.created_at
+    assert updated_session.updated_at == message_time
