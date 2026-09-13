@@ -28,6 +28,7 @@ def create_configuration() -> SofiaConfiguration:
         identity_path=Path("identity.json"),
         personality_path=Path("personality.json"),
         avatar_path=Path("avatar.json"),
+        state_path=Path("sofia.db"),
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -142,6 +143,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
         avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -222,6 +224,7 @@ def test_composition_selects_configured_rule_provider(
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
         avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(
             provider="rule",
             model="rule-engine",
@@ -247,6 +250,7 @@ def test_composition_rejects_unknown_provider(
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
         avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(
             provider="unknown-provider",
             model="unknown-model",
@@ -269,6 +273,7 @@ def test_composition_selects_test_provider_engine(
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
         avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -320,6 +325,7 @@ def test_composition_creates_llm_cognitive_engine():
         identity_path="identity.json",
         personality_path="personality.json",
         avatar_path="avatar.json",
+        state_path="sofia.db",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -341,6 +347,7 @@ def test_composition_creates_test_llm_provider():
         identity_path="identity.json",
         personality_path="personality.json",
         avatar_path="avatar.json",
+        state_path="sofia.db",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -364,6 +371,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
         identity_path="identity.json",
         personality_path="personality.json",
         avatar_path="avatar.json",
+        state_path="sofia.db",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -375,3 +383,4 @@ def test_composition_passes_provider_configuration_to_llm_engine():
     engine = runtime.cognitive_system.engine
 
     assert engine.configuration is configuration.provider
+
