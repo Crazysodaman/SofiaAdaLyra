@@ -112,7 +112,7 @@ class AvatarStore:
         try:
             data = json.loads(
                 self._path.read_text(
-                    encoding="utf-8"
+                    encoding="utf-8-sig"
                 )
             )
         except FileNotFoundError as exc:
