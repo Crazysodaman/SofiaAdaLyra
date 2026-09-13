@@ -16,36 +16,22 @@ from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 
 
-def _create_cognitive_engine(
-    configuration: SofiaConfiguration,
-):
-    """
-    Construct the configured cognitive engine.
-    """
-
+def _create_cognitive_engine(configuration: SofiaConfiguration):
     if configuration.provider.provider == "test":
-        return TestCognitiveEngine(
-            configuration=configuration.provider,
-        )
+        return TestCognitiveEngine(configuration=configuration.provider)
 
     if configuration.provider.provider == "rule":
         return RuleEngine()
 
     if configuration.provider.provider == "test-llm":
-        provider = create_llm_provider(
-            configuration.provider,
-        )
-
+        provider = create_llm_provider(configuration.provider)
         return LLMCognitiveEngine(
             configuration=configuration.provider,
             provider=provider,
         )
 
     if configuration.provider.provider == "ollama":
-        provider = create_llm_provider(
-            configuration.provider,
-        )
-
+        provider = create_llm_provider(configuration.provider)
         return LLMCognitiveEngine(
             configuration=configuration.provider,
             provider=provider,
@@ -57,17 +43,7 @@ def _create_cognitive_engine(
     )
 
 
-def compose(
-    configuration: SofiaConfiguration,
-) -> SofiaRuntime:
-    """
-    Construct Sofía's foundational runtime dependencies.
-
-    Configuration owns external representation.
-    Composition converts that representation into
-    the concrete dependency types required by the system.
-    """
-
+def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
     )
@@ -93,13 +69,15 @@ def compose(
     )
 
     cognitive_system = CognitiveSystem(
-        engine=cognitive_engine,
+        engine=cognitive_engine
     )
 
-    memory_store = MemoryStore()
+    memory_store = MemoryStore(
+        configuration.state_path
+    )
 
     memory_system = MemorySystem(
-        memory_store,
+        memory_store
     )
 
     return SofiaRuntime(

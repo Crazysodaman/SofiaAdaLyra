@@ -384,3 +384,24 @@ def test_composition_passes_provider_configuration_to_llm_engine():
 
     assert engine.configuration is configuration.provider
 
+def test_composition_passes_state_path_to_memory_store(
+    tmp_path,
+):
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(
+            provider="test",
+            model="test-model",
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    memory_store = runtime.memory_system._store
+
+    assert memory_store._database_path == configuration.state_path
