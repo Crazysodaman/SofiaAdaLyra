@@ -12,6 +12,7 @@ from sofia.constitution.store import ConstitutionStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 
@@ -48,6 +49,7 @@ class SofiaRuntime:
         self._state = RuntimeState.CREATED
         self._constitution: Constitution | None = None
         self._identity: SofiaIdentity | None = None
+        self._personality: PersonalityProfile | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -76,6 +78,10 @@ class SofiaRuntime:
     @property
     def identity_store(self) -> IdentityStore:
         return self._identity_store
+
+    @property
+    def personality(self) -> PersonalityProfile | None:
+        return self._personality
 
     @property
     def personality_store(self) -> PersonalityStore:
@@ -108,14 +114,17 @@ class SofiaRuntime:
             )
 
             identity = self._identity_store.load()
+            personality = self._personality_store.load()
 
             self._constitution = constitution
             self._identity = identity
+            self._personality = personality
             self._state = RuntimeState.READY
 
         except ConstitutionIntegrityError as exc:
             self._constitution = None
             self._identity = None
+            self._personality = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -125,6 +134,7 @@ class SofiaRuntime:
         except Exception as exc:
             self._constitution = None
             self._identity = None
+            self._personality = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -146,6 +156,7 @@ class SofiaRuntime:
             context=CognitiveContext(
                 request=request,
                 identity=self._identity,
+                personality=self._personality,
                 constitution=self._constitution,
             ),
             authority=Authority(),
@@ -166,4 +177,5 @@ class SofiaRuntime:
 
         self._constitution = None
         self._identity = None
+        self._personality = None
         self._state = RuntimeState.STOPPED
