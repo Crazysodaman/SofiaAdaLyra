@@ -1,10 +1,8 @@
-﻿from sofia.composition.root import (
-    compose,
-    compose_conversation_service,
-)
+﻿from sofia.application.conversation_service import ConversationService
+from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
+from sofia.conversation.store import ConversationStore
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-from sofia.application.conversation_service import ConversationService
 
 
 class SofiaApplicationError(RuntimeError):
@@ -27,10 +25,15 @@ class SofiaApplication:
         self._runtime: SofiaRuntime = compose(
             configuration
         )
+
+        conversation_store = ConversationStore(
+            configuration.state_path
+        )
+
         self._conversation_service: ConversationService = (
-            compose_conversation_service(
-                configuration,
-                self._runtime,
+            ConversationService(
+                runtime=self._runtime,
+                conversation_store=conversation_store,
             )
         )
 
