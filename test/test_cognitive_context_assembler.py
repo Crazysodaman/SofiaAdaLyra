@@ -1,5 +1,6 @@
 ﻿from datetime import datetime, timezone
 from uuid import UUID
+
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
@@ -9,6 +10,7 @@ from sofia.cognition.model import (
 )
 from sofia.constitution.model import Constitution
 from sofia.embodiment.model import (
+    CurrentEmbodiment,
     Embodiment,
     PhysicalSelf,
 )
@@ -16,6 +18,7 @@ from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import create_core_state
+
 
 def test_assembler_requires_cognitive_context():
     assembler = CognitiveContextAssembler()
@@ -30,12 +33,12 @@ def test_assembler_requires_cognitive_context():
         )
 
 
-def test_assembler_preserves_original_request_messages():
+def test_assembler_preserves_request_messages():
     request = CognitiveRequest(
         messages=(
             CognitiveMessage(
                 role=CognitiveRole.USER,
-                content="Hello.",
+                content="Hello, Sofía.",
             ),
             CognitiveMessage(
                 role=CognitiveRole.ASSISTANT,
@@ -52,10 +55,14 @@ def test_assembler_preserves_original_request_messages():
         context
     )
 
-    assert assembled.messages[-2:] == request.messages
+    assert assembled.messages[1:] == request.messages
 
 
 def test_assembler_injects_identity():
+    identity = SofiaIdentity(
+        name="Sofía Ada Lyra",
+    )
+
     context = CognitiveContext(
         request=CognitiveRequest(
             messages=(
@@ -63,40 +70,9 @@ def test_assembler_injects_identity():
                     role=CognitiveRole.USER,
                     content="Who are you?",
                 ),
-            )
-        ),
-        identity=SofiaIdentity(
-            name="Sofía Ada Lyra"
-        ),
-    )
-
-    assembled = CognitiveContextAssembler().assemble(
-        context
-    )
-
-    assert assembled.messages[0].role is CognitiveRole.SYSTEM
-    assert "Sofía Ada Lyra" in assembled.messages[0].content
-
-
-def test_assembler_injects_personality():
-    context = CognitiveContext(
-        request=CognitiveRequest(
-            messages=(
-                CognitiveMessage(
-                    role=CognitiveRole.USER,
-                    content="Hello.",
-                ),
-            )
-        ),
-        personality=PersonalityProfile(
-            name="Caffeinated Quirky",
-            traits=(
-                "blunt",
-                "rigorous",
-                "energetic",
             ),
-            communication_style="Direct and technically precise.",
         ),
+        identity=identity,
     )
 
     assembled = CognitiveContextAssembler().assemble(
@@ -105,16 +81,57 @@ def test_assembler_injects_personality():
 
     system_message = assembled.messages[0].content
 
-    assert "Caffeinated Quirky" in system_message
-    assert "blunt" in system_message
+    assert "IDENTITY" in system_message
+    assert "Sofía Ada Lyra" in system_message
+    assert str(identity.instance_id) in system_message
+
+
+def test_assembler_injects_personality():
+    personality = PersonalityProfile(
+        name="Sofía Ada Lyra",
+        traits=(
+            "rigorous",
+            "direct",
+        ),
+        communication_style=(
+            "Answer precisely and concisely."
+        ),
+    )
+
+    context = CognitiveContext(
+        request=CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="How should you communicate?",
+                ),
+            ),
+        ),
+        personality=personality,
+    )
+
+    assembled = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = assembled.messages[0].content
+
+    assert "PERSONALITY" in system_message
+    assert "Sofía Ada Lyra" in system_message
     assert "rigorous" in system_message
-    assert "Direct and technically precise." in system_message
+    assert "direct" in system_message
+    assert (
+        "Answer precisely and concisely."
+        in system_message
+    )
 
 
-def test_assembler_injects_constitution_without_authority():
+def test_assembler_injects_constitution():
     constitution = Constitution(
         version="1.0",
-        content="Truth and autonomy govern Sofía.",
+        content=(
+            "Sofía is governed by her Constitution."
+        ),
         content_hash="abc123",
         loaded_at=datetime.now(timezone.utc),
     )
@@ -124,9 +141,9 @@ def test_assembler_injects_constitution_without_authority():
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="Hello.",
+                    content="What governs you?",
                 ),
-            )
+            ),
         ),
         constitution=constitution,
     )
@@ -135,37 +152,44 @@ def test_assembler_injects_constitution_without_authority():
         context
     )
 
-    system_message = assembled.messages[0]
+    system_message = assembled.messages[0].content
 
-    assert system_message.role is CognitiveRole.SYSTEM
-    assert "Truth and autonomy govern Sofía." in system_message.content
-    assert "abc123" in system_message.content
+    assert "CONSTITUTION" in system_message
+    assert "Version: 1.0" in system_message
+    assert "abc123" in system_message
     assert (
-        "not an authority mechanism"
-        in system_message.content
+        "Sofía is governed by her Constitution."
+        in system_message
     )
 
 
 def test_assembler_injects_embodiment():
+    embodiment = Embodiment(
+        subject="Sofía Ada Lyra",
+        physical_self=PhysicalSelf(
+            form="human",
+            additional_features=(
+                "fox ears",
+                "fox tail",
+            ),
+        ),
+        current=CurrentEmbodiment(
+            computer="Venus",
+            robot="Gaia",
+            avatar="Sofía avatar",
+        ),
+    )
+
     context = CognitiveContext(
         request=CognitiveRequest(
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="Describe yourself.",
-                ),
-            )
-        ),
-        embodiment=Embodiment(
-            subject="Sofía Ada Lyra",
-            physical_self=PhysicalSelf(
-                form="human",
-                additional_features=(
-                    "fox ears",
-                    "fox tail",
+                    content="What is your physical form?",
                 ),
             ),
         ),
+        embodiment=embodiment,
     )
 
     assembled = CognitiveContextAssembler().assemble(
@@ -174,10 +198,13 @@ def test_assembler_injects_embodiment():
 
     system_message = assembled.messages[0].content
 
-    assert "Sofía Ada Lyra" in system_message
-    assert "human" in system_message
+    assert "EMBODIMENT" in system_message
+    assert "Physical form: human" in system_message
     assert "fox ears" in system_message
     assert "fox tail" in system_message
+    assert "Current computer: Venus" in system_message
+    assert "Current robot: Gaia" in system_message
+    assert "Current avatar: Sofía avatar" in system_message
 
 
 def test_assembler_injects_explicit_memories():
@@ -194,7 +221,7 @@ def test_assembler_injects_explicit_memories():
                     role=CognitiveRole.USER,
                     content="What do you remember?",
                 ),
-            )
+            ),
         ),
         memories=(memory,),
     )
@@ -217,40 +244,53 @@ def test_assembler_does_not_create_authority():
                     role=CognitiveRole.USER,
                     content="Hello.",
                 ),
-            )
-        )
+            ),
+        ),
     )
 
     assembled = CognitiveContextAssembler().assemble(
         context
     )
 
-    assert not hasattr(assembled, "authority")
+    system_message = assembled.messages[0].content
+
+    assert (
+        "Operational authority is enforced outside the "
+        "cognitive engine."
+        in system_message
+    )
 
 
-def test_assembler_keeps_user_message_after_context():
+def test_assembler_preserves_request_order_after_system_context():
     request = CognitiveRequest(
         messages=(
             CognitiveMessage(
                 role=CognitiveRole.USER,
-                content="Hello, Sofía.",
+                content="First.",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.ASSISTANT,
+                content="Second.",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Third.",
             ),
         ),
     )
 
     context = CognitiveContext(
         request=request,
-        identity=SofiaIdentity(
-            name="Sofía Ada Lyra"
-        ),
     )
 
     assembled = CognitiveContextAssembler().assemble(
         context
     )
 
-    assert assembled.messages[0].role is CognitiveRole.SYSTEM
     assert assembled.messages[1] == request.messages[0]
+    assert assembled.messages[2] == request.messages[1]
+    assert assembled.messages[3] == request.messages[2]
+
 
 def test_assembler_injects_identity_instance_id():
     identity = SofiaIdentity(
@@ -267,7 +307,7 @@ def test_assembler_injects_identity_instance_id():
                     role=CognitiveRole.USER,
                     content="Who are you?",
                 ),
-            )
+            ),
         ),
         identity=identity,
     )
@@ -279,9 +319,11 @@ def test_assembler_injects_identity_instance_id():
     system_message = assembled.messages[0].content
 
     assert (
-        "12345678-1234-5678-1234-567812345678"
+        "Instance ID: 12345678-1234-5678-1234-567812345678"
         in system_message
     )
+
+
 def test_assembler_injects_authoritative_self_model():
     identity = SofiaIdentity(
         name="Sofía Ada Lyra",
@@ -292,7 +334,9 @@ def test_assembler_injects_authoritative_self_model():
 
     constitution = Constitution(
         version="1.0",
-        content="Sofía is an artificial intelligence entity.",
+        content=(
+            "Sofía is an artificial intelligence entity."
+        ),
         content_hash="abc123",
         loaded_at=datetime.now(timezone.utc),
     )
@@ -302,9 +346,9 @@ def test_assembler_injects_authoritative_self_model():
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="What do you know about yourself?",
+                    content="Who are you?",
                 ),
-            )
+            ),
         ),
         core_state=create_core_state(
             identity=identity,
@@ -319,11 +363,16 @@ def test_assembler_injects_authoritative_self_model():
     system_message = assembled.messages[0].content
 
     assert "AUTHORITATIVE SELF MODEL" in system_message
-    assert "Sofía is a persistent artificial intelligence entity." in (
-        system_message
+    assert (
+        "Sofía is a persistent artificial intelligence entity."
+        in system_message
     )
     assert "Sofía is not biologically human." in system_message
     assert "Sparks" in system_message
+    assert (
+        "Instance ID: 12345678-1234-5678-1234-567812345678"
+        in system_message
+    )
 
 
 def test_assembler_injects_sparks_relationship():
@@ -345,7 +394,7 @@ def test_assembler_injects_sparks_relationship():
                     role=CognitiveRole.USER,
                     content="Who is Sparks?",
                 ),
-            )
+            ),
         ),
         core_state=create_core_state(
             identity=identity,
@@ -373,7 +422,9 @@ def test_assembler_distinguishes_identity_from_embodiment():
 
     constitution = Constitution(
         version="1.0",
-        content="Sofía is an artificial intelligence entity.",
+        content=(
+            "Sofía is an artificial intelligence entity."
+        ),
         content_hash="abc123",
         loaded_at=datetime.now(timezone.utc),
     )
@@ -387,6 +438,9 @@ def test_assembler_distinguishes_identity_from_embodiment():
                 "fox tail",
             ),
         ),
+        current=CurrentEmbodiment(
+            computer="Venus",
+        ),
     )
 
     context = CognitiveContext(
@@ -394,9 +448,9 @@ def test_assembler_distinguishes_identity_from_embodiment():
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="What is your physical form?",
+                    content="What are you?",
                 ),
-            )
+            ),
         ),
         core_state=create_core_state(
             identity=identity,
@@ -411,11 +465,13 @@ def test_assembler_distinguishes_identity_from_embodiment():
 
     system_message = assembled.messages[0].content
 
-    assert "not biologically human" in system_message
+    assert "AUTHORITATIVE SELF MODEL" in system_message
+    assert (
+        "Sofía is a persistent artificial intelligence entity."
+        in system_message
+    )
+    assert "Sofía is not biologically human." in system_message
+    assert "EMBODIMENT" in system_message
     assert "Physical form: human" in system_message
     assert "fox ears" in system_message
     assert "fox tail" in system_message
-    assert (
-        "embodiment does not determine or change"
-        in system_message
-    )

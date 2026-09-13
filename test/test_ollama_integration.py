@@ -194,6 +194,7 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
 
     runtime.shutdown()
 
+
 @pytest.mark.integration
 def test_real_ollama_receives_sofia_instance_identity(
     tmp_path,
@@ -243,6 +244,41 @@ def test_real_ollama_receives_sofia_instance_identity(
     runtime = compose(configuration)
 
     runtime.start()
+
+    provider = runtime.cognitive_system.engine.provider
+
+    assert isinstance(
+        provider,
+        OllamaProvider,
+    )
+
+    original_respond = provider.respond
+
+    def inspect_request(
+        provider_request: CognitiveRequest,
+    ):
+        print(
+            "\n===== REQUEST SENT TO OLLAMA PROVIDER ====="
+        )
+
+        for index, message in enumerate(
+            provider_request.messages
+        ):
+            print(
+                f"\n--- MESSAGE {index} "
+                f"({message.role.value}) ---"
+            )
+            print(message.content)
+
+        print(
+            "\n===== END REQUEST SENT TO OLLAMA PROVIDER =====\n"
+        )
+
+        return original_respond(
+            provider_request
+        )
+
+    provider.respond = inspect_request
 
     request = CognitiveRequest(
         messages=(

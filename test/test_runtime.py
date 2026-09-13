@@ -1,6 +1,6 @@
 ﻿from datetime import datetime
 from pathlib import Path
-from sofia.self_model.model import SofiaCoreState
+
 import pytest
 
 from sofia.authority.model import Authority
@@ -39,6 +39,7 @@ from sofia.runtime.runtime import (
     SofiaRuntime,
     SofiaRuntimeError,
 )
+from sofia.self_model.model import SofiaCoreState
 
 
 def create_runtime(
@@ -134,6 +135,7 @@ def test_runtime_initial_state():
     assert runtime.identity is None
     assert runtime.personality is None
     assert runtime.embodiment is None
+    assert runtime.core_state is None
 
 
 def test_runtime_start_loads_foundational_state():
@@ -146,6 +148,9 @@ def test_runtime_start_loads_foundational_state():
     assert runtime.identity is not None
     assert runtime.personality is not None
     assert runtime.embodiment is not None
+    assert runtime.core_state is not None
+
+    runtime.shutdown()
 
 
 def test_runtime_start_is_only_valid_from_created_or_stopped():
@@ -155,6 +160,8 @@ def test_runtime_start_is_only_valid_from_created_or_stopped():
 
     with pytest.raises(SofiaRuntimeError):
         runtime.start()
+
+    runtime.shutdown()
 
 
 def test_runtime_shutdown():
@@ -168,6 +175,7 @@ def test_runtime_shutdown():
     assert runtime.identity is None
     assert runtime.personality is None
     assert runtime.embodiment is None
+    assert runtime.core_state is None
 
 
 def test_runtime_shutdown_requires_ready_state():
@@ -199,6 +207,9 @@ def test_runtime_can_restart_after_shutdown():
     assert runtime.identity is not None
     assert runtime.personality is not None
     assert runtime.embodiment is not None
+    assert runtime.core_state is not None
+
+    runtime.shutdown()
 
 
 def test_runtime_detects_constitution_integrity_failure():
@@ -220,6 +231,7 @@ def test_runtime_detects_constitution_integrity_failure():
     assert runtime.identity is None
     assert runtime.personality is None
     assert runtime.embodiment is None
+    assert runtime.core_state is None
 
 
 def test_runtime_clears_state_when_startup_fails():
@@ -241,6 +253,7 @@ def test_runtime_clears_state_when_startup_fails():
     assert runtime.identity is None
     assert runtime.personality is None
     assert runtime.embodiment is None
+    assert runtime.core_state is None
 
 
 def test_runtime_exposes_foundational_subsystems():
@@ -304,6 +317,8 @@ def test_runtime_loads_identity_on_start(tmp_path: Path):
         runtime.identity.instance_id
         == saved_identity.instance_id
     )
+
+    runtime.shutdown()
 
 
 def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
@@ -382,6 +397,8 @@ def test_runtime_reload_identity_on_restart(
         == first_identity.instance_id
     )
 
+    runtime.shutdown()
+
 
 def test_runtime_respond_requires_ready_state():
     runtime = create_runtime()
@@ -406,6 +423,8 @@ def test_runtime_respond_requires_cognitive_request():
 
     with pytest.raises(TypeError):
         runtime.respond("Hello, Sofía.")
+
+    runtime.shutdown()
 
 
 def test_runtime_responds_through_cognitive_system():
@@ -433,6 +452,8 @@ def test_runtime_responds_through_cognitive_system():
 
     assert response.content == "Hello, Sparks."
 
+    runtime.shutdown()
+
 
 def test_runtime_injects_identity_into_cognition():
     runtime = create_runtime()
@@ -453,6 +474,8 @@ def test_runtime_injects_identity_into_cognition():
     )
 
     assert response.content == "I am Sofía Ada Lyra."
+
+    runtime.shutdown()
 
 
 def test_runtime_retrieves_relevant_memory_before_cognition():
@@ -493,9 +516,12 @@ def test_runtime_retrieves_relevant_memory_before_cognition():
         memory,
     )
 
-def test_runtime_builds_authoritative_core_state(
-    runtime,
-):
+    runtime.shutdown()
+
+
+def test_runtime_builds_authoritative_core_state():
+    runtime = create_runtime()
+
     runtime.start()
 
     assert runtime.core_state is not None
@@ -522,9 +548,9 @@ def test_runtime_builds_authoritative_core_state(
     runtime.shutdown()
 
 
-def test_runtime_core_state_contains_sparks_relationship(
-    runtime,
-):
+def test_runtime_core_state_contains_sparks_relationship():
+    runtime = create_runtime()
+
     runtime.start()
 
     assert runtime.core_state is not None
@@ -535,17 +561,19 @@ def test_runtime_core_state_contains_sparks_relationship(
         if relationship.subject == "Sparks"
     )
 
-    assert "creator" in relationship.roles
-    assert "primary collaborator" in relationship.roles
-    assert "trusted companion" in relationship.roles
-    assert "admin/operator" in relationship.roles
+    assert relationship.roles == (
+        "creator",
+        "primary collaborator",
+        "trusted companion",
+        "admin/operator",
+    )
 
     runtime.shutdown()
 
 
-def test_runtime_core_state_is_cleared_on_shutdown(
-    runtime,
-):
+def test_runtime_core_state_is_cleared_on_shutdown():
+    runtime = create_runtime()
+
     runtime.start()
 
     assert runtime.core_state is not None
