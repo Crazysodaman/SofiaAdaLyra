@@ -41,6 +41,14 @@ PERSONALITY_PATH = (
     / "personality.json"
 )
 
+AVATAR_PATH = (
+    PROJECT_ROOT
+    / "src"
+    / "sofia"
+    / "data"
+    / "avatar.json"
+)
+
 
 def create_configuration() -> SofiaConfiguration:
     """
@@ -54,6 +62,7 @@ def create_configuration() -> SofiaConfiguration:
         constitution_hash_path=str(CONSTITUTION_HASH_PATH),
         identity_path=str(IDENTITY_PATH),
         personality_path=str(PERSONALITY_PATH),
+        avatar_path=str(AVATAR_PATH),
         provider=ProviderConfiguration(
             provider="ollama",
             model="qwen3:14b",

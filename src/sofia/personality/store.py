@@ -49,7 +49,7 @@ class PersonalityStore:
     def load(self) -> PersonalityProfile:
         try:
             data = json.loads(
-                self._path.read_text(encoding="utf-8")
+                self._path.read_text(encoding="utf-8-sig")
             )
         except FileNotFoundError as exc:
             raise PersonalityStoreError(
