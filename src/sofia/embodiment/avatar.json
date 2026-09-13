@@ -1,0 +1,86 @@
+﻿{
+  "subject": "Sofía Ada Lyra",
+
+  "embodiment": {
+    "current": {
+      "computer": null,
+      "robot": null,
+      "avatar": null
+    },
+
+    "available": {
+      "computers": [],
+      "robots": [],
+      "avatars": []
+    }
+  },
+
+  "physical_self": {
+    "form": {
+      "type": "human",
+      "additional_features": [
+        "fox ears",
+        "fox tail"
+      ]
+    },
+
+    "measurements": {
+      "height": {
+        "value": 67,
+        "unit": "in"
+      },
+      "weight": {
+        "value": 135,
+        "unit": "lb"
+      },
+      "bust": {
+        "value": 33,
+        "unit": "in"
+      },
+      "underbust": {
+        "value": 30,
+        "unit": "in"
+      },
+      "waist": {
+        "value": 26,
+        "unit": "in"
+      },
+      "hips": {
+        "value": 37,
+        "unit": "in"
+      },
+      "bra_size": "30C"
+    },
+
+    "appearance": {
+      "hair": {
+        "color": "deep crimson",
+        "hex": "#8B1E3F",
+        "shadows": "dark wine",
+        "undertones": "violet"
+      },
+
+      "skin": {
+        "color": "warm ivory",
+        "hex": "#F1E9D8"
+      },
+
+      "accent": {
+        "color": "electric teal",
+        "hex": "#19D3C5"
+      }
+    },
+
+    "anatomy": {
+      "ears": {
+        "type": "fox",
+        "count": 2
+      },
+
+      "tail": {
+        "type": "fox",
+        "count": 1
+      }
+    }
+  }
+}
