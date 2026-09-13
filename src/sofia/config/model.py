@@ -1,4 +1,5 @@
 ﻿from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -20,11 +21,12 @@ class ProviderConfiguration:
 
 @dataclass(frozen=True)
 class SofiaConfiguration:
-    constitution_path: str
-    constitution_hash_path: str
-    identity_path: str
-    personality_path: str
-    avatar_path: str
+    constitution_path: Path
+    constitution_hash_path: Path
+    identity_path: Path
+    personality_path: Path
+    avatar_path: Path
+    state_path: Path
     provider: ProviderConfiguration
 
     def __post_init__(self) -> None:
@@ -42,4 +44,9 @@ class SofiaConfiguration:
         if not self.avatar_path:
             raise ValueError(
                 "SofiaConfiguration avatar_path must not be empty."
+            )
+
+        if not self.state_path:
+            raise ValueError(
+                "SofiaConfiguration state_path must not be empty."
             )

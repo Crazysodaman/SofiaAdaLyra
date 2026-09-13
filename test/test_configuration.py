@@ -15,6 +15,7 @@ def create_configuration() -> SofiaConfiguration:
         identity_path=Path("identity.json"),
         personality_path=Path("personality.json"),
         avatar_path=Path("avatar.json"),
+        state_path=Path("sofia.db"),
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -62,6 +63,14 @@ def test_configuration_stores_avatar_path():
     )
 
 
+def test_configuration_stores_state_path():
+    configuration = create_configuration()
+
+    assert configuration.state_path == Path(
+        "sofia.db"
+    )
+
+
 def test_configuration_paths_are_path_objects():
     configuration = create_configuration()
 
@@ -87,6 +96,11 @@ def test_configuration_paths_are_path_objects():
 
     assert isinstance(
         configuration.avatar_path,
+        Path,
+    )
+
+    assert isinstance(
+        configuration.state_path,
         Path,
     )
 
@@ -116,6 +130,9 @@ def test_configuration_does_not_require_files_to_exist():
         ),
         avatar_path=Path(
             "this-avatar-does-not-exist.json"
+        ),
+        state_path=Path(
+            "this-state-does-not-exist.db"
         ),
         provider=ProviderConfiguration(
             provider="test",
@@ -181,6 +198,7 @@ def test_sofia_configuration_requires_provider_configuration():
             identity_path=Path("identity.json"),
             personality_path=Path("personality.json"),
             avatar_path=Path("avatar.json"),
+            state_path=Path("sofia.db"),
             provider="not-a-provider-configuration",
         )
 
@@ -192,11 +210,12 @@ def test_sofia_configuration_stores_provider_configuration():
     )
 
     configuration = SofiaConfiguration(
-        constitution_path="constitution.md",
-        constitution_hash_path="constitution.sha256",
-        identity_path="identity.json",
-        personality_path="personality.json",
-        avatar_path="avatar.json",
+        constitution_path=Path("constitution.md"),
+        constitution_hash_path=Path("constitution.sha256"),
+        identity_path=Path("identity.json"),
+        personality_path=Path("personality.json"),
+        avatar_path=Path("avatar.json"),
+        state_path=Path("sofia.db"),
         provider=provider,
     )
 
@@ -205,19 +224,43 @@ def test_sofia_configuration_stores_provider_configuration():
 
 def test_configuration_requires_personality_path():
     configuration = SofiaConfiguration(
-        constitution_path="constitution.md",
-        constitution_hash_path="constitution.sha256",
-        identity_path="identity.json",
-        personality_path="personality.json",
-        avatar_path="avatar.json",
+        constitution_path=Path("constitution.md"),
+        constitution_hash_path=Path("constitution.sha256"),
+        identity_path=Path("identity.json"),
+        personality_path=Path("personality.json"),
+        avatar_path=Path("avatar.json"),
+        state_path=Path("sofia.db"),
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
         ),
     )
 
-    assert configuration.personality_path == "personality.json"
+    assert configuration.personality_path == Path(
+        "personality.json"
+    )
 
+
+
+def test_configuration_rejects_empty_state_path():
+    with pytest.raises(
+        ValueError,
+        match="state_path must not be empty",
+    ):
+        SofiaConfiguration(
+            constitution_path=Path("constitution.md"),
+            constitution_hash_path=Path(
+                "constitution.sha256"
+            ),
+            identity_path=Path("identity.json"),
+            personality_path=Path("personality.json"),
+            avatar_path=Path("avatar.json"),
+            state_path="",
+            provider=ProviderConfiguration(
+                provider="test",
+                model="test-model",
+            ),
+        )
 
 def test_configuration_rejects_empty_personality_path():
     with pytest.raises(
@@ -225,11 +268,12 @@ def test_configuration_rejects_empty_personality_path():
         match="personality_path must not be empty",
     ):
         SofiaConfiguration(
-            constitution_path="constitution.md",
-            constitution_hash_path="constitution.sha256",
-            identity_path="identity.json",
+            constitution_path=Path("constitution.md"),
+            constitution_hash_path=Path("constitution.sha256"),
+            identity_path=Path("identity.json"),
             personality_path="",
-            avatar_path="avatar.json",
+            avatar_path=Path("avatar.json"),
+            state_path=Path("sofia.db"),
             provider=ProviderConfiguration(
                 provider="test",
                 model="test-model",
@@ -243,11 +287,12 @@ def test_configuration_rejects_empty_avatar_path():
         match="avatar_path must not be empty",
     ):
         SofiaConfiguration(
-            constitution_path="constitution.md",
-            constitution_hash_path="constitution.sha256",
-            identity_path="identity.json",
-            personality_path="personality.json",
+            constitution_path=Path("constitution.md"),
+            constitution_hash_path=Path("constitution.sha256"),
+            identity_path=Path("identity.json"),
+            personality_path=Path("personality.json"),
             avatar_path="",
+            state_path=Path("sofia.db"),
             provider=ProviderConfiguration(
                 provider="test",
                 model="test-model",
