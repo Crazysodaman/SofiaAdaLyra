@@ -5,9 +5,9 @@ from uuid import uuid4
 
 from sofia.conversation.model import (
     ConversationMessage,
+    ConversationRole,
     ConversationSession,
 )
-
 
 class ConversationStore:
     """
