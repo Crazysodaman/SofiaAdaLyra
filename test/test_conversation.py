@@ -3,7 +3,11 @@
 import pytest
 
 from sofia.application import SofiaApplication
-from sofia.cognition.request import CognitiveRequest
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveRole,
+)
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 
 
@@ -78,7 +82,12 @@ def test_conversation_can_submit_request(
     application.start()
 
     request = CognitiveRequest(
-        content="Hello, Sofía."
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Hello, Sofía.",
+            ),
+        ),
     )
 
     response = application.runtime.respond(request)
