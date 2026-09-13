@@ -8,6 +8,7 @@ from sofia.cognition.test_engine import TestCognitiveEngine
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
+from sofia.embodiment.store import AvatarStore
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
@@ -83,6 +84,10 @@ def compose(
         Path(configuration.personality_path)
     )
 
+    avatar_store = AvatarStore(
+        Path(configuration.avatar_path)
+    )
+
     cognitive_engine = _create_cognitive_engine(
         configuration
     )
@@ -102,6 +107,7 @@ def compose(
         integrity_verifier=integrity_verifier,
         identity_store=identity_store,
         personality_store=personality_store,
+        avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )

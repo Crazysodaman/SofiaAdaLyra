@@ -1,7 +1,7 @@
 ﻿from sofia.authority.model import Authority
 from sofia.cognition.context import CognitiveContext
-from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.model import CognitiveRequest
+from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
@@ -9,6 +9,8 @@ from sofia.constitution.integrity import (
 )
 from sofia.constitution.model import Constitution
 from sofia.constitution.store import ConstitutionStore
+from sofia.embodiment.model import Embodiment
+from sofia.embodiment.store import AvatarStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
@@ -36,6 +38,7 @@ class SofiaRuntime:
         integrity_verifier: ConstitutionIntegrityVerifier,
         identity_store: IdentityStore,
         personality_store: PersonalityStore,
+        avatar_store: AvatarStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
     ) -> None:
@@ -43,6 +46,7 @@ class SofiaRuntime:
         self._integrity_verifier = integrity_verifier
         self._identity_store = identity_store
         self._personality_store = personality_store
+        self._avatar_store = avatar_store
         self._memory_system = memory_system
         self._cognitive_system = cognitive_system
 
@@ -50,6 +54,7 @@ class SofiaRuntime:
         self._constitution: Constitution | None = None
         self._identity: SofiaIdentity | None = None
         self._personality: PersonalityProfile | None = None
+        self._embodiment: Embodiment | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -88,6 +93,14 @@ class SofiaRuntime:
         return self._personality_store
 
     @property
+    def avatar_store(self) -> AvatarStore:
+        return self._avatar_store
+
+    @property
+    def embodiment(self) -> Embodiment | None:
+        return self._embodiment
+
+    @property
     def memory_system(self) -> MemorySystem:
         return self._memory_system
 
@@ -115,16 +128,19 @@ class SofiaRuntime:
 
             identity = self._identity_store.load()
             personality = self._personality_store.load()
+            embodiment = self._avatar_store.load()
 
             self._constitution = constitution
             self._identity = identity
             self._personality = personality
+            self._embodiment = embodiment
             self._state = RuntimeState.READY
 
         except ConstitutionIntegrityError as exc:
             self._constitution = None
             self._identity = None
             self._personality = None
+            self._embodiment = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -135,6 +151,7 @@ class SofiaRuntime:
             self._constitution = None
             self._identity = None
             self._personality = None
+            self._embodiment = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -158,6 +175,7 @@ class SofiaRuntime:
                 identity=self._identity,
                 personality=self._personality,
                 constitution=self._constitution,
+                embodiment=self._embodiment,
             ),
             authority=Authority(),
         )
@@ -178,4 +196,5 @@ class SofiaRuntime:
         self._constitution = None
         self._identity = None
         self._personality = None
+        self._embodiment = None
         self._state = RuntimeState.STOPPED
