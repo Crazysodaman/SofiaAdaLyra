@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+import pytest
+
 from sofia.application import (
     ConversationService,
     SofiaApplication,
@@ -87,22 +89,31 @@ def create_personality(
     return path
 
 
-def test_conversation_service_creates_session(
+def create_application(
     tmp_path: Path,
-):
-    application = SofiaApplication(
+) -> SofiaApplication:
+    return SofiaApplication(
         create_configuration(
             create_personality(tmp_path),
             tmp_path / "sofia.db",
         )
     )
 
-    application.start()
+
+def test_conversation_service_is_application_boundary(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
 
     assert isinstance(
         application.conversation,
         ConversationService,
     )
+
+    assert application.conversation.session is None
+    assert application.conversation.session_id is None
+
+    application.start()
 
     assert application.conversation.session is not None
     assert application.conversation.session_id is not None
@@ -110,15 +121,25 @@ def test_conversation_service_creates_session(
     application.shutdown()
 
 
+def test_conversation_service_creates_session_on_start(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    session = application.conversation.session
+
+    assert session is not None
+    assert session.id == application.conversation.session_id
+
+    application.shutdown()
+
+
 def test_conversation_service_persists_user_and_assistant_messages(
     tmp_path: Path,
 ):
-    application = SofiaApplication(
-        create_configuration(
-            create_personality(tmp_path),
-            tmp_path / "sofia.db",
-        )
-    )
+    application = create_application(tmp_path)
 
     application.start()
 
@@ -144,12 +165,7 @@ def test_conversation_service_persists_user_and_assistant_messages(
 def test_conversation_service_preserves_conversation_history(
     tmp_path: Path,
 ):
-    application = SofiaApplication(
-        create_configuration(
-            create_personality(tmp_path),
-            tmp_path / "sofia.db",
-        )
-    )
+    application = create_application(tmp_path)
 
     application.start()
 
@@ -165,9 +181,16 @@ def test_conversation_service_preserves_conversation_history(
 
     assert len(messages) == 4
 
+    assert messages[0].role is ConversationRole.USER
     assert messages[0].content == "First message."
+
+    assert messages[1].role is ConversationRole.ASSISTANT
     assert messages[1].content == "Test cognitive response."
+
+    assert messages[2].role is ConversationRole.USER
     assert messages[2].content == "Second message."
+
+    assert messages[3].role is ConversationRole.ASSISTANT
     assert messages[3].content == "Test cognitive response."
 
     application.shutdown()
@@ -176,14 +199,62 @@ def test_conversation_service_preserves_conversation_history(
 def test_conversation_service_rejects_response_before_start(
     tmp_path: Path,
 ):
-    application = SofiaApplication(
-        create_configuration(
-            create_personality(tmp_path),
-            tmp_path / "sofia.db",
-        )
-    )
+    application = create_application(tmp_path)
 
-    service = ConversationService(
-        runtime=application.runtime,
-        conversation_store=application.conversation_store,
-    )
+    with pytest.raises(
+        RuntimeError,
+        match="ConversationService must be started before responding.",
+    ):
+        application.conversation.respond(
+            "Hello, Sofía."
+        )
+
+    application.shutdown()
+
+
+def test_conversation_service_rejects_empty_response(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    with pytest.raises(
+        ValueError,
+        match="ConversationService content must not be empty.",
+    ):
+        application.conversation.respond("   ")
+
+    application.shutdown()
+
+
+def test_conversation_service_rejects_non_string_response(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    with pytest.raises(
+        TypeError,
+        match="ConversationService content must be a string.",
+    ):
+        application.conversation.respond(None)
+
+    application.shutdown()
+
+
+def test_conversation_service_rejects_second_start(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    with pytest.raises(
+        RuntimeError,
+        match="ConversationService already has an active session.",
+    ):
+        application.conversation.start()
+
+    application.shutdown()
