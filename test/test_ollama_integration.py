@@ -252,34 +252,6 @@ def test_real_ollama_receives_sofia_instance_identity(
         OllamaProvider,
     )
 
-    original_respond = provider.respond
-
-    def inspect_request(
-        provider_request: CognitiveRequest,
-    ):
-        print(
-            "\n===== REQUEST SENT TO OLLAMA PROVIDER ====="
-        )
-
-        for index, message in enumerate(
-            provider_request.messages
-        ):
-            print(
-                f"\n--- MESSAGE {index} "
-                f"({message.role.value}) ---"
-            )
-            print(message.content)
-
-        print(
-            "\n===== END REQUEST SENT TO OLLAMA PROVIDER =====\n"
-        )
-
-        return original_respond(
-            provider_request
-        )
-
-    provider.respond = inspect_request
-
     request = CognitiveRequest(
         messages=(
             CognitiveMessage(

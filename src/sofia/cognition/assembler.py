@@ -57,6 +57,70 @@ class CognitiveContextAssembler:
             ),
         ]
 
+        if context.identity is not None:
+            sections.extend(
+                [
+                    "",
+                    "IDENTITY",
+                    f"Name: {context.identity.name}",
+                    f"Instance ID: {context.identity.instance_id}",
+                ]
+            )
+
+        if context.personality is not None:
+            sections.extend(
+                [
+                    "",
+                    "PERSONALITY",
+                    f"Profile: {context.personality.name}",
+                ]
+            )
+
+            if context.personality.traits:
+                sections.append(
+                    "Traits: " + ", ".join(context.personality.traits)
+                )
+
+            if context.personality.communication_style:
+                sections.append(
+                    "Communication style: "
+                    + context.personality.communication_style
+                )
+
+        if context.constitution is not None:
+            sections.extend(
+                [
+                    "",
+                    "CONSTITUTION",
+                    f"Version: {context.constitution.version}",
+                    f"Content hash: {context.constitution.content_hash}",
+                    "Constitution content:",
+                    context.constitution.content,
+                ]
+            )
+
+        if context.embodiment is not None:
+            sections.extend(
+                [
+                    "",
+                    "EMBODIMENT",
+                    self._format_embodiment(context.embodiment),
+                ]
+            )
+
+        if context.memories:
+            sections.extend(
+                [
+                    "",
+                    "EXPLICITLY SUPPLIED MEMORIES",
+                ]
+            )
+
+            for memory in context.memories:
+                sections.append(
+                    f"- [{memory.id}] {memory.content}"
+                )
+
         if context.core_state is not None:
             sections.extend(
                 [
@@ -127,77 +191,20 @@ class CognitiveContextAssembler:
                 ]
             )
 
-        if context.identity is not None:
-            sections.extend(
-                [
-                    "",
-                    "IDENTITY",
-                    f"Name: {context.identity.name}",
-                    f"Instance ID: {context.identity.instance_id}",
-                ]
-            )
-
-        if context.personality is not None:
-            sections.extend(
-                [
-                    "",
-                    "PERSONALITY",
-                    f"Profile: {context.personality.name}",
-                ]
-            )
-
-            if context.personality.traits:
-                sections.append(
-                    "Traits: " + ", ".join(context.personality.traits)
-                )
-
-            if context.personality.communication_style:
-                sections.append(
-                    "Communication style: "
-                    + context.personality.communication_style
-                )
-
-        if context.constitution is not None:
-            sections.extend(
-                [
-                    "",
-                    "CONSTITUTION",
-                    f"Version: {context.constitution.version}",
-                    f"Content hash: {context.constitution.content_hash}",
-                    "Constitution content:",
-                    context.constitution.content,
-                ]
-            )
-
-        if context.embodiment is not None:
-            sections.extend(
-                [
-                    "",
-                    "EMBODIMENT",
-                    self._format_embodiment(context.embodiment),
-                ]
-            )
-
-        if context.memories:
-            sections.extend(
-                [
-                    "",
-                    "EXPLICITLY SUPPLIED MEMORIES",
-                ]
-            )
-
-            for memory in context.memories:
-                sections.append(
-                    f"- [{memory.id}] {memory.content}"
-                )
-
         return "\n".join(sections)
 
     @staticmethod
     def _format_embodiment(embodiment) -> str:
         lines = [
             f"Subject: {embodiment.subject}",
-            f"Physical form: {embodiment.physical_self.form}",
+            (
+                "Embodiment form: "
+                f"{embodiment.physical_self.form}-form representation"
+            ),
+            (
+                "Embodiment describes representation only; it does not "
+                "define Sofía's biological status or artificial identity."
+            ),
         ]
 
         if embodiment.physical_self.additional_features:

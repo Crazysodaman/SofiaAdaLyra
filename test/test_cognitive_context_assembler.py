@@ -199,7 +199,15 @@ def test_assembler_injects_embodiment():
     system_message = assembled.messages[0].content
 
     assert "EMBODIMENT" in system_message
-    assert "Physical form: human" in system_message
+    assert (
+        "Embodiment form: human-form representation"
+        in system_message
+    )
+    assert (
+        "Embodiment describes representation only; it does not "
+        "define Sofía's biological status or artificial identity."
+        in system_message
+    )
     assert "fox ears" in system_message
     assert "fox tail" in system_message
     assert "Current computer: Venus" in system_message
@@ -472,6 +480,14 @@ def test_assembler_distinguishes_identity_from_embodiment():
     )
     assert "Sofía is not biologically human." in system_message
     assert "EMBODIMENT" in system_message
-    assert "Physical form: human" in system_message
+    assert (
+        "Embodiment form: human-form representation"
+        in system_message
+    )
+    assert (
+        "Embodiment describes representation only; it does not "
+        "define Sofía's biological status or artificial identity."
+        in system_message
+    )
     assert "fox ears" in system_message
     assert "fox tail" in system_message
