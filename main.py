@@ -1,98 +1,58 @@
-﻿from pathlib import Path
+﻿from collections.abc import Callable
 
-from sofia.application import ConversationLoop, SofiaApplication
-from sofia.config.model import (
-    ProviderConfiguration,
+from sofia.application import (
+    ConversationLoop,
+    SofiaApplication,
+    SofiaApplicationError,
+)
+from sofia.config import (
     SofiaConfiguration,
+    create_default_configuration,
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-CONSTITUTION_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.md"
-)
-
-CONSTITUTION_HASH_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.sha256"
-)
-
-IDENTITY_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "sofia"
-    / "identity"
-    / "identity.json"
-)
-
-PERSONALITY_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "sofia"
-    / "personality"
-    / "personality.json"
-)
-
-AVATAR_PATH = (
-    PROJECT_ROOT
-    / "src"
-    / "sofia"
-    / "data"
-    / "avatar.json"
-)
-
-
-def create_configuration() -> SofiaConfiguration:
+def main(
+    configuration: SofiaConfiguration | None = None,
+    input_function: Callable[[str], str] = input,
+    output_function: Callable[[str], None] = print,
+) -> int:
     """
-    Create Sofía's runtime configuration.
+    Run Sofía's interactive terminal application.
 
-    This is the executable entry point's configuration boundary.
+    Configuration and terminal I/O are injectable so the application
+    boundary remains independently testable.
     """
 
-    return SofiaConfiguration(
-        constitution_path=str(CONSTITUTION_PATH),
-        constitution_hash_path=str(CONSTITUTION_HASH_PATH),
-        identity_path=str(IDENTITY_PATH),
-        personality_path=str(PERSONALITY_PATH),
-        avatar_path=str(AVATAR_PATH),
-        provider=ProviderConfiguration(
-            provider="ollama",
-            model="qwen3:14b",
-        ),
+    if configuration is None:
+        configuration = create_default_configuration()
+
+    application = SofiaApplication(
+        configuration
     )
 
-
-def create_application() -> SofiaApplication:
-    """
-    Construct the canonical Sofía application.
-    """
-
-    return SofiaApplication(
-        create_configuration()
-    )
-
-
-def main() -> None:
-    """
-    Start Sofía's interactive terminal session.
-    """
-
-    application = create_application()
-
-    conversation = ConversationLoop(
+    loop = ConversationLoop(
         application=application,
+        input_function=input_function,
+        output_function=output_function,
     )
 
-    conversation.run()
+    try:
+        loop.run()
+
+    except SofiaApplicationError as exc:
+        output_function(
+            f"Sofía failed to start or operate: {exc}"
+        )
+        return 1
+
+    except KeyboardInterrupt:
+        output_function(
+            "\nSofía > Shutdown requested."
+        )
+        return 0
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
