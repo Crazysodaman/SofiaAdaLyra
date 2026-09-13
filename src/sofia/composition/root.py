@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+from sofia.action.executor import TestActionExecutor
+from sofia.action.system import ActionSystem
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.factory import create_llm_provider
@@ -81,9 +83,16 @@ def compose(
 
     context_assembler = CognitiveContextAssembler()
 
+    action_executor = TestActionExecutor()
+
+    action_system = ActionSystem(
+        executor=action_executor,
+    )
+
     cognitive_system = CognitiveSystem(
         engine=cognitive_engine,
         context_assembler=context_assembler,
+        action_system=action_system,
     )
 
     memory_store = MemoryStore(
