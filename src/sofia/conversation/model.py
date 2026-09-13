@@ -9,6 +9,29 @@ class ConversationRole(Enum):
 
 
 @dataclass(frozen=True)
+class ConversationSession:
+    id: str
+    created_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise ValueError(
+                "ConversationSession id must not be empty."
+            )
+
+        if not isinstance(self.created_at, datetime):
+            raise TypeError(
+                "ConversationSession created_at must be a datetime."
+            )
+
+        if not isinstance(self.updated_at, datetime):
+            raise TypeError(
+                "ConversationSession updated_at must be a datetime."
+            )
+
+
+@dataclass(frozen=True)
 class ConversationMessage:
     id: str
     session_id: str
