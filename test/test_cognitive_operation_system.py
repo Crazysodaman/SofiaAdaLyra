@@ -78,7 +78,7 @@ def make_operation(
     )
 
 
-def test_respond_to_operation_uses_context_request() -> None:
+def test_respond_to_operation_uses_assembled_context_request() -> None:
     engine = RecordingEngine()
     system = CognitiveSystem(
         engine=engine,
@@ -89,8 +89,11 @@ def test_respond_to_operation_uses_context_request() -> None:
     response = system.respond_to_operation(operation)
 
     assert response.content == "Recorded response."
+
     assert engine.requests == [
-        operation.context.request,
+        system.context_assembler.assemble(
+            operation.context,
+        ),
     ]
 
 
@@ -163,8 +166,11 @@ def test_respond_to_operation_uses_fallback_engine() -> None:
     response = system.respond_to_operation(operation)
 
     assert response.content == "Fallback response."
+
     assert fallback.requests == [
-        operation.context.request,
+        system.context_assembler.assemble(
+            operation.context,
+        ),
     ]
 
 

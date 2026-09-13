@@ -1,4 +1,5 @@
-﻿from sofia.cognition.engine import (
+﻿from sofia.cognition.assembler import CognitiveContextAssembler
+from sofia.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
 )
@@ -6,19 +7,28 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 
 
+class CognitiveSystemError(Exception):
+    """
+    Raised when the cognitive system cannot execute an operation.
+    """
+
+
 class CognitiveSystem:
     """
     Coordinates Sofía's cognitive engines.
 
     A cognitive operation supplies both the context for cognition and the
-    authority governing that operation. The cognitive engine itself does
-    not determine authority.
+    authority governing that operation.
+
+    Context assembly and authority enforcement occur outside the cognitive
+    engine itself.
     """
 
     def __init__(
         self,
         engine: CognitiveEngine,
         fallback_engine: CognitiveEngine | None = None,
+        context_assembler: CognitiveContextAssembler | None = None,
     ):
         if not isinstance(engine, CognitiveEngine):
             raise TypeError(
@@ -33,8 +43,25 @@ class CognitiveSystem:
                 "CognitiveSystem fallback_engine must be a CognitiveEngine."
             )
 
+        if (
+            context_assembler is not None
+            and not isinstance(
+                context_assembler,
+                CognitiveContextAssembler,
+            )
+        ):
+            raise TypeError(
+                "CognitiveSystem context_assembler must be a "
+                "CognitiveContextAssembler."
+            )
+
         self.engine = engine
         self.fallback_engine = fallback_engine
+        self.context_assembler = (
+            context_assembler
+            if context_assembler is not None
+            else CognitiveContextAssembler()
+        )
 
     def respond(
         self,
@@ -51,7 +78,14 @@ class CognitiveSystem:
                 "CognitiveSystem operation must be a CognitiveOperation."
             )
 
-        request = operation.context.request
+        if not operation.authority.can_respond:
+            raise CognitiveSystemError(
+                "Cognitive operation is not authorized to produce a response."
+            )
+
+        request = self.context_assembler.assemble(
+            operation.context
+        )
 
         try:
             return self.engine.respond(request)

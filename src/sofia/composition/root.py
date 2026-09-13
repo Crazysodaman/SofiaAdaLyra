@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 
+from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.factory import create_llm_provider
 from sofia.cognition.rules import RuleEngine
@@ -13,26 +14,33 @@ from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 from sofia.personality.store import PersonalityStore
-from sofia.conversation.store import ConversationStore
 from sofia.runtime.runtime import SofiaRuntime
 
 
 def _create_cognitive_engine(configuration: SofiaConfiguration):
     if configuration.provider.provider == "test":
-        return TestCognitiveEngine(configuration=configuration.provider)
+        return TestCognitiveEngine(
+            configuration=configuration.provider
+        )
 
     if configuration.provider.provider == "rule":
         return RuleEngine()
 
     if configuration.provider.provider == "test-llm":
-        provider = create_llm_provider(configuration.provider)
+        provider = create_llm_provider(
+            configuration.provider
+        )
+
         return LLMCognitiveEngine(
             configuration=configuration.provider,
             provider=provider,
         )
 
     if configuration.provider.provider == "ollama":
-        provider = create_llm_provider(configuration.provider)
+        provider = create_llm_provider(
+            configuration.provider
+        )
+
         return LLMCognitiveEngine(
             configuration=configuration.provider,
             provider=provider,
@@ -44,7 +52,9 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
     )
 
 
-def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
+def compose(
+    configuration: SofiaConfiguration,
+) -> SofiaRuntime:
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
     )
@@ -69,8 +79,11 @@ def compose(configuration: SofiaConfiguration) -> SofiaRuntime:
         configuration
     )
 
+    context_assembler = CognitiveContextAssembler()
+
     cognitive_system = CognitiveSystem(
-        engine=cognitive_engine
+        engine=cognitive_engine,
+        context_assembler=context_assembler,
     )
 
     memory_store = MemoryStore(
