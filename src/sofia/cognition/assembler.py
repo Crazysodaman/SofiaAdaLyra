@@ -58,6 +58,7 @@ class CognitiveContextAssembler:
                     "",
                     "IDENTITY",
                     f"Name: {context.identity.name}",
+                    f"Instance ID: {context.identity.instance_id}",
                 ]
             )
 

@@ -1,6 +1,6 @@
 ﻿from datetime import datetime
 from pathlib import Path
-
+import pytest
 from sofia.memory.model import MemoryRecord
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
@@ -170,3 +170,174 @@ def test_memory_store_persists_memory_across_instances(
     assert retrieved.id == memory.id
     assert retrieved.content == memory.content
     assert retrieved.created_at == memory.created_at
+def test_memory_store_lists_all_memories():
+    store = MemoryStore()
+
+    created_at = datetime.now()
+
+    first = MemoryRecord(
+        id="memory-1",
+        content="Architecture first.",
+        created_at=created_at,
+    )
+
+    second = MemoryRecord(
+        id="memory-2",
+        content="Testing comes before implementation.",
+        created_at=created_at,
+    )
+
+    store.save(first)
+    store.save(second)
+
+    assert store.list_all() == (
+        first,
+        second,
+    )
+
+
+def test_memory_store_lists_persistent_memories(
+    tmp_path: Path,
+):
+    database_path = tmp_path / "sofia.db"
+
+    created_at = datetime.now()
+
+    memory = MemoryRecord(
+        id="memory-1",
+        content="Persistent memory.",
+        created_at=created_at,
+    )
+
+    first_store = MemoryStore(database_path)
+
+    first_store.save(memory)
+    first_store.close()
+
+    second_store = MemoryStore(database_path)
+
+    assert second_store.list_all() == (
+        memory,
+    )
+
+
+def test_memory_system_recalls_relevant_memory():
+    store = MemoryStore()
+    system = MemorySystem(store)
+
+    now = datetime.now()
+
+    architecture = MemoryRecord(
+        id="memory-1",
+        content=(
+            "Sparks prefers architecture-first development."
+        ),
+        created_at=now,
+    )
+
+    cooking = MemoryRecord(
+        id="memory-2",
+        content=(
+            "Sparks likes spicy food."
+        ),
+        created_at=now,
+    )
+
+    system.remember(architecture)
+    system.remember(cooking)
+
+    result = system.recall_relevant(
+        "How should we approach architecture?"
+    )
+
+    assert result == (
+        architecture,
+    )
+
+
+def test_memory_system_recall_relevant_orders_by_score():
+    store = MemoryStore()
+    system = MemorySystem(store)
+
+    now = datetime.now()
+
+    weak = MemoryRecord(
+        id="memory-1",
+        content="Architecture.",
+        created_at=now,
+    )
+
+    strong = MemoryRecord(
+        id="memory-2",
+        content=(
+            "Architecture first development with "
+            "architecture tests."
+        ),
+        created_at=now,
+    )
+
+    system.remember(weak)
+    system.remember(strong)
+
+    result = system.recall_relevant(
+        "architecture development tests"
+    )
+
+    assert result == (
+        strong,
+        weak,
+    )
+
+
+def test_memory_system_recall_relevant_respects_limit():
+    store = MemoryStore()
+    system = MemorySystem(store)
+
+    now = datetime.now()
+
+    for index in range(5):
+        system.remember(
+            MemoryRecord(
+                id=f"memory-{index}",
+                content="Architecture testing.",
+                created_at=now,
+            )
+        )
+
+    result = system.recall_relevant(
+        "architecture testing",
+        limit=2,
+    )
+
+    assert len(result) == 2
+
+
+def test_memory_system_recall_relevant_returns_empty_for_no_match():
+    store = MemoryStore()
+    system = MemorySystem(store)
+
+    system.remember(
+        MemoryRecord(
+            id="memory-1",
+            content="Architecture first.",
+            created_at=datetime.now(),
+        )
+    )
+
+    result = system.recall_relevant(
+        "completely unrelated topic"
+    )
+
+    assert result == ()
+
+
+def test_memory_system_recall_relevant_rejects_invalid_limit():
+    system = MemorySystem(
+        MemoryStore()
+    )
+
+    with pytest.raises(ValueError):
+        system.recall_relevant(
+            "architecture",
+            limit=0,
+        )

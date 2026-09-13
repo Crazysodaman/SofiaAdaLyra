@@ -9,11 +9,10 @@ class MemoryStore:
     """
     Memory storage with optional SQLite persistence.
 
-    Without a database path, the store preserves the original
-    in-memory behavior and object identity semantics.
+    Without a database path, the store preserves in-memory behavior.
 
-    With a database path, memories are persisted to SQLite and
-    can survive across store instances and process restarts.
+    With a database path, memories are persisted to SQLite and survive
+    across store instances and process restarts.
     """
 
     def __init__(
@@ -49,6 +48,11 @@ class MemoryStore:
         self._connection.commit()
 
     def save(self, memory: MemoryRecord) -> None:
+        if not isinstance(memory, MemoryRecord):
+            raise TypeError(
+                "MemoryStore memory must be a MemoryRecord."
+            )
+
         if self._connection is None:
             self._memories[memory.id] = memory
             return
@@ -74,7 +78,10 @@ class MemoryStore:
 
         self._connection.commit()
 
-    def get(self, memory_id: str) -> MemoryRecord | None:
+    def get(
+        self,
+        memory_id: str,
+    ) -> MemoryRecord | None:
         if self._connection is None:
             return self._memories.get(memory_id)
 
@@ -94,6 +101,29 @@ class MemoryStore:
             id=row[0],
             content=row[1],
             created_at=datetime.fromisoformat(row[2]),
+        )
+
+    def list_all(self) -> tuple[MemoryRecord, ...]:
+        if self._connection is None:
+            return tuple(
+                self._memories.values()
+            )
+
+        rows = self._connection.execute(
+            """
+            SELECT id, content, created_at
+            FROM memories
+            ORDER BY created_at ASC
+            """
+        ).fetchall()
+
+        return tuple(
+            MemoryRecord(
+                id=row[0],
+                content=row[1],
+                created_at=datetime.fromisoformat(row[2]),
+            )
+            for row in rows
         )
 
     def close(self) -> None:

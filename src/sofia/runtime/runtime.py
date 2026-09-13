@@ -13,6 +13,7 @@ from sofia.embodiment.model import Embodiment
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
+from sofia.memory.model import MemoryRecord
 from sofia.memory.system import MemorySystem
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
@@ -69,11 +70,16 @@ class SofiaRuntime:
         return self._constitution_store
 
     @property
-    def integrity_verifier(self) -> ConstitutionIntegrityVerifier:
+    def integrity_verifier(
+        self,
+    ) -> ConstitutionIntegrityVerifier:
         return self._integrity_verifier
 
     @integrity_verifier.setter
-    def integrity_verifier(self, verifier) -> None:
+    def integrity_verifier(
+        self,
+        verifier,
+    ) -> None:
         self._integrity_verifier = verifier
 
     @property
@@ -85,11 +91,15 @@ class SofiaRuntime:
         return self._identity_store
 
     @property
-    def personality(self) -> PersonalityProfile | None:
+    def personality(
+        self,
+    ) -> PersonalityProfile | None:
         return self._personality
 
     @property
-    def personality_store(self) -> PersonalityStore:
+    def personality_store(
+        self,
+    ) -> PersonalityStore:
         return self._personality_store
 
     @property
@@ -158,7 +168,10 @@ class SofiaRuntime:
                 "Sofía runtime failed during startup."
             ) from exc
 
-    def respond(self, request: CognitiveRequest):
+    def respond(
+        self,
+        request: CognitiveRequest,
+    ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
                 "SofiaRuntime must be READY before responding."
@@ -169,6 +182,10 @@ class SofiaRuntime:
                 "SofiaRuntime request must be a CognitiveRequest."
             )
 
+        memories = self._memory_system.recall_relevant(
+            self._latest_user_content(request)
+        )
+
         operation = CognitiveOperation(
             context=CognitiveContext(
                 request=request,
@@ -176,11 +193,14 @@ class SofiaRuntime:
                 personality=self._personality,
                 constitution=self._constitution,
                 embodiment=self._embodiment,
+                memories=memories,
             ),
             authority=Authority(),
         )
 
-        return self._cognitive_system.respond(operation)
+        return self._cognitive_system.respond(
+            operation
+        )
 
     def shutdown(self) -> None:
         if self._state is RuntimeState.STOPPED:
@@ -198,3 +218,15 @@ class SofiaRuntime:
         self._personality = None
         self._embodiment = None
         self._state = RuntimeState.STOPPED
+
+    @staticmethod
+    def _latest_user_content(
+        request: CognitiveRequest,
+    ) -> str:
+        for message in reversed(
+            request.messages
+        ):
+            if message.role.value == "user":
+                return message.content
+
+        return ""

@@ -1,5 +1,5 @@
 ﻿from datetime import datetime, timezone
-
+from uuid import UUID
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
@@ -251,3 +251,34 @@ def test_assembler_keeps_user_message_after_context():
 
     assert assembled.messages[0].role is CognitiveRole.SYSTEM
     assert assembled.messages[1] == request.messages[0]
+
+def test_assembler_injects_identity_instance_id():
+    identity = SofiaIdentity(
+        name="Sofía Ada Lyra",
+        instance_id=UUID(
+            "12345678-1234-5678-1234-567812345678"
+        ),
+    )
+
+    context = CognitiveContext(
+        request=CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Who are you?",
+                ),
+            )
+        ),
+        identity=identity,
+    )
+
+    assembled = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = assembled.messages[0].content
+
+    assert (
+        "12345678-1234-5678-1234-567812345678"
+        in system_message
+    )

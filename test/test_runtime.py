@@ -1,8 +1,8 @@
 ﻿from pathlib import Path
 import sys
-
+from datetime import datetime
 import pytest
-
+from sofia.memory.model import MemoryRecord
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -599,3 +599,56 @@ def test_runtime_cannot_process_cognitive_request_before_start():
 
     with pytest.raises(SofiaRuntimeError):
         runtime.respond(request)
+
+def test_runtime_identity_has_stable_instance_id(
+    tmp_path: Path,
+):
+    identity_path = tmp_path / "identity.json"
+
+    runtime = create_runtime(
+        identity_path=identity_path,
+    )
+
+    runtime.start()
+
+    assert runtime.identity is not None
+
+    first_instance_id = runtime.identity.instance_id
+
+    runtime.shutdown()
+    runtime.start()
+
+    assert runtime.identity is not None
+    assert runtime.identity.instance_id == first_instance_id
+
+def test_runtime_injects_relevant_memory_into_cognition():
+    runtime = create_runtime()
+
+    runtime.memory_system.remember(
+        MemoryRecord(
+            id="memory-1",
+            content=(
+                "Sparks prefers architecture-first development."
+            ),
+            created_at=datetime.now(),
+        )
+    )
+
+    runtime.start()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=(
+                    "What does Sparks prefer about development?"
+                ),
+            ),
+        ),
+    )
+
+    response = runtime.respond(request)
+
+    assert response == CognitiveResponse(
+        content="Sparks prefers architecture-first development."
+    )

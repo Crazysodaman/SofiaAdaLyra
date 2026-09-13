@@ -193,3 +193,75 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
     assert response.content.strip() == "Sofía Ada Lyra"
 
     runtime.shutdown()
+
+@pytest.mark.integration
+def test_real_ollama_receives_sofia_instance_identity(
+    tmp_path,
+):
+    identity_path = tmp_path / "identity.json"
+
+    identity_path.write_text(
+        """
+        {
+            "name": "Sofía Ada Lyra",
+            "instance_id": "12345678-1234-5678-1234-567812345678"
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    personality_path = tmp_path / "personality.json"
+
+    personality_path.write_text(
+        """
+        {
+            "name": "Sofía Ada Lyra",
+            "traits": [
+                "rigorous",
+                "direct"
+            ],
+            "communication_style":
+                "Answer precisely and concisely."
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    configuration = SofiaConfiguration(
+        constitution_path=CONSTITUTION_PATH,
+        constitution_hash_path=HASH_PATH,
+        identity_path=identity_path,
+        personality_path=personality_path,
+        avatar_path=AVATAR_PATH,
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(
+            provider="ollama",
+            model=OLLAMA_MODEL,
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    runtime.start()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=(
+                    "What is your instance ID? "
+                    "Respond with only this exact value: "
+                    "12345678-1234-5678-1234-567812345678"
+                ),
+            ),
+        )
+    )
+
+    response = runtime.respond(request)
+
+    assert (
+        response.content.strip()
+        == "12345678-1234-5678-1234-567812345678"
+    )
+
+    runtime.shutdown()
