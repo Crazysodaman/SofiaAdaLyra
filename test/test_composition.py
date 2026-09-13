@@ -2,7 +2,9 @@
 from pathlib import Path
 
 import pytest
+from datetime import datetime
 
+from sofia.memory.model import MemoryRecord
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.test_provider import TestLLMProvider
@@ -405,3 +407,42 @@ def test_composition_passes_state_path_to_memory_store(
     memory_store = runtime.memory_system._store
 
     assert memory_store._database_path == configuration.state_path
+
+def test_composed_runtime_preserves_memory_across_composition(
+    tmp_path,
+):
+    state_path = tmp_path / "sofia.db"
+
+    first_configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=state_path,
+        provider=ProviderConfiguration(
+            provider="test",
+            model="test-model",
+        ),
+    )
+
+    first_runtime = compose(first_configuration)
+
+    memory = MemoryRecord(
+        id="memory-1",
+        content="Sofía's memory survives composition.",
+        created_at=datetime.now(),
+    )
+
+    first_runtime.memory_system.remember(memory)
+
+    second_runtime = compose(first_configuration)
+
+    retrieved = second_runtime.memory_system.recall(
+        "memory-1"
+    )
+
+    assert retrieved is not None
+    assert retrieved.id == memory.id
+    assert retrieved.content == memory.content
+    assert retrieved.created_at == memory.created_at
