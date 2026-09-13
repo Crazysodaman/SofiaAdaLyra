@@ -35,6 +35,14 @@ HASH_PATH = (
     / "constitution.sha256"
 )
 
+AVATAR_PATH = (
+    PROJECT_ROOT
+    / "src"
+    / "sofia"
+    / "data"
+    / "avatar.json"
+)
+
 OLLAMA_MODEL = os.getenv(
     "SOFIA_OLLAMA_MODEL",
     "qwen3:14b",
@@ -68,6 +76,7 @@ def test_real_ollama_cognitive_path(tmp_path):
         constitution_hash_path=HASH_PATH,
         identity_path=identity_path,
         personality_path=personality_path,
+        avatar_path=AVATAR_PATH,
         provider=ProviderConfiguration(
             provider="ollama",
             model=OLLAMA_MODEL,

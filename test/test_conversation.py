@@ -35,6 +35,14 @@ IDENTITY_PATH = (
     / "identity.json"
 )
 
+AVATAR_PATH = (
+    Path(__file__).parent.parent
+    / "src"
+    / "sofia"
+    / "data"
+    / "avatar.json"
+)
+
 
 @pytest.fixture
 def personality_path(tmp_path: Path) -> Path:
@@ -67,6 +75,7 @@ def application(
         constitution_hash_path=str(HASH_PATH),
         identity_path=str(IDENTITY_PATH),
         personality_path=str(personality_path),
+        avatar_path=str(AVATAR_PATH),
         provider=ProviderConfiguration(
             provider="test",
             model="test",

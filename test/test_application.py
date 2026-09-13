@@ -31,6 +31,14 @@ IDENTITY_PATH = (
     / "identity.json"
 )
 
+AVATAR_PATH = (
+    Path(__file__).parent.parent
+    / "src"
+    / "sofia"
+    / "data"
+    / "avatar.json"
+)
+
 
 @pytest.fixture
 def personality_path(tmp_path: Path) -> Path:
@@ -62,6 +70,7 @@ def create_configuration(
         constitution_hash_path=str(HASH_PATH),
         identity_path=str(IDENTITY_PATH),
         personality_path=str(personality_path),
+        avatar_path=str(AVATAR_PATH),
         provider=ProviderConfiguration(
             provider="test",
             model="test",
@@ -140,6 +149,7 @@ def test_start_failure_is_exposed_as_application_error(
         constitution_hash_path=str(tmp_path / "missing.sha256"),
         identity_path=str(tmp_path / "missing.json"),
         personality_path=str(tmp_path / "missing-personality.json"),
+        avatar_path=str(tmp_path / "missing-avatar.json"),
         provider=ProviderConfiguration(
             provider="test",
             model="test",
