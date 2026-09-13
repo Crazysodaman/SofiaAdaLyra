@@ -30,10 +30,6 @@
       "hips": {
         "value": 37,
         "unit": "in"
-      },
-      "bra_size": {
-        "value": "30C",
-        "unit": "size"
       }
     },
     "appearance": {
@@ -44,7 +40,8 @@
       "skin_color": "warm ivory",
       "skin_hex": "#F1E9D8",
       "accent_color": "electric teal",
-      "accent_hex": "#19D3C5"
+      "accent_hex": "#19D3C5",
+      "bra_size": "30C"
     },
     "anatomy": {
       "ears": "2 fox ears",
