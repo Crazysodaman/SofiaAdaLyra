@@ -1,106 +1,138 @@
-﻿from pathlib import Path
+﻿from datetime import datetime
 
-import pytest
-
-from sofia.application import SofiaApplication
-from sofia.cognition.model import (
-    CognitiveMessage,
-    CognitiveRequest,
-    CognitiveRole,
+from sofia.conversation.model import (
+    ConversationMessage,
+    ConversationRole,
 )
-from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.conversation.store import ConversationStore
 
 
-CONSTITUTION_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.md"
-)
-
-HASH_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.sha256"
-)
-
-IDENTITY_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "identity"
-    / "identity.json"
-)
-
-AVATAR_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "data"
-    / "avatar.json"
-)
-
-
-@pytest.fixture
-def personality_path(tmp_path: Path) -> Path:
-    path = tmp_path / "personality.json"
-
-    path.write_text(
-        """
-{
-    "name": "Sofía",
-    "traits": [
-        "rigorous",
-        "curious",
-        "direct"
-    ],
-    "communication_style": "Clear, direct, and analytical."
-}
-""".strip(),
-        encoding="utf-8",
-    )
-
-    return path
-
-
-@pytest.fixture
-def application(
-    personality_path: Path,
-) -> SofiaApplication:
-    configuration = SofiaConfiguration(
-        constitution_path=str(CONSTITUTION_PATH),
-        constitution_hash_path=str(HASH_PATH),
-        identity_path=str(IDENTITY_PATH),
-        personality_path=str(personality_path),
-        avatar_path=str(AVATAR_PATH),
-        provider=ProviderConfiguration(
-            provider="test",
-            model="test",
-        ),
-    )
-
-    return SofiaApplication(configuration)
-
-
-def test_conversation_can_submit_request(
-    application: SofiaApplication,
+def test_conversation_store_persists_messages(
+    tmp_path,
 ):
-    application.start()
+    database_path = tmp_path / "sofia.db"
 
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="Hello, Sofía.",
-            ),
+    store = ConversationStore(database_path)
+
+    first_message = ConversationMessage(
+        id="message-1",
+        session_id="session-1",
+        role=ConversationRole.USER,
+        content="Hello, Sofía.",
+        created_at=datetime.now(),
+    )
+
+    second_message = ConversationMessage(
+        id="message-2",
+        session_id="session-1",
+        role=ConversationRole.ASSISTANT,
+        content="Hello, Sparks.",
+        created_at=datetime.now(),
+    )
+
+    store.save(first_message)
+    store.save(second_message)
+
+    reloaded_store = ConversationStore(database_path)
+
+    messages = reloaded_store.list_messages(
+        "session-1"
+    )
+
+    assert messages == (
+        first_message,
+        second_message,
+    )
+
+def test_conversation_store_isolates_sessions(
+    tmp_path,
+):
+    database_path = tmp_path / "sofia.db"
+
+    store = ConversationStore(database_path)
+
+    session_one_message = ConversationMessage(
+        id="message-1",
+        session_id="session-1",
+        role=ConversationRole.USER,
+        content="Message from session one.",
+        created_at=datetime.now(),
+    )
+
+    session_two_message = ConversationMessage(
+        id="message-2",
+        session_id="session-2",
+        role=ConversationRole.USER,
+        content="Message from session two.",
+        created_at=datetime.now(),
+    )
+
+    store.save(session_one_message)
+    store.save(session_two_message)
+
+    session_one_messages = store.list_messages(
+        "session-1"
+    )
+
+    session_two_messages = store.list_messages(
+        "session-2"
+    )
+
+    assert session_one_messages == (
+        session_one_message,
+    )
+
+    assert session_two_messages == (
+        session_two_message,
+    )
+
+def test_conversation_store_returns_messages_in_creation_order(
+    tmp_path,
+):
+    database_path = tmp_path / "sofia.db"
+
+    store = ConversationStore(database_path)
+
+    first = ConversationMessage(
+        id="message-1",
+        session_id="session-1",
+        role=ConversationRole.USER,
+        content="First.",
+        created_at=datetime.fromisoformat(
+            "2026-09-13T13:00:00"
         ),
     )
 
-    response = application.runtime.respond(request)
+    second = ConversationMessage(
+        id="message-2",
+        session_id="session-1",
+        role=ConversationRole.ASSISTANT,
+        content="Second.",
+        created_at=datetime.fromisoformat(
+            "2026-09-13T13:00:01"
+        ),
+    )
 
-    assert response is not None
+    third = ConversationMessage(
+        id="message-3",
+        session_id="session-1",
+        role=ConversationRole.USER,
+        content="Third.",
+        created_at=datetime.fromisoformat(
+            "2026-09-13T13:00:02"
+        ),
+    )
 
-    application.shutdown()
+    store.save(third)
+    store.save(first)
+    store.save(second)
+
+    messages = store.list_messages(
+        "session-1"
+    )
+
+    assert messages == (
+        first,
+        second,
+        third,
+    )
