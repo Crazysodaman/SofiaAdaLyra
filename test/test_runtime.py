@@ -652,3 +652,87 @@ def test_runtime_injects_relevant_memory_into_cognition():
     assert response == CognitiveResponse(
         content="Sparks prefers architecture-first development."
     )
+
+def test_runtime_injects_relevant_memory_into_cognition():
+    runtime = create_runtime()
+
+    runtime.memory_system.remember(
+        MemoryRecord(
+            id="memory-1",
+            content=(
+                "Sparks prefers architecture-first development."
+            ),
+            created_at=datetime.now(),
+        )
+    )
+
+    runtime.start()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=(
+                    "What does Sparks prefer about development?"
+                ),
+            ),
+        ),
+    )
+
+    runtime.respond(request)
+
+    assembled_request = (
+        runtime.cognitive_system
+        .context_assembler
+        .assemble(
+            CognitiveContext(
+                request=request,
+                identity=runtime.identity,
+                personality=runtime.personality,
+                constitution=runtime.constitution,
+                embodiment=runtime.embodiment,
+                memories=runtime.memory_system.recall_relevant(
+                    "What does Sparks prefer about development?"
+                ),
+            )
+        )
+    )
+
+    system_message = assembled_request.messages[0].content
+
+    assert (
+        "Sparks prefers architecture-first development."
+        in system_message
+    )
+
+def test_runtime_retrieves_relevant_memory_before_cognition():
+    runtime = create_runtime()
+
+    memory = MemoryRecord(
+        id="memory-1",
+        content=(
+            "Sparks prefers architecture-first development."
+        ),
+        created_at=datetime.now(),
+    )
+
+    runtime.memory_system.remember(memory)
+
+    runtime.start()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=(
+                    "What does Sparks prefer about development?"
+                ),
+            ),
+        ),
+    )
+
+    relevant = runtime.memory_system.recall_relevant(
+        request.messages[-1].content
+    )
+
+    assert relevant == (memory,)
