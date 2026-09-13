@@ -45,15 +45,29 @@ class SofiaApplication:
     def conversation(self) -> ConversationService:
         return self._conversation_service
 
-    def start(self) -> None:
+    def start(
+        self,
+        session_id: str | None = None,
+    ) -> None:
         """
         Start the Sofía application.
+
+        When session_id is omitted, a new conversation is created.
+        When session_id is provided, that persisted conversation
+        is explicitly resumed.
         """
 
         try:
             self._runtime.start()
-            self._conversation_service.start()
-        except SofiaRuntimeError as exc:
+            self._conversation_service.start(
+                session_id=session_id,
+            )
+        except (
+            SofiaRuntimeError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             raise SofiaApplicationError(
                 "Sofía application failed to start."
             ) from exc
@@ -69,3 +83,5 @@ class SofiaApplication:
             raise SofiaApplicationError(
                 "Sofía application failed to shut down."
             ) from exc
+        finally:
+            self._conversation_service.close()

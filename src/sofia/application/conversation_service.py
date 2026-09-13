@@ -59,11 +59,16 @@ class ConversationService:
 
         return self._session.id
 
-    def start(self) -> ConversationSession:
+    def start(
+        self,
+        session_id: str | None = None,
+    ) -> ConversationSession:
         """
-        Create a new application conversation session.
+        Start a conversation.
 
-        A service instance owns one active conversation session.
+        When session_id is omitted, create a new conversation.
+        When session_id is provided, explicitly resume that
+        persisted conversation.
         """
 
         if self._session is not None:
@@ -71,7 +76,35 @@ class ConversationService:
                 "ConversationService already has an active session."
             )
 
-        self._session = self._conversation_store.create_session()
+        if session_id is None:
+            self._session = (
+                self._conversation_store.create_session()
+            )
+
+            return self._session
+
+        if not isinstance(session_id, str):
+            raise TypeError(
+                "ConversationService session_id must be a string."
+            )
+
+        session_id = session_id.strip()
+
+        if not session_id:
+            raise ValueError(
+                "ConversationService session_id must not be empty."
+            )
+
+        session = self._conversation_store.get_session(
+            session_id
+        )
+
+        if session is None:
+            raise ValueError(
+                f"Conversation session does not exist: {session_id}"
+            )
+
+        self._session = session
 
         return self._session
 
@@ -151,6 +184,13 @@ class ConversationService:
         return self._conversation_store.list_messages(
             self._session.id
         )
+
+    def close(self) -> None:
+        """
+        Close the conversation persistence layer.
+        """
+
+        self._conversation_store.close()
 
     def _build_request(self) -> CognitiveRequest:
         messages = self._conversation_store.list_messages(
