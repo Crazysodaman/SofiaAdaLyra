@@ -209,8 +209,6 @@ def test_conversation_service_rejects_response_before_start(
             "Hello, Sofía."
         )
 
-    application.shutdown()
-
 
 def test_conversation_service_rejects_empty_response(
     tmp_path: Path,

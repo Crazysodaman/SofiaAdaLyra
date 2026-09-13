@@ -64,6 +64,7 @@ def personality_path(tmp_path: Path) -> Path:
 
 def create_configuration(
     personality_path: Path,
+    state_path: Path,
 ) -> SofiaConfiguration:
     return SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),
@@ -71,6 +72,7 @@ def create_configuration(
         identity_path=str(IDENTITY_PATH),
         personality_path=str(personality_path),
         avatar_path=str(AVATAR_PATH),
+        state_path=str(state_path),
         provider=ProviderConfiguration(
             provider="test",
             model="test",
@@ -80,9 +82,13 @@ def create_configuration(
 
 def test_new_application_is_not_started(
     personality_path: Path,
+    tmp_path: Path,
 ):
     application = SofiaApplication(
-        create_configuration(personality_path)
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
     )
 
     assert application.runtime.state is RuntimeState.CREATED
@@ -90,9 +96,13 @@ def test_new_application_is_not_started(
 
 def test_start_starts_runtime(
     personality_path: Path,
+    tmp_path: Path,
 ):
     application = SofiaApplication(
-        create_configuration(personality_path)
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
     )
 
     application.start()
@@ -102,9 +112,13 @@ def test_start_starts_runtime(
 
 def test_shutdown_stops_runtime(
     personality_path: Path,
+    tmp_path: Path,
 ):
     application = SofiaApplication(
-        create_configuration(personality_path)
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
     )
 
     application.start()
@@ -115,9 +129,13 @@ def test_shutdown_stops_runtime(
 
 def test_start_twice_is_rejected(
     personality_path: Path,
+    tmp_path: Path,
 ):
     application = SofiaApplication(
-        create_configuration(personality_path)
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
     )
 
     application.start()
@@ -130,9 +148,13 @@ def test_start_twice_is_rejected(
 
 def test_shutdown_before_start_is_rejected(
     personality_path: Path,
+    tmp_path: Path,
 ):
     application = SofiaApplication(
-        create_configuration(personality_path)
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
     )
 
     with pytest.raises(SofiaApplicationError):
@@ -150,6 +172,7 @@ def test_start_failure_is_exposed_as_application_error(
         identity_path=str(tmp_path / "missing.json"),
         personality_path=str(tmp_path / "missing-personality.json"),
         avatar_path=str(tmp_path / "missing-avatar.json"),
+        state_path=str(tmp_path / "sofia.db"),
         provider=ProviderConfiguration(
             provider="test",
             model="test",
