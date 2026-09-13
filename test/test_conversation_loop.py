@@ -40,6 +40,7 @@ AVATAR_PATH = (
 
 def create_application(
     personality_path: Path,
+    state_path: Path,
 ) -> SofiaApplication:
     configuration = SofiaConfiguration(
         constitution_path=str(CONSTITUTION_PATH),
@@ -47,6 +48,7 @@ def create_application(
         identity_path=str(IDENTITY_PATH),
         personality_path=str(personality_path),
         avatar_path=str(AVATAR_PATH),
+        state_path=str(state_path),
         provider=ProviderConfiguration(
             provider="test",
             model="test",
@@ -84,6 +86,7 @@ def test_conversation_loop_processes_user_input(
 ):
     application = create_application(
         create_personality(tmp_path),
+        tmp_path / "sofia.db",
     )
 
     inputs = iter(
@@ -111,6 +114,7 @@ def test_conversation_loop_ignores_empty_input(
 ):
     application = create_application(
         create_personality(tmp_path),
+        tmp_path / "sofia.db",
     )
 
     inputs = iter(
@@ -140,6 +144,7 @@ def test_conversation_loop_exits_on_eof(
 ):
     application = create_application(
         create_personality(tmp_path),
+        tmp_path / "sofia.db",
     )
 
     def raise_eof(_: str) -> str:

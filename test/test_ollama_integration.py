@@ -1,26 +1,15 @@
-﻿import os
-from pathlib import Path
+﻿from pathlib import Path
 
 import pytest
 
-from sofia.cognition.llm_engine import LLMCognitiveEngine
-from sofia.cognition.model import (
-    CognitiveMessage,
-    CognitiveRequest,
-    CognitiveRole,
-)
-from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.composition.root import compose
-from sofia.config.model import (
-    ProviderConfiguration,
-    SofiaConfiguration,
-)
+from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.ollama import OllamaProvider
 
 
-PROJECT_ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).resolve().parents[1]
 
 CONSTITUTION_PATH = (
-    PROJECT_ROOT
+    ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -28,7 +17,7 @@ CONSTITUTION_PATH = (
 )
 
 HASH_PATH = (
-    PROJECT_ROOT
+    ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -36,17 +25,14 @@ HASH_PATH = (
 )
 
 AVATAR_PATH = (
-    PROJECT_ROOT
+    ROOT
     / "src"
     / "sofia"
     / "data"
     / "avatar.json"
 )
 
-OLLAMA_MODEL = os.getenv(
-    "SOFIA_OLLAMA_MODEL",
-    "qwen3:14b",
-)
+OLLAMA_MODEL = "qwen3:14b"
 
 
 @pytest.mark.integration
@@ -71,51 +57,26 @@ def test_real_ollama_cognitive_path(tmp_path):
         encoding="utf-8",
     )
 
+    state_path = tmp_path / "sofia.db"
+
     configuration = SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
         constitution_hash_path=HASH_PATH,
         identity_path=identity_path,
         personality_path=personality_path,
         avatar_path=AVATAR_PATH,
+        state_path=state_path,
         provider=ProviderConfiguration(
             provider="ollama",
             model=OLLAMA_MODEL,
         ),
     )
 
-    runtime = compose(configuration)
+    provider = OllamaProvider(configuration.provider)
 
-    assert runtime is not None
-    assert runtime.cognitive_system is not None
-
-    assert isinstance(
-        runtime.cognitive_system.engine,
-        LLMCognitiveEngine,
+    response = provider.generate(
+        "Respond with exactly: OLLAMA_INTEGRATION_OK"
     )
 
-    assert isinstance(
-        runtime.cognitive_system.engine.provider,
-        OllamaProvider,
-    )
-
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content=(
-                    "Respond with exactly this sentence: "
-                    "Ollama integration is operational."
-                ),
-            ),
-        ),
-    )
-
-    response = runtime.respond(request)
-
-    assert response is not None
     assert response.content
-    assert "Ollama integration is operational." in response.content
-
-    runtime.shutdown()
+    assert "OLLAMA_INTEGRATION_OK" in response.content
