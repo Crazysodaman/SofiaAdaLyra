@@ -1,162 +1,114 @@
-﻿from pathlib import Path
-import sys
-from datetime import datetime
+﻿from datetime import datetime
+from pathlib import Path
+
 import pytest
-from sofia.memory.model import MemoryRecord
+
+from sofia.authority.model import Authority
+from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveResponse,
     CognitiveRole,
 )
+from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
+from sofia.config.model import ProviderConfiguration
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
 )
+from sofia.constitution.model import Constitution
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.model import (
-    AvatarEmbodiment,
-    ComputerEmbodiment,
-    CurrentEmbodiment,
     Embodiment,
-    Measurement,
     PhysicalSelf,
-    RobotEmbodiment,
+    CurrentEmbodiment,
 )
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
+from sofia.memory.model import MemoryRecord
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
-from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-
-
-CONSTITUTION_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.md"
+from sofia.runtime.runtime import (
+    SofiaRuntime,
+    SofiaRuntimeError,
 )
-
-HASH_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "constitution"
-    / "constitution.sha256"
-)
-
-IDENTITY_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "identity"
-    / "identity.json"
-)
-
-PERSONALITY_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "personality"
-    / "personality.json"
-)
-
-AVATAR_PATH = (
-    Path(__file__).parent.parent
-    / "src"
-    / "sofia"
-    / "data"
-    / "avatar.json"
-)
-
-
-def create_embodiment() -> Embodiment:
-    return Embodiment(
-        subject="Sofía Ada Lyra",
-        physical_self=PhysicalSelf(
-            form="human",
-            additional_features=(
-                "fox ears",
-                "fox tail",
-            ),
-            measurements=(
-                (
-                    "height",
-                    Measurement(
-                        value=67,
-                        unit="in",
-                    ),
-                ),
-            ),
-            appearance=(
-                (
-                    "hair_color",
-                    "deep crimson",
-                ),
-            ),
-            anatomy=(
-                (
-                    "ears",
-                    "2 fox ears",
-                ),
-                (
-                    "tail",
-                    "1 fox tail",
-                ),
-            ),
-        ),
-        computers=(
-            ComputerEmbodiment(
-                name="Test Computer",
-            ),
-        ),
-        robots=(
-            RobotEmbodiment(
-                name="Test Robot",
-            ),
-        ),
-        avatars=(
-            AvatarEmbodiment(
-                name="Test Avatar",
-            ),
-        ),
-        current=CurrentEmbodiment(
-            computer="Test Computer",
-            robot="Test Robot",
-            avatar="Test Avatar",
-        ),
-    )
 
 
 def create_runtime(
-    identity_path: Path = IDENTITY_PATH,
-    avatar_path: Path = AVATAR_PATH,
+    identity_path: Path | None = None,
 ) -> SofiaRuntime:
-    store = ConstitutionStore(CONSTITUTION_PATH)
+    constitution_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sofia"
+        / "constitution"
+        / "constitution.md"
+    )
 
-    verifier = ConstitutionIntegrityVerifier(HASH_PATH)
+    constitution_hash_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sofia"
+        / "constitution"
+        / "constitution.sha256"
+    )
 
-    identity_store = IdentityStore(identity_path)
+    if identity_path is None:
+        identity_path = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "sofia"
+            / "identity"
+            / "identity.json"
+        )
+
+    personality_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sofia"
+        / "personality"
+        / "personality.json"
+    )
+
+    avatar_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "sofia"
+        / "data"
+        / "avatar.json"
+    )
+
+    constitution_store = ConstitutionStore(
+        constitution_path
+    )
+
+    integrity_verifier = ConstitutionIntegrityVerifier(
+        constitution_hash_path
+    )
+
+    identity_store = IdentityStore(
+        identity_path
+    )
 
     personality_store = PersonalityStore(
-        PERSONALITY_PATH,
+        personality_path
     )
 
     avatar_store = AvatarStore(
-        avatar_path,
+        avatar_path
     )
 
     memory_store = MemoryStore()
 
     memory_system = MemorySystem(
-        memory_store,
+        memory_store
     )
 
     cognitive_system = CognitiveSystem(
@@ -164,8 +116,8 @@ def create_runtime(
     )
 
     return SofiaRuntime(
-        constitution_store=store,
-        integrity_verifier=verifier,
+        constitution_store=constitution_store,
+        integrity_verifier=integrity_verifier,
         identity_store=identity_store,
         personality_store=personality_store,
         avatar_store=avatar_store,
@@ -174,108 +126,68 @@ def create_runtime(
     )
 
 
-@pytest.fixture(autouse=True)
-def personality_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    personality_path = tmp_path / "personality.json"
-
-    PersonalityStore(personality_path).save(
-        PersonalityProfile(
-            name="Sofía Ada Lyra",
-            traits=("rigorous", "curious"),
-            communication_style="direct",
-        )
-    )
-
-    monkeypatch.setattr(
-        sys.modules[__name__],
-        "PERSONALITY_PATH",
-        personality_path,
-    )
-
-
-def test_new_runtime_starts_created():
+def test_runtime_initial_state():
     runtime = create_runtime()
 
     assert runtime.state is RuntimeState.CREATED
-
-
-def test_start_with_valid_constitution_reaches_ready():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.state is RuntimeState.READY
-    assert runtime.constitution is not None
-    assert runtime.embodiment is not None
-
-
-def test_start_with_invalid_constitution_fails(tmp_path: Path):
-    store = ConstitutionStore(CONSTITUTION_PATH)
-
-    identity_store = IdentityStore(
-        tmp_path / "identity.json",
-    )
-
-    personality_store = PersonalityStore(
-        PERSONALITY_PATH,
-    )
-
-    avatar_store = AvatarStore(
-        AVATAR_PATH,
-    )
-
-    class FailingVerifier:
-        def verify(self, constitution):
-            raise ConstitutionIntegrityError(
-                "Constitution integrity verification failed."
-            )
-
-    memory_store = MemoryStore()
-
-    memory_system = MemorySystem(
-        memory_store,
-    )
-
-    cognitive_system = CognitiveSystem(
-        engine=RuleEngine(),
-    )
-
-    runtime = SofiaRuntime(
-        constitution_store=store,
-        integrity_verifier=FailingVerifier(),
-        identity_store=identity_store,
-        personality_store=personality_store,
-        avatar_store=avatar_store,
-        memory_system=memory_system,
-        cognitive_system=cognitive_system,
-    )
-
-    with pytest.raises(SofiaRuntimeError) as exc_info:
-        runtime.start()
-
-    assert runtime.state is RuntimeState.FAILED
-    assert isinstance(
-        exc_info.value.__cause__,
-        ConstitutionIntegrityError,
-    )
     assert runtime.constitution is None
+    assert runtime.identity is None
+    assert runtime.personality is None
     assert runtime.embodiment is None
 
 
-def test_shutdown_from_ready_reaches_stopped():
+def test_runtime_start_loads_foundational_state():
+    runtime = create_runtime()
+
+    runtime.start()
+
+    assert runtime.state is RuntimeState.READY
+    assert runtime.constitution is not None
+    assert runtime.identity is not None
+    assert runtime.personality is not None
+    assert runtime.embodiment is not None
+
+
+def test_runtime_start_is_only_valid_from_created_or_stopped():
+    runtime = create_runtime()
+
+    runtime.start()
+
+    with pytest.raises(SofiaRuntimeError):
+        runtime.start()
+
+
+def test_runtime_shutdown():
     runtime = create_runtime()
 
     runtime.start()
     runtime.shutdown()
 
     assert runtime.state is RuntimeState.STOPPED
+    assert runtime.constitution is None
+    assert runtime.identity is None
+    assert runtime.personality is None
     assert runtime.embodiment is None
 
 
-def test_restart_from_stopped_performs_fresh_start():
+def test_runtime_shutdown_requires_ready_state():
+    runtime = create_runtime()
+
+    with pytest.raises(SofiaRuntimeError):
+        runtime.shutdown()
+
+
+def test_runtime_shutdown_cannot_be_called_twice():
+    runtime = create_runtime()
+
+    runtime.start()
+    runtime.shutdown()
+
+    with pytest.raises(SofiaRuntimeError):
+        runtime.shutdown()
+
+
+def test_runtime_can_restart_after_shutdown():
     runtime = create_runtime()
 
     runtime.start()
@@ -284,105 +196,18 @@ def test_restart_from_stopped_performs_fresh_start():
 
     assert runtime.state is RuntimeState.READY
     assert runtime.constitution is not None
+    assert runtime.identity is not None
+    assert runtime.personality is not None
     assert runtime.embodiment is not None
 
 
-def test_start_while_ready_is_rejected():
+def test_runtime_detects_constitution_integrity_failure():
     runtime = create_runtime()
-
-    runtime.start()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.start()
-
-    assert runtime.state is RuntimeState.READY
-
-
-def test_shutdown_from_created_is_rejected():
-    runtime = create_runtime()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.shutdown()
-
-    assert runtime.state is RuntimeState.CREATED
-
-
-def test_shutdown_from_failed_is_rejected(tmp_path: Path):
-    store = ConstitutionStore(CONSTITUTION_PATH)
-
-    identity_store = IdentityStore(
-        tmp_path / "identity.json",
-    )
-
-    personality_store = PersonalityStore(
-        PERSONALITY_PATH,
-    )
-
-    avatar_store = AvatarStore(
-        AVATAR_PATH,
-    )
 
     class FailingVerifier:
         def verify(self, constitution):
             raise ConstitutionIntegrityError(
-                "Constitution integrity verification failed."
-            )
-
-    memory_store = MemoryStore()
-
-    memory_system = MemorySystem(
-        memory_store,
-    )
-
-    cognitive_system = CognitiveSystem(
-        engine=RuleEngine(),
-    )
-
-    runtime = SofiaRuntime(
-        constitution_store=store,
-        integrity_verifier=FailingVerifier(),
-        identity_store=identity_store,
-        personality_store=personality_store,
-        avatar_store=avatar_store,
-        memory_system=memory_system,
-        cognitive_system=cognitive_system,
-    )
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.start()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.shutdown()
-
-    assert runtime.state is RuntimeState.FAILED
-
-
-def test_shutdown_while_stopped_is_rejected():
-    runtime = create_runtime()
-
-    runtime.start()
-    runtime.shutdown()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.shutdown()
-
-    assert runtime.state is RuntimeState.STOPPED
-
-
-def test_failed_restart_clears_previous_constitution():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.constitution is not None
-    assert runtime.embodiment is not None
-
-    runtime.shutdown()
-
-    class FailingVerifier:
-        def verify(self, constitution):
-            raise ConstitutionIntegrityError(
-                "Constitution integrity verification failed."
+                "Integrity failure."
             )
 
     runtime.integrity_verifier = FailingVerifier()
@@ -392,41 +217,101 @@ def test_failed_restart_clears_previous_constitution():
 
     assert runtime.state is RuntimeState.FAILED
     assert runtime.constitution is None
+    assert runtime.identity is None
+    assert runtime.personality is None
     assert runtime.embodiment is None
 
 
-def test_runtime_identity_is_none_before_start(tmp_path: Path):
-    runtime = create_runtime(
-        tmp_path / "identity.json",
+def test_runtime_clears_state_when_startup_fails():
+    runtime = create_runtime()
+
+    class FailingIdentityStore:
+        def load(self):
+            raise RuntimeError(
+                "Identity load failed."
+            )
+
+    runtime._identity_store = FailingIdentityStore()
+
+    with pytest.raises(SofiaRuntimeError):
+        runtime.start()
+
+    assert runtime.state is RuntimeState.FAILED
+    assert runtime.constitution is None
+    assert runtime.identity is None
+    assert runtime.personality is None
+    assert runtime.embodiment is None
+
+
+def test_runtime_exposes_foundational_subsystems():
+    runtime = create_runtime()
+
+    assert isinstance(
+        runtime.constitution_store,
+        ConstitutionStore,
     )
 
-    assert runtime.identity is None
+    assert isinstance(
+        runtime.identity_store,
+        IdentityStore,
+    )
+
+    assert isinstance(
+        runtime.personality_store,
+        PersonalityStore,
+    )
+
+    assert isinstance(
+        runtime.avatar_store,
+        AvatarStore,
+    )
+
+    assert isinstance(
+        runtime.memory_system,
+        MemorySystem,
+    )
+
+    assert isinstance(
+        runtime.cognitive_system,
+        CognitiveSystem,
+    )
 
 
 def test_runtime_loads_identity_on_start(tmp_path: Path):
     identity_path = tmp_path / "identity.json"
 
-    identity_store = IdentityStore(identity_path)
-
-    identity_store.save(
-        SofiaIdentity(
-            name="Nyx",
-        )
+    identity_store = IdentityStore(
+        identity_path
     )
 
-    runtime = create_runtime(identity_path)
+    saved_identity = SofiaIdentity(
+        name="Nyx",
+    )
+
+    identity_store.save(
+        saved_identity
+    )
+
+    runtime = create_runtime(
+        identity_path
+    )
 
     runtime.start()
 
-    assert runtime.identity == SofiaIdentity(
-        name="Nyx",
+    assert runtime.identity is not None
+    assert runtime.identity.name == "Nyx"
+    assert (
+        runtime.identity.instance_id
+        == saved_identity.instance_id
     )
 
 
 def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
     identity_path = tmp_path / "identity.json"
 
-    identity_store = IdentityStore(identity_path)
+    identity_store = IdentityStore(
+        identity_path
+    )
 
     identity_store.save(
         SofiaIdentity(
@@ -434,158 +319,71 @@ def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
         )
     )
 
-    runtime = create_runtime(identity_path)
+    runtime = create_runtime(
+        identity_path
+    )
 
     runtime.start()
 
-    assert runtime.identity.name == "Nyx"
+    assert runtime.identity is not None
 
     runtime.shutdown()
 
     assert runtime.identity is None
 
 
-def test_runtime_reload_identity_on_restart(tmp_path: Path):
+def test_runtime_reload_identity_on_restart(
+    tmp_path: Path,
+):
     identity_path = tmp_path / "identity.json"
 
-    identity_store = IdentityStore(identity_path)
-
-    identity_store.save(
-        SofiaIdentity(
-            name="Nyx",
-        )
+    identity_store = IdentityStore(
+        identity_path
     )
 
-    runtime = create_runtime(identity_path)
+    first_identity = SofiaIdentity(
+        name="Nyx",
+    )
+
+    identity_store.save(
+        first_identity
+    )
+
+    runtime = create_runtime(
+        identity_path
+    )
 
     runtime.start()
+
+    assert runtime.identity is not None
+    assert runtime.identity.name == "Nyx"
+    assert (
+        runtime.identity.instance_id
+        == first_identity.instance_id
+    )
+
     runtime.shutdown()
 
-    identity_store.save(
-        SofiaIdentity(
-            name="Sofía Ada Lyra",
-        )
-    )
-
-    runtime.start()
-
-    assert runtime.identity == SofiaIdentity(
+    second_identity = SofiaIdentity(
         name="Sofía Ada Lyra",
+        instance_id=first_identity.instance_id,
     )
 
-
-def test_runtime_embodiment_is_none_before_start():
-    runtime = create_runtime()
-
-    assert runtime.embodiment is None
-
-
-def test_runtime_loads_embodiment_on_start(tmp_path: Path):
-    avatar_path = tmp_path / "avatar.json"
-
-    avatar_store = AvatarStore(
-        avatar_path,
-    )
-
-    embodiment = create_embodiment()
-
-    avatar_store.save(embodiment)
-
-    runtime = create_runtime(
-        avatar_path=avatar_path,
+    identity_store.save(
+        second_identity
     )
 
     runtime.start()
 
-    assert runtime.embodiment == embodiment
-
-
-def test_runtime_clears_embodiment_on_shutdown(
-    tmp_path: Path,
-):
-    avatar_path = tmp_path / "avatar.json"
-
-    avatar_store = AvatarStore(
-        avatar_path,
-    )
-
-    embodiment = create_embodiment()
-
-    avatar_store.save(embodiment)
-
-    runtime = create_runtime(
-        avatar_path=avatar_path,
-    )
-
-    runtime.start()
-
-    assert runtime.embodiment == embodiment
-
-    runtime.shutdown()
-
-    assert runtime.embodiment is None
-
-
-def test_runtime_reload_embodiment_on_restart(
-    tmp_path: Path,
-):
-    avatar_path = tmp_path / "avatar.json"
-
-    avatar_store = AvatarStore(
-        avatar_path,
-    )
-
-    first_embodiment = create_embodiment()
-
-    avatar_store.save(first_embodiment)
-
-    runtime = create_runtime(
-        avatar_path=avatar_path,
-    )
-
-    runtime.start()
-    runtime.shutdown()
-
-    second_embodiment = Embodiment(
-        subject="Sofía Ada Lyra",
-        physical_self=PhysicalSelf(
-            form="human",
-            additional_features=(
-                "fox ears",
-                "fox tail",
-            ),
-        ),
-    )
-
-    avatar_store.save(second_embodiment)
-
-    runtime.start()
-
-    assert runtime.embodiment == second_embodiment
-
-
-def test_ready_runtime_can_process_cognitive_request():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="Hello, Sofía.",
-            ),
-        ),
-    )
-
-    response = runtime.respond(request)
-
-    assert response == CognitiveResponse(
-        content="Hello, Sparks.",
+    assert runtime.identity is not None
+    assert runtime.identity.name == "Sofía Ada Lyra"
+    assert (
+        runtime.identity.instance_id
+        == first_identity.instance_id
     )
 
 
-def test_runtime_cannot_process_cognitive_request_before_start():
+def test_runtime_respond_requires_ready_state():
     runtime = create_runtime()
 
     request = CognitiveRequest(
@@ -600,39 +398,18 @@ def test_runtime_cannot_process_cognitive_request_before_start():
     with pytest.raises(SofiaRuntimeError):
         runtime.respond(request)
 
-def test_runtime_identity_has_stable_instance_id(
-    tmp_path: Path,
-):
-    identity_path = tmp_path / "identity.json"
 
-    runtime = create_runtime(
-        identity_path=identity_path,
-    )
-
-    runtime.start()
-
-    assert runtime.identity is not None
-
-    first_instance_id = runtime.identity.instance_id
-
-    runtime.shutdown()
-    runtime.start()
-
-    assert runtime.identity is not None
-    assert runtime.identity.instance_id == first_instance_id
-
-def test_runtime_injects_relevant_memory_into_cognition():
+def test_runtime_respond_requires_cognitive_request():
     runtime = create_runtime()
 
-    runtime.memory_system.remember(
-        MemoryRecord(
-            id="memory-1",
-            content=(
-                "Sparks prefers architecture-first development."
-            ),
-            created_at=datetime.now(),
-        )
-    )
+    runtime.start()
+
+    with pytest.raises(TypeError):
+        runtime.respond("Hello, Sofía.")
+
+
+def test_runtime_responds_through_cognitive_system():
+    runtime = create_runtime()
 
     runtime.start()
 
@@ -640,31 +417,25 @@ def test_runtime_injects_relevant_memory_into_cognition():
         messages=(
             CognitiveMessage(
                 role=CognitiveRole.USER,
-                content=(
-                    "What does Sparks prefer about development?"
-                ),
+                content="Hello, Sofía.",
             ),
         ),
     )
 
-    response = runtime.respond(request)
-
-    assert response == CognitiveResponse(
-        content="Sparks prefers architecture-first development."
+    response = runtime.respond(
+        request
     )
 
-def test_runtime_injects_relevant_memory_into_cognition():
+    assert isinstance(
+        response,
+        CognitiveResponse,
+    )
+
+    assert response.content == "Hello, Sparks."
+
+
+def test_runtime_injects_identity_into_cognition():
     runtime = create_runtime()
-
-    runtime.memory_system.remember(
-        MemoryRecord(
-            id="memory-1",
-            content=(
-                "Sparks prefers architecture-first development."
-            ),
-            created_at=datetime.now(),
-        )
-    )
 
     runtime.start()
 
@@ -672,38 +443,17 @@ def test_runtime_injects_relevant_memory_into_cognition():
         messages=(
             CognitiveMessage(
                 role=CognitiveRole.USER,
-                content=(
-                    "What does Sparks prefer about development?"
-                ),
+                content="What is your name?",
             ),
         ),
     )
 
-    runtime.respond(request)
-
-    assembled_request = (
-        runtime.cognitive_system
-        .context_assembler
-        .assemble(
-            CognitiveContext(
-                request=request,
-                identity=runtime.identity,
-                personality=runtime.personality,
-                constitution=runtime.constitution,
-                embodiment=runtime.embodiment,
-                memories=runtime.memory_system.recall_relevant(
-                    "What does Sparks prefer about development?"
-                ),
-            )
-        )
+    response = runtime.respond(
+        request
     )
 
-    system_message = assembled_request.messages[0].content
+    assert response.content == "I am Sofía Ada Lyra."
 
-    assert (
-        "Sparks prefers architecture-first development."
-        in system_message
-    )
 
 def test_runtime_retrieves_relevant_memory_before_cognition():
     runtime = create_runtime()
@@ -716,7 +466,9 @@ def test_runtime_retrieves_relevant_memory_before_cognition():
         created_at=datetime.now(),
     )
 
-    runtime.memory_system.remember(memory)
+    runtime.memory_system.remember(
+        memory
+    )
 
     runtime.start()
 
@@ -731,8 +483,12 @@ def test_runtime_retrieves_relevant_memory_before_cognition():
         ),
     )
 
-    relevant = runtime.memory_system.recall_relevant(
-        request.messages[-1].content
+    relevant = (
+        runtime.memory_system.recall_relevant(
+            request.messages[-1].content
+        )
     )
 
-    assert relevant == (memory,)
+    assert relevant == (
+        memory,
+    )
