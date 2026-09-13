@@ -5,7 +5,11 @@ from sofia.conversation.model import (
     ConversationRole,
 )
 from sofia.conversation.store import ConversationStore
-
+from sofia.conversation.model import (
+    ConversationMessage,
+    ConversationRole,
+    ConversationSession,
+)
 
 def test_conversation_store_persists_messages(
     tmp_path,
@@ -136,3 +140,24 @@ def test_conversation_store_returns_messages_in_creation_order(
         second,
         third,
     )
+
+def test_conversation_store_creates_and_persists_session(
+    tmp_path,
+):
+    database_path = tmp_path / "sofia.db"
+
+    store = ConversationStore(database_path)
+
+    session = store.create_session()
+
+    assert session.id
+    assert session.created_at is not None
+    assert session.updated_at is not None
+
+    reloaded_store = ConversationStore(database_path)
+
+    reloaded_session = reloaded_store.get_session(
+        session.id
+    )
+
+    assert reloaded_session == session
