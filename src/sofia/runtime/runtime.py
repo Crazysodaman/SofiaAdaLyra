@@ -13,11 +13,14 @@ from sofia.embodiment.model import Embodiment
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
-from sofia.memory.model import MemoryRecord
 from sofia.memory.system import MemorySystem
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
+from sofia.self_model.model import (
+    SofiaCoreState,
+    create_core_state,
+)
 
 
 class SofiaRuntimeError(Exception):
@@ -56,6 +59,7 @@ class SofiaRuntime:
         self._identity: SofiaIdentity | None = None
         self._personality: PersonalityProfile | None = None
         self._embodiment: Embodiment | None = None
+        self._core_state: SofiaCoreState | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -111,6 +115,10 @@ class SofiaRuntime:
         return self._embodiment
 
     @property
+    def core_state(self) -> SofiaCoreState | None:
+        return self._core_state
+
+    @property
     def memory_system(self) -> MemorySystem:
         return self._memory_system
 
@@ -140,10 +148,16 @@ class SofiaRuntime:
             personality = self._personality_store.load()
             embodiment = self._avatar_store.load()
 
+            core_state = create_core_state(
+                identity=identity,
+                constitution=constitution,
+            )
+
             self._constitution = constitution
             self._identity = identity
             self._personality = personality
             self._embodiment = embodiment
+            self._core_state = core_state
             self._state = RuntimeState.READY
 
         except ConstitutionIntegrityError as exc:
@@ -151,6 +165,7 @@ class SofiaRuntime:
             self._identity = None
             self._personality = None
             self._embodiment = None
+            self._core_state = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -162,6 +177,7 @@ class SofiaRuntime:
             self._identity = None
             self._personality = None
             self._embodiment = None
+            self._core_state = None
             self._state = RuntimeState.FAILED
 
             raise SofiaRuntimeError(
@@ -193,6 +209,7 @@ class SofiaRuntime:
                 personality=self._personality,
                 constitution=self._constitution,
                 embodiment=self._embodiment,
+                core_state=self._core_state,
                 memories=memories,
             ),
             authority=Authority(),
@@ -217,6 +234,7 @@ class SofiaRuntime:
         self._identity = None
         self._personality = None
         self._embodiment = None
+        self._core_state = None
         self._state = RuntimeState.STOPPED
 
     @staticmethod

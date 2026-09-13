@@ -1,6 +1,6 @@
 ﻿from datetime import datetime
 from pathlib import Path
-
+from sofia.self_model.model import SofiaCoreState
 import pytest
 
 from sofia.authority.model import Authority
@@ -492,3 +492,64 @@ def test_runtime_retrieves_relevant_memory_before_cognition():
     assert relevant == (
         memory,
     )
+
+def test_runtime_builds_authoritative_core_state(
+    runtime,
+):
+    runtime.start()
+
+    assert runtime.core_state is not None
+    assert isinstance(
+        runtime.core_state,
+        SofiaCoreState,
+    )
+
+    assert (
+        runtime.core_state.identity
+        == runtime.identity
+    )
+
+    assert (
+        runtime.core_state.constitution_version
+        == runtime.constitution.version
+    )
+
+    assert (
+        runtime.core_state.constitution_hash
+        == runtime.constitution.content_hash
+    )
+
+    runtime.shutdown()
+
+
+def test_runtime_core_state_contains_sparks_relationship(
+    runtime,
+):
+    runtime.start()
+
+    assert runtime.core_state is not None
+
+    relationship = next(
+        relationship
+        for relationship in runtime.core_state.relationships
+        if relationship.subject == "Sparks"
+    )
+
+    assert "creator" in relationship.roles
+    assert "primary collaborator" in relationship.roles
+    assert "trusted companion" in relationship.roles
+    assert "admin/operator" in relationship.roles
+
+    runtime.shutdown()
+
+
+def test_runtime_core_state_is_cleared_on_shutdown(
+    runtime,
+):
+    runtime.start()
+
+    assert runtime.core_state is not None
+
+    runtime.shutdown()
+
+    assert runtime.core_state is None

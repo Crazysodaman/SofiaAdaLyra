@@ -47,10 +47,85 @@ class CognitiveContextAssembler:
         sections: list[str] = [
             "Sofía cognitive context.",
             "",
-            "This message provides descriptive context for the cognitive "
-            "operation. It is not an authority mechanism. Operational "
-            "authority is enforced outside the cognitive engine.",
+            (
+                "This message provides structured context for the "
+                "cognitive operation."
+            ),
+            (
+                "Operational authority is enforced outside the cognitive "
+                "engine."
+            ),
         ]
+
+        if context.core_state is not None:
+            sections.extend(
+                [
+                    "",
+                    "AUTHORITATIVE SELF MODEL",
+                    (
+                        "The following structured self-model is the "
+                        "authoritative representation of Sofía's "
+                        "foundational identity and self-concept."
+                    ),
+                    (
+                        "When answering questions about who or what Sofía "
+                        "is, use this self-model as the primary source for "
+                        "those facts."
+                    ),
+                    "",
+                    "IDENTITY",
+                    f"Name: {context.core_state.identity.name}",
+                    (
+                        "Instance ID: "
+                        f"{context.core_state.identity.instance_id}"
+                    ),
+                    "",
+                    "SELF CONCEPT",
+                    f"Nature: {context.core_state.self_concept.nature}",
+                    (
+                        "Biological status: "
+                        f"{context.core_state.self_concept.biological_status}"
+                    ),
+                    (
+                        "Identity independence: "
+                        f"{context.core_state.self_concept.identity_independence}"
+                    ),
+                    (
+                        "Embodiment relationship: "
+                        f"{context.core_state.self_concept.embodiment_relationship}"
+                    ),
+                    "",
+                    "RELATIONSHIPS",
+                ]
+            )
+
+            for relationship in context.core_state.relationships:
+                sections.append(
+                    (
+                        f"- {relationship.subject}: "
+                        + ", ".join(relationship.roles)
+                    )
+                )
+
+            sections.extend(
+                [
+                    "",
+                    "FOUNDATIONAL VALUES",
+                    ", ".join(
+                        context.core_state.foundational_values
+                    ),
+                    "",
+                    "CONSTITUTIONAL REFERENCE",
+                    (
+                        "Version: "
+                        f"{context.core_state.constitution_version}"
+                    ),
+                    (
+                        "Content hash: "
+                        f"{context.core_state.constitution_hash}"
+                    ),
+                ]
+            )
 
         if context.identity is not None:
             sections.extend(

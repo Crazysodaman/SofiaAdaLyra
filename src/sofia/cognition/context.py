@@ -6,6 +6,7 @@ from sofia.embodiment.model import Embodiment
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile
+from sofia.self_model.model import SofiaCoreState
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class CognitiveContext:
     memories: tuple[MemoryRecord, ...] = ()
     constitution: Constitution | None = None
     embodiment: Embodiment | None = None
+    core_state: SofiaCoreState | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -72,4 +74,12 @@ class CognitiveContext:
         ):
             raise TypeError(
                 "CognitiveContext embodiment must be an Embodiment."
+            )
+
+        if (
+            self.core_state is not None
+            and not isinstance(self.core_state, SofiaCoreState)
+        ):
+            raise TypeError(
+                "CognitiveContext core_state must be a SofiaCoreState."
             )
