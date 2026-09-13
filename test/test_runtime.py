@@ -1,8 +1,8 @@
 ﻿from pathlib import Path
+import sys
 
 import pytest
-import sys
-from sofia.personality.model import PersonalityProfile
+
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -16,10 +16,21 @@ from sofia.constitution.integrity import (
     ConstitutionIntegrityVerifier,
 )
 from sofia.constitution.store import ConstitutionStore
+from sofia.embodiment.model import (
+    AvatarEmbodiment,
+    ComputerEmbodiment,
+    CurrentEmbodiment,
+    Embodiment,
+    Measurement,
+    PhysicalSelf,
+    RobotEmbodiment,
+)
+from sofia.embodiment.store import AvatarStore
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
@@ -57,9 +68,76 @@ PERSONALITY_PATH = (
     / "personality.json"
 )
 
+AVATAR_PATH = (
+    Path(__file__).parent.parent
+    / "src"
+    / "sofia"
+    / "data"
+    / "avatar.json"
+)
+
+
+def create_embodiment() -> Embodiment:
+    return Embodiment(
+        subject="Sofía Ada Lyra",
+        physical_self=PhysicalSelf(
+            form="human",
+            additional_features=(
+                "fox ears",
+                "fox tail",
+            ),
+            measurements=(
+                (
+                    "height",
+                    Measurement(
+                        value=67,
+                        unit="in",
+                    ),
+                ),
+            ),
+            appearance=(
+                (
+                    "hair_color",
+                    "deep crimson",
+                ),
+            ),
+            anatomy=(
+                (
+                    "ears",
+                    "2 fox ears",
+                ),
+                (
+                    "tail",
+                    "1 fox tail",
+                ),
+            ),
+        ),
+        computers=(
+            ComputerEmbodiment(
+                name="Test Computer",
+            ),
+        ),
+        robots=(
+            RobotEmbodiment(
+                name="Test Robot",
+            ),
+        ),
+        avatars=(
+            AvatarEmbodiment(
+                name="Test Avatar",
+            ),
+        ),
+        current=CurrentEmbodiment(
+            computer="Test Computer",
+            robot="Test Robot",
+            avatar="Test Avatar",
+        ),
+    )
+
 
 def create_runtime(
     identity_path: Path = IDENTITY_PATH,
+    avatar_path: Path = AVATAR_PATH,
 ) -> SofiaRuntime:
     store = ConstitutionStore(CONSTITUTION_PATH)
 
@@ -69,6 +147,10 @@ def create_runtime(
 
     personality_store = PersonalityStore(
         PERSONALITY_PATH,
+    )
+
+    avatar_store = AvatarStore(
+        avatar_path,
     )
 
     memory_store = MemoryStore()
@@ -86,8 +168,31 @@ def create_runtime(
         integrity_verifier=verifier,
         identity_store=identity_store,
         personality_store=personality_store,
+        avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+    )
+
+
+@pytest.fixture(autouse=True)
+def personality_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    personality_path = tmp_path / "personality.json"
+
+    PersonalityStore(personality_path).save(
+        PersonalityProfile(
+            name="Sofía Ada Lyra",
+            traits=("rigorous", "curious"),
+            communication_style="direct",
+        )
+    )
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "PERSONALITY_PATH",
+        personality_path,
     )
 
 
@@ -104,6 +209,7 @@ def test_start_with_valid_constitution_reaches_ready():
 
     assert runtime.state is RuntimeState.READY
     assert runtime.constitution is not None
+    assert runtime.embodiment is not None
 
 
 def test_start_with_invalid_constitution_fails(tmp_path: Path):
@@ -115,6 +221,10 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
 
     personality_store = PersonalityStore(
         PERSONALITY_PATH,
+    )
+
+    avatar_store = AvatarStore(
+        AVATAR_PATH,
     )
 
     class FailingVerifier:
@@ -138,6 +248,7 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
         personality_store=personality_store,
+        avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
@@ -151,6 +262,7 @@ def test_start_with_invalid_constitution_fails(tmp_path: Path):
         ConstitutionIntegrityError,
     )
     assert runtime.constitution is None
+    assert runtime.embodiment is None
 
 
 def test_shutdown_from_ready_reaches_stopped():
@@ -160,6 +272,7 @@ def test_shutdown_from_ready_reaches_stopped():
     runtime.shutdown()
 
     assert runtime.state is RuntimeState.STOPPED
+    assert runtime.embodiment is None
 
 
 def test_restart_from_stopped_performs_fresh_start():
@@ -171,6 +284,7 @@ def test_restart_from_stopped_performs_fresh_start():
 
     assert runtime.state is RuntimeState.READY
     assert runtime.constitution is not None
+    assert runtime.embodiment is not None
 
 
 def test_start_while_ready_is_rejected():
@@ -204,6 +318,10 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
         PERSONALITY_PATH,
     )
 
+    avatar_store = AvatarStore(
+        AVATAR_PATH,
+    )
+
     class FailingVerifier:
         def verify(self, constitution):
             raise ConstitutionIntegrityError(
@@ -225,6 +343,7 @@ def test_shutdown_from_failed_is_rejected(tmp_path: Path):
         integrity_verifier=FailingVerifier(),
         identity_store=identity_store,
         personality_store=personality_store,
+        avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
     )
@@ -256,6 +375,7 @@ def test_failed_restart_clears_previous_constitution():
     runtime.start()
 
     assert runtime.constitution is not None
+    assert runtime.embodiment is not None
 
     runtime.shutdown()
 
@@ -272,6 +392,7 @@ def test_failed_restart_clears_previous_constitution():
 
     assert runtime.state is RuntimeState.FAILED
     assert runtime.constitution is None
+    assert runtime.embodiment is None
 
 
 def test_runtime_identity_is_none_before_start(tmp_path: Path):
@@ -353,6 +474,96 @@ def test_runtime_reload_identity_on_restart(tmp_path: Path):
     )
 
 
+def test_runtime_embodiment_is_none_before_start():
+    runtime = create_runtime()
+
+    assert runtime.embodiment is None
+
+
+def test_runtime_loads_embodiment_on_start(tmp_path: Path):
+    avatar_path = tmp_path / "avatar.json"
+
+    avatar_store = AvatarStore(
+        avatar_path,
+    )
+
+    embodiment = create_embodiment()
+
+    avatar_store.save(embodiment)
+
+    runtime = create_runtime(
+        avatar_path=avatar_path,
+    )
+
+    runtime.start()
+
+    assert runtime.embodiment == embodiment
+
+
+def test_runtime_clears_embodiment_on_shutdown(
+    tmp_path: Path,
+):
+    avatar_path = tmp_path / "avatar.json"
+
+    avatar_store = AvatarStore(
+        avatar_path,
+    )
+
+    embodiment = create_embodiment()
+
+    avatar_store.save(embodiment)
+
+    runtime = create_runtime(
+        avatar_path=avatar_path,
+    )
+
+    runtime.start()
+
+    assert runtime.embodiment == embodiment
+
+    runtime.shutdown()
+
+    assert runtime.embodiment is None
+
+
+def test_runtime_reload_embodiment_on_restart(
+    tmp_path: Path,
+):
+    avatar_path = tmp_path / "avatar.json"
+
+    avatar_store = AvatarStore(
+        avatar_path,
+    )
+
+    first_embodiment = create_embodiment()
+
+    avatar_store.save(first_embodiment)
+
+    runtime = create_runtime(
+        avatar_path=avatar_path,
+    )
+
+    runtime.start()
+    runtime.shutdown()
+
+    second_embodiment = Embodiment(
+        subject="Sofía Ada Lyra",
+        physical_self=PhysicalSelf(
+            form="human",
+            additional_features=(
+                "fox ears",
+                "fox tail",
+            ),
+        ),
+    )
+
+    avatar_store.save(second_embodiment)
+
+    runtime.start()
+
+    assert runtime.embodiment == second_embodiment
+
+
 def test_ready_runtime_can_process_cognitive_request():
     runtime = create_runtime()
 
@@ -388,23 +599,3 @@ def test_runtime_cannot_process_cognitive_request_before_start():
 
     with pytest.raises(SofiaRuntimeError):
         runtime.respond(request)
-@pytest.fixture(autouse=True)
-def personality_file(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    personality_path = tmp_path / "personality.json"
-
-    PersonalityStore(personality_path).save(
-        PersonalityProfile(
-            name="Sofía Ada Lyra",
-            traits=("rigorous", "curious"),
-            communication_style="direct",
-        )
-    )
-
-    monkeypatch.setattr(
-        sys.modules[__name__],
-        "PERSONALITY_PATH",
-        personality_path,
-    )

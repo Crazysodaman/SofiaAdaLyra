@@ -14,6 +14,7 @@ from sofia.config.model import (
 )
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
+from sofia.embodiment.store import AvatarStore
 from sofia.memory.system import MemorySystem
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
@@ -26,6 +27,7 @@ def create_configuration() -> SofiaConfiguration:
         constitution_hash_path=Path("constitution.sha256"),
         identity_path=Path("identity.json"),
         personality_path=Path("personality.json"),
+        avatar_path=Path("avatar.json"),
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -54,7 +56,11 @@ def test_composition_wires_constitution_store():
 
     runtime = compose(configuration)
 
-    assert isinstance(runtime.constitution_store, ConstitutionStore)
+    assert isinstance(
+        runtime.constitution_store,
+        ConstitutionStore,
+    )
+
     assert (
         runtime.constitution_store.constitution_path
         == configuration.constitution_path
@@ -70,6 +76,7 @@ def test_composition_wires_integrity_verifier():
         runtime.integrity_verifier,
         ConstitutionIntegrityVerifier,
     )
+
     assert (
         runtime.integrity_verifier.expected_hash_path
         == configuration.constitution_hash_path
@@ -85,9 +92,26 @@ def test_composition_wires_personality_store():
         runtime.personality_store,
         PersonalityStore,
     )
+
     assert (
         runtime.personality_store._path
         == configuration.personality_path
+    )
+
+
+def test_composition_wires_avatar_store():
+    configuration = create_configuration()
+
+    runtime = compose(configuration)
+
+    assert isinstance(
+        runtime.avatar_store,
+        AvatarStore,
+    )
+
+    assert (
+        runtime.avatar_store.path
+        == configuration.avatar_path
     )
 
 
@@ -117,6 +141,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -142,9 +167,46 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
         encoding="utf-8",
     )
 
+    configuration.personality_path.write_text(
+        (
+            '{"name": "Sofía Ada Lyra", '
+            '"traits": ["rigorous"], '
+            '"communication_style": "direct"}'
+        ),
+        encoding="utf-8",
+    )
+
+    configuration.avatar_path.write_text(
+        (
+            '{"subject": "Sofía Ada Lyra", '
+            '"physical_self": {'
+            '"form": "human", '
+            '"additional_features": [], '
+            '"measurements": {}, '
+            '"appearance": {}, '
+            '"anatomy": {}'
+            '}, '
+            '"available": {'
+            '"computers": [], '
+            '"robots": [], '
+            '"avatars": []'
+            '}, '
+            '"current": {'
+            '"computer": null, '
+            '"robot": null, '
+            '"avatar": null'
+            '}}'
+        ),
+        encoding="utf-8",
+    )
+
     runtime = compose(configuration)
 
-    assert isinstance(runtime.cognitive_system, CognitiveSystem)
+    assert isinstance(
+        runtime.cognitive_system,
+        CognitiveSystem,
+    )
+
     assert isinstance(
         runtime.cognitive_system.engine,
         CognitiveEngine,
@@ -159,6 +221,7 @@ def test_composition_selects_configured_rule_provider(
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
         provider=ProviderConfiguration(
             provider="rule",
             model="rule-engine",
@@ -183,13 +246,17 @@ def test_composition_rejects_unknown_provider(
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
         provider=ProviderConfiguration(
             provider="unknown-provider",
             model="unknown-model",
         ),
     )
 
-    with pytest.raises(ValueError, match="Unknown cognitive provider"):
+    with pytest.raises(
+        ValueError,
+        match="Unknown cognitive provider",
+    ):
         compose(configuration)
 
 
@@ -201,6 +268,7 @@ def test_composition_selects_test_provider_engine(
         constitution_hash_path=tmp_path / "constitution.sha256",
         identity_path=tmp_path / "identity.json",
         personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
         provider=ProviderConfiguration(
             provider="test",
             model="test-model",
@@ -226,7 +294,11 @@ def test_composition_passes_provider_configuration_to_test_engine():
 
     engine = runtime.cognitive_system.engine
 
-    assert isinstance(engine, TestCognitiveEngine)
+    assert isinstance(
+        engine,
+        TestCognitiveEngine,
+    )
+
     assert engine.configuration is configuration.provider
 
 
@@ -247,6 +319,7 @@ def test_composition_creates_llm_cognitive_engine():
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
         personality_path="personality.json",
+        avatar_path="avatar.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -267,6 +340,7 @@ def test_composition_creates_test_llm_provider():
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
         personality_path="personality.json",
+        avatar_path="avatar.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
@@ -289,6 +363,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
         constitution_hash_path="constitution.sha256",
         identity_path="identity.json",
         personality_path="personality.json",
+        avatar_path="avatar.json",
         provider=ProviderConfiguration(
             provider="test-llm",
             model="test-model",
