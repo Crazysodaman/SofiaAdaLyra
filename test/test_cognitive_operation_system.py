@@ -13,7 +13,10 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.system import CognitiveSystem
+from sofia.cognition.system import (
+    CognitiveSystem,
+    CognitiveSystemError,
+)
 
 
 class RecordingEngine(CognitiveEngine):
@@ -138,6 +141,34 @@ def test_respond_to_operation_does_not_put_authority_in_request() -> None:
     request = engine.requests[0]
 
     assert not hasattr(request, "authority")
+
+
+def test_respond_to_operation_rejects_unauthorized_response() -> None:
+    engine = RecordingEngine()
+    fallback = FallbackEngine()
+
+    system = CognitiveSystem(
+        engine=engine,
+        fallback_engine=fallback,
+    )
+
+    operation = make_operation(
+        authority=Authority(
+            can_respond=False,
+        ),
+    )
+
+    with pytest.raises(
+        CognitiveSystemError,
+        match=(
+            "Cognitive operation is not authorized "
+            "to produce a response."
+        ),
+    ):
+        system.respond_to_operation(operation)
+
+    assert engine.requests == []
+    assert fallback.requests == []
 
 
 def test_respond_to_operation_rejects_invalid_operation() -> None:

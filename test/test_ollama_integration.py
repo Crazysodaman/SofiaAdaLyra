@@ -64,8 +64,13 @@ def test_real_ollama_cognitive_path(tmp_path):
         """
         {
             "name": "Sofía Ada Lyra",
-            "traits": [],
-            "communication_style": ""
+            "traits": [
+                "rigorous",
+                "curious",
+                "direct"
+            ],
+            "communication_style":
+                "Clear, direct, and analytical."
         }
         """,
         encoding="utf-8",
@@ -106,7 +111,7 @@ def test_real_ollama_cognitive_path(tmp_path):
             CognitiveMessage(
                 role=CognitiveRole.USER,
                 content=(
-                    "Respond with exactly this sentence: "
+                    "Reply with exactly: "
                     "Ollama integration is operational."
                 ),
             ),
@@ -118,5 +123,75 @@ def test_real_ollama_cognitive_path(tmp_path):
     assert response is not None
     assert response.content
     assert "Ollama integration is operational." in response.content
+
+    runtime.shutdown()
+
+
+@pytest.mark.integration
+def test_real_ollama_receives_sofia_identity_context(tmp_path):
+    identity_path = tmp_path / "identity.json"
+
+    identity_path.write_text(
+        '{"name": "Sofía Context Integration Test"}',
+        encoding="utf-8",
+    )
+
+    personality_path = tmp_path / "personality.json"
+
+    personality_path.write_text(
+        """
+        {
+            "name": "Sofía Context Integration Test",
+            "traits": [
+                "rigorous",
+                "direct"
+            ],
+            "communication_style":
+                "Answer precisely and concisely."
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    configuration = SofiaConfiguration(
+        constitution_path=CONSTITUTION_PATH,
+        constitution_hash_path=HASH_PATH,
+        identity_path=identity_path,
+        personality_path=personality_path,
+        avatar_path=AVATAR_PATH,
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(
+            provider="ollama",
+            model=OLLAMA_MODEL,
+        ),
+    )
+
+    runtime = compose(configuration)
+
+    assert isinstance(
+        runtime.cognitive_system.engine,
+        LLMCognitiveEngine,
+    )
+
+    runtime.start()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=(
+                    "What is your name? "
+                    "Use the identity information provided to you. "
+                    "Respond with only the exact configured name."
+                ),
+            ),
+        ),
+    )
+
+    response = runtime.respond(request)
+
+    assert response.content.strip() == (
+        "Sofía Context Integration Test"
+    )
 
     runtime.shutdown()
