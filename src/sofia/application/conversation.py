@@ -1,11 +1,6 @@
 ﻿from collections.abc import Callable
 
 from sofia.application.bootstrap import SofiaApplication
-from sofia.cognition.model import (
-    CognitiveMessage,
-    CognitiveRequest,
-    CognitiveRole,
-)
 
 
 class ConversationLoop:
@@ -13,8 +8,8 @@ class ConversationLoop:
     Interactive terminal conversation loop for Sofía.
 
     Owns terminal interaction only.
-    Application and runtime remain responsible for
-    lifecycle and cognition.
+    Application and conversation service remain responsible
+    for lifecycle, persistence, and cognition.
     """
 
     def __init__(
@@ -55,19 +50,12 @@ class ConversationLoop:
                 }:
                     break
 
-                request = CognitiveRequest(
-                    messages=(
-                        CognitiveMessage(
-                            role=CognitiveRole.USER,
-                            content=user_input,
-                        ),
-                    ),
+                response = self._application.conversation.respond(
+                    user_input
                 )
 
-                response = self._application.runtime.respond(
-                    request
+                self._output(
+                    f"Sofía > {response.content}"
                 )
-
-                self._output(f"Sofía > {response.content}")
         finally:
             self._application.shutdown()
