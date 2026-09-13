@@ -1,8 +1,10 @@
-﻿from sofia.cognition.providers.factory import create_llm_provider
+﻿from pathlib import Path
+
+from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.providers.factory import create_llm_provider
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.cognition.test_engine import TestCognitiveEngine
-from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
@@ -59,22 +61,26 @@ def compose(
 ) -> SofiaRuntime:
     """
     Construct Sofía's foundational runtime dependencies.
+
+    Configuration owns external representation.
+    Composition converts that representation into
+    the concrete dependency types required by the system.
     """
 
     constitution_store = ConstitutionStore(
-        configuration.constitution_path
+        Path(configuration.constitution_path)
     )
 
     integrity_verifier = ConstitutionIntegrityVerifier(
-        configuration.constitution_hash_path
+        Path(configuration.constitution_hash_path)
     )
 
     identity_store = IdentityStore(
-        configuration.identity_path
+        Path(configuration.identity_path)
     )
 
     personality_store = PersonalityStore(
-        configuration.personality_path
+        Path(configuration.personality_path)
     )
 
     cognitive_engine = _create_cognitive_engine(
