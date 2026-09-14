@@ -13,7 +13,60 @@ from sofia.constitution.model import Constitution
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile
+from pathlib import Path
 
+from sofia.filesystem.model import (
+    FilesystemOperation,
+    FilesystemResult,
+    FilesystemResultKind,
+)
+
+def make_filesystem_result() -> FilesystemResult:
+    return FilesystemResult(
+        operation=FilesystemOperation.LIST_DIRECTORY,
+        kind=FilesystemResultKind.SUCCESS,
+        path=Path("."),
+        message="Directory inspection completed.",
+        entries=(
+            Path("src"),
+            Path("test"),
+        ),
+    )
+
+
+def test_context_can_include_filesystem_results() -> None:
+    result = make_filesystem_result()
+
+    context = CognitiveContext(
+        request=make_request(),
+        filesystem_results=(result,),
+    )
+
+    assert context.filesystem_results == (result,)
+
+
+def test_context_filesystem_results_default_to_empty() -> None:
+    context = CognitiveContext(
+        request=make_request(),
+    )
+
+    assert context.filesystem_results == ()
+
+
+def test_context_rejects_non_tuple_filesystem_results() -> None:
+    with pytest.raises(TypeError):
+        CognitiveContext(
+            request=make_request(),
+            filesystem_results=[make_filesystem_result()],
+        )
+
+
+def test_context_rejects_invalid_filesystem_result() -> None:
+    with pytest.raises(TypeError):
+        CognitiveContext(
+            request=make_request(),
+            filesystem_results=("not a filesystem result",),
+        )
 
 def make_request() -> CognitiveRequest:
     return CognitiveRequest(

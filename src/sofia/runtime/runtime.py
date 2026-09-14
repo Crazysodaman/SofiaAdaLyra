@@ -1,4 +1,5 @@
 ﻿from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from sofia.application.metadata import (
@@ -20,6 +21,7 @@ from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.store import AvatarStore
 from sofia.filesystem.inspector import FilesystemInspector
+from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
@@ -238,6 +240,7 @@ class SofiaRuntime:
     def respond(
         self,
         request: CognitiveRequest,
+        filesystem_results: tuple[FilesystemResult, ...] = (),
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -248,6 +251,18 @@ class SofiaRuntime:
             raise TypeError(
                 "SofiaRuntime request must be a CognitiveRequest."
             )
+
+        if not isinstance(filesystem_results, tuple):
+            raise TypeError(
+                "SofiaRuntime filesystem_results must be a tuple."
+            )
+
+        for result in filesystem_results:
+            if not isinstance(result, FilesystemResult):
+                raise TypeError(
+                    "SofiaRuntime filesystem_results must contain "
+                    "FilesystemResult instances."
+                )
 
         memories = self._memory_system.recall_relevant(
             self._latest_user_content(request)
@@ -263,6 +278,7 @@ class SofiaRuntime:
                 core_state=self._core_state,
                 memories=memories,
                 operational_state=self.operational_state,
+                filesystem_results=filesystem_results,
             ),
             authority=Authority(),
         )

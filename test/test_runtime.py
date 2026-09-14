@@ -30,6 +30,11 @@ from sofia.embodiment.model import (
     CurrentEmbodiment,
 )
 from sofia.embodiment.store import AvatarStore
+from sofia.filesystem.model import (
+    FilesystemOperation,
+    FilesystemResult,
+    FilesystemResultKind,
+)
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.model import MemoryRecord
@@ -609,3 +614,47 @@ def test_runtime_core_state_is_cleared_on_shutdown():
     runtime.shutdown()
 
     assert runtime.core_state is None
+
+
+def make_filesystem_result() -> FilesystemResult:
+    return FilesystemResult(
+        operation=FilesystemOperation.LIST_DIRECTORY,
+        kind=FilesystemResultKind.SUCCESS,
+        path=Path("."),
+        message="Directory inspection completed.",
+        entries=(
+            Path("src"),
+            Path("test"),
+        ),
+    )
+
+
+def test_runtime_passes_filesystem_results_to_cognition():
+    runtime = create_runtime()
+
+    runtime.start()
+
+    result = make_filesystem_result()
+
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Hello, Sofía.",
+            ),
+        )
+    )
+
+    response = runtime.respond(
+        request,
+        filesystem_results=(result,),
+    )
+
+    assert isinstance(
+        response,
+        CognitiveResponse,
+    )
+
+    assert response.content == "Hello, Sparks."
+
+    runtime.shutdown()

@@ -3,6 +3,7 @@
 from sofia.cognition.model import CognitiveRequest
 from sofia.constitution.model import Constitution
 from sofia.embodiment.model import Embodiment
+from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.operational.model import OperationalState
@@ -28,6 +29,7 @@ class CognitiveContext:
     embodiment: Embodiment | None = None
     core_state: SofiaCoreState | None = None
     operational_state: OperationalState | None = None
+    filesystem_results: tuple[FilesystemResult, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -98,3 +100,18 @@ class CognitiveContext:
                 "CognitiveContext operational_state must be "
                 "an OperationalState."
             )
+
+        if not isinstance(
+            self.filesystem_results,
+            tuple,
+        ):
+            raise TypeError(
+                "CognitiveContext filesystem_results must be a tuple."
+            )
+
+        for result in self.filesystem_results:
+            if not isinstance(result, FilesystemResult):
+                raise TypeError(
+                    "CognitiveContext filesystem_results must contain "
+                    "FilesystemResult instances."
+                )

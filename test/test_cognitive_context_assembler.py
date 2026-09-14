@@ -18,7 +18,81 @@ from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import create_core_state
+from pathlib import Path
 
+from sofia.cognition.assembler import CognitiveContextAssembler
+from sofia.cognition.context import CognitiveContext
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveRole,
+)
+from sofia.filesystem.model import (
+    FilesystemOperation,
+    FilesystemResult,
+    FilesystemResultKind,
+)
+
+
+def make_request() -> CognitiveRequest:
+    return CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Inspect the repository.",
+            ),
+        )
+    )
+
+
+def make_filesystem_result() -> FilesystemResult:
+    return FilesystemResult(
+        operation=FilesystemOperation.LIST_DIRECTORY,
+        kind=FilesystemResultKind.SUCCESS,
+        path=Path("."),
+        message="Directory inspection completed.",
+        entries=(
+            Path("src"),
+            Path("test"),
+        ),
+    )
+
+
+def test_assembler_includes_filesystem_results() -> None:
+    result = make_filesystem_result()
+
+    context = CognitiveContext(
+        request=make_request(),
+        filesystem_results=(result,),
+    )
+
+    request = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = request.messages[0]
+
+    assert "FILESYSTEM INSPECTION RESULTS" in system_message.content
+    assert "Operation: list_directory" in system_message.content
+    assert "Result: success" in system_message.content
+    assert "Path: ." in system_message.content
+    assert "Directory inspection completed." in system_message.content
+    assert "src" in system_message.content
+    assert "test" in system_message.content
+
+
+def test_assembler_does_not_claim_inspection_without_result() -> None:
+    context = CognitiveContext(
+        request=make_request(),
+    )
+
+    request = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = request.messages[0]
+
+    assert "FILESYSTEM INSPECTION RESULTS" not in system_message.content
 
 def test_assembler_requires_cognitive_context():
     assembler = CognitiveContextAssembler()

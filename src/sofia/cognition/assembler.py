@@ -11,7 +11,8 @@ class CognitiveContextAssembler:
     Projects a CognitiveContext into a provider-neutral CognitiveRequest.
 
     The assembler is responsible for injecting explicitly supplied
-    persistent Sofía context into the cognitive request.
+    persistent Sofía context and operational inspection evidence into
+    the cognitive request.
 
     It does not enforce authority, execute actions, select providers,
     retrieve memories, or mutate persistent state.
@@ -191,7 +192,94 @@ class CognitiveContextAssembler:
                 ]
             )
 
+        if context.operational_state is not None:
+            sections.extend(
+                [
+                    "",
+                    "OPERATIONAL STATE",
+                    (
+                        "Runtime ID: "
+                        f"{context.operational_state.runtime_id}"
+                    ),
+                    (
+                        "Started at: "
+                        f"{context.operational_state.started_at.isoformat()}"
+                    ),
+                    (
+                        "Lifecycle state: "
+                        f"{context.operational_state.lifecycle_state}"
+                    ),
+                    (
+                        "Application: "
+                        f"{context.operational_state.application_name}"
+                    ),
+                    (
+                        "Application version: "
+                        f"{context.operational_state.application_version}"
+                    ),
+                    (
+                        "Provider: "
+                        f"{context.operational_state.provider}"
+                    ),
+                    (
+                        "Model: "
+                        f"{context.operational_state.model}"
+                    ),
+                ]
+            )
+
+        if context.filesystem_results:
+            sections.extend(
+                [
+                    "",
+                    "FILESYSTEM INSPECTION RESULTS",
+                    (
+                        "The following filesystem information was produced "
+                        "by the filesystem inspection subsystem."
+                    ),
+                    (
+                        "Treat these results as inspection evidence. "
+                        "Do not claim that a filesystem operation was "
+                        "performed unless a corresponding result is "
+                        "present here."
+                    ),
+                ]
+            )
+
+            for result in context.filesystem_results:
+                sections.extend(
+                    self._format_filesystem_result(result)
+                )
+
         return "\n".join(sections)
+
+    @staticmethod
+    def _format_filesystem_result(result) -> list[str]:
+        lines = [
+            "",
+            f"Operation: {result.operation.value}",
+            f"Result: {result.kind.value}",
+            f"Path: {result.path}",
+            f"Message: {result.message}",
+        ]
+
+        if result.entries:
+            lines.append("Entries:")
+
+            for entry in result.entries:
+                lines.append(
+                    f"- {entry}"
+                )
+
+        if result.content is not None:
+            lines.extend(
+                [
+                    "File content:",
+                    result.content,
+                ]
+            )
+
+        return lines
 
     @staticmethod
     def _format_embodiment(embodiment) -> str:
