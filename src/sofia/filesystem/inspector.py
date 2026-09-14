@@ -437,9 +437,47 @@ class FilesystemInspector:
             current_path, depth = stack.pop()
 
             try:
-                children = list(
-                    current_path.iterdir()
+                iterator = current_path.iterdir()
+            except PermissionError as exc:
+                return FilesystemResult(
+                    operation=FilesystemOperation.SEARCH_FILES,
+                    kind=FilesystemResultKind.INACCESSIBLE,
+                    path=requested_path,
+                    message=(
+                        "Filesystem search encountered an "
+                        f"inaccessible directory: {exc}"
+                    ),
+                    entries=tuple(matches),
                 )
+            except OSError as exc:
+                return FilesystemResult(
+                    operation=FilesystemOperation.SEARCH_FILES,
+                    kind=FilesystemResultKind.INACCESSIBLE,
+                    path=requested_path,
+                    message=str(exc),
+                    entries=tuple(matches),
+                )
+
+            children: list[Path] = []
+
+            try:
+                for candidate in iterator:
+                    if self._is_link_like(candidate):
+                        continue
+
+                    inspected += 1
+
+                    if (
+                        inspected
+                        > self.MAX_SEARCH_ENTRIES_INSPECTED
+                    ):
+                        limit_reason = (
+                            "maximum search inspection limit reached"
+                        )
+                        break
+
+                    children.append(candidate)
+
             except PermissionError as exc:
                 return FilesystemResult(
                     operation=FilesystemOperation.SEARCH_FILES,
@@ -466,21 +504,10 @@ class FilesystemInspector:
             )
 
             for candidate in children:
-                if self._is_link_like(candidate):
-                    continue
-
-                inspected += 1
-
-                if inspected > self.MAX_SEARCH_ENTRIES_INSPECTED:
-                    limit_reason = (
-                        "maximum search inspection limit reached"
-                    )
-                    break
-
                 if candidate.match(pattern):
                     matches.append(candidate)
 
-                    if len(matches) >= self.MAX_SEARCH_RESULTS:
+                    if len(matches) > self.MAX_SEARCH_RESULTS:
                         limit_reason = (
                             "maximum search result limit reached"
                         )
@@ -522,7 +549,9 @@ class FilesystemInspector:
                     f"Maximum depth: {self.MAX_SEARCH_DEPTH}. "
                     "The results are incomplete."
                 ),
-                entries=tuple(matches),
+                entries=tuple(
+                    matches[: self.MAX_SEARCH_RESULTS]
+                ),
             )
 
         return FilesystemResult(

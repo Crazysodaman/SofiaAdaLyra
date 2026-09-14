@@ -46,6 +46,30 @@ def test_authorized_inspector_lists_directory(
     assert tmp_path / "beta.txt" in result.entries
 
 
+def test_directory_listing_exact_limit_succeeds(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.list_directory()
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
+    )
+
+
 def test_directory_listing_is_bounded(
     tmp_path: Path,
 ):
@@ -264,6 +288,30 @@ def test_search_files_returns_matching_files(
     assert text not in result.entries
 
 
+def test_search_files_exact_result_limit_succeeds(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    ):
+        (tmp_path / f"file-{index}.py").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
 def test_search_files_is_bounded_by_result_limit(
     tmp_path: Path,
 ):
@@ -285,6 +333,33 @@ def test_search_files_is_bounded_by_result_limit(
     assert result.kind is FilesystemResultKind.LIMIT_REACHED
     assert len(result.entries) == (
         FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
+def test_search_files_is_bounded_by_inspection_limit(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_ENTRIES_INSPECTED + 25
+    ):
+        (tmp_path / f"file-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == 0
+    assert (
+        f"Entries inspected: "
+        f"{FilesystemInspector.MAX_SEARCH_ENTRIES_INSPECTED + 1}"
+        in result.message
     )
 
 

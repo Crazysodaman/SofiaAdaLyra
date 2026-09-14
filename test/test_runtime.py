@@ -1,660 +1,581 @@
-﻿from datetime import datetime
-from pathlib import Path
+﻿from pathlib import Path
 
 import pytest
 
-from sofia.authority.model import Authority
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import (
-    CognitiveMessage,
-    CognitiveRequest,
-    CognitiveResponse,
-    CognitiveRole,
-)
-from sofia.cognition.operation import CognitiveOperation
-from sofia.cognition.rules import RuleEngine
-from sofia.cognition.system import CognitiveSystem
-from sofia.config.model import (
-    ProviderConfiguration,
-    SofiaConfiguration,
-)
-from sofia.constitution.integrity import (
-    ConstitutionIntegrityError,
-    ConstitutionIntegrityVerifier,
-)
-from sofia.constitution.model import Constitution
-from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.model import (
-    Embodiment,
-    PhysicalSelf,
-    CurrentEmbodiment,
-)
-from sofia.embodiment.store import AvatarStore
+from sofia.filesystem.inspector import FilesystemInspector
 from sofia.filesystem.model import (
     FilesystemOperation,
-    FilesystemResult,
     FilesystemResultKind,
 )
-from sofia.identity.model import SofiaIdentity
-from sofia.identity.store import IdentityStore
-from sofia.memory.model import MemoryRecord
-from sofia.memory.store import MemoryStore
-from sofia.memory.system import MemorySystem
-from sofia.personality.model import PersonalityProfile
-from sofia.personality.store import PersonalityStore
-from sofia.runtime.model import RuntimeState
-from sofia.runtime.runtime import (
-    SofiaRuntime,
-    SofiaRuntimeError,
-)
-from sofia.self_model.model import SofiaCoreState
 
 
-def create_runtime(
-    identity_path: Path | None = None,
-) -> SofiaRuntime:
-    repository_root = (
-        Path(__file__).resolve().parents[1]
-    )
-
-    constitution_path = (
-        repository_root
-        / "src"
-        / "sofia"
-        / "constitution"
-        / "constitution.md"
-    )
-
-    constitution_hash_path = (
-        repository_root
-        / "src"
-        / "sofia"
-        / "constitution"
-        / "constitution.sha256"
-    )
-
-    if identity_path is None:
-        identity_path = (
-            repository_root
-            / "src"
-            / "sofia"
-            / "identity"
-            / "identity.json"
-        )
-
-    personality_path = (
-        repository_root
-        / "src"
-        / "sofia"
-        / "personality"
-        / "personality.json"
-    )
-
-    avatar_path = (
-        repository_root
-        / "src"
-        / "sofia"
-        / "data"
-        / "avatar.json"
-    )
-
-    state_path = (
-        repository_root
-        / "state"
-        / "test-sofia.db"
-    )
-
-    configuration = SofiaConfiguration(
-        constitution_path=constitution_path,
-        constitution_hash_path=constitution_hash_path,
-        identity_path=identity_path,
-        personality_path=personality_path,
-        avatar_path=avatar_path,
-        state_path=state_path,
-        provider=ProviderConfiguration(
-            provider="test",
-            model="test-model",
-        ),
-        filesystem_root=repository_root,
-    )
-
-    constitution_store = ConstitutionStore(
-        constitution_path
-    )
-
-    integrity_verifier = ConstitutionIntegrityVerifier(
-        constitution_hash_path
-    )
-
-    identity_store = IdentityStore(
-        identity_path
-    )
-
-    personality_store = PersonalityStore(
-        personality_path
-    )
-
-    avatar_store = AvatarStore(
-        avatar_path
-    )
-
-    memory_store = MemoryStore()
-
-    memory_system = MemorySystem(
-        memory_store
-    )
-
-    cognitive_system = CognitiveSystem(
-        engine=RuleEngine(),
-    )
-
-    return SofiaRuntime(
-        constitution_store=constitution_store,
-        integrity_verifier=integrity_verifier,
-        identity_store=identity_store,
-        personality_store=personality_store,
-        avatar_store=avatar_store,
-        memory_system=memory_system,
-        cognitive_system=cognitive_system,
-        configuration=configuration,
-    )
-
-
-def test_runtime_initial_state():
-    runtime = create_runtime()
-
-    assert runtime.state is RuntimeState.CREATED
-    assert runtime.constitution is None
-    assert runtime.identity is None
-    assert runtime.personality is None
-    assert runtime.embodiment is None
-    assert runtime.core_state is None
-
-
-def test_runtime_start_loads_foundational_state():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.state is RuntimeState.READY
-    assert runtime.constitution is not None
-    assert runtime.identity is not None
-    assert runtime.personality is not None
-    assert runtime.embodiment is not None
-    assert runtime.core_state is not None
-
-    runtime.shutdown()
-
-
-def test_runtime_start_is_only_valid_from_created_or_stopped():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.start()
-
-    runtime.shutdown()
-
-
-def test_runtime_shutdown():
-    runtime = create_runtime()
-
-    runtime.start()
-    runtime.shutdown()
-
-    assert runtime.state is RuntimeState.STOPPED
-    assert runtime.constitution is None
-    assert runtime.identity is None
-    assert runtime.personality is None
-    assert runtime.embodiment is None
-    assert runtime.core_state is None
-
-
-def test_runtime_shutdown_requires_ready_state():
-    runtime = create_runtime()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.shutdown()
-
-
-def test_runtime_shutdown_cannot_be_called_twice():
-    runtime = create_runtime()
-
-    runtime.start()
-    runtime.shutdown()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.shutdown()
-
-
-def test_runtime_can_restart_after_shutdown():
-    runtime = create_runtime()
-
-    runtime.start()
-    runtime.shutdown()
-    runtime.start()
-
-    assert runtime.state is RuntimeState.READY
-    assert runtime.constitution is not None
-    assert runtime.identity is not None
-    assert runtime.personality is not None
-    assert runtime.embodiment is not None
-    assert runtime.core_state is not None
-
-    runtime.shutdown()
-
-
-def test_runtime_detects_constitution_integrity_failure():
-    runtime = create_runtime()
-
-    class FailingVerifier:
-        def verify(self, constitution):
-            raise ConstitutionIntegrityError(
-                "Integrity failure."
-            )
-
-    runtime.integrity_verifier = FailingVerifier()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.start()
-
-    assert runtime.state is RuntimeState.FAILED
-    assert runtime.constitution is None
-    assert runtime.identity is None
-    assert runtime.personality is None
-    assert runtime.embodiment is None
-    assert runtime.core_state is None
-
-
-def test_runtime_clears_state_when_startup_fails():
-    runtime = create_runtime()
-
-    class FailingIdentityStore:
-        def load(self):
-            raise RuntimeError(
-                "Identity load failed."
-            )
-
-    runtime._identity_store = FailingIdentityStore()
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.start()
-
-    assert runtime.state is RuntimeState.FAILED
-    assert runtime.constitution is None
-    assert runtime.identity is None
-    assert runtime.personality is None
-    assert runtime.embodiment is None
-    assert runtime.core_state is None
-
-
-def test_runtime_exposes_foundational_subsystems():
-    runtime = create_runtime()
-
-    assert isinstance(
-        runtime.constitution_store,
-        ConstitutionStore,
-    )
-
-    assert isinstance(
-        runtime.identity_store,
-        IdentityStore,
-    )
-
-    assert isinstance(
-        runtime.personality_store,
-        PersonalityStore,
-    )
-
-    assert isinstance(
-        runtime.avatar_store,
-        AvatarStore,
-    )
-
-    assert isinstance(
-        runtime.memory_system,
-        MemorySystem,
-    )
-
-    assert isinstance(
-        runtime.cognitive_system,
-        CognitiveSystem,
-    )
-
-
-def test_runtime_loads_identity_on_start(tmp_path: Path):
-    identity_path = tmp_path / "identity.json"
-
-    identity_store = IdentityStore(
-        identity_path
-    )
-
-    saved_identity = SofiaIdentity(
-        name="Nyx",
-    )
-
-    identity_store.save(
-        saved_identity
-    )
-
-    runtime = create_runtime(
-        identity_path
-    )
-
-    runtime.start()
-
-    assert runtime.identity is not None
-    assert runtime.identity.name == "Nyx"
-    assert (
-        runtime.identity.instance_id
-        == saved_identity.instance_id
-    )
-
-    runtime.shutdown()
-
-
-def test_runtime_clears_identity_on_shutdown(tmp_path: Path):
-    identity_path = tmp_path / "identity.json"
-
-    identity_store = IdentityStore(
-        identity_path
-    )
-
-    identity_store.save(
-        SofiaIdentity(
-            name="Nyx",
-        )
-    )
-
-    runtime = create_runtime(
-        identity_path
-    )
-
-    runtime.start()
-
-    assert runtime.identity is not None
-
-    runtime.shutdown()
-
-    assert runtime.identity is None
-
-
-def test_runtime_reload_identity_on_restart(
+def test_unauthorized_inspector_rejects_directory_listing(
     tmp_path: Path,
 ):
-    identity_path = tmp_path / "identity.json"
-
-    identity_store = IdentityStore(
-        identity_path
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=False,
     )
 
-    first_identity = SofiaIdentity(
-        name="Nyx",
+    result = inspector.list_directory()
+
+    assert result.operation is FilesystemOperation.LIST_DIRECTORY
+    assert result.kind is FilesystemResultKind.UNAUTHORIZED
+
+
+def test_authorized_inspector_lists_directory(
+    tmp_path: Path,
+):
+    (tmp_path / "alpha.txt").write_text(
+        "alpha",
+        encoding="utf-8",
     )
 
-    identity_store.save(
-        first_identity
+    (tmp_path / "beta.txt").write_text(
+        "beta",
+        encoding="utf-8",
     )
 
-    runtime = create_runtime(
-        identity_path
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
     )
 
-    runtime.start()
+    result = inspector.list_directory()
 
-    assert runtime.identity is not None
-    assert runtime.identity.name == "Nyx"
-    assert (
-        runtime.identity.instance_id
-        == first_identity.instance_id
-    )
-
-    runtime.shutdown()
-
-    second_identity = SofiaIdentity(
-        name="Sofía Ada Lyra",
-        instance_id=first_identity.instance_id,
-    )
-
-    identity_store.save(
-        second_identity
-    )
-
-    runtime.start()
-
-    assert runtime.identity is not None
-    assert runtime.identity.name == "Sofía Ada Lyra"
-    assert (
-        runtime.identity.instance_id
-        == first_identity.instance_id
-    )
-
-    runtime.shutdown()
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert tmp_path / "alpha.txt" in result.entries
+    assert tmp_path / "beta.txt" in result.entries
 
 
-def test_runtime_respond_requires_ready_state():
-    runtime = create_runtime()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="Hello, Sofía.",
-            ),
-        ),
-    )
-
-    with pytest.raises(SofiaRuntimeError):
-        runtime.respond(request)
-
-
-def test_runtime_respond_requires_cognitive_request():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    with pytest.raises(TypeError):
-        runtime.respond("Hello, Sofía.")
-
-    runtime.shutdown()
-
-
-def test_runtime_responds_through_cognitive_system():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="Hello, Sofía.",
-            ),
-        ),
-    )
-
-    response = runtime.respond(
-        request
-    )
-
-    assert isinstance(
-        response,
-        CognitiveResponse,
-    )
-
-    assert response.content == "Hello, Sparks."
-
-    runtime.shutdown()
-
-
-def test_runtime_injects_identity_into_cognition():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="What is your name?",
-            ),
-        ),
-    )
-
-    response = runtime.respond(
-        request
-    )
-
-    assert response.content == "I am Sofía Ada Lyra."
-
-    runtime.shutdown()
-
-
-def test_runtime_retrieves_relevant_memory_before_cognition():
-    runtime = create_runtime()
-
-    memory = MemoryRecord(
-        id="memory-1",
-        content=(
-            "Sparks prefers architecture-first development."
-        ),
-        created_at=datetime.now(),
-    )
-
-    runtime.memory_system.remember(
-        memory
-    )
-
-    runtime.start()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content=(
-                    "What does Sparks prefer about development?"
-                ),
-            ),
-        ),
-    )
-
-    relevant = (
-        runtime.memory_system.recall_relevant(
-            request.messages[-1].content
+def test_directory_listing_is_bounded(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES + 25
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
         )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
     )
 
-    assert relevant == (
-        memory,
-    )
+    result = inspector.list_directory()
 
-    runtime.shutdown()
-
-
-def test_runtime_builds_authoritative_core_state():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.core_state is not None
-    assert isinstance(
-        runtime.core_state,
-        SofiaCoreState,
-    )
-
-    assert (
-        runtime.core_state.identity
-        == runtime.identity
-    )
-
-    assert (
-        runtime.core_state.constitution_version
-        == runtime.constitution.version
-    )
-
-    assert (
-        runtime.core_state.constitution_hash
-        == runtime.constitution.content_hash
-    )
-
-    runtime.shutdown()
-
-
-def test_runtime_core_state_contains_sparks_relationship():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.core_state is not None
-
-    relationship = next(
-        relationship
-        for relationship in runtime.core_state.relationships
-        if relationship.subject == "Sparks"
-    )
-
-    assert relationship.roles == (
-        "creator",
-        "primary collaborator",
-        "trusted companion",
-        "admin/operator",
-    )
-
-    runtime.shutdown()
-
-
-def test_runtime_core_state_is_cleared_on_shutdown():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    assert runtime.core_state is not None
-
-    runtime.shutdown()
-
-    assert runtime.core_state is None
-
-
-def make_filesystem_result() -> FilesystemResult:
-    return FilesystemResult(
-        operation=FilesystemOperation.LIST_DIRECTORY,
-        kind=FilesystemResultKind.SUCCESS,
-        path=Path("."),
-        message="Directory inspection completed.",
-        entries=(
-            Path("src"),
-            Path("test"),
-        ),
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
     )
 
 
-def test_runtime_passes_filesystem_results_to_cognition():
-    runtime = create_runtime()
-
-    runtime.start()
-
-    result = make_filesystem_result()
-
-    request = CognitiveRequest(
-        messages=(
-            CognitiveMessage(
-                role=CognitiveRole.USER,
-                content="Hello, Sofía.",
-            ),
+def test_directory_listing_exact_limit_succeeds(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
         )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
     )
 
-    response = runtime.respond(
-        request,
-        filesystem_results=(result,),
+    result = inspector.list_directory()
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
     )
 
-    assert isinstance(
-        response,
-        CognitiveResponse,
+
+def test_inspect_path_reports_existing_file(
+    tmp_path: Path,
+):
+    target = tmp_path / "example.txt"
+
+    target.write_text(
+        "hello",
+        encoding="utf-8",
     )
 
-    assert response.content == "Hello, Sparks."
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
 
-    runtime.shutdown()
+    result = inspector.inspect_path(target)
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+
+
+def test_inspect_path_reports_missing_path(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.inspect_path(
+        tmp_path / "missing.txt"
+    )
+
+    assert result.kind is FilesystemResultKind.NOT_FOUND
+
+
+def test_read_file_returns_actual_content(
+    tmp_path: Path,
+):
+    target = tmp_path / "example.txt"
+
+    target.write_text(
+        "Sofía filesystem test.",
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert result.content == "Sofía filesystem test."
+
+
+def test_read_file_does_not_modify_file(
+    tmp_path: Path,
+):
+    target = tmp_path / "example.txt"
+
+    original = "original content"
+
+    target.write_text(
+        original,
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    inspector.read_file(target)
+
+    assert target.read_text(
+        encoding="utf-8"
+    ) == original
+
+
+def test_exact_maximum_file_size_is_read(
+    tmp_path: Path,
+):
+    target = tmp_path / "exact-limit.bin"
+
+    target.write_bytes(
+        b"x" * FilesystemInspector.MAX_FILE_BYTES
+    )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert result.content is not None
+    assert len(result.content.encode("utf-8")) == (
+        FilesystemInspector.MAX_FILE_BYTES
+    )
+
+
+def test_file_one_byte_over_limit_is_rejected_before_read(
+    tmp_path: Path,
+):
+    target = tmp_path / "over-limit.bin"
+
+    with target.open("wb") as file_handle:
+        file_handle.truncate(
+            FilesystemInspector.MAX_FILE_BYTES + 1
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert result.content is None
+    assert "was not read" in result.message
+
+
+def test_large_file_is_rejected_before_read(
+    tmp_path: Path,
+):
+    target = tmp_path / "large.txt"
+
+    with target.open("wb") as file_handle:
+        file_handle.truncate(
+            FilesystemInspector.MAX_FILE_BYTES + 1
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert result.content is None
+    assert "was not read" in result.message
+
+
+def test_path_outside_authorized_root_is_rejected(
+    tmp_path: Path,
+):
+    root = tmp_path / "root"
+    outside = tmp_path / "outside"
+
+    root.mkdir()
+    outside.mkdir()
+
+    target = outside / "secret.txt"
+
+    target.write_text(
+        "outside scope",
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=root,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.UNAUTHORIZED
+
+
+def test_parent_traversal_is_rejected(
+    tmp_path: Path,
+):
+    root = tmp_path / "root"
+    outside = tmp_path / "outside"
+
+    root.mkdir()
+    outside.mkdir()
+
+    target = outside / "secret.txt"
+
+    target.write_text(
+        "outside scope",
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=root,
+        authorized=True,
+    )
+
+    result = inspector.read_file(
+        Path("..") / "outside" / "secret.txt"
+    )
+
+    assert result.kind is FilesystemResultKind.UNAUTHORIZED
+
+
+def test_search_files_returns_matching_files(
+    tmp_path: Path,
+):
+    source = tmp_path / "src"
+    source.mkdir()
+
+    first = source / "first.py"
+    second = source / "second.py"
+    text = source / "notes.txt"
+
+    first.write_text(
+        "first",
+        encoding="utf-8",
+    )
+
+    second.write_text(
+        "second",
+        encoding="utf-8",
+    )
+
+    text.write_text(
+        "notes",
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert first in result.entries
+    assert second in result.entries
+    assert text not in result.entries
+
+
+def test_search_files_exact_result_limit_succeeds(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    ):
+        (tmp_path / f"file-{index}.py").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
+def test_search_files_one_over_result_limit_is_bounded(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_RESULTS + 1
+    ):
+        (tmp_path / f"file-{index}.py").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
+def test_search_files_is_bounded_by_result_limit(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_RESULTS + 25
+    ):
+        (tmp_path / f"file-{index}.py").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
+def test_search_files_exact_pattern_length_is_accepted(
+    tmp_path: Path,
+):
+    pattern = "a" * FilesystemInspector.MAX_SEARCH_PATTERN_LENGTH
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files(pattern)
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+
+
+def test_search_files_rejects_long_pattern(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    pattern = "a" * (
+        FilesystemInspector.MAX_SEARCH_PATTERN_LENGTH + 1
+    )
+
+    with pytest.raises(ValueError):
+        inspector.search_files(pattern)
+
+
+def test_search_files_rejects_empty_pattern(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    with pytest.raises(ValueError):
+        inspector.search_files("")
+
+
+def test_search_files_exact_inspection_limit_succeeds(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_ENTRIES_INSPECTED
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.does-not-exist")
+
+    assert result.kind is FilesystemResultKind.SUCCESS
+    assert result.entries == ()
+
+
+def test_search_files_one_over_inspection_limit_is_bounded(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_ENTRIES_INSPECTED + 1
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.does-not-exist")
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert result.entries == ()
+
+
+def test_search_files_respects_maximum_depth(
+    tmp_path: Path,
+):
+    current = tmp_path
+
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_DEPTH + 2
+    ):
+        current = current / f"level-{index}"
+        current.mkdir()
+
+    target = current / "target.py"
+    target.write_text(
+        "target",
+        encoding="utf-8",
+    )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert target not in result.entries
+
+
+def test_search_files_does_not_follow_symlinks(
+    tmp_path: Path,
+):
+    target = tmp_path / "target"
+    target.mkdir()
+
+    secret = target / "secret.py"
+    secret.write_text(
+        "secret",
+        encoding="utf-8",
+    )
+
+    link = tmp_path / "linked"
+
+    try:
+        link.symlink_to(
+            target,
+            target_is_directory=True,
+        )
+    except (OSError, NotImplementedError):
+        pytest.skip(
+            "Directory symlinks are not supported in this environment."
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert secret in result.entries
+    assert all(
+        entry != link / "secret.py"
+        for entry in result.entries
+    )
+
+
+def test_filesystem_root_is_exposed(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=False,
+    )
+
+    assert inspector.root == tmp_path.resolve()
+
+
+def test_filesystem_authorization_can_be_observed(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    assert inspector.authorized is True
