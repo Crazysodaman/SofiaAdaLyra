@@ -1,11 +1,9 @@
 ﻿from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import metadata
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from sofia.application.metadata import (
-    application_name,
-    application_version,
-)
 from sofia.authority.model import Authority
 from sofia.authorization.model import (
     AuthorizationDecision,
@@ -39,6 +37,41 @@ from sofia.self_model.model import (
     SofiaCoreState,
     create_core_state,
 )
+
+
+_PACKAGE_NAME = "sofia-ada-lyra"
+
+
+def _application_name() -> str:
+    try:
+        value = metadata(_PACKAGE_NAME)["Name"]
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            f"Application package metadata not found: {_PACKAGE_NAME!r}."
+        ) from exc
+
+    if not value:
+        raise RuntimeError(
+            "Application package metadata contains no package name."
+        )
+
+    return value
+
+
+def _application_version() -> str:
+    try:
+        value = metadata(_PACKAGE_NAME)["Version"]
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            f"Application package metadata not found: {_PACKAGE_NAME!r}."
+        ) from exc
+
+    if not value:
+        raise RuntimeError(
+            "Application package metadata contains no package version."
+        )
+
+    return value
 
 
 class SofiaRuntimeError(Exception):
@@ -190,8 +223,8 @@ class SofiaRuntime:
             runtime_id=self._runtime_id,
             started_at=self._started_at,
             lifecycle_state=self._state.value,
-            application_name=application_name(),
-            application_version=application_version(),
+            application_name=_application_name(),
+            application_version=_application_version(),
             provider=self._configuration.provider.provider,
             model=self._configuration.provider.model,
         )
