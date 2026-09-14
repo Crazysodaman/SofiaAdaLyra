@@ -8,6 +8,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.filesystem.model import FilesystemResult
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -127,9 +128,17 @@ def test_restart_and_resume_preserves_cognitive_history(
     second_application = create_application(tmp_path)
 
     captured_requests = []
+    captured_filesystem_results = []
 
-    def capture_request(request):
+    def capture_request(
+        request,
+        *,
+        filesystem_results: tuple[FilesystemResult, ...] = (),
+    ):
         captured_requests.append(request)
+        captured_filesystem_results.append(
+            filesystem_results
+        )
 
         return type(
             "CapturedResponse",
@@ -162,6 +171,8 @@ def test_restart_and_resume_preserves_cognitive_history(
     assert response.content == "Continuity confirmed."
 
     assert len(captured_requests) == 1
+    assert len(captured_filesystem_results) == 1
+    assert captured_filesystem_results[0] == ()
 
     request = captured_requests[0]
 
