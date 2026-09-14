@@ -28,12 +28,18 @@ class SofiaConfiguration:
     avatar_path: Path
     state_path: Path
     provider: ProviderConfiguration
+    filesystem_root: Path
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider, ProviderConfiguration):
             raise TypeError(
                 "SofiaConfiguration provider must be a "
                 "ProviderConfiguration."
+            )
+
+        if not isinstance(self.filesystem_root, Path):
+            raise TypeError(
+                "SofiaConfiguration filesystem_root must be a Path."
             )
 
         if not self.personality_path:

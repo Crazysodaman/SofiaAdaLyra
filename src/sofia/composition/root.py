@@ -111,4 +111,5 @@ def compose(
         avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+        configuration=configuration,
     )

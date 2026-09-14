@@ -66,4 +66,5 @@ def create_default_configuration() -> SofiaConfiguration:
             provider="ollama",
             model="qwen3:14b",
         ),
+        filesystem_root=repository_root,
     )

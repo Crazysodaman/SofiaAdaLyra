@@ -1,7 +1,7 @@
 ﻿from pathlib import Path
 
 import pytest
-
+from pathlib import Path
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -297,4 +297,20 @@ def test_configuration_rejects_empty_avatar_path():
                 provider="test",
                 model="test-model",
             ),
+        )
+
+def test_filesystem_root_must_be_path():
+    with pytest.raises(TypeError):
+        SofiaConfiguration(
+            constitution_path=Path("constitution.md"),
+            constitution_hash_path=Path("constitution.sha256"),
+            identity_path=Path("identity.json"),
+            personality_path=Path("personality.json"),
+            avatar_path=Path("avatar.json"),
+            state_path=Path("sofia.db"),
+            provider=ProviderConfiguration(
+                provider="ollama",
+                model="qwen3:14b",
+            ),
+            filesystem_root=".",
         )

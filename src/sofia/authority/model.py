@@ -11,6 +11,7 @@ class Authority:
     can_respond: bool = True
     can_propose_actions: bool = True
     can_execute_actions: bool = False
+    can_inspect_filesystem: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.can_respond, bool):
@@ -26,4 +27,9 @@ class Authority:
         if not isinstance(self.can_execute_actions, bool):
             raise TypeError(
                 "Authority can_execute_actions must be a bool."
+            )
+
+        if not isinstance(self.can_inspect_filesystem, bool):
+            raise TypeError(
+                "Authority can_inspect_filesystem must be a bool."
             )

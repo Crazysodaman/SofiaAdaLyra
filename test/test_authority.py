@@ -3,7 +3,9 @@
 import pytest
 
 from sofia.authority.model import Authority
+import pytest
 
+from sofia.authority.model import Authority
 
 def test_authority_defaults_to_response_and_proposal() -> None:
     authority = Authority()
@@ -55,3 +57,23 @@ def test_authority_is_immutable() -> None:
 def test_authority_requires_boolean_values(field: str) -> None:
     with pytest.raises(TypeError):
         Authority(**{field: "yes"})
+
+def test_filesystem_inspection_is_disabled_by_default():
+    authority = Authority()
+
+    assert authority.can_inspect_filesystem is False
+
+
+def test_filesystem_inspection_authority_can_be_enabled():
+    authority = Authority(
+        can_inspect_filesystem=True,
+    )
+
+    assert authority.can_inspect_filesystem is True
+
+
+def test_filesystem_inspection_authority_must_be_bool():
+    with pytest.raises(TypeError):
+        Authority(
+            can_inspect_filesystem="yes"
+        )

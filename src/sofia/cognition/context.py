@@ -5,6 +5,7 @@ from sofia.constitution.model import Constitution
 from sofia.embodiment.model import Embodiment
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
+from sofia.operational.model import OperationalState
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import SofiaCoreState
 
@@ -12,9 +13,10 @@ from sofia.self_model.model import SofiaCoreState
 @dataclass(frozen=True)
 class CognitiveContext:
     """
-    Immutable projection of persistent Sofía state for one cognitive operation.
+    Immutable projection of persistent Sofía state and operational
+    information for one cognitive operation.
 
-    CognitiveContext is not Sofía's persistent state. It contains only the
+    CognitiveContext is not Sofía's persistent state. It contains only
     information explicitly supplied to a particular cognitive operation.
     """
 
@@ -25,6 +27,7 @@ class CognitiveContext:
     constitution: Constitution | None = None
     embodiment: Embodiment | None = None
     core_state: SofiaCoreState | None = None
+    operational_state: OperationalState | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -82,4 +85,16 @@ class CognitiveContext:
         ):
             raise TypeError(
                 "CognitiveContext core_state must be a SofiaCoreState."
+            )
+
+        if (
+            self.operational_state is not None
+            and not isinstance(
+                self.operational_state,
+                OperationalState,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext operational_state must be "
+                "an OperationalState."
             )
