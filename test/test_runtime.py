@@ -14,7 +14,10 @@ from sofia.cognition.model import (
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
-from sofia.config.model import ProviderConfiguration
+from sofia.config.model import (
+    ProviderConfiguration,
+    SofiaConfiguration,
+)
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -45,8 +48,12 @@ from sofia.self_model.model import SofiaCoreState
 def create_runtime(
     identity_path: Path | None = None,
 ) -> SofiaRuntime:
-    constitution_path = (
+    repository_root = (
         Path(__file__).resolve().parents[1]
+    )
+
+    constitution_path = (
+        repository_root
         / "src"
         / "sofia"
         / "constitution"
@@ -54,7 +61,7 @@ def create_runtime(
     )
 
     constitution_hash_path = (
-        Path(__file__).resolve().parents[1]
+        repository_root
         / "src"
         / "sofia"
         / "constitution"
@@ -63,7 +70,7 @@ def create_runtime(
 
     if identity_path is None:
         identity_path = (
-            Path(__file__).resolve().parents[1]
+            repository_root
             / "src"
             / "sofia"
             / "identity"
@@ -71,7 +78,7 @@ def create_runtime(
         )
 
     personality_path = (
-        Path(__file__).resolve().parents[1]
+        repository_root
         / "src"
         / "sofia"
         / "personality"
@@ -79,11 +86,31 @@ def create_runtime(
     )
 
     avatar_path = (
-        Path(__file__).resolve().parents[1]
+        repository_root
         / "src"
         / "sofia"
         / "data"
         / "avatar.json"
+    )
+
+    state_path = (
+        repository_root
+        / "state"
+        / "test-sofia.db"
+    )
+
+    configuration = SofiaConfiguration(
+        constitution_path=constitution_path,
+        constitution_hash_path=constitution_hash_path,
+        identity_path=identity_path,
+        personality_path=personality_path,
+        avatar_path=avatar_path,
+        state_path=state_path,
+        provider=ProviderConfiguration(
+            provider="test",
+            model="test-model",
+        ),
+        filesystem_root=repository_root,
     )
 
     constitution_store = ConstitutionStore(
@@ -124,6 +151,7 @@ def create_runtime(
         avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+        configuration=configuration,
     )
 
 

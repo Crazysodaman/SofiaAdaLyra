@@ -1,7 +1,7 @@
 ﻿from pathlib import Path
 
 import pytest
-from pathlib import Path
+
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -20,6 +20,7 @@ def create_configuration() -> SofiaConfiguration:
             provider="test",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
 
@@ -71,6 +72,12 @@ def test_configuration_stores_state_path():
     )
 
 
+def test_configuration_stores_filesystem_root():
+    configuration = create_configuration()
+
+    assert configuration.filesystem_root == Path(".")
+
+
 def test_configuration_paths_are_path_objects():
     configuration = create_configuration()
 
@@ -101,6 +108,11 @@ def test_configuration_paths_are_path_objects():
 
     assert isinstance(
         configuration.state_path,
+        Path,
+    )
+
+    assert isinstance(
+        configuration.filesystem_root,
         Path,
     )
 
@@ -138,6 +150,7 @@ def test_configuration_does_not_require_files_to_exist():
             provider="test",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
     assert configuration.constitution_path == Path(
@@ -200,6 +213,7 @@ def test_sofia_configuration_requires_provider_configuration():
             avatar_path=Path("avatar.json"),
             state_path=Path("sofia.db"),
             provider="not-a-provider-configuration",
+            filesystem_root=Path("."),
         )
 
 
@@ -217,6 +231,7 @@ def test_sofia_configuration_stores_provider_configuration():
         avatar_path=Path("avatar.json"),
         state_path=Path("sofia.db"),
         provider=provider,
+        filesystem_root=Path("."),
     )
 
     assert configuration.provider is provider
@@ -234,12 +249,12 @@ def test_configuration_requires_personality_path():
             provider="test",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
     assert configuration.personality_path == Path(
         "personality.json"
     )
-
 
 
 def test_configuration_rejects_empty_state_path():
@@ -260,7 +275,9 @@ def test_configuration_rejects_empty_state_path():
                 provider="test",
                 model="test-model",
             ),
+            filesystem_root=Path("."),
         )
+
 
 def test_configuration_rejects_empty_personality_path():
     with pytest.raises(
@@ -278,6 +295,7 @@ def test_configuration_rejects_empty_personality_path():
                 provider="test",
                 model="test-model",
             ),
+            filesystem_root=Path("."),
         )
 
 
@@ -297,13 +315,17 @@ def test_configuration_rejects_empty_avatar_path():
                 provider="test",
                 model="test-model",
             ),
+            filesystem_root=Path("."),
         )
+
 
 def test_filesystem_root_must_be_path():
     with pytest.raises(TypeError):
         SofiaConfiguration(
             constitution_path=Path("constitution.md"),
-            constitution_hash_path=Path("constitution.sha256"),
+            constitution_hash_path=Path(
+                "constitution.sha256"
+            ),
             identity_path=Path("identity.json"),
             personality_path=Path("personality.json"),
             avatar_path=Path("avatar.json"),
