@@ -13,6 +13,9 @@ from sofia.cognition.model import (
     CognitiveRole,
     CognitiveResponse,
 )
+from sofia.filesystem.orchestrator import (
+    FilesystemOrchestrator,
+)
 from sofia.runtime.runtime import SofiaRuntime
 
 
@@ -20,9 +23,11 @@ class ConversationService:
     """
     Application-level conversation boundary.
 
-    Coordinates conversation persistence with Sofía's runtime.
-    Terminal interaction must not know about persistence or
-    cognitive request construction.
+    Coordinates conversation persistence, filesystem request
+    orchestration, and Sofía's runtime.
+
+    Terminal interaction must not know about persistence,
+    filesystem capability, or cognitive request construction.
     """
 
     def __init__(
@@ -46,6 +51,11 @@ class ConversationService:
 
         self._runtime = runtime
         self._conversation_store = conversation_store
+        self._filesystem_orchestrator = (
+            FilesystemOrchestrator(
+                runtime=runtime,
+            )
+        )
         self._session: ConversationSession | None = None
 
     @property
@@ -113,8 +123,8 @@ class ConversationService:
         content: str,
     ) -> CognitiveResponse:
         """
-        Persist a user message, obtain Sofía's response, and
-        persist the assistant response.
+        Persist a user message, process any filesystem intent,
+        obtain Sofía's response, and persist the assistant response.
         """
 
         if self._session is None:
@@ -144,9 +154,18 @@ class ConversationService:
 
         self._conversation_store.save(user_message)
 
+        filesystem_results = (
+            self._filesystem_orchestrator.process(
+                content
+            )
+        )
+
         request = self._build_request()
 
-        response = self._runtime.respond(request)
+        response = self._runtime.respond(
+            request,
+            filesystem_results=filesystem_results,
+        )
 
         assistant_message = ConversationMessage(
             id=str(uuid4()),
@@ -171,7 +190,9 @@ class ConversationService:
 
         return response
 
-    def messages(self) -> tuple[ConversationMessage, ...]:
+    def messages(
+        self,
+    ) -> tuple[ConversationMessage, ...]:
         """
         Return all persisted messages for the active session.
         """

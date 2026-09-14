@@ -259,3 +259,78 @@ def test_conversation_service_rejects_second_start(
         application.conversation.start()
 
     application.shutdown()
+def test_conversation_service_processes_filesystem_authorization(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    response = application.conversation.respond(
+        "you are allowed to check your own files"
+    )
+
+    assert response.content == "Test cognitive response."
+
+    assert (
+        application.runtime.filesystem_authorization
+        is not None
+    )
+
+    assert (
+        application.runtime.filesystem_inspector.authorized
+        is True
+    )
+
+    application.shutdown()
+
+
+def test_conversation_service_processes_filesystem_request(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    application.conversation.respond(
+        "you are allowed to check your own files"
+    )
+
+    response = application.conversation.respond(
+        "read src/sofia/filesystem/model.py"
+    )
+
+    assert response.content == "Test cognitive response."
+
+    messages = application.conversation.messages()
+
+    assert messages[-2].content == (
+        "read src/sofia/filesystem/model.py"
+    )
+
+    assert messages[-1].content == (
+        "Test cognitive response."
+    )
+
+    application.shutdown()
+
+
+def test_filesystem_request_without_authorization_remains_denied(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    response = application.conversation.respond(
+        "read src/sofia/filesystem/model.py"
+    )
+
+    assert response.content == "Test cognitive response."
+
+    assert (
+        application.runtime.filesystem_inspector.authorized
+        is False
+    )
+
+    application.shutdown()

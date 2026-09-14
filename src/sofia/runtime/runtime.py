@@ -7,6 +7,12 @@ from sofia.application.metadata import (
     application_version,
 )
 from sofia.authority.model import Authority
+from sofia.authorization.model import (
+    AuthorizationDecision,
+    AuthorizationDomain,
+    FilesystemAuthorization,
+    FilesystemAuthorizationOperation,
+)
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.operation import CognitiveOperation
@@ -72,6 +78,10 @@ class SofiaRuntime:
             root=configuration.filesystem_root,
             authorized=False,
         )
+
+        self._filesystem_authorization: (
+            FilesystemAuthorization | None
+        ) = None
 
         self._state = RuntimeState.CREATED
         self._constitution: Constitution | None = None
@@ -161,7 +171,15 @@ class SofiaRuntime:
         return self._filesystem_inspector
 
     @property
-    def operational_state(self) -> OperationalState | None:
+    def filesystem_authorization(
+        self,
+    ) -> FilesystemAuthorization | None:
+        return self._filesystem_authorization
+
+    @property
+    def operational_state(
+        self,
+    ) -> OperationalState | None:
         if (
             self._runtime_id is None
             or self._started_at is None
@@ -219,6 +237,7 @@ class SofiaRuntime:
                 root=self._configuration.filesystem_root,
                 authorized=False,
             )
+            self._filesystem_authorization = None
             self._state = RuntimeState.READY
 
         except ConstitutionIntegrityError as exc:
@@ -287,22 +306,122 @@ class SofiaRuntime:
             operation
         )
 
-    def enable_filesystem_inspection(self) -> None:
+    def authorize_filesystem(
+        self,
+        authorization: FilesystemAuthorization,
+    ) -> None:
         """
-        Enable read-only filesystem inspection for the runtime.
+        Apply an explicit filesystem authorization.
 
-        This method is deliberately separate from general action execution.
+        Authorization is accepted only when it exactly matches
+        the configured filesystem capability boundary and permits
+        only the supported read-only operations.
         """
 
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
-                "SofiaRuntime must be READY before enabling "
+                "SofiaRuntime must be READY before authorizing "
                 "filesystem inspection."
             )
 
+        if not isinstance(
+            authorization,
+            FilesystemAuthorization,
+        ):
+            raise TypeError(
+                "SofiaRuntime filesystem authorization must be "
+                "a FilesystemAuthorization."
+            )
+
+        if authorization.domain is not AuthorizationDomain.FILESYSTEM:
+            raise SofiaRuntimeError(
+                "Filesystem authorization must target the filesystem domain."
+            )
+
+        if authorization.decision is not AuthorizationDecision.ALLOW:
+            raise SofiaRuntimeError(
+                "Filesystem authorization must have an ALLOW decision."
+            )
+
+        configured_root = (
+            self._configuration.filesystem_root.resolve()
+        )
+
+        if authorization.scope.resolve() != configured_root:
+            raise SofiaRuntimeError(
+                "Filesystem authorization scope does not match "
+                "the configured filesystem root."
+            )
+
+        allowed_operations = {
+            FilesystemAuthorizationOperation.LIST_DIRECTORY,
+            FilesystemAuthorizationOperation.INSPECT_PATH,
+            FilesystemAuthorizationOperation.READ_FILE,
+            FilesystemAuthorizationOperation.SEARCH_FILES,
+        }
+
+        if not set(authorization.operations).issubset(
+            allowed_operations
+        ):
+            raise SofiaRuntimeError(
+                "Filesystem authorization contains an unsupported "
+                "operation."
+            )
+
+        if authorization.target is not None:
+            try:
+                target = authorization.target.resolve(
+                    strict=False
+                )
+                target.relative_to(
+                    configured_root
+                )
+            except (
+                OSError,
+                RuntimeError,
+                ValueError,
+            ) as exc:
+                raise SofiaRuntimeError(
+                    "Filesystem authorization target is outside "
+                    "the configured filesystem root."
+                ) from exc
+
+        self._filesystem_authorization = authorization
+
+        self._filesystem_inspector = FilesystemInspector(
+            root=configured_root,
+            authorized=True,
+        )
+
+    def revoke_filesystem_authorization(self) -> None:
+        """
+        Revoke the current filesystem authorization.
+        """
+
+        if self._state is not RuntimeState.READY:
+            raise SofiaRuntimeError(
+                "SofiaRuntime must be READY before revoking "
+                "filesystem inspection."
+            )
+
+        self._filesystem_authorization = None
+
         self._filesystem_inspector = FilesystemInspector(
             root=self._configuration.filesystem_root,
-            authorized=True,
+            authorized=False,
+        )
+
+    def enable_filesystem_inspection(self) -> None:
+        """
+        Legacy compatibility method.
+
+        New application code should use authorize_filesystem()
+        instead of directly enabling filesystem capability.
+        """
+
+        raise SofiaRuntimeError(
+            "Direct filesystem inspection enabling is no longer "
+            "supported. Explicit filesystem authorization is required."
         )
 
     def disable_filesystem_inspection(self) -> None:
@@ -310,16 +429,7 @@ class SofiaRuntime:
         Disable filesystem inspection for the runtime.
         """
 
-        if self._state is not RuntimeState.READY:
-            raise SofiaRuntimeError(
-                "SofiaRuntime must be READY before disabling "
-                "filesystem inspection."
-            )
-
-        self._filesystem_inspector = FilesystemInspector(
-            root=self._configuration.filesystem_root,
-            authorized=False,
-        )
+        self.revoke_filesystem_authorization()
 
     def shutdown(self) -> None:
         if self._state is RuntimeState.STOPPED:
@@ -343,6 +453,7 @@ class SofiaRuntime:
         self._core_state = None
         self._runtime_id = None
         self._started_at = None
+        self._filesystem_authorization = None
         self._filesystem_inspector = FilesystemInspector(
             root=self._configuration.filesystem_root,
             authorized=False,

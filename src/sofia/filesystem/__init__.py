@@ -5,6 +5,9 @@ from sofia.filesystem.model import (
     FilesystemResult,
     FilesystemResultKind,
 )
+from sofia.filesystem.orchestrator import (
+    FilesystemOrchestrator,
+)
 
 __all__ = [
     "FilesystemInspector",
@@ -12,4 +15,5 @@ __all__ = [
     "FilesystemOperation",
     "FilesystemResult",
     "FilesystemResultKind",
+    "FilesystemOrchestrator",
 ]

@@ -46,10 +46,35 @@ def test_authorized_inspector_lists_directory(
     assert tmp_path / "beta.txt" in result.entries
 
 
+def test_directory_listing_is_bounded(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES + 25
+    ):
+        (tmp_path / f"entry-{index}.txt").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.list_directory()
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_DIRECTORY_ENTRIES
+    )
+
+
 def test_inspect_path_reports_existing_file(
     tmp_path: Path,
 ):
     target = tmp_path / "example.txt"
+
     target.write_text(
         "hello",
         encoding="utf-8",
@@ -123,6 +148,28 @@ def test_read_file_does_not_modify_file(
     assert target.read_text(
         encoding="utf-8"
     ) == original
+
+
+def test_large_file_is_rejected_before_read(
+    tmp_path: Path,
+):
+    target = tmp_path / "large.txt"
+
+    with target.open("wb") as file_handle:
+        file_handle.truncate(
+            FilesystemInspector.MAX_FILE_BYTES + 1
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.read_file(target)
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert result.content is None
+    assert "was not read" in result.message
 
 
 def test_path_outside_authorized_root_is_rejected(
@@ -215,6 +262,53 @@ def test_search_files_returns_matching_files(
     assert first in result.entries
     assert second in result.entries
     assert text not in result.entries
+
+
+def test_search_files_is_bounded_by_result_limit(
+    tmp_path: Path,
+):
+    for index in range(
+        FilesystemInspector.MAX_SEARCH_RESULTS + 25
+    ):
+        (tmp_path / f"file-{index}.py").write_text(
+            "content",
+            encoding="utf-8",
+        )
+
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    result = inspector.search_files("*.py")
+
+    assert result.kind is FilesystemResultKind.LIMIT_REACHED
+    assert len(result.entries) == (
+        FilesystemInspector.MAX_SEARCH_RESULTS
+    )
+
+
+def test_search_files_rejects_long_pattern(
+    tmp_path: Path,
+):
+    inspector = FilesystemInspector(
+        root=tmp_path,
+        authorized=True,
+    )
+
+    pattern = "a" * (
+        FilesystemInspector.MAX_SEARCH_PATTERN_LENGTH + 1
+    )
+
+    try:
+        inspector.search_files(pattern)
+    except ValueError:
+        return
+
+    raise AssertionError(
+        "Search pattern exceeding the configured limit "
+        "should raise ValueError."
+    )
 
 
 def test_search_files_rejects_empty_pattern(

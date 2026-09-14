@@ -13,6 +13,7 @@ class FilesystemResultKind(str, Enum):
     INACCESSIBLE = "inaccessible"
     UNAUTHORIZED = "unauthorized"
     UNAVAILABLE = "unavailable"
+    LIMIT_REACHED = "limit_reached"
 
 
 class FilesystemOperation(str, Enum):
@@ -39,7 +40,7 @@ class FilesystemResult:
 
     A result explicitly records whether the requested operation succeeded,
     was unauthorized, encountered a missing path, encountered an
-    inaccessible path, or could not be performed.
+    inaccessible path, could not be performed, or reached a safety limit.
     """
 
     operation: FilesystemOperation
