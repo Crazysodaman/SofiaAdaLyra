@@ -208,9 +208,14 @@ class ConversationService:
 
     def close(self) -> None:
         """
-        Close the conversation persistence layer.
+        Close the conversation service and its persistence layer.
+
+        The persisted conversation remains available for explicit
+        resumption after restart, but no active in-memory session
+        remains attached to the closed service.
         """
 
+        self._session = None
         self._conversation_store.close()
 
     def _build_request(self) -> CognitiveRequest:
@@ -244,3 +249,4 @@ class ConversationService:
             role=role,
             content=message.content,
         )
+
