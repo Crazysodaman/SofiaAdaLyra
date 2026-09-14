@@ -1,8 +1,8 @@
 ﻿import hashlib
+from datetime import datetime
 from pathlib import Path
 
 import pytest
-from datetime import datetime
 
 from sofia.memory.model import MemoryRecord
 from sofia.cognition.engine import CognitiveEngine
@@ -35,6 +35,7 @@ def create_configuration() -> SofiaConfiguration:
             provider="test",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
 
@@ -150,6 +151,7 @@ def test_composition_creates_runtime_with_configured_cognitive_engine(
             provider="test",
             model="test-model",
         ),
+        filesystem_root=tmp_path,
     )
 
     configuration.constitution_path.write_text(
@@ -231,6 +233,7 @@ def test_composition_selects_configured_rule_provider(
             provider="rule",
             model="rule-engine",
         ),
+        filesystem_root=tmp_path,
     )
 
     runtime = compose(configuration)
@@ -257,6 +260,7 @@ def test_composition_rejects_unknown_provider(
             provider="unknown-provider",
             model="unknown-model",
         ),
+        filesystem_root=tmp_path,
     )
 
     with pytest.raises(
@@ -280,6 +284,7 @@ def test_composition_selects_test_provider_engine(
             provider="test",
             model="test-model",
         ),
+        filesystem_root=tmp_path,
     )
 
     runtime = compose(configuration)
@@ -332,6 +337,7 @@ def test_composition_creates_llm_cognitive_engine():
             provider="test-llm",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
     runtime = compose(configuration)
@@ -354,6 +360,7 @@ def test_composition_creates_test_llm_provider():
             provider="test-llm",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
     runtime = compose(configuration)
@@ -378,6 +385,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
             provider="test-llm",
             model="test-model",
         ),
+        filesystem_root=Path("."),
     )
 
     runtime = compose(configuration)
@@ -385,6 +393,7 @@ def test_composition_passes_provider_configuration_to_llm_engine():
     engine = runtime.cognitive_system.engine
 
     assert engine.configuration is configuration.provider
+
 
 def test_composition_passes_state_path_to_memory_store(
     tmp_path,
@@ -400,6 +409,7 @@ def test_composition_passes_state_path_to_memory_store(
             provider="test",
             model="test-model",
         ),
+        filesystem_root=tmp_path,
     )
 
     runtime = compose(configuration)
@@ -407,6 +417,7 @@ def test_composition_passes_state_path_to_memory_store(
     memory_store = runtime.memory_system._store
 
     assert memory_store._database_path == configuration.state_path
+
 
 def test_composed_runtime_preserves_memory_across_composition(
     tmp_path,
@@ -424,6 +435,7 @@ def test_composed_runtime_preserves_memory_across_composition(
             provider="test",
             model="test-model",
         ),
+        filesystem_root=tmp_path,
     )
 
     first_runtime = compose(first_configuration)

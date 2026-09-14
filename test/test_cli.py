@@ -8,8 +8,10 @@ from sofia.runtime.model import RuntimeState
 from sofia.__main__ import main
 
 
+PROJECT_ROOT = Path(__file__).parent.parent
+
 CONSTITUTION_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -17,7 +19,7 @@ CONSTITUTION_PATH = (
 )
 
 HASH_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -25,7 +27,7 @@ HASH_PATH = (
 )
 
 IDENTITY_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "identity"
@@ -33,7 +35,7 @@ IDENTITY_PATH = (
 )
 
 AVATAR_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "data"
@@ -75,6 +77,7 @@ def create_configuration(
             provider="test",
             model="cli-test",
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
 
@@ -144,6 +147,7 @@ def test_cli_configuration_failure_returns_error(
             provider="test",
             model="cli-test",
         ),
+        filesystem_root=tmp_path,
     )
 
     outputs: list[str] = []

@@ -10,8 +10,10 @@ from sofia.config.model import (
 from sofia.runtime.model import RuntimeState
 
 
+PROJECT_ROOT = Path(__file__).parent.parent
+
 CONSTITUTION_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -19,7 +21,7 @@ CONSTITUTION_PATH = (
 )
 
 HASH_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -27,7 +29,7 @@ HASH_PATH = (
 )
 
 IDENTITY_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "identity"
@@ -35,7 +37,7 @@ IDENTITY_PATH = (
 )
 
 AVATAR_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "data"
@@ -77,6 +79,7 @@ def configuration(tmp_path: Path) -> SofiaConfiguration:
             provider="test",
             model="acceptance",
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
 

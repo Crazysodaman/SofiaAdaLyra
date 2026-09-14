@@ -6,8 +6,10 @@ from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 
 
+PROJECT_ROOT = Path(__file__).parent.parent
+
 CONSTITUTION_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -15,7 +17,7 @@ CONSTITUTION_PATH = (
 )
 
 HASH_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "constitution"
@@ -23,7 +25,7 @@ HASH_PATH = (
 )
 
 IDENTITY_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "identity"
@@ -31,7 +33,7 @@ IDENTITY_PATH = (
 )
 
 AVATAR_PATH = (
-    Path(__file__).parent.parent
+    PROJECT_ROOT
     / "src"
     / "sofia"
     / "data"
@@ -79,6 +81,7 @@ def create_configuration(
             provider="test",
             model="test",
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
 

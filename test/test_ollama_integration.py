@@ -87,6 +87,7 @@ def test_real_ollama_cognitive_path(tmp_path):
             provider="ollama",
             model=OLLAMA_MODEL,
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
     runtime = compose(configuration)
@@ -164,6 +165,7 @@ def test_real_ollama_receives_sofia_identity_context(tmp_path):
             provider="ollama",
             model=OLLAMA_MODEL,
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
     runtime = compose(configuration)
@@ -239,6 +241,7 @@ def test_real_ollama_receives_sofia_instance_identity(
             provider="ollama",
             model=OLLAMA_MODEL,
         ),
+        filesystem_root=PROJECT_ROOT,
     )
 
     runtime = compose(configuration)

@@ -56,6 +56,7 @@ def test_composed_runtime_contains_action_system(tmp_path):
             provider="test",
             model="test",
         ),
+        filesystem_root=tmp_path,
     )
 
     runtime = compose(configuration)
