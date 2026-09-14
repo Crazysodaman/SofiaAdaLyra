@@ -1,68 +1,45 @@
-﻿from dataclasses import dataclass
-from datetime import datetime
-from uuid import UUID
+﻿from importlib.metadata import PackageNotFoundError
+from importlib.metadata import metadata
 
 
-@dataclass(frozen=True)
-class OperationalState:
+_PACKAGE_NAME = "sofia-ada-lyra"
+
+
+def application_name() -> str:
     """
-    Immutable description of Sofía's current runtime environment.
-
-    OperationalState describes the current runtime instance.
-    It is not persistent identity and must not be used as a substitute
-    for SofiaIdentity.
+    Return Sofía's authoritative application package name.
     """
 
-    runtime_id: UUID
-    started_at: datetime
-    lifecycle_state: str
-    application_name: str
-    application_version: str
-    provider: str
-    model: str
+    try:
+        value = metadata(_PACKAGE_NAME)["Name"]
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            f"Application package metadata not found: {_PACKAGE_NAME!r}."
+        ) from exc
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.runtime_id, UUID):
-            raise TypeError(
-                "OperationalState runtime_id must be a UUID."
-            )
+    if not value:
+        raise RuntimeError(
+            "Application package metadata contains no package name."
+        )
 
-        if not isinstance(self.started_at, datetime):
-            raise TypeError(
-                "OperationalState started_at must be a datetime."
-            )
+    return value
 
-        if self.started_at.tzinfo is None:
-            raise ValueError(
-                "OperationalState started_at must be timezone-aware."
-            )
 
-        if not isinstance(self.lifecycle_state, str):
-            raise TypeError(
-                "OperationalState lifecycle_state must be a str."
-            )
+def application_version() -> str:
+    """
+    Return Sofía's authoritative application package version.
+    """
 
-        if not self.lifecycle_state:
-            raise ValueError(
-                "OperationalState lifecycle_state must not be empty."
-            )
+    try:
+        value = metadata(_PACKAGE_NAME)["Version"]
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            f"Application package metadata not found: {_PACKAGE_NAME!r}."
+        ) from exc
 
-        if not isinstance(self.application_name, str):
-            raise TypeError(
-                "OperationalState application_name must be a str."
-            )
+    if not value:
+        raise RuntimeError(
+            "Application package metadata contains no version."
+        )
 
-        if not isinstance(self.application_version, str):
-            raise TypeError(
-                "OperationalState application_version must be a str."
-            )
-
-        if not isinstance(self.provider, str):
-            raise TypeError(
-                "OperationalState provider must be a str."
-            )
-
-        if not isinstance(self.model, str):
-            raise TypeError(
-                "OperationalState model must be a str."
-            )
+    return value

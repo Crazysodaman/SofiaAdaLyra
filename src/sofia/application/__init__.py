@@ -4,7 +4,10 @@ from sofia.application.bootstrap import (
 )
 from sofia.application.conversation import ConversationLoop
 from sofia.application.conversation_service import ConversationService
-from sofia.application.metadata import application_name,application_version
+from sofia.application.metadata import (
+    application_name,
+    application_version,
+)
 
 
 __all__ = [
@@ -14,3 +17,4 @@ __all__ = [
     "SofiaApplicationError",
     "application_name",
     "application_version",
+]
