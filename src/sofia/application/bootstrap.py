@@ -59,6 +59,7 @@ class SofiaApplication:
 
         try:
             self._runtime.start()
+            self._conversation_service.open()
             self._conversation_service.start(
                 session_id=session_id,
             )

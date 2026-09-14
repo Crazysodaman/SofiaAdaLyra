@@ -69,6 +69,13 @@ class ConversationService:
 
         return self._session.id
 
+    def open(self) -> None:
+        """
+        Open the conversation persistence layer.
+        """
+
+        self._conversation_store.open()
+
     def start(
         self,
         session_id: str | None = None,
@@ -249,4 +256,3 @@ class ConversationService:
             role=role,
             content=message.content,
         )
-

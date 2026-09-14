@@ -9,25 +9,47 @@ from sofia.conversation.model import (
     ConversationSession,
 )
 
+
 class ConversationStore:
     """
     SQLite-backed persistent conversation storage.
 
     Stores conversation sessions and their messages.
+
+    The database path is persistent configuration.
+    The SQLite connection is a runtime resource and may be
+    opened and closed multiple times during the store lifetime.
     """
 
     def __init__(
         self,
         database_path: Path | str,
     ) -> None:
+        self._database_path = Path(database_path)
+        self._connection: sqlite3.Connection | None = None
+
+        self.open()
+
+    def open(self) -> None:
+        """
+        Open the SQLite connection and initialize the database.
+
+        Opening an already-open store is a no-op.
+        """
+
+        if self._connection is not None:
+            return
+
         self._connection = sqlite3.connect(
-            str(database_path)
+            str(self._database_path)
         )
 
         self._initialize_database()
 
     def _initialize_database(self) -> None:
-        self._connection.execute(
+        connection = self._require_connection()
+
+        connection.execute(
             """
             CREATE TABLE IF NOT EXISTS conversation_sessions (
                 id TEXT PRIMARY KEY,
@@ -37,7 +59,7 @@ class ConversationStore:
             """
         )
 
-        self._connection.execute(
+        connection.execute(
             """
             CREATE TABLE IF NOT EXISTS conversation_messages (
                 id TEXT PRIMARY KEY,
@@ -49,13 +71,15 @@ class ConversationStore:
             """
         )
 
-        self._connection.commit()
+        connection.commit()
 
     def create_session(self) -> ConversationSession:
+        connection = self._require_connection()
+
         now = datetime.now(timezone.utc)
         session_id = str(uuid4())
 
-        self._connection.execute(
+        connection.execute(
             """
             INSERT INTO conversation_sessions (
                 id,
@@ -71,7 +95,7 @@ class ConversationStore:
             ),
         )
 
-        self._connection.commit()
+        connection.commit()
 
         return ConversationSession(
             id=session_id,
@@ -83,7 +107,9 @@ class ConversationStore:
         self,
         session_id: str,
     ) -> ConversationSession | None:
-        row = self._connection.execute(
+        connection = self._require_connection()
+
+        row = connection.execute(
             """
             SELECT id, created_at, updated_at
             FROM conversation_sessions
@@ -105,7 +131,9 @@ class ConversationStore:
         self,
         message: ConversationMessage,
     ) -> None:
-        self._connection.execute(
+        connection = self._require_connection()
+
+        connection.execute(
             """
             INSERT INTO conversation_messages (
                 id,
@@ -130,7 +158,7 @@ class ConversationStore:
             ),
         )
 
-        self._connection.execute(
+        connection.execute(
             """
             UPDATE conversation_sessions
             SET updated_at = ?
@@ -144,13 +172,15 @@ class ConversationStore:
             ),
         )
 
-        self._connection.commit()
+        connection.commit()
 
     def list_messages(
         self,
         session_id: str,
     ) -> tuple[ConversationMessage, ...]:
-        rows = self._connection.execute(
+        connection = self._require_connection()
+
+        rows = connection.execute(
             """
             SELECT id, session_id, role, content, created_at
             FROM conversation_messages
@@ -172,4 +202,23 @@ class ConversationStore:
         )
 
     def close(self) -> None:
+        """
+        Close the SQLite connection.
+
+        Persistent database contents remain available for a
+        subsequent call to open().
+        """
+
+        if self._connection is None:
+            return
+
         self._connection.close()
+        self._connection = None
+
+    def _require_connection(self) -> sqlite3.Connection:
+        if self._connection is None:
+            raise RuntimeError(
+                "ConversationStore must be opened before use."
+            )
+
+        return self._connection
