@@ -11,6 +11,7 @@ from sofia.authorization.model import (
     FilesystemAuthorization,
     FilesystemAuthorizationOperation,
 )
+from sofia.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.operation import CognitiveOperation
@@ -96,8 +97,18 @@ class SofiaRuntime:
         avatar_store: AvatarStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
+        capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
     ) -> None:
+        if not isinstance(
+            capability_system,
+            CapabilitySystem,
+        ):
+            raise TypeError(
+                "SofiaRuntime capability_system must be a "
+                "CapabilitySystem."
+            )
+
         self._constitution_store = constitution_store
         self._integrity_verifier = integrity_verifier
         self._identity_store = identity_store
@@ -105,6 +116,7 @@ class SofiaRuntime:
         self._avatar_store = avatar_store
         self._memory_system = memory_system
         self._cognitive_system = cognitive_system
+        self._capability_system = capability_system
         self._configuration = configuration
 
         self._filesystem_inspector = FilesystemInspector(
@@ -190,6 +202,14 @@ class SofiaRuntime:
     @property
     def cognitive_system(self) -> CognitiveSystem:
         return self._cognitive_system
+
+    @property
+    def capability_system(self) -> CapabilitySystem:
+        return self._capability_system
+
+    @property
+    def configuration(self) -> SofiaConfiguration:
+        return self._configuration
 
     @property
     def runtime_id(self) -> UUID | None:

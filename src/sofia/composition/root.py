@@ -2,6 +2,9 @@
 
 from sofia.action.executor import TestActionExecutor
 from sofia.action.system import ActionSystem
+from sofia.capability.system import CapabilitySystem
+from sofia.codebase.codebase import CodebaseCapability
+from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.factory import create_llm_provider
@@ -103,7 +106,59 @@ def compose(
         memory_store
     )
 
-    return SofiaRuntime(
+    codebase_inspector = CodebaseInspector(
+        root=configuration.filesystem_root,
+    )
+
+    codebase_capability = CodebaseCapability(
+        inspector=codebase_inspector,
+    )
+
+    runtime_holder: dict[str, SofiaRuntime] = {}
+
+    def capability_authorized(
+        request,
+    ) -> bool:
+        runtime = runtime_holder.get("runtime")
+
+        if runtime is None:
+            return False
+
+        authorization = runtime.filesystem_authorization
+
+        if authorization is None:
+            return False
+
+        if (
+            authorization.domain.value
+            != "filesystem"
+        ):
+            return False
+
+        if (
+            authorization.decision.value
+            != "allow"
+        ):
+            return False
+
+        if (
+            authorization.scope.resolve()
+            != configuration.filesystem_root.resolve()
+        ):
+            return False
+
+        return True
+
+    capability_system = CapabilitySystem(
+        authorization_checker=capability_authorized,
+    )
+
+    capability_system.register(
+        capability=codebase_capability.capability,
+        handler=codebase_capability.execute,
+    )
+
+    runtime = SofiaRuntime(
         constitution_store=constitution_store,
         integrity_verifier=integrity_verifier,
         identity_store=identity_store,
@@ -111,5 +166,10 @@ def compose(
         avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+        capability_system=capability_system,
         configuration=configuration,
     )
+
+    runtime_holder["runtime"] = runtime
+
+    return runtime
