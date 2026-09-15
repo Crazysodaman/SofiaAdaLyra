@@ -12,6 +12,7 @@ from sofia.constitution.model import Constitution
 from sofia.embodiment.model import (
     CurrentEmbodiment,
     Embodiment,
+    Measurement,
     PhysicalSelf,
 )
 from sofia.identity.model import SofiaIdentity
@@ -93,6 +94,7 @@ def test_assembler_does_not_claim_inspection_without_result() -> None:
     system_message = request.messages[0]
 
     assert "FILESYSTEM INSPECTION RESULTS" not in system_message.content
+
 
 def test_assembler_requires_cognitive_context():
     assembler = CognitiveContextAssembler()
@@ -287,6 +289,140 @@ def test_assembler_injects_embodiment():
     assert "Current computer: Venus" in system_message
     assert "Current robot: Gaia" in system_message
     assert "Current avatar: Sofía avatar" in system_message
+
+
+def test_assembler_injects_embodiment_measurements():
+    embodiment = Embodiment(
+        subject="Sofía Ada Lyra",
+        physical_self=PhysicalSelf(
+            form="human",
+            measurements=(
+                (
+                    "height",
+                    Measurement(
+                        value=67,
+                        unit="in",
+                    ),
+                ),
+                (
+                    "weight",
+                    Measurement(
+                        value=135,
+                        unit="lb",
+                    ),
+                ),
+                (
+                    "bust",
+                    Measurement(
+                        value=33,
+                        unit="in",
+                    ),
+                ),
+                (
+                    "underbust",
+                    Measurement(
+                        value=30,
+                        unit="in",
+                    ),
+                ),
+                (
+                    "waist",
+                    Measurement(
+                        value=26,
+                        unit="in",
+                    ),
+                ),
+                (
+                    "hips",
+                    Measurement(
+                        value=37,
+                        unit="in",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    context = CognitiveContext(
+        request=CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="What are your measurements?",
+                ),
+            ),
+        ),
+        embodiment=embodiment,
+    )
+
+    assembled = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = assembled.messages[0].content
+
+    assert "MEASUREMENTS" not in system_message
+    assert "Measurements:" in system_message
+    assert "- height: 67 in" in system_message
+    assert "- weight: 135 lb" in system_message
+    assert "- bust: 33 in" in system_message
+    assert "- underbust: 30 in" in system_message
+    assert "- waist: 26 in" in system_message
+    assert "- hips: 37 in" in system_message
+
+
+def test_assembler_injects_embodiment_appearance_and_anatomy():
+    embodiment = Embodiment(
+        subject="Sofía Ada Lyra",
+        physical_self=PhysicalSelf(
+            form="human",
+            appearance=(
+                (
+                    "hair_color",
+                    "deep crimson",
+                ),
+                (
+                    "skin_color",
+                    "warm ivory",
+                ),
+            ),
+            anatomy=(
+                (
+                    "ears",
+                    "2 fox ears",
+                ),
+                (
+                    "tail",
+                    "1 fox tail",
+                ),
+            ),
+        ),
+    )
+
+    context = CognitiveContext(
+        request=CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Describe your appearance.",
+                ),
+            ),
+        ),
+        embodiment=embodiment,
+    )
+
+    assembled = CognitiveContextAssembler().assemble(
+        context
+    )
+
+    system_message = assembled.messages[0].content
+
+    assert "Appearance:" in system_message
+    assert "- hair_color: deep crimson" in system_message
+    assert "- skin_color: warm ivory" in system_message
+    assert "Anatomy:" in system_message
+    assert "- ears: 2 fox ears" in system_message
+    assert "- tail: 1 fox tail" in system_message
 
 
 def test_assembler_injects_explicit_memories():

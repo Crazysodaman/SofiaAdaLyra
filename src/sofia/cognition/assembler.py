@@ -303,6 +303,36 @@ class CognitiveContextAssembler:
                 )
             )
 
+        if embodiment.physical_self.measurements:
+            lines.append("Measurements:")
+
+            for name, measurement in (
+                embodiment.physical_self.measurements
+            ):
+                lines.append(
+                    f"- {name}: {measurement.value} {measurement.unit}"
+                )
+
+        if embodiment.physical_self.appearance:
+            lines.append("Appearance:")
+
+            for name, value in (
+                embodiment.physical_self.appearance
+            ):
+                lines.append(
+                    f"- {name}: {value}"
+                )
+
+        if embodiment.physical_self.anatomy:
+            lines.append("Anatomy:")
+
+            for name, value in (
+                embodiment.physical_self.anatomy
+            ):
+                lines.append(
+                    f"- {name}: {value}"
+                )
+
         if embodiment.current.computer is not None:
             lines.append(
                 f"Current computer: {embodiment.current.computer}"
