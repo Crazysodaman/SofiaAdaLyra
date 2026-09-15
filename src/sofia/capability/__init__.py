@@ -3,19 +3,27 @@
     CapabilityRequest,
     CapabilityResult,
     CapabilityResultKind,
-)
-from sofia.capability.system import (
     CapabilityExecutionError,
     CapabilityResolutionError,
+)
+from sofia.capability.router import (
+    CapabilityRoute,
+    CapabilityRouter,
+    CapabilityRoutingError,
+)
+from sofia.capability.system import (
     CapabilitySystem,
 )
 
 __all__ = [
     "Capability",
+    "CapabilityExecutionError",
     "CapabilityRequest",
+    "CapabilityResolutionError",
     "CapabilityResult",
     "CapabilityResultKind",
-    "CapabilityExecutionError",
-    "CapabilityResolutionError",
+    "CapabilityRoute",
+    "CapabilityRouter",
+    "CapabilityRoutingError",
     "CapabilitySystem",
 ]

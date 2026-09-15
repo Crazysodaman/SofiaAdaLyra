@@ -1,10 +1,13 @@
-﻿from sofia.codebase.inspector import (
-    CodebaseInspectionError,
-    CodebaseInspector,
-)
-from sofia.capability.codebase import (
+﻿from sofia.codebase.codebase import (
     CODEBASE_INSPECT_CAPABILITY,
     CodebaseCapability,
+)
+from sofia.codebase.evidence import (
+    format_codebase_evidence,
+)
+from sofia.codebase.inspector import (
+    CodebaseInspectionError,
+    CodebaseInspector,
 )
 from sofia.codebase.model import (
     CodebaseEvidenceKind,
@@ -24,6 +27,8 @@ from sofia.codebase.relationships import (
 )
 
 __all__ = [
+    "CODEBASE_INSPECT_CAPABILITY",
+    "CodebaseCapability",
     "CodebaseEvidenceKind",
     "CodebaseFile",
     "CodebaseInspectionError",
@@ -36,6 +41,5 @@ __all__ = [
     "PythonModule",
     "PythonSymbol",
     "SourceFileKind",
-    "CODEBASE_INSPECT_CAPABILITY",
-    "CodebaseCapability"
+    "format_codebase_evidence",
 ]
