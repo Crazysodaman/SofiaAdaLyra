@@ -19,9 +19,14 @@ class PersonalitySystem:
     def communication_style(self) -> str:
         return self._profile.communication_style
 
+    @property
+    def embodiment_guidance(self) -> str:
+        return self._profile.embodiment_guidance
+
     def context(self) -> MappingProxyType:
         return MappingProxyType({
             "name": self._profile.name,
             "traits": self._profile.traits,
             "communication_style": self._profile.communication_style,
+            "embodiment_guidance": self._profile.embodiment_guidance,
         })

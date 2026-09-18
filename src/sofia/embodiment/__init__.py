@@ -1,5 +1,7 @@
 from sofia.embodiment.model import (
     AvatarEmbodiment,
+    ClothingItem,
+    ClothingSpecification,
     ComputerEmbodiment,
     CurrentEmbodiment,
     Embodiment,
@@ -15,6 +17,8 @@ from sofia.embodiment.store import (
 __all__ = [
     "AvatarEmbodiment",
     "AvatarStore",
+    "ClothingItem",
+    "ClothingSpecification",
     "ComputerEmbodiment",
     "CurrentEmbodiment",
     "Embodiment",

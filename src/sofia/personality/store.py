@@ -29,6 +29,7 @@ class PersonalityStore:
             "name": profile.name,
             "traits": list(profile.traits),
             "communication_style": profile.communication_style,
+            "embodiment_guidance": profile.embodiment_guidance,
         }
 
         try:
@@ -74,6 +75,11 @@ class PersonalityStore:
                 "Personality profile is missing a required field."
             ) from exc
 
+        embodiment_guidance = data.get(
+            "embodiment_guidance",
+            "",
+        )
+
         if not isinstance(name, str):
             raise PersonalityStoreError(
                 "Personality profile name must be a string."
@@ -94,11 +100,17 @@ class PersonalityStore:
                 "Personality profile communication_style must be a string."
             )
 
+        if not isinstance(embodiment_guidance, str):
+            raise PersonalityStoreError(
+                "Personality profile embodiment_guidance must be a string."
+            )
+
         try:
             return PersonalityProfile(
                 name=name,
                 traits=tuple(traits),
                 communication_style=communication_style,
+                embodiment_guidance=embodiment_guidance,
             )
         except (TypeError, ValueError) as exc:
             raise PersonalityStoreError(

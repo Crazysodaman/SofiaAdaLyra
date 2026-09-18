@@ -19,6 +19,61 @@ class Measurement:
 
 
 @dataclass(frozen=True)
+class ClothingItem:
+    """
+    One canonical clothing specification entry.
+
+    The specification is intentionally preserved as canonical text rather
+    than decomposed into inferred implementation fields.
+    """
+
+    category: str
+    specification: str
+
+    def __post_init__(self) -> None:
+        if not self.category:
+            raise ValueError(
+                "ClothingItem category must not be empty."
+            )
+
+        if not self.specification:
+            raise ValueError(
+                "ClothingItem specification must not be empty."
+            )
+
+
+@dataclass(frozen=True)
+class ClothingSpecification:
+    """
+    Immutable canonical clothing specification for Sofía.
+
+    Entries retain the exact category/specification language supplied by
+    the canonical design document.
+    """
+
+    items: tuple[ClothingItem, ...] = ()
+    canonical_status: str = ""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.items, tuple):
+            raise TypeError(
+                "ClothingSpecification items must be a tuple."
+            )
+
+        for item in self.items:
+            if not isinstance(item, ClothingItem):
+                raise TypeError(
+                    "ClothingSpecification items must contain "
+                    "ClothingItem instances."
+                )
+
+        if not isinstance(self.canonical_status, str):
+            raise TypeError(
+                "ClothingSpecification canonical_status must be a string."
+            )
+
+
+@dataclass(frozen=True)
 class PhysicalSelf:
     form: str
     additional_features: tuple[str, ...] = ()
@@ -147,6 +202,7 @@ class Embodiment:
 
     subject: str
     physical_self: PhysicalSelf
+    clothing: ClothingSpecification = ClothingSpecification()
     computers: tuple[ComputerEmbodiment, ...] = ()
     robots: tuple[RobotEmbodiment, ...] = ()
     avatars: tuple[AvatarEmbodiment, ...] = ()
@@ -161,6 +217,11 @@ class Embodiment:
         if not isinstance(self.physical_self, PhysicalSelf):
             raise TypeError(
                 "Embodiment physical_self must be a PhysicalSelf."
+            )
+
+        if not isinstance(self.clothing, ClothingSpecification):
+            raise TypeError(
+                "Embodiment clothing must be a ClothingSpecification."
             )
 
         if not isinstance(self.computers, tuple):

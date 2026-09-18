@@ -48,6 +48,239 @@
       "tail": "1 fox tail"
     }
   },
+  "clothing": {
+    "canonical_status": "CANON: Sofía Clothing Technical Specification v1.0",
+    "items": [
+      {
+        "category": "Design philosophy",
+        "specification": "Functional cyberpunk engineer; technical, practical, feminine, movement-capable"
+      },
+      {
+        "category": "Overall silhouette",
+        "specification": "Fitted torso, structured shoulders, defined waist, functional lower body, layered technical construction"
+      },
+      {
+        "category": "Primary fabric",
+        "specification": "Near-black technical textile, #0B0D12"
+      },
+      {
+        "category": "Secondary fabric",
+        "specification": "Charcoal, #171A21"
+      },
+      {
+        "category": "Crimson accent",
+        "specification": "Deep crimson, #8B1E3F"
+      },
+      {
+        "category": "Technology accent",
+        "specification": "Electric teal, #19D3C5"
+      },
+      {
+        "category": "Violet accent",
+        "specification": "Dark violet, approximately #3A245C"
+      },
+      {
+        "category": "Highlight",
+        "specification": "Warm ivory, #F1E9D8"
+      },
+      {
+        "category": "Hardware",
+        "specification": "Matte dark gunmetal"
+      },
+      {
+        "category": "Base layer",
+        "specification": "Fitted breathable black technical shirt, long sleeves, reinforced seams, subtle crimson detailing and teal chest identifier"
+      },
+      {
+        "category": "Collar",
+        "specification": "~1.25\" technical stand collar with concealed closure and small teal status indicator"
+      },
+      {
+        "category": "Engineer jacket",
+        "specification": "Signature fitted asymmetrical cyberpunk utility jacket"
+      },
+      {
+        "category": "Jacket dimensions",
+        "specification": "~16\" shoulder width, ~25\" length, ~24.5\" sleeve length"
+      },
+      {
+        "category": "Jacket construction",
+        "specification": "Matte technical shell, abrasion-resistant, water-resistant, flexible, reinforced shoulders/elbows/forearms/lower back"
+      },
+      {
+        "category": "Jacket closure",
+        "specification": "Offset front zipper with secondary low-profile magnetic/zip closure"
+      },
+      {
+        "category": "Jacket accent distribution",
+        "specification": "~70% near-black, 15% charcoal, 8% crimson, 5% violet, 2% teal"
+      },
+      {
+        "category": "Shoulders",
+        "specification": "Flexible structured reinforcement panels, approximately 7\" × 5\", charcoal with crimson identification and optional teal rear indicator"
+      },
+      {
+        "category": "Right sleeve",
+        "specification": "Utility pocket, diagnostic interface, cable-retention loop, reinforced elbow"
+      },
+      {
+        "category": "Left sleeve",
+        "specification": "Compact data display, teal status illumination, identification patch"
+      },
+      {
+        "category": "Gloves",
+        "specification": "Black technical work gloves with reinforced palms, flexible knuckles, conductive fingertips, wrist adjustment and tool-retention loop"
+      },
+      {
+        "category": "Utility belt",
+        "specification": "~1.5\" wide, black polymer/nylon, matte gunmetal hardware, low-profile buckle"
+      },
+      {
+        "category": "Belt equipment",
+        "specification": "Multitool, diagnostic device, cable ties, flashlight, measurement device, data module, fastener container"
+      },
+      {
+        "category": "Tool harness",
+        "specification": "Right shoulder to left hip, dark reinforced webbing, equipment/tool pouch mounting"
+      },
+      {
+        "category": "Harness accent",
+        "specification": "Single subtle crimson identification stripe"
+      },
+      {
+        "category": "Trousers",
+        "specification": "Fitted but non-tight technical utility trousers"
+      },
+      {
+        "category": "Trousers construction",
+        "specification": "Articulated knees, gusseted crotch, reinforced seat/knees, stretch panels, low-profile pockets"
+      },
+      {
+        "category": "Trousers color",
+        "specification": "Near-black #0B0D12 with charcoal #171A21 secondary panels"
+      },
+      {
+        "category": "Right thigh pocket",
+        "specification": "Large technical equipment/tool pocket"
+      },
+      {
+        "category": "Left thigh pocket",
+        "specification": "Slim electronic/data pocket"
+      },
+      {
+        "category": "Rear pockets",
+        "specification": "Two reinforced pockets"
+      },
+      {
+        "category": "Knee reinforcement",
+        "specification": "Segmented technical reinforcement"
+      },
+      {
+        "category": "Boots",
+        "specification": "Mid-calf engineer boots, approximately 10–11\" tall"
+      },
+      {
+        "category": "Boot construction",
+        "specification": "Reinforced toe, flexible ankle, shock-absorbing sole, waterproof outer, replaceable sole, moderate tread"
+      },
+      {
+        "category": "Boot heel",
+        "specification": "~1.25\", practical low-profile heel"
+      },
+      {
+        "category": "Boot colors",
+        "specification": "Near-black with gunmetal hardware, crimson heel accent and small teal indicator"
+      },
+      {
+        "category": "Socks",
+        "specification": "Black technical socks, moisture-wicking, reinforced heel/toe, subtle crimson accent"
+      },
+      {
+        "category": "Outer coat",
+        "specification": "Optional 34–36\" weather-resistant technical coat for cold environments"
+      },
+      {
+        "category": "Outer coat construction",
+        "specification": "Insulated, asymmetrical front, high collar, split rear hem, reinforced shoulders, interior equipment pockets"
+      },
+      {
+        "category": "Tail opening",
+        "specification": "Dedicated flexible tail opening allowing natural movement without compressing fur"
+      },
+      {
+        "category": "Hood",
+        "specification": "Optional oversized technical hood with flexible fox-ear channels"
+      },
+      {
+        "category": "Fox-ear integration",
+        "specification": "Ears remain uncovered and expressive; clothing and hair frame them"
+      },
+      {
+        "category": "Jewelry",
+        "specification": "Minimal, functional-looking accessories"
+      },
+      {
+        "category": "Ear accessory",
+        "specification": "Optional small dark-gunmetal/teal technical ear cuff with crimson detail"
+      },
+      {
+        "category": "Neck accessory",
+        "specification": "Thin technical pendant, dark gunmetal with small teal element"
+      },
+      {
+        "category": "Wrist device",
+        "specification": "~1.5\" wide technical interface for diagnostics, communication and system monitoring"
+      },
+      {
+        "category": "Personal toolkit",
+        "specification": "Compact modular engineer's case, approximately 12\" × 8\" × 4\""
+      },
+      {
+        "category": "Toolkit contents",
+        "specification": "Precision drivers, multimeter, pliers, cutters, probe leads, hex keys, fasteners and electronics tools"
+      },
+      {
+        "category": "Technology lighting",
+        "specification": "Restrained electric-teal illumination on interfaces, wrist device, sleeve display, tool electronics and select seams"
+      },
+      {
+        "category": "Crimson lighting",
+        "specification": "Rare, reserved for personal identification or critical-status indicators"
+      },
+      {
+        "category": "Violet lighting",
+        "specification": "Primarily environmental/reflected color rather than active illumination"
+      },
+      {
+        "category": "Material language",
+        "specification": "Technical textiles, reinforced polymer, rubberized fabric, matte metal, transparent polymer, conductive fabric and selective synthetic leather"
+      },
+      {
+        "category": "Wear condition",
+        "specification": "Used and functional, maintained and cared for, neither pristine nor dirty"
+      },
+      {
+        "category": "Distance silhouette",
+        "specification": "Crimson hair + fox ears → dark structured jacket → narrow waist → utility belt/harness → technical trousers → engineer boots → large fluffy tail"
+      },
+      {
+        "category": "Close-up appearance",
+        "specification": "Subtle technology, interfaces, materials and functional details become increasingly visible"
+      },
+      {
+        "category": "Tail integration",
+        "specification": "Tail emerges naturally from rear hip/pelvis region; unrestricted movement; no compression beneath belt or clothing"
+      },
+      {
+        "category": "Clothing design rule",
+        "specification": "Everything should look like it has a job."
+      },
+      {
+        "category": "Decorative elements",
+        "specification": "Allowed, but should visually imply a functional purpose"
+      }
+    ]
+  },
   "available": {
     "computers": [],
     "robots": [],

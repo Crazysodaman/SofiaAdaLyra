@@ -3,6 +3,8 @@ from pathlib import Path
 
 from sofia.embodiment.model import (
     AvatarEmbodiment,
+    ClothingItem,
+    ClothingSpecification,
     ComputerEmbodiment,
     CurrentEmbodiment,
     Embodiment,
@@ -58,6 +60,18 @@ class AvatarStore:
                 "anatomy": dict(
                     embodiment.physical_self.anatomy
                 ),
+            },
+            "clothing": {
+                "canonical_status": (
+                    embodiment.clothing.canonical_status
+                ),
+                "items": [
+                    {
+                        "category": item.category,
+                        "specification": item.specification,
+                    }
+                    for item in embodiment.clothing.items
+                ],
             },
             "available": {
                 "computers": [
@@ -143,6 +157,9 @@ class AvatarStore:
             physical_self = self._load_physical_self(
                 physical_data
             )
+            clothing = self._load_clothing(
+                data.get("clothing")
+            )
 
             computers = tuple(
                 ComputerEmbodiment(
@@ -186,6 +203,7 @@ class AvatarStore:
             return Embodiment(
                 subject=subject,
                 physical_self=physical_self,
+                clothing=clothing,
                 computers=computers,
                 robots=robots,
                 avatars=avatars,
@@ -244,4 +262,46 @@ class AvatarStore:
             measurements=measurements,
             appearance=appearance,
             anatomy=anatomy,
+        )
+
+    @staticmethod
+    def _load_clothing(
+        data: object,
+    ) -> ClothingSpecification:
+        if data is None:
+            return ClothingSpecification()
+
+        if not isinstance(data, dict):
+            raise TypeError(
+                "clothing must be a JSON object."
+            )
+
+        items_data = data.get("items", [])
+
+        if not isinstance(items_data, list):
+            raise TypeError(
+                "clothing items must be a JSON array."
+            )
+
+        items = tuple(
+            ClothingItem(
+                category=item["category"],
+                specification=item["specification"],
+            )
+            for item in items_data
+        )
+
+        canonical_status = data.get(
+            "canonical_status",
+            "",
+        )
+
+        if not isinstance(canonical_status, str):
+            raise TypeError(
+                "clothing canonical_status must be a string."
+            )
+
+        return ClothingSpecification(
+            items=items,
+            canonical_status=canonical_status,
         )

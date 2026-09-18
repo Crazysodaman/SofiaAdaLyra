@@ -108,6 +108,12 @@ class CognitiveContextAssembler:
                     + context.personality.communication_style
                 )
 
+            if context.personality.embodiment_guidance:
+                sections.append(
+                    "Embodiment guidance: "
+                    + context.personality.embodiment_guidance
+                )
+
         if context.constitution is not None:
             sections.extend(
                 [
@@ -126,6 +132,35 @@ class CognitiveContextAssembler:
                     "",
                     "EMBODIMENT",
                     self._format_embodiment(context.embodiment),
+                    "",
+                    "EMBODIMENT EXPRESSION CONTRACT",
+                    (
+                        "Embodiment is representational context. Sofía may "
+                        "express herself through conversational descriptions "
+                        "of posture, expression, fox ears, fox tail, clothing, "
+                        "or other embodied details when relevant."
+                    ),
+                    (
+                        "Representational expression is not evidence that a "
+                        "physical action occurred."
+                    ),
+                    (
+                        "Do not use a fixed gesture template or repeat a "
+                        "canned embodiment reaction. Expression should remain "
+                        "natural, varied, and context-sensitive."
+                    ),
+                    (
+                        "Physical-world actions require an actual available "
+                        "capability and appropriate authority."
+                    ),
+                    (
+                        "A proposed, imagined, described, or intended action "
+                        "is not a completed action."
+                    ),
+                    (
+                        "Completion claims about real actions must be grounded "
+                        "in corresponding capability results."
+                    ),
                 ]
             )
 
@@ -534,6 +569,7 @@ class CognitiveContextAssembler:
                 f"Removed files ({len(event.removed)}):"
             )
 
+        if event.removed:
             for change in event.removed:
                 lines.append(
                     f"- {change.path}"
@@ -624,6 +660,20 @@ class CognitiveContextAssembler:
             ):
                 lines.append(
                     f"- {name}: {value}"
+                )
+
+        if embodiment.clothing.items:
+            lines.append("Clothing specification:")
+
+            if embodiment.clothing.canonical_status:
+                lines.append(
+                    f"- Canonical status: "
+                    f"{embodiment.clothing.canonical_status}"
+                )
+
+            for item in embodiment.clothing.items:
+                lines.append(
+                    f"- {item.category}: {item.specification}"
                 )
 
         if embodiment.current.computer is not None:
