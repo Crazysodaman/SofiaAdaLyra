@@ -9,11 +9,6 @@
 from sofia.capability.proposal import (
     CapabilityProposal,
 )
-from sofia.capability.router import (
-    CapabilityRoute,
-    CapabilityRouter,
-    CapabilityRoutingError,
-)
 from sofia.capability.system import (
     CapabilitySystem,
 )
@@ -30,8 +25,5 @@ __all__ = [
     "CapabilityResolutionError",
     "CapabilityResult",
     "CapabilityResultKind",
-    "CapabilityRoute",
-    "CapabilityRouter",
-    "CapabilityRoutingError",
     "CapabilitySystem",
 ]
