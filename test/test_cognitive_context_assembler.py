@@ -361,14 +361,41 @@ def test_assembler_injects_embodiment_measurements():
 
     system_message = assembled.messages[0].content
 
-    assert "MEASUREMENTS" not in system_message
-    assert "Measurements:" in system_message
-    assert "- height: 67 in" in system_message
-    assert "- weight: 135 lb" in system_message
-    assert "- bust: 33 in" in system_message
-    assert "- underbust: 30 in" in system_message
-    assert "- waist: 26 in" in system_message
-    assert "- hips: 37 in" in system_message
+    assert (
+        "CANONICAL EMBODIMENT BODY MEASUREMENTS:"
+        in system_message
+    )
+
+    assert (
+        "- height (canonical embodiment body measurement): 67 in"
+        in system_message
+    )
+    assert (
+        "- weight (canonical embodiment body measurement): 135 lb"
+        in system_message
+    )
+    assert (
+        "- bust (canonical embodiment body measurement): 33 in"
+        in system_message
+    )
+    assert (
+        "- underbust (canonical embodiment body measurement): 30 in"
+        in system_message
+    )
+    assert (
+        "- waist (canonical embodiment body measurement): 26 in"
+        in system_message
+    )
+    assert (
+        "- hips (canonical embodiment body measurement): 37 in"
+        in system_message
+    )
+
+    assert (
+        "Clothing, footwear, toolkit, wrist-device, equipment, "
+        "and other component dimensions are separate design data."
+        in system_message
+    )
 
 
 def test_assembler_injects_embodiment_appearance_and_anatomy():

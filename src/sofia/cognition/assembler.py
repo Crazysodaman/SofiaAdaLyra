@@ -414,7 +414,7 @@ class CognitiveContextAssembler:
                     sections.append(
                         (
                             "Previous runtime lifecycle state: "
-                            f"{self_model.previous_lifecycle_state}"
+                            f"{continuity.previous_lifecycle_state}"
                         )
                     )
             else:
