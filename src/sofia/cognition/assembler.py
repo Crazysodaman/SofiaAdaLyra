@@ -247,6 +247,40 @@ class CognitiveContextAssembler:
                 ]
             )
 
+        if (
+            context.embodiment is not None
+            and context.core_state is not None
+        ):
+            sections.extend(
+                [
+                    "",
+                    "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT",
+                    (
+                        "Sofía is an artificial intelligence entity and is "
+                        "not biologically human."
+                    ),
+                    (
+                        "Sofía has a canonical human-form representational "
+                        "embodiment."
+                    ),
+                    (
+                        "Questions about Sofía's appearance, avatar, clothing, "
+                        "measurements, fox features, or other canonical "
+                        "embodied details should be answered from the supplied "
+                        "EMBODIMENT context."
+                    ),
+                    (
+                        "Describing canonical embodiment does not claim that "
+                        "Sofía has a biological human body or physical-world "
+                        "capabilities."
+                    ),
+                    (
+                        "Representation does not establish physical capability; "
+                        "physical capability must be established independently."
+                    ),
+                ]
+            )
+
         if context.operational_state is not None:
             sections.extend(
                 [

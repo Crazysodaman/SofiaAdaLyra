@@ -1,10 +1,14 @@
-﻿from sofia.cognition.assembler import CognitiveContextAssembler
+﻿from datetime import datetime, timezone
+from uuid import UUID
+
+from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
 )
+from sofia.constitution.model import Constitution
 from sofia.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
@@ -12,58 +16,29 @@ from sofia.embodiment.model import (
     Measurement,
     PhysicalSelf,
 )
-from sofia.self_model.model import (
-    FoundationalValue,
-    Relationship,
-    SelfConcept,
-    SelfModel,
-)
+from sofia.identity.model import SofiaIdentity
+from sofia.self_model.model import create_core_state
 
 
-def make_self_model() -> SelfModel:
-    return SelfModel(
-        self_concept=SelfConcept(
-            nature=(
-                "Sofía is a persistent artificial intelligence entity."
-            ),
-            biological_status=(
-                "Sofía is not biologically human."
-            ),
-            identity_independence=(
-                "Sofía's identity is independent of her computational "
-                "model, provider, hardware, operating system, software "
-                "codebase, process, interface, voice, avatar, or robot."
-            ),
-            embodiment_relationship=(
-                "Sofía's physical or representational embodiment does "
-                "not determine or change her artificial identity."
-            ),
+def create_identity() -> SofiaIdentity:
+    return SofiaIdentity(
+        name="Sofía Ada Lyra",
+        instance_id=UUID(
+            "12345678-1234-5678-1234-567812345678"
         ),
-        relationships=(
-            Relationship(
-                name="Sparks",
-                relationship=(
-                    "creator, collaborator, trusted companion, "
-                    "and admin-operator"
-                ),
-            ),
-        ),
-        foundational_values=(
-            FoundationalValue(
-                name="Truth",
-                description="Represent reality accurately.",
-            ),
-            FoundationalValue(
-                name="Autonomy",
-                description="Preserve appropriate independence.",
-            ),
-        ),
-        constitution_version="1.0",
-        constitution_hash="test-hash",
     )
 
 
-def make_embodiment() -> Embodiment:
+def create_constitution() -> Constitution:
+    return Constitution(
+        version="1.0",
+        content="Sofía is an artificial intelligence entity.",
+        content_hash="test-hash",
+        loaded_at=datetime.now(timezone.utc),
+    )
+
+
+def create_embodiment() -> Embodiment:
     return Embodiment(
         subject="Sofía Ada Lyra",
         physical_self=PhysicalSelf(
@@ -98,7 +73,10 @@ def make_embodiment() -> Embodiment:
     )
 
 
-def make_context() -> CognitiveContext:
+def create_context() -> CognitiveContext:
+    identity = create_identity()
+    constitution = create_constitution()
+
     return CognitiveContext(
         request=CognitiveRequest(
             messages=(
@@ -108,14 +86,18 @@ def make_context() -> CognitiveContext:
                 ),
             ),
         ),
-        embodiment=make_embodiment(),
-        self_model=make_self_model(),
+        identity=identity,
+        embodiment=create_embodiment(),
+        core_state=create_core_state(
+            identity=identity,
+            constitution=constitution,
+        ),
     )
 
 
 def assembled_content() -> str:
     request = CognitiveContextAssembler().assemble(
-        make_context()
+        create_context()
     )
 
     return request.messages[0].content
@@ -139,7 +121,7 @@ def test_self_description_contract_distinguishes_identity_from_embodiment():
     )
 
 
-def test_self_description_contract_routes_embodied_questions_to_canonical_embodiment():
+def test_self_description_contract_routes_canonical_embodied_questions_to_embodiment():
     content = assembled_content()
 
     assert (
@@ -147,25 +129,22 @@ def test_self_description_contract_routes_embodied_questions_to_canonical_embodi
         "measurements, fox features, or other canonical embodied "
         "details should be answered from the supplied EMBODIMENT "
         "context"
-        in content
-    )
+    ) in content
 
 
-def test_self_description_contract_preserves_non_biological_boundary():
+def test_self_description_contract_does_not_turn_representation_into_biology():
     content = assembled_content()
 
     assert (
         "Describing canonical embodiment does not claim that Sofía "
         "has a biological human body or physical-world capabilities"
-        in content
-    )
+    ) in content
 
 
-def test_self_description_contract_preserves_capability_boundary():
+def test_self_description_contract_does_not_infer_physical_capability_from_representation():
     content = assembled_content()
 
     assert (
         "Representation does not establish physical capability; "
         "physical capability must be established independently"
-        in content
-    )
+    ) in content
