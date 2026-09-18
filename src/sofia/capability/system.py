@@ -29,6 +29,10 @@ class CapabilitySystem:
     Authorization is supplied by the caller and is evaluated before
     capability execution.
 
+    Registered capabilities are authoritative. A request may not replace
+    a registered capability with a look-alike capability that happens to
+    use the same name.
+
     This system does not:
     - interpret natural language,
     - grant authority,
@@ -41,7 +45,10 @@ class CapabilitySystem:
         self,
         authorization_checker: AuthorizationChecker | None = None,
     ) -> None:
-        self._capabilities: dict[str, tuple[Capability, CapabilityHandler]] = {}
+        self._capabilities: dict[
+            str,
+            tuple[Capability, CapabilityHandler],
+        ] = {}
         self._authorization_checker = authorization_checker
 
     def register(
@@ -49,6 +56,9 @@ class CapabilitySystem:
         capability: Capability,
         handler: CapabilityHandler,
     ) -> None:
+        if not isinstance(capability, Capability):
+            raise TypeError("capability must be a Capability.")
+
         if not callable(handler):
             raise TypeError("handler must be callable.")
 
@@ -57,7 +67,10 @@ class CapabilitySystem:
                 f"Capability already registered: {capability.name}"
             )
 
-        self._capabilities[capability.name] = (capability, handler)
+        self._capabilities[capability.name] = (
+            capability,
+            handler,
+        )
 
     def resolve(self, name: str) -> Capability:
         try:
@@ -70,16 +83,34 @@ class CapabilitySystem:
         return capability
 
     def execute(self, request: CapabilityRequest) -> CapabilityResult:
+        if not isinstance(request, CapabilityRequest):
+            raise TypeError(
+                "CapabilitySystem.execute requires a CapabilityRequest."
+            )
+
         capability_name = request.capability.name
 
         try:
-            _, handler = self._capabilities[capability_name]
+            registered_capability, handler = self._capabilities[
+                capability_name
+            ]
         except KeyError:
             return CapabilityResult(
                 capability=capability_name,
                 kind=CapabilityResultKind.UNAVAILABLE,
                 evidence=None,
                 error=f"Unknown capability: {capability_name}",
+            )
+
+        if request.capability != registered_capability:
+            return CapabilityResult(
+                capability=capability_name,
+                kind=CapabilityResultKind.DENIED,
+                evidence=None,
+                error=(
+                    "Capability request does not match the "
+                    "registered capability."
+                ),
             )
 
         if self._authorization_checker is None:

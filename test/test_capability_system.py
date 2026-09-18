@@ -188,3 +188,65 @@ def test_capability_failure_becomes_structured_result():
     assert result.kind is CapabilityResultKind.FAILED
     assert result.evidence is None
     assert "inspection exploded" in result.error
+
+def test_lookalike_capability_cannot_replace_registered_capability():
+    executions = 0
+
+    registered = Capability(
+        name="test.inspect",
+        description="Registered capability.",
+    )
+
+    lookalike = Capability(
+        name="test.inspect",
+        description="Different capability pretending to be registered.",
+    )
+
+    def handler(request):
+        nonlocal executions
+        executions += 1
+        return {"observed": True}
+
+    system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+
+    system.register(registered, handler)
+
+    request = CapabilityRequest(
+        capability=lookalike,
+        parameters={},
+        requested_scope=None,
+        rationale="Attempt to execute the look-alike capability.",
+    )
+
+    result = system.execute(request)
+
+    assert result.kind is CapabilityResultKind.DENIED
+    assert result.evidence is None
+    assert executions == 0
+
+
+def test_exact_registered_capability_remains_executable():
+    capability = make_capability()
+
+    system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+
+    system.register(
+        capability,
+        lambda request: {"observed": True},
+    )
+
+    request = CapabilityRequest(
+        capability=capability,
+        parameters={},
+        requested_scope=None,
+        rationale="Execute the registered capability.",
+    )
+
+    result = system.execute(request)
+
+    assert result.kind is CapabilityResultKind.SUCCESS
+    assert result.evidence == {"observed": True}
