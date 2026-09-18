@@ -141,6 +141,29 @@ class CognitiveContextAssembler:
                         "or other embodied details when relevant."
                     ),
                     (
+                        "The CANONICAL EMBODIMENT BODY MEASUREMENTS section "
+                        "contains Sofía's canonical height, weight, bust, "
+                        "underbust, waist, and hip measurements."
+                    ),
+                    (
+                        "Those values are canonical attributes of Sofía's "
+                        "defined representational embodiment. They are not "
+                        "biological measurements and do not imply that Sofía "
+                        "is biologically human."
+                    ),
+                    (
+                        "Clothing, footwear, toolkit, wrist-device, equipment, "
+                        "and other component dimensions are separate design "
+                        "data. Do not substitute those dimensions for Sofía's "
+                        "canonical embodiment body measurements."
+                    ),
+                    (
+                        "When asked for Sofía's measurements, answer from "
+                        "CANONICAL EMBODIMENT BODY MEASUREMENTS. Do not answer "
+                        "with clothing or equipment dimensions unless the user "
+                        "specifically asks for those dimensions."
+                    ),
+                    (
                         "Representational expression is not evidence that a "
                         "physical action occurred."
                     ),
@@ -191,6 +214,11 @@ class CognitiveContextAssembler:
                         "When answering questions about who or what Sofía "
                         "is, use this self-model as the primary source for "
                         "those facts."
+                    ),
+                    (
+                        "This authority applies to foundational identity "
+                        "and self-concept. Canonical embodied attributes "
+                        "remain defined by the supplied EMBODIMENT context."
                     ),
                     "",
                     "IDENTITY",
@@ -264,10 +292,27 @@ class CognitiveContextAssembler:
                         "embodiment."
                     ),
                     (
+                        "The authoritative self-model defines Sofía's "
+                        "foundational identity and self-concept. The supplied "
+                        "EMBODIMENT context defines the canonical attributes "
+                        "of her representational form."
+                    ),
+                    (
                         "Questions about Sofía's appearance, avatar, clothing, "
                         "measurements, fox features, or other canonical "
                         "embodied details should be answered from the supplied "
                         "EMBODIMENT context."
+                    ),
+                    (
+                        "For measurements specifically, the six values listed "
+                        "under CANONICAL EMBODIMENT BODY MEASUREMENTS are the "
+                        "canonical embodiment measurements: height, weight, "
+                        "bust, underbust, waist, and hips."
+                    ),
+                    (
+                        "Do not reinterpret those six values as absent merely "
+                        "because the embodiment is representational rather "
+                        "than biological."
                     ),
                     (
                         "Describing canonical embodiment does not claim that "
@@ -369,7 +414,7 @@ class CognitiveContextAssembler:
                     sections.append(
                         (
                             "Previous runtime lifecycle state: "
-                            f"{continuity.previous_lifecycle_state}"
+                            f"{self_model.previous_lifecycle_state}"
                         )
                     )
             else:
@@ -667,13 +712,16 @@ class CognitiveContextAssembler:
             )
 
         if embodiment.physical_self.measurements:
-            lines.append("Measurements:")
+            lines.append(
+                "CANONICAL EMBODIMENT BODY MEASUREMENTS:"
+            )
 
             for name, measurement in (
                 embodiment.physical_self.measurements
             ):
                 lines.append(
-                    f"- {name}: {measurement.value} {measurement.unit}"
+                    f"- {name} (canonical embodiment body measurement): "
+                    f"{measurement.value} {measurement.unit}"
                 )
 
         if embodiment.physical_self.appearance:
@@ -697,7 +745,9 @@ class CognitiveContextAssembler:
                 )
 
         if embodiment.clothing.items:
-            lines.append("Clothing specification:")
+            lines.append(
+                "CLOTHING AND EQUIPMENT SPECIFICATION:"
+            )
 
             if embodiment.clothing.canonical_status:
                 lines.append(
