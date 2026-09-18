@@ -5,7 +5,9 @@ from sofia.action.system import ActionSystem
 from sofia.authorization.model import (
     AuthorizationDecision,
     AuthorizationDomain,
+    FilesystemAuthorizationOperation,
 )
+from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
@@ -15,10 +17,15 @@ from sofia.cognition.providers.factory import create_llm_provider
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.cognition.test_engine import TestCognitiveEngine
+from sofia.cognition.tools import (
+    CognitiveToolDispatcher,
+    create_default_tool_bindings,
+)
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.filesystem.capability import FilesystemCapability
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
@@ -84,24 +91,6 @@ def compose(
         Path(configuration.avatar_path)
     )
 
-    cognitive_engine = _create_cognitive_engine(
-        configuration
-    )
-
-    context_assembler = CognitiveContextAssembler()
-
-    action_executor = TestActionExecutor()
-
-    action_system = ActionSystem(
-        executor=action_executor,
-    )
-
-    cognitive_system = CognitiveSystem(
-        engine=cognitive_engine,
-        context_assembler=context_assembler,
-        action_system=action_system,
-    )
-
     memory_store = MemoryStore(
         configuration.state_path
     )
@@ -119,6 +108,21 @@ def compose(
     )
 
     runtime_holder: dict[str, SofiaRuntime] = {}
+
+    def filesystem_inspector_provider():
+        runtime = runtime_holder.get("runtime")
+
+        if runtime is None:
+            raise RuntimeError(
+                "Filesystem capability requested before runtime "
+                "composition completed."
+            )
+
+        return runtime.filesystem_inspector
+
+    filesystem_capability = FilesystemCapability(
+        inspector_provider=filesystem_inspector_provider,
+    )
 
     def capability_authorized(
         request,
@@ -158,7 +162,10 @@ def compose(
         requested_scope = request.requested_scope
 
         if requested_scope is not None:
-            if not isinstance(requested_scope, Path):
+            if not isinstance(
+                requested_scope,
+                Path,
+            ):
                 return False
 
             try:
@@ -177,6 +184,36 @@ def compose(
             ):
                 return False
 
+        if request.capability.name == "filesystem.inspect":
+            operation = request.parameters.get(
+                "operation"
+            )
+
+            operation_map = {
+                "list_directory": (
+                    FilesystemAuthorizationOperation.LIST_DIRECTORY
+                ),
+                "inspect_path": (
+                    FilesystemAuthorizationOperation.INSPECT_PATH
+                ),
+                "read_file": (
+                    FilesystemAuthorizationOperation.READ_FILE
+                ),
+                "search_files": (
+                    FilesystemAuthorizationOperation.SEARCH_FILES
+                ),
+            }
+
+            authorized_operation = operation_map.get(
+                operation
+            )
+
+            if authorized_operation is None:
+                return False
+
+            if authorized_operation not in authorization.operations:
+                return False
+
         return True
 
     capability_system = CapabilitySystem(
@@ -186,6 +223,41 @@ def compose(
     capability_system.register(
         capability=codebase_capability.capability,
         handler=codebase_capability.execute,
+    )
+
+    capability_system.register(
+        capability=filesystem_capability.capability,
+        handler=filesystem_capability.execute,
+    )
+
+    capability_gateway = CapabilityGateway(
+        capability_system=capability_system,
+    )
+
+    tool_dispatcher = CognitiveToolDispatcher(
+        gateway=capability_gateway,
+        bindings=create_default_tool_bindings(
+            configuration.filesystem_root
+        ),
+    )
+
+    cognitive_engine = _create_cognitive_engine(
+        configuration
+    )
+
+    context_assembler = CognitiveContextAssembler()
+
+    action_executor = TestActionExecutor()
+
+    action_system = ActionSystem(
+        executor=action_executor,
+    )
+
+    cognitive_system = CognitiveSystem(
+        engine=cognitive_engine,
+        context_assembler=context_assembler,
+        action_system=action_system,
+        tool_dispatcher=tool_dispatcher,
     )
 
     runtime = SofiaRuntime(

@@ -5,8 +5,14 @@ from sofia.cognition.engine import (
     CognitiveEngine,
     CognitiveEngineError,
 )
-from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.cognition.operation import CognitiveOperation
+from sofia.cognition.tools import CognitiveToolDispatcher
 
 
 class CognitiveSystemError(Exception):
@@ -17,13 +23,11 @@ class CognitiveSystemError(Exception):
 
 class CognitiveSystem:
     """
-    Coordinates Sofía's cognitive engines.
+    Coordinates Sofía's cognitive engines and host-controlled tools.
 
-    A cognitive operation supplies both the context for cognition and the
-    authority governing that operation.
-
-    Context assembly and authority enforcement occur outside the cognitive
-    engine itself.
+    Cognitive tool calls are treated as requests for capability
+    execution. The cognitive engine never receives executable
+    capability objects.
     """
 
     def __init__(
@@ -32,6 +36,8 @@ class CognitiveSystem:
         fallback_engine: CognitiveEngine | None = None,
         context_assembler: CognitiveContextAssembler | None = None,
         action_system: ActionSystem | None = None,
+        tool_dispatcher: CognitiveToolDispatcher | None = None,
+        max_tool_rounds: int = 4,
     ):
         if not isinstance(engine, CognitiveEngine):
             raise TypeError(
@@ -40,7 +46,10 @@ class CognitiveSystem:
 
         if (
             fallback_engine is not None
-            and not isinstance(fallback_engine, CognitiveEngine)
+            and not isinstance(
+                fallback_engine,
+                CognitiveEngine,
+            )
         ):
             raise TypeError(
                 "CognitiveSystem fallback_engine must be a CognitiveEngine."
@@ -60,20 +69,49 @@ class CognitiveSystem:
 
         if (
             action_system is not None
-            and not isinstance(action_system, ActionSystem)
+            and not isinstance(
+                action_system,
+                ActionSystem,
+            )
         ):
             raise TypeError(
                 "CognitiveSystem action_system must be an ActionSystem."
             )
 
+        if (
+            tool_dispatcher is not None
+            and not isinstance(
+                tool_dispatcher,
+                CognitiveToolDispatcher,
+            )
+        ):
+            raise TypeError(
+                "CognitiveSystem tool_dispatcher must be a "
+                "CognitiveToolDispatcher."
+            )
+
+        if not isinstance(max_tool_rounds, int):
+            raise TypeError(
+                "CognitiveSystem max_tool_rounds must be an int."
+            )
+
+        if max_tool_rounds < 1:
+            raise ValueError(
+                "CognitiveSystem max_tool_rounds must be positive."
+            )
+
         self.engine = engine
         self.fallback_engine = fallback_engine
+
         self.context_assembler = (
             context_assembler
             if context_assembler is not None
             else CognitiveContextAssembler()
         )
+
         self.action_system = action_system
+        self.tool_dispatcher = tool_dispatcher
+        self.max_tool_rounds = max_tool_rounds
 
     def respond(
         self,
@@ -95,10 +133,80 @@ class CognitiveSystem:
                 "Cognitive operation is not authorized to produce a response."
             )
 
+        tools = ()
+
+        if self.tool_dispatcher is not None:
+            tools = self.tool_dispatcher.definitions
+
         request = self.context_assembler.assemble(
-            operation.context
+            operation.context,
+            tools=tools,
         )
 
+        response = self._respond_with_engine(request)
+
+        for _ in range(self.max_tool_rounds):
+            if not response.tool_calls:
+                return response
+
+            if self.tool_dispatcher is None:
+                raise CognitiveSystemError(
+                    "Cognitive engine requested tools, but no "
+                    "CognitiveToolDispatcher is configured."
+                )
+
+            messages = list(request.messages)
+
+            messages.append(
+                CognitiveMessage(
+                    role=CognitiveRole.ASSISTANT,
+                    content=response.content,
+                    tool_calls=response.tool_calls,
+                )
+            )
+
+            for tool_call in response.tool_calls:
+                try:
+                    result = self.tool_dispatcher.dispatch(
+                        tool_call
+                    )
+                except Exception as exc:
+                    raise CognitiveSystemError(
+                        "Cognitive tool dispatch failed."
+                    ) from exc
+
+                messages.append(
+                    CognitiveMessage(
+                        role=CognitiveRole.TOOL,
+                        content=(
+                            self.tool_dispatcher.format_result(
+                                tool_call,
+                                result,
+                            )
+                        ),
+                        tool_call_id=(
+                            tool_call.call_id
+                            or tool_call.name
+                        ),
+                    )
+                )
+
+            request = CognitiveRequest(
+                messages=tuple(messages),
+                tools=request.tools,
+            )
+
+            response = self._respond_with_engine(request)
+
+        raise CognitiveSystemError(
+            "Cognitive engine exceeded the maximum number of "
+            f"tool rounds ({self.max_tool_rounds})."
+        )
+
+    def _respond_with_engine(
+        self,
+        request: CognitiveRequest,
+    ) -> CognitiveResponse:
         try:
             return self.engine.respond(request)
 

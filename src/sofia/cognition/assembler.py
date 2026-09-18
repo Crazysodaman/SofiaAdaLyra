@@ -3,6 +3,7 @@ from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
+    CognitiveToolDefinition,
 )
 
 
@@ -11,21 +12,37 @@ class CognitiveContextAssembler:
     Projects a CognitiveContext into a provider-neutral CognitiveRequest.
 
     The assembler is responsible for injecting explicitly supplied
-    persistent Sofía context and operational inspection evidence into
-    the cognitive request.
+    persistent Sofía context, operational inspection evidence, and
+    host-provided cognitive tool definitions.
 
-    It does not enforce authority, execute actions, select providers,
-    retrieve memories, or mutate persistent state.
+    It does not enforce authority, execute actions, retrieve memories,
+    select providers, or mutate persistent state.
     """
 
     def assemble(
         self,
         context: CognitiveContext,
+        tools: tuple[CognitiveToolDefinition, ...] = (),
     ) -> CognitiveRequest:
         if not isinstance(context, CognitiveContext):
             raise TypeError(
                 "CognitiveContextAssembler context must be a CognitiveContext."
             )
+
+        if not isinstance(tools, tuple):
+            raise TypeError(
+                "CognitiveContextAssembler tools must be a tuple."
+            )
+
+        for tool in tools:
+            if not isinstance(
+                tool,
+                CognitiveToolDefinition,
+            ):
+                raise TypeError(
+                    "CognitiveContextAssembler tools must contain "
+                    "CognitiveToolDefinition instances."
+                )
 
         system_content = self._build_system_context(context)
 
@@ -39,6 +56,7 @@ class CognitiveContextAssembler:
 
         return CognitiveRequest(
             messages=messages,
+            tools=tools,
         )
 
     def _build_system_context(

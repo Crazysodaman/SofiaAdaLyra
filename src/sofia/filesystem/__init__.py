@@ -1,4 +1,10 @@
-﻿from sofia.filesystem.inspector import FilesystemInspector
+﻿from sofia.filesystem.capability import (
+    FILESYSTEM_INSPECT_CAPABILITY,
+    FilesystemCapability,
+)
+from sofia.filesystem.inspector import (
+    FilesystemInspector,
+)
 from sofia.filesystem.model import (
     FilesystemInspectionError,
     FilesystemOperation,
@@ -7,8 +13,10 @@ from sofia.filesystem.model import (
 )
 
 __all__ = [
-    "FilesystemInspector",
+    "FILESYSTEM_INSPECT_CAPABILITY",
+    "FilesystemCapability",
     "FilesystemInspectionError",
+    "FilesystemInspector",
     "FilesystemOperation",
     "FilesystemResult",
     "FilesystemResultKind",
