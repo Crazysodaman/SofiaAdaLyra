@@ -12,8 +12,8 @@ class CognitiveContextAssembler:
     Projects a CognitiveContext into a provider-neutral CognitiveRequest.
 
     The assembler is responsible for injecting explicitly supplied
-    persistent Sofía context, operational inspection evidence, and
-    host-provided cognitive tool definitions.
+    persistent Sofía context, operational inspection evidence, runtime
+    continuity evidence, and host-provided cognitive tool definitions.
 
     It does not enforce authority, execute actions, retrieve memories,
     select providers, or mutate persistent state.
@@ -244,6 +244,74 @@ class CognitiveContextAssembler:
                         f"{context.operational_state.model}"
                     ),
                 ]
+            )
+
+        if context.runtime_continuity is not None:
+            continuity = context.runtime_continuity
+
+            sections.extend(
+                [
+                    "",
+                    "RUNTIME CONTINUITY",
+                    (
+                        "Evidence status: "
+                        f"{continuity.evidence_status.value}"
+                    ),
+                    (
+                        "Current runtime ID: "
+                        f"{continuity.current_runtime_id}"
+                    ),
+                    (
+                        "Current runtime started at: "
+                        f"{continuity.current_started_at.isoformat()}"
+                    ),
+                    (
+                        "Restart observed: "
+                        f"{continuity.restart_observed}"
+                    ),
+                ]
+            )
+
+            if continuity.previous_runtime_id is not None:
+                sections.extend(
+                    [
+                        (
+                            "Previous runtime ID: "
+                            f"{continuity.previous_runtime_id}"
+                        ),
+                        (
+                            "Previous runtime started at: "
+                            f"{continuity.previous_started_at.isoformat()}"
+                        ),
+                    ]
+                )
+
+                if continuity.previous_stopped_at is not None:
+                    sections.append(
+                        (
+                            "Previous runtime stopped at: "
+                            f"{continuity.previous_stopped_at.isoformat()}"
+                        )
+                    )
+
+                if continuity.previous_lifecycle_state is not None:
+                    sections.append(
+                        (
+                            "Previous runtime lifecycle state: "
+                            f"{continuity.previous_lifecycle_state}"
+                        )
+                    )
+            else:
+                sections.append(
+                    "No previous runtime evidence is available."
+                )
+
+            sections.append(
+                (
+                    "This continuity information is operational evidence "
+                    "about recorded runtime instances. It does not prove "
+                    "that a previous process is still running."
+                )
             )
 
         if context.filesystem_results:

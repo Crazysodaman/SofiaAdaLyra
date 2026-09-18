@@ -29,6 +29,7 @@ from sofia.filesystem.capability import FilesystemCapability
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 
@@ -97,6 +98,10 @@ def compose(
 
     memory_system = MemorySystem(
         memory_store
+    )
+
+    operational_store = OperationalStore(
+        configuration.state_path
     )
 
     codebase_inspector = CodebaseInspector(
@@ -270,6 +275,7 @@ def compose(
         cognitive_system=cognitive_system,
         capability_system=capability_system,
         configuration=configuration,
+        operational_store=operational_store,
     )
 
     runtime_holder["runtime"] = runtime

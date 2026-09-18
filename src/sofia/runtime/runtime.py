@@ -30,7 +30,11 @@ from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
-from sofia.operational.model import OperationalState
+from sofia.operational.model import (
+    OperationalState,
+    RuntimeContinuity,
+)
+from sofia.operational.store import OperationalStore
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
@@ -99,6 +103,7 @@ class SofiaRuntime:
         cognitive_system: CognitiveSystem,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
+        operational_store: OperationalStore | None = None,
     ) -> None:
         if not isinstance(
             capability_system,
@@ -119,6 +124,21 @@ class SofiaRuntime:
         self._capability_system = capability_system
         self._configuration = configuration
 
+        self._operational_store = (
+            operational_store
+            if operational_store is not None
+            else OperationalStore(configuration.state_path)
+        )
+
+        if not isinstance(
+            self._operational_store,
+            OperationalStore,
+        ):
+            raise TypeError(
+                "SofiaRuntime operational_store must be an "
+                "OperationalStore."
+            )
+
         self._filesystem_inspector = FilesystemInspector(
             root=configuration.filesystem_root,
             authorized=False,
@@ -137,6 +157,7 @@ class SofiaRuntime:
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
+        self._runtime_continuity: RuntimeContinuity | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -212,12 +233,20 @@ class SofiaRuntime:
         return self._configuration
 
     @property
+    def operational_store(self) -> OperationalStore:
+        return self._operational_store
+
+    @property
     def runtime_id(self) -> UUID | None:
         return self._runtime_id
 
     @property
     def started_at(self) -> datetime | None:
         return self._started_at
+
+    @property
+    def runtime_continuity(self) -> RuntimeContinuity | None:
+        return self._runtime_continuity
 
     @property
     def filesystem_inspector(self) -> FilesystemInspector:
@@ -279,6 +308,13 @@ class SofiaRuntime:
                 constitution=constitution,
             )
 
+            continuity = (
+                self._operational_store.continuity_for(
+                    current_runtime_id=runtime_id,
+                    current_started_at=started_at,
+                )
+            )
+
             self._constitution = constitution
             self._identity = identity
             self._personality = personality
@@ -286,12 +322,18 @@ class SofiaRuntime:
             self._core_state = core_state
             self._runtime_id = runtime_id
             self._started_at = started_at
+            self._runtime_continuity = continuity
             self._filesystem_inspector = FilesystemInspector(
                 root=self._configuration.filesystem_root,
                 authorized=False,
             )
             self._filesystem_authorization = None
             self._state = RuntimeState.READY
+
+            self._operational_store.record_started(
+                runtime_id=runtime_id,
+                started_at=started_at,
+            )
 
         except ConstitutionIntegrityError as exc:
             self._clear_runtime_state()
@@ -350,6 +392,7 @@ class SofiaRuntime:
                 core_state=self._core_state,
                 memories=memories,
                 operational_state=self.operational_state,
+                runtime_continuity=self._runtime_continuity,
                 filesystem_results=filesystem_results,
             ),
             authority=Authority(),
@@ -495,6 +538,20 @@ class SofiaRuntime:
                 "SofiaRuntime can only shut down from the READY state."
             )
 
+        runtime_id = self._runtime_id
+
+        if runtime_id is None:
+            raise SofiaRuntimeError(
+                "SofiaRuntime READY state is missing a runtime ID."
+            )
+
+        stopped_at = datetime.now(timezone.utc)
+
+        self._operational_store.record_stopped(
+            runtime_id=runtime_id,
+            stopped_at=stopped_at,
+        )
+
         self._clear_runtime_state()
         self._state = RuntimeState.STOPPED
 
@@ -506,6 +563,7 @@ class SofiaRuntime:
         self._core_state = None
         self._runtime_id = None
         self._started_at = None
+        self._runtime_continuity = None
         self._filesystem_authorization = None
         self._filesystem_inspector = FilesystemInspector(
             root=self._configuration.filesystem_root,

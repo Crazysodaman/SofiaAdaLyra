@@ -164,6 +164,30 @@ def test_runtime_id_changes_after_restart(
     assert second_started_at != first_started_at
     assert second_identity.instance_id == first_identity.instance_id
 
+    continuity = application.runtime.runtime_continuity
+
+    assert continuity is not None
+    assert continuity.restart_observed is True
+    assert continuity.previous_runtime_id == first_runtime_id
+    assert continuity.previous_started_at == first_started_at
+
+    application.shutdown()
+
+
+def test_first_runtime_has_no_previous_runtime_evidence(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+
+    application.start()
+
+    continuity = application.runtime.runtime_continuity
+
+    assert continuity is not None
+    assert continuity.previous_runtime_id is None
+    assert continuity.previous_started_at is None
+    assert continuity.restart_observed is None
+
     application.shutdown()
 
 
@@ -177,6 +201,7 @@ def test_shutdown_clears_runtime_specific_operational_state(
     assert application.runtime.runtime_id is not None
     assert application.runtime.started_at is not None
     assert application.runtime.operational_state is not None
+    assert application.runtime.runtime_continuity is not None
 
     application.shutdown()
 
@@ -184,6 +209,7 @@ def test_shutdown_clears_runtime_specific_operational_state(
     assert application.runtime.runtime_id is None
     assert application.runtime.started_at is None
     assert application.runtime.operational_state is None
+    assert application.runtime.runtime_continuity is None
     assert application.runtime.identity is None
 
 
@@ -209,3 +235,4 @@ def test_failed_start_does_not_expose_partial_operational_state(
     assert application.runtime.runtime_id is None
     assert application.runtime.started_at is None
     assert application.runtime.operational_state is None
+    assert application.runtime.runtime_continuity is None
