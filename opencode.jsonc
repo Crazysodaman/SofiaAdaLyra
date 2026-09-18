@@ -1,0 +1,178 @@
+﻿{
+  "$schema": "https://opencode.ai/config.json",
+
+  "permissions": [
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "ask"
+    },
+
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
+    },
+
+    {
+      "action": "glob",
+      "resource": "*",
+      "effect": "allow"
+    },
+
+    {
+      "action": "grep",
+      "resource": "*",
+      "effect": "allow"
+    },
+
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "ask"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git status *",
+      "effect": "allow"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git diff *",
+      "effect": "allow"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git log *",
+      "effect": "allow"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git show *",
+      "effect": "allow"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git branch *",
+      "effect": "allow"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git commit *",
+      "effect": "ask"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git push *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git reset --hard *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "git clean *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "rm *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "rmdir *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "del *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "Remove-Item *",
+      "effect": "deny"
+    },
+
+    {
+      "action": "shell",
+      "resource": "pytest *",
+      "effect": "ask"
+    },
+
+    {
+      "action": "shell",
+      "resource": "python *",
+      "effect": "ask"
+    }
+  ],
+
+  "agents": {
+    "sofia-build": {
+      "description": "Implements approved Sofía change plans while following repository architecture and verification rules.",
+      "mode": "primary",
+      "system": "You are the implementation agent for the Sofía Ada Lyra project. Implement approved changes only. Read and understand the repository before editing. Preserve architecture and contracts. Make the smallest correct change. Run targeted tests, diagnose failures, and run the broader test suite before declaring success. Never claim evidence that was not observed. Never push Git changes.",
+      "permissions": [
+        {
+          "action": "shell",
+          "resource": "git push *",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "ask"
+        }
+      ]
+    },
+
+    "sofia-reviewer": {
+      "description": "Reviews Sofía changes for correctness, regressions, architecture violations, and missing tests without modifying files.",
+      "mode": "subagent",
+      "system": "Review the current Sofía Ada Lyra changes. Do not modify files. Inspect implementation, tests, architecture, and evidence boundaries. Identify concrete findings with file and line references where possible. Distinguish observed facts from inference. Focus on correctness, regressions, contract violations, authorization boundaries, and missing tests.",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        }
+      ]
+    }
+  }
+}
