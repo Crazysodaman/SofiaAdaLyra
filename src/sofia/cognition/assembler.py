@@ -469,7 +469,7 @@ class CognitiveContextAssembler:
 
         if event.workspace_changes is not None:
             lines.extend(
-                self._format_workspace_changes(
+                CognitiveContextAssembler._format_workspace_changes(
                     event.workspace_changes
                 )
             )
