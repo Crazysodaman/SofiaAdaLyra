@@ -5,18 +5,16 @@ from sofia.cognition.model import (
     CognitiveRole,
     CognitiveToolDefinition,
 )
+from sofia.filesystem.changes import FilesystemChangeEvent
 
 
 class CognitiveContextAssembler:
     """
     Projects a CognitiveContext into a provider-neutral CognitiveRequest.
 
-    The assembler is responsible for injecting explicitly supplied
-    persistent Sofía context, operational inspection evidence, runtime
-    continuity evidence, and host-provided cognitive tool definitions.
-
-    It does not enforce authority, execute actions, retrieve memories,
-    select providers, or mutate persistent state.
+    Deterministic observation evidence is presented to the cognitive
+    engine. The assembler does not decide what that evidence means
+    conversationally.
     """
 
     def assemble(
@@ -314,6 +312,58 @@ class CognitiveContextAssembler:
                 )
             )
 
+        if context.operational_self_model is not None:
+            self_model = context.operational_self_model
+
+            sections.extend(
+                [
+                    "",
+                    "OPERATIONAL SELF MODEL",
+                    (
+                        "This is a structured projection of Sofía's "
+                        "current operational existence."
+                    ),
+                    (
+                        "It supplements the foundational self-model. "
+                        "It does not replace identity, constitution, "
+                        "or authority."
+                    ),
+                    (
+                        "Current runtime: "
+                        f"{self_model.operational_state.runtime_id}"
+                    ),
+                    (
+                        "Current lifecycle: "
+                        f"{self_model.operational_state.lifecycle_state}"
+                    ),
+                    (
+                        "Current startup time: "
+                        f"{self_model.operational_state.started_at.isoformat()}"
+                    ),
+                    (
+                        "Continuity evidence: "
+                        f"{self_model.continuity.evidence_status.value}"
+                    ),
+                ]
+            )
+
+            if (
+                self_model.workspace_changes is not None
+            ):
+                sections.extend(
+                    self._format_workspace_changes(
+                        self_model.workspace_changes
+                    )
+                )
+
+        if context.workspace_changes is not None:
+            if context.operational_self_model is None:
+                sections.extend(
+                    self._format_workspace_changes(
+                        context.workspace_changes
+                    )
+                )
+
         if context.filesystem_results:
             sections.extend(
                 [
@@ -338,6 +388,76 @@ class CognitiveContextAssembler:
                 )
 
         return "\n".join(sections)
+
+    @staticmethod
+    def _format_workspace_changes(
+        event: FilesystemChangeEvent,
+    ) -> list[str]:
+        lines = [
+            "",
+            "WORKSPACE CHANGE EVENT",
+            (
+                "This event is a deterministic comparison between "
+                "filesystem observations."
+            ),
+            (
+                "It records what changed between observations. "
+                "It does not establish who caused a change, why it "
+                "occurred, or whether it was intentional."
+            ),
+            (
+                "Baseline available: "
+                f"{event.baseline_available}"
+            ),
+            (
+                "Changes detected: "
+                f"{event.total_changes}"
+            ),
+        ]
+
+        if not event.baseline_available:
+            lines.append(
+                "No previous observation exists, so change detection "
+                "cannot classify current files as new, modified, or removed."
+            )
+            return lines
+
+        if event.new:
+            lines.append(
+                f"New files ({len(event.new)}):"
+            )
+
+            for change in event.new:
+                lines.append(
+                    f"- {change.path}"
+                )
+
+        if event.modified:
+            lines.append(
+                f"Modified files ({len(event.modified)}):"
+            )
+
+            for change in event.modified:
+                lines.append(
+                    f"- {change.path}"
+                )
+
+        if event.removed:
+            lines.append(
+                f"Removed files ({len(event.removed)}):"
+            )
+
+            for change in event.removed:
+                lines.append(
+                    f"- {change.path}"
+                )
+
+        if not event.has_changes:
+            lines.append(
+                "No filesystem changes were detected."
+            )
+
+        return lines
 
     @staticmethod
     def _format_filesystem_result(result) -> list[str]:

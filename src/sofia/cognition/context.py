@@ -3,6 +3,7 @@
 from sofia.cognition.model import CognitiveRequest
 from sofia.constitution.model import Constitution
 from sofia.embodiment.model import Embodiment
+from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
@@ -12,6 +13,7 @@ from sofia.operational.model import (
 )
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import SofiaCoreState
+from sofia.self_model.operational import SofiaOperationalSelfModel
 
 
 @dataclass(frozen=True)
@@ -19,9 +21,6 @@ class CognitiveContext:
     """
     Immutable projection of persistent Sofía state and operational
     information for one cognitive operation.
-
-    CognitiveContext is not Sofía's persistent state. It contains only
-    information explicitly supplied to a particular cognitive operation.
     """
 
     request: CognitiveRequest
@@ -34,6 +33,8 @@ class CognitiveContext:
     operational_state: OperationalState | None = None
     runtime_continuity: RuntimeContinuity | None = None
     filesystem_results: tuple[FilesystemResult, ...] = ()
+    workspace_changes: FilesystemChangeEvent | None = None
+    operational_self_model: SofiaOperationalSelfModel | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -128,3 +129,27 @@ class CognitiveContext:
                     "CognitiveContext filesystem_results must contain "
                     "FilesystemResult instances."
                 )
+
+        if (
+            self.workspace_changes is not None
+            and not isinstance(
+                self.workspace_changes,
+                FilesystemChangeEvent,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext workspace_changes must be a "
+                "FilesystemChangeEvent or None."
+            )
+
+        if (
+            self.operational_self_model is not None
+            and not isinstance(
+                self.operational_self_model,
+                SofiaOperationalSelfModel,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext operational_self_model must be a "
+                "SofiaOperationalSelfModel or None."
+            )

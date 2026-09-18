@@ -26,6 +26,7 @@ from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
 from sofia.filesystem.capability import FilesystemCapability
+from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
@@ -101,6 +102,10 @@ def compose(
     )
 
     operational_store = OperationalStore(
+        configuration.state_path
+    )
+
+    filesystem_observation_store = FilesystemObservationStore(
         configuration.state_path
     )
 
@@ -276,6 +281,7 @@ def compose(
         capability_system=capability_system,
         configuration=configuration,
         operational_store=operational_store,
+        filesystem_observation_store=filesystem_observation_store,
     )
 
     runtime_holder["runtime"] = runtime

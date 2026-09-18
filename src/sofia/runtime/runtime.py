@@ -25,8 +25,16 @@ from sofia.constitution.model import Constitution
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.store import AvatarStore
+from sofia.filesystem.changes import (
+    FilesystemChangeEvent,
+    detect_changes,
+)
 from sofia.filesystem.inspector import FilesystemInspector
 from sofia.filesystem.model import FilesystemResult
+from sofia.filesystem.observation import (
+    FilesystemObservationStore,
+    FilesystemObserver,
+)
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
@@ -41,6 +49,9 @@ from sofia.runtime.model import RuntimeState
 from sofia.self_model.model import (
     SofiaCoreState,
     create_core_state,
+)
+from sofia.self_model.operational import (
+    SofiaOperationalSelfModel,
 )
 
 
@@ -104,6 +115,9 @@ class SofiaRuntime:
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
         operational_store: OperationalStore | None = None,
+        filesystem_observation_store: (
+            FilesystemObservationStore | None
+        ) = None,
     ) -> None:
         if not isinstance(
             capability_system,
@@ -130,6 +144,14 @@ class SofiaRuntime:
             else OperationalStore(configuration.state_path)
         )
 
+        self._filesystem_observation_store = (
+            filesystem_observation_store
+            if filesystem_observation_store is not None
+            else FilesystemObservationStore(
+                configuration.state_path
+            )
+        )
+
         if not isinstance(
             self._operational_store,
             OperationalStore,
@@ -138,6 +160,19 @@ class SofiaRuntime:
                 "SofiaRuntime operational_store must be an "
                 "OperationalStore."
             )
+
+        if not isinstance(
+            self._filesystem_observation_store,
+            FilesystemObservationStore,
+        ):
+            raise TypeError(
+                "SofiaRuntime filesystem_observation_store must be "
+                "a FilesystemObservationStore."
+            )
+
+        self._filesystem_observer = FilesystemObserver(
+            root=configuration.filesystem_root,
+        )
 
         self._filesystem_inspector = FilesystemInspector(
             root=configuration.filesystem_root,
@@ -158,6 +193,7 @@ class SofiaRuntime:
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
         self._runtime_continuity: RuntimeContinuity | None = None
+        self._workspace_changes: FilesystemChangeEvent | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -237,6 +273,18 @@ class SofiaRuntime:
         return self._operational_store
 
     @property
+    def filesystem_observation_store(
+        self,
+    ) -> FilesystemObservationStore:
+        return self._filesystem_observation_store
+
+    @property
+    def filesystem_observer(
+        self,
+    ) -> FilesystemObserver:
+        return self._filesystem_observer
+
+    @property
     def runtime_id(self) -> UUID | None:
         return self._runtime_id
 
@@ -247,6 +295,12 @@ class SofiaRuntime:
     @property
     def runtime_continuity(self) -> RuntimeContinuity | None:
         return self._runtime_continuity
+
+    @property
+    def workspace_changes(
+        self,
+    ) -> FilesystemChangeEvent | None:
+        return self._workspace_changes
 
     @property
     def filesystem_inspector(self) -> FilesystemInspector:
@@ -276,6 +330,24 @@ class SofiaRuntime:
             application_version=_application_version(),
             provider=self._configuration.provider.provider,
             model=self._configuration.provider.model,
+        )
+
+    @property
+    def operational_self_model(
+        self,
+    ) -> SofiaOperationalSelfModel | None:
+        operational_state = self.operational_state
+
+        if (
+            operational_state is None
+            or self._runtime_continuity is None
+        ):
+            return None
+
+        return SofiaOperationalSelfModel(
+            operational_state=operational_state,
+            continuity=self._runtime_continuity,
+            workspace_changes=self._workspace_changes,
         )
 
     def start(self) -> None:
@@ -315,6 +387,21 @@ class SofiaRuntime:
                 )
             )
 
+            current_observation = (
+                self._filesystem_observer.observe()
+            )
+
+            previous_observation = (
+                self._filesystem_observation_store.latest(
+                    self._configuration.filesystem_root
+                )
+            )
+
+            workspace_changes = detect_changes(
+                previous=previous_observation,
+                current=current_observation,
+            )
+
             self._constitution = constitution
             self._identity = identity
             self._personality = personality
@@ -323,6 +410,8 @@ class SofiaRuntime:
             self._runtime_id = runtime_id
             self._started_at = started_at
             self._runtime_continuity = continuity
+            self._workspace_changes = workspace_changes
+
             self._filesystem_inspector = FilesystemInspector(
                 root=self._configuration.filesystem_root,
                 authorized=False,
@@ -333,6 +422,10 @@ class SofiaRuntime:
             self._operational_store.record_started(
                 runtime_id=runtime_id,
                 started_at=started_at,
+            )
+
+            self._filesystem_observation_store.record(
+                current_observation
             )
 
         except ConstitutionIntegrityError as exc:
@@ -394,6 +487,8 @@ class SofiaRuntime:
                 operational_state=self.operational_state,
                 runtime_continuity=self._runtime_continuity,
                 filesystem_results=filesystem_results,
+                workspace_changes=self._workspace_changes,
+                operational_self_model=self.operational_self_model,
             ),
             authority=Authority(),
         )
@@ -406,14 +501,6 @@ class SofiaRuntime:
         self,
         authorization: FilesystemAuthorization,
     ) -> None:
-        """
-        Apply an explicit filesystem authorization.
-
-        Authorization is accepted only when it exactly matches
-        the configured filesystem capability boundary and permits
-        only the supported read-only operations.
-        """
-
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
                 "SofiaRuntime must be READY before authorizing "
@@ -490,10 +577,6 @@ class SofiaRuntime:
         )
 
     def revoke_filesystem_authorization(self) -> None:
-        """
-        Revoke the current filesystem authorization.
-        """
-
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
                 "SofiaRuntime must be READY before revoking "
@@ -508,23 +591,12 @@ class SofiaRuntime:
         )
 
     def enable_filesystem_inspection(self) -> None:
-        """
-        Legacy compatibility method.
-
-        New application code should use authorize_filesystem()
-        instead of directly enabling filesystem capability.
-        """
-
         raise SofiaRuntimeError(
             "Direct filesystem inspection enabling is no longer "
             "supported. Explicit filesystem authorization is required."
         )
 
     def disable_filesystem_inspection(self) -> None:
-        """
-        Disable filesystem inspection for the runtime.
-        """
-
         self.revoke_filesystem_authorization()
 
     def shutdown(self) -> None:
@@ -564,6 +636,7 @@ class SofiaRuntime:
         self._runtime_id = None
         self._started_at = None
         self._runtime_continuity = None
+        self._workspace_changes = None
         self._filesystem_authorization = None
         self._filesystem_inspector = FilesystemInspector(
             root=self._configuration.filesystem_root,
