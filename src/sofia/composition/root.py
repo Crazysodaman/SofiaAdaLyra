@@ -2,6 +2,10 @@
 
 from sofia.action.executor import TestActionExecutor
 from sofia.action.system import ActionSystem
+from sofia.authorization.model import (
+    AuthorizationDecision,
+    AuthorizationDomain,
+)
 from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
@@ -130,22 +134,48 @@ def compose(
             return False
 
         if (
-            authorization.domain.value
-            != "filesystem"
+            authorization.domain
+            is not AuthorizationDomain.FILESYSTEM
         ):
             return False
 
         if (
-            authorization.decision.value
-            != "allow"
+            authorization.decision
+            is not AuthorizationDecision.ALLOW
         ):
             return False
+
+        configured_root = (
+            configuration.filesystem_root.resolve()
+        )
 
         if (
             authorization.scope.resolve()
-            != configuration.filesystem_root.resolve()
+            != configured_root
         ):
             return False
+
+        requested_scope = request.requested_scope
+
+        if requested_scope is not None:
+            if not isinstance(requested_scope, Path):
+                return False
+
+            try:
+                resolved_requested_scope = (
+                    requested_scope.resolve()
+                )
+            except (
+                OSError,
+                RuntimeError,
+            ):
+                return False
+
+            if (
+                resolved_requested_scope
+                != authorization.scope.resolve()
+            ):
+                return False
 
         return True
 
