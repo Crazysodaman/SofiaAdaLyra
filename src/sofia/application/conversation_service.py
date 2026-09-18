@@ -1,6 +1,9 @@
 ﻿from datetime import datetime, timezone
 from uuid import uuid4
 
+from sofia.authorization.evaluator import (
+    FilesystemAuthorizationEvaluator,
+)
 from sofia.conversation.model import (
     ConversationMessage,
     ConversationRole,
@@ -24,10 +27,11 @@ class ConversationService:
     Application-level conversation boundary.
 
     Coordinates conversation persistence, filesystem request
-    orchestration, and Sofía's runtime.
+    orchestration, authorization, and Sofía's runtime.
 
     Terminal interaction must not know about persistence,
-    filesystem capability, or cognitive request construction.
+    filesystem capability, authorization, or cognitive request
+    construction.
     """
 
     def __init__(
@@ -54,6 +58,11 @@ class ConversationService:
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
+            )
+        )
+        self._filesystem_authorization_evaluator = (
+            FilesystemAuthorizationEvaluator(
+                scope=runtime.configuration.filesystem_root,
             )
         )
         self._session: ConversationSession | None = None
@@ -130,8 +139,9 @@ class ConversationService:
         content: str,
     ) -> CognitiveResponse:
         """
-        Persist a user message, process any filesystem intent,
-        obtain Sofía's response, and persist the assistant response.
+        Persist a user message, process authorization or any
+        filesystem intent, obtain Sofía's response, and persist
+        the assistant response.
         """
 
         if self._session is None:
@@ -161,11 +171,23 @@ class ConversationService:
 
         self._conversation_store.save(user_message)
 
-        filesystem_results = (
-            self._filesystem_orchestrator.process(
+        authorization = (
+            self._filesystem_authorization_evaluator.evaluate(
                 content
             )
         )
+
+        if authorization is not None:
+            self._runtime.authorize_filesystem(
+                authorization
+            )
+            filesystem_results = ()
+        else:
+            filesystem_results = (
+                self._filesystem_orchestrator.process(
+                    content
+                )
+            )
 
         request = self._build_request()
 
