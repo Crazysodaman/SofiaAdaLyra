@@ -1,13 +1,15 @@
 ﻿from pathlib import Path
 
+from sofia.codebase.analyzers import (
+    CodebaseAnalyzerRegistry,
+    create_default_analyzer_registry,
+)
 from sofia.codebase.model import (
     CodebaseEvidenceKind,
     CodebaseFile,
     CodebaseInspectionEvidence,
     PythonModule,
-    SourceFileKind,
 )
-from sofia.codebase.python import PythonInspector
 from sofia.codebase.relationships import (
     CodebaseRelationshipAnalyzer,
 )
@@ -21,6 +23,9 @@ class CodebaseInspector:
     """
     Read-only bounded structural inspection of a codebase.
 
+    Language-specific analysis is delegated to the configured
+    CodebaseAnalyzerRegistry.
+
     This inspector does not modify, execute, or import source code.
     """
 
@@ -30,14 +35,29 @@ class CodebaseInspector:
     def __init__(
         self,
         root: Path,
+        analyzer_registry: CodebaseAnalyzerRegistry | None = None,
     ) -> None:
         if not isinstance(root, Path):
             raise TypeError(
                 "CodebaseInspector root must be a Path."
             )
 
+        if analyzer_registry is None:
+            analyzer_registry = (
+                create_default_analyzer_registry()
+            )
+
+        if not isinstance(
+            analyzer_registry,
+            CodebaseAnalyzerRegistry,
+        ):
+            raise TypeError(
+                "CodebaseInspector analyzer_registry must be "
+                "a CodebaseAnalyzerRegistry or None."
+            )
+
         self._root = root.resolve()
-        self._python = PythonInspector()
+        self._analyzer_registry = analyzer_registry
         self._relationships = (
             CodebaseRelationshipAnalyzer()
         )
@@ -45,6 +65,12 @@ class CodebaseInspector:
     @property
     def root(self) -> Path:
         return self._root
+
+    @property
+    def analyzer_registry(
+        self,
+    ) -> CodebaseAnalyzerRegistry:
+        return self._analyzer_registry
 
     def inspect(self) -> CodebaseInspectionEvidence:
         if not self._root.exists():
@@ -62,19 +88,26 @@ class CodebaseInspector:
         python_modules: list[PythonModule] = []
 
         for file in files:
-            if file.kind is not SourceFileKind.PYTHON:
+            analyzer = (
+                self._analyzer_registry.analyzer_for(
+                    file.path
+                )
+            )
+
+            if analyzer is None:
                 continue
 
             module_name = self._module_name(
                 file.path
             )
 
-            python_modules.append(
-                self._python.inspect(
-                    file.path,
-                    module_name,
-                )
+            result = analyzer.analyze(
+                file.path,
+                module_name,
             )
+
+            if isinstance(result, PythonModule):
+                python_modules.append(result)
 
         python_modules.sort(
             key=lambda module: module.module_name
@@ -122,10 +155,8 @@ class CodebaseInspector:
             if size > self.MAX_FILE_BYTES:
                 continue
 
-            kind = (
-                SourceFileKind.PYTHON
-                if path.suffix.lower() == ".py"
-                else SourceFileKind.OTHER
+            kind = self._analyzer_registry.classify(
+                path
             )
 
             discovered.append(

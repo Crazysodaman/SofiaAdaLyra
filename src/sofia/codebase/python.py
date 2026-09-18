@@ -4,6 +4,7 @@ from pathlib import Path
 from sofia.codebase.model import (
     PythonModule,
     PythonSymbol,
+    SourceFileKind,
 )
 
 
@@ -117,4 +118,60 @@ class PythonInspector:
             module_name=module_name,
             symbols=tuple(symbols),
             imports=tuple(sorted(set(imports))),
+        )
+
+
+class PythonAnalyzer:
+    """
+    Language-specific analyzer adapter for Python.
+
+    The analyzer boundary is intentionally separate from
+    PythonInspector so the core codebase system does not depend
+    directly on Python implementation details.
+    """
+
+    name = "python"
+    source_file_kind = SourceFileKind.PYTHON
+
+    def __init__(
+        self,
+        inspector: PythonInspector | None = None,
+    ) -> None:
+        if inspector is None:
+            inspector = PythonInspector()
+
+        if not isinstance(
+            inspector,
+            PythonInspector,
+        ):
+            raise TypeError(
+                "PythonAnalyzer inspector must be a "
+                "PythonInspector."
+            )
+
+        self._inspector = inspector
+
+    @property
+    def inspector(self) -> PythonInspector:
+        return self._inspector
+
+    def supports(
+        self,
+        path: Path,
+    ) -> bool:
+        if not isinstance(path, Path):
+            raise TypeError(
+                "path must be a Path."
+            )
+
+        return path.suffix.lower() == ".py"
+
+    def analyze(
+        self,
+        path: Path,
+        module_name: str,
+    ) -> PythonModule:
+        return self._inspector.inspect(
+            path,
+            module_name,
         )

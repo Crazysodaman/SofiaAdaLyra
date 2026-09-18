@@ -1,4 +1,9 @@
-﻿from sofia.codebase.codebase import (
+﻿from sofia.codebase.analyzers import (
+    CodebaseAnalyzer,
+    CodebaseAnalyzerRegistry,
+    create_default_analyzer_registry,
+)
+from sofia.codebase.codebase import (
     CODEBASE_INSPECT_CAPABILITY,
     CodebaseCapability,
 )
@@ -19,6 +24,7 @@ from sofia.codebase.model import (
     SourceFileKind,
 )
 from sofia.codebase.python import (
+    PythonAnalyzer,
     PythonInspectionError,
     PythonInspector,
 )
@@ -28,6 +34,8 @@ from sofia.codebase.relationships import (
 
 __all__ = [
     "CODEBASE_INSPECT_CAPABILITY",
+    "CodebaseAnalyzer",
+    "CodebaseAnalyzerRegistry",
     "CodebaseCapability",
     "CodebaseEvidenceKind",
     "CodebaseFile",
@@ -36,10 +44,12 @@ __all__ = [
     "CodebaseInspector",
     "CodebaseRelationshipAnalyzer",
     "ModuleRelationship",
+    "PythonAnalyzer",
     "PythonInspectionError",
     "PythonInspector",
     "PythonModule",
     "PythonSymbol",
     "SourceFileKind",
+    "create_default_analyzer_registry",
     "format_codebase_evidence",
 ]
