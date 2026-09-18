@@ -5,6 +5,10 @@ from sofia.cognition.model import (
     CognitiveRole,
     CognitiveToolDefinition,
 )
+from sofia.continuity.model import (
+    ContinuityEvent,
+    ContinuityEventKind,
+)
 from sofia.filesystem.changes import FilesystemChangeEvent
 
 
@@ -312,6 +316,15 @@ class CognitiveContextAssembler:
                 )
             )
 
+        continuity_event = context.continuity_event
+
+        if continuity_event is not None:
+            sections.extend(
+                self._format_continuity_event(
+                    continuity_event
+                )
+            )
+
         if context.operational_self_model is not None:
             self_model = context.operational_self_model
 
@@ -388,6 +401,80 @@ class CognitiveContextAssembler:
                 )
 
         return "\n".join(sections)
+
+    @staticmethod
+    def _format_continuity_event(
+        event: ContinuityEvent,
+    ) -> list[str]:
+        lines = [
+            "",
+            "CONTINUITY EVENT",
+            (
+                "This is one aggregate event combining deterministic "
+                "runtime and workspace continuity evidence."
+            ),
+            (
+                "The event records observed facts only. It does not "
+                "establish intent, authorship, cause, or significance."
+            ),
+            f"Event kind: {event.kind.value}",
+            f"Evidence status: {event.evidence_status.value}",
+            f"Restart observed: {event.restart_observed}",
+            (
+                "Workspace changes: "
+                f"{event.workspace_change_count}"
+            ),
+            "",
+            (
+                "Continuity evidence may be relevant to the conversation, "
+                "but it does not need to be announced merely because it "
+                "exists."
+            ),
+            (
+                "Do not produce a separate response for each individual "
+                "filesystem change. Treat related changes as one coherent "
+                "event and mention them only when relevant."
+            ),
+        ]
+
+        if event.kind is ContinuityEventKind.RUNTIME_RESUMED:
+            lines.append(
+                "A previous runtime was observed before the current runtime."
+            )
+
+        elif (
+            event.kind
+            is ContinuityEventKind.CONTINUITY_AND_WORKSPACE_CHANGED
+        ):
+            lines.append(
+                "A previous runtime was observed and workspace changes "
+                "were detected since the previous filesystem observation."
+            )
+
+        elif event.kind is ContinuityEventKind.WORKSPACE_CHANGED:
+            lines.append(
+                "Workspace changes were detected between filesystem "
+                "observations."
+            )
+
+        elif event.kind is ContinuityEventKind.INITIAL_RUNTIME:
+            lines.append(
+                "No previous runtime evidence is available."
+            )
+
+        elif event.kind is ContinuityEventKind.CONTINUITY_STABLE:
+            lines.append(
+                "No new continuity or workspace change event was detected."
+            )
+
+        if event.workspace_changes is not None:
+            lines.extend(
+                self._format_workspace_changes(
+                    event.workspace_changes
+                )
+            )
+
+        return lines
 
     @staticmethod
     def _format_workspace_changes(

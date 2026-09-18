@@ -2,6 +2,10 @@
 
 from sofia.cognition.model import CognitiveRequest
 from sofia.constitution.model import Constitution
+from sofia.continuity.model import (
+    ContinuityEvent,
+    create_continuity_event,
+)
 from sofia.embodiment.model import Embodiment
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.filesystem.model import FilesystemResult
@@ -153,3 +157,21 @@ class CognitiveContext:
                 "CognitiveContext operational_self_model must be a "
                 "SofiaOperationalSelfModel or None."
             )
+
+    @property
+    def continuity_event(self) -> ContinuityEvent | None:
+        """
+        Return one aggregate continuity event when runtime continuity
+        evidence is available.
+
+        The event is derived from deterministic evidence already present
+        in this context. It does not create additional observations.
+        """
+
+        if self.runtime_continuity is None:
+            return None
+
+        return create_continuity_event(
+            runtime_continuity=self.runtime_continuity,
+            workspace_changes=self.workspace_changes,
+        )
