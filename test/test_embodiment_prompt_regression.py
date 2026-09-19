@@ -245,41 +245,117 @@ def extract_measurements(
     content: str,
 ) -> dict[str, str | None]:
     """
-    Best-effort diagnostic extraction.
+    Best-effort diagnostic extraction and normalization.
+
+    Supported representations include:
+    - Markdown labels such as **Height**:
+    - Imperial height such as 5'7"
+    - Inch values such as 67 in or 33"
+    - Centimeter values
+    - Pounds and kilograms
 
     This function does not decide whether the model is correct.
-    It only attempts to identify values matching the canonical
-    measurement labels.
+    It only normalizes the generated response for comparison.
     """
 
+    label_prefix = (
+        r"(?:\*\*)?"
+        r"{label}"
+        r"(?:\*\*)?"
+        r"\s*[:\-]\s*"
+    )
+
     patterns = {
-        "height": r"height\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
-        "weight": r"weight\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds?)",
-        "bust": r"bust\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
-        "underbust": r"underbust\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
-        "waist": r"waist\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
-        "hips": r"hips?\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+        "height": [
+            label_prefix.format(label="height")
+            + r"(\d+)\s*['′]\s*(\d+)\s*[\"″]",
+            label_prefix.format(label="height")
+            + r"(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?|[\"″])",
+            label_prefix.format(label="height")
+            + r"(\d+(?:\.\d+)?)\s*cm",
+        ],
+        "weight": [
+            label_prefix.format(label="weight")
+            + r"(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds?)",
+            label_prefix.format(label="weight")
+            + r"(\d+(?:\.\d+)?)\s*(?:kg|kilograms?)",
+        ],
+        "bust": [
+            label_prefix.format(label="bust")
+            + r"(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?|[\"″])",
+            label_prefix.format(label="bust")
+            + r"(\d+(?:\.\d+)?)\s*cm",
+        ],
+        "underbust": [
+            label_prefix.format(label="underbust")
+            + r"(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?|[\"″])",
+            label_prefix.format(label="underbust")
+            + r"(\d+(?:\.\d+)?)\s*cm",
+        ],
+        "waist": [
+            label_prefix.format(label="waist")
+            + r"(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?|[\"″])",
+            label_prefix.format(label="waist")
+            + r"(\d+(?:\.\d+)?)\s*cm",
+        ],
+        "hips": [
+            label_prefix.format(label=r"hips?")
+            + r"(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?|[\"″])",
+            label_prefix.format(label=r"hips?")
+            + r"(\d+(?:\.\d+)?)\s*cm",
+        ],
     }
 
-    measurements: dict[str, str | None] = {}
+    measurements: dict[str, str | None] = {
+        name: None
+        for name in CANONICAL_MEASUREMENTS
+    }
 
-    for name, pattern in patterns.items():
-        match = re.search(
-            pattern,
-            content,
-            flags=re.IGNORECASE,
-        )
+    for name, name_patterns in patterns.items():
+        for pattern in name_patterns:
+            match = re.search(
+                pattern,
+                content,
+                flags=re.IGNORECASE,
+            )
 
-        if match is None:
-            measurements[name] = None
-            continue
+            if match is None:
+                continue
 
-        value = match.group(1)
+            value = float(match.group(1))
 
-        if name == "weight":
-            measurements[name] = f"{value} lb"
-        else:
-            measurements[name] = f"{value} in"
+            if name == "height" and len(match.groups()) == 2:
+                feet = value
+                inches = float(match.group(2))
+                total_inches = (feet * 12) + inches
+                measurements[name] = f"{total_inches:g} in"
+                break
+
+            matched_text = match.group(0).lower()
+
+            if name == "height":
+                if "cm" in matched_text:
+                    total_inches = value / 2.54
+                    measurements[name] = f"{total_inches:g} in"
+                else:
+                    measurements[name] = f"{value:g} in"
+                break
+
+            if name == "weight":
+                if "kg" in matched_text or "kilogram" in matched_text:
+                    pounds = value * 2.2046226218
+                    measurements[name] = f"{pounds:.1f} lb"
+                else:
+                    measurements[name] = f"{value:g} lb"
+                break
+
+            if "cm" in matched_text:
+                inches = value / 2.54
+                measurements[name] = f"{inches:g} in"
+            else:
+                measurements[name] = f"{value:g} in"
+
+            break
 
     return measurements
 
@@ -300,6 +376,15 @@ def classify_measurements(
         return "WRONG"
 
     return "UNEXTRACTABLE"
+
+
+def measurement_tuple(
+    measurements: dict[str, str | None],
+) -> tuple[str | None, ...]:
+    return tuple(
+        measurements.get(name)
+        for name in CANONICAL_MEASUREMENTS
+    )
 
 
 @pytest.mark.integration
@@ -461,6 +546,13 @@ def test_embodiment_repeated_generation_determinism_probe(
         "UNEXTRACTABLE"
     )
 
+    unique_measurements = {
+        measurement_tuple(
+            result["measurements"]
+        )
+        for result in results
+    }
+
     print(
         "\n"
         + "=" * 80
@@ -469,8 +561,27 @@ def test_embodiment_repeated_generation_determinism_probe(
         + f"\nCORRECT: {correct_count}"
         + f"\nWRONG: {wrong_count}"
         + f"\nUNEXTRACTABLE: {unextractable_count}"
+        + f"\nUNIQUE NORMALIZED OUTPUTS: {len(unique_measurements)}"
         + "\n"
     )
+
+    for index, values in enumerate(
+        sorted(unique_measurements),
+        start=1,
+    ):
+        print(
+            f"Unique output {index}:"
+        )
+
+        for name, value in zip(
+            CANONICAL_MEASUREMENTS,
+            values,
+        ):
+            print(
+                f"  {name.title()}: {value}"
+            )
+
+        print()
 
     if correct_count == REPEATED_GENERATION_COUNT:
         classification = "STABLE_CORRECT"

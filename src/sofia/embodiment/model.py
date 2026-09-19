@@ -147,6 +147,37 @@ class PhysicalSelf:
                     "PhysicalSelf anatomy values must be strings."
                 )
 
+    def get_measurement(
+        self,
+        name: str,
+    ) -> Measurement:
+        """
+        Retrieve one canonical measurement from the authoritative
+        physical-self state.
+
+        The measurement name must be the canonical stored name. This
+        method performs no natural-language interpretation, conversion,
+        inference, or LLM interaction.
+        """
+
+        if not isinstance(name, str):
+            raise TypeError(
+                "Measurement name must be a string."
+            )
+
+        if not name:
+            raise ValueError(
+                "Measurement name must not be empty."
+            )
+
+        for measurement_name, measurement in self.measurements:
+            if measurement_name == name:
+                return measurement
+
+        raise KeyError(
+            f"Unknown canonical measurement: {name}"
+        )
+
 
 @dataclass(frozen=True)
 class ComputerEmbodiment:
@@ -264,3 +295,18 @@ class Embodiment:
             raise TypeError(
                 "Embodiment current must be a CurrentEmbodiment."
             )
+
+    def get_measurement(
+        self,
+        name: str,
+    ) -> Measurement:
+        """
+        Retrieve one canonical measurement from Sofía's authoritative
+        embodiment state.
+
+        This is a structured-state lookup only. It does not interpret
+        natural-language requests, convert units, infer values, or involve
+        the cognitive engine.
+        """
+
+        return self.physical_self.get_measurement(name)
