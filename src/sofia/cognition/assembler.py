@@ -187,6 +187,43 @@ class CognitiveContextAssembler:
                 ]
             )
 
+        if (
+            context.measurement_query is not None
+            and context.measurement_query.recognized
+        ):
+            sections.extend(
+                [
+                    "",
+                    "AUTHORITATIVE EMBODIMENT MEASUREMENT QUERY RESULT",
+                    (
+                        "The user's request was deterministically recognized "
+                        "as a canonical embodiment measurement query."
+                    ),
+                    (
+                        "The following facts were retrieved directly from "
+                        "authoritative embodiment state. They are structured "
+                        "facts for verbalization, not values to infer or "
+                        "reconstruct from memory."
+                    ),
+                ]
+            )
+
+            for fact in context.measurement_query.facts:
+                sections.append(
+                    (
+                        f"- {fact.name}: "
+                        f"{fact.measurement.value} {fact.measurement.unit}"
+                    )
+                )
+
+            sections.append(
+                (
+                    "Use these authoritative facts when answering this "
+                    "measurement request. Do not substitute generated or "
+                    "inferred values."
+                )
+            )
+
         if context.memories:
             sections.extend(
                 [
@@ -715,6 +752,9 @@ class CognitiveContextAssembler:
             lines.append(
                 "CANONICAL EMBODIMENT BODY MEASUREMENTS:"
             )
+            lines.append(
+                "Measurements:"
+            )
 
             for name, measurement in (
                 embodiment.physical_self.measurements
@@ -747,6 +787,9 @@ class CognitiveContextAssembler:
         if embodiment.clothing.items:
             lines.append(
                 "CLOTHING AND EQUIPMENT SPECIFICATION:"
+            )
+            lines.append(
+                "Clothing specification:"
             )
 
             if embodiment.clothing.canonical_status:

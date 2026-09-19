@@ -24,6 +24,7 @@ from sofia.constitution.integrity import (
 from sofia.constitution.model import Constitution
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.model import Embodiment
+from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
 from sofia.filesystem.changes import (
     FilesystemChangeEvent,
@@ -189,6 +190,7 @@ class SofiaRuntime:
         self._personality: PersonalityProfile | None = None
         self._embodiment: Embodiment | None = None
         self._core_state: SofiaCoreState | None = None
+        self._measurement_query_resolver = MeasurementQueryResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -471,9 +473,19 @@ class SofiaRuntime:
                     "FilesystemResult instances."
                 )
 
+        user_content = self._latest_user_content(request)
+
         memories = self._memory_system.recall_relevant(
-            self._latest_user_content(request)
+            user_content
         )
+
+        measurement_query = None
+
+        if self._embodiment is not None:
+            measurement_query = self._measurement_query_resolver.resolve(
+                query=user_content,
+                embodiment=self._embodiment,
+            )
 
         operation = CognitiveOperation(
             context=CognitiveContext(
@@ -482,6 +494,7 @@ class SofiaRuntime:
                 personality=self._personality,
                 constitution=self._constitution,
                 embodiment=self._embodiment,
+                measurement_query=measurement_query,
                 core_state=self._core_state,
                 memories=memories,
                 operational_state=self.operational_state,

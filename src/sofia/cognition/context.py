@@ -7,6 +7,7 @@ from sofia.continuity.model import (
     create_continuity_event,
 )
 from sofia.embodiment.model import Embodiment
+from sofia.embodiment.measurement_query import MeasurementQueryResult
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
@@ -33,6 +34,7 @@ class CognitiveContext:
     memories: tuple[MemoryRecord, ...] = ()
     constitution: Constitution | None = None
     embodiment: Embodiment | None = None
+    measurement_query: MeasurementQueryResult | None = None
     core_state: SofiaCoreState | None = None
     operational_state: OperationalState | None = None
     runtime_continuity: RuntimeContinuity | None = None
@@ -88,6 +90,18 @@ class CognitiveContext:
         ):
             raise TypeError(
                 "CognitiveContext embodiment must be an Embodiment."
+            )
+
+        if (
+            self.measurement_query is not None
+            and not isinstance(
+                self.measurement_query,
+                MeasurementQueryResult,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext measurement_query must be a "
+                "MeasurementQueryResult or None."
             )
 
         if (
