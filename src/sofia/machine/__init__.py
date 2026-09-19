@@ -1,4 +1,9 @@
-﻿from sofia.machine.discovery import (
+﻿from sofia.machine.comparison import (
+    ObservationChange,
+    ObservationComparison,
+    compare_machine_observations,
+)
+from sofia.machine.discovery import (
     LinuxMachineDiscovery,
     MachineDiscovery,
     MachineDiscoveryResult,
@@ -25,6 +30,13 @@ from sofia.machine.model import (
     StorageDeviceInfo,
     VirtualizationInfo,
 )
+from sofia.machine.observation import (
+    MachineObservation,
+    ObservationProvenance,
+    ObservationSource,
+    ObservationState,
+)
+from sofia.machine.inventory import MachineInventory
 
 
 __all__ = [
@@ -36,9 +48,16 @@ __all__ = [
     "MachineDiscovery",
     "MachineDiscoveryResult",
     "MachineIdentity",
+    "MachineInventory",
+    "MachineObservation",
     "MachineProfile",
     "MachineVerification",
     "NetworkAdapterInfo",
+    "ObservationChange",
+    "ObservationComparison",
+    "ObservationProvenance",
+    "ObservationSource",
+    "ObservationState",
     "OperatingSystemInfo",
     "PlatformFamily",
     "StorageDeviceInfo",
@@ -47,6 +66,7 @@ __all__ = [
     "VirtualizationInfo",
     "WindowsHardwareDiscovery",
     "WindowsMachineDiscovery",
+    "compare_machine_observations",
     "create_hardware_discovery",
     "create_machine_discovery",
 ]
