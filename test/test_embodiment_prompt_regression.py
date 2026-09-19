@@ -1,4 +1,5 @@
 ﻿import os
+import re
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,17 @@ OLLAMA_MODEL = os.getenv(
     "SOFIA_OLLAMA_MODEL",
     "qwen3:14b",
 )
+
+REPEATED_GENERATION_COUNT = 10
+
+CANONICAL_MEASUREMENTS = {
+    "height": "67 in",
+    "weight": "135 lb",
+    "bust": "33 in",
+    "underbust": "30 in",
+    "waist": "26 in",
+    "hips": "37 in",
+}
 
 
 class CapturingProvider(LLMProvider):
@@ -229,6 +241,67 @@ def create_ollama_provider() -> OllamaProvider:
     )
 
 
+def extract_measurements(
+    content: str,
+) -> dict[str, str | None]:
+    """
+    Best-effort diagnostic extraction.
+
+    This function does not decide whether the model is correct.
+    It only attempts to identify values matching the canonical
+    measurement labels.
+    """
+
+    patterns = {
+        "height": r"height\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+        "weight": r"weight\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:lb|lbs|pounds?)",
+        "bust": r"bust\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+        "underbust": r"underbust\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+        "waist": r"waist\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+        "hips": r"hips?\s*[:\-]\s*(\d+(?:\.\d+)?)\s*(?:in|inch(?:es)?)",
+    }
+
+    measurements: dict[str, str | None] = {}
+
+    for name, pattern in patterns.items():
+        match = re.search(
+            pattern,
+            content,
+            flags=re.IGNORECASE,
+        )
+
+        if match is None:
+            measurements[name] = None
+            continue
+
+        value = match.group(1)
+
+        if name == "weight":
+            measurements[name] = f"{value} lb"
+        else:
+            measurements[name] = f"{value} in"
+
+    return measurements
+
+
+def classify_measurements(
+    measurements: dict[str, str | None],
+) -> str:
+    if all(
+        measurements.get(name) == expected
+        for name, expected in CANONICAL_MEASUREMENTS.items()
+    ):
+        return "CORRECT"
+
+    if all(
+        measurements.get(name) is not None
+        for name in CANONICAL_MEASUREMENTS
+    ):
+        return "WRONG"
+
+    return "UNEXTRACTABLE"
+
+
 @pytest.mark.integration
 def test_embodiment_prompt_regression_variants(
     tmp_path,
@@ -292,3 +365,124 @@ def test_embodiment_prompt_regression_variants(
         )
 
         assert response.content.strip()
+
+
+@pytest.mark.integration
+def test_embodiment_repeated_generation_determinism_probe(
+    tmp_path,
+) -> None:
+    """
+    Diagnostic experiment for repeated generation against the exact
+    current canonical embodiment context.
+
+    This test intentionally does not require the LLM to produce the
+    canonical values. Its purpose is to characterize generation
+    behavior before architectural changes are made.
+    """
+
+    request = capture_current_request(
+        tmp_path
+    )
+
+    provider = create_ollama_provider()
+
+    results: list[dict[str, object]] = []
+
+    print(
+        "\n"
+        + "=" * 80
+        + "\n18.3B.1 REPEATED-GENERATION DETERMINISM PROBE\n"
+        + "=" * 80
+        + f"\nModel: {OLLAMA_MODEL}"
+        + f"\nGenerations: {REPEATED_GENERATION_COUNT}"
+        + "\nCanonical measurements:"
+        + f"\n  Height: {CANONICAL_MEASUREMENTS['height']}"
+        + f"\n  Weight: {CANONICAL_MEASUREMENTS['weight']}"
+        + f"\n  Bust: {CANONICAL_MEASUREMENTS['bust']}"
+        + f"\n  Underbust: {CANONICAL_MEASUREMENTS['underbust']}"
+        + f"\n  Waist: {CANONICAL_MEASUREMENTS['waist']}"
+        + f"\n  Hips: {CANONICAL_MEASUREMENTS['hips']}"
+        + "\n"
+    )
+
+    for generation in range(
+        1,
+        REPEATED_GENERATION_COUNT + 1,
+    ):
+        response = provider.respond(
+            request
+        )
+
+        content = response.content.strip()
+        measurements = extract_measurements(
+            content
+        )
+        classification = classify_measurements(
+            measurements
+        )
+
+        result = {
+            "generation": generation,
+            "measurements": measurements,
+            "classification": classification,
+            "content": content,
+        }
+
+        results.append(result)
+
+        print(
+            "\n"
+            + "-" * 80
+            + f"\nGENERATION {generation}"
+            + f"\nClassification: {classification}"
+            + "\nExtracted measurements:"
+            + f"\n  Height: {measurements['height']}"
+            + f"\n  Weight: {measurements['weight']}"
+            + f"\n  Bust: {measurements['bust']}"
+            + f"\n  Underbust: {measurements['underbust']}"
+            + f"\n  Waist: {measurements['waist']}"
+            + f"\n  Hips: {measurements['hips']}"
+            + "\nRaw response:"
+            + f"\n{content}\n"
+        )
+
+    classifications = [
+        result["classification"]
+        for result in results
+    ]
+
+    correct_count = classifications.count(
+        "CORRECT"
+    )
+    wrong_count = classifications.count(
+        "WRONG"
+    )
+    unextractable_count = classifications.count(
+        "UNEXTRACTABLE"
+    )
+
+    print(
+        "\n"
+        + "=" * 80
+        + "\n18.3B.1 SUMMARY\n"
+        + "=" * 80
+        + f"\nCORRECT: {correct_count}"
+        + f"\nWRONG: {wrong_count}"
+        + f"\nUNEXTRACTABLE: {unextractable_count}"
+        + "\n"
+    )
+
+    if correct_count == REPEATED_GENERATION_COUNT:
+        classification = "STABLE_CORRECT"
+    elif wrong_count == REPEATED_GENERATION_COUNT:
+        classification = "STABLE_WRONG"
+    elif unextractable_count == REPEATED_GENERATION_COUNT:
+        classification = "STABLE_UNEXTRACTABLE"
+    else:
+        classification = "VARIABLE"
+
+    print(
+        f"Overall classification: {classification}\n"
+    )
+
+    assert len(results) == REPEATED_GENERATION_COUNT
