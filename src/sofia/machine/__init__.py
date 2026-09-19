@@ -6,6 +6,14 @@
     WindowsMachineDiscovery,
     create_machine_discovery,
 )
+from sofia.machine.hardware import (
+    HardwareDiscovery,
+    HardwareDiscoveryResult,
+    LinuxHardwareDiscovery,
+    UnsupportedHardwareDiscovery,
+    WindowsHardwareDiscovery,
+    create_hardware_discovery,
+)
 from sofia.machine.model import (
     HardwareProfile,
     MachineIdentity,
@@ -20,7 +28,10 @@ from sofia.machine.model import (
 
 
 __all__ = [
+    "HardwareDiscovery",
+    "HardwareDiscoveryResult",
     "HardwareProfile",
+    "LinuxHardwareDiscovery",
     "LinuxMachineDiscovery",
     "MachineDiscovery",
     "MachineDiscoveryResult",
@@ -31,8 +42,11 @@ __all__ = [
     "OperatingSystemInfo",
     "PlatformFamily",
     "StorageDeviceInfo",
+    "UnsupportedHardwareDiscovery",
     "UnsupportedMachineDiscovery",
     "VirtualizationInfo",
+    "WindowsHardwareDiscovery",
     "WindowsMachineDiscovery",
+    "create_hardware_discovery",
     "create_machine_discovery",
 ]
