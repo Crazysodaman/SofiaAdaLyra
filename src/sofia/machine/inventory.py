@@ -5,7 +5,10 @@ from sofia.machine.comparison import (
     ObservationComparison,
     compare_machine_observations,
 )
-from sofia.machine.observation import MachineObservation
+from sofia.machine.observation import (
+    MachineObservation,
+    ObservationState,
+)
 
 
 @dataclass
@@ -55,6 +58,87 @@ class MachineInventory:
         )
 
         return comparison
+
+    def mark_stale(
+        self,
+        machine_id: str,
+    ) -> ObservationComparison | None:
+        observation = self.get(machine_id)
+
+        if observation is None:
+            return None
+
+        stale = observation.with_state(
+            ObservationState.STALE
+        )
+
+        return self.record(stale)
+
+    def invalidate(
+        self,
+        machine_id: str,
+    ) -> ObservationComparison | None:
+        observation = self.get(machine_id)
+
+        if observation is None:
+            return None
+
+        unknown = observation.with_state(
+            ObservationState.UNKNOWN
+        )
+
+        return self.record(unknown)
+
+    def record_contradiction(
+        self,
+        observation: MachineObservation,
+    ) -> ObservationComparison:
+        if not isinstance(observation, MachineObservation):
+            raise TypeError(
+                "observation must be a MachineObservation."
+            )
+
+        machine_id = observation.machine_id
+        current = self._current.get(machine_id)
+
+        if current is None:
+            raise ValueError(
+                "Cannot record contradictory evidence for "
+                "an unknown machine."
+            )
+
+        comparison = compare_machine_observations(
+            current,
+            observation,
+        )
+
+        if not (
+            comparison.identity_changed
+            or comparison.operating_system_changed
+            or comparison.virtualization_changed
+            or comparison.hardware_changed
+        ):
+            raise ValueError(
+                "Contradictory evidence must differ from "
+                "the current machine observation."
+            )
+
+        contradicted = observation.with_state(
+            ObservationState.CONTRADICTED
+        )
+
+        contradiction_comparison = (
+            compare_machine_observations(
+                current,
+                contradicted,
+            )
+        )
+
+        self._history.setdefault(machine_id, []).append(
+            contradicted
+        )
+
+        return contradiction_comparison
 
     def get(
         self,

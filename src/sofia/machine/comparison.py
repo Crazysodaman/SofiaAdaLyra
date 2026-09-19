@@ -1,7 +1,10 @@
 ﻿from dataclasses import dataclass
 from enum import Enum
 
-from sofia.machine.observation import MachineObservation
+from sofia.machine.observation import (
+    MachineObservation,
+    ObservationState,
+)
 
 
 class ObservationChange(str, Enum):
@@ -9,6 +12,8 @@ class ObservationChange(str, Enum):
     CHANGED = "changed"
     BECAME_UNKNOWN = "became_unknown"
     BECAME_KNOWN = "became_known"
+    BECAME_STALE = "became_stale"
+    BECAME_VERIFIED = "became_verified"
     CONTRADICTED = "contradicted"
 
 
@@ -36,7 +41,8 @@ def compare_machine_observations(
         )
 
     identity_changed = (
-        previous.profile.identity != current.profile.identity
+        previous.profile.identity
+        != current.profile.identity
     )
 
     operating_system_changed = (
@@ -54,29 +60,49 @@ def compare_machine_observations(
         != current.profile.hardware
     )
 
-    changed = (
+    profile_changed = (
         identity_changed
         or operating_system_changed
         or virtualization_changed
         or hardware_changed
     )
 
-    if not changed:
-        change = ObservationChange.NO_CHANGE
+    state_changed = (
+        previous.state != current.state
+    )
+
+    if current.state is ObservationState.CONTRADICTED:
+        change = ObservationChange.CONTRADICTED
+
     elif (
-        current.state.value == "unknown"
-        and previous.state.value != "unknown"
+        current.state is ObservationState.UNKNOWN
+        and previous.state is not ObservationState.UNKNOWN
     ):
         change = ObservationChange.BECAME_UNKNOWN
+
     elif (
-        current.state.value != "unknown"
-        and previous.state.value == "unknown"
+        current.state is not ObservationState.UNKNOWN
+        and previous.state is ObservationState.UNKNOWN
     ):
         change = ObservationChange.BECAME_KNOWN
-    elif current.state.value == "contradicted":
-        change = ObservationChange.CONTRADICTED
-    else:
+
+    elif (
+        current.state is ObservationState.STALE
+        and previous.state is not ObservationState.STALE
+    ):
+        change = ObservationChange.BECAME_STALE
+
+    elif (
+        current.state is ObservationState.VERIFIED
+        and previous.state is ObservationState.STALE
+    ):
+        change = ObservationChange.BECAME_VERIFIED
+
+    elif profile_changed or state_changed:
         change = ObservationChange.CHANGED
+
+    else:
+        change = ObservationChange.NO_CHANGE
 
     return ObservationComparison(
         change=change,
