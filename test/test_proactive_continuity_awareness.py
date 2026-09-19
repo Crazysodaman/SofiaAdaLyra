@@ -1,12 +1,10 @@
-﻿from pathlib import Path
+﻿import json
+from pathlib import Path
 
 import pytest
 
 from sofia.application import SofiaApplication
-from sofia.config.model import (
-    ProviderConfiguration,
-    SofiaConfiguration,
-)
+from sofia.config import ProviderConfiguration, SofiaConfiguration
 from sofia.continuity.model import ContinuityEventKind
 
 
@@ -48,6 +46,7 @@ AVATAR_PATH = (
 def create_configuration(
     personality_path: Path,
     state_path: Path,
+    filesystem_root: Path | None = None,
 ) -> SofiaConfiguration:
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
@@ -57,50 +56,52 @@ def create_configuration(
         avatar_path=AVATAR_PATH,
         state_path=state_path,
         provider=ProviderConfiguration(
-            provider="test",
+            name="test",
             model="test-model",
         ),
-        filesystem_root=PROJECT_ROOT,
+        filesystem_root=filesystem_root,
     )
-
-
-def create_personality(
-    tmp_path: Path,
-) -> Path:
-    path = tmp_path / "personality.json"
-
-    path.write_text(
-        """
-{
-    "name": "Sofía",
-    "traits": [
-        "rigorous",
-        "curious",
-        "direct"
-    ],
-    "communication_style": "Clear, direct, and analytical."
-}
-""".strip(),
-        encoding="utf-8",
-    )
-
-    return path
 
 
 def create_application(
     tmp_path: Path,
+    filesystem_root: Path | None = None,
 ) -> SofiaApplication:
-    return SofiaApplication(
-        create_configuration(
-            create_personality(tmp_path),
-            tmp_path / "sofia.db",
-        )
+    personality_path = tmp_path / "personality.json"
+    personality_path.write_text(
+        json.dumps(
+            {
+                "name": "Sofía",
+                "traits": [
+                    "rigorous",
+                    "analytical",
+                    "curious",
+                    "direct",
+                    "blunt",
+                    "playful",
+                ],
+                "communication_style": (
+                    "Sofía communicates clearly, directly, rigorously, "
+                    "and does not guess when information is missing."
+                ),
+                "embodiment_guidance": (
+                    "Embodied expression should remain natural and varied."
+                ),
+            }
+        ),
+        encoding="utf-8",
     )
 
+    configuration = create_configuration(
+        personality_path=personality_path,
+        state_path=tmp_path / "state.sqlite3",
+        filesystem_root=filesystem_root,
+    )
 
-def test_first_runtime_has_no_pending_continuity_awareness(
-    tmp_path: Path,
-):
+    return SofiaApplication(configuration)
+
+
+def test_first_boot_has_no_pending_continuity_awareness(tmp_path):
     application = create_application(tmp_path)
 
     application.runtime.start()
@@ -110,59 +111,68 @@ def test_first_runtime_has_no_pending_continuity_awareness(
     application.runtime.shutdown()
 
 
-def test_restart_creates_pending_runtime_awareness(
-    tmp_path: Path,
+def test_restart_creates_pending_runtime_resumed_awareness(tmp_path):
+    application = create_application(tmp_path)
+
+    application.runtime.start()
+    application.runtime.shutdown()
+
+    application.runtime.start()
+
+    pending_event = application.runtime.pending_continuity_event
+
+    assert pending_event is not None
+    assert pending_event.kind is ContinuityEventKind.RUNTIME_RESUMED
+    assert pending_event.restart_observed is True
+    assert pending_event.runtime_continuity.previous_runtime_id is not None
+    assert (
+        pending_event.runtime_continuity.previous_started_at
+        is not None
+    )
+
+    application.runtime.shutdown()
+
+
+def test_application_start_proactively_delivers_runtime_awareness(
+    tmp_path,
+    monkeypatch,
 ):
     application = create_application(tmp_path)
 
     application.runtime.start()
-    first_runtime_id = application.runtime.runtime_id
-
     application.runtime.shutdown()
 
-    application.runtime.start()
+    responses = []
 
-    assert application.runtime.runtime_id != first_runtime_id
+    def fake_deliver_pending_awareness():
+        response = type(
+            "FakeResponse",
+            (),
+            {
+                "content": "A previous runtime was observed.",
+            },
+        )()
+        responses.append(response)
+        return response
 
-    event = application.runtime.pending_continuity_event
-
-    assert event is not None
-    assert event.kind is ContinuityEventKind.RUNTIME_RESUMED
-    assert event.restart_observed is True
-    assert event.runtime_continuity.previous_runtime_id == first_runtime_id
-
-    application.runtime.shutdown()
-
-
-def test_application_start_delivers_pending_runtime_awareness(
-    tmp_path: Path,
-):
-    configuration = create_configuration(
-        create_personality(tmp_path),
-        tmp_path / "sofia.db",
+    monkeypatch.setattr(
+        application.conversation,
+        "deliver_pending_awareness",
+        fake_deliver_pending_awareness,
     )
 
-    first_application = SofiaApplication(configuration)
-    first_application.start()
-    first_application.shutdown()
+    response = application.start()
 
-    second_application = SofiaApplication(configuration)
-    second_application.start()
-
-    messages = second_application.conversation.messages()
-
-    assert len(messages) == 1
-    assert messages[0].role.value == "assistant"
-    assert messages[0].content == "Test cognitive response."
-
-    assert second_application.runtime.pending_continuity_event is None
-
-    second_application.shutdown()
+    assert response is not None
+    assert response.content == (
+        "A previous runtime was observed."
+    )
+    assert len(responses) == 1
 
 
 def test_failed_awareness_delivery_preserves_pending_event(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+    monkeypatch,
 ):
     application = create_application(tmp_path)
 
@@ -173,62 +183,234 @@ def test_failed_awareness_delivery_preserves_pending_event(
     pending_event = application.runtime.pending_continuity_event
 
     assert pending_event is not None
-    assert pending_event.kind is ContinuityEventKind.RUNTIME_RESUMED
 
     application.conversation.open()
     application.conversation.start()
 
-    def fail_response(*args, **kwargs):
-        raise RuntimeError("simulated cognitive delivery failure")
+    def fail_delivery():
+        raise RuntimeError("synthetic awareness delivery failure")
 
     monkeypatch.setattr(
         application.runtime,
         "respond",
-        fail_response,
+        fail_delivery,
     )
 
     with pytest.raises(
         RuntimeError,
-        match="simulated cognitive delivery failure",
+        match="synthetic awareness delivery failure",
     ):
         application.conversation.deliver_pending_awareness()
 
-    assert application.runtime.pending_continuity_event is pending_event
+    assert (
+        application.runtime.pending_continuity_event
+        is pending_event
+    )
+
+
+def test_awareness_is_consumed_exactly_once(tmp_path, monkeypatch):
+    application = create_application(tmp_path)
+
+    application.runtime.start()
+    application.runtime.shutdown()
+    application.runtime.start()
+
+    assert application.runtime.pending_continuity_event is not None
+
+    application.conversation.open()
+    application.conversation.start()
+
+    monkeypatch.setattr(
+        application.runtime,
+        "respond",
+        lambda request: type(
+            "FakeResponse",
+            (),
+            {
+                "content": "Continuity awareness delivered.",
+            },
+        )(),
+    )
+
+    first_response = (
+        application.conversation.deliver_pending_awareness()
+    )
+
+    assert first_response is not None
+    assert first_response.content == (
+        "Continuity awareness delivered."
+    )
+    assert application.runtime.pending_continuity_event is None
+
+    second_response = (
+        application.conversation.deliver_pending_awareness()
+    )
+
+    assert second_response is None
+
+
+def test_workspace_changes_create_one_aggregated_pending_awareness_event(
+    tmp_path,
+):
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    modified_path = workspace_root / "modified.py"
+    removed_path = workspace_root / "removed.py"
+
+    modified_path.write_text(
+        "print('before')\n",
+        encoding="utf-8",
+    )
+    removed_path.write_text(
+        "print('removed')\n",
+        encoding="utf-8",
+    )
+
+    application = create_application(
+        tmp_path,
+        filesystem_root=workspace_root,
+    )
+
+    application.runtime.start()
+    application.runtime.shutdown()
+
+    modified_path.write_text(
+        "print('after')\n",
+        encoding="utf-8",
+    )
+    removed_path.unlink()
+
+    added_path = workspace_root / "added.py"
+    added_path.write_text(
+        "print('added')\n",
+        encoding="utf-8",
+    )
+
+    application.runtime.start()
+
+    pending_event = application.runtime.pending_continuity_event
+
+    assert pending_event is not None
+    assert (
+        pending_event.kind
+        is ContinuityEventKind.CONTINUITY_AND_WORKSPACE_CHANGED
+    )
+    assert pending_event.restart_observed is True
+    assert pending_event.workspace_change_count == 3
+
+    changes = pending_event.workspace_changes
+
+    assert changes is not None
+    assert len(changes.modified) == 1
+    assert len(changes.removed) == 1
+    assert len(changes.new) == 1
+
+    assert changes.modified[0].path == modified_path.resolve()
+    assert changes.removed[0].path == removed_path.resolve()
+    assert changes.new[0].path == added_path.resolve()
 
     application.runtime.shutdown()
 
 
-def test_awareness_consumption_is_exactly_once(
-    tmp_path: Path,
+def test_workspace_changes_are_delivered_as_one_awareness_response(
+    tmp_path,
+    monkeypatch,
 ):
-    configuration = create_configuration(
-        create_personality(tmp_path),
-        tmp_path / "sofia.db",
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    modified_path = workspace_root / "modified.py"
+    removed_path = workspace_root / "removed.py"
+
+    modified_path.write_text(
+        "print('before')\n",
+        encoding="utf-8",
+    )
+    removed_path.write_text(
+        "print('removed')\n",
+        encoding="utf-8",
     )
 
-    first_application = SofiaApplication(configuration)
-    first_application.start()
-    first_application.shutdown()
-
-    second_application = SofiaApplication(configuration)
-    second_application.start()
-
-    assert second_application.runtime.pending_continuity_event is None
-
-    messages_after_start = second_application.conversation.messages()
-
-    assert len(messages_after_start) == 1
-    assert messages_after_start[0].role.value == "assistant"
-
-    result = second_application.conversation.deliver_pending_awareness()
-
-    assert result is None
-
-    messages_after_second_delivery = (
-        second_application.conversation.messages()
+    application = create_application(
+        tmp_path,
+        filesystem_root=workspace_root,
     )
 
-    assert len(messages_after_second_delivery) == 1
-    assert messages_after_second_delivery == messages_after_start
+    application.runtime.start()
+    application.runtime.shutdown()
 
-    second_application.shutdown()
+    modified_path.write_text(
+        "print('after')\n",
+        encoding="utf-8",
+    )
+    removed_path.unlink()
+
+    added_path = workspace_root / "added.py"
+    added_path.write_text(
+        "print('added')\n",
+        encoding="utf-8",
+    )
+
+    application.runtime.start()
+
+    pending_event = application.runtime.pending_continuity_event
+
+    assert pending_event is not None
+    assert (
+        pending_event.kind
+        is ContinuityEventKind.CONTINUITY_AND_WORKSPACE_CHANGED
+    )
+    assert pending_event.workspace_change_count == 3
+
+    application.conversation.open()
+    application.conversation.start()
+
+    captured_requests = []
+
+    def fake_respond(request):
+        captured_requests.append(request)
+
+        return type(
+            "FakeResponse",
+            (),
+            {
+                "content": "Workspace awareness delivered.",
+            },
+        )()
+
+    monkeypatch.setattr(
+        application.runtime,
+        "respond",
+        fake_respond,
+    )
+
+    response = application.conversation.deliver_pending_awareness()
+
+    assert response is not None
+    assert response.content == "Workspace awareness delivered."
+
+    assert len(captured_requests) == 1
+
+    request = captured_requests[0]
+
+    assert len(request.messages) == 1
+    assert request.messages[0].role.value == "system"
+
+    instruction = request.messages[0].content
+
+    assert pending_event.kind.value in instruction
+    assert "workspace changes" in instruction
+    assert "3" in instruction
+
+    assert application.runtime.pending_continuity_event is None
+
+    messages = application.conversation.messages()
+
+    assert len(messages) == 1
+    assert messages[0].role.value == "assistant"
+    assert messages[0].content == (
+        "Workspace awareness delivered."
+    )
+
+    application.runtime.shutdown()
