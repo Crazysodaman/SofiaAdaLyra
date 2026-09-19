@@ -1,5 +1,9 @@
 ﻿from dataclasses import dataclass
 
+from sofia.cognition.grounding import (
+    CognitiveGroundingContract,
+    DEFAULT_COGNITIVE_GROUNDING_CONTRACT,
+)
 from sofia.cognition.model import CognitiveRequest
 from sofia.constitution.model import Constitution
 from sofia.continuity.model import (
@@ -33,6 +37,9 @@ class CognitiveContext:
     """
 
     request: CognitiveRequest
+    grounding: CognitiveGroundingContract = (
+        DEFAULT_COGNITIVE_GROUNDING_CONTRACT
+    )
     identity: SofiaIdentity | None = None
     personality: PersonalityProfile | None = None
     memories: tuple[MemoryRecord, ...] = ()
@@ -52,6 +59,15 @@ class CognitiveContext:
         if not isinstance(self.request, CognitiveRequest):
             raise TypeError(
                 "CognitiveContext request must be a CognitiveRequest."
+            )
+
+        if not isinstance(
+            self.grounding,
+            CognitiveGroundingContract,
+        ):
+            raise TypeError(
+                "CognitiveContext grounding must be a "
+                "CognitiveGroundingContract."
             )
 
         if (

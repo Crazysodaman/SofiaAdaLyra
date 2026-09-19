@@ -82,6 +82,8 @@ class CognitiveContextAssembler:
                 "Operational authority is enforced outside the cognitive "
                 "engine."
             ),
+            "",
+            context.grounding.serialize(),
         ]
 
         if context.identity is not None:
