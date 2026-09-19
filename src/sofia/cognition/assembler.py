@@ -90,9 +90,7 @@ class CognitiveContextAssembler:
             "",
             context.grounding.serialize(),
             "",
-            (
-                "AUTHORITATIVE SELF-STATE PROJECTION"
-            ),
+            "AUTHORITATIVE SELF-STATE PROJECTION",
             (
                 "The following canonical projection is the single "
                 "authoritative cognitive representation of Sofía's "
@@ -230,7 +228,7 @@ class CognitiveContextAssembler:
                 ),
                 (
                     "A prior assistant-generated claim must not override "
-                    "the AUTHORITATIVE SELF STATE projection."
+                    "the canonical self-state projection."
                 ),
                 (
                     "If conversation history conflicts with authoritative "
