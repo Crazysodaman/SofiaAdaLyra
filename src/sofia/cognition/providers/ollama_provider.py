@@ -22,8 +22,8 @@ class OllamaProvider(LLMProvider):
     """
     LLM provider adapter for Ollama.
 
-    Ollama-specific tool-call structures are translated into the
-    provider-neutral cognitive model at this boundary.
+    Ollama-specific tool-call and generation-option structures are
+    translated at this provider boundary.
     """
 
     def __init__(
@@ -48,18 +48,16 @@ class OllamaProvider(LLMProvider):
             for tool in request.tools
         ]
 
+        kwargs = self._build_chat_kwargs(
+            request=request,
+            messages=messages,
+            tools=tools,
+        )
+
         try:
-            if tools:
-                response = self.client.chat(
-                    model=self.configuration.model,
-                    messages=messages,
-                    tools=tools,
-                )
-            else:
-                response = self.client.chat(
-                    model=self.configuration.model,
-                    messages=messages,
-                )
+            response = self.client.chat(
+                **kwargs
+            )
 
         except ResponseError as exc:
             raise LLMProviderError(
@@ -72,6 +70,45 @@ class OllamaProvider(LLMProvider):
             ) from exc
 
         return self._response_from_ollama(response)
+
+    def _build_chat_kwargs(
+        self,
+        *,
+        request: CognitiveRequest,
+        messages: list[dict],
+        tools: list[dict],
+    ) -> dict:
+        kwargs = {
+            "model": self.configuration.model,
+            "messages": messages,
+        }
+
+        if tools:
+            kwargs["tools"] = tools
+
+        options = self._build_generation_options()
+
+        if options:
+            kwargs["options"] = options
+
+        if self.configuration.thinking is not None:
+            kwargs["think"] = self.configuration.thinking
+
+        return kwargs
+
+    def _build_generation_options(self) -> dict:
+        options: dict[str, int | float] = {}
+
+        if self.configuration.temperature is not None:
+            options["temperature"] = self.configuration.temperature
+
+        if self.configuration.seed is not None:
+            options["seed"] = self.configuration.seed
+
+        if self.configuration.context_size is not None:
+            options["num_ctx"] = self.configuration.context_size
+
+        return options
 
     @staticmethod
     def _message_to_ollama(

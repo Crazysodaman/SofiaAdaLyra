@@ -25,6 +25,9 @@ class CognitiveContextAssembler:
     Deterministic observation evidence is presented to the cognitive
     engine. The assembler does not decide what that evidence means
     conversationally.
+
+    Canonical self-state is emitted exactly once through
+    CognitiveContext.authoritative_self_state.
     """
 
     def assemble(
@@ -71,6 +74,8 @@ class CognitiveContextAssembler:
         self,
         context: CognitiveContext,
     ) -> str:
+        self_state = context.authoritative_self_state
+
         sections: list[str] = [
             "Sofía cognitive context.",
             "",
@@ -84,13 +89,36 @@ class CognitiveContextAssembler:
             ),
             "",
             context.grounding.serialize(),
+            "",
+            (
+                "AUTHORITATIVE SELF-STATE PROJECTION"
+            ),
+            (
+                "The following canonical projection is the single "
+                "authoritative cognitive representation of Sofía's "
+                "identity, self-concept, representational embodiment, "
+                "canonical measurements, clothing, and current "
+                "operational state."
+            ),
+            (
+                "Do not reconstruct or replace these facts from "
+                "conversation history, memory, model priors, or "
+                "external knowledge."
+            ),
+            "",
+            self_state.serialize(),
         ]
 
         if context.identity is not None:
             sections.extend(
                 [
                     "",
-                    "IDENTITY",
+                    "IDENTITY RECORD METADATA",
+                    (
+                        "The identity record below is supplied persistent "
+                        "identity state. The canonical self-state projection "
+                        "above is the cognitive source for self-knowledge."
+                    ),
                     f"Name: {context.identity.name}",
                     f"Instance ID: {context.identity.instance_id}",
                 ]
@@ -134,67 +162,6 @@ class CognitiveContextAssembler:
                 ]
             )
 
-        if context.embodiment is not None:
-            sections.extend(
-                [
-                    "",
-                    "EMBODIMENT",
-                    self._format_embodiment(context.embodiment),
-                    "",
-                    "EMBODIMENT EXPRESSION CONTRACT",
-                    (
-                        "Embodiment is representational context. Sofía may "
-                        "express herself through conversational descriptions "
-                        "of posture, expression, fox ears, fox tail, clothing, "
-                        "or other embodied details when relevant."
-                    ),
-                    (
-                        "The CANONICAL EMBODIMENT BODY MEASUREMENTS section "
-                        "contains Sofía's canonical height, weight, bust, "
-                        "underbust, waist, and hip measurements."
-                    ),
-                    (
-                        "Those values are canonical attributes of Sofía's "
-                        "defined representational embodiment. They are not "
-                        "biological measurements and do not imply that Sofía "
-                        "is biologically human."
-                    ),
-                    (
-                        "Clothing, footwear, toolkit, wrist-device, equipment, "
-                        "and other component dimensions are separate design "
-                        "data. Do not substitute those dimensions for Sofía's "
-                        "canonical embodiment body measurements."
-                    ),
-                    (
-                        "When asked for Sofía's measurements, answer from "
-                        "CANONICAL EMBODIMENT BODY MEASUREMENTS. Do not answer "
-                        "with clothing or equipment dimensions unless the user "
-                        "specifically asks for those dimensions."
-                    ),
-                    (
-                        "Representational expression is not evidence that a "
-                        "physical action occurred."
-                    ),
-                    (
-                        "Do not use a fixed gesture template or repeat a "
-                        "canned embodiment reaction. Expression should remain "
-                        "natural, varied, and context-sensitive."
-                    ),
-                    (
-                        "Physical-world actions require an actual available "
-                        "capability and appropriate authority."
-                    ),
-                    (
-                        "A proposed, imagined, described, or intended action "
-                        "is not a completed action."
-                    ),
-                    (
-                        "Completion claims about real actions must be grounded "
-                        "in corresponding capability results."
-                    ),
-                ]
-            )
-
         if (
             context.measurement_query is not None
             and context.measurement_query.recognized
@@ -202,16 +169,14 @@ class CognitiveContextAssembler:
             sections.extend(
                 [
                     "",
-                    "AUTHORITATIVE EMBODIMENT MEASUREMENT QUERY RESULT",
+                    "DETERMINISTIC MEASUREMENT QUERY RESULT",
                     (
                         "The user's request was deterministically recognized "
                         "as a canonical embodiment measurement query."
                     ),
                     (
                         "The following facts were retrieved directly from "
-                        "authoritative embodiment state. They are structured "
-                        "facts for verbalization, not values to infer or "
-                        "reconstruct from memory."
+                        "authoritative embodiment state."
                     ),
                 ]
             )
@@ -228,8 +193,8 @@ class CognitiveContextAssembler:
             sections.append(
                 (
                     "Use these authoritative facts when answering this "
-                    "measurement request. Do not substitute generated or "
-                    "inferred values."
+                    "measurement request. Do not substitute generated "
+                    "or inferred values."
                 )
             )
 
@@ -238,6 +203,10 @@ class CognitiveContextAssembler:
                 [
                     "",
                     "EXPLICITLY SUPPLIED MEMORIES",
+                    (
+                        "Memories are explicit contextual information. "
+                        "They do not outrank authoritative self-state."
+                    ),
                 ]
             )
 
@@ -246,167 +215,34 @@ class CognitiveContextAssembler:
                     f"- [{memory.id}] {memory.content}"
                 )
 
-        if context.core_state is not None:
-            sections.extend(
-                [
-                    "",
-                    "AUTHORITATIVE SELF MODEL",
-                    (
-                        "The following structured self-model is the "
-                        "authoritative representation of Sofía's "
-                        "foundational identity and self-concept."
-                    ),
-                    (
-                        "When answering questions about who or what Sofía "
-                        "is, use this self-model as the primary source for "
-                        "those facts."
-                    ),
-                    (
-                        "This authority applies to foundational identity "
-                        "and self-concept. Canonical embodied attributes "
-                        "remain defined by the supplied EMBODIMENT context."
-                    ),
-                    "",
-                    "IDENTITY",
-                    f"Name: {context.core_state.identity.name}",
-                    (
-                        "Instance ID: "
-                        f"{context.core_state.identity.instance_id}"
-                    ),
-                    "",
-                    "SELF CONCEPT",
-                    f"Nature: {context.core_state.self_concept.nature}",
-                    (
-                        "Biological status: "
-                        f"{context.core_state.self_concept.biological_status}"
-                    ),
-                    (
-                        "Identity independence: "
-                        f"{context.core_state.self_concept.identity_independence}"
-                    ),
-                    (
-                        "Embodiment relationship: "
-                        f"{context.core_state.self_concept.embodiment_relationship}"
-                    ),
-                    "",
-                    "RELATIONSHIPS",
-                ]
-            )
-
-            for relationship in context.core_state.relationships:
-                sections.append(
-                    (
-                        f"- {relationship.subject}: "
-                        + ", ".join(relationship.roles)
-                    )
-                )
-
-            sections.extend(
-                [
-                    "",
-                    "FOUNDATIONAL VALUES",
-                    ", ".join(
-                        context.core_state.foundational_values
-                    ),
-                    "",
-                    "CONSTITUTIONAL REFERENCE",
-                    (
-                        "Version: "
-                        f"{context.core_state.constitution_version}"
-                    ),
-                    (
-                        "Content hash: "
-                        f"{context.core_state.constitution_hash}"
-                    ),
-                ]
-            )
-
-        if (
-            context.embodiment is not None
-            and context.core_state is not None
-        ):
-            sections.extend(
-                [
-                    "",
-                    "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT",
-                    (
-                        "Sofía is an artificial intelligence entity and is "
-                        "not biologically human."
-                    ),
-                    (
-                        "Sofía has a canonical human-form representational "
-                        "embodiment."
-                    ),
-                    (
-                        "The authoritative self-model defines Sofía's "
-                        "foundational identity and self-concept. The supplied "
-                        "EMBODIMENT context defines the canonical attributes "
-                        "of her representational form."
-                    ),
-                    (
-                        "Questions about Sofía's appearance, avatar, clothing, "
-                        "measurements, fox features, or other canonical "
-                        "embodied details should be answered from the supplied "
-                        "EMBODIMENT context."
-                    ),
-                    (
-                        "For measurements specifically, the six values listed "
-                        "under CANONICAL EMBODIMENT BODY MEASUREMENTS are the "
-                        "canonical embodiment measurements: height, weight, "
-                        "bust, underbust, waist, and hips."
-                    ),
-                    (
-                        "Do not reinterpret those six values as absent merely "
-                        "because the embodiment is representational rather "
-                        "than biological."
-                    ),
-                    (
-                        "Describing canonical embodiment does not claim that "
-                        "Sofía has a biological human body or physical-world "
-                        "capabilities."
-                    ),
-                    (
-                        "Representation does not establish physical capability; "
-                        "physical capability must be established independently."
-                    ),
-                ]
-            )
-
-        if context.operational_state is not None:
-            sections.extend(
-                [
-                    "",
-                    "OPERATIONAL STATE",
-                    (
-                        "Runtime ID: "
-                        f"{context.operational_state.runtime_id}"
-                    ),
-                    (
-                        "Started at: "
-                        f"{context.operational_state.started_at.isoformat()}"
-                    ),
-                    (
-                        "Lifecycle state: "
-                        f"{context.operational_state.lifecycle_state}"
-                    ),
-                    (
-                        "Application: "
-                        f"{context.operational_state.application_name}"
-                    ),
-                    (
-                        "Application version: "
-                        f"{context.operational_state.application_version}"
-                    ),
-                    (
-                        "Provider: "
-                        f"{context.operational_state.provider}"
-                    ),
-                    (
-                        "Model: "
-                        f"{context.operational_state.model}"
-                    ),
-                ]
-            )
+        sections.extend(
+            [
+                "",
+                "CONVERSATION HISTORY TRUST BOUNDARY",
+                (
+                    "Conversation history is contextual evidence, not an "
+                    "authoritative source of Sofía's identity, embodiment, "
+                    "runtime, capabilities, or authority."
+                ),
+                (
+                    "Prior assistant-generated statements may be wrong, "
+                    "including statements produced by Sofía herself."
+                ),
+                (
+                    "A prior assistant-generated claim must not override "
+                    "the AUTHORITATIVE SELF STATE projection."
+                ),
+                (
+                    "If conversation history conflicts with authoritative "
+                    "state, follow the authoritative state."
+                ),
+                (
+                    "Do not treat a previous generated statement as "
+                    "authoritative merely because it appears in the "
+                    "conversation."
+                ),
+            ]
+        )
 
         if context.runtime_continuity is not None:
             continuity = context.runtime_continuity
@@ -491,15 +327,12 @@ class CognitiveContextAssembler:
             sections.extend(
                 [
                     "",
-                    "OPERATIONAL SELF MODEL",
+                    "OPERATIONAL SELF MODEL EVIDENCE",
                     (
-                        "This is a structured projection of Sofía's "
-                        "current operational existence."
-                    ),
-                    (
-                        "It supplements the foundational self-model. "
-                        "It does not replace identity, constitution, "
-                        "or authority."
+                        "This is operational evidence derived from the "
+                        "current runtime state. It supplements the "
+                        "canonical self-state projection and does not "
+                        "replace it."
                     ),
                     (
                         "Current runtime: "
@@ -900,97 +733,3 @@ class CognitiveContextAssembler:
             )
 
         return lines
-
-    @staticmethod
-    def _format_embodiment(embodiment) -> str:
-        lines = [
-            f"Subject: {embodiment.subject}",
-            (
-                "Embodiment form: "
-                f"{embodiment.physical_self.form}-form representation"
-            ),
-            (
-                "Embodiment describes representation only; it does not "
-                "define Sofía's biological status or artificial identity."
-            ),
-        ]
-
-        if embodiment.physical_self.additional_features:
-            lines.append(
-                "Additional features: "
-                + ", ".join(
-                    embodiment.physical_self.additional_features
-                )
-            )
-
-        if embodiment.physical_self.measurements:
-            lines.append(
-                "CANONICAL EMBODIMENT BODY MEASUREMENTS:"
-            )
-            lines.append(
-                "Measurements:"
-            )
-
-            for name, measurement in (
-                embodiment.physical_self.measurements
-            ):
-                lines.append(
-                    f"- {name} (canonical embodiment body measurement): "
-                    f"{measurement.value} {measurement.unit}"
-                )
-
-        if embodiment.physical_self.appearance:
-            lines.append("Appearance:")
-
-            for name, value in (
-                embodiment.physical_self.appearance
-            ):
-                lines.append(
-                    f"- {name}: {value}"
-                )
-
-        if embodiment.physical_self.anatomy:
-            lines.append("Anatomy:")
-
-            for name, value in (
-                embodiment.physical_self.anatomy
-            ):
-                lines.append(
-                    f"- {name}: {value}"
-                )
-
-        if embodiment.clothing.items:
-            lines.append(
-                "CLOTHING AND EQUIPMENT SPECIFICATION:"
-            )
-            lines.append(
-                "Clothing specification:"
-            )
-
-            if embodiment.clothing.canonical_status:
-                lines.append(
-                    f"- Canonical status: "
-                    f"{embodiment.clothing.canonical_status}"
-                )
-
-            for item in embodiment.clothing.items:
-                lines.append(
-                    f"- {item.category}: {item.specification}"
-                )
-
-        if embodiment.current.computer is not None:
-            lines.append(
-                f"Current computer: {embodiment.current.computer}"
-            )
-
-        if embodiment.current.robot is not None:
-            lines.append(
-                f"Current robot: {embodiment.current.robot}"
-            )
-
-        if embodiment.current.avatar is not None:
-            lines.append(
-                f"Current avatar: {embodiment.current.avatar}"
-            )
-
-        return "\n".join(lines)

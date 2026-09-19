@@ -15,7 +15,7 @@ class AuthoritativeSelfState:
 
     This is a projection, not a new persistent source of truth.
 
-    Identity and self-concept come from SofiaCoreState.
+    Identity and foundational self-model facts come from SofiaCoreState.
     Embodied facts come from Embodiment.
     Runtime facts come from OperationalState.
 
@@ -76,6 +76,34 @@ class AuthoritativeSelfState:
         return self.core_state.self_concept
 
     @property
+    def relationships(self):
+        if self.core_state is None:
+            return ()
+
+        return self.core_state.relationships
+
+    @property
+    def foundational_values(self) -> tuple[str, ...]:
+        if self.core_state is None:
+            return ()
+
+        return self.core_state.foundational_values
+
+    @property
+    def constitution_version(self) -> str | None:
+        if self.core_state is None:
+            return None
+
+        return self.core_state.constitution_version
+
+    @property
+    def constitution_hash(self) -> str | None:
+        if self.core_state is None:
+            return None
+
+        return self.core_state.constitution_hash
+
+    @property
     def embodiment_subject(self) -> str | None:
         if self.embodiment is None:
             return None
@@ -133,11 +161,13 @@ class AuthoritativeSelfState:
 
     def serialize(self) -> str:
         """
-        Serialize the authoritative projection into deterministic,
-        provider-neutral cognitive context.
+        Serialize the canonical authoritative self-state.
 
-        The serializer deliberately distinguishes authoritative facts
-        from unknown facts. It does not infer missing values.
+        This is the single provider-neutral projection of self-state
+        intended for the cognitive engine.
+
+        No inference is performed. Missing information is represented
+        explicitly as UNKNOWN.
         """
 
         lines = [
@@ -166,6 +196,9 @@ class AuthoritativeSelfState:
                     "",
                     "IDENTITY: UNKNOWN",
                     "SELF CONCEPT: UNKNOWN",
+                    "RELATIONSHIPS: UNKNOWN",
+                    "FOUNDATIONAL VALUES: UNKNOWN",
+                    "CONSTITUTIONAL REFERENCE: UNKNOWN",
                 ]
             )
         else:
@@ -195,6 +228,50 @@ class AuthoritativeSelfState:
                     (
                         "Embodiment relationship: "
                         f"{self.core_state.self_concept.embodiment_relationship}"
+                    ),
+                    "",
+                    "RELATIONSHIPS",
+                ]
+            )
+
+            if self.core_state.relationships:
+                for relationship in self.core_state.relationships:
+                    lines.append(
+                        (
+                            f"- {relationship.subject}: "
+                            + ", ".join(relationship.roles)
+                        )
+                    )
+            else:
+                lines.append("- None recorded")
+
+            lines.extend(
+                [
+                    "",
+                    "FOUNDATIONAL VALUES",
+                ]
+            )
+
+            if self.core_state.foundational_values:
+                lines.append(
+                    ", ".join(
+                        self.core_state.foundational_values
+                    )
+                )
+            else:
+                lines.append("UNKNOWN")
+
+            lines.extend(
+                [
+                    "",
+                    "CONSTITUTIONAL REFERENCE",
+                    (
+                        "Version: "
+                        f"{self.core_state.constitution_version}"
+                    ),
+                    (
+                        "Content hash: "
+                        f"{self.core_state.constitution_hash}"
                     ),
                 ]
             )
@@ -241,9 +318,7 @@ class AuthoritativeSelfState:
                     "Additional features: none recorded"
                 )
 
-            lines.append(
-                "CANONICAL MEASUREMENTS"
-            )
+            lines.append("CANONICAL MEASUREMENTS")
 
             if physical.measurements:
                 for name, measurement in physical.measurements:
@@ -252,13 +327,9 @@ class AuthoritativeSelfState:
                         f"{measurement.value} {measurement.unit}"
                     )
             else:
-                lines.append(
-                    "- UNKNOWN"
-                )
+                lines.append("- UNKNOWN")
 
-            lines.append(
-                "CANONICAL APPEARANCE"
-            )
+            lines.append("CANONICAL APPEARANCE")
 
             if physical.appearance:
                 for name, value in physical.appearance:
@@ -266,13 +337,9 @@ class AuthoritativeSelfState:
                         f"- {name}: {value}"
                     )
             else:
-                lines.append(
-                    "- UNKNOWN"
-                )
+                lines.append("- UNKNOWN")
 
-            lines.append(
-                "CANONICAL ANATOMY"
-            )
+            lines.append("CANONICAL ANATOMY")
 
             if physical.anatomy:
                 for name, value in physical.anatomy:
@@ -280,13 +347,9 @@ class AuthoritativeSelfState:
                         f"- {name}: {value}"
                     )
             else:
-                lines.append(
-                    "- UNKNOWN"
-                )
+                lines.append("- UNKNOWN")
 
-            lines.append(
-                "CANONICAL CLOTHING"
-            )
+            lines.append("CANONICAL CLOTHING")
 
             if self.embodiment.clothing.canonical_status:
                 lines.append(
@@ -300,9 +363,7 @@ class AuthoritativeSelfState:
                         f"- {item.category}: {item.specification}"
                     )
             else:
-                lines.append(
-                    "- UNKNOWN"
-                )
+                lines.append("- UNKNOWN")
 
         if self.operational_state is None:
             lines.extend(

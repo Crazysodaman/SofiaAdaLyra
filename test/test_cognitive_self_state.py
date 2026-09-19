@@ -102,6 +102,35 @@ def test_projection_preserves_authoritative_identity():
     assert state.identity_name == "Sofía Ada Lyra"
 
 
+def test_projection_preserves_self_concept():
+    state = create_authoritative_self_state(
+        core_state=create_core_state(),
+        embodiment=None,
+        operational_state=None,
+    )
+
+    assert state.self_concept is not None
+    assert (
+        state.self_concept.biological_status
+        == "Sofía is not biologically human."
+    )
+
+
+def test_projection_preserves_foundational_self_model():
+    state = create_authoritative_self_state(
+        core_state=create_core_state(),
+        embodiment=None,
+        operational_state=None,
+    )
+
+    assert state.foundational_values == (
+        "Truth",
+        "Autonomy",
+    )
+    assert state.constitution_version == "1.0"
+    assert state.constitution_hash == "hash"
+
+
 def test_projection_preserves_canonical_measurements():
     state = create_authoritative_self_state(
         core_state=None,
@@ -185,6 +214,8 @@ def test_missing_sources_remain_unknown():
 
     assert "IDENTITY: UNKNOWN" in serialized
     assert "SELF CONCEPT: UNKNOWN" in serialized
+    assert "RELATIONSHIPS: UNKNOWN" in serialized
+    assert "FOUNDATIONAL VALUES: UNKNOWN" in serialized
     assert "EMBODIMENT: UNKNOWN" in serialized
     assert "MEASUREMENTS: UNKNOWN" in serialized
     assert "CLOTHING: UNKNOWN" in serialized
@@ -242,11 +273,15 @@ def test_serialization_contains_representation_boundary():
     serialized = state.serialize()
 
     assert "representational embodiment" in serialized
-    assert "Representational embodiment does not establish biological humanity." in serialized
+    assert (
+        "Representational embodiment does not establish biological humanity."
+        in serialized
+    )
     assert (
         "Representational embodiment does not establish "
         "physical-world capability."
-    ) in serialized
+        in serialized
+    )
 
 
 def test_projection_does_not_infer_missing_operational_state():
