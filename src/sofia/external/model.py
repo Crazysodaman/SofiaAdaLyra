@@ -114,9 +114,6 @@ class ExternalSystem:
 
     This model describes what the system is, not what Sofía is
     authorized to do with it.
-
-    Authentication material, credentials, secrets, tokens, and
-    authorization decisions deliberately do not belong here.
     """
 
     system_id: str
@@ -242,12 +239,56 @@ class ExternalSystemObservation:
 
 
 @dataclass(frozen=True)
+class ExternalSystemAction:
+    """
+    Structured request for one canonical external action.
+
+    The action name is selected by the registered integration
+    capability. Parameters are structured data only and are never
+    interpreted as shell commands, scripts, executables, or arbitrary
+    code.
+    """
+
+    system_id: str
+    action_name: str
+    parameters: Mapping[str, Any]
+
+    def __post_init__(self) -> None:
+        _validate_non_empty_string(
+            self.system_id,
+            "ExternalSystemAction system_id",
+        )
+
+        _validate_non_empty_string(
+            self.action_name,
+            "ExternalSystemAction action_name",
+        )
+
+        if not isinstance(
+            self.parameters,
+            Mapping,
+        ):
+            raise TypeError(
+                "ExternalSystemAction parameters must be a mapping."
+            )
+
+        object.__setattr__(
+            self,
+            "parameters",
+            _freeze_mapping(self.parameters),
+        )
+
+
+@dataclass(frozen=True)
 class ExternalSystemResult:
     """
     Structured result from an external-system operation boundary.
 
     This object represents an outcome. It does not execute anything,
     authorize anything, or contain credentials.
+
+    A SUCCESS result represents successful completion of the external
+    operation and therefore requires evidence and adapter metadata.
     """
 
     system_id: str

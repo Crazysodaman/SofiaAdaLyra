@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 
 from sofia.external.model import (
     ExternalSystem,
+    ExternalSystemAction,
     ExternalSystemObservation,
+    ExternalSystemResult,
 )
 
 
@@ -13,8 +15,7 @@ class ExternalIntegrationAdapter(ABC):
     Integration boundary for one external system.
 
     An adapter knows how to communicate with an external system and
-    convert external responses into Sofía's structured observation
-    model.
+    convert responses into Sofía's structured models.
 
     The adapter does not:
     - grant authority,
@@ -26,7 +27,7 @@ class ExternalIntegrationAdapter(ABC):
     - or mutate external-system identity.
 
     Authentication and credential handling belong to the separate
-    authentication boundary introduced later in Batch 21D.
+    authentication boundary.
     """
 
     @property
@@ -50,8 +51,24 @@ class ExternalIntegrationAdapter(ABC):
         """
         Obtain structured observational evidence from the external
         system.
-
-        Implementations must return an ExternalSystemObservation and
-        must not turn observation into an authorization decision.
         """
         raise NotImplementedError
+
+    def execute_action(
+        self,
+        action: ExternalSystemAction,
+    ) -> ExternalSystemResult:
+        """
+        Execute one registered, structured external action.
+
+        This method is deliberately non-abstract so observation-only
+        adapters remain valid. Action-capable integrations must
+        explicitly override it.
+
+        Implementations must not interpret the action as a shell
+        command, script, executable, or arbitrary code request.
+        """
+        raise NotImplementedError(
+            "This external integration adapter does not support "
+            "external actions."
+        )

@@ -15,12 +15,15 @@ from sofia.external.authentication import (
 )
 from sofia.external.model import (
     ExternalSystem,
+    ExternalSystemAction,
     ExternalSystemObservation,
+    ExternalSystemResult,
 )
 
 
 class ExternalCapabilityKind(str, Enum):
     OBSERVE = "observe"
+    ACTION = "action"
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,7 @@ class ExternalIntegrationCapability:
     kind: ExternalCapabilityKind
     adapter_name: str
     authentication_required: bool = True
+    action_name: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.capability, Capability):
@@ -73,6 +77,34 @@ class ExternalIntegrationCapability:
         ):
             raise TypeError(
                 "authentication_required must be a bool."
+            )
+
+        if self.action_name is not None:
+            if not isinstance(self.action_name, str):
+                raise TypeError(
+                    "action_name must be a string or None."
+                )
+
+            if not self.action_name.strip():
+                raise ValueError(
+                    "action_name must not be empty."
+                )
+
+        if (
+            self.kind is ExternalCapabilityKind.OBSERVE
+            and self.action_name is not None
+        ):
+            raise ValueError(
+                "Observation capabilities must not define an "
+                "action_name."
+            )
+
+        if (
+            self.kind is ExternalCapabilityKind.ACTION
+            and self.action_name is None
+        ):
+            raise ValueError(
+                "Action capabilities must define an action_name."
             )
 
 
@@ -136,7 +168,10 @@ class ExternalCapabilityRegistration:
                     "ExternalAuthentication or None."
                 )
 
-            if authentication.system_id != integration.system.system_id:
+            if (
+                authentication.system_id
+                != integration.system.system_id
+            ):
                 raise ValueError(
                     "authentication system_id must match the "
                     "integration system."
@@ -167,11 +202,9 @@ class ExternalCapabilityRegistration:
         """
         Register the canonical external capability.
 
-        The handler performs only integration-specific preconditions and
-        observation. CapabilitySystem remains responsible for resolving
-        the canonical capability and evaluating authorization.
+        CapabilitySystem remains responsible for resolving the
+        canonical capability and evaluating authorization.
         """
-
         self._capability_system.register(
             self._integration.capability,
             self._execute,
@@ -180,7 +213,7 @@ class ExternalCapabilityRegistration:
     def _execute(
         self,
         request: CapabilityRequest,
-    ) -> ExternalSystemObservation:
+    ) -> ExternalSystemObservation | ExternalSystemResult:
         if request.capability != self._integration.capability:
             raise ValueError(
                 "Capability request does not match the "
@@ -198,29 +231,69 @@ class ExternalCapabilityRegistration:
                 "External integration authentication is not verified."
             )
 
-        if self._integration.kind is not ExternalCapabilityKind.OBSERVE:
-            raise ValueError(
-                "Unsupported external integration capability kind."
+        if self._integration.kind is ExternalCapabilityKind.OBSERVE:
+            observation = self._adapter.observe()
+
+            if not isinstance(
+                observation,
+                ExternalSystemObservation,
+            ):
+                raise TypeError(
+                    "External integration adapter must return an "
+                    "ExternalSystemObservation."
+                )
+
+            if observation.system != self._integration.system:
+                raise ValueError(
+                    "Adapter returned an observation for a different "
+                    "external system."
+                )
+
+            return observation
+
+        if self._integration.kind is ExternalCapabilityKind.ACTION:
+            action_name = self._integration.action_name
+
+            if action_name is None:
+                raise ValueError(
+                    "Action capability is missing its action_name."
+                )
+
+            action = ExternalSystemAction(
+                system_id=self._integration.system.system_id,
+                action_name=action_name,
+                parameters=request.parameters,
             )
 
-        observation = self._adapter.observe()
+            result = self._adapter.execute_action(action)
 
-        if not isinstance(
-            observation,
-            ExternalSystemObservation,
-        ):
-            raise TypeError(
-                "External integration adapter must return an "
-                "ExternalSystemObservation."
-            )
+            if not isinstance(
+                result,
+                ExternalSystemResult,
+            ):
+                raise TypeError(
+                    "External integration adapter must return an "
+                    "ExternalSystemResult."
+                )
 
-        if observation.system != self._integration.system:
-            raise ValueError(
-                "Adapter returned an observation for a different "
-                "external system."
-            )
+            if result.system_id != self._integration.system.system_id:
+                raise ValueError(
+                    "Adapter returned a result for a different "
+                    "external system."
+                )
 
-        return observation
+            if result.adapter_name is not None:
+                if result.adapter_name != self._adapter.name:
+                    raise ValueError(
+                        "External system result adapter_name does not "
+                        "match the registered adapter."
+                    )
+
+            return result
+
+        raise ValueError(
+            "Unsupported external integration capability kind."
+        )
 
 
 def create_external_observation_capability(
@@ -271,4 +344,71 @@ def create_external_observation_capability(
         kind=ExternalCapabilityKind.OBSERVE,
         adapter_name=adapter.name,
         authentication_required=authentication_required,
+    )
+
+
+def create_external_action_capability(
+    system: ExternalSystem,
+    adapter: ExternalIntegrationAdapter,
+    action_name: str,
+    *,
+    capability_name: str | None = None,
+    description: str | None = None,
+    authentication_required: bool = True,
+) -> ExternalIntegrationCapability:
+    """
+    Construct a canonical capability descriptor for one specific
+    structured external action.
+
+    The action name is fixed by the registered capability. Runtime
+    request parameters cannot replace it.
+    """
+
+    if not isinstance(system, ExternalSystem):
+        raise TypeError("system must be an ExternalSystem.")
+
+    if not isinstance(
+        adapter,
+        ExternalIntegrationAdapter,
+    ):
+        raise TypeError(
+            "adapter must be an ExternalIntegrationAdapter."
+        )
+
+    if adapter.system != system:
+        raise ValueError(
+            "adapter system must match the external system."
+        )
+
+    if not isinstance(action_name, str):
+        raise TypeError(
+            "action_name must be a string."
+        )
+
+    if not action_name.strip():
+        raise ValueError(
+            "action_name must not be empty."
+        )
+
+    name = capability_name or (
+        f"external.action.{system.system_id}.{action_name}"
+    )
+
+    text = description or (
+        f"Perform external action '{action_name}' on "
+        f"'{system.name}'."
+    )
+
+    capability = Capability(
+        name=name,
+        description=text,
+    )
+
+    return ExternalIntegrationCapability(
+        capability=capability,
+        system=system,
+        kind=ExternalCapabilityKind.ACTION,
+        adapter_name=adapter.name,
+        authentication_required=authentication_required,
+        action_name=action_name,
     )

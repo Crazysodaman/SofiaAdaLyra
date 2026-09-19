@@ -11,6 +11,7 @@ from sofia.external.capability import (
     ExternalCapabilityKind,
     ExternalCapabilityRegistration,
     ExternalIntegrationCapability,
+    create_external_action_capability,
     create_external_observation_capability,
 )
 from sofia.external.knowledge import (
@@ -21,6 +22,7 @@ from sofia.external.knowledge import (
 from sofia.external.model import (
     ExternalObservationState,
     ExternalSystem,
+    ExternalSystemAction,
     ExternalSystemObservation,
     ExternalSystemResult,
     ExternalSystemResultKind,
@@ -39,6 +41,7 @@ __all__ = [
     "ExternalIntegrationCapability",
     "ExternalObservationState",
     "ExternalSystem",
+    "ExternalSystemAction",
     "ExternalSystemKnowledge",
     "ExternalSystemKnowledgeRecord",
     "ExternalSystemKnowledgeUpdate",
@@ -47,5 +50,6 @@ __all__ = [
     "ExternalSystemResultKind",
     "ExternalSystemState",
     "ExternalSystemType",
+    "create_external_action_capability",
     "create_external_observation_capability",
 ]
