@@ -19,6 +19,7 @@ from sofia.machine.hardware import (
     WindowsHardwareDiscovery,
     create_hardware_discovery,
 )
+from sofia.machine.inventory import MachineInventory
 from sofia.machine.model import (
     HardwareProfile,
     MachineIdentity,
@@ -36,7 +37,10 @@ from sofia.machine.observation import (
     ObservationSource,
     ObservationState,
 )
-from sofia.machine.inventory import MachineInventory
+from sofia.machine.refresh import (
+    MachineInventoryRefresher,
+    MachineRefreshResult,
+)
 
 
 __all__ = [
@@ -49,8 +53,10 @@ __all__ = [
     "MachineDiscoveryResult",
     "MachineIdentity",
     "MachineInventory",
+    "MachineInventoryRefresher",
     "MachineObservation",
     "MachineProfile",
+    "MachineRefreshResult",
     "MachineVerification",
     "NetworkAdapterInfo",
     "ObservationChange",
