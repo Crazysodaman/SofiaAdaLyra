@@ -566,7 +566,13 @@ def test_embodiment_repeated_generation_determinism_probe(
     )
 
     for index, values in enumerate(
-        sorted(unique_measurements),
+        sorted(
+            unique_measurements,
+            key=lambda values: tuple(
+                "" if value is None else value
+                for value in values
+            ),
+        ),
         start=1,
     ):
         print(
