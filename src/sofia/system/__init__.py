@@ -1,6 +1,11 @@
 ﻿from sofia.system.backend import (
     SystemCapabilityBackend,
 )
+from sofia.system.knowledge import (
+    SystemCapabilityKnowledge,
+    SystemCapabilityKnowledgeRecord,
+    SystemCapabilityKnowledgeUpdate,
+)
 from sofia.system.model import (
     HardwareInspection,
     NetworkInspection,
@@ -25,6 +30,9 @@ __all__ = [
     "ServiceInspection",
     "SystemCapability",
     "SystemCapabilityBackend",
+    "SystemCapabilityKnowledge",
+    "SystemCapabilityKnowledgeRecord",
+    "SystemCapabilityKnowledgeUpdate",
     "SystemCapabilityName",
     "SystemCapabilityRequest",
     "SystemCapabilityResult",
