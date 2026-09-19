@@ -175,6 +175,9 @@ def test_failed_awareness_delivery_preserves_pending_event(
     assert pending_event is not None
     assert pending_event.kind is ContinuityEventKind.RUNTIME_RESUMED
 
+    application.conversation.open()
+    application.conversation.start()
+
     def fail_response(*args, **kwargs):
         raise RuntimeError("simulated cognitive delivery failure")
 
@@ -184,7 +187,10 @@ def test_failed_awareness_delivery_preserves_pending_event(
         fail_response,
     )
 
-    with pytest.raises(RuntimeError, match="simulated cognitive delivery failure"):
+    with pytest.raises(
+        RuntimeError,
+        match="simulated cognitive delivery failure",
+    ):
         application.conversation.deliver_pending_awareness()
 
     assert application.runtime.pending_continuity_event is pending_event
