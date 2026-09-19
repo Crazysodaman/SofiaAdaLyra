@@ -6,6 +6,10 @@ from sofia.system.knowledge import (
     SystemCapabilityKnowledgeRecord,
     SystemCapabilityKnowledgeUpdate,
 )
+from sofia.system.machine_knowledge import (
+    SystemCapabilityMachineAssociation,
+    SystemCapabilityMachineKnowledge,
+)
 from sofia.system.model import (
     HardwareInspection,
     NetworkInspection,
@@ -33,6 +37,8 @@ __all__ = [
     "SystemCapabilityKnowledge",
     "SystemCapabilityKnowledgeRecord",
     "SystemCapabilityKnowledgeUpdate",
+    "SystemCapabilityMachineAssociation",
+    "SystemCapabilityMachineKnowledge",
     "SystemCapabilityName",
     "SystemCapabilityRequest",
     "SystemCapabilityResult",
