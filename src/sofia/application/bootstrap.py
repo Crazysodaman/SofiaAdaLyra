@@ -2,6 +2,7 @@
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
+from sofia.cognition.model import CognitiveResponse
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 
 
@@ -48,13 +49,16 @@ class SofiaApplication:
     def start(
         self,
         session_id: str | None = None,
-    ) -> None:
+    ) -> CognitiveResponse | None:
         """
         Start the Sofía application.
 
         When session_id is omitted, a new conversation is created.
         When session_id is provided, that persisted conversation
         is explicitly resumed.
+
+        If runtime continuity contains meaningful pending awareness,
+        deliver it before returning control to the terminal loop.
         """
 
         try:
@@ -63,6 +67,9 @@ class SofiaApplication:
             self._conversation_service.start(
                 session_id=session_id,
             )
+
+            return self._conversation_service.deliver_pending_awareness()
+
         except (
             SofiaRuntimeError,
             RuntimeError,

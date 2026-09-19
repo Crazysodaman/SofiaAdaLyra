@@ -4,6 +4,7 @@ from uuid import uuid4
 from sofia.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
+from sofia.continuity.model import ContinuityEvent
 from sofia.conversation.model import (
     ConversationMessage,
     ConversationRole,
@@ -133,6 +134,97 @@ class ConversationService:
         self._session = session
 
         return self._session
+
+    def deliver_pending_awareness(
+        self,
+    ) -> CognitiveResponse | None:
+        """
+        Deliver one pending continuity-awareness event.
+
+        The awareness instruction is represented as a SYSTEM
+        cognitive message rather than a fake USER message.
+
+        The pending event is consumed only after the generated
+        assistant response has been persisted successfully.
+        """
+
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService must be started before "
+                "delivering awareness."
+            )
+
+        event = self._runtime.pending_continuity_event
+
+        if event is None:
+            return None
+
+        request = CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=self._build_awareness_instruction(
+                        event
+                    ),
+                ),
+            ),
+        )
+
+        response = self._runtime.respond(
+            request,
+            filesystem_results=(),
+        )
+
+        assistant_message = ConversationMessage(
+            id=str(uuid4()),
+            session_id=self._session.id,
+            role=ConversationRole.ASSISTANT,
+            content=response.content,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        self._conversation_store.save(assistant_message)
+
+        self._session = (
+            self._conversation_store.get_session(
+                self._session.id
+            )
+        )
+
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService lost its active session."
+            )
+
+        self._runtime.consume_continuity_awareness()
+
+        return response
+
+    @staticmethod
+    def _build_awareness_instruction(
+        event: ContinuityEvent,
+    ) -> str:
+        return (
+            "Produce a concise user-facing awareness message about "
+            "the pending continuity event below.\n\n"
+            "Report observed operational evidence only. Do not claim "
+            "subjective memory, awareness, experience, intent, "
+            "authorship, cause, or significance that is not contained "
+            "in the evidence.\n\n"
+            "If a previous runtime is present, explain that a previous "
+            "runtime was observed before the current runtime. Do not "
+            "claim to remember being shut down or being offline.\n\n"
+            "If workspace changes are present, summarize related "
+            "changes as one coherent event. Do not produce a separate "
+            "statement for each changed file.\n\n"
+            "The user did not ask a question. This is proactive "
+            "operational awareness, so keep the message concise and "
+            "natural.\n\n"
+            f"Continuity event kind: {event.kind.value}\n"
+            f"Evidence status: {event.evidence_status.value}\n"
+            f"Restart observed: {event.restart_observed}\n"
+            f"Workspace change count: {event.workspace_change_count}"
+        )
 
     def respond(
         self,

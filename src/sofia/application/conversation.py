@@ -30,9 +30,14 @@ class ConversationLoop:
         or sends EOF.
         """
 
-        self._application.start()
+        startup_response = self._application.start()
 
         try:
+            if startup_response is not None:
+                self._output(
+                    f"Sofía > {startup_response.content}"
+                )
+
             while True:
                 try:
                     user_input = self._input("You > ")

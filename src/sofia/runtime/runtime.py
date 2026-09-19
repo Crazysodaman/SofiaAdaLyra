@@ -23,6 +23,11 @@ from sofia.constitution.integrity import (
 )
 from sofia.constitution.model import Constitution
 from sofia.constitution.store import ConstitutionStore
+from sofia.continuity.model import (
+    ContinuityEvent,
+    ContinuityEventKind,
+    create_continuity_event,
+)
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
@@ -196,6 +201,7 @@ class SofiaRuntime:
         self._started_at: datetime | None = None
         self._runtime_continuity: RuntimeContinuity | None = None
         self._workspace_changes: FilesystemChangeEvent | None = None
+        self._pending_continuity_event: ContinuityEvent | None = None
 
     @property
     def state(self) -> RuntimeState:
@@ -305,6 +311,12 @@ class SofiaRuntime:
         return self._workspace_changes
 
     @property
+    def pending_continuity_event(
+        self,
+    ) -> ContinuityEvent | None:
+        return self._pending_continuity_event
+
+    @property
     def filesystem_inspector(self) -> FilesystemInspector:
         return self._filesystem_inspector
 
@@ -404,6 +416,11 @@ class SofiaRuntime:
                 current=current_observation,
             )
 
+            continuity_event = create_continuity_event(
+                runtime_continuity=continuity,
+                workspace_changes=workspace_changes,
+            )
+
             self._constitution = constitution
             self._identity = identity
             self._personality = personality
@@ -413,6 +430,15 @@ class SofiaRuntime:
             self._started_at = started_at
             self._runtime_continuity = continuity
             self._workspace_changes = workspace_changes
+
+            if continuity_event.kind in {
+                ContinuityEventKind.RUNTIME_RESUMED,
+                ContinuityEventKind.WORKSPACE_CHANGED,
+                ContinuityEventKind.CONTINUITY_AND_WORKSPACE_CHANGED,
+            }:
+                self._pending_continuity_event = continuity_event
+            else:
+                self._pending_continuity_event = None
 
             self._filesystem_inspector = FilesystemInspector(
                 root=self._configuration.filesystem_root,
@@ -509,6 +535,11 @@ class SofiaRuntime:
         return self._cognitive_system.respond(
             operation
         )
+
+    def consume_continuity_awareness(self) -> ContinuityEvent | None:
+        event = self._pending_continuity_event
+        self._pending_continuity_event = None
+        return event
 
     def authorize_filesystem(
         self,
@@ -650,6 +681,7 @@ class SofiaRuntime:
         self._started_at = None
         self._runtime_continuity = None
         self._workspace_changes = None
+        self._pending_continuity_event = None
         self._filesystem_authorization = None
         self._filesystem_inspector = FilesystemInspector(
             root=self._configuration.filesystem_root,
