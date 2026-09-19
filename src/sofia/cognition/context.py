@@ -5,6 +5,7 @@ from sofia.cognition.grounding import (
     DEFAULT_COGNITIVE_GROUNDING_CONTRACT,
 )
 from sofia.cognition.model import CognitiveRequest
+from sofia.cognition.self_state import AuthoritativeSelfState
 from sofia.constitution.model import Constitution
 from sofia.continuity.model import (
     ContinuityEvent,
@@ -227,6 +228,23 @@ class CognitiveContext:
                     "CognitiveContext system_capability_machine_id "
                     "requires system_capability_knowledge."
                 )
+
+    @property
+    def authoritative_self_state(self) -> AuthoritativeSelfState:
+        """
+        Return the deterministic authoritative self-state projection for
+        this cognitive operation.
+
+        The projection is derived only from authoritative typed state
+        already present in this context. It does not inspect the
+        filesystem, invoke tools, query the LLM, or infer missing facts.
+        """
+
+        return AuthoritativeSelfState(
+            core_state=self.core_state,
+            embodiment=self.embodiment,
+            operational_state=self.operational_state,
+        )
 
     @property
     def current_system_capability_knowledge(
