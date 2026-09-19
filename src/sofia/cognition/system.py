@@ -28,6 +28,9 @@ class CognitiveSystem:
     Cognitive tool calls are treated as requests for capability
     execution. The cognitive engine never receives executable
     capability objects.
+
+    Tool definitions are filtered by the operation's authority before
+    the cognitive request is sent to the engine.
     """
 
     def __init__(
@@ -136,7 +139,9 @@ class CognitiveSystem:
         tools = ()
 
         if self.tool_dispatcher is not None:
-            tools = self.tool_dispatcher.definitions
+            tools = self.tool_dispatcher.definitions_for_authority(
+                operation.authority
+            )
 
         request = self.context_assembler.assemble(
             operation.context,

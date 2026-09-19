@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Any
 
+from sofia.authority.model import Authority
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import CapabilityResult
 from sofia.capability.proposal import CapabilityProposal
@@ -9,9 +10,9 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.filesystem.model import FilesystemResult
 from sofia.codebase.evidence import format_codebase_evidence
 from sofia.codebase.model import CodebaseInspectionEvidence
+from sofia.filesystem.model import FilesystemResult
 
 
 class CognitiveToolError(Exception):
@@ -74,6 +75,9 @@ class CognitiveToolDispatcher:
 
     This class does not execute capability handlers directly.
     All execution goes through CapabilityGateway.
+
+    Tool definitions exposed to the cognitive engine are filtered
+    against the authority governing the current cognitive operation.
     """
 
     def __init__(
@@ -118,9 +122,42 @@ class CognitiveToolDispatcher:
 
     @property
     def definitions(self) -> tuple[CognitiveToolDefinition, ...]:
+        """
+        Return every host-known tool definition.
+
+        This property is retained for host-side inspection and
+        compatibility. CognitiveSystem must use
+        definitions_for_authority() when constructing an LLM request.
+        """
+
         return tuple(
             binding.definition
             for binding in self._bindings.values()
+        )
+
+    def definitions_for_authority(
+        self,
+        authority: Authority,
+    ) -> tuple[CognitiveToolDefinition, ...]:
+        """
+        Return only tool definitions authorized for the current
+        cognitive operation.
+
+        Unauthorized tools are removed before the provider receives
+        the cognitive request.
+        """
+
+        if not isinstance(authority, Authority):
+            raise TypeError(
+                "CognitiveToolDispatcher authority must be an Authority."
+            )
+
+        return tuple(
+            binding.definition
+            for binding in self._bindings.values()
+            if authority.can_use_capability(
+                binding.capability_name
+            )
         )
 
     def dispatch(
@@ -252,9 +289,12 @@ def create_default_tool_bindings(
     filesystem_root: Path,
 ) -> tuple[CognitiveToolBinding, ...]:
     """
-    Construct the host-owned cognitive tools exposed to the LLM.
+    Construct the host-owned cognitive tools.
 
     These tools are intentionally read-only.
+
+    Authorization determines which of these definitions are exposed
+    to the cognitive engine for a given operation.
     """
 
     if not isinstance(filesystem_root, Path):
