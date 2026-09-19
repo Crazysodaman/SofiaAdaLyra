@@ -76,7 +76,7 @@ class SystemCapabilityKnowledgeRecord:
     kind: SystemCapabilityResultKind
     evidence: Mapping[str, Any] | None
     observed_at: datetime | None
-    backend_name: str
+    backend_name: str | None
     error: str | None = None
 
     def __post_init__(self) -> None:
@@ -92,11 +92,16 @@ class SystemCapabilityKnowledgeRecord:
                 "kind must be a SystemCapabilityResultKind"
             )
 
-        if not isinstance(self.backend_name, str):
-            raise TypeError("backend_name must be a string")
+        if self.backend_name is not None:
+            if not isinstance(self.backend_name, str):
+                raise TypeError(
+                    "backend_name must be a string or None"
+                )
 
-        if not self.backend_name.strip():
-            raise ValueError("backend_name must not be empty")
+            if not self.backend_name.strip():
+                raise ValueError(
+                    "backend_name must not be empty"
+                )
 
         if self.evidence is not None:
             if not isinstance(self.evidence, Mapping):

@@ -1,4 +1,9 @@
-﻿from sofia.cognition.context import CognitiveContext
+﻿from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -10,6 +15,7 @@ from sofia.continuity.model import (
     ContinuityEventKind,
 )
 from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.system.knowledge import SystemCapabilityKnowledgeRecord
 
 
 class CognitiveContextAssembler:
@@ -212,7 +218,8 @@ class CognitiveContextAssembler:
                 sections.append(
                     (
                         f"- {fact.name}: "
-                        f"{fact.measurement.value} {fact.measurement.unit}"
+                        f"{fact.measurement.value} "
+                        f"{fact.measurement.unit}"
                     )
                 )
 
@@ -511,9 +518,7 @@ class CognitiveContextAssembler:
                 ]
             )
 
-            if (
-                self_model.workspace_changes is not None
-            ):
+            if self_model.workspace_changes is not None:
                 sections.extend(
                     self._format_workspace_changes(
                         self_model.workspace_changes
@@ -551,7 +556,176 @@ class CognitiveContextAssembler:
                     self._format_filesystem_result(result)
                 )
 
+        if (
+            context.system_capability_knowledge is not None
+            and context.system_capability_machine_id is not None
+        ):
+            records = context.current_system_capability_knowledge
+
+            sections.extend(
+                [
+                    "",
+                    "SYSTEM CAPABILITY KNOWLEDGE",
+                    (
+                        "The following information is structured "
+                        "observational evidence produced by system "
+                        "capability inspection."
+                    ),
+                    (
+                        "Machine ID: "
+                        f"{context.system_capability_machine_id}"
+                    ),
+                    (
+                        "These observations do not grant authority, "
+                        "execute capabilities, or establish that any "
+                        "future operation is permitted."
+                    ),
+                ]
+            )
+
+            if not records:
+                sections.append(
+                    "No current system capability observations are available."
+                )
+            else:
+                for record in records:
+                    sections.extend(
+                        self._format_system_capability_record(
+                            record
+                        )
+                    )
+
         return "\n".join(sections)
+
+    @staticmethod
+    def _format_system_capability_record(
+        record: SystemCapabilityKnowledgeRecord,
+    ) -> list[str]:
+        lines = [
+            "",
+            f"CAPABILITY: {record.capability.value}",
+            f"Result: {record.kind.value}",
+        ]
+
+        if record.observed_at is not None:
+            lines.append(
+                "Observed at: "
+                f"{record.observed_at.isoformat()}"
+            )
+
+        if record.backend_name is not None:
+            lines.append(
+                f"Backend: {record.backend_name}"
+            )
+
+        if record.error is not None:
+            lines.append(
+                f"Error: {record.error}"
+            )
+
+        if record.evidence is not None:
+            lines.append("Evidence:")
+            lines.extend(
+                CognitiveContextAssembler._format_structured_value(
+                    record.evidence,
+                    indent=2,
+                )
+            )
+        else:
+            lines.append(
+                "Evidence: none"
+            )
+
+        return lines
+
+    @staticmethod
+    def _format_structured_value(
+        value: Any,
+        indent: int = 0,
+    ) -> list[str]:
+        prefix = " " * indent
+
+        if isinstance(value, Mapping):
+            lines: list[str] = []
+
+            for key, item in value.items():
+                if isinstance(item, (Mapping, tuple, list)):
+                    lines.append(
+                        f"{prefix}{key}:"
+                    )
+                    lines.extend(
+                        CognitiveContextAssembler._format_structured_value(
+                            item,
+                            indent=indent + 2,
+                        )
+                    )
+                else:
+                    lines.append(
+                        f"{prefix}{key}: {item}"
+                    )
+
+            if not lines:
+                lines.append(
+                    f"{prefix}{{}}"
+                )
+
+            return lines
+
+        if isinstance(value, tuple):
+            if not value:
+                return [
+                    f"{prefix}[]"
+                ]
+
+            lines = []
+
+            for item in value:
+                if isinstance(item, (Mapping, tuple, list)):
+                    lines.append(
+                        f"{prefix}-"
+                    )
+                    lines.extend(
+                        CognitiveContextAssembler._format_structured_value(
+                            item,
+                            indent=indent + 2,
+                        )
+                    )
+                else:
+                    lines.append(
+                        f"{prefix}- {item}"
+                    )
+
+            return lines
+
+        if isinstance(value, list):
+            if not value:
+                return [
+                    f"{prefix}[]"
+                ]
+
+            lines = []
+
+            for item in value:
+                if isinstance(item, (Mapping, tuple, list)):
+                    lines.append(
+                        f"{prefix}-"
+                    )
+                    lines.extend(
+                        CognitiveContextAssembler._format_structured_value(
+                            item,
+                            indent=indent + 2,
+                        )
+                    )
+                else:
+                    lines.append(
+                        f"{prefix}- {item}"
+                    )
+
+            return lines
+
+        return [
+            f"{prefix}{value}"
+        ]
 
     @staticmethod
     def _format_continuity_event(
@@ -685,7 +859,6 @@ class CognitiveContextAssembler:
                 f"Removed files ({len(event.removed)}):"
             )
 
-        if event.removed:
             for change in event.removed:
                 lines.append(
                     f"- {change.path}"
