@@ -37,6 +37,7 @@ def pointer(engine, region, gesture, *, fixture="pointer-1", phase="end", stoppe
     ("*holds your right hand*", "right-hand", "hold"),
     ("*pats your left knee*", "left-knee", "pat"),
     ("*touches your left toe*", "left-toe", "touch"),
+    ("*touches your groin*", "groin", "touch"),
 ])
 def test_text_and_simulated_avatar_share_exact_semantics_and_policy(engine, phrase, region, gesture):
     written = text(engine, phrase)
@@ -63,6 +64,7 @@ def test_registry_covers_canonical_fox_features_and_broad_human_form(engine):
     assert expected <= engine.regions.keys()
     assert engine.regions["left-ear"].origin == "explicit_fox_anatomy"
     assert engine.regions["left-hand"].origin == "human_form"
+    # Sensitivity is redaction metadata, NOT an interaction-policy denial.
     assert all(region.private for region in (engine.regions[r] for r in
                ("chest", "left-breast", "buttocks", "groin", "genitals")))
 
@@ -92,18 +94,24 @@ def test_unspecified_side_unknown_region_and_real_click_are_not_guessed(engine):
 
 
 @pytest.mark.parametrize("region", ["chest", "left-breast", "buttocks", "groin", "genitals", "right-inner-thigh"])
-def test_private_regions_are_mapped_but_deny_contact_in_both_modes(engine, region):
+def test_sensitive_regions_are_recognized_without_automatic_approval_or_denial(engine, region):
     label = region.replace("-", " ")
     written = text(engine, f"*touches your {label}*")
     simulated = pointer(engine, region, "touch")
     assert written is not None
     assert written.event.region_id == region
-    assert written.status == simulated.status == "denied"
-    assert not written.emotion_options and not simulated.text_cues
+    assert written.status == simulated.status == "accepted"
+    assert written.event.semantics == simulated.event.semantics
+    assert "not approval" in written.reason
+    assert "caution" in written.emotion_options
+    assert "frustration" in written.emotion_options
+    assert not written.text_cues
+    assert pointer(engine, region, "touch", stopped=True).status == "denied"
 
 
 def test_stop_cancel_and_partial_phase_never_report_completed_contact(engine):
     assert text(engine, "*pats your head*", stopped=True).status == "denied"
+    assert text(engine, "*touches your groin*", stopped=True).status == "denied"
     assert pointer(engine, "head", "pat", phase="cancel").status == "denied"
     assert pointer(engine, "head", "pat", phase="begin").status == "acknowledged"
     assert pointer(engine, "head", "release").status == "acknowledged"
