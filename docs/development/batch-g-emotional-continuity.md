@@ -1,18 +1,25 @@
 # Batch G: emotional expression and continuity
 
-## Implemented in this feature branch
+## Implemented on this feature branch
 
-- Provider-neutral personality guidance names an expansive, blendable emotional vocabulary. Serious disclosures do not automatically disable Sofía's familiar warmth; welcomed affectionate/romantic expression remains contextual, not an intimacy meter.
-- An `EmotionalJournal` stores evidence-linked, typed modeled appraisals in the existing SQLite state database, survives restarts, rejects conflicting event IDs, and separates observed, user-reported, and inferred provenance.
-- `revise` appends new appraisals while keeping the original evidence and emotional tie. No retroactive rewriting of the original event.
-- The application composes `EmotionalConversationService`, which records narrow explicit user praise/head-pat cues only after a user message is durably saved. The journal supplies a bounded, clearly labeled read-only cognitive projection. No canned replies are stored, and the LLM has no write permission to the journal.
-- Old entries stop being projected as current emotional context after seven days, but remain in SQLite as history. No visible mood meters, intimacy unlocks, or automatic suppression of personality.
+- Provider-neutral personality guidance supports blended emotional expression. Serious disclosures do not automatically disable Sofía's familiar warmth; welcomed affection and romance remain contextual, not intimacy meters.
+- `EmotionalJournal` persists evidence-linked modeled appraisals in the existing SQLite state database. Sources are explicitly observed, user-reported, or inferred. Revising an appraisal preserves the original event and emotional tie.
+- `EmotionalConversationService` records narrow explicit praise/head-pat cues only after the user message is saved. Its bounded cognitive projection supplies context, not operational authority or scripted replies.
+- `ReflectionJournal` persists explicit, evidence-linked thoughts and creates deterministic retrospectives for completed UTC daily, weekly, monthly and yearly periods **with recorded emotional events**. It catches up on missed recorded periods when invoked after a restart, skips empty periods, never backdates a reflection to imply thought while offline, and creates a period at most once. This is recorded-event consolidation, not an independently reasoning LLM reflection process.
+- The conversation service creates the reflection journal on open and runs due reflections **when a conversation request is processed**. It supplies bounded reflection context to the LLM. It does **not** run a background scheduler or independently formulate novel thoughts.
+- The same SQLite database includes an **unsent** proactive-message outbox. Trusted code can explicitly queue a message attached to a recorded thought and one of its evidence references. The outbox deduplicates each thread/evidence pair, permits follow-ups with new evidence after configurable spacing, records urgency without granting new permissions, persists across restarts, and marks delivery only after an external adapter supplies positive acknowledgment. It imposes no quiet hours or message quota, and it does not send messages or automatically escalate by itself.
+- Emotions, memories and reflections are representations for expression. No subjective experience or physical action is asserted.
 
 ## Verification
 
-- Local isolated journal/personality and mocked application projection tests: 11 passed. These tests exercised new code with reconstructed integration dependencies, **not** the complete repository or Ollama runtime.
-- Previously, 1,090 passed, 1 failed, 1 skipped on the earlier feature commit; the targeted expression regression fix subsequently passed 8 tests. These results **do not** verify this new change set.
+- User's previous full run on an earlier feature revision: **1,090 passed, 1 failed, 1 skipped**. The expression contract failure was corrected; user subsequently ran **8 targeted tests passed**.
+- User then pulled emotional journal integration and ran **19 targeted tests passed in 6.56 seconds**. This verifies that prior revision, not the current reflection/outbox addition.
+- New reflection/outbox module's **5 locally isolated tests passed**, including completed period boundaries, restart idempotence, evidence-bound queued follow-ups, spacing and delivery acknowledgment. This was not a full-repository run. New conversation-reflection integration tests are committed but not run in the target checkout.
+- Neither live Ollama nor the current feature head's full suite has been verified.
 
-## Not implemented or demonstrated yet
+## Still pending within Batch G and Engineering 22
 
-The journal currently automatically recognizes only narrow, explicit affectionate cues. Most emotional event ingestion needs additional typed integrations with observed test results, continuity changes, other actual tools, and user-reported corrections. The correction API does not yet interpret natural-language corrections automatically. A seven-day context window is not a computed long-term mood or periodic reflection. Daily/weekly/monthly/yearly scheduled reflections, a persistent thought journal, proactive message outbox, background execution and delivery adapter remain outstanding. No actual human feelings or subjective experience are asserted. Live model response quality and full-suite compatibility require verification on the target runtime.
+- Richer typed event ingestion from actually observed runtime, tool and system outcomes; user-reported corrections routed through a trusted boundary; long-horizon mood synthesis and nuanced timing/decay.
+- Genuine bounded LLM self-reflection on evidence, thought prioritization, and user-facing proactive-message selection. The new retrospective is deterministic and the outbox requires explicit calls.
+- A running background worker, authorized notification/delivery adapter, durable delivery uncertainty and retry policy, and real end-to-end observation-to-message acceptance. Being offline does not itself produce thought records.
+- Live affectionate and serious-conversation model probes, full repository testing, and Engineering 22's authenticated Artemis transport and live validation. Neither Batch G nor Engineering 22 is complete or merged.
