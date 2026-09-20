@@ -1,7 +1,10 @@
 """Application integration for evidence-linked emotional expression and reflection."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime, timezone
+from threading import RLock
+from time import monotonic
 
 from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
@@ -19,8 +22,8 @@ class EmotionalConversationService(ConversationService):
     """Keep emotional events and reflections outside identity and authority.
 
     The emotional journal is recorded only after the user turn is durably
-    saved by the base service. Periodic reflections run only when this
-    service processes a request, not continuously while it is offline.
+    saved by the base service. Periodic reflections run on conversation
+    requests or, when enabled, in the application-owned idle worker.
     The model receives bounded, read-only data, not journal write access.
     """
 
@@ -29,6 +32,9 @@ class EmotionalConversationService(ConversationService):
         self._emotional_journal: EmotionalJournal | None = None
         self._reflection_journal: ReflectionJournal | None = None
         self._clarification_journal: ClarificationJournal | None = None
+        self._model_lock = RLock()
+        self._active_user_requests = 0
+        self._last_user_activity = monotonic()
 
     def open(self) -> None:
         super().open()
@@ -69,6 +75,21 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Clarification journal is not open.")
         return self._clarification_journal
 
+    def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
+        """Avoid initiating idle inference during or shortly after a user turn."""
+        return (self._active_user_requests == 0
+                and monotonic() - self._last_user_activity >= idle_seconds)
+
+    def respond(self, content: str):
+        """Serialize user inference against application-owned idle inference."""
+        self._active_user_requests += 1
+        try:
+            with self._model_lock:
+                return super().respond(content)
+        finally:
+            self._last_user_activity = monotonic()
+            self._active_user_requests -= 1
+
     def clarify_event(self, *, event_id: str, message_id: str) -> None:
         """Explicitly link one saved user turn to one selected event.
 
@@ -90,13 +111,16 @@ class EmotionalConversationService(ConversationService):
         )
 
     def reflect_on_event(self, *, event_id: str) -> ReflectionOutcome:
-        """Generate one optional model thought from explicitly selected evidence.
+        """Generate one optional thought from explicitly selected evidence.
 
-        A trusted application caller selects the event. This method does not
-        run by itself, interpret ambiguous user language, or send messages.
-        The cognitive system supplies canonical grounding but gains no tools
-        or new operational authority from the reflection request.
+        A trusted application caller selects the event. No automatic tool
+        action or message delivery is possible through this method.
         """
+        # Existing mock-only tests instantiate the service without __init__.
+        with getattr(self, "_model_lock", nullcontext()):
+            return self._reflect_on_event_locked(event_id=event_id)
+
+    def _reflect_on_event_locked(self, *, event_id: str) -> ReflectionOutcome:
         if self._runtime.personality is None:
             raise RuntimeError("No personality profile is active.")
         if self._session is None:
