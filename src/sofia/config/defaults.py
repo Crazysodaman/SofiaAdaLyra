@@ -65,8 +65,9 @@ def create_default_configuration() -> SofiaConfiguration:
         provider=ProviderConfiguration(
             provider="ollama",
             model="qwen3:14b",
-            # Verified live with the full canonical self-state projection.
-            context_size=32768,
+            # Preserve the current context until we test full-runtime requirements.
+            context_size=20000,
+            thinking=False,
         ),
         filesystem_root=repository_root,
     )
