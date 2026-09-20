@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import RLock
 from time import monotonic
 
@@ -49,7 +50,7 @@ class EmotionalConversationService(ConversationService):
                 record_workspace_observation(
                     event=changes, emotions=self._emotional_journal,
                     reflections=self._reflection_journal,
-                    ignored_paths=(state_path,),
+                    ignored_paths=(Path(state_path),),
                 )
         except Exception:
             super().close()
