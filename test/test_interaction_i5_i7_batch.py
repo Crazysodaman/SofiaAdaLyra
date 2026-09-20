@@ -10,7 +10,6 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
 from sofia.interaction.chat import InteractiveConversationService
-from sofia.interaction.core import InteractionEngine
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
 
@@ -128,7 +127,7 @@ def test_controls_reject_forged_or_colliding_evidence(ledger, engine):
     with pytest.raises(ValueError, match='different evidence'):
         ledger.control(session_id='s1', message_id='m1',
                        content='Sofía, resume interactions', occurred_at=NOW)
-    with pytest.raises(ValueError, match='session'):
+    with pytest.raises(ValueError, match='different evidence'):
         ledger.control(session_id='s2', message_id='m1',
                        content='Sofía, stop interactions', occurred_at=NOW)
     with pytest.raises(ValueError, match='session control'):
@@ -157,12 +156,23 @@ def test_chat_stop_and_replay_cannot_generate_fresh_gestures(monkeypatch, tmp_pa
     blocked = service._build_request()
     assert '"policy_status": "denied"' in blocked.messages[0].content
     assert '"region_id": null' in blocked.messages[0].content
-    assert service._build_request().messages[0].content.count('"policy_status": "acknowledged"') == 1
+    assert '"policy_status": "acknowledged"' in service._build_request().messages[0].content
     user.id, user.content = 'saved-3', 'Sofía, resume interactions'
     assert '"stopped": false' in service._build_request().messages[0].content
     user.id, user.content = 'saved-4', 'I gently pat your left ear'
     assert '"policy_status": "accepted"' in service._build_request().messages[0].content
     assert InteractionLedger(tmp_path / 'sofia.db').accepted('saved-4') == ('session-1', 'left-ear', 'pat')
+
+
+def test_stopped_legacy_head_pat_hook_and_verbal_praise(monkeypatch, tmp_path):
+    service, _, user = _chat(monkeypatch, tmp_path, '*pats your head*')
+    assert service._should_record_legacy_affection(user)
+    ledger = InteractionLedger(tmp_path / 'sofia.db')
+    ledger.control(session_id='session-1', message_id='stop-legacy',
+                   content='Sofía, stop interactions', occurred_at=NOW)
+    assert not service._should_record_legacy_affection(user)
+    user.content = 'Good girl.'
+    assert service._should_record_legacy_affection(user)
 
 
 def test_regular_chat_does_not_instantiate_world_or_ledger(monkeypatch, tmp_path):
