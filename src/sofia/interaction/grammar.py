@@ -16,6 +16,10 @@ _GIVE = re.compile(
     r"a\s+(?:(?:gentle|soft|light|brief)\s+)?(?P<verb>pat|tap|rub|poke)[.!]?$", re.I,
 )
 _VERBS = frozenset({'pat', 'tap', 'touch', 'stroke', 'rub', 'hold', 'release', 'poke'})
+# The canonical single-action parser can otherwise swallow a second clause as
+# part of the region name, turning a composite into an ambiguous *one* gesture.
+# Reject coordination before resolving a region or writing an evidence record.
+_COMPOSITE = re.compile(r'\b(?:and|then|while|after|before|plus)\b|[;&]', re.I)
 
 
 class NaturalInteractionEngine(InteractionEngine):
@@ -51,6 +55,8 @@ class NaturalInteractionEngine(InteractionEngine):
         if text.startswith('*') and text.endswith('*') and len(text) > 2:
             text = text[1:-1].strip()
         text = _ADDRESS.sub('', text)
+        if _COMPOSITE.search(text):
+            return None
         match = _GIVE.fullmatch(text)
         if match:
             if match.group('verb').casefold() not in _VERBS:
