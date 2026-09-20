@@ -16,6 +16,7 @@ from uuid import uuid4
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
@@ -195,6 +196,14 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=request.tools,
+            )
+        # A hypothetical, multi-action question gets READ-ONLY canonical
+        # context, never a gesture decision or a newly provisioned lab.
+        discussion = body_discussion_prompt(content=user.content, engine=engine)
+        if discussion is not None:
+            return CognitiveRequest(
+                messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
+                          *request.messages), tools=request.tools,
             )
         # Observe only recognized status questions. Do not create a lab for
         # anatomy discussion or ordinary conversation.
