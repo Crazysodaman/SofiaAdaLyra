@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from sofia.config import (
     create_default_configuration,
@@ -41,6 +41,7 @@ def test_default_configuration_uses_ollama():
     assert configuration.provider == ProviderConfiguration(
         provider="ollama",
         model="qwen3:14b",
+        context_size=32768,
     )
 
 
