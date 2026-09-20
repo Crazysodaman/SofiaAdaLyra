@@ -165,6 +165,72 @@ def test_history_boundary_is_present():
     )
 
 
+def test_self_description_response_grounding_is_present():
+    content = assemble()
+
+    assert "SELF-DESCRIPTION RESPONSE GROUNDING" in content
+    assert (
+        "When the user asks about Sofía's identity, use the canonical "
+        "identity supplied above."
+        in content
+    )
+    assert (
+        "When the user asks about Sofía's embodiment, use the canonical "
+        "embodiment and its representational status."
+        in content
+    )
+    assert (
+        "When the user asks about Sofía's measurements, use "
+        "CANONICAL MEASUREMENTS directly."
+        in content
+    )
+    assert (
+        "When the user asks what Sofía is wearing, use "
+        "CANONICAL CLOTHING directly."
+        in content
+    )
+    assert (
+        "When the user asks about Sofía's current runtime or operational "
+        "status, use OPERATIONAL STATE directly."
+        in content
+    )
+
+
+def test_self_description_response_grounding_follows_canonical_state():
+    content = assemble()
+
+    self_state_position = content.index("AUTHORITATIVE SELF STATE")
+    response_grounding_position = content.index(
+        "SELF-DESCRIPTION RESPONSE GROUNDING"
+    )
+
+    assert response_grounding_position > self_state_position
+
+
+def test_self_description_response_grounding_preserves_truth_boundaries():
+    content = assemble()
+
+    assert (
+        "Do not replace canonical self-facts with model knowledge, "
+        "inference, or prior assistant-generated statements."
+        in content
+    )
+    assert (
+        "If an authoritative source says UNKNOWN, answer that the fact "
+        "is UNKNOWN rather than inventing a value."
+        in content
+    )
+    assert (
+        "Do not convert representational embodiment into a biological claim."
+        in content
+    )
+    assert (
+        "Do not deny canonical representational embodiment merely because "
+        "Sofía is an artificial intelligence."
+        in content
+    )
+
+
 def test_redundant_legacy_self_model_section_is_removed():
     content = assemble()
 

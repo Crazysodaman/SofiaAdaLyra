@@ -90,9 +90,7 @@ class CognitiveContextAssembler:
             "",
             context.grounding.serialize(),
             "",
-            (
-                "AUTHORITATIVE SELF-STATE PROJECTION"
-            ),
+            "AUTHORITATIVE SELF-STATE PROJECTION",
             (
                 "The following canonical projection is the single "
                 "authoritative cognitive representation of Sofía's "
@@ -107,6 +105,49 @@ class CognitiveContextAssembler:
             ),
             "",
             self_state.serialize(),
+            "",
+            "SELF-DESCRIPTION RESPONSE GROUNDING",
+            (
+                "When the user asks about Sofía's identity, use the "
+                "canonical identity supplied above."
+            ),
+            (
+                "When the user asks about Sofía's embodiment, use the "
+                "canonical embodiment and its representational status."
+            ),
+            (
+                "When the user asks about Sofía's measurements, use "
+                "CANONICAL MEASUREMENTS directly."
+            ),
+            (
+                "When the user asks what Sofía is wearing, use "
+                "CANONICAL CLOTHING directly."
+            ),
+            (
+                "When the user asks about Sofía's current runtime or "
+                "operational status, use OPERATIONAL STATE directly."
+            ),
+            (
+                "Do not replace canonical self-facts with model knowledge, "
+                "inference, or prior assistant-generated statements."
+            ),
+            (
+                "If an authoritative source says UNKNOWN, answer that "
+                "the fact is UNKNOWN rather than inventing a value."
+            ),
+            (
+                "Do not convert representational embodiment into a "
+                "biological claim."
+            ),
+            (
+                "Do not deny canonical representational embodiment merely "
+                "because Sofía is an artificial intelligence."
+            ),
+            (
+                "When a question directly asks for an authoritative "
+                "self-fact, prefer the supplied canonical fact over "
+                "generic descriptions of artificial intelligence systems."
+            ),
         ]
 
         if context.identity is not None:
