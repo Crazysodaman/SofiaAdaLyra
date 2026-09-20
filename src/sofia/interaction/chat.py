@@ -131,9 +131,10 @@ class InteractiveConversationService(EmotionalConversationService):
                     if command is not None:
                         result = ledger.control(session_id=session_id, message_id=user.id,
                                                 content=clean, occurred_at=user.created_at)
-                        if result.status != command + 'ped' and result.status != 'resumed':
+                        expected = 'stopped' if command == 'stop' else 'resumed'
+                        if result.status != expected or ledger.stopped(session_id) != (command == 'stop'):
                             raise RuntimeError('Unexpected interaction control outcome.')
-                        reply = STOP_CONTROL_REPLY if ledger.stopped(session_id) else RESUME_CONTROL_REPLY
+                        reply = STOP_CONTROL_REPLY if command == 'stop' else RESUME_CONTROL_REPLY
                     else:
                         embodiment = getattr(self._runtime, 'embodiment', None)
                         if embodiment is None:
