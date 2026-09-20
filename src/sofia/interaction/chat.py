@@ -1,18 +1,26 @@
-"""Read-only conversation projection of the shared interaction decision.
+"""Conversation projection of shared body interactions and actual virtual lab state.
 
-The original user message remains untouched. The cognitive model can choose
-expression, but cannot turn denied/unknown gestures into authorized actions.
-Real avatar clients must eventually use this same engine through a trusted UI
-boundary; a synthetic lab hit is not a verified real click.
+Original user messages remain untouched. Virtual location actions are only
+issued for narrow, explicitly addressed commands from persisted user turns.
+A renderer and an LLM cannot independently declare an action completed.
 """
 from __future__ import annotations
 
 import json
+import re
 
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.core import InteractionDecision, InteractionEngine
+from sofia.interaction.world import LabWorld
+from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
+from sofia.interaction.world_text import handle_lab_command, world_prompt
+
+_LAB_COMMAND = re.compile(
+    r"^sof[ií]a\s*,?\s+(?:enter|go to|leave|pick up|put down|work on|finish work on)\b",
+    re.IGNORECASE,
+)
 
 
 def interaction_prompt(decision: InteractionDecision) -> str:
@@ -43,7 +51,7 @@ def interaction_prompt(decision: InteractionDecision) -> str:
 
 
 class InteractiveConversationService(EmotionalConversationService):
-    """Reuse the existing journal and conversation persistence, not a second bot."""
+    """One existing conversation and emotion system, plus virtual world state."""
 
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
@@ -59,10 +67,25 @@ class InteractiveConversationService(EmotionalConversationService):
             content=user.content, message_id=user.id, session_id=user.session_id,
             occurred_at=user.created_at,
         )
-        if decision is None:
+        if decision is not None:
+            return CognitiveRequest(
+                messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
+                                           content=interaction_prompt(decision)), *request.messages),
+                tools=request.tools,
+            )
+        # Do not instantiate or provision the world for ordinary conversation,
+        # narration, anatomy discussion or unaddressed text.
+        if _LAB_COMMAND.match(user.content.strip()) is None:
+            return request
+        world = LabWorld(lab_state_path(self._runtime.configuration.state_path))
+        provision_starter_lab(world)
+        result = handle_lab_command(world=world, content=user.content,
+                                    message_id=user.id, occurred_at=user.created_at)
+        if result is None:
             return request
         return CognitiveRequest(
             messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                       content=interaction_prompt(decision)), *request.messages),
+                                       content=world_prompt(result, world=world)),
+                      *request.messages),
             tools=request.tools,
         )
