@@ -165,6 +165,10 @@ class EmotionalConversationService(ConversationService):
         self._reflection_journal = None
         self._clarification_journal = None
 
+    def _should_record_legacy_affection(self, user) -> bool:
+        """Subclass hook: independent policy may veto a legacy head-pat cue."""
+        return True
+
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
         if self._runtime.personality is None:
@@ -172,9 +176,10 @@ class EmotionalConversationService(ConversationService):
         messages = self.messages()
         if messages and messages[-1].role is ConversationRole.USER:
             user = messages[-1]
-            self.emotional_journal.record_user_cue(
-                message_id=user.id, content=user.content, occurred_at=user.created_at,
-            )
+            if self._should_record_legacy_affection(user):
+                self.emotional_journal.record_user_cue(
+                    message_id=user.id, content=user.content, occurred_at=user.created_at,
+                )
         now = datetime.now(timezone.utc)
         projections = []
         emotional_context = self.emotional_journal.prompt_context(now=now)
