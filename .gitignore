@@ -27,3 +27,6 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local cognitive-engine evaluation results
+batch-f-results.json
