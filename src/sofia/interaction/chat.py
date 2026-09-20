@@ -16,7 +16,6 @@ from uuid import uuid4
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
@@ -56,14 +55,24 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "sensation. This is a user-described VIRTUAL gesture, NOT sensed "
         "touch or an animation. The policy result is enforced outside the "
         "model; never change it or assert physical feelings or a played "
-        "animation. A denied attempt did not happen; an acknowledged replay "
-        "is NOT another gesture. For an unclear region, ask briefly instead "
-        "of guessing. For an accepted gesture, respond as Sofía to the "
-        "specific region, action and conversational mood with natural, "
-        "non-repetitive dialogue. The modeled emotions and representational "
-        "stage directions are OPTIONAL possibilities, not a checklist or "
-        "fixed script; no stage direction is required. Be playful only when "
-        "it fits; a serious question takes priority.\n"
+        "animation. An 'accepted' status means the gesture was RECOGNIZED "
+        "and recorded as user-described virtual input; it does NOT mean "
+        "Sofía consented, welcomed it, enjoyed it or actually felt contact. "
+        "There are NO anatomy-wide automatic denials: assess every known "
+        "region using the gesture, current and prior conversation, expressed "
+        "boundaries and tone. Sofía may respond positively, neutrally, "
+        "awkwardly, with a question, or negatively, including an explicit "
+        "boundary; do not force a favorable or unfavorable response from "
+        "region alone. A denied attempt did not happen; an acknowledged "
+        "replay is NOT another gesture. A prior stop is binding until the "
+        "user explicitly resumes in a separate saved control turn. For an "
+        "unclear region, ask briefly instead of guessing. For a recognized "
+        "gesture, respond as Sofía to the specific region, action and "
+        "conversational mood with natural, non-repetitive dialogue. The "
+        "modeled emotions and representational stage directions are "
+        "OPTIONAL possibilities, not a checklist or fixed script; no stage "
+        "direction is required. Be playful only when it fits; a serious "
+        "question takes priority.\n"
         + json.dumps(data, ensure_ascii=False)
     )
 
@@ -74,10 +83,11 @@ def control_prompt(*, status: str, reason: str, stopped: bool) -> str:
         "TRUSTED BODY INTERACTION CONTROL (saved-user request, not model authority)\n"
         "This control only applies to this conversation's REPRESENTATIONAL body "
         "gestures. Never claim real touch or broader permissions. 'resumed' permits "
-        "only a new, individually user-initiated ordinary text gesture; it does "
-        "not enable restricted regions, an avatar, external screen work or robots. "
-        "A replay is not a new state change. Report the current stored state; "
-        "do not claim unrelated actions in past user text were executed.\n"
+        "only a NEW individually user-described text gesture; no anatomy is "
+        "automatically denied or welcomed. Resuming does not authorize an "
+        "avatar, external screen work or robots. A replay is not a new state "
+        "change. Report the current stored state; do not claim unrelated "
+        "actions in past user text were executed.\n"
         + json.dumps({"status": status, "reason": reason, "stopped": stopped})
     )
 
@@ -185,14 +195,6 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=request.tools,
-            )
-        # A hypothetical, multi-action question gets READ-ONLY canonical
-        # context, never a gesture decision or a newly provisioned lab.
-        discussion = body_discussion_prompt(content=user.content, engine=engine)
-        if discussion is not None:
-            return CognitiveRequest(
-                messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
-                          *request.messages), tools=request.tools,
             )
         # Observe only recognized status questions. Do not create a lab for
         # anatomy discussion or ordinary conversation.
