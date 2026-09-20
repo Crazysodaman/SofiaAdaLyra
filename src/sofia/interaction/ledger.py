@@ -1,16 +1,17 @@
 """Durable virtual-gesture evidence and independently checked session stop.
 
-Only a trusted host may call these methods with a persisted, authenticated
-user message. No model output, lab fixture, or unverified pointer is admitted.
-The user-authored message grants only its own ordinary representational gesture;
-no blanket consent, real contact, private-region or avatar permission is inferred.
+Only a trusted conversation host should supply previously saved USER-role
+messages. This module does not authenticate a human or an avatar client;
+model output, synthetic lab fixtures and unverified pointers are not inputs.
+Each user-authored message permits only its own ordinary represented gesture,
+not blanket consent, real contact, private-region or avatar permission.
 """
 from __future__ import annotations
 
+from contextlib import closing, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
-import json
 from pathlib import Path
 import re
 import sqlite3
@@ -24,7 +25,7 @@ _STOP = re.compile(r"^sof[ií]a,?\s+(stop|resume)\s+(?:body\s+)?interactions[.!]
 def control_command(text: str) -> str | None:
     """Exact addressed user command; discussion and quotes cannot revoke/enable."""
     if not isinstance(text, str):
-        raise TypeError("Interaction command must be text.")
+        raise TypeError('Interaction command must be text.')
     if len(text) > 100 or '\n' in text or '`' in text or '"' in text or '*' in text:
         return None
     match = _STOP.fullmatch(text.strip())
@@ -33,13 +34,13 @@ def control_command(text: str) -> str | None:
 
 def _id(value: str, label: str) -> str:
     if not isinstance(value, str) or _ID.fullmatch(value) is None:
-        raise ValueError(f"{label} requires a bounded source identifier.")
+        raise ValueError(f'{label} requires a bounded source identifier.')
     return value
 
 
 def _utc(value: datetime) -> str:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("An aware source timestamp is required.")
+        raise ValueError('An aware source timestamp is required.')
     return value.astimezone(timezone.utc).isoformat()
 
 
@@ -52,19 +53,19 @@ class ControlOutcome:
 class InteractionLedger:
     """Per-session stop and at-most-once gesture evidence in existing state DB.
 
-    BEGIN IMMEDIATE serializes simultaneous writes across processes. A denied
-    private-region attempt stores a digest/status, not the sensitive region or
-    source text. No synthesized emotion or real-world touch is stored here.
+    BEGIN IMMEDIATE serializes writes across processes. Denied private-region
+    attempts store only a digest/status, not region identity or source text.
+    No fabricated emotional appraisal or physical touch is stored here.
     """
 
     def __init__(self, state_path: str | Path) -> None:
         if not isinstance(state_path, (str, Path)) or not str(state_path).strip():
-            raise ValueError("A configured state database path is required.")
+            raise ValueError('A configured state database path is required.')
         self.path = Path(state_path)
         if not self.path.parent.is_dir() or str(state_path) == ':memory:':
-            raise ValueError("Use an existing persistent state directory.")
+            raise ValueError('Use an existing persistent state directory.')
         with self._connect() as db:
-            db.executescript("""
+            db.executescript('''
                 CREATE TABLE IF NOT EXISTS interaction_session_controls (
                     session_id TEXT PRIMARY KEY, stopped INTEGER NOT NULL DEFAULT 0
                         CHECK (stopped IN (0, 1))
@@ -80,12 +81,14 @@ class InteractionLedger:
                     status TEXT NOT NULL, region_id TEXT, gesture TEXT,
                     registry_version TEXT NOT NULL
                 );
-            """)
+            ''')
 
-    def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=5)
-        db.execute('PRAGMA busy_timeout=5000')
-        return db
+    @contextmanager
+    def _connect(self):
+        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+            with db:
+                db.execute('PRAGMA busy_timeout=5000')
+                yield db
 
     def stopped(self, session_id: str) -> bool:
         _id(session_id, 'session_id')
@@ -112,7 +115,6 @@ class InteractionLedger:
                 if old != (session_id, digest, command, when):
                     raise ValueError('Control message ID reused for different evidence.')
                 return ControlOutcome('replayed', 'Control message already processed; no new state change.')
-            # Sharing an ID between control and contact is forbidden.
             if db.execute('SELECT 1 FROM interaction_evidence WHERE message_id=?', (message_id,)).fetchone():
                 raise ValueError('Message ID is already used for a gesture.')
             db.execute('INSERT INTO interaction_session_controls (session_id, stopped) VALUES (?, ?) '
@@ -122,12 +124,12 @@ class InteractionLedger:
                        (message_id, session_id, digest, command, when))
         if command == 'stop':
             return ControlOutcome('stopped', 'Representational body interactions stopped for this session.')
-        return ControlOutcome('resumed', 'Ordinary user-initiated text gestures may resume; restricted regions remain denied.')
+        return ControlOutcome('resumed', 'New ordinary user-initiated text gestures may resume; restricted regions remain denied.')
 
     def process_text(self, *, engine: InteractionEngine, content: str,
                      message_id: str, session_id: str,
                      occurred_at: datetime) -> tuple[InteractionDecision | None, bool]:
-        """Enforce durable stop and deduplicate one persisted user message.
+        """Enforce durable stop and deduplicate one saved USER-role message.
 
         Returns (decision, first_processing). Replays are acknowledged, never
         described as fresh contact or a newly completed gesture.
@@ -162,7 +164,6 @@ class InteractionLedger:
             if decision is None:
                 return None, False
             event = decision.event
-            # Keep restricted and unresolved region identities out of this log.
             region = event.region_id if decision.status == 'accepted' else None
             gesture = event.gesture if decision.status == 'accepted' else None
             db.execute('INSERT INTO interaction_evidence VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -171,7 +172,7 @@ class InteractionLedger:
             return decision, True
 
     def accepted(self, message_id: str) -> tuple[str, str, str] | None:
-        """Read an accepted gesture's session/region/verb, never raw text."""
+        """Read accepted session/region/verb, never raw text."""
         _id(message_id, 'message_id')
         with self._connect() as db:
             row = db.execute('SELECT session_id, region_id, gesture FROM interaction_evidence '
