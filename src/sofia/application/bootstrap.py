@@ -10,6 +10,7 @@ from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
+from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 
 
@@ -66,6 +67,10 @@ class SofiaApplication:
         try:
             enabled = _idle_reflections_enabled()
             self._runtime.start()
+            # Filter internal database noise in *both* pending awareness and
+            # the runtime's cognitive context before the first model call.
+            # The unfiltered snapshot stays preserved in the observation store.
+            normalize_runtime_workspace_awareness(self._runtime)
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
