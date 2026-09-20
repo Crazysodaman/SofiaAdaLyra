@@ -8,6 +8,7 @@ from time import monotonic
 
 from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.clarification import ClarificationJournal
@@ -82,10 +83,19 @@ class EmotionalConversationService(ConversationService):
 
     def respond(self, content: str):
         """Serialize user inference against application-owned idle inference."""
+        started = monotonic()
         self._active_user_requests += 1
         try:
             with self._model_lock:
-                return super().respond(content)
+                acquired = monotonic()
+                try:
+                    return super().respond(content)
+                finally:
+                    # Includes request construction/persistence as well as the
+                    # model call; Ollama's own timer isolates inference below.
+                    emit_performance("conversation",
+                        lock_wait_ms=(acquired - started) * 1000,
+                        elapsed_ms=(monotonic() - started) * 1000)
         finally:
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
@@ -117,8 +127,15 @@ class EmotionalConversationService(ConversationService):
         action or message delivery is possible through this method.
         """
         # Existing mock-only tests instantiate the service without __init__.
+        started = monotonic()
         with getattr(self, "_model_lock", nullcontext()):
-            return self._reflect_on_event_locked(event_id=event_id)
+            acquired = monotonic()
+            try:
+                return self._reflect_on_event_locked(event_id=event_id)
+            finally:
+                emit_performance("idle_reflection",
+                    lock_wait_ms=(acquired - started) * 1000,
+                    elapsed_ms=(monotonic() - started) * 1000)
 
     def _reflect_on_event_locked(self, *, event_id: str) -> ReflectionOutcome:
         if self._runtime.personality is None:
