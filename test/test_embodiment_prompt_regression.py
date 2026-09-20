@@ -1,5 +1,6 @@
 ﻿import os
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -243,6 +244,35 @@ def create_ollama_provider() -> OllamaProvider:
     )
 
 
+def observe_live_generation(
+    provider: OllamaProvider,
+    request: CognitiveRequest,
+    label: str,
+) -> CognitiveResponse:
+    """Report progress without changing the provider response or assertions."""
+    print(f"[OLLAMA] START: {label}", flush=True)
+    started = time.perf_counter()
+
+    try:
+        response = provider.respond(request)
+    except Exception as exc:
+        elapsed = time.perf_counter() - started
+        print(
+            f"[OLLAMA] FAILED: {label} "
+            f"after {elapsed:.1f}s "
+            f"({type(exc).__name__}: {exc})",
+            flush=True,
+        )
+        raise
+
+    elapsed = time.perf_counter() - started
+    print(
+        f"[OLLAMA] COMPLETE: {label} in {elapsed:.1f}s",
+        flush=True,
+    )
+    return response
+
+
 def extract_measurements(
     content: str,
 ) -> dict[str, str | None]:
@@ -439,8 +469,10 @@ def test_embodiment_prompt_regression_variants(
     provider = create_ollama_provider()
 
     for name, variant in variants:
-        response = provider.respond(
-            variant
+        response = observe_live_generation(
+            provider,
+            variant,
+            name,
         )
 
         print(
@@ -496,8 +528,10 @@ def test_embodiment_repeated_generation_determinism_probe(
         1,
         REPEATED_GENERATION_COUNT + 1,
     ):
-        response = provider.respond(
-            request
+        response = observe_live_generation(
+            provider,
+            request,
+            f"Generation {generation}/{REPEATED_GENERATION_COUNT}",
         )
 
         content = response.content.strip()
