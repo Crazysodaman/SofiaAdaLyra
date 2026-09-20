@@ -2,7 +2,7 @@
 
 **Provisional re-baseline:** 2026-09-20, while the Batch G full repository test run is still in progress.  
 **Repository:** `Crazysodaman/SofiaAdaLyra`  
-**Development head for this revision:** `feature/g22-live-integration-artemis`, [draft PR #1](https://github.com/Crazysodaman/SofiaAdaLyra/pull/1), **not merged**. `main` does not yet contain these changes.  
+**Development head for this revision:** `feature/g22-live-integration-artemis`, [draft PR #1](https://github.com/Crazysodaman/SofiaAdaLyra/pull/1), **not merged**. `main` does not yet contain these changes. This roadmap-only commit follows the user's running local test revision; its documentation changes were **not part of that ongoing run**.  
 **Purpose:** Keep the lettered A–Z roadmap, numbered Engineering 1–26 lineage, actual implementation, validation and future commitments distinct. This document is a planning and evidence index, **not an implementation certificate**.
 
 > **Identity invariant:** The LLM is Sofía's cognitive engine, not Sofía herself. Constitution, canonical identity and embodiment, persistent state, operational evidence, authority, and capability enforcement remain outside the model.
