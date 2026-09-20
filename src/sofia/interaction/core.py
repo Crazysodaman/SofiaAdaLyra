@@ -157,9 +157,9 @@ class InteractionEngine:
         elif "hand" in region.id or "palm" in region.id or "finger" in region.id:
             emotions, cues = ("appreciation", "curiosity", "caution", "frustration"), ("*a hand shifts slightly*",)
         elif region.private:
-            # Sensitive anatomy has no automatic favorable reaction or blanket refusal.
-            # The model interprets these OPTIONAL possibilities from real dialogue.
-            emotions, cues = ("caution", "uncertainty", "bashfulness", "curiosity", "frustration"), ()
+            # Privacy metadata never dictates the response. Positive, neutral
+            # and negative possibilities remain available in every region.
+            emotions, cues = ("fondness", "appreciation", "caution", "uncertainty", "bashfulness", "frustration"), ()
         else:
             emotions, cues = ("curiosity", "warmth", "caution", "surprise", "frustration"), ()
         return InteractionDecision(
