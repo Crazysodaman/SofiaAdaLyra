@@ -1,4 +1,5 @@
-﻿from sofia.application.conversation_service import ConversationService
+from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.application.conversation_service import ConversationService
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
@@ -32,7 +33,7 @@ class SofiaApplication:
         )
 
         self._conversation_service: ConversationService = (
-            ConversationService(
+            EmotionalConversationService(
                 runtime=self._runtime,
                 conversation_store=conversation_store,
             )
