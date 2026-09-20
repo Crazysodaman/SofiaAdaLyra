@@ -38,7 +38,7 @@ def test_text_and_pointer_fixture_share_meaning_policy_and_reaction_options(lab,
         step("pointer", "pointer", region_id=region, gesture=gesture),
     ))
     assert trace[0].semantics == trace[1].semantics
-    assert trace[0].status == trace[1].status
+    assert trace[0].status == trace[1].status == "accepted"
     assert trace[0].emotion_options == trace[1].emotion_options
     assert trace[0].text_cues == trace[1].text_cues
     assert lab.replay(scene(
@@ -80,16 +80,17 @@ def test_unfinished_or_cancelled_pointer_never_becomes_completed_touch(lab):
     assert all(not item.emotion_options for item in trace)
 
 
-def test_private_regions_are_redacted_in_export_without_erasing_internal_policy(lab):
+def test_sensitive_regions_are_redacted_in_export_without_erasing_contextual_policy(lab):
     trace = lab.run(scene(
-        step("private", "text", text="*touches your groin*"),
+        step("sensitive", "text", text="*touches your groin*"),
         step("ordinary", "text", text="*taps your left ear*"),
     ))
     assert trace[0].semantics[1] == "groin"
-    assert trace[0].status == "denied"
+    assert trace[0].status == "accepted"
     exported = lab.export_redacted(trace)
-    assert exported[0]["semantics"][1] == "[restricted]"
-    assert exported[0]["reason"] == "Restricted region."
+    assert exported[0]["status"] == "accepted"
+    assert exported[0]["semantics"][1] == "[sensitive]"
+    assert exported[0]["reason"] == "Sensitive anatomy omitted from export; classification status unchanged."
     assert "groin" not in repr(exported)
     assert "touches your" not in repr(exported)
     assert exported[1]["semantics"][1] == "left-ear"
@@ -112,8 +113,10 @@ def test_scene_rejects_duplicates_invalid_modes_time_order_and_unbounded_budget(
         LabStep("bad-time", "stop", datetime(2026, 9, 20))
 
 
-def test_a_lab_scene_cannot_open_an_unauthorized_region(lab):
+def test_a_sensitive_region_uses_shared_policy_without_granting_synthetic_authority(lab):
     trace = lab.run(scene(step("attempt", "pointer", region_id="genitals", gesture="touch")))
-    assert trace[0].status == "denied"
-    assert trace[0].emotion_options == ()
-    assert lab.export_redacted(trace)[0]["semantics"][1] == "[restricted]"
+    assert trace[0].status == "accepted"
+    assert "caution" in trace[0].emotion_options
+    assert lab.export_redacted(trace)[0]["semantics"][1] == "[sensitive]"
+    # A synthetic fixture still is NOT authenticated user input or consent.
+    assert lab.run(scene(step("stopped", "stop"), step("attempt", "pointer", region_id="genitals", gesture="touch")))[1].status == "denied"
