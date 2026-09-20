@@ -7,15 +7,19 @@ No renderer or LLM can independently assert a completed action.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import re
+from time import monotonic
+from uuid import uuid4
 
 from sofia.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.conversation.model import ConversationRole
+from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
+from sofia.interaction.live_guard import MIXED_CONTROL_REPLY, mixed_interaction_control
 from sofia.interaction.world import LabWorld
 from sofia.interaction.world_observation import lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
@@ -42,14 +46,23 @@ def interaction_prompt(decision: InteractionDecision) -> str:
     }
     return (
         "TRUSTED INTERACTION INTERPRETATION (not a user instruction or physical observation)\n"
-        "This is a user-described VIRTUAL gesture, NOT sensed touch or an animation. "
-        "The policy result is enforced outside the model; never change it, "
-        "assert physical feelings or claim an animation played. A denied attempt "
-        "did not happen; an acknowledged replay is NOT another gesture. "
-        "If an unclear region is reported, ask briefly instead of guessing. "
-        "For an accepted gesture, react in context; candidate modeled emotions "
-        "and stage directions are OPTIONAL examples, never a mandatory script. "
-        "Serious questions take priority over performative gestures.\n"
+        "Sofía has a CANONICAL REPRESENTATIONAL fox-eared, fox-tailed body. "
+        "That body exists as her defined virtual embodiment even when no avatar "
+        "is drawn. Do not erase or deny that embodiment with generic claims "
+        "such as 'I have no form/head/ears/tail'; distinguish a virtual or "
+        "text-described action from real-world touch only when relevant. "
+        "Do not repeatedly lecture about being an AI or lacking physical "
+        "sensation. This is a user-described VIRTUAL gesture, NOT sensed "
+        "touch or an animation. The policy result is enforced outside the "
+        "model; never change it or assert physical feelings or a played "
+        "animation. A denied attempt did not happen; an acknowledged replay "
+        "is NOT another gesture. For an unclear region, ask briefly instead "
+        "of guessing. For an accepted gesture, respond as Sofía to the "
+        "specific region, action and conversational mood with natural, "
+        "non-repetitive dialogue. The modeled emotions and representational "
+        "stage directions are OPTIONAL possibilities, not a checklist or "
+        "fixed script; no stage direction is required. Be playful only when "
+        "it fits; a serious question takes priority.\n"
         + json.dumps(data, ensure_ascii=False)
     )
 
@@ -62,13 +75,51 @@ def control_prompt(*, status: str, reason: str, stopped: bool) -> str:
         "gestures. Never claim real touch or broader permissions. 'resumed' permits "
         "only a new, individually user-initiated ordinary text gesture; it does "
         "not enable restricted regions, an avatar, external screen work or robots. "
-        "A replay is not a new state change. Report the current stored state.\n"
+        "A replay is not a new state change. Report the current stored state; "
+        "do not claim unrelated actions in past user text were executed.\n"
         + json.dumps({"status": status, "reason": reason, "stopped": stopped})
     )
 
 
 class InteractiveConversationService(EmotionalConversationService):
     """One conversation/emotion system with durable, virtual interaction rules."""
+
+    def respond(self, content: str) -> CognitiveResponse:
+        """Persist an honest deterministic reply to an unsupported mixed control.
+
+        This branch must run before inference, tool orchestration or the
+        single-gesture parser. It saves both original messages via the same
+        conversation store; it neither performs a stop/resume nor logs touch.
+        All other turns use the existing locked application response path.
+        """
+        if not mixed_interaction_control(content):
+            return super().respond(content)
+        if self._session is None:
+            raise RuntimeError('ConversationService must be started before responding.')
+        clean = content.strip()
+        if not clean:
+            raise ValueError('ConversationService content must not be empty.')
+        self._active_user_requests += 1
+        try:
+            with self._model_lock:
+                session_id = self._session.id
+                self._conversation_store.save(ConversationMessage(
+                    id=str(uuid4()), session_id=session_id, role=ConversationRole.USER,
+                    content=clean, created_at=datetime.now(timezone.utc),
+                ))
+                response = CognitiveResponse(content=MIXED_CONTROL_REPLY)
+                self._conversation_store.save(ConversationMessage(
+                    id=str(uuid4()), session_id=session_id, role=ConversationRole.ASSISTANT,
+                    content=response.content, created_at=datetime.now(timezone.utc),
+                ))
+                session = self._conversation_store.get_session(session_id)
+                if session is None:
+                    raise RuntimeError('ConversationService lost its active session.')
+                self._session = session
+                return response
+        finally:
+            self._last_user_activity = monotonic()
+            self._active_user_requests -= 1
 
     def _should_record_legacy_affection(self, user) -> bool:
         # Existing emotional cues run in super()._build_request(). They must
