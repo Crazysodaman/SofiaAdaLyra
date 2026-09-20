@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from sofia.config.model import (
     ProviderConfiguration,
@@ -65,6 +65,8 @@ def create_default_configuration() -> SofiaConfiguration:
         provider=ProviderConfiguration(
             provider="ollama",
             model="qwen3:14b",
+            # Verified live with the full canonical self-state projection.
+            context_size=32768,
         ),
         filesystem_root=repository_root,
     )
