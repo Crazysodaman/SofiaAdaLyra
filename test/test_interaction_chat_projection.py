@@ -38,17 +38,22 @@ def test_text_ear_interaction_projects_same_shared_policy_without_renderer(monke
     assert '"gesture": "tap"' in result.messages[0].content
     assert '"policy_status": "accepted"' in result.messages[0].content
     assert "*one ear flicks*" in result.messages[0].content
-    assert "NOT sensed touch" in result.messages[0].content
+    assert "NOT sensed" in result.messages[0].content
     assert result.messages[-1] is original.messages[-1]
     assert original.messages[0].content == "*taps your left ear*"
 
 
-def test_restricted_region_is_not_presented_as_accepted(monkeypatch):
+def test_sensitive_region_is_recognized_without_mandatory_favorable_reaction(monkeypatch):
     service, _ = _service(monkeypatch, "*touches your groin*")
     result = service._build_request()
-    assert '"policy_status": "denied"' in result.messages[0].content
-    assert '"possible_modeled_emotions_not_actual_feelings": []' in result.messages[0].content
-    assert "never change it" in result.messages[0].content
+    prompt = result.messages[0].content
+    assert '"policy_status": "accepted"' in prompt
+    assert '"region_id": "groin"' in prompt
+    assert '"gesture": "touch"' in prompt
+    assert "does NOT mean" in prompt
+    assert "negatively" in prompt
+    assert '"optional_representational_text_cues": []' in prompt
+    assert '"possible_modeled_emotions_not_actual_feelings": ["caution"' in prompt
 
 
 @pytest.mark.parametrize("content", ["Tell me about your tail", "How do I pat your head?", "```pats your head```"])
