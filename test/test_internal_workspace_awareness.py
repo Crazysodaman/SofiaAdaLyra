@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from sofia.application.bootstrap import SofiaApplication
 from sofia.continuity.model import ContinuityEventKind, create_continuity_event
 from sofia.filesystem.change_filter import exclude_internal_state_changes
 from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
@@ -59,7 +60,6 @@ def test_all_sqlite_noise_is_removed_from_runtime_awareness_but_restart_remains(
     assert not runtime.workspace_changes.has_changes
     assert runtime.pending_continuity_event.kind is ContinuityEventKind.RUNTIME_RESUMED
     assert runtime.pending_continuity_event.workspace_change_count == 0
-    assert runtime.operational_self_model is None if False else not runtime.workspace_changes.has_changes
     assert changes.total_changes == 4  # The original observation is not mutated.
     normalize_runtime_workspace_awareness(runtime)  # Idempotent.
     assert runtime.pending_continuity_event.kind is ContinuityEventKind.RUNTIME_RESUMED
@@ -95,3 +95,34 @@ def test_invalid_path_rejected_and_unavailable_baseline_preserved(tmp_path):
     with pytest.raises(TypeError):
         exclude_internal_state_changes(changes, state_path="state/sofia.db")
     assert exclude_internal_state_changes(changes, state_path=tmp_path / "sofia.db") is changes
+
+
+def test_application_filters_before_conversation_open_and_delivery(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOFIA_IDLE_REFLECTIONS", raising=False)
+    db = tmp_path / "state" / "sofia.db"
+    runtime = _runtime(tmp_path, _event(modified=(_change(db),)))
+    runtime._personality = None
+    calls = []
+    runtime.start = lambda: calls.append("runtime:start")
+    runtime.shutdown = lambda: calls.append("runtime:shutdown")
+
+    def open_conversation():
+        assert not runtime.workspace_changes.has_changes
+        assert runtime.pending_continuity_event.workspace_change_count == 0
+        calls.append("conversation:open")
+
+    conversation = SimpleNamespace(
+        open=open_conversation,
+        start=lambda *, session_id: calls.append("conversation:start"),
+        deliver_pending_awareness=lambda: calls.append("awareness") or None,
+        close=lambda: calls.append("conversation:close"),
+    )
+    app = object.__new__(SofiaApplication)
+    app._runtime = runtime
+    app._configuration = runtime.configuration
+    app._conversation_service = conversation
+    app._idle_worker = None
+    assert app.start() is None
+    assert calls[:4] == ["runtime:start", "conversation:open", "conversation:start", "awareness"]
+    app.shutdown()
+    assert calls[-2:] == ["runtime:shutdown", "conversation:close"]
