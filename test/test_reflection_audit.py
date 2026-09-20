@@ -3,10 +3,22 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import sqlite3
 
-from sofia.personality.audit import reflection_audit
+from sofia.personality.audit import reflection_audit, _sqlite_uri_for_path
 from sofia.personality.reflection import ReflectionJournal
 
 NOW = datetime(2026, 9, 20, 20, tzinfo=timezone.utc)
+
+
+def test_uri_encodes_spaces_and_windows_network_paths_without_authority():
+    assert _sqlite_uri_for_path("/tmp/Sofía state/sofia.db") == (
+        "file:/tmp/Sof%C3%ADa%20state/sofia.db?mode=ro"
+    )
+    assert _sqlite_uri_for_path("H:/Users/Sofia state/sofia.db") == (
+        "file:///H:/Users/Sofia%20state/sofia.db?mode=ro"
+    )
+    assert _sqlite_uri_for_path("//Artemis/Hestia/sofia.db") == (
+        "file:////Artemis/Hestia/sofia.db?mode=ro"
+    )
 
 
 def test_missing_database_is_not_created(tmp_path):
