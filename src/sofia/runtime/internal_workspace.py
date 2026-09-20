@@ -7,6 +7,8 @@ projection fields together; a later runtime API can encapsulate that detail.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from sofia.continuity.model import (
     ContinuityEventKind, create_continuity_event,
 )
@@ -30,7 +32,7 @@ def normalize_runtime_workspace_awareness(runtime) -> None:
     if changes is None:
         return
     filtered = exclude_internal_state_changes(
-        changes, state_path=runtime.configuration.state_path,
+        changes, state_path=Path(runtime.configuration.state_path),
     )
     if filtered is changes:
         return
