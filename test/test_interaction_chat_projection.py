@@ -53,7 +53,8 @@ def test_sensitive_region_is_recognized_without_mandatory_favorable_reaction(mon
     assert "does NOT mean" in prompt
     assert "negatively" in prompt
     assert '"optional_representational_text_cues": []' in prompt
-    assert '"possible_modeled_emotions_not_actual_feelings": ["caution"' in prompt
+    assert '"possible_modeled_emotions_not_actual_feelings": [' in prompt
+    assert '"fondness"' in prompt and '"caution"' in prompt and '"frustration"' in prompt
 
 
 @pytest.mark.parametrize("content", ["Tell me about your tail", "How do I pat your head?", "```pats your head```"])
