@@ -1,4 +1,4 @@
-"""Application integration for evidence-linked emotional expression."""
+"""Application integration for evidence-linked emotional expression and reflection."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -8,27 +8,34 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.reflection import ReflectionJournal
 from sofia.runtime.runtime import SofiaRuntime
 
 
 class EmotionalConversationService(ConversationService):
-    """Keep emotional events outside canonical identity and operational authority.
+    """Keep emotional events and reflections outside identity and authority.
 
-    The journal is recorded only after the user turn is durably saved by the
-    base service. The LLM receives a bounded read-only projection, never
-    direct write access to the journal or any action permission.
+    The emotional journal is recorded only after the user turn is durably
+    saved by the base service. Periodic reflections run only when this
+    service processes a request, not continuously while it is offline.
+    The model receives bounded, read-only data, not journal write access.
     """
 
     def __init__(self, runtime: SofiaRuntime, conversation_store: ConversationStore) -> None:
         super().__init__(runtime=runtime, conversation_store=conversation_store)
         self._emotional_journal: EmotionalJournal | None = None
+        self._reflection_journal: ReflectionJournal | None = None
 
     def open(self) -> None:
         super().open()
         try:
-            self._emotional_journal = EmotionalJournal(self._runtime.configuration.state_path)
+            state_path = self._runtime.configuration.state_path
+            self._emotional_journal = EmotionalJournal(state_path)
+            self._reflection_journal = ReflectionJournal(state_path)
         except Exception:
             super().close()
+            self._emotional_journal = None
+            self._reflection_journal = None
             raise
 
     @property
@@ -37,9 +44,16 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Emotional journal is not open.")
         return self._emotional_journal
 
+    @property
+    def reflection_journal(self) -> ReflectionJournal:
+        if self._reflection_journal is None:
+            raise RuntimeError("Reflection journal is not open.")
+        return self._reflection_journal
+
     def close(self) -> None:
         super().close()
         self._emotional_journal = None
+        self._reflection_journal = None
 
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
@@ -51,10 +65,23 @@ class EmotionalConversationService(ConversationService):
             self.emotional_journal.record_user_cue(
                 message_id=user.id, content=user.content, occurred_at=user.created_at,
             )
-        context = self.emotional_journal.prompt_context(now=datetime.now(timezone.utc))
-        if context is None:
+        now = datetime.now(timezone.utc)
+        projections = []
+        emotional_context = self.emotional_journal.prompt_context(now=now)
+        if emotional_context is not None:
+            projections.append(emotional_context)
+        # The optional guard preserves compatibility with a test-only
+        # uninitialized service; a normally opened service always has this.
+        reflections = getattr(self, "_reflection_journal", None)
+        if reflections is not None:
+            reflections.reflect_due(now=now)
+            reflection_context = reflections.prompt_context()
+            if reflection_context is not None:
+                projections.append(reflection_context)
+        if not projections:
             return request
         return CognitiveRequest(
-            messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=context), *request.messages),
+            messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
+                                      content="\n\n".join(projections)), *request.messages),
             tools=request.tools,
         )
