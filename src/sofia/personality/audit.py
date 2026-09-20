@@ -14,10 +14,18 @@ import sqlite3
 from urllib.parse import quote
 
 
-def _read_only_uri(path: Path) -> str:
-    # SQLite URI paths use forward slashes; percent-encode spaces, # and ?.
-    # A Windows drive path stays in the file:H:/... form accepted by SQLite.
-    return "file:" + quote(path.absolute().as_posix(), safe="/:") + "?mode=ro"
+def _sqlite_uri_for_path(raw: str) -> str:
+    """Build a no-create SQLite URI, including a Windows UNC pathname.
+
+    An empty URI authority followed by //server/share keeps the network path
+    in the path portion instead of treating 'server' as a forbidden URI host.
+    """
+    encoded = quote(raw, safe="/:")
+    if raw.startswith("//"):
+        return "file://" + encoded + "?mode=ro"
+    if len(raw) >= 2 and raw[1] == ":":
+        return "file:///" + encoded + "?mode=ro"
+    return "file:" + encoded + "?mode=ro"
 
 
 def reflection_audit(state_path: Path) -> dict[str, object]:
@@ -31,7 +39,8 @@ def reflection_audit(state_path: Path) -> dict[str, object]:
     if not state_path.is_file():
         return {"database": "missing", "idle_worker": "unknown",
                 "model_thoughts": "unknown", "pending_unsent": "unknown"}
-    with sqlite3.connect(_read_only_uri(state_path), uri=True, timeout=5) as db:
+    uri = _sqlite_uri_for_path(state_path.absolute().as_posix())
+    with sqlite3.connect(uri, uri=True, timeout=5) as db:
         db.execute("PRAGMA query_only = ON")
         tables = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
