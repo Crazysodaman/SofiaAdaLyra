@@ -63,7 +63,8 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         assert len(client.requests) == 1
         sent = client.requests[0]
         assert sent["model"] == default.provider.model
-        assert sent["options"]["num_ctx"] == 32768
+        assert sent["options"]["num_ctx"] == 20000
+        assert sent["think"] is False
         assert sent["messages"][0]["role"] == "system"
         system = sent["messages"][0]["content"]
 
