@@ -23,7 +23,10 @@ EMOTIONS = frozenset({
     "romance", "sadness", "sensuality", "surprise", "uncertainty", "warmth",
 })
 SOURCES = frozenset({"observed", "user_reported", "inferred"})
-_CUE = re.compile(r"\b(?:good girl|head pats?|pat pat)\b", re.IGNORECASE)
+_CUE = re.compile(
+    r"\b(?:good girl|head pats?|pat pat|pats? (?:your |her |the )?head)\b",
+    re.IGNORECASE,
+)
 
 
 def _aware_utc(value: datetime) -> datetime:
