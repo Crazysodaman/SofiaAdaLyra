@@ -24,6 +24,8 @@ _PAIRED = (
     "palm", "finger", "thumb", "breast", "hip", "thigh", "inner-thigh",
     "knee", "shin", "calf", "ankle", "foot", "toe",
 )
+# Privacy metadata for redacted test exports only. This is NOT a denied-region
+# set, a consent grant, a moral assessment, or an intimacy-mode permission.
 _PRIVATE = frozenset({"chest", "breast", "buttocks", "groin", "genitals", "inner-thigh"})
 _VERBS = {
     "pats": "pat", "pat": "pat", "patting": "pat",
@@ -52,7 +54,7 @@ _DISCUSSION = re.compile(
 class Region:
     id: str
     origin: str  # 'human_form' or 'explicit_fox_anatomy'
-    private: bool
+    private: bool  # Redact anatomy in fixture exports, NEVER deny solely for it.
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,7 @@ class InteractionEvent:
 @dataclass(frozen=True)
 class InteractionDecision:
     event: InteractionEvent
-    status: str  # accepted, denied, clarify, or acknowledged
+    status: str  # accepted (classified), denied (stopped), clarify, acknowledged
     reason: str
     emotion_options: tuple[str, ...] = ()
     text_cues: tuple[str, ...] = ()
@@ -146,19 +148,25 @@ class InteractionEngine:
             return InteractionDecision(event, "denied", "Interaction stopped or cancelled.")
         if region is None:
             return InteractionDecision(event, "clarify", "Region is unknown or its side is ambiguous.")
-        if region.private:
-            return InteractionDecision(event, "denied", "This region is restricted; no intimate-mode authorization exists.")
         if event.phase != "end" or event.gesture == "release":
             return InteractionDecision(event, "acknowledged", "No completed contact or emotion inferred.")
         if "ear" in region.id:
-            emotions, cues = ("curiosity", "surprise", "playfulness", "caution"), ("*one ear flicks*", "*ears perk up*")
+            emotions, cues = ("curiosity", "surprise", "playfulness", "caution", "frustration"), ("*one ear flicks*", "*ears perk up*")
         elif "tail" in region.id:
-            emotions, cues = ("fondness", "amusement", "caution", "curiosity"), ("*tail swishes once*", "*tail curls closer*")
+            emotions, cues = ("fondness", "amusement", "caution", "curiosity", "frustration"), ("*tail swishes once*", "*tail curls closer*")
         elif "hand" in region.id or "palm" in region.id or "finger" in region.id:
-            emotions, cues = ("appreciation", "curiosity", "caution"), ("*a hand shifts slightly*",)
+            emotions, cues = ("appreciation", "curiosity", "caution", "frustration"), ("*a hand shifts slightly*",)
+        elif region.private:
+            # Sensitive anatomy has no automatic favorable reaction or blanket refusal.
+            # The model interprets these OPTIONAL possibilities from real dialogue.
+            emotions, cues = ("caution", "uncertainty", "bashfulness", "curiosity", "frustration"), ()
         else:
-            emotions, cues = ("curiosity", "warmth", "caution", "surprise"), ()
-        return InteractionDecision(event, "accepted", "Representational interaction, not physical sensation.", emotions, cues)
+            emotions, cues = ("curiosity", "warmth", "caution", "surprise", "frustration"), ()
+        return InteractionDecision(
+            event, "accepted",
+            "User-described virtual gesture classified; not approval, sensation or physical contact. Sofía may welcome, question or reject it in context.",
+            emotions, cues,
+        )
 
     def from_text(self, *, content: str, message_id: str, session_id: str,
                   occurred_at: datetime, stopped: bool = False) -> InteractionDecision | None:
