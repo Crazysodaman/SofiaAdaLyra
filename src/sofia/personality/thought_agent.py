@@ -49,11 +49,18 @@ class ThoughtAgent:
         self._generate = generate
         self._reflections = reflections
 
-    def reflect(self, *, event: EmotionalEvent, now: datetime) -> ReflectionOutcome:
+    def reflect(
+        self, *, event: EmotionalEvent, now: datetime,
+        verified_worsening: bool = False,
+    ) -> ReflectionOutcome:
         if not isinstance(event, EmotionalEvent):
             raise TypeError("An existing EmotionalEvent is required.")
         if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("A timezone-aware reflection time is required.")
+        if type(verified_worsening) is not bool:
+            raise TypeError("Verified worsening must be an explicit bool from trusted application evidence.")
+        if verified_worsening and event.source != "observed":
+            raise ValueError("Unverified reports cannot establish observed worsening.")
         current = now.astimezone(timezone.utc)
         if event.occurred_at > current:
             raise ValueError("A future observation cannot cause a reflection.")
@@ -73,6 +80,8 @@ class ThoughtAgent:
             "original_modeled_emotions": event.original_emotions,
             "current_modeled_emotions": event.current_emotions,
             "reappraisals": event.revision_count,
+            # Never infer escalation from an emotion label or model phrasing.
+            "verified_worsening": verified_worsening,
         }
         instruction = (
             "Compose one optional private reflection for Sofía from the JSON event below. "
@@ -87,7 +96,8 @@ class ThoughtAgent:
             "a meaningful new insight worth initiating a message about; otherwise choose 'later'. "
             "Use 'none' when the evidence supports no useful reflection. "
             "message must be empty unless share='now'. urgency is routine, excited or urgent; "
-            "urgent requires direct evidence of worsening impact. No invented facts or action claims.\n"
+            "urgent requires application-verified worsening AND observed provenance. "
+            "If verified_worsening is false, do not use urgent. No invented facts or action claims.\n"
             "RECORDED EVENT DATA:\n" + json.dumps(payload, ensure_ascii=False)
         )
         request = CognitiveRequest(messages=(
@@ -121,8 +131,8 @@ class ThoughtAgent:
         if result["share"] == "now":
             if not message.strip() or len(message) > 700 or any(c in message for c in "\x00\r\n"):
                 raise ThoughtGenerationError("A share-now reflection requires one concise message.")
-            if result["urgency"] == "urgent" and event.source != "observed":
-                raise ThoughtGenerationError("Unverified events cannot generate urgent messages.")
+            if result["urgency"] == "urgent" and (event.source != "observed" or not verified_worsening):
+                raise ThoughtGenerationError("Unverified or non-worsening events cannot generate urgent messages.")
         elif message:
             raise ThoughtGenerationError("Saved-for-later thoughts cannot queue messages.")
 
