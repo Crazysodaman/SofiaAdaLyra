@@ -21,17 +21,23 @@ _LAB_STATUS = re.compile(
 )
 
 
+def is_lab_status_query(content: str) -> bool:
+    """Pure classifier: unrelated conversation never needs lab configuration."""
+    if not isinstance(content, str):
+        raise TypeError("Lab status query must be text.")
+    text = content.strip()
+    return bool(text and len(text) <= 120 and "\n" not in text
+                and "`" not in text and '"' not in text and "*" not in text
+                and _LAB_STATUS.fullmatch(text) is not None)
+
+
 def lab_observation_prompt(*, content: str, state_path: str | Path) -> str | None:
     """Return read-only prompt data for an explicitly addressed status query.
 
     A missing lab is reported as unprovisioned rather than being silently
     created. Existing-state reads use LabWorld.snapshot, not perform().
     """
-    if not isinstance(content, str):
-        raise TypeError("Lab status query must be text.")
-    text = content.strip()
-    if (not text or len(text) > 120 or "\n" in text or "`" in text
-            or '"' in text or "*" in text or _LAB_STATUS.fullmatch(text) is None):
+    if not is_lab_status_query(content):
         return None
     path = lab_state_path(state_path)
     if not path.is_file():
