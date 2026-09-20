@@ -1,38 +1,9 @@
-# Sofía Ada Lyra: roadmap extension (13-package roster)
+# Roadmap extension: historical change record
 
-**Amendment date:** 2026-09-20. **Branch:** `feature/g22-live-integration-artemis`. This document is an authoritative **planning extension** to [`ROADMAP.md`](ROADMAP.md), not a replacement of its original eleven detailed package descriptions. The effective package roster is now **13 packages**. The existing root roadmap dashboard still shows its original eleven until a separately reviewed consolidation; read both documents together. Earlier numbered/lettered batches remain historical only. Neither this document nor the [new package contracts](docs/development/package-clean-interact-lab-contracts.md) claims implementation, testing, deployment or permission to alter protected state.
+**Consolidated on 2026-09-20.** The authoritative 13-package roster, scope and delivery order now live in [`ROADMAP.md`](ROADMAP.md). This extension is retained to explain the addition of PKG-CLEAN and PKG-INTERACT, **not** as a separate or competing schedule. The [previous extension](https://github.com/Crazysodaman/SofiaAdaLyra/blob/959617fe22c903cd07f31e8771b98b271136ae1b/ROADMAP-EXTENSION.md) remains accessible through Git history.
 
-## Effective package roster
+**What changed:** two packages were added without renumbering historical batches. PKG-CLEAN owns evidence-backed maintenance and technical-debt reduction with protected data, interfaces and permissions preserved. PKG-INTERACT owns typed whole-avatar gestures and region handling, Sofía-controlled avatar expression, user clicks/taps on any canonical avatar region, contextual modeled reactions and an isolated virtual lab. A later clarification also added **separately authorized interaction with scoped objects visible on the user's screen**, while distinguishing screen objects from Sofía's avatar and guarding against click-through. The canonical renderer can be designed later; INTERACT's headless event/policy/reaction/lab foundation is its first deliverable. An on-screen demonstration is a separate live UI acceptance gate.
 
-| Package | Owned outcome | Current state / prerequisite |
-| --- | --- | --- |
-| PKG-CORE | Grounded cognition, identity, continuity, personality and responsiveness | Existing candidate acceptance and 1,195-test full-suite failure diagnosis outstanding |
-| PKG-MEM | Durable originals, retrieval, provenance and reviewed learning | Existing stores; comprehensive delivery pending |
-| PKG-NET | Authenticated distributed homelab and Artemis operation | Foundations; actual agent/transport acceptance pending |
-| PKG-ACT | Goals, bounded initiative, delivery and supervised helper minds | Foundations; actual notifications/independent work pending |
-| PKG-DEV | Evidence-backed self-improvement using a bounded, authorized executor | Tools/CLI foundations; runtime OpenCode integration pending |
-| PKG-REL | Evidence-linked relationships, preferences and contextual expression | Foundations; multi-session live acceptance pending |
-| PKG-UI | Voice, animated avatar and authenticated clients | Canonical representation/CLI; rendered/voice/mobile acceptance pending |
-| PKG-BODY | Gaia and later physical embodiments with independent hardware safety | Concept; verified physical integration pending |
-| PKG-SAFE | Authorization, secrets, audit, privacy, independent stop and recovery | Required throughout; full deployment assurance pending |
-| PKG-EVOLVE | Reviewable changes to everyday self-model and protected amendment procedure | Proposed; no silent identity changes |
-| PKG-VERIFY | Real, negative, performance and long-horizon acceptance | Continuous across packages |
-| **PKG-CLEAN** | Evidence-based repository cleanup and technical-debt reduction without losing compatibility, data or permissions | **New planning package; no cleanup work accepted yet** |
-| **PKG-INTERACT** | All-region avatar interaction, contextual modeled reactions, consent/boundaries and an isolated virtual interaction lab | **New planning package; no all-body touch engine or lab accepted yet** |
+**Current order:** finish the existing CORE pytest/regression/live checkpoint → **INTERACT** → **MEM**. SAFE and VERIFY apply throughout. CLEAN is a scoped maintenance lane and cannot silently precede or derail the requested feature order. NET and UI design may progress independently only when prerequisites, authority and implementation ownership permit. This ordering supersedes any provisional ordering in earlier package contracts.
 
-## New package outcomes and ownership
-
-**PKG-CLEAN** is a maintenance lane, not permission to delete files until `git status` looks pretty. Inventory sources, APIs, tests, migrations, schemas, dependencies, runtime state and optional integrations; classify changes; remove only demonstrably redundant artifacts; preserve conversation originals, Constitution/hash, canonical identity, audit, secrets, authorization and replay guarantees. Keep intentional behavioral changes owned by their original package. Validate focused/full tests, diff, supported Windows deployment, migration/restore and measured performance when relevant. Avoid changing the in-progress pytest revision. See [CLEAN contract](docs/development/package-clean-interact-lab-contracts.md#pkg-clean-maintainability-controlled-cleanup-and-technical-debt).
-
-**PKG-INTERACT** is an expressive interaction feature, not a physical-sensing or robotics claim. Support explicit textual/avatar interaction with a versioned map of **all canonical avatar regions**, including ears/tail and policy-restricted intimate/private areas rather than pretending such regions are missing. Use explicit appropriate adult-only opt-in, session-scoped revocable boundaries, contextual modeled reactions and privacy controls. Text or virtual gestures are not actual felt sensations. Provide a default-isolated virtual lab for controlled scenes, event replay, policy tests, animations and evaluation with no production memory changes or real device access. An actual physical lab, game environment or homelab connection requires identification, enrollment, authorization and separate NET/BODY safety gates. See [INTERACT contract](docs/development/package-clean-interact-lab-contracts.md#pkg-interact-contextual-embodied-interaction-and-a-controlled-lab).
-
-## Cross-package boundaries and dependencies
-
-- CLEAN touches any package only after its owner reviews behavior and migration changes. It coordinates with DEV and VERIFY; SAFE's protections may not be weakened by housekeeping.
-- INTERACT reuses CORE/REL's expression and existing emotional journal, MEM's source-linked records, UI's representation/rendering, SAFE's permissions/privacy and VERIFY's measurements. ACT retains outreach; BODY retains all physical sensing/actuation. A conversational cue alone never authorizes an external action.
-- Existing five cross-package contracts continue to apply. The detailed new package contracts define logical event fields and negative tests, but no matching Python classes/DB tables should be presumed before source inspection.
-- The quoted **“lab”** is provisionally scoped as a virtual simulation/test sandbox; its real intended referent remains an explicit open design decision, not a license to access the physical homelab.
-
-## Current checkpoint and acceptance discipline
-
-Finish and inspect the final failure summary from the already-running 1,195-test Windows pytest job, diagnose the conversation/application failures against actual tracebacks, then run focused and fresh full checks plus bounded live personality acceptance. Do not weaken contracts or declare an old-focused-test pass to be a green current head. CLEAN's read-only inventory and INTERACT's paper/schema/test-fixture planning can proceed independently. Before either package is released, record the target commit, inspected source and schemas, approvals, explicit denials, actual tests and live observations (`passed`/`failed`/`not run`), rollback, diff review and merge decision. No production code changes or `main` merge were made by this roadmap extension.
+**Detailed contracts:** [CLEAN and INTERACT](docs/development/package-clean-interact-lab-contracts.md), [bidirectional avatar/screen interaction clarification](docs/development/avatar-screen-interaction-contract.md), [original eleven package engineering contracts](docs/development/package-delivery-contracts.md) and [five cross-package acceptance contracts](docs/development/five-cross-package-acceptance-contracts.md). Read the root roadmap for the *effective* thirteen outcomes, status and sequencing. No production code, current pytest run, protected Constitution, deployment or `main` merge was changed by these documentation revisions.
