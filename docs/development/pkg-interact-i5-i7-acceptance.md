@@ -12,13 +12,14 @@ Only an entire, exact saved-user message `Sofía, stop interactions` or `Sofía,
 
 ## I7: narrow language expansion and dialogue quality
 
-`NaturalInteractionEngine` keeps the same canonical policy kernel and recognizes a reviewed set of first-person phrases and aliases. Hypotheticals, narrated actions, composites, quotes and unrecognized text abstain. A read-only hypothetical projection discusses head, tail, chest, and **all other known anatomy under the same contextual rule**, without recording contact. Recognized gestures project Sofía's represented fox anatomy and optional reaction cues including caution, doubt or displeasure; they do **not** obligate a happy, flirtatious, or negative reaction. Prompt context permits Sofía to respond positively, neutrally, awkwardly or negatively and set a boundary based on conversation. The model does not itself persist or independently enforce a region-specific boundary. **Prompt rules do not establish that the model will sound natural**; a live assessment remains mandatory.
+`NaturalInteractionEngine` keeps the same canonical policy kernel and recognizes a reviewed set of first-person phrases and aliases. Hypotheticals, narrated actions, composites, quotes and unrecognized text abstain. A read-only hypothetical projection discusses head, tail, chest, and **all other known anatomy under the same contextual rule**, without recording contact. Recognized gestures project Sofía's represented fox anatomy and optional reaction cues including affection, caution, uncertainty or frustration; they do **not** obligate a happy, flirtatious, or negative reaction. Region-specific cues match canonical IDs, so a forearm cannot be mistaken for an ear. Prompt context permits Sofía to respond positively, neutrally, awkwardly or negatively and set a boundary based on conversation. The model does not itself persist or independently enforce a region-specific boundary. **Prompt rules do not establish that the model will sound natural**; a live assessment remains mandatory.
 
 **One focused Windows check after the current older test run finishes and this branch is pulled:**
 
 ```powershell
 pytest -q -x `
   test/test_interaction_contextual_all_regions.py `
+  test/test_interaction_region_cue_collision.py `
   test/test_interaction_live_claims.py `
   test/test_interaction_live_discussion.py `
   test/test_interaction_i5_i7_batch.py `
