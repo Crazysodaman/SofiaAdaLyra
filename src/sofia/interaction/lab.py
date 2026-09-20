@@ -2,7 +2,7 @@
 
 This is not a UI client, a trusted observation producer, or an authorization
 source. No filesystem, network, journal, model, renderer or device is opened.
-Raw fixture text and intimate region names are never included in exported traces.
+Raw fixture text and sensitive anatomy names are never in exported traces.
 """
 from __future__ import annotations
 
@@ -80,19 +80,20 @@ class LabRecord:
     reason: str
     emotion_options: tuple[str, ...] = ()
     text_cues: tuple[str, ...] = ()
-    private_region: bool = False
+    private_region: bool = False  # Redaction only; not a policy denial.
 
     def redacted(self) -> dict[str, object]:
-        """Export only bounded decision metadata, never raw text or private anatomy."""
+        """Export bounded metadata, never raw fixture text or sensitive anatomy."""
         semantics = self.semantics
         if self.private_region and semantics is not None:
-            semantics = (semantics[0], "[restricted]", semantics[2], semantics[3])
+            semantics = (semantics[0], "[sensitive]", semantics[2], semantics[3])
         return {
             "step_id": self.step_id,
             "input_modality": self.input_modality,
             "status": self.status,
             "semantics": semantics,
-            "reason": "Restricted region." if self.private_region else self.reason,
+            "reason": "Sensitive anatomy omitted from export; classification status unchanged."
+                      if self.private_region else self.reason,
         }
 
 
