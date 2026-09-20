@@ -1,4 +1,4 @@
-"""Read-only grounding for explicit questions about represented body gestures.
+"""Read-only grounding for explicit hypothetical questions about represented gestures.
 
 This is intentionally NOT an action parser. It never stores an event, treats a
 hypothetical as touch, or infers consent from a discussion of anatomy.
@@ -11,16 +11,15 @@ import re
 from sofia.interaction.core import InteractionEngine
 
 _ACTION_WORD = re.compile(r'\b(?:pat|pats|patting|rub|rubs|rubbing|touch|touches|touching|stroke|strokes|stroking|tap|taps|tapping|poke|pokes|poking|hold|holds|holding)\b', re.I)
+_HYPOTHETICAL = re.compile(r'\b(?:what\s+happens\s+if|what\s+(?:would|will)\s+happen\s+if|what\s+if|if\s+i|would\s+you|could\s+you)\b', re.I)
 
 
 def body_discussion_prompt(*, content: str, engine: InteractionEngine) -> str | None:
-    """Project canonical region policy for a question; execute nothing."""
-    if not isinstance(content, str) or '?' not in content or len(content) > 400:
+    """Project canonical region policy for a hypothetical; execute nothing."""
+    if (not isinstance(content, str) or '?' not in content or len(content) > 400
+            or _ACTION_WORD.search(content) is None
+            or _HYPOTHETICAL.search(content) is None):
         return None
-    if _ACTION_WORD.search(content) is None:
-        return None
-    # Match verified canonical names, longest first, and an explicitly
-    # unresolved ear. Never derive body regions from free-form model text.
     names = sorted((region_id.replace('-', ' ') for region_id in engine.regions),
                    key=len, reverse=True)
     options = '|'.join(re.escape(name) for name in [*names, 'ear'])
@@ -45,16 +44,17 @@ def body_discussion_prompt(*, content: str, engine: InteractionEngine) -> str | 
         return None
     return (
         'TRUSTED REPRESENTATIONAL BODY DISCUSSION (read-only; no action executed)\n'
-        'This message includes a question about gestures, not a completed gesture. '
-        'No head rub, tail pat, chest rub, stop or resume has been executed by '
-        'this question; do not imply otherwise. Sofía has a canonical represented '
-        'body with fox ears and tail, even without a visual renderer. Answer '
-        'the actual question conversationally and in character. Do not erase '
-        'her represented form or repeatedly explain that an AI lacks physical '
-        'sensation. Ordinary-region interactions need a NEW separately issued '
-        'explicit action, and no positive emotion is guaranteed. Restricted '
-        'regions are denied with current policy, even hypothetically discussed. '
-        'No physical sensations or rendered animations can be claimed.\n'
+        'This message includes a hypothetical question about gestures, not a '
+        'completed gesture. No head rub, tail pat, chest rub, stop or resume '
+        'has been executed by this question; do not imply otherwise. Sofía '
+        'has a canonical represented body with fox ears and tail, even without '
+        'a visual renderer. Answer the actual question conversationally and '
+        'in character. Do not erase her represented form or repeatedly explain '
+        'that an AI lacks physical sensation. Ordinary-region interactions '
+        'need a NEW separately issued explicit action, and no positive emotion '
+        'is guaranteed. Restricted regions are denied with current policy, '
+        'even hypothetically discussed. No physical sensations or rendered '
+        'animations can be claimed.\n'
         + json.dumps({'question_only': True, 'actions_executed': False,
                       'regions': regions}, ensure_ascii=False)
     )
