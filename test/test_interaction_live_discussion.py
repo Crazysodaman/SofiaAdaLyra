@@ -15,7 +15,7 @@ AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avata
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 
-def test_actual_hypothetical_chat_is_read_only_and_separates_restricted_region(monkeypatch, tmp_path):
+def test_actual_hypothetical_chat_is_read_only_and_all_regions_contextual(monkeypatch, tmp_path):
     content = 'Rubs your head, what happens if I pat your tail or rub your chest?'
     original = CognitiveRequest(messages=(CognitiveMessage(role=CognitiveRole.USER, content=content),))
     monkeypatch.setattr(EmotionalConversationService, '_build_request', lambda self: original)
@@ -33,8 +33,9 @@ def test_actual_hypothetical_chat_is_read_only_and_separates_restricted_region(m
     assert '"region_id": "head"' in prompt
     assert '"region_id": "tail"' in prompt
     assert '"region_id": "chest"' in prompt
-    assert '"policy": "restricted"' in prompt
+    assert prompt.count('"policy": "contextual_requires_new_explicit_single_action"') == 3
     assert 'canonical represented body' in prompt
+    assert 'classification is not consent' in prompt
     assert not (tmp_path / 'sofia.db').exists()
     assert not (tmp_path / 'sofia-lab.db').exists()
 
@@ -44,4 +45,7 @@ def test_ordinary_anatomy_question_and_how_to_remain_regular_chat():
     assert body_discussion_prompt(content='Tell me about your tail', engine=engine) is None
     assert body_discussion_prompt(content='How do I pat your head?', engine=engine) is None
     assert body_discussion_prompt(content='*pats your head*', engine=engine) is None
-    assert body_discussion_prompt(content='If I touch your chest?', engine=engine) is not None
+    prompt = body_discussion_prompt(content='If I touch your chest?', engine=engine)
+    assert prompt is not None
+    assert '"region_id": "chest"' in prompt
+    assert '"policy": "contextual_requires_new_explicit_single_action"' in prompt
