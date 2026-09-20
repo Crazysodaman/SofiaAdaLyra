@@ -11,6 +11,7 @@ from sofia.personality.clarification import ClarificationJournal
 from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
+from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
 
 
@@ -87,6 +88,34 @@ class EmotionalConversationService(ConversationService):
             event_id=event_id, message_id=message.id,
             content=message.content, created_at=message.created_at,
         )
+
+    def reflect_on_event(self, *, event_id: str) -> ReflectionOutcome:
+        """Generate one optional model thought from explicitly selected evidence.
+
+        A trusted application caller selects the event. This method does not
+        run by itself, interpret ambiguous user language, or send messages.
+        The cognitive system supplies canonical grounding but gains no tools
+        or new operational authority from the reflection request.
+        """
+        if self._runtime.personality is None:
+            raise RuntimeError("No personality profile is active.")
+        if self._session is None:
+            raise RuntimeError("A conversation session must be active.")
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("A recorded event ID is required.")
+        now = datetime.now(timezone.utc)
+        matching = tuple(
+            event for event in self.emotional_journal.recent(
+                now=now, days=366, limit=50,
+            ) if event.event_id == event_id
+        )
+        if len(matching) != 1:
+            raise KeyError("No matching recent emotional event was recorded.")
+        agent = ThoughtAgent(
+            generate=self._runtime.respond,
+            reflections=self.reflection_journal,
+        )
+        return agent.reflect(event=matching[0], now=now)
 
     def close(self) -> None:
         super().close()
