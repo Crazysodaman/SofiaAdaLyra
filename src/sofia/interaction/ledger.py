@@ -3,8 +3,8 @@
 Only a trusted conversation host should supply previously saved USER-role
 messages. This module does not authenticate a human or an avatar client;
 model output, synthetic lab fixtures and unverified pointers are not inputs.
-Each user-authored message permits only its own ordinary represented gesture,
-not blanket consent, real contact, private-region or avatar permission.
+Each user-authored message describes only its own represented gesture,
+not blanket consent, real contact, or avatar permission.
 """
 from __future__ import annotations
 
@@ -53,9 +53,9 @@ class ControlOutcome:
 class InteractionLedger:
     """Per-session stop and at-most-once gesture evidence in existing state DB.
 
-    BEGIN IMMEDIATE serializes writes across processes. Denied private-region
-    attempts store only a digest/status, not region identity or source text.
-    No fabricated emotional appraisal or physical touch is stored here.
+    BEGIN IMMEDIATE serializes writes across processes. Stopped/unclear attempts
+    store only a digest/status, not region identity or source text. Recognized
+    regions are source-linked, not proof of consent, sensation or a reaction.
     """
 
     def __init__(self, state_path: str | Path) -> None:
@@ -124,7 +124,7 @@ class InteractionLedger:
                        (message_id, session_id, digest, command, when))
         if command == 'stop':
             return ControlOutcome('stopped', 'Representational body interactions stopped for this session.')
-        return ControlOutcome('resumed', 'New ordinary user-initiated text gestures may resume; restricted regions remain denied.')
+        return ControlOutcome('resumed', 'New individually user-described text gestures can be classified in context; no region is automatically welcomed.')
 
     def process_text(self, *, engine: InteractionEngine, content: str,
                      message_id: str, session_id: str,
@@ -172,7 +172,7 @@ class InteractionLedger:
             return decision, True
 
     def accepted(self, message_id: str) -> tuple[str, str, str] | None:
-        """Read accepted session/region/verb, never raw text."""
+        """Read classified session/region/verb, never raw text or consent."""
         _id(message_id, 'message_id')
         with self._connect() as db:
             row = db.execute('SELECT session_id, region_id, gesture FROM interaction_evidence '
