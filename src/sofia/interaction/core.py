@@ -150,9 +150,10 @@ class InteractionEngine:
             return InteractionDecision(event, "clarify", "Region is unknown or its side is ambiguous.")
         if event.phase != "end" or event.gesture == "release":
             return InteractionDecision(event, "acknowledged", "No completed contact or emotion inferred.")
-        if "ear" in region.id:
+        # Check exact canonical ear IDs, not substring 'ear' (forearm has 'ear').
+        if region.id == "ears" or region.id.startswith(("left-ear", "right-ear")):
             emotions, cues = ("curiosity", "surprise", "playfulness", "caution", "frustration"), ("*one ear flicks*", "*ears perk up*")
-        elif "tail" in region.id:
+        elif region.id.startswith("tail"):
             emotions, cues = ("fondness", "amusement", "caution", "curiosity", "frustration"), ("*tail swishes once*", "*tail curls closer*")
         elif "hand" in region.id or "palm" in region.id or "finger" in region.id:
             emotions, cues = ("appreciation", "curiosity", "caution", "frustration"), ("*a hand shifts slightly*",)
