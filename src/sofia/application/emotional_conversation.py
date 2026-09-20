@@ -38,6 +38,7 @@ class EmotionalConversationService(ConversationService):
                 record_workspace_observation(
                     event=changes, emotions=self._emotional_journal,
                     reflections=self._reflection_journal,
+                    ignored_paths=(state_path,),
                 )
         except Exception:
             super().close()
