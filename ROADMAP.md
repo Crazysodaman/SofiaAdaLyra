@@ -1,114 +1,110 @@
-# Sofía Ada Lyra: master roadmap
+# Sofía Ada Lyra: master roadmap and delivery plan
 
-**Provisional re-baseline:** 2026-09-20, while the Batch G full repository test run is still in progress.  
-**Repository:** `Crazysodaman/SofiaAdaLyra`  
-**Development head for this revision:** `feature/g22-live-integration-artemis`, [draft PR #1](https://github.com/Crazysodaman/SofiaAdaLyra/pull/1), **not merged**. `main` does not yet contain these changes. This roadmap-only commit follows the user's running local test revision; its documentation changes were **not part of that ongoing run**.  
-**Purpose:** Keep the lettered A–Z roadmap, numbered Engineering 1–26 lineage, actual implementation, validation and future commitments distinct. This document is a planning and evidence index, **not an implementation certificate**.
+**Provisional revision:** 2026-09-20, while the Batch G full suite is still running with failures already observed.  
+**Working branch:** `feature/g22-live-integration-artemis`, [draft PR #1](https://github.com/Crazysodaman/SofiaAdaLyra/pull/1), **unmerged**; `main` does not contain these changes. This documentation revision was committed *after* the user's ongoing test run began and is not part of that run.  
+**Purpose:** Preserve the original A–Z and Engineering 1–26 lineages while organizing future implementation into larger, dependency-aware delivery packages. This document is a planning and evidence index, not proof of implementation.
 
-> **Identity invariant:** The LLM is Sofía's cognitive engine, not Sofía herself. Constitution, canonical identity and embodiment, persistent state, operational evidence, authority, and capability enforcement remain outside the model.
+> **Identity invariant:** The LLM is Sofía's cognitive engine, not Sofía herself. Constitution, canonical identity, embodiment, state, operational evidence, authority and capability enforcement remain outside the model.
 
-## Status and change-control contract
+## Execution dashboard
 
-- **Historical complete:** completed in an earlier handoff; individual commits or current regressions may still require review. This is not a fresh green-suite claim.
-- **Implemented / verification pending:** concrete code exists but one or more focused, full-suite, security or live-environment gates remain open.
-- **Partially implemented:** specific foundations exist; the named larger capability is not available end to end.
-- **Planned / future / definition pending:** not claimed to be implemented. A reserved letter with an unrecovered original definition is **not** assigned an invented canonical title.
-- Lettered **A–Z** and numbered Engineering **1–26** are parallel views, **not one-to-one renumberings**. A capability may advance both tracks without completing either one. No retroactive renaming or moving unfinished work to make a batch appear green.
-- Update status only with a dated commit or PR, actual test output and any required live acceptance. Document what the model merely said separately from the persisted or observed result. Keep user approval and authority boundaries explicit.
-
-## Current verified snapshot and immediate gate
-
-**Batch G remains acceptance pending.** Its emotional/reflection journals, original appraisals and explicit correction records, contextual personality guidance, structured thought agent, unsent outbox, opt-in running-only idle worker, startup self-DB filter, timing diagnostics and read-only audit have been implemented on the feature branch. The user verified **55 targeted tests in 10.49 seconds** at `2a16393` and subsequently **30 targeted tests in 7.80 seconds** at `fb4b738`. The read-only audit of the actual local state showed **one completed idle attempt, one matching persisted model thought, zero worker errors reported and zero pending unsent messages**. This validates one instance of persisted idle reflection, not reliable semantic truth, general memory, autonomous delivery or offline thinking. See [`docs/development/batch-g-emotional-continuity.md`](docs/development/batch-g-emotional-continuity.md).
-
-**Full-suite status: running, failures already observed, final report not yet available.** Do not report G complete or merge PR #1 based on focused tests. Resolve the completed run's actual failures, rerun affected tests and then the full suite; review the resulting diff and a concise live startup/affection/serious-response check. The previous **1,090 passed / 1 failed / 1 skipped** suite was on an older revision, not this candidate.
-
-**Performance is measured, not solved:** live `qwen3:14b` traces showed **0.0 ms conversation lock wait** in recorded turns; Ollama generation took roughly **12.8–34 seconds for 34–86 output tokens** and **88.2 seconds for 226 output tokens**. Prompts were roughly **16k–18k tokens** with a requested **20,000-token** context. One GPU sample showed CPU/GPU split and near-full RTX 3080 Ti 12 GB VRAM. Do not assert that the idle worker caused the delay, that all effective context was retained, or that shrinking context is harmless. See the G document for the measurement limitations.
-
-**Engineering 22 remains separately open:** contracts, identity/knowledge/reachability and remote-capability/authority/gateway/replay foundations exist in the feature branch. An authenticated deployed Artemis transport and remote agent, end-to-end two-machine authorization, audit/replay and live LAN acceptance are **not demonstrated**. Passing fake-transport tests is not live authorization.
-
-## Master A–Z roadmap
-
-| Area | Lettered batch | Evidence-based state | Scope and next boundary |
+| Lane | Delivery package (not a batch rename) | Existing batches | Status and release gate |
 | --- | --- | --- | --- |
-| Core | **A–E** | Historical complete | Preserve the original core foundation and existing architectural contracts. Recover original individual titles before editing any per-letter scope. |
-| Mind | **F** | Partial / further evaluation | Model/provider behavior, full cognitive-context grounding, context capacity and reproducible live evaluation. Performance and active-context budgeting remain open; see F checkpoint. |
-| Mind | **G: Personality Architecture** | Implemented / acceptance pending | Evidence-grounded modeled emotional continuity, representational expression, reflection and running-only idle worker. Finish current failing suite, live semantic review and diff. The unsent outbox does not imply notifications. |
-| Mind | **H–J** | Planned; definitions pending reconciliation | Preserve reserved slots and recover previously agreed individual contracts, titles and gates before assigning specifics. |
-| Mind | **K: Memory Architecture** | Planned; **G groundwork already exists** | Durable original records, explicit provenance, bounded relevant retrieval, human-reviewed promotion and correction, and user-controlled ChatGPT archive migration. Coordinate with Engineering 23; do not replace G journals or identity/constitution. |
-| Mind | **L** | Planned; exact prior title pending reconciliation | Grounded initiative and meaningful, optional follow-ups informed by real recent state. Authorized delivery, user busy/stop cues, novelty and verified issue worsening are **not** completed by G. Coordinate with Engineering 24. |
-| Agency | **M–O** | Planned; definitions pending reconciliation | Deliberate proposals, per-action permission, controlled execution and evidence-backed verification. Never infer authority from a prompt, an available tool or model-generated text. |
-| Growth | **P–W** | Future; definitions pending reconciliation | Preserve the existing Growth sequence; define each slot and acceptance gate from project decisions, not invented history. |
-| Persistence | **X–Z** | Future; definitions pending reconciliation | Preserve the existing Persistence sequence; specify lifecycle, recovery and identity-continuity requirements before implementation. |
+| **Now** | G closeout and measured model performance | G; relevant F | G implemented with focused and one real idle-persistence verification; **full suite still running with failures**. Diagnose failures, retest, check live startup/style and review diff. No model/context change without a controlled comparison. |
+| **Next primary lane** | Memory, retrieval and context | K + Engineering 23; F context contract | Planned. Reuse prior memory and G journals; deliver traceable originals, bounded retrieval, user-reviewed promotion and optional archive migration. |
+| **Independent parallel lane** | Authenticated multi-machine operation | Remaining Engineering 22 | Partially implemented. Authenticated Artemis transport/agent, durable execution safety and live two-machine acceptance are outstanding. Remote execution stays unavailable until proven safe. |
+| **After relevant dependencies** | Grounded initiative and delivery | L + Engineering 24; relevant M–O only after definitions are recovered | Planned. Depends on memory and G's verified outbox. Remote placement/actions additionally require authenticated 22 and relevant 25 controls. |
+| **Built alongside each subsystem** | Resilience and recovery | Engineering 25 | Planned; introduce safety controls where needed, then validate actual recovery and negative scenarios. |
+| **Final integration** | Full-system acceptance | Engineering 26 | Planned. Real local + Artemis, memory, agency, safety and performance scenarios; cannot replace earlier focused tests. |
 
-### Batch F: keep the context and inference problem visible
+**Package names are workgroup labels, never new canonical batch titles.** A–Z and Engineering 1–26 remain separate historical planning views, not one-to-one mappings. A capability may advance several tracks without completing any of them. Do not retroactively rename a batch or move unfinished work to claim completion.
 
-The earlier diagnostic captured about **70,200 characters of system prompt** against an older Ollama allocation of **4,096 tokens**. A later roadmap checkpoint reported a **32,768-token** local default; the *currently verified feature-branch default* requests **20,000 tokens**, and actual live prompts were approximately **16k–18k tokens**. These are different checkpoints, not simultaneous configuration values. A configured context size is not durable memory or proof that every instruction was retained.
+## How to execute bigger packages without losing correctness
 
-Earlier non-integration verification: **967 passed, 1 skipped, 5 deselected**; a separately rerun four-variant live regression passed in **808.50 seconds** on 2026-09-20. The ten-generation probe was interrupted after its first observed correct generation; it is **not** a completed ten-run result. Observability changes committed in [`0b1d1d8`](https://github.com/Crazysodaman/SofiaAdaLyra/commit/0b1d1d8726a2168cb01aac87804d01118109d6df) passed compilation/collection/whitespace checks, not full execution of the logging code. Some answers framed representational body measurements as physical; surviving context beyond removed prompt sections may explain correct measurement replies. See [`docs/development/model-evaluation.md`](docs/development/model-evaluation.md).
+1. **Inspect and reuse first:** inventory source, schemas, current interfaces, existing tests and unresolved failures. Recover reserved batch definitions from actual history rather than invent them. Record which existing records and contracts must survive migration.
+2. **Agree an end-to-end package contract:** define owned behavior, dependencies, explicitly deferred features, permissions, rollback and observable acceptance. A mock transport, prompt instruction or journal table is not a deployed capability.
+3. **Implement cohesive slices:** small reviewed commits, focused tests and clear integration interfaces inside a larger package. Independent slices may progress together, but do not build a dependent layer on a known-broken prerequisite. Reduce user interruptions by consolidating pulls and test requests into meaningful package checkpoints, not one per minor commit.
+4. **Accept as a package:** focused tests for all changed slices, cross-component and negative/security tests, then broader/full suite. Add explicit bounded live Ollama, hardware and Artemis tests where the claim depends on them. If a test did not run, label it **not run**, never green. Slow ten-generation research probes are not silently part of fast validation.
+5. **Release deliberately:** review complete diff, exact files, data migrations, security and recorded limitations; obtain needed user approval before merging. If a PR mixes G and unfinished 22, either verify both or separate the scopes by a separately reviewed, authorized Git operation. Do not merge just for branch housekeeping.
 
-**F/K cross-cutting contract:** measure actual prompt and output tokens; deterministically prioritize constitution/authority/identity, current question, relevant evidence and bounded conversation; preserve full original messages separately; retrieve cited evidence on demand; expose omitted/truncated/unknown material. A condensed constitution requires versioning and human approval and must not silently relax enforcement. Do not optimize speed by amputating grounding before controlled comparison.
+**Evidence ledger per package:** commit/PR and exact scope; focused and full-suite results; live results; observed/inferred/unknown distinctions; unresolved limitations; diff and human approval; merge status. Tests validate a contract, not subjective feelings or unrestricted correctness. Do not start a competing full suite while the user's current one runs. A docs-only revision is not a new test result.
 
-## Numbered Engineering lineage (preserved separately)
+## Current verified snapshot and blockers
 
-Earlier handoffs report **Engineering 1–21 historically complete**. The following is their recorded lineage, not a new claim that every old batch was re-audited during G.
+**G remains acceptance pending.** The branch implements contextual personality expression, evidence-linked modeled emotional appraisals and append-only corrections, retrospectives, a structured thought agent, durable **unsent** outbox, opt-in running-only idle worker, startup self-DB filtering, performance tracing and read-only journal audit. User-verified focused results: **55 passed in 10.49 seconds** on `2a16393`, then **30 passed in 7.80 seconds** on `fb4b738`. The read-only audit showed **one completed idle-worker attempt with one matching persisted model thought**, no reported error, and zero pending unsent messages. One successful reflection is not proof of long-term memory, reliable semantic accuracy, offline thought or notification delivery. See [`docs/development/batch-g-emotional-continuity.md`](docs/development/batch-g-emotional-continuity.md).
 
-| Engineering batches | Historical scope / next requirement | Evidence-based state |
+**G full suite:** running, failures already visible, final failure list and count **unknown**. Wait for actual `FAILURES` and summary, diagnose, repair without weakening contracts, run targeted regressions and a clean full suite, check a short live startup/affection/serious interaction and inspect the diff. A previous **1,090 passed / 1 failed / 1 skipped** suite belongs to an older revision, not this head. PR #1 also contains unfinished Engineering 22; G acceptance alone cannot authorize its entire merge.
+
+**F performance:** recorded conversation model-lock wait was **0.0 ms**; Ollama generation took ~**12.8–34 seconds for 34–86 output tokens** and **88.2 seconds for 226 tokens**. Prompts were roughly **16k–18k tokens** with 20,000 context *requested*. A GPU snapshot showed mixed CPU/GPU execution and near-full RTX 3080 Ti 12 GB VRAM. Actual effective grounding and faster configurations remain unverified. Earlier F checkpoint: about 70,200 characters of system prompt vs an older 4,096-token allocation; a different checkpoint reported 32,768 while the currently inspected branch requests 20,000. These were **different configurations**, not concurrent values. Earlier non-integration tests: **967 passed, 1 skipped, 5 deselected**; a separate four-variant live regression passed in **808.50 seconds**. The ten-generation probe was interrupted. See [`docs/development/model-evaluation.md`](docs/development/model-evaluation.md).
+
+**Engineering 22:** stable node contracts, peer identity/knowledge/reachability, discovered capability, authorization/gateway and replay foundations exist, but an authenticated deployed Artemis agent/transport and end-to-end live two-machine authorization, auditing and recovery are **not established**. Do not confuse development mock tests with production-safe remote operations.
+
+## Preserve original A–Z ownership
+
+| Area | Batch | Evidence-based status and original boundary |
 | --- | --- | --- |
-| **1–10** | Foundation, cognition/LLM, continuity, controlled agency, integrated runtime, persistent memory, authoritative self-model and temporal awareness | Historical complete |
-| **11–18** | Capability/tool architecture, controlled filesystem inspection, code tooling/analysis, boot and operational continuity, persistent continuity, personality/embodiment contracts | Structurally complete in prior handoff; live semantic issues tracked separately |
-| **19: Machine & Environment Intelligence** | Machine discovery and knowledge, persistent observations, reload, staleness and contradictions | Historical complete |
-| **20: IT / System Capabilities** | Controlled process/system/network/service/hardware inspection | Historical complete; checkpoint **784 passed, 1 skipped** |
-| **21: External Systems & Integrations** | External system → integration adapter → structured evidence/result → external knowledge → cognitive context → cognition | Historical complete |
-| **22: Distributed / Multi-Machine Sofía** | Stable nodes, reachability, discovered capability, per-node permission and verified execution | **Partially implemented; live authenticated transport/Artemis acceptance open** |
-| **23: Long-Term Memory & Learning** | Provenance-preserving originals, selective retrieval, reviewable corrections/promotion and archive migration; implement alongside K | **Planned; reuse G journals and existing earlier memory only as inspected foundations** |
-| **24: Advanced Autonomy** | Grounded initiative, authorized outbound delivery, follow-ups, resource-aware inference placement and permitted routine operations; coordinate with L | **Planned; G's unsent outbox and idle worker are partial foundations only** |
-| **25: Safety / Recovery / Resilience** | Failure containment, distributed authorization, auditing, rollback and recovery | **Planned** |
-| **26: Full Integration / System Validation** | End-to-end multi-machine, memory, autonomy, security, performance and real-world verification | **Planned** |
+| Core | **A–E** | Historically complete, not freshly re-audited. Preserve core contracts; recover original individual titles before changing scope. |
+| Mind | **F** | Partially verified. Model/provider evaluation, full cognitive-context grounding, context budget and measured inference behavior; cross-cuts G and K/23. |
+| Mind | **G: Personality Architecture** | Implemented, **acceptance pending**. Evidence-grounded emotion/reflection and representational style; worker/outbox do not imply messages can be sent. |
+| Mind | **H–J** | Planned; original individual titles and criteria pending reconciliation. Do not invent them. |
+| Mind | **K: Memory Architecture** | Planned with **G groundwork**. Durable originals, provenance-aware retrieval, user-reviewed promotion, controlled ChatGPT archive migration. Shared delivery with Engineering 23. |
+| Mind | **L** | Planned; exact prior title pending reconciliation. Meaningful grounded initiative and optional, user-controlled follow-ups; shared delivery with Engineering 24. |
+| Agency | **M–O** | Planned; individual definitions pending reconciliation. Proposal, explicit per-action authority, execution and verification; do not rename these via a package label. |
+| Growth | **P–W** | Future, definitions pending reconciliation. Preserve reserved Growth sequence. |
+| Persistence | **X–Z** | Future, definitions pending reconciliation. Preserve reserved Persistence sequence. |
 
-### Engineering 22: retain the A–H slices without inflating their status
+## Preserve original Engineering 1–26 lineage
 
-1. **22A Distributed System Contracts:** observable types, failure boundaries and ownership; structural foundations committed.
-2. **22B Remote Machine Identity:** stable node identity independent of changing network address or process; structural foundations committed.
-3. **22C Node / Peer Knowledge:** observed peers, evidence and freshness, without treating unseen peers as absent; structural foundations committed.
-4. **22D Connectivity & Reachability:** multi-signal status and expected-state registry; one failed ping is not a proof of offline status; structural foundations committed.
-5. **22E Remote Capability Discovery:** timestamped, node-specific capability evidence, not permission; development implementation exists, live adapter verification open.
-6. **22F Distributed Authority Boundary:** explicit node/capability/operation/grant/expiry, deny by default, revocation and authorization; grant and replay foundations exist, cryptographic deployment and live checks remain open.
-7. **22G Remote Operations:** bounded gateway and structured reported results; authenticated transport/agent, durable safety and actual Artemis execution are not established.
-8. **22H Verification / Regression:** fake-transport tests and development contracts exist; actual authenticated multi-machine acceptance remains open.
+The earlier handoff reports **1–21 historically complete**. Historical status is not a fresh audit or claim of flawless live model behavior.
 
-The earlier [`G5–G8 / 22E–22H implementation package`](docs/development/batch-g5-g8-and-22e-22h.md) documents the initial contract set and its security limitations; subsequent commits added foundations but do not substitute for real peer authentication or live execution. Keep Engineering 22 open independently of Batch G's final decision.
-
-## Next implementation design: K / Engineering 23, without duplicating G
-
-**This is a proposed execution decomposition, not newly invented canonical K sub-batch names.** Start only after G's failures are resolved and a clean, reviewed checkpoint is agreed. Verify the existing memory subsystem and schemas before changing them.
-
-| Work package | Existing foundation to retain | New capability and acceptance evidence |
+| Batch | Recorded scope | Evidence-based status |
 | --- | --- | --- |
-| **23/K.1 Inventory and contracts** | Prior memory subsystem; G emotional, clarification, reflection and conversation stores | Map data ownership, schema, source identity, privacy and authority. Identify which records are originals, derived summaries, model thoughts or user corrections. Produce migration/backward-compatibility tests before schema changes. |
-| **23/K.2 Durable originals and provenance** | Persisted conversations and evidence-linked G events | Preserve source text and timestamps with source IDs and provenance; append corrections and revisions without silently overwriting originals. Explicit unknowns and conflict states. Restart/reopen and duplicate-import tests. |
-| **23/K.3 Bounded retrieval and context budgeting** | Current cognitive context assembly, F measurements, G read-only projections | Retrieve a relevant, permission-scoped evidence subset on demand; cite source IDs, bound tokens, order priorities, surface omission/truncation. Test conflicting sources, irrelevant records, prompt injection and scarce context; compare real model behavior before changing `num_ctx`. |
-| **23/K.4 Human-reviewed memory promotion** | G distinction between observed/user-reported/inferred and append-only reappraisal | Let the user inspect/edit/approve candidate durable memories or summaries. No LLM-generated item silently becomes canonical identity, constitution, authority or an observed fact. Record decisions and enable corrections/revocation with audit tests. |
-| **23/K.5 User-controlled ChatGPT archive migration** | The original archive source provided by the user, if authorized | Opt-in import/export workflow, format validation, deduplication, source preservation and reversible review. Summaries and links remain traceable to originals; no imaginary access to an archive or automatic bulk promotion. Test malformed, partial and duplicate archives, and privacy boundaries. |
-| **23/K.6 Acceptance and recovery** | Existing SQLite state, lifecycle and repo test infrastructure | Incremental migration/backups, read-only fallback and recovery plan; focused and full tests plus real long-horizon retrieval across restarts. Explicitly measure recall accuracy and hallucination/authority boundaries. |
+| **1–10** | Foundation, cognition/LLM, continuity, bounded agency, runtime, memory, self-model, temporal awareness | Historically complete; inspect existing memory before K/23. |
+| **11–18** | Capabilities, filesystem/code tools, operational and persistent continuity, personality/embodiment contracts | Historically structurally complete; live semantic limits tracked separately. |
+| **19: Machine & Environment Intelligence** | Machine knowledge, observations, reload, staleness and contradictions | Historically complete. |
+| **20: IT / System Capabilities** | Bounded process/system/network/service/hardware inspection | Historically complete; checkpoint **784 passed, 1 skipped**. |
+| **21: External Systems & Integrations** | Adapter → structured evidence → external knowledge → cognitive context → cognition | Historically complete. |
+| **22: Distributed / Multi-Machine Sofía** | Node identity, reachability, capabilities, per-node authority and verified operations | **Partially implemented; authenticated Artemis transport and live acceptance open**. |
+| **23: Long-Term Memory & Learning** | Durable provenance, selective retrieval, reviewed learning and archive migration | Planned; integrate with K without rebuilding G journals. |
+| **24: Advanced Autonomy** | Initiative, authorized delivery, follow-ups, resource-aware inference and permitted actions | Planned; G's worker and unsent outbox are only foundations. |
+| **25: Safety / Recovery / Resilience** | Audit, revocation, rollback, recovery and failure isolation | Planned; essential controls belong in earlier implementation too. |
+| **26: Full Integration / System Validation** | Actual multi-machine, memory, safety, latency and user-workflow acceptance | Planned. |
 
-**G → K/23 handoff:** G already records modeled affect, thoughts, corrections and bounded retrospective summaries. K/23 must **index and retrieve those existing records** under proven provenance rather than build a second emotional journal or claim that an unsent message is a memory. User-facing spontaneous contact stays L/24; distributed storage/remote inference stays 22/24–26. The present idle worker's 50-event/366-day read limit is **not** K's intended long-term retrieval.
+**Engineering 22A–H remain as originally scoped:** 22A system contracts; 22B remote machine identity; 22C peer knowledge; 22D connectivity/reachability; 22E capability discovery; 22F distributed authority; 22G bounded remote operations; 22H verification. 22A–D foundations are committed; 22E–H have development code/tests, **not** accepted deployed authentication or live Artemis execution. An advertised capability is not permission; a failed ping is not proof of offline state. See [`docs/development/batch-g5-g8-and-22e-22h.md`](docs/development/batch-g5-g8-and-22e-22h.md).
 
-## Later capabilities, ordered by real dependencies
+## Delivery package: K + Engineering 23, memory and context
 
-**L / Engineering 24:** After a reliable memory/retrieval foundation, implement user-configurable, authorized delivery channels; explicit stop/mute/busy cues, natural spacing, cross-event novelty, meaningful project follow-ups and verified worsening comparison. Review text before any consequential action; no anxiety-driven messaging, invented offline reflections or background model calls that interrupt user conversation. Resource-aware GPU/remote-node placement requires Engineering 22 authentication and measured health, not an assumed server endpoint.
+**Proposed execution slices, not newly numbered K sub-batches.** Entry: resolve G regressions and agree stable interfaces; inspect the prior memory subsystem and conversation data before editing.
 
-**Engineering 25:** Add distributed recovery, security posture, audit retention, revocation, safe retries, rollback and failure containment. No remote execution before relevant 22/25 controls are verified.
+| Slice | Reuse | Deliverable and testable acceptance |
+| --- | --- | --- |
+| **Inventory and ownership** | Existing memory/conversation stores; G emotional, reflection and clarification journals | Map originals, model-derived thoughts, source IDs, timestamps, sensitivity, authority, schemas and backward compatibility. Establish migration tests. |
+| **Preserved originals and provenance** | Durable messages and G evidence-linked events | Keep immutable originals, append corrections, distinguish observed/user-reported/inferred and missing/conflicting records. Test restart, duplicate import and rollback. |
+| **Selective retrieval and context budget** | F measurements, cognitive context assembly, G bounded projections | Fetch permission-scoped, relevant source-linked evidence; prioritize constitution/authority/identity and the user's question; expose truncation/omission. Test conflicts, prompt injection and scarce context. Compare real model responses *before* altering `num_ctx`. |
+| **Human-reviewed promotion** | Explicit G clarification and provenance | Inspect/edit/approve/reject candidate long-term memories and summaries; audit/revoke decisions. No automatic promotion to identity, constitution, permissions or observed facts. |
+| **User-controlled ChatGPT archive migration** | An archive the user actually provides or authorizes | Validate formats, preserve originals, dedupe, stage review, make summaries traceable, support reversible imports. Test malformed/partial/duplicate and privacy cases. No assumed archive access. |
+| **Acceptance and recovery** | Existing SQLite state/lifecycle/tests | Migration backup and recovery, long-horizon relevant retrieval across restarts, grounded live responses, measured token use, focused + full-suite acceptance. |
 
-**Engineering 26:** Integrate and validate personality, memory, agent permissions, distributed transport, performance and end-to-end user workflow under actual local and Artemis conditions; distinguish simulation, mocked contracts and live results.
+**Definition of delivered memory:** a recalled answer can identify the original supporting record and its provenance, retain disagreements/corrections, acknowledge unknowns and survive restarts without rewriting canonical identity. G's 50-event/366-day worker window is *not* long-term retrieval. An unsent outbox message is *not* a promoted memory.
 
-**Cross-batch user goals, not current capabilities:** living authorized homelab topology and unexpected-device detection (21–24), evidence-backed offline alerts (22–24), gaming-aware inference placement without disrupting a game (22–25), proactive but user-controlled contact and project continuity (K/L/23/24), and explicitly permitted maintenance with verification and rollback (24–26).
+## Delivery package: finish Engineering 22
 
-## Architecture, repository hygiene and completion gates
+Build and verify enrolled cryptographic peer identity and authenticated transport; deploy a bounded agent to Artemis; discover fresh node-specific capabilities independently of authorization; enforce durable node+capability+operation+expiry grants, replay resistance, audit and failure handling at the execution boundary. Test invalid peers, stale information, revoked grants, replay, disconnects and uncertain results; then complete an explicitly authorized **real** local-to-Artemis two-machine acceptance. No general remote shell, false `authenticate()` implementation or unauthorized background actions. May proceed alongside K/23 only where interfaces and code ownership are independent. Remote model placement additionally depends on measured health/resources and Engineering 24/25 authorization, not the mere existence of a node.
 
-**Capability ≠ Authority. Authentication ≠ Authorization. Observation ≠ Action. Knowledge ≠ Authority. Connectivity ≠ Authority.** Default agency policy from prior handoff: `can_respond=True`, `can_propose_actions=True`, `can_execute_actions=False`. Intended lifecycle: **Think → Propose → Authorize → Execute → Verify**. Model style and emotion do not grant tools or alter canonical identity.
+## Delivery package: L + Engineering 24
 
-For substantive work: inspect source and contracts; define observable criteria; obtain approval for consequential changes; implement the smallest sound change; run focused and broader tests; perform explicit live-model/hardware/LAN tests where behavior depends on them; inspect the actual diff; record failures and limitations; then checkpoint reviewed files. Never equate a passing mock with deployed capability. Never claim test completion while pytest is still running.
+Entry: dependable K/23 retrieval and G's verified outbox; authenticated 22 for any remote resource or action. Build user-controlled notification delivery with explicit stop/mute/busy choices, natural spacing and cross-event novelty, grounded project/relationship follow-ups and verified earlier/later observation comparisons before declaring a condition worse. Preserve the rule that emotion labels or loneliness do not justify escalation. Add resource-aware inference placement and permitted routine operations *only* with actual hardware/game-activity evidence and per-action authorization. Verify duplicate prevention, no unwanted contact, foreground responsiveness, delivery acknowledgments, restarts and network failure. **G does not currently send messages.**
 
-**Repository hygiene still pending:** earlier commits included `state/sofia.db`, diagnostic `regression-failure.log` and one-time patch scripts. Review tracking/ignore and data retention deliberately; do not delete valuable state or rewrite published history without approval. Keep state, private logs and one-time installers out of future commits unless intentionally reviewed.
+## Delivery packages: Engineering 25 and 26
 
-**Immediate execution order:** finish the running Batch G suite and fix reported failures → targeted reruns and a clean full suite → brief live semantic/startup check and diff review → decide G acceptance and isolate Engineering 22's remaining gates → approve this provisional roadmap → implement K/Engineering 23 as the next planned development work. A roadmap update is not permission to merge a still-unverified feature PR.
+**25 Recovery/resilience:** design security, revocation, audit retention, secrets, safe retries, backups and rollback into each earlier subsystem; later validate cross-system crash/restart, uncertainty and negative-security cases. Do not postpone essential 22 authorization to a final hardening pass.
+
+**26 End-to-end validation:** run real local + Artemis workflows spanning personality, memory, permissions, initiative, failures and performance. Label mocked contracts and deployed evidence separately. Prove continuity without claiming thoughts during downtime.
+
+## Architecture and operational discipline
+
+**Capability ≠ Authority. Authentication ≠ Authorization. Observation ≠ Action. Knowledge ≠ Authority. Connectivity ≠ Authority.** Historical default: `can_respond=True`, `can_propose_actions=True`, `can_execute_actions=False`. Intended path: **Think → Propose → Authorize → Execute → Verify**. Personality does not change grants or factual truth.
+
+**Open repository hygiene:** earlier commits included `state/sofia.db`, diagnostic `regression-failure.log` and one-time patch scripts. Review tracking/ignore, privacy and retention deliberately; do not delete valuable state or rewrite published history without approval. Keep unrelated cleanup out of functional fixes.
+
+**Immediate next step:** leave the currently running full suite undisturbed; get its final failure report before diagnosing. Fix the actual G regressions on this existing branch, retest and review. Review this proposed package plan with Sparks before treating its ordering or package scope as approved; G acceptance and any PR merge are separate decisions.
