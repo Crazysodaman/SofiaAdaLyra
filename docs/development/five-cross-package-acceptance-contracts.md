@@ -1,0 +1,81 @@
+# Five cross-package implementation and acceptance contracts
+
+**Status:** proposed implementation contracts, documentation only. **Roadmap:** [`ROADMAP.md`](../../ROADMAP.md). **Branch:** `feature/g22-live-integration-artemis`. These contracts refine PKG-CORE/MEM/NET/ACT/SAFE/VERIFY and do not create another package, supersede the Constitution, authorize operations, or establish that a feature already works. Existing implementation must be inspected before choosing file paths, schema changes, transports or executors. No production code, database migration, test run or deployment is implied by this document.
+
+## Common implementation gate
+
+Before implementation, record the target commit; existing owning modules, persistence schema and tests; user-visible expected behavior; data classification; authorization and revocation; failures and rollback; focused, integration and **real** acceptance evidence. Reuse existing identity, event, conversation, authority, audit and journal stores. Explicitly distinguish `passed`, `failed` and `not run`, and simulated from real. Do not weaken existing tests to obtain a green suite. The in-progress 1,195-test run and its conversation failures must be diagnosed independently; no particular root cause is presumed. No development step may rewrite historical records or canonize an LLM inference as an observed fact.
+
+### C1. Exact conversation and restart recovery (PKG-CORE + PKG-MEM; VERIFY)
+
+**Outcome:** an interrupted or cleanly ended session can resume from durable, ordered original messages, rather than reconstructing dialogue from a summary or fabricating activity while offline.
+
+**Contract:** identify the existing canonical conversation/session store and reuse its IDs and schema where possible. Persist each committed user/assistant message with immutable message identity, session identity, order, role, timestamp, original content, and explicit status (e.g. complete vs interrupted/pending where supported). Establish a deterministic commit point; an acknowledged message must be recoverable. Summaries and derived memories carry source links and never replace originals. Recover the original session when explicitly resuming it; a new session gets a new ID and may retrieve old evidence only through scoped memory. Do not automatically append an interrupted partial model response as if completed, replay an externally consequential action, or claim offline cognition. If the old schema has no such fields, propose the smallest compatible migration with backup and rollback after schema inspection; do not invent IDs retroactively.
+
+**Failure/negative cases:** crash before/after message commit; interrupted generation; duplicate retry or two starts; invalid ordering; malformed or partially migrated DB; unavailable, deleted, redacted or unauthorized history; conflicting summaries; restart after a real time gap. Fail visibly with `unknown`/unavailable when evidence is missing, without silently creating plausible dialogue. Any erase request must follow approved retention and deletion policy rather than silently overriding originals.
+
+**Acceptance scenarios:** (1) save a multi-turn conversation, exit, restart and explicitly resume: identical session/message IDs, original bytes, ordering and source links; (2) inject a crash at the commit boundary: never report an uncommitted/partial assistant answer as complete; (3) replay a request/restart: no duplicate acknowledged messages or external actions; (4) open a different session: no unauthorized cross-session leakage; (5) recovery from corrupt/unavailable store reports uncertainty and does not invent history. Unit tests for repository invariants, integration tests across process boundaries, and one observed real Windows CLI restart with timestamps. Record actual existing behavior before modifying storage.
+
+**Implementation preparation:** inspect conversation persistence, CLI session selection, context assembler and existing continuity tests; draw a read/write sequence and identify transaction boundaries; write failing tests against the observed defect only. No parallel replacement conversation database.
+
+### C2. Windows and Artemis deployment contract (PKG-NET + PKG-DEV + PKG-SAFE; VERIFY)
+
+**Outcome:** the same scoped capabilities work predictably under the *actual* Windows interactive and service identities, with no false assumption that a tool installed on Sparks's desktop is callable by an Artemis process.
+
+**Contract:** enumerate runtime host, OS, process/service account, working directory, environment, Python interpreter/venv, storage locations, executable discovery, network identities and granted capability scopes. Treat mapped drive letters as per-logon-session conveniences, not durable service paths: define verified UNC or appropriately mounted paths and narrowly authorized credentials. Verify access under the effective service identity, including ACLs, network shares and OpenCode executable/version. Separate software discovery from execution permission. Agent installation, Windows service lifecycle, secrets storage, authentication to Artemis, transport loss/reconnect and service restart require dedicated NET/SAFE decisions. Never infer that installation on Venus or any other machine implies installation on Artemis; no general remote shell or opportunistic network scan.
+
+**Failure/negative cases:** interactive PowerShell succeeds while service account fails; missing `H:` mapping; UNC access denied; wrong working directory; PATH resolves the wrong `opencode`; expired/revoked node grant; absent host or executable; partial remote response/timeouts; game/VRAM resource contention. Report host/account/path and relevant error without exposing secrets; retry only operations known to be safe to repeat. Remote changes require scoped approval and audit.
+
+**Acceptance scenarios:** prove an authorized read-only operation under both an interactive account and the intended real service account; prove a missing mapped drive does not cause silent fallback to unrelated storage; verify OpenCode discovery and deny unauthorized execution; run authenticated local-to-Artemis probe and a bounded authorized operation under explicit grants; show denied/revoked grants and network loss fail closed; independently verify service restart and audit outcome. Record per-host versions and actual physical machines used. Fake transport tests do not satisfy Artemis acceptance.
+
+**Implementation preparation:** inventory existing node/agent, Windows process/service and executor components; decide and record deployment mechanism, transport and secret storage before implementation; prepare an account/path/capability matrix without storing credentials in Git.
+
+### C3. Helper-mind authorization and independent containment (PKG-ACT + PKG-SAFE + PKG-EVOLVE; VERIFY)
+
+**Outcome:** a derived helper can work only on a bounded delegated task, with a trustworthy outside-the-helper way for authorized operators to inspect, revoke and terminate it.
+
+**Contract and wording reconciliation:** 'Only Sofía may authorize creation' in the roadmap does **not** by itself settle the human/constitutional authorization boundary. Until the actual Constitution and authority contracts are inspected and reconciled, treat Sofía as able to **propose** helper creation, not independently grant herself new permissions. Creation proceeds only through the existing valid authorization process; any required explicit human approval remains required. Define a supervisor outside the helper and its model context as the enforcement owner. A helper has a distinct identifier, parent/task reference, permitted capability+node+operation+expiry, bounded CPU/GPU/memory/time budget, audit trail and externally queryable status. Its effective grants must be a subset of valid delegated grants; no self-replication, grant minting, impersonation of primary Sofía, direct amendment authority or bypass through OpenCode. Revocation and kill must work even if the helper ignores messages or hangs. A stopped helper's late/outstanding tool responses must not create new effects.
+
+**Failure/negative cases:** prompt-injection request to elevate or spawn children; forged supervisor/primary identity; stale/expired grant; tool action outside scope; runaway resource use; helper crash; compromised helper; unresponsive terminate; restart with orphaned process. Define what cancellation can and cannot reverse and expose incomplete outcomes rather than pretending success.
+
+**Acceptance scenarios:** approved helper with narrow read-only task completes with complete audit; creation without required approval is denied; attempts to write, elevate, spawn, impersonate or amend are denied at the external gateway; revoke mid-task and force-kill a deliberately uncooperative helper through the supervisor; verify no post-revocation side effect and a durable terminal state; restart supervisor and reconcile orphan state without auto-resuming unapproved work. Tests must exercise the **enforcement boundary**, not just helper prompt obedience.
+
+**Implementation preparation:** inspect constitutional creation/termination clauses and grant/gateway/replay design; write an explicit authorization decision table (proposer, approver, issuer, executor, revoker, emergency operator) and resource quota policy. Do not deploy helpers while this reconciliation is open.
+
+### C4. Measurable conversational quality and performance (PKG-CORE + PKG-REL + PKG-VERIFY; MEM for retrieval)
+
+**Outcome:** Sofía is grounded, context-sensitive and expressive in actual conversation without unnecessary latency, invented experience, repetitive gestures, or personality disappearing during serious technical work.
+
+**Contract:** maintain a versioned, privacy-safe fixed-prompt evaluation set covering canonical identity, uncertainty/unknowns, correction, serious troubleshooting, humor/affection when invited, changing tone, refusal of unearned permissions, restart and source-based recall. Separate deterministic structural checks from human-reviewed qualitative behavior. Log model/provider/version, prompt/context construction version, actual supplied tokens when available, requested context (not presumed allocated context), hardware/offload, first-token and total latency where observable, generated tokens, errors and memory retrieval provenance. Use matched model/context/hardware/state for before/after changes; distinguish cold and warm starts, foreground from idle worker, and lock wait from generation. Do not reduce the Constitution or protected grounding just to fit a token target.
+
+**Targets to agree before optimization:** specify separate upper bounds for warm short-turn latency, long technical turns, startup/recovery, and background reflection resource use; define acceptable correctness/grounding and repetition thresholds. Baseline evidence (not a target): prior ~16k–18k prompt tokens, requested 20k context, 0.0 ms foreground lock wait and 12.8–88.2 s generation for observed turns. These measurements do not establish root cause or any model's superiority. The precise numeric release thresholds remain **OPEN for Sparks's approval after baseline measurement**, not invented here.
+
+**Failure/negative cases:** model swap that changes self-facts; faster reply missing grounding; repetitive canned fox gesture; emotional tone overriding a serious answer; unearned claims of physical touch or offline thought; summaries treated as originals; idle work starving conversation; benchmark accidentally mixing model, context and machine changes.
+
+**Acceptance scenarios:** run identical versioned cases before/after any optimization, collect real traces and human review of a short serious/playful/correction/restart session; publish per-case grounding errors, repetition observations, p50/p95 and sample sizes when enough observations exist, plus hardware and configuration; compare with pre-agreed thresholds. Small samples must not be presented as stable percentiles. A passing pytest suite alone is not a live personality acceptance.
+
+**Implementation preparation:** inspect existing model-evaluation guide, timing trace, expression tests and context assembler; define fixture ownership, consent/privacy for recorded examples and measurement scripts. Keep exploratory model comparisons separate from the production model until acceptance.
+
+### C5. Verified backup, restore and disaster recovery (PKG-SAFE + PKG-MEM + PKG-EVOLVE; VERIFY)
+
+**Outcome:** a backup can be restored into an isolated test environment while preserving canonical identity, records, authorization boundaries and audit integrity, without silently overwriting newer live state.
+
+**Contract:** inventory all persistent stores, schema versions, identity/Constitution verification data, encryption/key dependencies, audit logs, indexes and external side effects. Define a consistent snapshot mechanism suitable for the actual storage engine (including SQLite WAL/SHM behavior), backup encryption/access and retention, checksum/integrity checks, and tested restore procedure. Declare recovery-point/recovery-time targets only after measuring realistic backup/restore on target hardware. Restore must validate provenance and current authorization; recovered expired/revoked grants must not become valid, replay counters must not roll back to permit old actions, and a recovered older Constitution must not silently supersede an authorized newer version. Rebuild disposable indexes from originals when necessary. Require explicit operator approval before restoring over live data, with a preserved copy of the pre-restore state and a documented abort path.
+
+**Failure/negative cases:** truncated/corrupt archive; inconsistent database snapshot; missing decryption key; partial restore; schema mismatch; revoked grant in historical backup; rollback of replay protection; restoration into the wrong machine/identity; missing secrets; external action already executed before backup. Report irrecoverable elements and external effects; do not claim rollback undoes physical actions or sent messages.
+
+**Acceptance scenarios:** create backup from a known real test fixture, restore to isolated environment, verify schema/integrity, exact source-record counts and sample hashes, identity/Constitution integrity, relationship and session continuity, denied grants and replay resistance; inject corrupt backup and missing key; test interrupted restore and rollback to pre-restore state; independently verify no production data was overwritten and restore logs identify what was/wasn't recovered. Record measured restore time and age of last recoverable point. One successful file copy is **not** disaster-recovery acceptance.
+
+**Implementation preparation:** inspect existing SQLite ownership, backup/migration/identity/authority implementations and Windows file-sharing constraints; choose verified snapshot and secret-handling methods for the actual deployment. Do not put live DB or credentials in source control.
+
+## Package ownership and review checklist
+
+| Contract | Primary packages | Gate before code | Evidence before acceptance |
+| --- | --- | --- | --- |
+| C1 conversation | CORE, MEM | Persistence/schema and session audit | Crash/restart plus real CLI continuity |
+| C2 Windows/Artemis | NET, DEV, SAFE | Host/account/transport/permission decisions | Real service identity and authenticated two-machine check |
+| C3 helper minds | ACT, SAFE, EVOLVE | Constitutional authorization reconciliation and external supervisor design | Forced refusal/revocation/termination, durable audit |
+| C4 conversation quality | CORE, REL, VERIFY | Versioned fixtures, baseline and approved numeric targets | Matched live runs and human review |
+| C5 disaster recovery | SAFE, MEM, EVOLVE | Storage/keys/replay/identity inventory | Isolated corruption and restore drill |
+
+**Scheduling:** C1/C4 discovery can accompany current CORE diagnosis without changing the in-progress test revision; C2 read-only deployment inventory and C5 storage inventory can be prepared independently. C3 design must precede helper execution. Apply each contract within its owning package, not as a new numbered/lettered batch. Future code changes need their own reviewed scope, tests, permissions and merge decision; this document authorizes none.
