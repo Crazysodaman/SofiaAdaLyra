@@ -7,6 +7,7 @@ from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.personality.clarification import ClarificationJournal
 from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
@@ -26,6 +27,7 @@ class EmotionalConversationService(ConversationService):
         super().__init__(runtime=runtime, conversation_store=conversation_store)
         self._emotional_journal: EmotionalJournal | None = None
         self._reflection_journal: ReflectionJournal | None = None
+        self._clarification_journal: ClarificationJournal | None = None
 
     def open(self) -> None:
         super().open()
@@ -33,6 +35,7 @@ class EmotionalConversationService(ConversationService):
             state_path = self._runtime.configuration.state_path
             self._emotional_journal = EmotionalJournal(state_path)
             self._reflection_journal = ReflectionJournal(state_path)
+            self._clarification_journal = ClarificationJournal(state_path)
             changes = getattr(self._runtime, "workspace_changes", None)
             if self._runtime.personality is not None and changes is not None:
                 record_workspace_observation(
@@ -44,6 +47,7 @@ class EmotionalConversationService(ConversationService):
             super().close()
             self._emotional_journal = None
             self._reflection_journal = None
+            self._clarification_journal = None
             raise
 
     @property
@@ -58,10 +62,37 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Reflection journal is not open.")
         return self._reflection_journal
 
+    @property
+    def clarification_journal(self) -> ClarificationJournal:
+        if self._clarification_journal is None:
+            raise RuntimeError("Clarification journal is not open.")
+        return self._clarification_journal
+
+    def clarify_event(self, *, event_id: str, message_id: str) -> None:
+        """Explicitly link one saved user turn to one selected event.
+
+        An authorized application UI must resolve and confirm the event ID.
+        Neither the LLM nor this method guesses a target from arbitrary text,
+        infers a new emotion, or rewrites the original reaction.
+        """
+        if self._runtime.personality is None:
+            raise RuntimeError("No personality profile is active.")
+        if self._session is None:
+            raise RuntimeError("A conversation session must be active.")
+        matching = tuple(message for message in self.messages() if message.id == message_id)
+        if len(matching) != 1 or matching[0].role is not ConversationRole.USER:
+            raise ValueError("Clarification must reference a saved user message in this session.")
+        message = matching[0]
+        self.clarification_journal.record(
+            event_id=event_id, message_id=message.id,
+            content=message.content, created_at=message.created_at,
+        )
+
     def close(self) -> None:
         super().close()
         self._emotional_journal = None
         self._reflection_journal = None
+        self._clarification_journal = None
 
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
@@ -86,6 +117,11 @@ class EmotionalConversationService(ConversationService):
             reflection_context = reflections.prompt_context()
             if reflection_context is not None:
                 projections.append(reflection_context)
+        clarifications = getattr(self, "_clarification_journal", None)
+        if clarifications is not None:
+            clarification_context = clarifications.prompt_context(now=now)
+            if clarification_context is not None:
+                projections.append(clarification_context)
         if not projections:
             return request
         return CognitiveRequest(
