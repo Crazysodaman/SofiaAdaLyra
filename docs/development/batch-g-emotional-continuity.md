@@ -10,8 +10,7 @@
 
 ## Verification
 
-- Local isolated `test/test_emotional_journal.py`: 9 passed. These tests exercised the new journal and expression module only, not the full repository or Ollama runtime.
-- Conversation integration test is included for the target repository; it has not been run against the complete repository here.
+- Local isolated journal/personality and mocked application projection tests: 11 passed. These tests exercised new code with reconstructed integration dependencies, **not** the complete repository or Ollama runtime.
 - Previously, 1,090 passed, 1 failed, 1 skipped on the earlier feature commit; the targeted expression regression fix subsequently passed 8 tests. These results **do not** verify this new change set.
 
 ## Not implemented or demonstrated yet
