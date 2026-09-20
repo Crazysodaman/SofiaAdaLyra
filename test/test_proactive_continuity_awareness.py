@@ -46,7 +46,7 @@ AVATAR_PATH = (
 def create_configuration(
     personality_path: Path,
     state_path: Path,
-    filesystem_root: Path | None = None,
+    filesystem_root: Path,
 ) -> SofiaConfiguration:
     return SofiaConfiguration(
         constitution_path=CONSTITUTION_PATH,
@@ -56,7 +56,7 @@ def create_configuration(
         avatar_path=AVATAR_PATH,
         state_path=state_path,
         provider=ProviderConfiguration(
-            name="test",
+            provider="test",
             model="test-model",
         ),
         filesystem_root=filesystem_root,
@@ -95,14 +95,24 @@ def create_application(
     configuration = create_configuration(
         personality_path=personality_path,
         state_path=tmp_path / "state.sqlite3",
-        filesystem_root=filesystem_root,
+        filesystem_root=(
+            filesystem_root
+            if filesystem_root is not None
+            else tmp_path
+        ),
     )
 
     return SofiaApplication(configuration)
 
 
 def test_first_boot_has_no_pending_continuity_awareness(tmp_path):
-    application = create_application(tmp_path)
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    application = create_application(
+        tmp_path,
+        filesystem_root=workspace_root,
+    )
 
     application.runtime.start()
 
@@ -112,7 +122,13 @@ def test_first_boot_has_no_pending_continuity_awareness(tmp_path):
 
 
 def test_restart_creates_pending_runtime_resumed_awareness(tmp_path):
-    application = create_application(tmp_path)
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    application = create_application(
+        tmp_path,
+        filesystem_root=workspace_root,
+    )
 
     application.runtime.start()
     application.runtime.shutdown()
@@ -187,7 +203,11 @@ def test_failed_awareness_delivery_preserves_pending_event(
     application.conversation.open()
     application.conversation.start()
 
-    def fail_delivery():
+    def fail_delivery(
+        request,
+        *,
+        filesystem_results=(),
+    ):
         raise RuntimeError("synthetic awareness delivery failure")
 
     monkeypatch.setattr(
@@ -220,16 +240,23 @@ def test_awareness_is_consumed_exactly_once(tmp_path, monkeypatch):
     application.conversation.open()
     application.conversation.start()
 
-    monkeypatch.setattr(
-        application.runtime,
-        "respond",
-        lambda request: type(
+    def fake_respond(
+        request,
+        *,
+        filesystem_results=(),
+    ):
+        return type(
             "FakeResponse",
             (),
             {
                 "content": "Continuity awareness delivered.",
             },
-        )(),
+        )()
+
+    monkeypatch.setattr(
+        application.runtime,
+        "respond",
+        fake_respond,
     )
 
     first_response = (
@@ -368,7 +395,11 @@ def test_workspace_changes_are_delivered_as_one_awareness_response(
 
     captured_requests = []
 
-    def fake_respond(request):
+    def fake_respond(
+        request,
+        *,
+        filesystem_results=(),
+    ):
         captured_requests.append(request)
 
         return type(
