@@ -53,7 +53,7 @@ class SofiaApplication:
 
     @property
     def idle_reflection_worker(self) -> IdleReflectionWorker | None:
-        return self._idle_worker
+        return getattr(self, "_idle_worker", None)
 
     def start(self, session_id: str | None = None) -> CognitiveResponse | None:
         """Start the runtime and session, then optionally start idle reflection.
@@ -84,7 +84,7 @@ class SofiaApplication:
 
     def shutdown(self) -> None:
         """Stop idle inference *before* closing the shared cognitive runtime."""
-        worker = self._idle_worker
+        worker = getattr(self, "_idle_worker", None)
         if worker is not None:
             try:
                 worker.stop()
