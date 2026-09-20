@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.conversation.model import ConversationRole
+from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.embodiment.store import AvatarStore
 from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
@@ -45,7 +45,7 @@ def test_stop_then_head_pat_is_denied_without_repeating_previous_affection(tmp_p
         # A preceding generated reply is in history, but it is NOT authority
         # to reuse that reply when a fresh gesture is denied.
         previous = 'I have always found that attention delightfully comforting. What brought this on?'
-        store.save(__import__('sofia.conversation.model', fromlist=['ConversationMessage']).ConversationMessage(
+        store.save(ConversationMessage(
             id='prior-assistant', session_id=session, role=ConversationRole.ASSISTANT,
             content=previous, created_at=NOW,
         ))
@@ -74,10 +74,11 @@ def test_stop_then_head_pat_is_denied_without_repeating_previous_affection(tmp_p
         resume = service.respond('Sofía, resume interactions')
         assert 'available again' in resume.content
         assert not ledger.stopped(session)
-        assert [item[0] for item in sqlite3.connect(path).execute(
-            'SELECT command FROM interaction_control_events ORDER BY occurred_at, rowid').fetchall()] == [
-                'stop', 'resume',
-            ]
+        with sqlite3.connect(path) as db:
+            assert [item[0] for item in db.execute(
+                'SELECT command FROM interaction_control_events ORDER BY occurred_at, rowid').fetchall()] == [
+                    'stop', 'resume',
+                ]
         assert service._active_user_requests == 0
     finally:
         store.close()
