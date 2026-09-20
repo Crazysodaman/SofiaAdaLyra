@@ -1,7 +1,8 @@
 """Conversation projection of shared body interactions and actual virtual lab state.
 
-Original user messages remain untouched. Only persisted, authenticated user
-turns can request virtual gestures, explicit stop/resume or lab operations.
+Original user messages remain untouched. Only saved USER-role conversation turns
+can request virtual gestures, explicit stop/resume or lab operations. This CLI
+layer does not independently authenticate a human or an avatar controller.
 No renderer or LLM can independently assert a completed action.
 """
 from __future__ import annotations
@@ -70,9 +71,8 @@ class InteractiveConversationService(EmotionalConversationService):
     """One conversation/emotion system with durable, virtual interaction rules."""
 
     def _should_record_legacy_affection(self, user) -> bool:
-        # The existing emotional cue journal runs in super()._build_request().
-        # It must not turn a hypothetical, quoted/code or stopped pat into an
-        # affectionate event before the independently enforced gesture check.
+        # Existing emotional cues run in super()._build_request(). They must
+        # not turn a hypothetical, quote, code or stopped pat into an event.
         text = user.content
         clean = text.strip()
         if ('\n' in text or '`' in text or '"' in text or '?' in text
@@ -80,17 +80,14 @@ class InteractiveConversationService(EmotionalConversationService):
                 or _DISCUSSION.search(text)):
             return False
         if 'pat' not in text.casefold():
-            return True  # Verbal praise remains available during body stop.
+            return True  # Verbal praise is not a body interaction.
         config = getattr(self._runtime, 'configuration', None)
         if config is None:
-            return True  # Object-only test doubles have no persistent state.
+            return True  # Existing object-only test doubles have no state.
         return not InteractionLedger(config.state_path).stopped(user.session_id)
 
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
-        embodiment = self._runtime.embodiment
-        if self._runtime.personality is None or embodiment is None:
-            return request
         messages = self.messages()
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
@@ -110,6 +107,9 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=instruction),
                           *request.messages), tools=request.tools,
             )
+        embodiment = self._runtime.embodiment
+        if self._runtime.personality is None or embodiment is None:
+            return request
         engine = NaturalInteractionEngine(embodiment)
         # Parse before touching the database. Unrelated conversation never
         # creates a lab or interaction record.
@@ -117,8 +117,8 @@ class InteractiveConversationService(EmotionalConversationService):
                                      session_id=user.session_id, occurred_at=user.created_at)
         if candidate is not None:
             if state_path is None:
-                # Compatibility with existing object-only projection tests;
-                # a normally opened application always has configuration.
+                # Compatibility with object-only projection tests; a normally
+                # opened application always has persistent configuration.
                 if hasattr(self, '_session'):
                     raise RuntimeError('An interaction needs persistent runtime configuration.')
                 decision = candidate
