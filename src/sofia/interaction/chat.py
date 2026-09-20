@@ -14,7 +14,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.core import InteractionDecision, InteractionEngine
 from sofia.interaction.world import LabWorld
-from sofia.interaction.world_observation import lab_observation_prompt
+from sofia.interaction.world_observation import is_lab_status_query, lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
 from sofia.interaction.world_text import handle_lab_command, world_prompt
 
@@ -74,17 +74,18 @@ class InteractiveConversationService(EmotionalConversationService):
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=request.tools,
             )
-        # A lab-status question is observation only. It must not create a
-        # database, provision objects, or submit an action to LabWorld.perform.
-        observation = lab_observation_prompt(
-            content=user.content, state_path=self._runtime.configuration.state_path,
-        )
-        if observation is not None:
-            return CognitiveRequest(
-                messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                           content=observation), *request.messages),
-                tools=request.tools,
+        # Only a recognized lab-status question needs the lab configuration.
+        # Unrelated chat and anatomy discussion cannot open a lab database.
+        if is_lab_status_query(user.content):
+            observation = lab_observation_prompt(
+                content=user.content, state_path=self._runtime.configuration.state_path,
             )
+            if observation is not None:
+                return CognitiveRequest(
+                    messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
+                                               content=observation), *request.messages),
+                    tools=request.tools,
+                )
         # Do not instantiate or provision the world for ordinary conversation,
         # narration, anatomy discussion or unaddressed text.
         if _LAB_COMMAND.match(user.content.strip()) is None:
