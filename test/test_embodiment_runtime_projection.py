@@ -146,7 +146,7 @@ def test_runtime_projects_canonical_embodiment_to_provider_boundary(
 
     assert "EMBODIMENT" in system_content
 
-    assert "Measurements:" in system_content
+    assert "CANONICAL MEASUREMENTS" in system_content
 
     assert "- height: 67 in" in system_content
     assert "- weight: 135 lb" in system_content
@@ -158,7 +158,7 @@ def test_runtime_projects_canonical_embodiment_to_provider_boundary(
     assert "Additional features: fox ears, fox tail" in system_content
 
     assert (
-        "Canonical status: CANON: "
+        "Status: CANON: "
         "Sofía Clothing Technical Specification v1.0"
         in system_content
     )

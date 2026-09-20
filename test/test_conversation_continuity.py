@@ -149,7 +149,10 @@ def test_application_can_explicitly_resume_persisted_conversation(
         resumed_application.conversation.messages()
     )
 
-    assert resumed_messages == original_messages
+    assert len(resumed_messages) == len(original_messages) + 1
+    assert resumed_messages[:len(original_messages)] == original_messages
+    assert resumed_messages[-1].role.value == "assistant"
+    assert resumed_messages[-1].session_id == session_id
 
     resumed_application.shutdown()
 
@@ -197,15 +200,12 @@ def test_resumed_conversation_continues_same_session(
         resumed_application.conversation.messages()
     )
 
-    assert len(messages) == 4
-
-    assert messages[0].content == (
-        "First continuity message."
-    )
-
-    assert messages[2].content == (
-        "Second continuity message."
-    )
+    assert len(messages) == 5
+    assert messages[0].content == "First continuity message."
+    assert messages[1].role.value == "assistant"
+    assert messages[2].role.value == "assistant"  # Startup awareness.
+    assert messages[3].content == "Second continuity message."
+    assert messages[4].role.value == "assistant"
 
     assert all(
         message.session_id == session_id
@@ -254,7 +254,14 @@ def test_start_without_session_id_creates_new_session(
 
     assert second_session is not None
     assert second_session.id != first_session_id
-    assert second_application.conversation.messages() == ()
+    new_messages = second_application.conversation.messages()
+    assert len(new_messages) == 1  # Proactive awareness, not prior history.
+    assert new_messages[0].role.value == "assistant"
+    assert new_messages[0].session_id == second_session.id
+    assert all(
+        "This belongs to the first session." not in message.content
+        for message in new_messages
+    )
 
     second_application.shutdown()
 

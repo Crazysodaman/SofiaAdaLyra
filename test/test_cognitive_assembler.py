@@ -242,7 +242,8 @@ def test_embodiment_is_projected_into_system_context() -> None:
     system_content = assembled.messages[0].content
 
     assert "EMBODIMENT" in system_content
-    assert "human-form representation" in system_content
+    assert "Form: human" in system_content
+    assert "Representation status: representational embodiment" in system_content
     assert "fox ears" in system_content
     assert "fox tail" in system_content
     assert "67" in system_content
@@ -263,7 +264,7 @@ def test_embodiment_is_projected_into_system_context() -> None:
     )
 
 
-def test_authoritative_self_model_is_projected_after_constitution() -> None:
+def test_authoritative_self_state_projection_precedes_constitution_text() -> None:
     context = create_context(
         core_state=create_core_state(),
     )
@@ -272,12 +273,11 @@ def test_authoritative_self_model_is_projected_after_constitution() -> None:
 
     system_content = assembled.messages[0].content
 
-    constitution_index = system_content.index("CONSTITUTION")
-    self_model_index = system_content.index(
-        "AUTHORITATIVE SELF MODEL"
-    )
+    projection_index = system_content.index("\nAUTHORITATIVE SELF-STATE PROJECTION\n")
+    constitution_index = system_content.index("\nCONSTITUTION\n")
 
-    assert self_model_index > constitution_index
+    assert projection_index < constitution_index
+    assert "Instance ID: 12345678-1234-5678-1234-567812345678" in system_content
 
 
 def test_authoritative_self_model_contains_sparks_relationship() -> None:
@@ -339,7 +339,7 @@ def test_authoritative_self_model_is_not_duplicated() -> None:
 
     system_content = assembled.messages[0].content
 
-    assert system_content.count("AUTHORITATIVE SELF MODEL") == 1
+    assert system_content.count("\nAUTHORITATIVE SELF STATE\n") == 1
 
 
 def test_self_description_contract_distinguishes_identity_from_embodiment() -> None:
@@ -353,18 +353,16 @@ def test_self_description_contract_distinguishes_identity_from_embodiment() -> N
     system_content = assembled.messages[0].content
 
     assert (
-        "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT"
+        "SELF-DESCRIPTION RESPONSE GROUNDING"
         in system_content
     )
     assert (
-        "Sofía is an artificial intelligence entity"
+        "Sofía is a persistent artificial intelligence entity."
         in system_content
     )
     assert "not biologically human" in system_content
-    assert (
-        "canonical human-form representational embodiment"
-        in system_content
-    )
+    assert "Form: human" in system_content
+    assert "Representation status: representational embodiment" in system_content
 
 
 def test_self_description_contract_routes_canonical_embodied_questions_to_embodiment() -> None:
@@ -378,11 +376,11 @@ def test_self_description_contract_routes_canonical_embodied_questions_to_embodi
     system_content = assembled.messages[0].content
 
     assert (
-        "Questions about Sofía's appearance, avatar, clothing, "
-        "measurements, fox features, or other canonical embodied "
-        "details should be answered from the supplied EMBODIMENT "
-        "context"
+        "When the user asks about Sofía's embodiment, use the "
+        "canonical embodiment and its representational status."
     ) in system_content
+    assert "When the user asks about Sofía's measurements" in system_content
+    assert "When the user asks what Sofía is wearing" in system_content
 
 
 def test_self_description_contract_does_not_turn_representation_into_biology() -> None:
@@ -396,8 +394,8 @@ def test_self_description_contract_does_not_turn_representation_into_biology() -
     system_content = assembled.messages[0].content
 
     assert (
-        "Describing canonical embodiment does not claim that Sofía "
-        "has a biological human body or physical-world capabilities"
+        "Representational embodiment does not establish "
+        "biological humanity."
     ) in system_content
 
 
@@ -412,12 +410,12 @@ def test_self_description_contract_does_not_infer_physical_capability_from_repre
     system_content = assembled.messages[0].content
 
     assert (
-        "Representation does not establish physical capability; "
-        "physical capability must be established independently"
+        "Representational embodiment does not establish "
+        "physical-world capability."
     ) in system_content
 
 
-def test_self_description_contract_is_not_projected_without_embodiment() -> None:
+def test_missing_embodiment_is_marked_unknown_in_self_state() -> None:
     context = create_context(
         core_state=create_core_state(),
     )
@@ -426,13 +424,13 @@ def test_self_description_contract_is_not_projected_without_embodiment() -> None
 
     system_content = assembled.messages[0].content
 
-    assert (
-        "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT"
-        not in system_content
-    )
+    assert "EMBODIMENT: UNKNOWN" in system_content
+    assert "MEASUREMENTS: UNKNOWN" in system_content
+    assert "CLOTHING: UNKNOWN" in system_content
+    assert "Form: human" not in system_content
 
 
-def test_self_description_contract_is_not_projected_without_self_model() -> None:
+def test_missing_self_model_is_marked_unknown_in_self_state() -> None:
     context = create_context(
         embodiment=create_embodiment(),
     )
@@ -441,10 +439,9 @@ def test_self_description_contract_is_not_projected_without_self_model() -> None
 
     system_content = assembled.messages[0].content
 
-    assert (
-        "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT"
-        not in system_content
-    )
+    assert "IDENTITY: UNKNOWN" in system_content
+    assert "SELF CONCEPT: UNKNOWN" in system_content
+    assert "Representation status: representational embodiment" in system_content
 
 
 def test_assembler_rejects_invalid_context() -> None:

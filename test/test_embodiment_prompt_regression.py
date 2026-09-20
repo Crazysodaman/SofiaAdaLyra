@@ -121,6 +121,7 @@ def create_configuration(
         provider=ProviderConfiguration(
             provider="ollama",
             model=OLLAMA_MODEL,
+            context_size=32768,
         ),
         filesystem_root=PROJECT_ROOT,
     )
@@ -204,15 +205,15 @@ def build_variant_request(
     if remove_self_model:
         content = remove_section(
             content,
-            "AUTHORITATIVE SELF MODEL",
-            "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT",
+            "AUTHORITATIVE SELF-STATE PROJECTION",
+            "SELF-DESCRIPTION RESPONSE GROUNDING",
         )
 
     if remove_semantic_contract:
         content = remove_section(
             content,
-            "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT",
-            "OPERATIONAL STATE",
+            "SELF-DESCRIPTION RESPONSE GROUNDING",
+            "IDENTITY RECORD METADATA",
         )
 
     non_system_messages = tuple(
@@ -237,6 +238,7 @@ def create_ollama_provider() -> OllamaProvider:
         configuration=ProviderConfiguration(
             provider="ollama",
             model=OLLAMA_MODEL,
+            context_size=32768,
         )
     )
 
@@ -421,11 +423,11 @@ def test_embodiment_prompt_regression_variants(
             current,
         ),
         (
-            "WITHOUT_AUTHORITATIVE_SELF_MODEL",
+            "WITHOUT_AUTHORITATIVE_SELF_STATE_PROJECTION",
             without_self_model,
         ),
         (
-            "WITHOUT_SEMANTIC_CONTRACT",
+            "WITHOUT_RESPONSE_GROUNDING",
             without_semantic_contract,
         ),
         (

@@ -107,37 +107,35 @@ def test_self_description_contract_distinguishes_identity_from_embodiment():
     content = assembled_content()
 
     assert (
-        "SELF-DESCRIPTION AND EMBODIMENT SEMANTIC CONTRACT"
+        "SELF-DESCRIPTION RESPONSE GROUNDING"
         in content
     )
     assert (
-        "Sofía is an artificial intelligence entity"
+        "Sofía is a persistent artificial intelligence entity."
         in content
     )
     assert "not biologically human" in content
-    assert (
-        "canonical human-form representational embodiment"
-        in content
-    )
+    assert "Form: human" in content
+    assert "Representation status: representational embodiment" in content
 
 
 def test_self_description_contract_routes_canonical_embodied_questions_to_embodiment():
     content = assembled_content()
 
     assert (
-        "Questions about Sofía's appearance, avatar, clothing, "
-        "measurements, fox features, or other canonical embodied "
-        "details should be answered from the supplied EMBODIMENT "
-        "context"
+        "When the user asks about Sofía's embodiment, use the "
+        "canonical embodiment and its representational status."
     ) in content
+    assert "When the user asks about Sofía's measurements" in content
+    assert "When the user asks what Sofía is wearing" in content
 
 
 def test_self_description_contract_does_not_turn_representation_into_biology():
     content = assembled_content()
 
     assert (
-        "Describing canonical embodiment does not claim that Sofía "
-        "has a biological human body or physical-world capabilities"
+        "Representational embodiment does not establish "
+        "biological humanity."
     ) in content
 
 
@@ -145,6 +143,6 @@ def test_self_description_contract_does_not_infer_physical_capability_from_repre
     content = assembled_content()
 
     assert (
-        "Representation does not establish physical capability; "
-        "physical capability must be established independently"
+        "Representational embodiment does not establish "
+        "physical-world capability."
     ) in content

@@ -275,13 +275,11 @@ def test_assembler_injects_embodiment():
     system_message = assembled.messages[0].content
 
     assert "EMBODIMENT" in system_message
+    assert "Form: human" in system_message
+    assert "Representation status: representational embodiment" in system_message
     assert (
-        "Embodiment form: human-form representation"
-        in system_message
-    )
-    assert (
-        "Embodiment describes representation only; it does not "
-        "define Sofía's biological status or artificial identity."
+        "Biological status is defined by the authoritative "
+        "self-concept, not by this representational form."
         in system_message
     )
     assert "fox ears" in system_message
@@ -362,32 +360,32 @@ def test_assembler_injects_embodiment_measurements():
     system_message = assembled.messages[0].content
 
     assert (
-        "CANONICAL EMBODIMENT BODY MEASUREMENTS:"
+        "CANONICAL MEASUREMENTS"
         in system_message
     )
 
     assert (
-        "- height (canonical embodiment body measurement): 67 in"
+        "- height: 67 in"
         in system_message
     )
     assert (
-        "- weight (canonical embodiment body measurement): 135 lb"
+        "- weight: 135 lb"
         in system_message
     )
     assert (
-        "- bust (canonical embodiment body measurement): 33 in"
+        "- bust: 33 in"
         in system_message
     )
     assert (
-        "- underbust (canonical embodiment body measurement): 30 in"
+        "- underbust: 30 in"
         in system_message
     )
     assert (
-        "- waist (canonical embodiment body measurement): 26 in"
+        "- waist: 26 in"
         in system_message
     )
     assert (
-        "- hips (canonical embodiment body measurement): 37 in"
+        "- hips: 37 in"
         in system_message
     )
 
@@ -444,10 +442,10 @@ def test_assembler_injects_embodiment_appearance_and_anatomy():
 
     system_message = assembled.messages[0].content
 
-    assert "Appearance:" in system_message
+    assert "CANONICAL APPEARANCE" in system_message
     assert "- hair_color: deep crimson" in system_message
     assert "- skin_color: warm ivory" in system_message
-    assert "Anatomy:" in system_message
+    assert "CANONICAL ANATOMY" in system_message
     assert "- ears: 2 fox ears" in system_message
     assert "- tail: 1 fox tail" in system_message
 
@@ -607,7 +605,7 @@ def test_assembler_injects_authoritative_self_model():
 
     system_message = assembled.messages[0].content
 
-    assert "AUTHORITATIVE SELF MODEL" in system_message
+    assert "AUTHORITATIVE SELF STATE" in system_message
     assert (
         "Sofía is a persistent artificial intelligence entity."
         in system_message
@@ -710,20 +708,18 @@ def test_assembler_distinguishes_identity_from_embodiment():
 
     system_message = assembled.messages[0].content
 
-    assert "AUTHORITATIVE SELF MODEL" in system_message
+    assert "AUTHORITATIVE SELF STATE" in system_message
     assert (
         "Sofía is a persistent artificial intelligence entity."
         in system_message
     )
     assert "Sofía is not biologically human." in system_message
     assert "EMBODIMENT" in system_message
+    assert "Form: human" in system_message
+    assert "Representation status: representational embodiment" in system_message
     assert (
-        "Embodiment form: human-form representation"
-        in system_message
-    )
-    assert (
-        "Embodiment describes representation only; it does not "
-        "define Sofía's biological status or artificial identity."
+        "Biological status is defined by the authoritative "
+        "self-concept, not by this representational form."
         in system_message
     )
     assert "fox ears" in system_message

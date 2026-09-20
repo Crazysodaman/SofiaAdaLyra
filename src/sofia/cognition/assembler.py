@@ -148,6 +148,27 @@ class CognitiveContextAssembler:
                 "self-fact, prefer the supplied canonical fact over "
                 "generic descriptions of artificial intelligence systems."
             ),
+            "Embodiment is representational context.",
+            (
+                "Representational expression is not evidence that a "
+                "physical action occurred."
+            ),
+            (
+                "Physical-world actions require an actual available "
+                "capability and appropriate authority."
+            ),
+            (
+                "Completion claims about real actions must be grounded "
+                "in corresponding capability results."
+            ),
+            (
+                "Do not use a fixed gesture template or repeat a "
+                "canned embodiment reaction."
+            ),
+            (
+                "Clothing, footwear, toolkit, wrist-device, equipment, "
+                "and other component dimensions are separate design data."
+            ),
         ]
 
         if context.identity is not None:

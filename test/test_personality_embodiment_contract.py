@@ -87,7 +87,7 @@ def test_embodiment_projects_canonical_clothing():
 
     content = request.messages[0].content
 
-    assert "Clothing specification:" in content
+    assert "CANONICAL CLOTHING" in content
     assert (
         "CANON: Sofía Clothing Technical Specification v1.0"
         in content

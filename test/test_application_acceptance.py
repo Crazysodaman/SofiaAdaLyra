@@ -125,12 +125,11 @@ def test_full_application_conversation_lifecycle(
         resumed_application.conversation.messages()
     )
 
-    assert len(resumed_messages) == 2
-    assert resumed_messages[0].content == "Hello, Sofía."
-    assert (
-        resumed_messages[1].content
-        == "Test cognitive response."
-    )
+    assert len(resumed_messages) == len(messages) + 1
+    assert resumed_messages[:len(messages)] == messages
+    assert resumed_messages[-1].role.value == "assistant"
+    assert resumed_messages[-1].content == "Test cognitive response."
+    assert resumed_messages[-1].session_id == session_id
 
     resumed_application.shutdown()
 

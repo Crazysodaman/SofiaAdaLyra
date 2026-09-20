@@ -162,7 +162,10 @@ def test_restart_and_resume_preserves_cognitive_history(
 
     resumed_messages = second_application.conversation.messages()
 
-    assert resumed_messages == persisted_messages
+    assert len(resumed_messages) == len(persisted_messages) + 1
+    assert resumed_messages[:len(persisted_messages)] == persisted_messages
+    assert resumed_messages[-1].role.value == "assistant"
+    assert resumed_messages[-1].content == "Continuity confirmed."
 
     response = second_application.conversation.respond(
         "What did I say earlier?"
@@ -170,13 +173,13 @@ def test_restart_and_resume_preserves_cognitive_history(
 
     assert response.content == "Continuity confirmed."
 
-    assert len(captured_requests) == 1
-    assert len(captured_filesystem_results) == 1
-    assert captured_filesystem_results[0] == ()
+    assert len(captured_requests) == 2  # Awareness, then user request.
+    assert captured_requests[0].messages[0].role is CognitiveRole.SYSTEM
+    assert captured_filesystem_results == [(), ()]
 
-    request = captured_requests[0]
+    request = captured_requests[1]
 
-    assert len(request.messages) == 5
+    assert len(request.messages) == 6
 
     assert request.messages[0].role is CognitiveRole.USER
     assert request.messages[0].content == "My name is Sparks."
@@ -193,8 +196,10 @@ def test_restart_and_resume_preserves_cognitive_history(
     assert request.messages[3].role is CognitiveRole.ASSISTANT
     assert request.messages[3].content == "Test cognitive response."
 
-    assert request.messages[4].role is CognitiveRole.USER
-    assert request.messages[4].content == "What did I say earlier?"
+    assert request.messages[4].role is CognitiveRole.ASSISTANT
+    assert request.messages[4].content == "Continuity confirmed."
+    assert request.messages[5].role is CognitiveRole.USER
+    assert request.messages[5].content == "What did I say earlier?"
 
     second_application.shutdown()
 
@@ -227,7 +232,10 @@ def test_new_conversation_after_restart_does_not_reuse_previous_session(
 
     messages = second_application.conversation.messages()
 
-    assert messages == ()
+    assert len(messages) == 1  # Fresh session gets only startup awareness.
+    assert messages[0].role.value == "assistant"
+    assert messages[0].session_id == second_session_id
+    assert "This belongs to the first conversation." not in messages[0].content
 
     second_application.shutdown()
 
@@ -259,9 +267,11 @@ def test_explicit_resume_does_not_create_a_new_session(
 
     messages = second_application.conversation.messages()
 
-    assert len(messages) == 2
+    assert len(messages) == 3
     assert messages[0].content == "Persistent conversation."
     assert messages[1].content == "Test cognitive response."
+    assert messages[2].role.value == "assistant"
+    assert messages[2].session_id == session_id
 
     second_application.shutdown()
 

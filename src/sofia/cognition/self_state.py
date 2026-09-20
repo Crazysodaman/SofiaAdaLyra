@@ -285,6 +285,7 @@ class AuthoritativeSelfState:
                     "APPEARANCE: UNKNOWN",
                     "ANATOMY: UNKNOWN",
                     "CLOTHING: UNKNOWN",
+                    "CURRENT EMBODIMENT: UNKNOWN",
                 ]
             )
         else:
@@ -316,6 +317,15 @@ class AuthoritativeSelfState:
             else:
                 lines.append(
                     "Additional features: none recorded"
+                )
+
+            lines.append("CURRENT EMBODIMENT")
+            current = self.embodiment.current
+            for kind in ("computer", "robot", "avatar"):
+                name = getattr(current, kind)
+                lines.append(
+                    f"Current {kind}: "
+                    + (name if name is not None else "UNKNOWN")
                 )
 
             lines.append("CANONICAL MEASUREMENTS")

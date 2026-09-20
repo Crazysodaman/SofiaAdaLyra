@@ -92,7 +92,7 @@ def test_assembler_projects_authoritative_measurement_facts() -> None:
     )
 
     assert (
-        "AUTHORITATIVE EMBODIMENT MEASUREMENT QUERY RESULT"
+        "DETERMINISTIC MEASUREMENT QUERY RESULT"
         in content
     )
     assert "- height: 67 in" in content
@@ -126,7 +126,7 @@ def test_unrecognized_measurement_query_does_not_project_facts() -> None:
 
     assert context.measurement_query.recognized is False
     assert (
-        "AUTHORITATIVE EMBODIMENT MEASUREMENT QUERY RESULT"
+        "DETERMINISTIC MEASUREMENT QUERY RESULT"
         not in content
     )
 
