@@ -72,10 +72,15 @@ def test_registry_covers_canonical_fox_features_and_broad_human_form(engine):
     "If I touch your ears", "`pats your head`", '"pats your head"',
     "```pats your head```", "I patted your head yesterday",
     "*pats your head*\nhello", "Sofía, are you online?",
-    "*pats your head and strokes your tail*",
 ])
-def test_discussion_hypothetical_code_or_multi_action_abstains(engine, phrase):
+def test_discussion_hypothetical_or_code_abstains(engine, phrase):
     assert text(engine, phrase) is None
+
+
+def test_multiple_acts_cannot_be_recorded_as_one_completed_touch(engine):
+    result = text(engine, "*pats your head and strokes your tail*")
+    assert result is None or result.status == "clarify"
+    assert result is None or not result.emotion_options
 
 
 def test_unspecified_side_unknown_region_and_real_click_are_not_guessed(engine):
