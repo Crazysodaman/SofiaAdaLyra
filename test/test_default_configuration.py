@@ -41,7 +41,8 @@ def test_default_configuration_uses_ollama():
     assert configuration.provider == ProviderConfiguration(
         provider="ollama",
         model="qwen3:14b",
-        context_size=32768,
+        context_size=20000,
+        thinking=False,
     )
 
 
