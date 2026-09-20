@@ -20,7 +20,11 @@ from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
-from sofia.interaction.live_guard import MIXED_CONTROL_REPLY, mixed_interaction_control
+from sofia.interaction.live_guard import (
+    COMPOSITE_GESTURE_REPLY, MIXED_CONTROL_REPLY, RESUME_CONTROL_REPLY,
+    STOP_CONTROL_REPLY, STOPPED_GESTURE_REPLY, mixed_interaction_control,
+    unsupported_composite_gesture,
+)
 from sofia.interaction.world import LabWorld
 from sofia.interaction.world_observation import lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
@@ -69,11 +73,12 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "user explicitly resumes in a separate saved control turn. For an "
         "unclear region, ask briefly instead of guessing. For a recognized "
         "gesture, respond as Sofía to the specific region, action and "
-        "conversational mood with natural, non-repetitive dialogue. The "
-        "modeled emotions and representational stage directions are "
-        "OPTIONAL possibilities, not a checklist or fixed script; no stage "
-        "direction is required. Be playful only when it fits; a serious "
-        "question takes priority.\n"
+        "conversational mood with natural, non-repetitive dialogue. Do not "
+        "reuse prior assistant wording, repeat a sentimental monologue, or "
+        "automatically end with the same question. The modeled emotions and "
+        "representational stage directions are OPTIONAL possibilities, not "
+        "a checklist or fixed script; no stage direction is required. Be "
+        "playful only when it fits; a serious question takes priority.\n"
         + json.dumps(data, ensure_ascii=False)
     )
 
@@ -96,16 +101,14 @@ def control_prompt(*, status: str, reason: str, stopped: bool) -> str:
 class InteractiveConversationService(EmotionalConversationService):
     """One conversation/emotion system with durable, virtual interaction rules."""
 
-    def respond(self, content: str) -> CognitiveResponse:
-        """Persist an honest deterministic reply to an unsupported mixed control.
+    def _guarded_reply(self, content: str, reply: str, *, command: str | None = None,
+                       stopped_gesture: bool = False) -> CognitiveResponse:
+        """Persist saved-user evidence and authoritative outcomes without an LLM.
 
-        This branch must run before inference, tool orchestration or the
-        single-gesture parser. It saves both original messages via the same
-        conversation store; it neither performs a stop/resume nor logs touch.
-        All other turns use the existing locked application response path.
+        Compound turns only save conversation; an exact control or stopped
+        gesture also writes its matching ledger event from the SAME saved ID.
+        No emotional appraisal, filesystem tool or rendered gesture is invoked.
         """
-        if not mixed_interaction_control(content):
-            return super().respond(content)
         if self._session is None:
             raise RuntimeError('ConversationService must be started before responding.')
         clean = content.strip()
@@ -115,11 +118,34 @@ class InteractiveConversationService(EmotionalConversationService):
         try:
             with self._model_lock:
                 session_id = self._session.id
-                self._conversation_store.save(ConversationMessage(
+                user = ConversationMessage(
                     id=str(uuid4()), session_id=session_id, role=ConversationRole.USER,
                     content=clean, created_at=datetime.now(timezone.utc),
-                ))
-                response = CognitiveResponse(content=MIXED_CONTROL_REPLY)
+                )
+                self._conversation_store.save(user)
+                if command is not None or stopped_gesture:
+                    configuration = getattr(self._runtime, 'configuration', None)
+                    if configuration is None:
+                        raise RuntimeError('Interaction controls require persistent configuration.')
+                    ledger = InteractionLedger(configuration.state_path)
+                    if command is not None:
+                        result = ledger.control(session_id=session_id, message_id=user.id,
+                                                content=clean, occurred_at=user.created_at)
+                        if result.status != command + 'ped' and result.status != 'resumed':
+                            raise RuntimeError('Unexpected interaction control outcome.')
+                        reply = STOP_CONTROL_REPLY if ledger.stopped(session_id) else RESUME_CONTROL_REPLY
+                    else:
+                        embodiment = getattr(self._runtime, 'embodiment', None)
+                        if embodiment is None:
+                            raise RuntimeError('A stopped gesture needs canonical embodiment.')
+                        decision, fresh = ledger.process_text(
+                            engine=NaturalInteractionEngine(embodiment), content=clean,
+                            message_id=user.id, session_id=session_id,
+                            occurred_at=user.created_at,
+                        )
+                        if decision is None or decision.status != 'denied' or not fresh:
+                            raise RuntimeError('Stopped gesture did not receive a durable denial.')
+                response = CognitiveResponse(content=reply)
                 self._conversation_store.save(ConversationMessage(
                     id=str(uuid4()), session_id=session_id, role=ConversationRole.ASSISTANT,
                     content=response.content, created_at=datetime.now(timezone.utc),
@@ -133,21 +159,54 @@ class InteractiveConversationService(EmotionalConversationService):
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
 
+    def respond(self, content: str) -> CognitiveResponse:
+        """Route enforceable actions before model inference or tool orchestration."""
+        if not isinstance(content, str):
+            return super().respond(content)
+        if mixed_interaction_control(content):
+            return self._guarded_reply(content, MIXED_CONTROL_REPLY)
+        if unsupported_composite_gesture(content):
+            return self._guarded_reply(content, COMPOSITE_GESTURE_REPLY)
+        command = control_command(content)
+        if command is not None:
+            return self._guarded_reply(content, '', command=command)
+        configuration = getattr(self._runtime, 'configuration', None)
+        embodiment = getattr(self._runtime, 'embodiment', None)
+        if configuration is not None and embodiment is not None and self._session is not None:
+            # Only a recognized gesture needs a ledger lookup. Plain chat
+            # never initializes the interaction database.
+            candidate = NaturalInteractionEngine(embodiment).from_text(
+                content=content, message_id='preflight', session_id=self._session.id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+            if candidate is not None and InteractionLedger(configuration.state_path).stopped(self._session.id):
+                return self._guarded_reply(content, STOPPED_GESTURE_REPLY, stopped_gesture=True)
+        return super().respond(content)
+
     def _should_record_legacy_affection(self, user) -> bool:
-        # Existing emotional cues run in super()._build_request(). They must
-        # not turn a hypothetical, quote, code or stopped pat into an event.
+        # Old emotional cues must not turn a hypothetical, compound sentence,
+        # quoted phrase or stopped pat into a newly welcomed event.
         text = user.content
         clean = text.strip()
         if ('\n' in text or '`' in text or '"' in text or '?' in text
                 or (clean.startswith("'") and clean.endswith("'"))
-                or _DISCUSSION.search(text)):
+                or _DISCUSSION.search(text) or unsupported_composite_gesture(text)):
             return False
         if 'pat' not in text.casefold():
             return True  # Verbal praise is not a body interaction.
         config = getattr(self._runtime, 'configuration', None)
         if config is None:
             return True  # Existing object-only test doubles have no state.
-        return not InteractionLedger(config.state_path).stopped(user.session_id)
+        if InteractionLedger(config.state_path).stopped(user.session_id):
+            return False
+        embodiment = getattr(self._runtime, 'embodiment', None)
+        if embodiment is None:
+            return False
+        decision = NaturalInteractionEngine(embodiment).from_text(
+            content=text, message_id=user.id, session_id=user.session_id,
+            occurred_at=user.created_at,
+        )
+        return decision is not None and decision.status == 'accepted'
 
     def _build_request(self) -> CognitiveRequest:
         request = super()._build_request()
@@ -174,14 +233,10 @@ class InteractiveConversationService(EmotionalConversationService):
         if self._runtime.personality is None or embodiment is None:
             return request
         engine = NaturalInteractionEngine(embodiment)
-        # Parse before touching the database. Unrelated conversation never
-        # creates a lab or interaction record.
         candidate = engine.from_text(content=user.content, message_id=user.id,
                                      session_id=user.session_id, occurred_at=user.created_at)
         if candidate is not None:
             if state_path is None:
-                # Compatibility with object-only projection tests; a normally
-                # opened application always has persistent configuration.
                 if hasattr(self, '_session'):
                     raise RuntimeError('An interaction needs persistent runtime configuration.')
                 decision = candidate
@@ -197,16 +252,12 @@ class InteractiveConversationService(EmotionalConversationService):
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=request.tools,
             )
-        # A hypothetical, multi-action question gets READ-ONLY canonical
-        # context, never a gesture decision or a newly provisioned lab.
         discussion = body_discussion_prompt(content=user.content, engine=engine)
         if discussion is not None:
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
                           *request.messages), tools=request.tools,
             )
-        # Observe only recognized status questions. Do not create a lab for
-        # anatomy discussion or ordinary conversation.
         if state_path is not None:
             observation = lab_observation_prompt(content=user.content, state_path=state_path)
             if observation is not None:
