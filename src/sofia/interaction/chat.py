@@ -12,7 +12,7 @@ import re
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.interaction.core import InteractionDecision
+from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
 from sofia.interaction.world import LabWorld
@@ -70,11 +70,17 @@ class InteractiveConversationService(EmotionalConversationService):
     """One conversation/emotion system with durable, virtual interaction rules."""
 
     def _should_record_legacy_affection(self, user) -> bool:
-        # Legacy journal runs in super()._build_request(), so stop MUST be
-        # checked before it logs a head-pat cue. Good-girl verbal praise is
-        # unaffected; only representational pats are subject to stop.
-        if 'pat' not in user.content.casefold():
-            return True
+        # The existing emotional cue journal runs in super()._build_request().
+        # It must not turn a hypothetical, quoted/code or stopped pat into an
+        # affectionate event before the independently enforced gesture check.
+        text = user.content
+        clean = text.strip()
+        if ('\n' in text or '`' in text or '"' in text or '?' in text
+                or (clean.startswith("'") and clean.endswith("'"))
+                or _DISCUSSION.search(text)):
+            return False
+        if 'pat' not in text.casefold():
+            return True  # Verbal praise remains available during body stop.
         config = getattr(self._runtime, 'configuration', None)
         if config is None:
             return True  # Object-only test doubles have no persistent state.
@@ -111,7 +117,7 @@ class InteractiveConversationService(EmotionalConversationService):
                                      session_id=user.session_id, occurred_at=user.created_at)
         if candidate is not None:
             if state_path is None:
-                # Compatibility with the existing object-only projection tests;
+                # Compatibility with existing object-only projection tests;
                 # a normally opened application always has configuration.
                 if hasattr(self, '_session'):
                     raise RuntimeError('An interaction needs persistent runtime configuration.')
