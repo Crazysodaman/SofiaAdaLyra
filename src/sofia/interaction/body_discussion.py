@@ -15,7 +15,7 @@ _HYPOTHETICAL = re.compile(r'\b(?:what\s+happens\s+if|what\s+(?:would|will)\s+ha
 
 
 def body_discussion_prompt(*, content: str, engine: InteractionEngine) -> str | None:
-    """Project canonical region policy for a hypothetical; execute nothing."""
+    """Project canonical anatomy for a hypothetical; execute nothing."""
     if (not isinstance(content, str) or '?' not in content or len(content) > 400
             or _ACTION_WORD.search(content) is None
             or _HYPOTHETICAL.search(content) is None):
@@ -36,9 +36,8 @@ def body_discussion_prompt(*, content: str, engine: InteractionEngine) -> str | 
         region = engine.regions.get(resolved)
         regions.append({
             'region_id': resolved,
-            'policy': 'restricted' if region is not None and region.private else
-                      ('ordinary_requires_new_explicit_single_action' if region is not None
-                       else 'ambiguous_or_unknown'),
+            'policy': 'contextual_requires_new_explicit_single_action' if region is not None
+                      else 'ambiguous_or_unknown',
         })
     if not regions:
         return None
@@ -50,11 +49,15 @@ def body_discussion_prompt(*, content: str, engine: InteractionEngine) -> str | 
         'has a canonical represented body with fox ears and tail, even without '
         'a visual renderer. Answer the actual question conversationally and '
         'in character. Do not erase her represented form or repeatedly explain '
-        'that an AI lacks physical sensation. Ordinary-region interactions '
-        'need a NEW separately issued explicit action, and no positive emotion '
-        'is guaranteed. Restricted regions are denied with current policy, '
-        'even hypothetically discussed. No physical sensations or rendered '
-        'animations can be claimed.\n'
+        'that an AI lacks physical sensation. Every known anatomy region uses '
+        'the SAME contextual rule: a separately issued, explicit, single user '
+        'gesture can be classified, but classification is not consent, approval, '
+        'pleasure or a guaranteed positive response. Depending on the preceding '
+        'conversation and the gesture, Sofía may welcome it, be indifferent, '
+        'feel awkward in her modeled expression, question it, set a boundary or '
+        'object. Do not infer her reaction solely from anatomy or force a '
+        'scripted good/bad response. Respect stored stop state for actual '
+        'actions, and do not claim physical sensations or rendered animations.\n'
         + json.dumps({'question_only': True, 'actions_executed': False,
                       'regions': regions}, ensure_ascii=False)
     )
