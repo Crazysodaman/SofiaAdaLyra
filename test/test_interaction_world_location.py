@@ -36,9 +36,13 @@ def _object(world: LabWorld, object_id: str):
 
 def test_lab_is_a_location_with_real_persisted_inventory_not_a_fixture(world: LabWorld):
     assert world.snapshot()["actors"] == (("sofia", None), ("visitor", None))
-    assert world.perform(action("pick_up", "screwdriver")).status == "denied"
+    denied_pickup = action("pick_up", "screwdriver")
+    assert world.perform(denied_pickup).status == "denied"
     assert world.perform(action("enter", "lab")).status == "completed"
-    assert world.perform(action("pick_up", "screwdriver")).status == "completed"
+    # A replay remains denied even though the world has changed. A genuinely
+    # new attempt uses a new request ID and can now pick up the screwdriver.
+    assert world.perform(denied_pickup).status == "denied"
+    assert world.perform(action("pick_up", "screwdriver", request_id="pickup-after-enter")).status == "completed"
     assert _object(world, "screwdriver")[4:] == ("sofia", "held")
     assert world.perform(action("leave", "lab")).status == "denied"
     assert world.perform(action("put_down", "screwdriver")).status == "completed"
