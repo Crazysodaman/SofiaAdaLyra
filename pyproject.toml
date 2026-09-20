@@ -16,6 +16,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 python_classes = ["*Test"]
+pythonpath = ["."]
 markers = [
     "integration: tests requiring external services",
 ]
