@@ -16,6 +16,7 @@ from sofia.continuity.model import (
 )
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.system.knowledge import SystemCapabilityKnowledgeRecord
+from sofia.personality.expression import personality_expression_guidance
 
 
 class CognitiveContextAssembler:
@@ -194,6 +195,7 @@ class CognitiveContextAssembler:
                     f"Profile: {context.personality.name}",
                 ]
             )
+            sections.extend(personality_expression_guidance())
 
             if context.personality.traits:
                 sections.append(
