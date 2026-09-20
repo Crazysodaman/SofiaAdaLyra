@@ -8,6 +8,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.runtime.runtime import SofiaRuntime
 
@@ -32,6 +33,12 @@ class EmotionalConversationService(ConversationService):
             state_path = self._runtime.configuration.state_path
             self._emotional_journal = EmotionalJournal(state_path)
             self._reflection_journal = ReflectionJournal(state_path)
+            changes = getattr(self._runtime, "workspace_changes", None)
+            if self._runtime.personality is not None and changes is not None:
+                record_workspace_observation(
+                    event=changes, emotions=self._emotional_journal,
+                    reflections=self._reflection_journal,
+                )
         except Exception:
             super().close()
             self._emotional_journal = None
