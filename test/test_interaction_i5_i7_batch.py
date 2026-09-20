@@ -39,6 +39,7 @@ def decision(ledger, engine, text, message='m1', session='s1'):
     ('I touch your fox tail', 'tail', 'touch'),
     ('I tap the base of your left ear', 'left-ear-base', 'tap'),
     ('I pat the tip of your tail', 'tail-tip', 'pat'),
+    ('I touch your chest', 'chest', 'touch'),
 ])
 def test_natural_aliases_share_pointer_meaning(engine, content, region, verb):
     text = engine.from_text(content=content, message_id='m1', session_id='s1', occurred_at=NOW)
@@ -62,13 +63,16 @@ def test_ambiguous_discussion_and_multiple_actions_abstain(engine, content):
                             occurred_at=NOW) is None
 
 
-def test_unknown_and_private_aliases_never_become_accepted(engine):
+def test_unknown_and_sensitive_regions_have_distinct_outcomes(engine):
     ambiguous = engine.from_text(content='I pat your ear', message_id='m1',
                                  session_id='s1', occurred_at=NOW)
     assert ambiguous is not None and ambiguous.status == 'clarify'
-    restricted = engine.from_text(content='I touch your left breast', message_id='m2',
-                                  session_id='s1', occurred_at=NOW)
-    assert restricted is not None and restricted.status == 'denied'
+    sensitive = engine.from_text(content='I touch your left breast', message_id='m2',
+                                 session_id='s1', occurred_at=NOW)
+    assert sensitive is not None and sensitive.status == 'accepted'
+    assert sensitive.event.region_id == 'left-breast'
+    assert 'not approval' in sensitive.reason
+    assert 'frustration' in sensitive.emotion_options
 
 
 def test_source_linked_ledger_persists_once_and_replay_does_not_react(ledger, engine):
@@ -83,16 +87,19 @@ def test_source_linked_ledger_persists_once_and_replay_does_not_react(ledger, en
     assert ledger.accepted('m1') == ('s1', 'left-ear', 'pat')
 
 
-def test_private_denial_is_audited_without_region_and_cannot_be_retried(ledger, engine):
-    denied, fresh = decision(ledger, engine, '*touches your groin*')
-    assert denied.status == 'denied' and fresh
-    assert ledger.accepted('m1') is None
+def test_sensitive_recognition_is_audited_without_pretending_consent(ledger, engine):
+    recognized, fresh = decision(ledger, engine, '*touches your groin*')
+    assert recognized.status == 'accepted' and fresh
+    assert 'not approval' in recognized.reason
+    assert ledger.accepted('m1') == ('s1', 'groin', 'touch')
     with ledger._connect() as db:
         saved = db.execute('SELECT status, region_id, gesture FROM interaction_evidence').fetchone()
-    assert saved == ('denied', None, None)
+    assert saved == ('accepted', 'groin', 'touch')
     replay, fresh = decision(ledger, engine, '*touches your groin*')
     assert replay.status == 'acknowledged' and not fresh
-    assert not replay.text_cues
+    assert not replay.text_cues and not replay.emotion_options
+    with pytest.raises(ValueError, match='different evidence'):
+        decision(ledger, engine, '*touches your chest*')
 
 
 def test_stop_persists_across_restart_and_resume_is_new_saved_user_turn(ledger, engine):
@@ -102,16 +109,17 @@ def test_stop_persists_across_restart_and_resume_is_new_saved_user_turn(ledger, 
     assert stopped.status == 'stopped'
     resumed_ledger = InteractionLedger(ledger.path)
     assert resumed_ledger.stopped('s1')
-    blocked, fresh = decision(resumed_ledger, engine, '*pats your head*', message='blocked')
+    blocked, fresh = decision(resumed_ledger, engine, '*touches your chest*', message='blocked')
     assert blocked.status == 'denied' and fresh
     assert resumed_ledger.accepted('blocked') is None
     resume = resumed_ledger.control(session_id='s1', message_id='resume-1',
                                     content='Sofía, resume interactions', occurred_at=NOW)
     assert resume.status == 'resumed' and not resumed_ledger.stopped('s1')
-    old, fresh = decision(resumed_ledger, engine, '*pats your head*', message='blocked')
+    old, fresh = decision(resumed_ledger, engine, '*touches your chest*', message='blocked')
     assert old.status == 'acknowledged' and not fresh
-    new, fresh = decision(resumed_ledger, engine, '*pats your head*', message='new')
+    new, fresh = decision(resumed_ledger, engine, '*touches your chest*', message='new')
     assert new.status == 'accepted' and fresh
+    assert resumed_ledger.accepted('new') == ('s1', 'chest', 'touch')
     assert resumed_ledger.stopped('unrelated-session') is False
     assert resumed_ledger.control(session_id='s1', message_id='stop-1',
                                   content='Sofía, stop interactions', occurred_at=NOW).status == 'replayed'
