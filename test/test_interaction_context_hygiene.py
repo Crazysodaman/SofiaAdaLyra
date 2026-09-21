@@ -49,12 +49,11 @@ def test_non_projection_and_malformed_json_remain_unchanged():
     assert without_legacy_auto_affection(original) is original
 
 
-def test_live_service_does_not_auto_assign_emotions_to_pats():
+def test_live_service_does_not_auto_assign_emotions_to_user_cues():
     service = object.__new__(ExpandedConversationService)
     for phrase in ('*pats your ear*', '*pats your hand*', '*pats your head*',
-                   'Sofía, I gently pat your tail'):
+                   'Sofía, I gently pat your tail', 'Good girl.'):
         assert service._should_record_legacy_affection(SimpleNamespace(content=phrase)) is False
-    assert service._should_record_legacy_affection(SimpleNamespace(content='Good girl.')) is True
 
 
 def test_live_service_filters_old_cues_before_model_projection(monkeypatch, tmp_path):
