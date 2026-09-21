@@ -89,16 +89,14 @@ class ExpandedConversationService(InteractiveConversationService):
     """Live action classification and read-only provenance-aware preferences."""
 
     def _should_record_legacy_affection(self, user) -> bool:
-        """A described pat is evidence of USER input, never Sofía's affection.
+        """Never convert USER praise/pats into Sofía's emotional appraisal.
 
-        The legacy cue journal assigned Sofía affection/appreciation/playfulness
-        just from the word 'pat'. Preserve old evidence in storage, but do not
-        generate more inferred emotional reactions from interaction syntax.
-        Explicit verbal cues still use the parent's established validation.
+        The legacy journal auto-assigned affection, appreciation and
+        playfulness to Sofía from user syntax alone. Saved cues remain intact,
+        but future emotional revisions require reviewed evidence, not a word
+        match. The conversation text is still available to the model.
         """
-        if re.search(r'\bpat(?:s|ted|ting)?\b', user.content, re.I):
-            return False
-        return super()._should_record_legacy_affection(user)
+        return False
 
     def _context_for(self, content: str, *, message_id: str,
                      session_id: str, occurred_at: datetime):
