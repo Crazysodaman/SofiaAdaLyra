@@ -1,11 +1,12 @@
-"""Thin live adapter for reviewed social actions, preserving the v1 ledger.
+"""Thin live adapter for reviewed social actions and scoped preference context.
 
-A user's description of an action is not an avatar command, consent, or actual
-physical act. Contact offers remain offers. No new DB tables, idle workers,
-notifications or permission are installed by this adapter.
+Text is not physical contact or rendered motion. Preflight blocks known stored
+boundaries before the model; a second pre-model check fails closed if the
+boundary changes. Cross-process atomic enforcement still belongs in the ledger.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import re
 
@@ -13,7 +14,9 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.chat import InteractiveConversationService
+from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
+from sofia.interaction.preference_context import read_interaction_context
 
 _ACTION_COMPOUND = re.compile(
     r"^\s*(?:sof[ií]a,\s*)?i\s+(?:hug|embrace|cuddle|snuggle)\b.*"
@@ -28,6 +31,10 @@ _STOPPED_ACTION = (
 _COMPOSITE_ACTION = (
     'That describes multiple actions. I have not treated any as completed. '
     'Please send separate actions if you want to explore them one at a time.'
+)
+_BOUNDARY_ACTION = (
+    'That represented action conflicts with a recorded interaction boundary, '
+    'so I have not accepted or narrated it as completed. We can keep talking.'
 )
 
 
@@ -54,8 +61,45 @@ def action_prompt(intent) -> str:
     )
 
 
+def preference_prompt(context) -> str:
+    """Only the scoped, independently source-checked revision enters context."""
+    return (
+        'TRUSTED SCOPED MODELED PREFERENCE (not consent or tool authority)\n'
+        'This is an explicitly reviewed modeled character preference, not a '
+        'claim of subjective sensation or ongoing permission. It may change '
+        'with later evidence; it does not override the current conversation, '
+        'stop, or a direct refusal. Do not quote private journal entries or '
+        'inject this into unrelated conversations.\n'
+        + json.dumps({
+            'subject': context.subject, 'semantic_id': context.semantic_id,
+            'region_id': context.region_id, 'preference': context.preference,
+            'source_id': context.source_id,
+        }, ensure_ascii=False)
+    )
+
+
 class ExpandedConversationService(InteractiveConversationService):
-    """Live social-action interpretation; existing stop and memory remain primary."""
+    """Live action classification and read-only provenance-aware preferences."""
+
+    def _context_for(self, content: str, *, message_id: str,
+                     session_id: str, occurred_at: datetime):
+        config = getattr(self._runtime, 'configuration', None)
+        embodiment = getattr(self._runtime, 'embodiment', None)
+        action = parse_user_action(content, message_id=message_id)
+        if action is not None:
+            return (action, read_interaction_context(
+                config.state_path, subject='sofia', semantic_id=action.action_id,
+                region_id='*')) if config is not None else (action, None)
+        if config is None or embodiment is None:
+            return None, None
+        gesture = NaturalInteractionEngine(embodiment).from_text(
+            content=content, message_id=message_id,
+            session_id=session_id, occurred_at=occurred_at)
+        if gesture is None or gesture.status != 'accepted':
+            return None, None
+        return None, read_interaction_context(
+            config.state_path, subject='sofia',
+            semantic_id=gesture.event.gesture, region_id=gesture.event.region_id)
 
     def respond(self, content: str):
         if isinstance(content, str):
@@ -65,29 +109,44 @@ class ExpandedConversationService(InteractiveConversationService):
                     and _ACTION_COMPOUND.search(text)):
                 return self._guarded_reply(content, _COMPOSITE_ACTION)
             if self._session is not None:
-                action = parse_user_action(content, message_id='preflight')
-                if action is not None:
-                    config = getattr(self._runtime, 'configuration', None)
-                    if config is None:
-                        raise RuntimeError('Represented actions require persistent configuration.')
-                    if InteractionLedger(config.state_path).stopped(self._session.id):
+                config = getattr(self._runtime, 'configuration', None)
+                if config is not None:
+                    action, context = self._context_for(
+                        content, message_id='preflight', session_id=self._session.id,
+                        occurred_at=datetime.now(timezone.utc))
+                    if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
                         return self._guarded_reply(content, _STOPPED_ACTION)
+                    if context is not None and context.blocked:
+                        return self._guarded_reply(content, _BOUNDARY_ACTION)
         return super().respond(content)
 
     def _build_request(self) -> CognitiveRequest:
-        request = super()._build_request()
+        # Check source-backed boundaries BEFORE the parent writes an accepted
+        # gesture to its ledger; a concurrent change fails closed here.
         messages = self.messages()
+        action, context = None, None
+        if messages and messages[-1].role is ConversationRole.USER:
+            user = messages[-1]
+            action, context = self._context_for(
+                user.content, message_id=user.id, session_id=user.session_id,
+                occurred_at=user.created_at)
+            if context is not None and context.blocked:
+                raise RuntimeError('A recorded interaction boundary blocks this action.')
+        request = super()._build_request()
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
-        user = messages[-1]
-        intent = parse_user_action(user.content, message_id=user.id)
-        if intent is None:
+        instructions = []
+        if action is not None:
+            config = getattr(self._runtime, 'configuration', None)
+            if config is None or InteractionLedger(config.state_path).stopped(user.session_id):
+                raise RuntimeError('Interaction stop changed before action projection.')
+            instructions.append(action_prompt(action))
+        if context is not None and context.preference is not None:
+            instructions.append(preference_prompt(context))
+        if not instructions:
             return request
-        config = getattr(self._runtime, 'configuration', None)
-        if config is None or InteractionLedger(config.state_path).stopped(user.session_id):
-            raise RuntimeError('Interaction stop changed before action projection.')
         return CognitiveRequest(
             messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                       content=action_prompt(intent)), *request.messages),
-            tools=request.tools,
+                                       content='\n\n'.join(instructions)),
+                      *request.messages), tools=request.tools,
         )
