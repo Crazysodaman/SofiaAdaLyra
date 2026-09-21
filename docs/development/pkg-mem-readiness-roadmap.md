@@ -12,7 +12,7 @@ Read-only source-preserving selection of `ConversationMessage` originals by ID i
 2. Implement/store **immutable original content**, stable actor/session/order/time and source pointers; derivations, summaries and reflection hypotheses must link to originals, declare omissions/uncertainty and never replace the original. Keep protected canonical identity and Constitution independent of recalled text.
 3. Add reviewed preference-candidate lifecycle (propose, evidence, correct/reject, promote, revoke); source changes, contradictions and deletion propagate into indexes and workbench pages. Private reflections remain unshared until an independently authorized audience is granted.
 4. Plan/test an opt-in, deduplicated ChatGPT archive importer with source hashes, provenance, dry-run and reversible migration on **disposable DB copies only**; malformed, cross-session and duplicated imports fail safely. Decide retention/export/delete policy with Sparks at this gate, not by guessing.
-5. Run on actual branch + Windows Python 3.12.9: `python -m pytest -q test/test_mem_original_retrieval.py` (confirm exact filename from PR before running); targeted conversation/MEM regression; restart/reopen, corruption, correction, deletion, unauthorized retrieval, prompt-injection and backup/restore negatives. Then coordinated full repo pytest after INTERACT acceptance.
+5. Run on actual branch + Windows Python 3.12.9: `python -m pytest -q test/test_memory_retrieval_projection.py`; targeted conversation/MEM regression; restart/reopen, corruption, correction, deletion, unauthorized retrieval, prompt-injection and backup/restore negatives. Then coordinated full repo pytest after INTERACT acceptance.
 
 ## Decisions requiring review
 
