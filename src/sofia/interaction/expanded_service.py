@@ -14,6 +14,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.chat import InteractiveConversationService
+from sofia.interaction.context_hygiene import without_legacy_auto_affection
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.preference_context import read_interaction_context
@@ -150,7 +151,7 @@ class ExpandedConversationService(InteractiveConversationService):
                 occurred_at=user.created_at)
             if context is not None and context.blocked:
                 raise RuntimeError('A recorded interaction boundary blocks this action.')
-        request = super()._build_request()
+        request = without_legacy_auto_affection(super()._build_request())
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
         instructions = []
