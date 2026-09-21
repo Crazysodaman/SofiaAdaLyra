@@ -1,6 +1,6 @@
 # PKG-CLEAN | branch readiness roadmap
 
-**2026-09-21 | draft PR #14 | baseline head `1c95e016c523fe61c956d3b3b721d0ef3c4bfccc`.** Companion `pkg-clean-review.md` and `package-clean-interact-lab-contracts.md`; the original CLEAN outcome is behavior-preserving maintenance. No destructive cleanup is approved by this roadmap.
+**2026-09-21 | draft PR #14 | baseline head `1c95e016c523fe61c956d3b3b721d0ef3c4bfccc`.** Companion `pkg-clean-offline-review.md` and `package-clean-interact-lab-contracts.md`; the original CLEAN outcome is behavior-preserving maintenance. No destructive cleanup is approved by this roadmap.
 
 ## Existing evidence and limitations
 
