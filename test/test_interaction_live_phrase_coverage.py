@@ -1,4 +1,4 @@
-"""Live-transcript phrase coverage: in-memory parsing, no DB or model calls."""
+"""Live phrase coverage: isolated in-memory parsing and temporary-DB ledger checks."""
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,13 +8,18 @@ from sofia.embodiment.store import AvatarStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
+from sofia.interaction.ledger import InteractionLedger
 
 AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
 NOW = datetime(2026, 9, 21, 22, tzinfo=timezone.utc)
 
 
+def _engine():
+    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+
+
 def _interpret(content, *, stopped=False):
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load()).from_text(
+    return _engine().from_text(
         content=content, message_id='saved-live-1', session_id='test-session',
         occurred_at=NOW, stopped=stopped,
     )
@@ -70,3 +75,27 @@ def test_ear_ambiguity_and_hug_offer_are_not_silently_converted():
     assert _interpret('I ask to hug you') is None
     offer = parse_user_action('I ask to hug you', message_id='saved-offer-1')
     assert offer is not None and offer.modality == 'offered'
+
+
+def test_new_grammar_is_enforced_by_durable_stop_and_replay(tmp_path):
+    ledger = InteractionLedger(tmp_path / 'isolated.db')
+    engine = _engine()
+    first, fresh = ledger.process_text(
+        engine=engine, content='Good girl, gently touches your butt',
+        message_id='saved-live-1', session_id='test-session', occurred_at=NOW,
+    )
+    assert fresh is True and first is not None and first.status == 'accepted'
+    assert ledger.accepted('saved-live-1') == ('test-session', 'buttocks', 'touch')
+    replay, fresh = ledger.process_text(
+        engine=engine, content='Good girl, gently touches your butt',
+        message_id='saved-live-1', session_id='test-session', occurred_at=NOW,
+    )
+    assert fresh is False and replay is not None and replay.status == 'acknowledged'
+    ledger.control(session_id='test-session', message_id='stop-1',
+                   content='Sofía, stop interactions', occurred_at=NOW)
+    blocked, fresh = ledger.process_text(
+        engine=engine, content='gropes your butt',
+        message_id='saved-live-2', session_id='test-session', occurred_at=NOW,
+    )
+    assert fresh is True and blocked is not None and blocked.status == 'denied'
+    assert ledger.accepted('saved-live-2') is None
