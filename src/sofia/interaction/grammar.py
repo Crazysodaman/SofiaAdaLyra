@@ -86,6 +86,9 @@ class NaturalInteractionEngine(InteractionEngine):
             if match.group('verb').casefold() not in _VERBS:
                 return None
             text = f"{match.group('verb')} your {match.group('region')}"
+        # Explicit character possessives denote the same virtual recipient;
+        # normalize BEFORE the legacy regex (which excludes apostrophes).
+        text = re.sub(r"\bsof[ií]a['’]s\s+", 'your ', text, flags=re.I)
         legacy = super().from_text(content=text, message_id=message_id,
                                    session_id=session_id, occurred_at=occurred_at,
                                    stopped=stopped)
