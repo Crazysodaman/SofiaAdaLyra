@@ -1,8 +1,8 @@
 """Read-only, source-checked modeled preference and boundary projection.
 
 Only explicitly reviewed source attestations qualify as trusted preference
-context. Unverified active boundaries fail CLOSED; they never grant permission.
-This read path does not initialize a schema or write production state.
+context. Unverified boundary additions OR removals fail closed. This read
+path does not initialize a schema or write production state.
 """
 from __future__ import annotations
 
@@ -75,13 +75,18 @@ def read_interaction_context(path: str | Path, *, subject: str,
                         WHERE subject=? AND semantic_id=? AND region_id=?
                         ORDER BY seq DESC LIMIT 1''',
                         (subject, semantic, region)).fetchone()
-                    if row is None or not bool(row[0]):
+                    if row is None:
                         continue
+                    # A fabricated or corrupted deactivation must not erase an
+                    # earlier boundary: both activation and revocation need
+                    # independently reviewed original-message evidence.
                     verified = _attested(db, row[1])
-                    return InteractionContext(
-                        subject, semantic_id, region_id, True, None,
-                        row[1] if verified else None,
-                        'boundary' if verified else 'unverified_boundary')
+                    if not verified:
+                        return InteractionContext(subject, semantic_id, region_id,
+                                                  True, None, None, 'unverified_boundary')
+                    if bool(row[0]):
+                        return InteractionContext(subject, semantic_id, region_id,
+                                                  True, None, row[1], 'boundary')
         if _table(db, 'interact_preference_revisions'):
             for ctx in (context, 'general') if context != 'general' else ('general',):
                 for semantic, region in ((semantic_id, region_id), (semantic_id, '*'),
