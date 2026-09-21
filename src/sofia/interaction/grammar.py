@@ -1,14 +1,21 @@
-"""Conservative language adapter over the single canonical interaction engine.
+"""Conservative v2 grammar over the canonical representational body engine.
 
-Only a first-person, complete, single action is normalized. This is not
-open-ended intent detection, consent, an avatar hit tester or sensed contact.
-Unrecognized, third-person, hypothetical and composite language abstains.
+Only one complete first-person action can be classified. Discussion, quotes,
+negation, unrecognized verbs and composites abstain. This is neither physical
+sensing nor consent; the durable ledger remains the authority for stop/replay.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import re
 
-from sofia.interaction.core import InteractionEngine, _DISCUSSION
+from sofia.interaction.core import (
+    InteractionEngine, InteractionEvent, _DISCUSSION,
+)
+from sofia.interaction.registry import (
+    CATALOG_VERSION, GESTURE_DEFINITIONS, catalog_for_engine,
+    normalize_alias,
+)
 
 _ADDRESS = re.compile(r"^sof[ií]a,\s+(?=i\s)", re.I)
 _GIVE = re.compile(
@@ -16,20 +23,30 @@ _GIVE = re.compile(
     r"a\s+(?:(?:gentle|soft|light|brief)\s+)?(?P<verb>pat|tap|rub|poke)[.!]?$", re.I,
 )
 _VERBS = frozenset({'pat', 'tap', 'touch', 'stroke', 'rub', 'hold', 'release', 'poke'})
-# The canonical single-action parser can otherwise swallow a second clause as
-# part of the region name, turning a composite into an ambiguous *one* gesture.
-# Reject coordination before resolving a region or writing an evidence record.
 _COMPOSITE = re.compile(r'\b(?:and|then|while|after|before|plus)\b|[;&]', re.I)
+# Keep the v1 forms intact while adding only reviewed, single-word verbs.
+_NEW_VERB_ALIASES = {
+    normalize_alias(alias): definition.id
+    for definition in GESTURE_DEFINITIONS if definition.id not in _VERBS
+    for alias in (definition.id, *definition.aliases)
+    if ' ' not in normalize_alias(alias)
+}
+_NEW_ACTION = re.compile(
+    r"^i\s+(?:(?:gently|softly|lightly|briefly)\s+)?"
+    r"(?P<verb>" + '|'.join(re.escape(v) for v in sorted(_NEW_VERB_ALIASES, key=len, reverse=True)) + r")\s+"
+    r"(?:(?:your|her|sofia's|the)\s+)?(?P<region>[a-z -]+?)"
+    r"(?:\s+(?:gently|softly|lightly|briefly))?[.!]?$",
+    re.IGNORECASE,
+)
 
 
 class NaturalInteractionEngine(InteractionEngine):
-    """Expanded text forms preserve event, policy and pointer semantic IDs."""
+    """Expanded recognized names/verbs, unchanged v1 storage and stop gate."""
 
     def resolve_region(self, description: str) -> str | None:
         name = re.sub(r'\s+', ' ', description.casefold().strip())
         if name.startswith('the '):
             name = name[4:]
-        # Only reviewed unambiguous aliases. A lone 'ear' stays unresolved.
         aliases = {
             'fox tail': 'tail', 'your fox tail': 'tail',
             'left fox ear': 'left-ear', 'right fox ear': 'right-ear',
@@ -42,14 +59,22 @@ class NaturalInteractionEngine(InteractionEngine):
             'tip of the right ear': 'right-ear-tip',
             'tip of the tail': 'tail-tip',
         }
-        return super().resolve_region(aliases.get(name, name))
+        old = super().resolve_region(aliases.get(name, name))
+        if old is not None:
+            return old
+        try:
+            resolution = catalog_for_engine(self).resolve_region(name)
+        except ValueError:
+            return None
+        return resolution.canonical_id if resolution.status == 'resolved' else None
 
     def from_text(self, *, content: str, message_id: str, session_id: str,
-                  occurred_at, stopped: bool = False):
+                  occurred_at: datetime, stopped: bool = False):
         if not isinstance(content, str):
             raise TypeError('Text must be a string.')
         text = content.strip()
         if (not text or len(text) > 160 or '\n' in text or '`' in text or '"' in text
+                or text.startswith("'") or text.endswith("'")
                 or '?' in text or _DISCUSSION.search(text)):
             return None
         if text.startswith('*') and text.endswith('*') and len(text) > 2:
@@ -61,8 +86,29 @@ class NaturalInteractionEngine(InteractionEngine):
         if match:
             if match.group('verb').casefold() not in _VERBS:
                 return None
-            # Preserve gesture and region ID; no gesture is inferred from a click.
             text = f"{match.group('verb')} your {match.group('region')}"
-        return super().from_text(content=text, message_id=message_id,
-                                 session_id=session_id, occurred_at=occurred_at,
-                                 stopped=stopped)
+        legacy = super().from_text(content=text, message_id=message_id,
+                                   session_id=session_id, occurred_at=occurred_at,
+                                   stopped=stopped)
+        if legacy is not None:
+            return legacy
+        match = _NEW_ACTION.fullmatch(text)
+        if match is None:
+            return None
+        gesture = _NEW_VERB_ALIASES[normalize_alias(match.group('verb'))]
+        region_id = self.resolve_region(match.group('region'))
+        # The engine validates IDs/timestamps for legacy verbs. Apply the same
+        # checks here without mutating v1's immutable supported-verb set.
+        for name, value in (('message_id', message_id), ('session_id', session_id)):
+            if not isinstance(value, str) or not value.strip() or len(value) > 120:
+                raise ValueError(f'{name} needs a bounded identifier.')
+        if not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+            raise ValueError('An aware event timestamp is required.')
+        event = InteractionEvent(
+            event_id=f'interaction:{message_id}', session_id=session_id,
+            evidence_ref=message_id, source='user_text', actor='user',
+            region_id=region_id, gesture=gesture, phase='end',
+            occurred_at=occurred_at.astimezone(timezone.utc),
+            registry_version=CATALOG_VERSION,
+        )
+        return self._decide(event, stopped=stopped)
