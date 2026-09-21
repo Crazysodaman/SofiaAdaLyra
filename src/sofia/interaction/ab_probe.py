@@ -60,8 +60,11 @@ def build_pair(*, case: str, text: str, identity, personality,
         decision = NaturalInteractionEngine(embodiment).from_text(
             content=text, message_id='synthetic-probe-ear',
             session_id='synthetic-probe-session', occurred_at=datetime.now(timezone.utc))
-        if decision is None or decision.status != 'accepted':
-            raise RuntimeError('The canonical engine did not recognize the synthetic ear gesture.')
+        # The original live phrase leaves the side unspecified. A canonical
+        # clarification is valid; guessing a left/right ear or pretending a
+        # completed gesture is not. Preserve the SAME user text in A and B.
+        if decision is None or decision.status not in ('accepted', 'clarify'):
+            raise RuntimeError('The canonical engine did not classify the synthetic ear gesture.')
         additions = (CognitiveMessage(role=CognitiveRole.SYSTEM,
                                       content=interaction_prompt(decision)),)
     elif case == 'offer':
