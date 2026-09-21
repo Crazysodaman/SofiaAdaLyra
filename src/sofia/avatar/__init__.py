@@ -11,3 +11,17 @@ __all__ = [
 from .scene import Actor, Action, Prop, Proposal, Scene, SceneConflict, SceneDenied, SceneError
 
 __all__ += ["Actor", "Action", "Prop", "Proposal", "Scene", "SceneConflict", "SceneDenied", "SceneError"]
+
+from .wardrobe_routine import (
+    Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
+    OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
+    Sentiment, WardrobeContext, Weather, WeatherObservation, WornEvidence,
+    appraise_clothing_change, period_key,
+)
+
+__all__ += [
+    "Activity", "Cadence", "ChangeOrigin", "ClothingAppraisal", "OutfitPlan",
+    "OutfitPlanner", "OutfitProposal", "Preference", "PreferenceActor",
+    "PreferenceTarget", "Season", "Sentiment", "WardrobeContext", "Weather",
+    "WeatherObservation", "WornEvidence", "appraise_clothing_change", "period_key",
+]
