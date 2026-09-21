@@ -44,10 +44,21 @@ def test_ordinary_dialogue_keeps_canonical_state_and_request_but_not_full_consti
     assert 'AUTHORITATIVE SELF STATE' in compact.messages[0].content
     assert 'PERSONALITY' in compact.messages[0].content
     assert 'precise and warm' in compact.messages[0].content
-    assert 'CURRENT-TURN EXPRESSION PRIORITY' in compact.messages[0].content
+    assert 'PERSONALITY EXPRESSION BOUNDARY' in compact.messages[0].content
+    assert 'CURRENT-TURN EXPRESSION PRIORITY' not in compact.messages[0].content
     assert compact.messages[1:] == context.request.messages
     assert compact.messages[-1] is context.request.messages[-1]
     assert compact.tools == full.tools
+
+
+def test_no_duplicate_generic_expression_block_with_specific_guard():
+    context = _context()
+    compact = ConversationalContextAssembler().assemble(context)
+    system = compact.messages[0].content
+    assert system.count('PERSONALITY EXPRESSION BOUNDARY') == 1
+    assert system.count('CONSTITUTION (bounded conversational projection)') == 1
+    assert compact.messages[1].content == context.request.messages[0].content
+    assert compact.messages[-1].content == '*pats your ear*'
 
 
 def test_explicit_constitution_question_receives_full_protected_text():
