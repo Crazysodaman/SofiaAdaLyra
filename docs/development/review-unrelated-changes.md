@@ -1,1 +1,0 @@
-This temporary file is unrelated to Discord and should be deleted.
