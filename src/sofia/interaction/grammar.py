@@ -1,6 +1,6 @@
 """Conservative v2 grammar over the canonical representational body engine.
 
-Only one complete first-person action can be classified. Discussion, quotes,
+Only one complete user-described action can be classified. Discussion, quotes,
 negation, unrecognized verbs and composites abstain. This is neither physical
 sensing nor consent; the durable ledger remains the authority for stop/replay.
 """
@@ -24,12 +24,30 @@ _GIVE = re.compile(
 )
 _VERBS = frozenset({'pat', 'tap', 'touch', 'stroke', 'rub', 'hold', 'release', 'poke'})
 _COMPOSITE = re.compile(r'\b(?:and|then|while|after|before|plus)\b|[;&]', re.I)
+# This is a spoken preface, not a second gesture. Require an immediately
+# following, explicitly addressed single gesture; do not strip arbitrary prose.
+_PRAISE_PREFIX = re.compile(
+    r'^good\s+girl,\s+(?=(?:(?:gently|softly|lightly|briefly)\s+)?'
+    r'(?:pats?|taps?|touch(?:es)?|strokes?|rubs?|holds?|pokes?)\s+'
+    r'(?:your|her|sofia\'s|the)\s+)', re.I,
+)
+# The standalone shorthand is intentionally restricted to this explicit verb.
+# It is never a generic unknown-verb or intimate-action fallback.
+_TELEGRAPHIC_GROPE = re.compile(
+    r'^(?:grope|gropes|groping)\s+(?:your|her|sofia\'s|the)\s+'
+    r'(?P<region>[a-z -]+?)[.!]?$', re.I,
+)
 _NEW_VERB_ALIASES = {
     normalize_alias(alias): definition.id
     for definition in GESTURE_DEFINITIONS if definition.id not in _VERBS
     for alias in (definition.id, *definition.aliases)
     if ' ' not in normalize_alias(alias)
 }
+# Reviewed explicit language: map to the existing intimate-touch semantic ID,
+# not to generic touch or physical execution. No new registry ID is inferred.
+_NEW_VERB_ALIASES.update({'grope': 'intimate-touch',
+                          'gropes': 'intimate-touch',
+                          'groping': 'intimate-touch'})
 _NEW_ACTION = re.compile(
     r"^i\s+(?:(?:gently|softly|lightly|briefly)\s+)?"
     r"(?P<verb>" + '|'.join(re.escape(v) for v in sorted(_NEW_VERB_ALIASES, key=len, reverse=True)) + r")\s+"
@@ -48,6 +66,7 @@ class NaturalInteractionEngine(InteractionEngine):
             name = name[4:]
         aliases = {
             'fox tail': 'tail', 'your fox tail': 'tail',
+            'butt': 'buttocks',
             'left fox ear': 'left-ear', 'right fox ear': 'right-ear',
             'tip of your left ear': 'left-ear-tip',
             'tip of your right ear': 'right-ear-tip',
@@ -81,6 +100,10 @@ class NaturalInteractionEngine(InteractionEngine):
         text = _ADDRESS.sub('', text)
         if _COMPOSITE.search(text):
             return None
+        text = _PRAISE_PREFIX.sub('', text, count=1)
+        grope = _TELEGRAPHIC_GROPE.fullmatch(text)
+        if grope is not None:
+            text = f"i grope your {grope.group('region')}"
         match = _GIVE.fullmatch(text)
         if match:
             if match.group('verb').casefold() not in _VERBS:
