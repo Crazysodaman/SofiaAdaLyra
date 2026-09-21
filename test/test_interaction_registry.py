@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from sofia.embodiment.store import AvatarStore
-from sofia.interaction.core import InteractionEngine
+from sofia.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
 from sofia.interaction.registry import (
     ACTION_DEFINITIONS, CATALOG_VERSION, EMOTION_EXTENSIONS,
     EXPRESSION_DEFINITIONS, GESTURE_DEFINITIONS, InteractionCatalog,
@@ -88,7 +88,7 @@ def test_registry_is_immutable_and_does_not_change_runtime_engine(catalog):
         names.semantic_aliases["gesture"]["pat"] = "touch"
     assert frozenset(engine.regions) == original
     # v1 does not silently accept catalog-only verbs before parser integration.
-    assert "caress" not in engine.GESTURES if hasattr(engine, "GESTURES") else True
+    assert "caress" not in LIVE_GESTURES
 
 
 def test_alias_normalization_rejects_malformed_input():
