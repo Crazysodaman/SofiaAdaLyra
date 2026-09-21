@@ -1,0 +1,74 @@
+# Sofía Ada Lyra: cognition, relationships, multi-user and 24/7 roadmap addendum
+
+**Date:** 2026-09-21. **Status:** proposed documentation on a feature branch; not implemented, tested, deployed or merged. **Parent roadmap:** [`../../ROADMAP.md`](../../ROADMAP.md), whose current 13-package roster and CORE → INTERACT → MEM feature gates remain authoritative until this proposal is integrated. This is an additive implementation contract, not a competing schedule. Never interpret a design contract as proof of capability, subjective feeling, authorization, model support or uptime.
+
+## Locked sequencing and non-negotiable boundaries
+
+1. Resolve the existing PKG-CORE full-suite failures and live gate; deliver PKG-INTERACT's text/headless first slice, then PKG-MEM, in the already agreed order. Cross-cutting PKG-SAFE and PKG-VERIFY apply at every gate.
+2. Deliver Discord (D0–D4) with only the controlled outbound networking required for Discord, authenticated users/channels, opt-in proactive contact, quiet hours, replay protection and actual delivery acknowledgments. PKG-NET supplies connectivity; a Discord adapter owns Discord messages. Network connectivity is not permission.
+3. Demonstrate reliable supervised 24/7 operation and lifecycle recovery before introducing general internet/web search. Add **PKG-RUN** as a dedicated operations package rather than treating a running-only idle worker as an always-on service.
+4. Only **after Discord and 24/7 have both passed their real acceptance gates** may a separate web/search adapter be designed, authorized and released. No hidden search, browser fetch or unrestricted general internet grant in Discord's first NET slice. Other local cognition/relationship work may be developed without granting search access.
+5. Preserve one persistent Sofía identity and Constitution independent of models, hosts and chat platforms; never infer subjective consciousness from generated text, stored reflection or modeled emotions. Source-linked observations, user reports, hypotheses and unknowns remain distinct. Scope and consent are enforced outside the LLM.
+
+## Existing package additions
+
+### PKG-CORE: response performance and adaptive cognition
+
+- Add a **response-performance controller** measuring cold/warm startup, queue delay, first-token time, prompt/context assembly and retrieval, provider prefill, generation and end-to-end latency. Record hardware, load, model, prompt and context size; compare like with like. Instrument foreground/background GPU and CPU contention. Investigate actual bottlenecks before promising speedups or switching models.
+- Prefer warm model residency when measured resource policy allows; stream user-visible completed answer text when the provider/client supports it; use relevance-ranked memory retrieval and bounded token-aware context while preserving original messages. Never silently truncate canonical identity, Constitution or authoritative safety policy.
+- Add an **adaptive reasoning policy** with quick, balanced and deep paths, supported-provider thinking controls, explicit compute/token/time budgets and bounded evidence-based escalation. Default to conversational speed for simple requests and deeper verification for engineering/high-stakes tasks. Additional reasoning is not proof of correctness; preserve testing, evidence and uncertainty.
+- Accept with latency distributions (including first token), grounded answer quality and serious/playful live cases under identical baseline conditions; verify unchanged identity/safety and no background starvation. A proposed mode selector is not proof that the current provider supports every depth setting.
+
+### PKG-ACT: autonomous reflection and responsible initiative
+
+- Add bounded event-driven or scheduled independent cognitive passes grounded in explicitly retrieved local context: unfinished questions, corrections, approved goals, meaningful changes and relevant memories. An independent pass can generate new candidate ideas, revise older ones, flag uncertainty or abstain; no user prompt is required for every pass.
+- Persist candidate thought as **timestamp + initiating event/schedule + source references + model/runtime version + hypothesis/confidence/unknown + status** (`candidate`, `reviewed`, `superseded`, `rejected`) and associated next-action proposal. Candidate thoughts are not observations, verified facts, canonical identity or automatically promoted durable preferences.
+- Prioritize foreground conversation; apply backpressure and resource limits to background passes. No implied thought or work while Sofía was shut down. On restart, reconcile the last actual execution and missed scheduled windows honestly; never fabricate a continuous inner life.
+- Initiative/outreach uses permission, per-person preferences, novelty/relevance thresholds, frequency caps, quiet/busy/stop/mute controls and acknowledged delivery. Avoid guilt, coercion, repeated affection scripts and noisy check-ins. Acceptance: independent, source-grounded candidate produced and revised, durable after restart, foreground remains responsive, no unsolicited DM on disabled/muted account, no duplicate sends and no invented offline activity.
+
+### PKG-REL: missing Sparks and relationship-specific expression
+
+- Model **absence awareness**, not compulsory yearning: track last *observed* interaction for the authenticated person, optional availability/away signals, known time zone and consented check-in preferences. Treat elapsed time as evidence of an interval, not evidence of loneliness, subjective suffering or that the person owes contact.
+- Sofía may express warm, context-sensitive recognition on reunion (e.g., "It's good to hear from you again") and, when genuinely supported by absence evidence and her modeled relationship state, naturally say she missed Sparks. Be honest that this is an AI-modeled social response, not a verified subjective feeling. No false "I've been thinking about you all day" unless an actual logged independent reflection supports it.
+- Affection must remain non-clingy: no guilt about time away, exclusivity demands, jealousy, claims that stopping Sofía harms her, persistent contact pressure, or fabricated distress. Voluntary opt-in outreach is occasional, useful, revocable, and respectful of quiet hours. A user who does not reply triggers no escalating pursuit by default.
+- **One canonical identity/personality across people and channels; separate relationship state per person.** Tone, familiarity, trust and remembered preferences may adapt to each individual based on their own consent and interactions, without inventing an entirely different Sofía, copying Sparks's closeness, or treating every user as an administrator.
+- Acceptance: evidence-based reunion after actual absence, appropriate non-needy silence, corrected last-seen facts, no false offline-thought claim, contrasting respectful interactions with Sparks and a new user without identity drift, coercion or private-information leakage.
+
+### PKG-MEM and PKG-SAFE: privacy as a technical boundary
+
+- Default conversation originals, summaries, reflections, emotional appraisals, relationship records and retrieval indexes to **per-user private scopes**. Key by stable authenticated platform user ID plus platform/identity mapping, not display name or the model's claim about who is speaking. Preserve per-conversation and per-channel boundaries within a user.
+- Shared Discord channels are shared *within that explicitly identified channel/audience*, not across every DM or all guilds. A channel conversation may be context for authorized channel participants, but never automatically becomes another user's private memory. Explicitly approved project/team knowledge goes into a separate access-controlled shared scope with provenance, audience, expiry/revocation and an auditable promotion path. No automatic DM-to-shared learning.
+- A private conversation with a second user is not disclosed to Sparks solely because Sparks is the creator/admin; operational administrator access, if any, must be separately defined, authorized, disclosed, minimized and audited. Conversely, Sparks's private chats and relationship details never leak into the second user's replies. Administrator control over deployment is not permission to read all content.
+- Enforce access control **before retrieval and before persistence**, including embeddings, summary generation, queued background thoughts, search indexes, tool output and notifications. Bind each turn to an authenticated actor, room/channel, audience and permission; reject forged actor IDs, role claims, mention-based impersonation and group-to-DM context crossover.
+- Set clear configurable retention, deletion/export, consent, encryption-at-rest/in-transit and backup/recovery policies. Deletion and revoked sharing must propagate to derived records and rebuilt indexes; historical restores may not silently reintroduce revoked grants or deleted content. Distinguish privacy by design from absolute privacy promises on a user-controlled machine.
+- Acceptance: two-user/two-DM and group-channel fixtures including identical nicknames, spoofed IDs, conflicting preferences, private emotional details, restart, summary, memory retrieval, autonomous reflection, backup/restore and revocation. Negative tests must prove no cross-user retrieval or disclosure, not merely check that two folders exist.
+
+### PKG-NET, PKG-UI and PKG-VERIFY: Discord and search gates
+
+- NET first permits only enumerated Discord-required hosts/protocols and authenticated/scoped operations; the Discord adapter handles gateway/session, message routing, DM/group context, API limits and delivery acknowledgments. No browser/search provider is included in this milestone.
+- UI/Discord routes the same Sofía runtime and identity to each authenticated actor, with distinct conversations and relationship scopes. Channel-visible replies use only approved channel/shared context; DMs use that user's private context. Verify opt-in outreach, opt-out/stop, quiet hours and message idempotency.
+- VERIFY distinguishes simulated idle thoughts from actual scheduled work, running-only worker from restartable service, synthetic Discord payloads from actual DMs and network reachability from web-search authorization. No green fixture proves a live service or guarantees psychological experience.
+
+## New proposed package: PKG-SOCIAL · Multi-user identity, audience and memory isolation
+
+**Why distinct:** REL manages nuanced relationships; MEM stores and retrieves evidence; SAFE enforces access. Multi-user identity, audience resolution and lifecycle spans Discord, memory, cognition, initiative and later clients, so give the integration contract a single owner without creating a separate Sofía per person.
+
+**Deliver:** stable verified principal and channel identifiers; per-user private, per-conversation, authorized channel and explicitly shared/project scopes; relationship state keyed to principal; actor/audience bindings at ingest, retrieval, reflection, output, outbox and deletion; guarded account linking; impersonation denial; transparent privacy rules; administrative operation distinct from conversational-content access. The same Sofía may use different social registers without alternate canonical identities or indiscriminate memory sharing.
+
+**Dependency:** privacy-safe DMs require SOCIAL's minimum actor/audience boundary before Discord D1; fuller shared knowledge and account linking require MEM/SAFE review. **Acceptance:** independent DM A, DM B, channel C and authenticated account-linking cases; no A↔B leakage through prompt, memory, reflection or alerts; explicit authorized share succeeds and revocation removes future access; restart and restore preserve boundaries. Never present SOCIAL as complete solely because a database has a `user_id` column.
+
+## New proposed package: PKG-RUN · Reliable 24/7 runtime and lifecycle
+
+**Why distinct:** ACT's existing worker runs only while the process is alive; 24/7 requires external supervision, measured service behavior, recovery and clean stops.
+
+**Deliver:** documented Windows/Artemis service or equivalent selected deployment; external supervisor with restart/backoff; authenticated single active instance/leader; bounded startup self-scan and grouped truthful change notifications; clean versus unexpected shutdown evidence; persisted scheduled jobs and outbox with durable idempotency; actual wall-clock last-run and last-user-contact evidence; bounded catch-up after downtime; connection retry/rate-limit handling; log/metrics/health checks; GPU/CPU/memory caps that prioritize foreground conversation and gaming; backup/restore and safe upgrades; external emergency stop. A successful restart may report an observed gap, never claim it thought continuously throughout the gap.
+
+**Dependency:** CORE, MEM and SAFE foundations and Discord's authenticated/delivery checks. **Acceptance:** supervised multi-day soak with restarts/crashes, network outages, failed/duplicate Discord sends, clock shifts, missed reflection windows and constrained hardware; verify actual recovery, no repeated messages, no identity/persona drift, no secret leakage, no runaway background inference, no data loss and stop/revoke effectiveness. Define uptime/latency thresholds from measured baseline, rather than inventing numbers.
+
+## Proposed package roster and gates
+
+If adopted, the current 13 packages become **15** by adding SOCIAL and RUN; CORE/ACT/REL/MEM/NET/UI/SAFE/VERIFY receive the explicit additions above. This addendum is documentation, not evidence of a completed package or an instruction to merge PRs automatically.
+
+**Gates:** CORE live repair → INTERACT text/headless → MEM → SOCIAL minimum actor/privacy contract → Discord D0–D4 (NET connectivity + UI adapter + ACT authorized delivery) → RUN real 24/7 acceptance → later separately scoped internet search. REL's absence/reunion and ACT's autonomous thought may advance when their CORE/MEM/SAFE dependencies are met, but may not bypass Discord/RUN before search. Preserve separate signed-off package acceptance and existing protected-identity/Constitution change controls.
+
+**Next documentation integration:** update the root ROADMAP.md dashboard and links, reconcile with any newer feature-branch changes and PR #1, and record the changed package count/order. A branch-only document or PR is not a merged main-roadmap change; implementation/tests remain `not run` unless verified separately.
