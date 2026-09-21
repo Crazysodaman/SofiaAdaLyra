@@ -35,7 +35,8 @@ def test_probe_constructs_static_context_with_identical_synthetic_user_input(cas
     assert minimal.messages[0].role is assembled.messages[0].role is CognitiveRole.SYSTEM
     assert len(assembled.messages[0].content) > len(minimal.messages[0].content)
     assert 'CONSTITUTION (bounded conversational projection)' in assembled.messages[0].content
-    assert 'CURRENT-TURN EXPRESSION PRIORITY' in assembled.messages[0].content
+    assert assembled.messages[0].content.count('PERSONALITY EXPRESSION BOUNDARY') == 1
+    assert 'CURRENT-TURN EXPRESSION PRIORITY' not in assembled.messages[0].content
     if case == 'ear':
         # An unspecified ear is not silently reinterpreted as left or right.
         assert '"policy_status": "clarify"' in assembled.messages[1].content
