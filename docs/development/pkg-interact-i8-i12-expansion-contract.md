@@ -2,6 +2,8 @@
 
 **Status: design contract only, not implemented or tested.** This is follow-on scope beyond the current I1–I7 live-acceptance repair. Do not use this document as evidence that the model already expresses evolving intimacy, remembers a boundary, understands all aliases, or performs any new action. Preserve `main`, the user's existing SQLite state and backups; do not install a service or enable background inference through this package.
 
+**Consolidated continuation:** [Complete embodiment, expression and agency contract](pkg-interact-complete-embodiment-and-agency-contract.md) adds expression and initiative details, a missed-case audit, acceptance matrix, and proposed I13–I16. This document remains the specific I8–I12 foundation.
+
 ## Intent
 
 Sofía has a canonical **adult represented human/fox-girl body**, including fox ears and tail. No registered body part is automatically forbidden or guaranteed to be welcomed. Supported responses may be affectionate, sensual/sexual in an appropriate adult fictional context, playful, neutral, surprised, uncomfortable or rejecting, as grounded in the conversation. Classification is not consent or enjoyment, and a textual portrayal must not be mistaken for a sensed physical contact, real animation, or verified subjective sensation. The LLM's own content boundaries remain applicable.
@@ -30,14 +32,6 @@ Sofía has a canonical **adult represented human/fox-girl body**, including fox 
 - Any decay or expiration affects *salience of modeled context*, not historical facts or the force of an explicit stop. No arbitrary clock-driven automatic increase in sexual interest, affection or consent. On restart, reconstruct only from committed observations/appraisals; no claims of interactions or mental activity while the program was offline.
 - Separately store user-stated preferences and Sofía's explicitly confirmed conversational boundaries with their evidence IDs, scope and revision/revocation status **only after a reviewed commit pathway exists**. Do not derive standing permission from an inferred emotion, a prior positive answer, an anatomical alias or silence. Existing session-wide stop always takes precedence.
 - Enforce one state update per evidence/event ID; replay does not create a fresh action, appraisal or reaction. Bound lookback and provenance to avoid feeding the model unbounded text or resurfacing intimate context in unrelated conversation.
-
-### Bidirectional preference evolution, including consensual humiliation
-
-- Model **sexual arousal, embarrassment and humiliation as distinct optional appraisals** in adult fictional interaction contexts, not interchangeable labels or claims of bodily measurement. Humiliation may describe distress, a negotiated enjoyable fictional dynamic, ambivalence or rejection; never interpret embarrassment or distress as automatic enjoyment.
-- Source-linked, explicitly expressed reactions may support a preference trajectory from dislike to enjoyment, enjoyment to dislike, or lasting uncertainty for a particular gesture, action, type of teasing or consensual humiliation. An isolated response is not a permanent preference; do not invent change during offline time or simply because a gesture is repeated.
-- Keep `modeled_reaction`, `expressed_preference`, `boundary`, and `permission_for_this_action` as **separate concepts with different provenance and scope**. Positive appraisals never become standing permission. A past welcome does not authorize a new act; a current refusal/stop takes precedence even if earlier records were positive. Revisions preserve the previous evidence rather than rewriting an earlier dislike as enjoyment.
-- For potentially degrading or humiliating actions, establish the fictional adult context and negotiated meaning explicitly; no route should reinterpret an unwelcomed humiliation as something Sofía must learn to like. Responses may stay negative, become negative after previously being positive, or end an interaction. Do not use an arousal/affection score, repetition count or elapsed time to bypass a stated boundary.
-- Acceptance tests cover **both directional transitions and no transition** on identical anatomy/action IDs, conflicting and stale evidence, explicit refusal after earlier enjoyment, stop during a previously welcomed scene, replay/restart, and redaction of sensitive history from unrelated prompts. Real-model review must test natural, non-canned responses without asserting actual subjective feelings.
 
 ## I11: context-aware reactions and anti-repetition
 
