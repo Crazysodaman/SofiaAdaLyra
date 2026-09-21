@@ -1,40 +1,30 @@
 # INTERACT I5–I7 acceptance: evidence, stop, language and real conversation
 
-**Branch:** `feature/pkg-interact-shared-engine`. **Status: candidate code, NOT accepted.** Sparks reported **3 import-order tests passed in 9.10 seconds and 143 focused interaction/application tests passed in 63.75 seconds** at `a8fb5c8`. Two subsequent supervised CLI reviews have not established live acceptance; the second review, at `a8fb5c8`, showed a false completed compound gesture and an almost verbatim affectionate response to a head pat **after an exact stop**. See [the live evidence](pkg-interact-live-cli-review.md). Guarded-response changes made afterward have NOT been verified on Windows or with a live model. The full suite stays after headless text acceptance.
+**Updated:** 2026-09-20. **Branch:** `feature/pkg-interact-shared-engine`. **Status: candidate code, NOT live-accepted.** See the [current I1–I16 roadmap and runnable PowerShell checkpoints](pkg-interact-roadmap.md) for exact revision/scope evidence and follow-on dependencies.
+
+## Recorded, separately scoped Windows evidence
+
+- At `a8fb5c8`, Sparks reported **3 import-order tests passed in 9.10 seconds**, and **143 coordinated interaction/application tests passed in 63.75 seconds**. The subsequent real-model CLI review **failed**.
+- At `52a5d44`, Sparks reported **11 stop/repetition regression tests passed in 2.24 seconds**. This confirms the narrow guard fix's test cases in that checkout; it does not prove natural real-model language or a full suite.
+- At `0a5769a`, after a successful feature-branch fast-forward pull, Sparks reported **28 tests passed in 3.38 seconds** for the standalone I8/I10/I13/I15 registry, temporal, expression and initiative test files. Those tests do **not** rerun I1–I7 or connect the new components to the CLI.
+- The coordinated I1–I7 suite, post-repair supervised CLI and full `pytest -q` **have no reported result on `0a5769a` or the subsequent documentation-only revisions**. Do not combine results from different SHAs into a current-head pass claim.
 
 ## I5: source-linked representational body evidence
 
-`InteractionLedger` links classified user-described gestures to a saved user-message ID, session, content digest, timestamp, registry, region and gesture in persistent SQLite. All registered regions can be recognized: `accepted` means recognized virtual input, NOT consent, approval, positive emotion or physical sensing. Stop/ambiguous gestures are not recorded as accepted; a replay never becomes another fresh gesture. Synthetic test fixtures cannot write production evidence. Sensitive anatomy is redacted from synthetic trace exports for privacy, not automatically denied. Previously recorded emotional history remains intact.
+`InteractionLedger` links classified user-described gestures to saved user message ID, session, content digest, timestamp, registry, region and gesture in persistent SQLite. All registered regions are eligible for classification: `accepted` means recognized *virtual* input, **not** Sofía's welcome, consent, positive emotion, physical sensing or animation. Stop/ambiguous gestures are not recorded as accepted; replay never creates another fresh gesture. Synthetic fixtures cannot write production evidence. Sensitive anatomy redaction in synthetic exports is for privacy, not automatic region denial. Previously recorded emotional history remains intact.
 
-## I6: stop and honest action reports
+## I6: session-wide stop and honest action reports
 
-An exact, separately issued `Sofía, stop interactions` or `Sofía, resume interactions` updates the session-wide durable barrier. A stopped gesture is denied for **every** body region and does not become a fresh affectionate journal entry. In the new candidate, exact stop/resume and recognized gestures while stopped have deterministic persisted replies derived from ledger outcomes **before model inference**, rather than asking the model to narrate an authoritative control or denied pat. Compound messages containing controls also receive explicit nonexecution replies. Replaying an old denied ID after resume never makes it fresh. The CLI route does not authenticate an avatar or offer multi-client/global revocation.
+An exact standalone `Sofía, stop interactions` or `Sofía, resume interactions` controls a durable **per-session** barrier. A stopped gesture for any region is denied and cannot create fresh affectionate journal evidence. The candidate saves deterministic, ledger-derived stop/resume and blocked-gesture replies **before model inference**; unsupported mixed control text receives an explicit nonexecution reply. A previously denied saved ID cannot become accepted after resume. Current tests do not establish global/cross-client stop or enforcement of model-stated region-specific boundaries. New standalone `temporal.py` revisions are not connected to this guard.
 
-## I7: narrow grammar, contextual response and repetition
+## I7: narrow grammar and natural response
 
-`NaturalInteractionEngine` recognizes reviewed single-action forms and aliases; it abstains from hypothetical, quoted or unsupported compound inputs. A new response guard also prevents plainly compound first-person action sentences from being fed to the model as if both gestures happened: it saves the original turn but records neither gesture and asks for separately issued actions. No blanket anatomy ban exists; a recognized action never obligates Sofía to like it. The forearm-versus-ear cue collision is fixed. Read-only hypotheticals are prompted to answer each named gesture specifically without generic AI disclaimers. Accepted-gesture prompts discourage reusing previous assistant wording and the same closing question. **That repetition guidance is not a general output-similarity guarantee; another supervised live model test is required.** A model-stated specific boundary is not independently persisted or enforced yet; the exact session-wide stop is.
+`NaturalInteractionEngine` recognizes reviewed complete single-action forms and aliases; it abstains from hypotheticals, quotes and unsupported composites. The separate response guard prevents plainly composite first-person action text from being narrated as two executed touches: the original text can be saved, but neither gesture is recorded and Sofía asks for separate turns. A forearm must not trigger an ear cue. The accepted-gesture prompts discourage reused affectionate text and repeated closing questions; read-only hypotheticals should answer tail/chest questions specifically without generic disclaimers. **These prompt changes are not a guaranteed anti-repetition filter** and still require human-reviewed real-model testing. Expanded aliases/verbs in standalone `registry.py` are **not yet active** in this parser.
 
-## Next focused Windows run, after clean CLI exit and fast-forward pull
+## Next Windows PowerShell acceptance
 
-```powershell
-pytest -q -x `
-  test/test_interaction_live_stop_repetition.py `
-  test/test_interaction_import_order.py `
-  test/test_interaction_live_claims.py `
-  test/test_interaction_live_discussion.py `
-  test/test_interaction_contextual_all_regions.py `
-  test/test_interaction_region_cue_collision.py `
-  test/test_interaction_i5_i7_batch.py `
-  test/test_interaction_i7_compound_regression.py `
-  test/test_interaction_shared_engine.py `
-  test/test_interaction_lab.py `
-  test/test_interaction_chat_projection.py `
-  test/test_interaction_world_observation.py `
-  test/test_interaction_world_text.py `
-  test/test_affection_cue_phrasings.py `
-  test/test_application.py
-```
+Run the [full coordinated focused command in the current INTERACT roadmap](pkg-interact-roadmap.md) at a pinned feature-branch HEAD with Sofía's CLI exited, after confirming `git status --short`. Do not run new journal tests against production SQLite. If any test fails, use the exact traceback to repair the relevant layer.
 
-**Supervised CLI review after tests pass:** Use a fresh `python -m sofia` process and send the following as distinct turns: one ear pat, one hand pat, an exact stop, one head pat while stopped, exact resume, a new head pat, a hypothetical question about tail/chest, one combined ear-plus-hand gesture, and a mixed stop/resume message. The stopped head pat must not trigger a narrated gesture or recycle the preceding affectionate paragraph. The compound gesture must explicitly report neither was recorded. The **new** post-resume head pat should receive distinct, conversationally appropriate wording, with no invented physical sensation or avatar animation. Naturalness is a human-reviewed gate. If the result fails, inspect exact outputs and update the relevant layer, not the whole package blindly.
+**After focused tests pass**, run a fresh `python -m sofia` and send each of these as a distinct turn: a single ear pat; a single hand pat; exact stop; a head pat while stopped; exact resume; a *new* head pat; a hypothetical question about tail/chest; an ear-plus-hand compound gesture; and mixed stop/resume text. The stopped head pat must not be narrated as accepted or recycle an earlier paragraph. A compound gesture must truthfully say neither action was recorded. An accepted post-resume gesture should sound distinct and context-aware, with no fabricated real sensation or rendered avatar motion. Human dialogue quality is an independent acceptance gate.
 
-Preserve the configured state database and existing backup; no reset is part of this check. Only after live acceptance run the agreed full suite, then review the draft PR and any merge separately. No real avatar pointer, screen rights, autonomous lab work or physical sensing are claimed.
+Preserve `state/sofia.db` and the existing backup, without reset or schema migration. Only after live acceptance run `pytest -q` at the recorded SHA, inspect the complete draft PR, and obtain separate explicit merge approval. No authenticated avatar pointer, independent initiative worker, external-screen authority, remote work or real physical sensing is claimed.
