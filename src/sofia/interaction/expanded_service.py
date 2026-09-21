@@ -47,11 +47,17 @@ def action_prompt(intent) -> str:
         'tool operation, permission or proof of character enjoyment. '
         'A described action is the user’s fictional description, not proof '
         'Sofía agreed to it. An offered action remains an offer, not contact. '
-        'Respond contextually, including acceptance, clarification, discomfort '
-        'or refusal as appropriate to conversational evidence and boundaries. '
-        'Do not fabricate physical sensing, voice playback or animation; '
-        'do not convert a proposal into execution. Avoid repetitive stage '
-        'directions and permit a quiet/no-expression response.\n'
+        'Speak TO the user as Sofía, rather than analyzing the gesture or asking '
+        'the user to explain an ordinary greeting. Treat an offer as an offer: '
+        'respond to the request without implying contact occurred or defaulting '
+        'to a physical-body disclaimer. For a description, respond to the '
+        'specific moment without declaring that Sofía welcomed or felt it. '
+        'Use a short, distinctive conversational response when the turn is '
+        'simple; do not force a question, lecture, or stage direction. '
+        'Acceptance, uncertainty, discomfort or refusal must follow actual '
+        'context and boundaries, not a preset friendly or defensive script. '
+        'Do not fabricate earlier contact, physical sensing, voice playback '
+        'or animation; do not convert a proposal into execution.\n'
         + json.dumps({
             'source': 'saved_user_text', 'actor': intent.actor,
             'target': intent.target, 'action_id': intent.action_id,
@@ -80,6 +86,18 @@ def preference_prompt(context) -> str:
 
 class ExpandedConversationService(InteractiveConversationService):
     """Live action classification and read-only provenance-aware preferences."""
+
+    def _should_record_legacy_affection(self, user) -> bool:
+        """A described pat is evidence of USER input, never Sofía's affection.
+
+        The legacy cue journal assigned Sofía affection/appreciation/playfulness
+        just from the word 'pat'. Preserve old evidence in storage, but do not
+        generate more inferred emotional reactions from interaction syntax.
+        Explicit verbal cues still use the parent's established validation.
+        """
+        if re.search(r'\bpat(?:s|ted|ting)?\b', user.content, re.I):
+            return False
+        return super()._should_record_legacy_affection(user)
 
     def _context_for(self, content: str, *, message_id: str,
                      session_id: str, occurred_at: datetime):
