@@ -24,7 +24,6 @@ _GIVE = re.compile(
 )
 _VERBS = frozenset({'pat', 'tap', 'touch', 'stroke', 'rub', 'hold', 'release', 'poke'})
 _COMPOSITE = re.compile(r'\b(?:and|then|while|after|before|plus)\b|[;&]', re.I)
-# Keep the v1 forms intact while adding only reviewed, single-word verbs.
 _NEW_VERB_ALIASES = {
     normalize_alias(alias): definition.id
     for definition in GESTURE_DEFINITIONS if definition.id not in _VERBS
@@ -97,8 +96,6 @@ class NaturalInteractionEngine(InteractionEngine):
             return None
         gesture = _NEW_VERB_ALIASES[normalize_alias(match.group('verb'))]
         region_id = self.resolve_region(match.group('region'))
-        # The engine validates IDs/timestamps for legacy verbs. Apply the same
-        # checks here without mutating v1's immutable supported-verb set.
         for name, value in (('message_id', message_id), ('session_id', session_id)):
             if not isinstance(value, str) or not value.strip() or len(value) > 120:
                 raise ValueError(f'{name} needs a bounded identifier.')
@@ -108,6 +105,32 @@ class NaturalInteractionEngine(InteractionEngine):
             event_id=f'interaction:{message_id}', session_id=session_id,
             evidence_ref=message_id, source='user_text', actor='user',
             region_id=region_id, gesture=gesture, phase='end',
+            occurred_at=occurred_at.astimezone(timezone.utc),
+            registry_version=CATALOG_VERSION,
+        )
+        return self._decide(event, stopped=stopped)
+
+    def from_lab_pointer(self, *, fixture_id: str, session_id: str,
+                         region_id: str | None, gesture: str,
+                         occurred_at: datetime, phase: str = 'end',
+                         stopped: bool = False):
+        """Synthetic fixtures use the same v2 IDs; NOT authenticated avatar input."""
+        if gesture not in frozenset(_NEW_VERB_ALIASES.values()):
+            return super().from_lab_pointer(
+                fixture_id=fixture_id, session_id=session_id, region_id=region_id,
+                gesture=gesture, occurred_at=occurred_at, phase=phase,
+                stopped=stopped)
+        for name, value in (('fixture_id', fixture_id), ('session_id', session_id)):
+            if not isinstance(value, str) or not value.strip() or len(value) > 120:
+                raise ValueError(f'{name} needs a bounded identifier.')
+        if phase not in ('begin', 'update', 'end', 'cancel'):
+            raise ValueError('Unknown gesture phase.')
+        if not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+            raise ValueError('An aware event timestamp is required.')
+        event = InteractionEvent(
+            event_id=f'lab:{fixture_id}', session_id=session_id,
+            evidence_ref=fixture_id, source='virtual_lab', actor='user',
+            region_id=region_id, gesture=gesture, phase=phase,
             occurred_at=occurred_at.astimezone(timezone.utc),
             registry_version=CATALOG_VERSION,
         )
