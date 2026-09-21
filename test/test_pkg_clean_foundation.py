@@ -9,10 +9,14 @@ def test_cleanup_requires_backup_and_review():
     assert CleanupCandidate(('tmp/cache',), True, True).eligible_for_manual_plan
 
 
-def test_state_and_protected_files_never_pass_generic_cleanup_gate():
-    for path in ('state/sofia.db', 'src/sofia/constitution/constitution.md',
-                 'src/sofia/identity/identity.json'):
-        assert not CleanupCandidate((path,), True, True).eligible_for_manual_plan
+@pytest.mark.parametrize('path', [
+    'state', 'state/sofia.db', '.git', '.git/config',
+    'src/sofia/constitution', 'src/sofia/constitution/constitution.md',
+    'src/sofia/identity', 'src/sofia/identity/identity.json',
+    'src/sofia/data',
+])
+def test_state_and_protected_paths_never_pass_generic_cleanup_gate(path):
+    assert not CleanupCandidate((path,), True, True).eligible_for_manual_plan
 
 
 @pytest.mark.parametrize('path', ['../secret', '/absolute', 'C:\\Windows\\system.ini'])
