@@ -6,7 +6,7 @@
 
 `src/sofia/memory/retrieval_projection.py` projects existing `ConversationMessage` originals by stable message ID within one caller-provided session. It preserves exact original text, timestamps, role, and input position, deduplicates requested IDs, rejects duplicate originals and unzoned timestamps, and returns separate missing/omitted IDs. Character budget is a deliberately honest approximation, **not a token count**. No original is silently truncated. Other-session IDs are indistinguishable from absent IDs in results.
 
-**Focused command:** `PYTHONPATH=src python -m pytest -q test/test_memory_retrieval_projection.py`. Isolated Python 3.13.5 / pytest 9.0.2 test run: 24 focused cases passed alongside VERIFY's 19, **43 combined passed** using a local test-only stand-in for the fetched existing `ConversationMessage` class. The uploaded GitHub source and tests must be checked against a real checkout, including Windows and full suite. The stand-in was never committed.
+**Focused command:** `PYTHONPATH=src python -m pytest -q test/test_memory_retrieval_projection.py`. Isolated Python 3.13.5 / pytest 9.0.2 test run: **23 focused cases passed**, alongside VERIFY's 20, **43 combined passed** using a local test-only stand-in for the fetched existing `ConversationMessage` class. The uploaded GitHub source and tests must be checked against a real checkout, including Windows and full suite. The stand-in was never committed.
 
 ## Review at package gate
 
