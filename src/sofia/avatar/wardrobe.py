@@ -12,7 +12,13 @@ from enum import IntEnum
 import re
 
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
-SLOTS = frozenset({"torso", "pelvis", "legs", "feet", "hands", "head", "ears", "tail", "neck"})
+SLOTS = frozenset({
+    "torso", "pelvis", "legs", "feet", "hands", "head", "ears", "tail", "neck",
+    "shoulders", "upper_arms", "forearms", "wrists", "fingers", "waist", "back",
+    "thighs", "calves", "ankles", "hair",
+    "left_hand", "right_hand", "left_forearm", "right_forearm",
+    "left_wrist", "right_wrist", "left_foot", "right_foot",
+})
 COVERED_DEFAULT = frozenset({"torso", "pelvis"})
 
 
