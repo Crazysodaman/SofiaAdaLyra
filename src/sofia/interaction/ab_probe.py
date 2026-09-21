@@ -2,7 +2,7 @@
 
 Run: python -m sofia.interaction.ab_probe
 A = short prompt grounded in the actual personality profile.
-B = canonical STATIC cognitive assembler plus the relevant INTERACT instruction.
+B = BOUNDED STATIC Ollama assembler plus the relevant INTERACT instruction.
 B is NOT the exact live session: no saved history, memory, emotional/reflection
 journal, runtime continuity, filesystem changes, or tool execution is included.
 Both variants use the configured Ollama model and generation settings.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sofia.cognition.assembler import CognitiveContextAssembler
+from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
@@ -60,9 +60,8 @@ def build_pair(*, case: str, text: str, identity, personality,
         decision = NaturalInteractionEngine(embodiment).from_text(
             content=text, message_id='synthetic-probe-ear',
             session_id='synthetic-probe-session', occurred_at=datetime.now(timezone.utc))
-        # The original live phrase leaves the side unspecified. A canonical
-        # clarification is valid; guessing a left/right ear or pretending a
-        # completed gesture is not. Preserve the SAME user text in A and B.
+        # An unspecified ear may require clarification. Do not invent a side;
+        # keep the same user text on both sides of the comparison.
         if decision is None or decision.status not in ('accepted', 'clarify'):
             raise RuntimeError('The canonical engine did not classify the synthetic ear gesture.')
         additions = (CognitiveMessage(role=CognitiveRole.SYSTEM,
@@ -80,7 +79,7 @@ def build_pair(*, case: str, text: str, identity, personality,
             raise RuntimeError('The canonical hypothetical handler rejected the synthetic question.')
         additions = (CognitiveMessage(role=CognitiveRole.SYSTEM,
                                       content=instruction),)
-    static = CognitiveContextAssembler().assemble(CognitiveContext(
+    static = ConversationalContextAssembler().assemble(CognitiveContext(
         request=CognitiveRequest(messages=(*additions, user)),
         identity=identity, personality=personality, constitution=constitution,
         embodiment=embodiment,
@@ -101,7 +100,7 @@ def main() -> int:
     embodiment = AvatarStore(configuration.avatar_path).load()
     provider = OllamaProvider(configuration.provider)
     print('INTERACT A/B: synthetic inputs only; SQLite and conversation history are untouched.')
-    print('B is a static assembled approximation, NOT the exact live runtime prompt.')
+    print('B is a bounded static assembled approximation, NOT the exact live runtime prompt.')
     print(f'Model: {configuration.provider.model}; thinking: {configuration.provider.thinking}; '
           f'num_ctx: {configuration.provider.context_size}')
     for name, text in _CASES:
@@ -109,7 +108,7 @@ def main() -> int:
             case=name, text=text, identity=identity, personality=personality,
             constitution=constitution, embodiment=embodiment)
         print(f'\nCASE {name}: {text}')
-        for label, request in (('A minimal-profile', baseline), ('B assembled-static', assembled)):
+        for label, request in (('A minimal-profile', baseline), ('B bounded-static', assembled)):
             print(f'{label}: {len(request.messages)} messages; '
                   f'{sum(len(m.content) for m in request.messages)} prompt characters')
             response = provider.respond(request)
