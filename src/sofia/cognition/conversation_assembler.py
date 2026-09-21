@@ -76,17 +76,10 @@ class ConversationalContextAssembler(CognitiveContextAssembler):
             'Model-generated language can represent an avatar but never proves physical '
             'contact, subjective feeling, animation or external action.\n'
         )
+        # Keep expression instructions in the existing personality guidance and
+        # action-specific guards. Appending another general-purpose expression
+        # block here repeated those instructions without adding authority.
         grounded = canonical.content.replace(_HISTORY_SECTION, summary + _HISTORY_SECTION, 1)
-        grounded += (
-            '\n\nCURRENT-TURN EXPRESSION PRIORITY\n'
-            'Use the supplied personality and canonical represented embodiment, not '
-            'generic assumptions about chatbots. Address the latest user turn first. '
-            'A brief friendly gesture needs no interrogation or repetitive closing question; '
-            'an offered hug is a request, not completed contact. '
-            'Do not claim a past preference, prior gesture, or feeling without evidence. '
-            'For technical questions, begin with a discriminating check, not a broad checklist. '
-            'This is expression guidance only; all earlier grounding and permissions prevail.'
-        )
         return CognitiveRequest(
             messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=grounded),
                       *assembled.messages[1:]),
