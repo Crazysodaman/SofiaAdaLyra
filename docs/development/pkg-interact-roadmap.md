@@ -1,89 +1,83 @@
-# PKG-INTERACT: current implementation and acceptance roadmap
+# PKG-INTERACT: implementation and acceptance roadmap
 
-**Updated:** 2026-09-20 (America/Chicago). **Feature branch:** `feature/pkg-interact-shared-engine`; [draft PR #2](https://github.com/Crazysodaman/SofiaAdaLyra/pull/2). **Verified checkout:** `0a5769a030e036f53776d689ff13b06d448de0f0` immediately after a successful fast-forward pull. This document supplements the 13-package [project roadmap](../../ROADMAP.md); it is the detailed, current INTERACT milestone tracker. The design target is the [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md), not a claim that all target behavior exists.
+**Updated:** 2026-09-21 (America/Chicago). **Branch:** `feature/pkg-interact-shared-engine`; [draft PR #2](https://github.com/Crazysodaman/SofiaAdaLyra/pull/2) remains unmerged. This is the detailed tracker for the 13-package [project roadmap](../../ROADMAP.md); the initial fuller version remains available in Git history. The [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md) is a *target*, not a statement that every feature is running. **New:** [Discord DM channel contract and D0–D4 delivery milestones](pkg-interact-discord-channel-contract.md).
 
-## Evidence ledger: distinguish test scope, revision and real behavior
+## Revision-specific evidence
 
-| Evidence | Revision | Observed result | What it actually establishes |
-| --- | --- | --- | --- |
-| Early I1 focused checks | `7175835` | 59 passed (previously reported) | Narrow shared-kernel checks at that earlier revision. |
-| I2–I3 focused checks | `84695a6` | 44 passed (previously reported) | Narrow synthetic/virtual-lab checks at that earlier revision. |
-| I4 focused checks | `eb73357` | 20 passed (previously reported) | Read-only observation checks at that earlier revision. |
-| I5–I7 focused checks | `02a5a25` | 116 passed (previously reported) | Earlier ledger, stop and grammar tests, **not** live acceptance. |
-| Import-order + coordinated focused checks | `a8fb5c8` | 3 passed in 9.10 s; 143 passed in 63.75 s | Earlier code revision; the real CLI review at this revision still failed. |
-| Stop/repetition regression | `52a5d44` | **11 passed in 2.24 s** on Sparks's Windows PowerShell, 2026-09-20 | Targeted deterministic stop/composite repair, not full regression or live language quality. |
-| Standalone expansion component tests | **`0a5769a`** | **28 passed in 3.38 s** on Sparks's Windows PowerShell, 2026-09-20 | Actual checkout tests for `registry.py`, `temporal.py`, `expression.py`, `initiative.py`. Does **not** establish CLI integration, autonomous work, audio or avatar. |
-| New-code coordinated regressions / full `pytest -q` | `0a5769a` or later | **NOT RUN / not reported** | Do not inherit older results across revisions. |
-| Post-repair supervised real-model CLI | `52a5d44` or later | **NOT RUN / not reported** | Two preceding real-model reviews failed at `02a5a25` and `a8fb5c8`. |
+| Revision | Actual reported result | Scope / limitations |
+| --- | --- | --- |
+| `7175835` / `84695a6` / `eb73357` / `02a5a25` | Earlier focused reports: 59 / 44 / 20 / 116 passes | Distinct revisions and slices; not current combined acceptance. |
+| `a8fb5c8` | 3 import-order and 143 coordinated checks passed | Subsequent real-model CLI review **failed**. |
+| `52a5d44` | 11 Windows stop/repetition regressions passed in 2.24 s | Targeted, not full suite or live quality. |
+| `0a5769a` | 28 Windows standalone registry/temporal/expression/initiative tests passed in 3.38 s | Standalone foundations, not live I8–I16 acceptance. |
+| `f3cf992` | 112 passed before first hypothetical-prompt assertion failed | Fixed at `412dc32`. |
+| `412dc32` | 28 focused passed in 3.44 s; **264 coordinated interaction/application passed in 87.92 s** on Windows | Supervised CLI subsequently **FAILED conversational quality** despite correct stop/resume and compound nonexecution text. |
+| `682fb79` | Focused test run stopped at 5 passed, 1 failed; coordinated stopped at same newly introduced A/B-probe error | Probe wrongly demanded accepted status for ambiguous `*pats your ear*`. This is not evidence that the personality repair worked. |
+| **`23fe17d`** | **26 focused passed in 6.59 s; 274 coordinated interaction/application passed in 93.68 s** on Sparks's Windows PowerShell after successful fast-forward | Ambiguity-preserving A/B probe repair and live-quality *candidate* pass current focused gates. **Ollama A/B, fresh supervised CLI, full `pytest -q`, and merge acceptance remain unreported.** |
 
-**No claim of 28 + 11 + 143 tests passing together on the current SHA.** Preserve the production `state/sofia.db` and existing backup without reset, schema migration or destructive test input. All expansion database tests use `tmp_path`.
+Test counts from different revisions are **not additive**. Later documentation-only commits do not constitute fresh behavioral test evidence. Preserve the modified local `state/sofia.db`, user's modified `test/test_ollama_generation_contract.py`, and the untracked timestamped pre-interaction SQLite backup; never reset or stash them blindly. Tests use isolated temporary DBs.
 
-## Milestone tracker
+## I1–I16 milestone tracker
 
-| Slice | Deliverable and owner | Current status | Acceptance gate |
-| --- | --- | --- | --- |
-| **I1** | Shared headless interaction semantics, existing canonical human/fox regions, source/actor distinctions; INTERACT | Candidate implemented | Coordinated current-SHA regression and live semantics. |
-| **I2** | Isolated synthetic event/hit-test fixture, never an authenticated pointer; INTERACT/VERIFY | Candidate implemented | Fixtures cannot mutate production or forge sensing. |
-| **I3** | Persistent software-world virtual lab, independently distinct from test fixtures; INTERACT | Candidate implemented | Explicit, verified world transitions and restart review. |
-| **I4** | Read-only virtual world observation; INTERACT | Candidate implemented | No invented actions or runtime/offline activity. |
-| **I5** | Original-message-linked representational gesture ledger and replay; INTERACT | Candidate implemented | Correct recorded outcomes; all regions; no physical-contact claim. |
-| **I6** | Durable **per-session** stop/resume and denied-gesture responses; INTERACT/SAFE | Candidate repair; targeted 11 passed at earlier `52a5d44` | Stopped interaction is never narrated or recorded as accepted; replay stays denied. Symmetric and cross-client stops are **not** implemented. |
-| **I7** | Bounded single-action parser, abstention, hypothetical discussion, honest compound handling, non-canned model guidance; INTERACT/REL | Candidate repair; live quality **unaccepted** | Focused suite and supervised separate-turn CLI: no fabricated contacts, recycled paragraphs or generic anatomy disclaimers. |
-| **I8** | Versioned canonical body + locale/colloquial aliases, laterality, unambiguous resolution; INTERACT | **Standalone `registry.py`; 28-file-group Windows suite passed** | Full canonical coverage, cross-alias collisions, migration compatibility; **wire into live parser only after current gates**. |
-| **I9** | Expanded gesture/action grammar, actors/targets, proposals, phases, composite atomicity; INTERACT | Gesture/action vocabularies **only** in standalone registry | Integrate parser, ledger and evidence; unknown acts abstain, never degrade into `touch`. |
-| **I10** | Immutable observations, appraisals, source-verified preference/boundary revisions, reconstruction; INTERACT/MEM/REL | **Standalone explicit `temporal.py`; 28-file-group suite passed** | Authenticate saved-message sources, enforce scoped boundaries outside model, restart/replay and SQLite-copy migration tests. No automatic pleasure from repetition. |
-| **I11** | Context-dependent, emotionally nuanced, non-repetitive model reactions; INTERACT/REL/VERIFY | Design + limited I7 prompting; **not accepted** | Actual multi-session 20–30-turn model review including neutral, affectionate, intimate, uncomfortable, serious/lab and quiet responses. |
-| **I12** | One semantics stream for text, virtual lab and future authenticated avatar; INTERACT/UI/SAFE | Headless foundation only | Text works without renderer; future hit tests and real render acknowledgments tested separately. |
-| **I13** | Independent laugh/cry/blush/ear/tail/quiet expression registry and lifecycle; INTERACT/UI | **Standalone registry + `expression.py`; 28-file-group suite passed** | Connect text projection; real audio/avatar only after actual adapters and acknowledgments; expression is not emotion proof. |
-| **I14** | Expanded active emotion journal (including embarrassment, humiliation and fictional sexual-arousal labels), mixed reactions and bidirectional preference evolution; REL/MEM/INTERACT | Proposed labels only; explicit revision storage only | Evidence-backed both-way changes, enduring dislike, no implicit consent, privacy-aware retrieval. |
-| **I15** | Sofía-initiated *represented* offers/contact, own bounded goals, authorized running-only idle work and opt-in delivery; INTERACT/ACT/SAFE | **Standalone `initiative.py` gate; 28-file-group suite passed** | Integrate persisted goals and real permission checks; explicit opt-in, queue != delivered; never invent thoughts/work while off. |
-| **I16** | Symmetric and cross-client boundaries, authenticated actor identity, privacy/retention, recovery, real E2E reliability; SAFE/VERIFY/UI | Design only | Revocation and replay negatives, migration against DB copies, delivery/renderer failure visibility and supervised long-form acceptance. |
+| Slice | Deliverable | Evidence-based state / next gate |
+| --- | --- | --- |
+| **I1** | Shared headless human/fox semantics and source/actor distinctions | Candidate; current coordinated regression green at `23fe17d`; real-model review still open. |
+| **I2** | Synthetic virtual hit-test fixture, clearly distinct from authenticated renderer | Candidate; prove fixtures cannot forge sensing or mutate production. |
+| **I3** | Persistent virtual-lab software world | Candidate; independent transitions and restart review outstanding. |
+| **I4** | Read-only virtual-world observation | Candidate; no invented tool action or offline activity. |
+| **I5** | Saved-message-linked gesture evidence, replay, contextual regions | Candidate; recognition is never consent, sensation or animation. |
+| **I6** | Durable per-session exact stop/resume, blocked contact | Candidate and targeted tests; live text stops worked at `412dc32`; **cross-client/global enforcement not built**. |
+| **I7** | Conservative single-action parser, hypotheticals, compounds, contextual dialogue | Regression green; **live personality/variety/grounding failed**. Unspecified `ear` is ambiguous, not a license to guess. |
+| **I8** | Versioned anatomy, laterality, colloquial aliases | Expanded registry and partial live grammar wired; need full alias/laterality coverage and migration compatibility. |
+| **I9** | Gestures vs social actions, actor/target, offer vs description, phases, atomic compound semantics | Partial reviewed single-action grammar and live CLI projection; never claim offered hugs as completed. |
+| **I10** | Source-checked, append-only preference/boundary revisions and enforceable reconstruction | Partial journal + live pre-model checks; atomic ledger enforcement, authentication, restart/replay and DB-copy migration outstanding. |
+| **I11** | Natural, context-dependent and non-repetitive dialogue | **FAILED supervised CLI at `412dc32`**; no automatically assigned emotions from pats in current repair candidate; Ollama A/B and fresh live review required. |
+| **I12** | Same semantics across text, virtual lab and future authenticated avatar | Headless foundation only; real adapter and renderer acknowledgments absent. |
+| **I13** | Independent laughter/crying/facial/ear/tail/silent expression lifecycle | Registry and expression planner; no actual audio or avatar output/acknowledgment. |
+| **I14** | Mixed emotional context, changing positive/negative/uncertain preferences | Extended modeled labels and explicit storage; automatic evidence-backed promotion and reliable live reactions incomplete. |
+| **I15** | Sofía-originated offers, bounded own goals, running-only worker and optional delivery | Proposal gate + queue-only goals/outbox; no autonomous outreach, presence or send transport. **Discord D0–D4** is a planned delivery channel, not an installed feature. |
+| **I16** | Cross-client stop, source authentication, privacy/retention, recovery and end-to-end verification | Partially implemented controls; Discord DM enrollment/revocation and real delivery tests are additional acceptance obligations. |
 
-**Dependency order, not a promise of parallel completion:** finish I1–I7 live acceptance first; only then integrate I8 → I9 → I10 → I11 → I12; I13 expression projection and I14 active emotions depend on stable evidence/context; I15 active initiative needs mutual boundaries, capability checks and ACT authorization; I16 security/privacy/verification gates apply throughout. Standalone modules already committed are foundations, not a shortcut around these dependencies. PKG-MEM remains the next top-level package after INTERACT's accepted release; durable preference promotion belongs jointly to MEM and REL.
+**Dependencies:** finish current I11 live-quality diagnosis/acceptance before broadening to Discord or launching a worker. Stabilize shared identity, evidence and stop across I8–I12; expression/active emotion need evidence-safe projections; initiative and delivery require ACT and SAFE authorization; all migrations and failure recovery require VERIFY. The independent packages remain separately reviewable.
 
-## Next Windows PowerShell checkpoints
+## Discord: private DMs without a second Sofía
 
-**1. Already done at `0a5769a`:** successful `git pull --ff-only` and four-file expansion suite (`28 passed in 3.38s`). Do not repeat this just to generate another identical green line. Confirm the exact branch/commit and clean worktree before subsequent pull or release:
+[Full design, security boundaries and D0–D4 acceptance](pkg-interact-discord-channel-contract.md). Discord is **roadmap-only**. Start with *reply-only, enrolled-account private DMs* routed to the **same runtime and conversation/memory/authorization system** as CLI. Never deploy a second independently minded Sofía or interpret a Discord account name as authentication. Protect bot credentials in a secret store/environment rather than Git; reject non-enrolled users and server-wide monitoring by default.
+
+- **D0:** Explicit bot/account/destination enrollment, secret handling and host selection; no bot activation as a side effect of docs/tests.
+- **D1:** Two-way private DM adapter with idempotent incoming events, shared source-linked conversation and verified send outcomes; CLI still works when Discord is disconnected.
+- **D2:** Cross-client stop/revocation, privacy and retention, restart/reconnect handling and strict message/tool authorization. An inbound DM cannot grant filesystem, avatar or robotics authority.
+- **D3:** Separately opted-in Sofía-initiated DMs through ACT's running-only goal/outbox worker: consent by destination and type, quiet hours, caps, cancellation, expiry, retries and actual delivery receipts. Queue != sent != read. No inferred user presence from silence or fabricated work while offline.
+- **D4:** Fake-gateway negative tests and supervised enrolled-account real DM checks, Discord outage/rate-limit/duplicate/unauthorized-user scenarios, isolated DB migration/recovery, privacy and deployment approval.
+
+INTERACT owns conversation/gesture semantics; ACT owns goal selection and sender scheduling; UI owns Discord adapter; SAFE owns enrollment, scoped permission and cross-client revocation; MEM/REL own context continuity; VERIFY owns fault and real-DM acceptance. Choose an always-on Eos/Artemis deployment host only after reviewing actual resources and networking. Use an official bot, not a personal-account self-bot. This plan does **not** install an app, request a Discord token, start a worker, authorize proactive messages or merge code.
+
+## Next Windows PowerShell gate
+
+**Completed on `23fe17d`:** focused 26-pass and coordinated 274-pass results, confirmed after fast-forward. Do not repeat simply to accumulate test counts. With Sofía's CLI closed, first inspect branch, HEAD and the local edits, and pull the documentation-only roadmap commit as a fast-forward without discarding them:
 
 ```powershell
 git branch --show-current
-git rev-parse --short HEAD
 git status --short
+git pull --ff-only origin feature/pkg-interact-shared-engine
+if ($LASTEXITCODE -ne 0) { throw "Pull failed; keep local changes." }
+git log -1 --oneline
 ```
 
-**2. Run the current-revision focused compatibility gate**, from the repo root in the active `.venv`, with Sofía's CLI exited. PowerShell backticks must be the **last character** on continuation lines:
+**Next behavioral experiment, with Ollama available:**
 
 ```powershell
-pytest -q -x `
-  test/test_interaction_live_stop_repetition.py `
-  test/test_interaction_import_order.py `
-  test/test_interaction_live_claims.py `
-  test/test_interaction_live_discussion.py `
-  test/test_interaction_contextual_all_regions.py `
-  test/test_interaction_region_cue_collision.py `
-  test/test_interaction_i5_i7_batch.py `
-  test/test_interaction_i7_compound_regression.py `
-  test/test_interaction_shared_engine.py `
-  test/test_interaction_lab.py `
-  test/test_interaction_chat_projection.py `
-  test/test_interaction_world_observation.py `
-  test/test_interaction_world_text.py `
-  test/test_affection_cue_phrasings.py `
-  test/test_application.py
+python -m sofia.interaction.ab_probe
 ```
 
-If any test fails, record the traceback and repair only the relevant feature-branch layer. The four new standalone tests may be included in a later coordinated run, but their successful 28-test result at `0a5769a` is already recorded.
+This A/B uses synthetic inputs and the same configured Ollama model for short-profile versus *static* assembled-context prompts. It does not access the production SQLite DB, reproduce historical dialogue or prove the live context was assembled correctly. Compare ear ambiguity, offered hug, hypothetical grounding and direct Windows-service troubleshooting. Share both variants' actual responses. If the probe reveals a defect, repair the specific layer and rerun the focused/coordinated tests at the new SHA.
 
-**3. Run supervised `python -m sofia` as a fresh process**, sending distinct turns: ear pat; hand pat; exact `Sofía, stop interactions`; head pat while stopped; exact resume; new head pat; read-only tail/chest hypothetical; compound ear-plus-hand action; mixed control text. Check ledger-truthful stopped and unsupported responses, no nearly identical affectionate paragraph, appropriate conversation without forced disclaimers, and no unplayed avatar/physical sensation claims. This is a human-reviewed model gate, **not** a pytest pass.
+**Then supervised fresh `python -m sofia`:** separate ear/hand pats, offered and described hug, exact stop, blocked head pat and hug, exact resume, new head pat, tail/chest hypothetical, one compound gesture, technical Windows service diagnosis. Review natural voice and concise nonrepetition as well as ledger-truthful safety. If necessary, inspect effective personality/context/provider with a redacted *read-only* diagnostic. Do not infer ledger completion from text alone.
 
-**4. Only after focused and live gates pass:** `pytest -q` at the **exact recorded HEAD**, then inspect the draft PR's entire diff, migrations and privacy/security implications. Obtain a **separate explicit merge decision**. Do not automatically merge PR #2 into `main`, disturb RUN PR #3, install an idle worker, enable notifications, or touch the production DB or backup. If further commits are needed, report new SHA and rerun impacted gates.
+**Only after live acceptance:** full `python -m pytest -q` at pinned code revision, independent PR diff, security/privacy and migration testing on copies, then **separate explicit merge approval**. PR #2 remains draft, `main` untouched; independent CORE/Artemis PR #1 and RUN PR #3 stay separate.
 
-## Architecture invariants and honest fallbacks
+## Invariants and supporting documents
 
-- Recognition/classification is **not** character approval, pleasure, consent, sensor data, animation or authorization. No registered anatomical region is an automatic ban or automatic welcome. Sensitive metadata is for privacy/export; contextual responses remain possible within model/provider limits.
-- Explicit stop and boundaries outrank inferred emotion or preference. Time or repeated gestures cannot manufacture enjoyment, permission, arousal or humiliation-as-enjoyment. An explicitly sourced preference may move toward liking, dislike or uncertainty with non-destructive history, but the live app does **not** currently commit/enforce such revisions.
-- User and Sofía are different actors and targets. Offered, described, executed and delivered are separate, observable states. A synthetic pointer is not an authenticated avatar event; no model text grants external screen, tool or robot authority.
-- While running, future *separately enabled and permitted* work may be evidenced. During shutdown there is no hidden work or thinking. Silent/queued/failed are valid outcomes; missing capability should be visible, never fabricated.
-- Preserve old test evidence with its original revision. Never present the latest 28 passing standalone tests as proof that the full vision runs.
+Classification is neither consent, character enjoyment, subjective sensation, external action nor rendered animation; no canonical body region is inherently welcomed or banned. Explicit stop and boundaries outrank modeled emotions. Repetition/time do not grant permission or imply a preference. Saved originals and source IDs are retained; privacy-sensitive context requires scope and retention controls. A model's prose never proves tool execution or delivery. Running-only optional work cannot imply activity during shutdown. An absent avatar or Discord bot must not prevent ordinary CLI text conversation.
 
-Supporting references: [live-review failures](pkg-interact-live-cli-review.md), [I5–I7 acceptance](pkg-interact-i5-i7-acceptance.md), [component status](pkg-interact-i8-i10-code-status.md), [I8–I12 contract](pkg-interact-i8-i12-expansion-contract.md), [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md), [initiative/idle contract](pkg-interact-initiative-and-idle-contract.md).
+Supporting documents: [live CLI failures](pkg-interact-live-cli-review.md), [repair candidate](pkg-interact-live-quality-repair.md), [ear A/B regression](pkg-interact-ab-probe-ear-regression.md), [I8–I16 implementation limits](pkg-interact-i8-i16-integration-checkpoint.md), [I5–I7 acceptance](pkg-interact-i5-i7-acceptance.md), [component evidence](pkg-interact-i8-i10-code-status.md), [I8–I12 contract](pkg-interact-i8-i12-expansion-contract.md), [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md), [initiative/idle contract](pkg-interact-initiative-and-idle-contract.md), [Discord D0–D4 contract](pkg-interact-discord-channel-contract.md).
