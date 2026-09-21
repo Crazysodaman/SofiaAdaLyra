@@ -4,7 +4,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-_PROTECTED_PREFIXES = ('state/', 'src/sofia/constitution/', 'src/sofia/identity/')
+_PROTECTED_ROOTS = frozenset({'.git', 'state', 'src/sofia/constitution',
+                              'src/sofia/identity', 'src/sofia/data'})
+
+
+def _protected(path: str) -> bool:
+    return any(path == root or path.startswith(root + '/') for root in _PROTECTED_ROOTS)
 
 
 @dataclass(frozen=True)
@@ -31,4 +36,4 @@ class CleanupCandidate:
         """Not deletion permission; protected paths require separate manual handling."""
         paths = tuple(path.replace('\\', '/') for path in self.relative_paths)
         return (self.backup_verified and self.owner_reviewed
-                and not any(path.startswith(_PROTECTED_PREFIXES) for path in paths))
+                and not any(_protected(path) for path in paths))
