@@ -13,8 +13,9 @@ from sofia.identity.store import IdentityStore
 from sofia.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import (
-    CandidateChoice, choice_request, expression_request, from_reviewed_action,
-    from_reviewed_gesture, parse_choice, real_sensor_fixture, run_prototype,
+    CandidateChoice, ExpressionAudit, audit_expression, choice_request,
+    expression_request, from_reviewed_action, from_reviewed_gesture,
+    parse_choice, real_sensor_fixture, run_prototype,
 )
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore
@@ -70,6 +71,7 @@ def test_hug_offer_choice_is_separate_from_expression_and_does_not_execute():
     result = run_prototype(provider=provider, base=base, frame=frame)
     assert result.choice == CandidateChoice('decline', 'I would prefer some space in this scene.')
     assert result.response == 'Not this time, Sparks. You can sit with me, though.'
+    assert result.audit == ExpressionAudit()
     assert len(provider.requests) == 2
     decision_request, spoken_request = provider.requests
     assert decision_request.messages[0] == spoken_request.messages[0] == base.messages[0]
@@ -113,6 +115,68 @@ def test_ear_gesture_has_no_literal_optional_cues_or_prescribed_emotions():
         assert '"region_id": "left-ear"' in request.messages[1].content
         assert '"policy_status": "accepted"' in request.messages[1].content
     assert '"actions_executed": false' in provider.requests[-1].messages[-2].content
+    assert result.audit == ExpressionAudit()
+
+
+def test_expression_audit_flags_unsupported_evidence_without_rewriting():
+    intent = parse_user_action(OFFER, message_id='synthetic-offer')
+    assert intent is not None
+    frame = from_reviewed_action(user_text=OFFER, intent=intent)
+    text = (
+        "*hugs you* I've always liked this. My ears are sensitive, and I can "
+        "feel your touch. I don't have a physical body. How can I assist you?"
+    )
+    audit = audit_expression(text, frame)
+    assert set(audit.findings) == {
+        'unsupported-history',
+        'durable-preference-without-evidence',
+        'unverified-sensation',
+        'avatar-treated-as-physical-impossibility',
+        'generic-assistant-redirect',
+        'offered-action-narrated-as-completed',
+    }
+
+
+def test_expression_audit_allows_current_modeled_reaction_and_text_gesture():
+    frame = from_reviewed_gesture(user_text=EAR, decision=_gesture(EAR))
+    audit = audit_expression(
+        '*ears perk slightly* You caught me off guard, Sparks. That was playful.',
+        frame,
+    )
+    assert audit.clean
+    assert audit.findings == ()
+
+
+def test_prototype_reports_grounding_drift_but_preserves_model_text():
+    frame = from_reviewed_gesture(user_text=EAR, decision=_gesture(EAR))
+    provider = StubProvider(
+        '{"choice":"respond","reason":"Current-turn response."}',
+        "I've always found ear pats comforting. My ears are sensitive.",
+    )
+    result = run_prototype(provider=provider, base=_static('ear', EAR), frame=frame)
+    assert result.response == "I've always found ear pats comforting. My ears are sensitive."
+    assert result.audit is not None
+    assert set(result.audit.findings) == {
+        'unsupported-history',
+        'durable-preference-without-evidence',
+        'unverified-sensation',
+    }
+
+
+def test_expression_request_explicitly_separates_emotion_from_evidence():
+    intent = parse_user_action(OFFER, message_id='synthetic-offer')
+    assert intent is not None
+    frame = from_reviewed_action(user_text=OFFER, intent=intent)
+    request = expression_request(
+        _static('offer', OFFER), frame,
+        CandidateChoice('accept', 'Current-turn candidate.'),
+    )
+    instruction = request.messages[-2].content
+    assert 'Modeled emotional tone' in instruction
+    assert 'present-turn representational fiction' in instruction
+    assert 'current turn and canonical supplied context' in instruction
+    assert 'body sensitivity' in instruction
+    assert 'acceptance means willingness to proceed' in instruction
 
 
 def test_denied_intrusive_gesture_never_reaches_model():
