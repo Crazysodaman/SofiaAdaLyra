@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 import re
 
-from .wardrobe import Outfit, Wardrobe, WardrobeError
+from .wardrobe import Garment, Outfit, Wardrobe, WardrobeError
 
 _KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
 
@@ -94,17 +94,44 @@ class WardrobeChange:
 
 
 @dataclass(frozen=True, slots=True)
+class WardrobeItemProjection:
+    """Stable clothing metadata for text grounding; no renderer authority."""
+
+    item_id: str
+    name: str
+    layer: str
+    slots: tuple[str, ...]
+    coverage: tuple[str, ...]
+    tail_clearance: bool
+    ear_clearance: bool
+
+    @classmethod
+    def from_garment(cls, garment: Garment) -> "WardrobeItemProjection":
+        return cls(
+            item_id=garment.item_id,
+            name=garment.name,
+            layer=garment.layer.name.lower(),
+            slots=garment.slots,
+            coverage=garment.coverage,
+            tail_clearance=garment.tail_clearance,
+            ear_clearance=garment.ear_clearance,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class WardrobeTextProjection:
     """Compact INTERACT-facing view; current and unresolved state stay separate."""
 
     revision: int
     current_item_ids: tuple[str, ...]
+    current_items: tuple[WardrobeItemProjection, ...]
     current_outfit_id: str | None
     current_coverage: frozenset[str]
     presentation_mode: PresentationMode
     avatar_visible: bool
     pending_operation_id: str | None
     pending_item_ids: tuple[str, ...] | None
+    pending_items: tuple[WardrobeItemProjection, ...] | None
     pending_outfit_id: str | None
     pending_status: TransitionStatus | None
 
@@ -296,15 +323,27 @@ class SharedWardrobeState:
         unresolved = self._pending
         if unresolved is None and self._failed:
             unresolved = next(iter(self._failed.values()))
+        current_items = tuple(
+            WardrobeItemProjection.from_garment(item)
+            for item in self._wardrobe.garments(self._state.item_ids)
+        )
+        pending_items = None
+        if unresolved is not None:
+            pending_items = tuple(
+                WardrobeItemProjection.from_garment(item)
+                for item in self._wardrobe.garments(unresolved.item_ids)
+            )
         return WardrobeTextProjection(
             revision=self._state.revision,
             current_item_ids=self._state.item_ids,
+            current_items=current_items,
             current_outfit_id=self._state.outfit_id,
             current_coverage=self._state.coverage,
             presentation_mode=self._state.presentation_mode,
             avatar_visible=self._state.avatar_visible,
             pending_operation_id=unresolved.operation_id if unresolved else None,
             pending_item_ids=unresolved.item_ids if unresolved else None,
+            pending_items=pending_items,
             pending_outfit_id=unresolved.outfit_id if unresolved else None,
             pending_status=unresolved.status if unresolved else None,
         )
