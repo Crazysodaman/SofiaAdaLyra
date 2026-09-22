@@ -56,10 +56,17 @@ def _commit(path, result=None, *, message_id='offer1', content=OFFER):
 
 
 def _messages(path):
+    """Return only replies written by the release, never preseeded source rows.
+
+    Fixture IDs remain stable when a tamper test deliberately changes content.
+    Filtering on the original message text would miscount the changed fixture
+    as a newly persisted reply and conceal what the test actually measured.
+    """
     with sqlite3.connect(path) as db:
-        return db.execute("SELECT content FROM conversation_messages WHERE role='assistant' "
-                          "AND content NOT LIKE 'I do not want%' "
-                          "AND content NOT LIKE 'I am lifting%' ORDER BY created_at").fetchall()
+        return db.execute(
+            "SELECT content FROM conversation_messages WHERE role='assistant' "
+            "AND id NOT IN ('stop-source', 'revoke-source') ORDER BY created_at, id"
+        ).fetchall()
 
 
 def _boundary(adapter, *, active=True, rev='b1', prior=None):
@@ -149,6 +156,10 @@ def test_attested_source_tamper_rolls_back(state):
                    "WHERE id='stop-source'")
     with pytest.raises(ValueError, match='modified'):
         _commit(path)
+    # The deliberate source mutation is still present; no *new* reply was saved.
+    with sqlite3.connect(path) as db:
+        assert db.execute('SELECT content FROM conversation_messages WHERE id=?',
+                          ('stop-source',)).fetchone() == ('corrupt',)
     assert _messages(path) == []
 
 
