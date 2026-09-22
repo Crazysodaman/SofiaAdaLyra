@@ -152,6 +152,10 @@ def test_active_attested_boundary_blocks_before_model(monkeypatch, live_candidat
     service, path, adapter, provider, _ = live_candidate
     _record_boundary(service, adapter)
     monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
+    # Ordinary request assembly intentionally raises under this boundary.
+    # The guarded route must never reach it after verified preflight.
+    service._build_request = lambda: (_ for _ in ()).throw(
+        AssertionError('Blocked offer entered ordinary context assembly.'))
     result = service.respond(OFFER)
     assert 'recorded interaction boundary' in result.content
     assert provider.calls == []
@@ -186,3 +190,26 @@ def test_unreviewed_phrase_uses_parent_not_staged_route(monkeypatch, live_candid
                         lambda self, content: 'existing:' + content)
     assert service.respond('Could I hug you?') == 'existing:Could I hug you?'
     assert provider.calls == [] and not _turns(path)
+
+
+def test_real_sample_accept_then_refuse_is_not_saved(monkeypatch, live_candidate):
+    service, path, _, provider, _ = live_candidate
+    monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
+
+    def contradictory_respond(request):
+        provider.calls.append(request)
+        if len(provider.calls) == 1:
+            return CognitiveResponse(content=json.dumps({
+                'choice': 'accept', 'reason': 'I appreciate your offer.',
+            }))
+        return CognitiveResponse(content=(
+            'I appreciate the gesture, but I’m not sure I’m ready for that right now. '
+            'Let’s keep things light and friendly for now.'
+        ))
+
+    monkeypatch.setattr(provider, 'respond', contradictory_respond)
+    with pytest.raises(ValueError, match='Expression contradicts'):
+        service.respond(OFFER)
+    assert len(provider.calls) == 2
+    assert _turns(path) == [('user', OFFER)]
+    assert service._active_user_requests == 0
