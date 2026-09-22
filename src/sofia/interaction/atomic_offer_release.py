@@ -11,11 +11,15 @@ from __future__ import annotations
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import sqlite3
 from uuid import uuid4
 
+from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.decision_expression import CandidateChoice
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
+_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$')
 _BLOCKED_REPLIES = {
     'blocked-boundary': (
         'That represented offer conflicts with a recorded interaction boundary, '
@@ -42,16 +46,20 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
     model reply. An unverifiable source or schema failure raises and rolls
     back rather than delivering candidate text. No auto-consent is recorded.
     """
-    if (not isinstance(user_message_id, str) or not user_message_id.strip()
-            or not isinstance(session_id, str) or not session_id.strip()
-            or not isinstance(user_content, str) or not user_content.strip()
-            or not isinstance(result, GuardedOfferResult)):
-        raise ValueError('Saved host evidence and guarded result are required.')
+    if (not isinstance(user_message_id, str) or _ID.fullmatch(user_message_id) is None
+            or not isinstance(session_id, str) or _ID.fullmatch(session_id) is None
+            or user_content != OFFER or not isinstance(result, GuardedOfferResult)):
+        raise ValueError('Exact saved offer and canonical host identifiers are required.')
     if result.status not in ('responded', *_BLOCKED_REPLIES):
         raise ValueError('Unknown guarded offer status.')
-    if result.status == 'responded' and (not isinstance(result.response, str)
-                                         or not result.response.strip()):
-        raise ValueError('Cannot persist an empty candidate reply.')
+    if result.status == 'responded' and (
+        not isinstance(result.choice, CandidateChoice)
+        or result.choice.choice not in ('accept', 'decline', 'clarify', 'boundary')
+        or not isinstance(result.response, str) or not result.response.strip()
+    ):
+        raise ValueError('Cannot persist an unvalidated or empty candidate reply.')
+    if result.status != 'responded' and (result.choice is not None or result.response is not None):
+        raise ValueError('A blocked offer cannot carry model-generated output.')
     path = Path(state_path)
     if not path.is_file():
         raise FileNotFoundError('Existing state database required for atomic reply.')
