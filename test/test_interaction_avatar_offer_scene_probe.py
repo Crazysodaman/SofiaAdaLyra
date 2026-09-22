@@ -1,6 +1,5 @@
 """Offer-scene experiment is diagnostic only; no real Ollama or production DB."""
 from dataclasses import replace
-from pathlib import Path
 import tempfile
 
 import pytest
@@ -35,7 +34,7 @@ def test_offer_scene_adds_only_one_system_frame_and_keeps_decision_unchanged():
     assert 'no hug, sensing or animation has occurred' in candidate.messages[-2].content
 
 
-def test_offer_scene_rejects_nonoffer_missing_authority_and_tools():
+def test_offer_scene_rejects_nonoffer_and_missing_authority():
     original = _reviewed_offer_request()
     with pytest.raises(ValueError, match='hug offer is in scope'):
         avatar_world_probe.offer_scene_variant(replace(
@@ -58,10 +57,11 @@ def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_p
     monkeypatch.setattr(avatar_world_probe, 'TemporaryDirectory',
                         lambda **kwargs: original_tempdir(dir=tmp_path, **kwargs))
     assert avatar_world_probe.main(['--case', 'offer', '--offer-scene']) == 0
-    assert len(captured) == 1
-    request = captured[0]
-    assert request.messages[-1].role is CognitiveRole.USER
-    assert request.messages[-1].content == 'I ask to hug you'
+    user_requests = [request for request in captured
+                     if request.messages and request.messages[-1].role is CognitiveRole.USER
+                     and request.messages[-1].content == 'I ask to hug you']
+    assert len(user_requests) == 1  # Ignore any startup awareness generation.
+    request = user_requests[0]
     system = '\n'.join(message.content for message in request.messages
                        if message.role is CognitiveRole.SYSTEM)
     assert system.count('CURRENT-TURN AVATAR SCENE') == 1
