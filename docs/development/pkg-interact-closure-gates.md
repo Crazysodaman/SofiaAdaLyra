@@ -1,52 +1,38 @@
 # PKG-INTERACT: finite closure gates
 
-## Verified Windows evidence and limits
+## Verified Windows evidence and limitations
 
-- At `c2d27e6`, Sparks reported **80 focused tests passed in 7.53 seconds**. In three synthetic, counterbalanced Qwen `qwen3:14b` pairs using the same routed choice request: without a synthetic boundary, `clarify` 3/3; with a simulated no-hugs statement, `decline` 3/3. No physical-impossibility premise appeared in those six reasons, but several declines did not explicitly cite the boundary. These are exploratory observations, not proof of causality or live reliability.
-- At `d866326`, Sparks reported **95 focused tests passed in 12.04 seconds**, including the source-attested, read-only guarded-offer tests using stub providers and disposable SQLite.
-- At `1ab5deb`, Sparks reported **105 focused tests passed in 13.13 seconds**, including the conversation-context bridge and existing expanded-service tests. The fast-forward checkout still showed the preexisting modified `state/sofia.db`, independent local Ollama test edit, and timestamped backup. Do not treat any of these tests as real Qwen quality validation.
+- At `c2d27e6`, Sparks reported **80 focused tests passed in 7.53 seconds**. In three paired synthetic Qwen `qwen3:14b` comparisons, the same routed request chose `clarify` 3/3 without a simulated no-hugs boundary and `decline` 3/3 with it. These are exploratory, not a causality or live-quality proof.
+- At `d866326`, **95 focused tests passed in 12.04 seconds** for isolated source-checked guards and earlier tests. At `1ab5deb`, **105 passed in 13.13 seconds** including the history-preserving context bridge.
+- At `f42d70f`, the first Windows opt-in/atomic suite stopped after 7 passes: a tampered fixture's text changed and a test helper selected it as a newly saved reply. At `3edb400`, the corrected helper selects fixture messages by **stable IDs**, and Sparks reported the targeted test **1 passed in 4.03 seconds** and the full focused suite **128 passed in 89.94 seconds**. This resolves that test false positive; it does not validate real Qwen dialogue or production schema.
 
-## Current feature-branch candidate: opt-in staged live route, NOT released
+## Current opt-in candidate, not production-enabled
 
-The isolated `conversation_offer_context.py` bridge preserves the original conversation history and canonical self-state in both decision and expression; only the checked choice, never the model-written diagnostic reason, reaches expression. The source-checked `trusted_offer_gate.py` checks the existing boundary records and session stop before decision, after decision and after expression. Existing source attestations link explicit assistant/user statements to reviewed revisions; this is not a natural-language preference detector or proof that every saved statement is semantically correct.
+- `conversation_offer_context.py` preserves host-reviewed canonical context and prior dialogue for decision and expression; the diagnostic model-written reason never becomes expression evidence.
+- `trusted_offer_gate.py` uses existing source attestation and stop state before decision, before expression and before returning text; unverified revisions fail closed.
+- `atomic_offer_release.py` matches saved USER message ID/session/text and validates the choice. It checks policy and saves the assistant reply under one SQLite `BEGIN IMMEDIATE` transaction. This serializes *cooperating SQLite writers until commit*, not external actions or policy changes afterwards. It never writes consent or performs contact.
+- `live_offer_service.py` and `opt_in_service.py` use actual application context and configured `qwen3:14b`, but only for **exactly** `I ask to hug you` when `SOFIA_INTERACT_STAGED_OFFERS=1`. The default CLI remains unchanged; the opt-in must NOT be globally enabled or pointed at production yet. Other phrases, including `Could I hug you?`, still use the existing conversation service.
+- Windows has verified the focused opt-in tests on stubs and disposable SQLite. **No real Qwen run or full regression has yet been reported for this integrated candidate.** The real database may not have the optional source-attestation tables. Its schema must never be silently provisioned as part of a probe.
 
-New since Windows head `1ab5deb`, **UNTESTED on Sparks's Windows machine**:
+## Immediate supervised real-model gate
 
-- `atomic_offer_release.py` matches the exact saved USER offer, canonical host IDs and parsed choice. Under SQLite `BEGIN IMMEDIATE`, it rechecks policy and inserts the assistant reply in the same transaction. A concurrent boundary or stop can replace an in-flight candidate with a limited, truthful blocked reply. Missing/tampered evidence fails closed. This serializes cooperating SQLite writers until commit. It does not grant consent, claim performed action, or prevent a new policy change *after* commit.
-- `live_offer_service.py` uses the normal application-owned conversation store, same configured `qwen3:14b` cognitive engine and runtime context assembler, and the two tool-free stages. It preserves a saved USER turn even if a guarded inference fails; it never silently retries through the unguarded path. The existing idle/model lock serializes local inference.
-- `opt_in_service.py` and `application/bootstrap.py` compose a subclass of the existing live service. **Default is disabled.** Only the exact independently reviewed `I ask to hug you` text uses the new route if `SOFIA_INTERACT_STAGED_OFFERS=1`. Everything else continues through the existing `ExpandedConversationService`. An unreviewed `Could I hug you?` has NOT gained a clarification route. Do not set this environment variable on Sofía's actual production database yet: optional attestation/schema provisioning, real Qwen expression quality, and broader integration still need review.
-- `test/test_interaction_atomic_offer_release.py` and `test/test_interaction_opt_in_live_offer.py` use disposable SQLite and stub LLM responses for saved-turn checks, stop, attested/unverified boundaries, revocation, policy changes during inference, rollback, exact-phrase gating, default-off behavior and no leaked diagnostic reasons. These are new tests to RUN, not claimed passes.
+`src/sofia/interaction/disposable_live_offer_probe.py` and [the companion gate document](pkg-interact-disposable-live-offer-gate.md) were committed **after** the 128-test Windows result. They have not been executed or validated on the Windows machine. The probe explicitly requires `--run-disposable` and creates a temporary app state/database and filesystem root, using the actual configuration's Qwen settings without opening the production DB. Within its own process it enables the exact-phrase route, shows raw candidate choice, diagnostic reasons, flags and saved expression, then adds a **synthetic, source-attested** no-hugs statement in that temporary DB and checks that the next offer is blocked with zero additional model calls. A green probe status is not human quality acceptance.
 
-### Next Windows code-only gate
-
-With Sofía closed and `.venv` active, verify the `feature/pkg-interact-shared-engine` branch, inspect and preserve existing changes, and use `git pull --ff-only origin feature/pkg-interact-shared-engine`. Then:
+Run only after feature-branch fast-forward, Sofía shutdown and `.venv` activation:
 
 ```powershell
-python -m pytest -q -x `
-    test/test_interaction_atomic_offer_release.py `
-    test/test_interaction_opt_in_live_offer.py `
-    test/test_interaction_conversation_offer_context.py `
-    test/test_interaction_trusted_offer_gate.py `
-    test/test_interaction_expanded_service.py `
-    test/test_interaction_preference_context.py `
-    test/test_interaction_boundary_counterfactual_probe.py `
-    test/test_interaction_route_boundary_probe.py `
-    test/test_interaction_architecture_compare.py `
-    test/test_interaction_decision_expression.py `
-    test/test_interaction_decision_reason_audit.py `
-    test/test_application.py
+python -m sofia.interaction.disposable_live_offer_probe --run-disposable
 ```
 
-Stop at the first failure. Do not enable the opt-in or run a production CLI interaction for this checkpoint; no Ollama sampling is needed for stub-only verification.
+If a traceback occurs, stop and inspect it; never switch to `state/sofia.db`, enable the opt-in globally, or insert synthetic evidence in real sessions. Review the raw natural-language response for invented physical sensation, prior history, stable preferences, completed contact/animation, repetitive generic redirection and choices that do not match the spoken reply. Heuristic flag misses are NOT validation.
 
 ## Definition of done, in order
 
-- [x] Exploratory same-model decision contrast and synthetic boundary counterfactual, with raw evidence and stated limitations.
-- [x] Isolated guarded policy checks and conversation-context bridge verified on Windows with disposable, stub-only tests.
-- [ ] **Live adapter and transaction gate:** run the new tests, inspect real application bootstrap/context/persistence, verify concurrent writer ordering, safe failure/restart, stop and revocation; ensure no duplicate user or assistant messages. Test opt-in only against a separate, explicitly provisioned disposable runtime database, never the modified production state.
-- [ ] **Reviewed phrasing and natural clarification:** expand supported offer forms deliberately, with abstention for genuinely ambiguous input and no fabricated consent. Real physical sensor/hardware questions stay outside avatar-social routing.
-- [ ] **Grounded expression and supervised Qwen checks:** exercise complete choice and expression with `qwen3:14b` on an isolated session. Inspect raw replies for fabricated history, body sensation, narrated completed touch or animation, and repetitive generic assistant fallback. Heuristic flags are advisory only; do not force accept/decline or canned reactions.
-- [ ] **Regression, privacy, authorization and concurrency review:** run full suite and relevant integration, integrity, CORE/SAFE, source-attestation, stop/race/replay, privacy and performance checks. Review PR #2 diff and reconcile base conflicts before approval.
-- [ ] **Explicit user acceptance:** Sparks approves the package and any merge. PR #2 remains draft/unmerged and `main` unchanged until then.
+- [x] Exploratory same-model decision contrast and synthetic counterfactual, with raw evidence and stated limitations.
+- [x] Isolated source-attested guard, conversation-context bridge, opt-in service and transactional reply tests verified on Windows with disposable SQLite and stub LLMs.
+- [ ] **Supervised real application/Qwen gate:** run and human-review the new disposable probe's raw dialogue and guard behavior. Fix real defects, without modifying production state.
+- [ ] **Phrasing and clarification:** explicitly review common offers such as `Could I hug you?`, support natural clarification without treating unreviewed words as consent. Keep actual-world sensor queries outside avatar routing.
+- [ ] **Regression, security and concurrency:** full suite and selected CORE/SAFE, privacy, authorization, concurrent-writer and restart/replay cases; inspect first failure rather than treating partial pass as success. Review PR #2 diff, optional schema/migration plan and base conflicts before approval.
+- [ ] **Explicit acceptance and merge:** Sparks reviews the demonstrated conversational quality and explicitly approves the package and any merge. PR #2 stays draft and `main` unchanged until then.
 
-Discord/PKG-NET, 24/7 runtime, actual avatar animation and physical sensors stay in their own packages rather than broadening this closure definition. Preserve Sparks's modified production DB, timestamped backup, independent local `test/test_ollama_generation_contract.py` edit and installed model settings.
+Discord/PKG-NET, 24/7 operation, actual avatar animation and physical sensors are separate packages. Preserve Sparks's modified `state/sofia.db`, timestamped backup, local `test/test_ollama_generation_contract.py` edit, installed model and its settings, CORE PR #1 and RUN PR #3.
