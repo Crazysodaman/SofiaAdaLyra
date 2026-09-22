@@ -30,7 +30,7 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 | 5 | NET | Draft PR #11 + merged distributed foundations | Real Discord-scoped transport enforcement; Artemis remains separate; no general web |
 | 6 | UI | Draft PR #6 plus future Discord adapter | Bind same Sofía runtime to authenticated DM/client and verify delivery/renderer receipts |
 | 7 | RUN | Draft PR #3 | Real service/supervisor, restart/backoff, resource limits, multi-day supervised acceptance |
-| 8 | OPS | New documentation contract on this branch | Cross-platform telemetry, historical resource profiling, trusted zero-touch host enrollment, proactive enrollment notice, and bounded IT operations |
+| 8 | OPS | Roadmap contract on main; orchestration expansion on this branch | Cross-platform telemetry, zero-touch enrollment/decommissioning, autonomous upkeep, resource profiling, workload placement/migration/failover, and proactive meaningful fleet notifications |
 | 9 | ACT | Draft PR #15 + merged reflection/outbox foundations | One scheduler/outbox path, consent/quiet/stop, real delivery acknowledgement |
 | 10 | REL | Draft PRs #12 and #13 | Reconcile to one absence/reunion pipeline using authenticated MEM evidence |
 | 11 | AVATAR | Draft PR #7 | Continue offline asset/fit/rig work; real renderer/hit-test/ack later |
@@ -41,7 +41,7 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 | Gate | SAFE | Draft PR #18 + merged authority/integrity foundations | Trusted auth/privacy/secrets/recovery enforcement throughout |
 | Gate | VERIFY | Draft PR #8 | Authenticated revision-pinned evidence and real/live negative tests throughout |
 | Channel | Discord D0–D4 | Draft PR #5 + NET/UI/INTERACT/MEM/SAFE | Sparks-only authenticated private DM; no public/multi-user mode initially |
-| Later | General web/search | Not implemented by design | Begins only after real Discord, OPS deployment-host telemetry/enrollment, and verified RUN 24/7 acceptance |
+| Later | General web/search | Not implemented by design | Begins only after real Discord, OPS deployment-host telemetry/orchestration, and verified RUN 24/7 acceptance |
 
 ## Current known reconciliation points
 
