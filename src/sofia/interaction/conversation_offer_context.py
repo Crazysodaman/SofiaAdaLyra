@@ -61,12 +61,26 @@ def routed_conversation_choice_request(
 def routed_conversation_expression_request(
     base: CognitiveRequest, frame: ReviewedFrame, choice: CandidateChoice,
 ) -> CognitiveRequest:
-    """Reuse the original context; pass choice, never the diagnostic reason."""
+    """Reuse original context and checked choice, never diagnostic reason."""
     canonical, middle, user = _parts(base, frame)
     template = expression_request(
         CognitiveRequest(messages=(canonical, user), tools=()), frame, choice,
     )
     reviewed = (frame.reviewed,) if not middle else ()
+    instruction = template.messages[-2]
+    if choice.choice == 'clarify':
+        # A clarification must address the actual offer, not quietly turn
+        # into a refusal or switch to generic assistance. No fixed wording.
+        instruction = CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content=instruction.content + (
+                '\nFor a clarify choice, ask a brief, natural question about '
+                'this hug offer itself. Do not refuse, suggest a different '
+                'touch or redirect to unrelated assistance. Clarification '
+                'does not mean consent or completed contact. If the response '
+                'should be a refusal, that is a decline choice instead.'
+            ),
+        )
     return CognitiveRequest(messages=(
-        canonical, *reviewed, *middle, template.messages[-2], user,
+        canonical, *reviewed, *middle, instruction, user,
     ), tools=())
