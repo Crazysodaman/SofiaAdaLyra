@@ -117,12 +117,14 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
     if expressed.tool_calls or not isinstance(expressed.content, str) or not expressed.content.strip():
         raise ValueError('Expression produced no tool-free response.')
 
-    # Fail closed on explicit reversal before any candidate reaches the
-    # persistence layer. This does NOT certify every nuanced reply.
-    validate_offer_expression(choice, expressed.content)
+    # First honor a verified boundary or stop that arrived during inference.
+    # Neither a malformed draft nor its diagnostic text may obscure that policy.
     blocked = _policy_gate(state_path=path, session_id=session_id)
     if blocked is not None:
         return GuardedOfferResult(status=blocked)
+    # No active block: fail closed on an explicit choice/expression reversal.
+    # This does NOT certify every nuanced reply, nor confer consent.
+    validate_offer_expression(choice, expressed.content)
     return GuardedOfferResult(
         status='responded', choice=choice, response=expressed.content,
         decision_findings=audit_decision_reason(choice, frame).findings,
