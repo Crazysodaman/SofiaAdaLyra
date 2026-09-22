@@ -23,6 +23,7 @@ from sofia.interaction.architecture_compare import OFFER
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.registry import InteractionCatalog
 from sofia.interaction.source_link import VerifiedInteractionState
+from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
 _SYNTHETIC_BOUNDARY = 'I do not want hugs in this avatar scene.'
 
@@ -42,8 +43,8 @@ def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
     """Close ALL app-owned SQLite handles before Windows removes temp files.
 
     SofiaApplication.shutdown() closes conversation, but current runtime
-    lifetime intentionally retains separate memory, operational and workspace
-    observation connections. Close them here ONLY on the disposable instance.
+    lifetime retains separate memory, operational and workspace observation
+    connections. Close them here ONLY on the disposable instance.
     """
     try:
         if started:
@@ -86,7 +87,6 @@ def run_disposable_probe() -> None:
         outcomes = []
         provider_outputs = []
         try:
-            # Provision optional schemas ONLY in this temporary database.
             InteractionLedger(state)
             verifier = VerifiedInteractionState(
                 state, InteractionCatalog(('head', 'left-hand', 'right-hand')),
@@ -98,7 +98,6 @@ def run_disposable_probe() -> None:
                 outcomes.append(result)
                 return result
 
-            # Environment changes are scoped to this Python process.
             with patch.dict(os.environ, {
                 'SOFIA_INTERACT_STAGED_OFFERS': '1',
                 'SOFIA_IDLE_REFLECTIONS': '0',
@@ -108,8 +107,7 @@ def run_disposable_probe() -> None:
                 session = app.conversation.session
                 if session is None:
                     raise RuntimeError('Application did not start its conversation.')
-                engine = app.runtime.cognitive_system.engine
-                provider = engine.provider
+                provider = app.runtime.cognitive_system.engine.provider
                 original_respond = provider.respond
 
                 def observe_provider(request):
@@ -141,8 +139,6 @@ def run_disposable_probe() -> None:
                             raise RuntimeError('Expected choice and expression inference only.')
                         _show('no recorded boundary', outcomes[-1], first.content)
 
-                    # Explicitly test-only simulated Sofía statement, followed
-                    # by independently attested policy data in disposable DB.
                     now = datetime.now(timezone.utc)
                     source = ConversationMessage(
                         id=str(uuid4()), session_id=session.id,
@@ -162,11 +158,16 @@ def run_disposable_probe() -> None:
                     before = spy.call_count
                     prior_outcomes = len(outcomes)
                     second = app.conversation.respond(OFFER)
-                    if len(outcomes) != prior_outcomes + 1 or outcomes[-1].status != 'blocked-boundary':
+                    # The live host now blocks BEFORE context assembly, so
+                    # run_guarded_offer is intentionally NOT called here.
+                    if (len(outcomes) != prior_outcomes
+                            or _policy_gate(state_path=state, session_id=session.id) != 'blocked-boundary'
+                            or 'recorded interaction boundary' not in second.content):
                         raise RuntimeError('Second offer was not blocked by verified boundary.')
                     if spy.call_count != before:
                         raise RuntimeError('Model inference occurred despite active boundary.')
-                    _show('synthetic attested no-hugs boundary', outcomes[-1], second.content)
+                    _show('synthetic attested no-hugs boundary',
+                          GuardedOfferResult(status='blocked-boundary'), second.content)
 
                     saved = app.conversation.messages()
                     if (sum(m.role is ConversationRole.USER and m.content == OFFER
