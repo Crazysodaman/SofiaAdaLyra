@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from sofia.interaction.architecture_compare import OFFER
 from sofia.interaction.decision_expression import CandidateChoice
+from sofia.interaction.expression_consistency import validate_offer_expression
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
 _ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$')
@@ -60,6 +61,10 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
         raise ValueError('Cannot persist an unvalidated or empty candidate reply.')
     if result.status != 'responded' and (result.choice is not None or result.response is not None):
         raise ValueError('A blocked offer cannot carry model-generated output.')
+    if result.status == 'responded':
+        # Defense in depth: callers cannot bypass the guarded inference veto
+        # by passing a contradictory pair directly to persistence.
+        validate_offer_expression(result.choice, result.response)
     path = Path(state_path)
     if not path.is_file():
         raise FileNotFoundError('Existing state database required for atomic reply.')
