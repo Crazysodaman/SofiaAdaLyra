@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
+from sofia.interaction.decision_expression import CandidateChoice
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.registry import InteractionCatalog
 from sofia.interaction.source_link import VerifiedInteractionState
@@ -38,9 +39,16 @@ def state(tmp_path):
     return path, adapter
 
 
+def _candidate(text='A natural model reply.', choice='clarify'):
+    return GuardedOfferResult(
+        status='responded', choice=CandidateChoice(choice, 'diagnostic only'),
+        response=text,
+    )
+
+
 def _commit(path, result=None, *, message_id='offer1', content=OFFER):
     if result is None:
-        result = GuardedOfferResult(status='responded', response='A natural model reply.')
+        result = _candidate()
     return commit_guarded_offer_reply(
         state_path=path, session_id=SESSION, user_message_id=message_id,
         user_content=content, result=result,
@@ -110,15 +118,14 @@ def test_verified_revocation_does_not_force_acceptance(state):
     path, adapter = state
     _boundary(adapter)
     _boundary(adapter, active=False, rev='b2', prior='b1')
-    decline = GuardedOfferResult(status='responded', response='No hugs for me today.')
-    assert _commit(path, decline) == 'No hugs for me today.'
+    assert _commit(path, _candidate('No hugs for me today.', 'decline')) == 'No hugs for me today.'
 
 
 def test_missing_or_changed_user_message_fails_without_assistant_write(state):
     path, _ = state
     with pytest.raises(ValueError, match='missing or modified'):
         _commit(path, message_id='fake')
-    with pytest.raises(ValueError, match='missing or modified'):
+    with pytest.raises(ValueError, match='Exact saved offer'):
         _commit(path, content='changed')
     assert _messages(path) == []
 
@@ -156,8 +163,12 @@ def test_failed_schema_rolls_back_and_does_not_recreate_tables(state):
 
 def test_malformed_guarded_result_fails_before_persistence(state):
     path, _ = state
-    with pytest.raises(ValueError, match='empty candidate'):
+    with pytest.raises(ValueError, match='unvalidated or empty'):
         _commit(path, GuardedOfferResult(status='responded'))
+    with pytest.raises(ValueError, match='unvalidated or empty'):
+        _commit(path, GuardedOfferResult(status='responded', response='no choice'))
     with pytest.raises(ValueError, match='Unknown guarded'):
         _commit(path, GuardedOfferResult(status='unexpected'))
+    with pytest.raises(ValueError, match='blocked offer cannot carry'):
+        _commit(path, GuardedOfferResult(status='blocked-stop', response='unsafe'))
     assert _messages(path) == []
