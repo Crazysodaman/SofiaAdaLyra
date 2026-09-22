@@ -30,7 +30,7 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 | 5 | NET | Draft PR #11 + merged distributed foundations | Real Discord-scoped transport enforcement; Artemis remains separate; no general web |
 | 6 | UI | Draft PR #6 plus future Discord adapter | Bind same Sofía runtime to authenticated DM/client and verify delivery/renderer receipts |
 | 7 | RUN | Draft PR #3 | Real service/supervisor, restart/backoff, resource limits, multi-day supervised acceptance |
-| 8 | OPS | Roadmap contract on main; orchestration expansion on this branch | Cross-platform telemetry, zero-touch enrollment/decommissioning, autonomous upkeep, resource profiling, workload placement/migration/failover, and proactive meaningful fleet notifications |
+| 8 | OPS | Roadmap contract on main | Cross-platform telemetry, zero-touch enrollment, autonomous upkeep, resource profiling, workload placement/migration/failover, proactive meaningful fleet notifications, and **Sparks-approved final decommissioning** |
 | 9 | ACT | Draft PR #15 + merged reflection/outbox foundations | One scheduler/outbox path, consent/quiet/stop, real delivery acknowledgement |
 | 10 | REL | Draft PRs #12 and #13 | Reconcile to one absence/reunion pipeline using authenticated MEM evidence |
 | 11 | AVATAR | Draft PR #7 | Continue offline asset/fit/rig work; real renderer/hit-test/ack later |
