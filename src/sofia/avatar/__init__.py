@@ -52,3 +52,13 @@ __all__ += [
 from .style_context import StyleContext, project_style_context
 
 __all__ += ["StyleContext", "project_style_context"]
+
+from .starter_user_preferences import (
+    SPARKS_LIKED_OUTFIT_SOURCE_IDS, build_sparks_starter_wardrobe,
+    confirmed_sparks_outfit_likes, with_sparks_outfit_likes,
+)
+
+__all__ += [
+    "SPARKS_LIKED_OUTFIT_SOURCE_IDS", "build_sparks_starter_wardrobe",
+    "confirmed_sparks_outfit_likes", "with_sparks_outfit_likes",
+]
