@@ -48,3 +48,7 @@ __all__ += [
     "DRAFT_STATUS", "GarmentBlueprint", "RequestStatus", "StyleInput",
     "WardrobePrebuild", "build_starter_wardrobe",
 ]
+
+from .style_context import StyleContext, project_style_context
+
+__all__ += ["StyleContext", "project_style_context"]
