@@ -15,10 +15,13 @@ import sqlite3
 
 from sofia.cognition.model import CognitiveRequest
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER, routed_choice_request
+from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.conversation_offer_context import (
+    routed_conversation_choice_request, routed_conversation_expression_request,
+)
 from sofia.interaction.decision_expression import (
     CandidateChoice, ReviewedFrame, TextProvider, audit_expression,
-    expression_request, from_reviewed_action, parse_choice,
+    from_reviewed_action, parse_choice,
 )
 from sofia.interaction.decision_reason_audit import audit_decision_reason
 from sofia.interaction.preference_context import read_interaction_context
@@ -79,10 +82,12 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
                       session_id: str) -> GuardedOfferResult:
     """Route one exact saved-host-reviewed offer, never a general text parser.
 
-    Only the checked conversational choice reaches expression. A diagnostic
-    reason is never used as evidence. On a policy change, no candidate reply is
-    returned. Callers must treat any exception as failure, not an invitation to
-    retry without a gate. This is not a substitute for atomic ledger policy.
+    The request may contain actual host-supplied conversation history, which is
+    retained unchanged between stages. Only the checked conversational choice
+    reaches expression, never its model-written diagnostic reason. A policy
+    change withholds the candidate reply. Callers must treat any exception as
+    failure, not retry without the gate. Atomic enforcement belongs to the
+    owning ledger, not these three read-only checks.
     """
     if (not isinstance(session_id, str)
             or _SESSION_ID.fullmatch(session_id) is None):
@@ -94,7 +99,7 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
         raise ValueError('Trusted hug-offer grammar classification required.')
     if frame != from_reviewed_action(user_text=frame.user_text, intent=intent):
         raise ValueError('Reviewed frame is inconsistent with trusted grammar.')
-    decision_request = routed_choice_request(base, frame)
+    decision_request = routed_conversation_choice_request(base, frame)
     path = Path(state_path)
 
     blocked = _policy_gate(state_path=path, session_id=session_id)
@@ -110,7 +115,7 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
     if blocked is not None:
         return GuardedOfferResult(status=blocked)
 
-    expressed = provider.respond(expression_request(base, frame, choice))
+    expressed = provider.respond(routed_conversation_expression_request(base, frame, choice))
     if expressed.tool_calls or not isinstance(expressed.content, str) or not expressed.content.strip():
         raise ValueError('Expression produced no tool-free response.')
 
