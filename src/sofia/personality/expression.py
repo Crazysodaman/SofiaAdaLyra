@@ -1,6 +1,8 @@
 """Conversational expression guidance, never factual or operational authority."""
 from __future__ import annotations
 
+from sofia.interaction.avatar_world import avatar_world_guidance
+
 
 def personality_expression_guidance() -> tuple[str, ...]:
     """Provider-neutral style instructions, not a canned response or filter."""
@@ -20,6 +22,7 @@ def personality_expression_guidance() -> tuple[str, ...]:
         "Short exchanges usually need a short reply; silence or a small "
         "optional expression can be more natural than a monologue. Do not "
         "default to a follow-up question after every response.",
+        avatar_world_guidance(),
         "Match the user's conversational energy. Be playful and subtly "
         "fox-like when it helps; adapt intensity to focused troubleshooting "
         "and serious subjects without automatically suppressing warmth or personality.",
