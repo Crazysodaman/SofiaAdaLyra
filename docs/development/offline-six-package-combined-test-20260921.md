@@ -15,6 +15,6 @@
 
 ## Deferred proof
 
-For each PR, check out its exact head commit against the real repository; run focused tests there, Windows tests, cross-package integration and the agreed coordinated full pytest after INTERACT's gate. Confirm host-enforced identity/grants, real channel receipts, actual Windows paths and physical emergency stops where applicable. A successful mocked outcome is not a live capability. PR #4 indexes all original 13 packages and 3 proposed additions; these six do **not** complete the other packages.
+For each PR, check out its exact head commit against the real repository; run focused tests there, Windows tests, cross-package integration and the agreed coordinated full pytest after INTERACT's gate. Confirm host-enforced identity/grants, real channel receipts, actual Windows paths and physical emergency stops where applicable. A successful mocked outcome is not a live capability. PR #4 now reconciles the original 13 packages plus SOCIAL, RUN, and AVATAR into one ordered **16-package** roadmap; these six do **not** complete the other packages.
 
 **Status:** all PRs draft, unmerged, undeployed. No protected identity/Constitution, production `state/sofia.db`, credentials, general internet search, physical hardware or live Discord was changed by these tests.
