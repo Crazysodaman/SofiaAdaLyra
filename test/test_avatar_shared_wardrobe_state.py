@@ -281,3 +281,30 @@ def test_failed_transition_is_visible_to_text_as_failed_but_not_current():
             item_ids=("lounge_top", "lounge_pants"),
             expected_revision=1,
         )
+
+
+def test_text_projection_contains_structured_worn_item_metadata():
+    s = state(PresentationMode.AVATAR_PRIMARY, True)
+    projection = s.text_projection()
+    shirt = projection.current_items[0]
+    assert shirt.item_id == "shirt"
+    assert shirt.name == "shirt"
+    assert shirt.layer == "base"
+    assert shirt.slots == ("torso",)
+    assert shirt.coverage == ("torso",)
+    assert projection.pending_items is None
+
+
+def test_pending_item_metadata_does_not_replace_current_item_metadata():
+    s = state(PresentationMode.AVATAR_PRIMARY, True)
+    s.propose(
+        operation_id="change1",
+        item_ids=("lounge_top", "lounge_pants"),
+        expected_revision=1,
+        outfit_id="lounge",
+    )
+    projection = s.text_projection()
+    assert tuple(x.item_id for x in projection.current_items) == ("shirt", "pants")
+    assert tuple(x.item_id for x in projection.pending_items) == (
+        "lounge_top", "lounge_pants"
+    )
