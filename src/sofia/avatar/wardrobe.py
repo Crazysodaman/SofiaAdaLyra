@@ -151,6 +151,11 @@ class Wardrobe:
         return Outfit(item_ids, covers, COVERED_DEFAULT.issubset(covers),
                       bool(selected) and all(g.asset_ref is not None for g in selected))
 
+    def garments(self, item_ids: tuple[str, ...]) -> tuple[Garment, ...]:
+        """Return validated garment metadata in selection order."""
+        self.selection(item_ids)
+        return tuple(self._garments[item_id] for item_id in item_ids)
+
     def require_public_ready(
         self, outfit: Outfit, *, assets_verified_by_renderer: bool = False
     ) -> None:
