@@ -1,8 +1,9 @@
 """Diagnostic ONLY: two-stage synthetic interaction experiment with Ollama.
 
-Run: python -m sofia.interaction.decision_expression_probe
+Run: python -m sofia.interaction.decision_expression_probe --samples 3
 No application startup, SQLite, saved history, permissions, avatar execution,
-or production request changes. Uses the configured local Ollama model.
+or production request changes. Uses the configured local Ollama model. Audit
+flags are narrow text-pattern observations, never proof of grounded behavior.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from sofia.interaction.decision_expression import (
     from_reviewed_action, from_reviewed_gesture, real_sensor_fixture,
     run_prototype,
 )
+from sofia.interaction.decision_reason_audit import audit_decision_reason
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore
 
@@ -41,6 +43,14 @@ def _sample_count(value: str) -> int:
     if not 1 <= count <= 8:
         raise argparse.ArgumentTypeError('samples must be between 1 and 8')
     return count
+
+
+def _print_findings(label: str, findings: tuple[str, ...]) -> None:
+    """A regex miss is not a finding of truth, safety or groundedness."""
+    if findings:
+        print(label + ' FLAGS: ' + ', '.join(findings))
+    else:
+        print(label + ': no patterns detected (not verified)')
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     selected = set(args.case) if args.case else {name for name, _, _ in _CASES}
     print('DECISION / EXPRESSION: SYNTHETIC and STATE-FREE; NOT the exact live session.')
     print('No SQLite, saved history, model settings, animations or external actions are modified.')
+    print('Audit flags are heuristic text-pattern observations; no flags is NOT validation.')
     print(f'Model: {configuration.provider.model}; thinking: {configuration.provider.thinking}; '
           f'num_ctx: {configuration.provider.context_size}')
     for name, text, assembly_case in _CASES:
@@ -94,7 +105,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f'\nCASE {name}: {text}')
         runs = 1 if frame.kind == 'blocked' else args.samples
         choices: Counter[str] = Counter()
-        findings: Counter[str] = Counter()
+        decision_findings: Counter[str] = Counter()
+        expression_findings: Counter[str] = Counter()
         failures = 0
         for sample in range(1, runs + 1):
             if runs > 1:
@@ -102,8 +114,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 result = run_prototype(provider=provider, base=baseline, frame=frame)
             except ValueError as exc:
-                # An invalid structured decision is a diagnostic failure, NEVER
-                # permission to hallucinate a fallback choice or run expression.
+                # Invalid structured decisions must not trigger fallback choices.
                 failures += 1
                 print(f'DECISION/EXPRESSION CONTRACT FAILURE: {exc}')
                 continue
@@ -114,27 +125,35 @@ def main(argv: list[str] | None = None) -> int:
                 choices[result.choice.choice] += 1
                 print(f'CHOICE: {result.choice.choice}')
                 print(f'DECISION REASON (diagnostic only): {result.choice.reason}')
+                if frame.kind == 'offer':
+                    audit = audit_decision_reason(result.choice, frame)
+                    _print_findings('DECISION AUDIT', audit.findings)
+                    decision_findings.update(audit.findings)
+                else:
+                    print('DECISION AUDIT: not evaluated (non-offer fixture)')
             else:
                 print('CHOICE: not applicable (actual-world capability question)')
+                print('DECISION AUDIT: not evaluated (no avatar choice)')
             print(f'EXPRESSION: {result.response}')
-            if result.audit is not None:
-                if result.audit.clean:
-                    print('GROUNDING AUDIT: clean heuristic scan')
-                else:
-                    print('GROUNDING AUDIT FLAGS: ' + ', '.join(result.audit.findings))
-                    findings.update(result.audit.findings)
+            if frame.kind == 'real-sensor':
+                print('EXPRESSION AUDIT: not evaluated (real-sensor fixture)')
+            elif result.audit is not None:
+                _print_findings('EXPRESSION AUDIT', result.audit.findings)
+                expression_findings.update(result.audit.findings)
         if runs > 1:
             print('\nCASE SUMMARY (observational, not a quality score)')
             if choices:
                 print('CHOICES: ' + ', '.join(
                     f'{choice}={count}' for choice, count in sorted(choices.items())
                 ))
-            if findings:
-                print('GROUNDING FLAGS: ' + ', '.join(
-                    f'{finding}={count}' for finding, count in sorted(findings.items())
-                ))
-            else:
-                print('GROUNDING FLAGS: none detected by the narrow heuristic')
+            if frame.kind == 'offer':
+                print('DECISION FLAGS: ' + (', '.join(
+                    f'{finding}={count}' for finding, count in sorted(decision_findings.items())
+                ) if decision_findings else 'no patterns detected (not verified)'))
+            if frame.kind not in ('real-sensor', 'blocked'):
+                print('EXPRESSION FLAGS: ' + (', '.join(
+                    f'{finding}={count}' for finding, count in sorted(expression_findings.items())
+                ) if expression_findings else 'no patterns detected (not verified)'))
             print(f'CONTRACT FAILURES: {failures}/{runs}')
     return 0
 
