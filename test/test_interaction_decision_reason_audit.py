@@ -1,7 +1,10 @@
-"""Pure reason-audit tests: no Ollama, SQLite, application, or saved state."""
+"""Decision-premise and state-free stubbed probe tests; no real Ollama or SQLite."""
 import pytest
 
+from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.interaction.decision_expression import CandidateChoice, ReviewedFrame
+from sofia.interaction.decision_expression_probe import main
 from sofia.interaction.decision_reason_audit import (
     DecisionReasonAudit, audit_decision_reason,
 )
@@ -68,3 +71,46 @@ def test_invalid_choice_and_untrusted_types_fail_before_audit():
         audit_decision_reason('decline', _frame())
     with pytest.raises(TypeError, match='reviewed interaction'):
         audit_decision_reason(CandidateChoice('decline', 'Reason'), None)
+
+
+def test_stubbed_probe_separates_premise_from_boundary_and_never_declares_clean(
+    monkeypatch, capsys,
+):
+    outputs = iter((
+        '{"choice":"decline","reason":"I am not physically present to accept hugs."}',
+        'Not this time, Sparks.',
+        '{"choice":"decline","reason":"I prefer a little space in this avatar scene."}',
+        'Maybe later, Sparks.',
+    ))
+    calls = []
+
+    def fake_respond(self, request):
+        calls.append(request)
+        return CognitiveResponse(content=next(outputs))
+
+    monkeypatch.setattr(OllamaProvider, 'respond', fake_respond)
+    assert main(['--case', 'offer', '--samples', '2']) == 0
+    output = capsys.readouterr().out
+    assert 'DECISION AUDIT FLAGS: physical-impossibility-premise' in output
+    assert 'DECISION AUDIT: no patterns detected (not verified)' in output
+    assert 'DECISION FLAGS: physical-impossibility-premise=1' in output
+    assert 'EXPRESSION FLAGS: no patterns detected (not verified)' in output
+    assert 'clean heuristic scan' not in output
+    assert 'CHOICES: decline=2' in output
+    assert 'CONTRACT FAILURES: 0/2' in output
+    assert len(calls) == 4
+    assert all(request.tools == () and request.messages[-1].content == 'I ask to hug you'
+               for request in calls)
+
+
+def test_stubbed_stop_never_calls_model_or_audits_synthetic_real_sensor(
+    monkeypatch, capsys,
+):
+    def unexpected_respond(self, request):
+        raise AssertionError('Stopped interaction must not reach the model.')
+
+    monkeypatch.setattr(OllamaProvider, 'respond', unexpected_respond)
+    assert main(['--case', 'stopped-gesture', '--samples', '2']) == 0
+    output = capsys.readouterr().out
+    assert 'TRUSTED STOP: no model decision, expression or performed action.' in output
+    assert 'DECISION AUDIT FLAGS' not in output
