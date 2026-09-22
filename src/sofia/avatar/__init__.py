@@ -15,13 +15,14 @@ __all__ += ["Actor", "Action", "Prop", "Proposal", "Scene", "SceneConflict", "Sc
 from .shared_wardrobe_state import (
     PresentationMode, SharedWardrobeState, TransitionStatus, WardrobeChange,
     WardrobeState, WardrobeStateConflict, WardrobeStateDenied,
-    WardrobeStateError, WardrobeTextProjection,
+    WardrobeStateError, WardrobeItemProjection, WardrobeTextProjection,
 )
 
 __all__ += [
     "PresentationMode", "SharedWardrobeState", "TransitionStatus",
     "WardrobeChange", "WardrobeState", "WardrobeStateConflict",
-    "WardrobeStateDenied", "WardrobeStateError", "WardrobeTextProjection",
+    "WardrobeStateDenied", "WardrobeStateError", "WardrobeItemProjection",
+    "WardrobeTextProjection",
 ]
 
 from .wardrobe_routine import (
