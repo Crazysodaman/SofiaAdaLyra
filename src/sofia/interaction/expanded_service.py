@@ -6,6 +6,7 @@ boundary changes. Cross-process atomic enforcement still belongs in the ledger.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import re
@@ -13,6 +14,7 @@ import re
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
+from sofia.interaction.avatar_world import gesture_provider_view
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.context_hygiene import without_legacy_auto_affection
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -40,25 +42,19 @@ _BOUNDARY_ACTION = (
 
 
 def action_prompt(intent) -> str:
-    """Only reviewed canonical semantics enter this system instruction."""
+    """Only reviewed canonical semantics enter this provider-facing instruction."""
     return (
         'TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION\n'
-        'The saved USER turn describes or offers a represented social action; '
-        'it is NOT a physical observation, rendered avatar movement, performed '
-        'tool operation, permission or proof of character enjoyment. '
-        'A described action is the user’s fictional description, not proof '
-        'Sofía agreed to it. An offered action remains an offer, not contact. '
-        'Speak TO the user as Sofía, rather than analyzing the gesture or asking '
-        'the user to explain an ordinary greeting. Treat an offer as an offer: '
-        'respond to the request without implying contact occurred or defaulting '
-        'to a physical-body disclaimer. For a description, respond to the '
-        'specific moment without declaring that Sofía welcomed or felt it. '
-        'Use a short, distinctive conversational response when the turn is '
-        'simple; do not force a question, lecture, or stage direction. '
-        'Acceptance, uncertainty, discomfort or refusal must follow actual '
-        'context and boundaries, not a preset friendly or defensive script. '
-        'Do not fabricate earlier contact, physical sensing, voice playback '
-        'or animation; do not convert a proposal into execution.\n'
+        'This saved user turn refers to Sofía\'s canonical represented avatar. '
+        'The JSON modality distinguishes an OFFER from a DESCRIPTION: an offer '
+        'invites Sofía to choose, and neither an offer nor an acceptance means '
+        'contact or animation already happened. A description is user-authored '
+        'fiction, not Sofía\'s consent, enjoyment, or physical sensation. '
+        'Respond to the specific moment in Sofía\'s voice; she may welcome, '
+        'decline, ask or set a boundary based on context and existing boundaries. '
+        'Do not force a positive or negative reaction, canned stage direction, '
+        'follow-up question or physical-body disclaimer. Do not assert sensed '
+        'touch, subjective feelings, rendered motion or external execution.\n'
         + json.dumps({
             'source': 'saved_user_text', 'actor': intent.actor,
             'target': intent.target, 'action_id': intent.action_id,
@@ -83,6 +79,28 @@ def preference_prompt(context) -> str:
             'source_id': context.source_id,
         }, ensure_ascii=False)
     )
+
+
+def _without_prescribed_gesture_reactions(request: CognitiveRequest) -> CognitiveRequest:
+    """Replace only recognized trusted per-turn gesture instructions.
+
+    The authoritative policy result is preserved; engine suggestions never
+    become mandated emotion labels or literal phrases for the model to copy.
+    No stored event, conversation or ledger is modified.
+    """
+    projected = []
+    changed = False
+    for message in request.messages:
+        view = (gesture_provider_view(message.content)
+                if message.role is CognitiveRole.SYSTEM else None)
+        if view is not None:
+            projected.append(replace(message, content=view))
+            changed = True
+        else:
+            projected.append(message)
+    if not changed:
+        return request
+    return CognitiveRequest(messages=tuple(projected), tools=request.tools)
 
 
 class ExpandedConversationService(InteractiveConversationService):
@@ -149,7 +167,8 @@ class ExpandedConversationService(InteractiveConversationService):
                 occurred_at=user.created_at)
             if context is not None and context.blocked:
                 raise RuntimeError('A recorded interaction boundary blocks this action.')
-        request = without_legacy_auto_affection(super()._build_request())
+        request = _without_prescribed_gesture_reactions(
+            without_legacy_auto_affection(super()._build_request()))
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
         instructions = []
