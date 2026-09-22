@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import os
+from pathlib import Path
 from time import monotonic
 from uuid import uuid4
 
@@ -21,7 +22,9 @@ from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.architecture_compare import OFFER
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
 from sofia.interaction.decision_expression import from_reviewed_action
-from sofia.interaction.trusted_offer_gate import run_guarded_offer
+from sofia.interaction.trusted_offer_gate import (
+    GuardedOfferResult, _policy_gate, run_guarded_offer,
+)
 
 
 _ENV = 'SOFIA_INTERACT_STAGED_OFFERS'
@@ -68,11 +71,9 @@ def _canonical_offer_request(runtime, conversation_request):
 def respond_staged_offer(service, content: str) -> CognitiveResponse:
     """Persist one exact USER offer, then only an atomically releasable reply.
 
-    The caller must be the application's ExpandedConversationService after its
-    existing stop, composite and boundary preflight. All model inference and
-    local conversation writes share the service's normal model lock. A failed
-    operation leaves the original saved USER turn for recovery, never an
-    invented assistant response or silent fallback to an unguarded model.
+    A blocked offer is checked BEFORE ordinary context assembly, which may
+    itself reject known boundaries. The transactional release rechecks policy.
+    Failure keeps the original saved USER turn, never retries unguarded.
     """
     if content != OFFER:
         raise ValueError('Only the exact grammar-reviewed hug offer is supported.')
@@ -98,13 +99,20 @@ def respond_staged_offer(service, content: str) -> CognitiveResponse:
                     or intent.action_id != 'hug'):
                 raise RuntimeError('Saved user turn failed reviewed offer grammar.')
             frame = from_reviewed_action(user_text=user.content, intent=intent)
-            conversation_request = service._build_request()
-            base = _canonical_offer_request(runtime, conversation_request)
-            result = run_guarded_offer(
-                provider=runtime.cognitive_system.engine,
-                base=base, frame=frame, state_path=config.state_path,
-                session_id=session_id,
-            )
+            # ExpandedConversationService._build_request intentionally raises
+            # for an active boundary. Return a source-checked blocked result
+            # instead of building any model request. Commit rechecks under lock.
+            blocked = _policy_gate(state_path=Path(config.state_path), session_id=session_id)
+            if blocked is not None:
+                result = GuardedOfferResult(status=blocked)
+            else:
+                conversation_request = service._build_request()
+                base = _canonical_offer_request(runtime, conversation_request)
+                result = run_guarded_offer(
+                    provider=runtime.cognitive_system.engine,
+                    base=base, frame=frame, state_path=config.state_path,
+                    session_id=session_id,
+                )
             reply = commit_guarded_offer_reply(
                 state_path=config.state_path, session_id=session_id,
                 user_message_id=user.id, user_content=user.content, result=result,
