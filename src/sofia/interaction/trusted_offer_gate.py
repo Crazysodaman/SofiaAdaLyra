@@ -1,9 +1,8 @@
 """Opt-in, read-only boundary/stop gate around one reviewed avatar offer.
 
-This module is NOT wired into the live conversation service. It does not write
-SQLite, record consent, perform contact, animate an avatar, or grant tools.
-It rechecks source-backed policy before decision, expression and return, but
-cannot provide atomic cross-process authorization; the owning ledger must do so.
+This module does not write SQLite, record consent, perform contact, animate an
+avatar, or grant tools. It rechecks source-backed policy before decision,
+expression and return. Atomic reply persistence belongs to the owning host.
 """
 from __future__ import annotations
 
@@ -24,6 +23,7 @@ from sofia.interaction.decision_expression import (
     from_reviewed_action, parse_choice,
 )
 from sofia.interaction.decision_reason_audit import audit_decision_reason
+from sofia.interaction.expression_consistency import validate_offer_expression
 from sofia.interaction.preference_context import read_interaction_context
 
 _SESSION_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$')
@@ -82,12 +82,10 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
                       session_id: str) -> GuardedOfferResult:
     """Route one exact saved-host-reviewed offer, never a general text parser.
 
-    The request may contain actual host-supplied conversation history, which is
-    retained unchanged between stages. Only the checked conversational choice
-    reaches expression, never its model-written diagnostic reason. A policy
-    change withholds the candidate reply. Callers must treat any exception as
-    failure, not retry without the gate. Atomic enforcement belongs to the
-    owning ledger, not these three read-only checks.
+    The request retains host-supplied conversation history. Only the checked
+    choice reaches expression, never its model-written diagnostic reason.
+    Explicitly contradictory expression is vetoed rather than rewritten or
+    persisted. This heuristic veto is not a complete semantic verifier.
     """
     if (not isinstance(session_id, str)
             or _SESSION_ID.fullmatch(session_id) is None):
@@ -119,6 +117,9 @@ def run_guarded_offer(*, provider: TextProvider, base: CognitiveRequest,
     if expressed.tool_calls or not isinstance(expressed.content, str) or not expressed.content.strip():
         raise ValueError('Expression produced no tool-free response.')
 
+    # Fail closed on explicit reversal before any candidate reaches the
+    # persistence layer. This does NOT certify every nuanced reply.
+    validate_offer_expression(choice, expressed.content)
     blocked = _policy_gate(state_path=path, session_id=session_id)
     if blocked is not None:
         return GuardedOfferResult(status=blocked)
