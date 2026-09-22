@@ -4,11 +4,11 @@
 
 ## Outcome
 
-Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, decommissions, and orchestrates eligible Sofía workloads across the fleet. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
+Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, prepares decommissioning, and orchestrates eligible Sofía workloads across the fleet. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
 
 ## Ownership
 
-- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment/decommissioning, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
+- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment, approval-gated decommission preparation, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
 - **NET:** authenticated transport and route/channel enforcement between Sofía and remote agents.
 - **SAFE:** trust roots, secrets, least privilege, hardening policy, revocation/quarantine, incident response and independent stop.
 - **RUN:** Sofía's own service lifecycle, scheduling, resource budgets, leadership/singleton semantics and supervisor behavior; uses OPS placement/failover evidence rather than inventing a second scheduler.
@@ -234,7 +234,7 @@ The policy must not silently broaden itself. Unsupported or higher-risk operatio
 
 ### Removal/decommissioning
 
-Fleet removal is **never a purely automatic consequence of a rule or timeout**. OPS may detect that a machine appears ready for retirement and may prepare a decommission proposal, but **Sofía must explicitly review and approve that specific machine's removal before execution**.
+Fleet removal is **never a purely automatic consequence of a rule or timeout**. OPS may detect that a machine appears ready for retirement and may prepare a decommission proposal, but **Sparks must explicitly approve that specific machine's removal before execution**.
 
 The decommission proposal must include:
 - canonical device identity and trust record;
@@ -249,13 +249,13 @@ The decommission proposal must include:
 - rollback/re-enrollment plan;
 - confidence and unresolved unknowns.
 
-Sofía's approval must be a durable, auditable decision tied to the exact device identity and proposal revision. A generic standing policy, elapsed timeout, scheduler result, hostname, IP address or previous approval for another machine cannot substitute for that decision.
+Sparks's approval must be captured as a durable, auditable authorization tied to the exact device identity and proposal revision. A generic standing policy, elapsed timeout, scheduler result, hostname, IP address or previous approval for another machine cannot substitute for that authorization.
 
-Standing policy may allow OPS to **prepare, drain and stage** a decommission automatically, but not cross the final removal boundary until Sofía approves it.
+Standing policy may allow OPS to **prepare, drain and stage** a decommission automatically, but not cross the final removal boundary until Sparks approves it.
 
-Protected/critical host classes may additionally require Sparks's explicit approval even after Sofía approves. Examples include the current primary runtime host, authoritative memory/database host, only remaining backup/restore host, only available gateway/Discord host, or any host whose removal would violate redundancy policy.
+All hosts require Sparks's explicit approval for final removal. Critical-host checks still apply before Sofía may even recommend removal, especially for the current primary runtime host, authoritative memory/database host, only remaining backup/restore host, only available gateway/Discord host, or any host whose removal would violate redundancy policy.
 
-Sofía may approve removal when the evidence supports a reason such as:
+Sofía may recommend removal to Sparks when the evidence supports a reason such as:
 
 - approved replacement;
 - device retirement;
@@ -263,7 +263,7 @@ Sofía may approve removal when the evidence supports a reason such as:
 - confirmed permanent removal;
 - repeated unrecoverable failure meeting configured policy.
 
-Before Sofía may approve final decommission, OPS must prove that the host is not an unsafe single point of failure or unresolved authority holder. After approval, execution performs:
+Before Sofía may recommend final decommission, OPS must prove that the host is not an unsafe single point of failure or unresolved authority holder. After Sparks approves the exact proposal, execution performs:
 
 1. stop new workload placement;
 2. drain/move eligible workloads;
@@ -273,9 +273,9 @@ Before Sofía may approve final decommission, OPS must prove that the host is no
 6. archive required telemetry/audit/history according to retention policy;
 7. preserve necessary backups/recovery artifacts;
 8. verify the machine can no longer act as an authorized fleet member;
-9. record the exact Sofía approval, executor receipts and final verification state.
+9. record Sparks's exact approval, executor receipts and final verification state.
 
-Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement. If evidence is incomplete or contradictory, Sofía withholds approval and the host remains offline, draining or quarantined instead of being deleted.
+Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement. If evidence is incomplete or contradictory, Sofía does not recommend removal and the host remains offline, draining or quarantined instead of being deleted.
 
 ## Workload orchestration
 
@@ -485,7 +485,7 @@ Do not claim OPS fleet/orchestration support until real acceptance includes:
 19. prove singleton split-brain prevention during a simulated/real partition condition;
 20. refuse incompatible, overcommitted, quarantined and privacy-prohibited targets;
 21. evacuate eligible workloads from a quarantined host;
-22. prepare a host-specific decommission proposal, have Sofía explicitly approve that exact proposal, then decommission only after credential, workload, routing and retention verification;
+22. prepare a host-specific decommission proposal, have Sparks explicitly approve that exact proposal, then decommission only after credential, workload, routing and retention verification;
 23. move/fail over the primary Sofía runtime in a supervised test while preserving canonical identity and reporting any uncertain state;
 24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
 
