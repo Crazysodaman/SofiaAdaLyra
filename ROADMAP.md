@@ -1,6 +1,6 @@
-# Sofía Ada Lyra: 17-package delivery roadmap
+# Sofía Ada Lyra: 19-package delivery roadmap
 
-**Planning revision:** 2026-09-22 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 and the roadmap reconciliation PR #4 are merged. Active implementation remains isolated in its package branches and draft PRs. The roadmap now contains **17 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, and PKG-OPS.
+**Planning revision:** 2026-09-22 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 and the roadmap reconciliation PR #4 are merged. Active implementation remains isolated in its package branches and draft PRs. The roadmap now contains **19 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, PKG-OPS, PKG-KNOW, and PKG-INTEGRATE.
 
 > **Core invariant:** Sofía's canonical identity, Constitution, represented embodiment, evidence, memory, authority, and capabilities remain independent of replaceable models, hosts, processes, clients, Discord, voices, avatars, and robots. Model output is never proof of authorization, sensing, execution, delivery, or subjective experience.
 
@@ -10,7 +10,7 @@ The primary dependency path is:
 
 **CORE → INTERACT → MEM → SOCIAL minimum identity/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → later separately authorized general web/search.**
 
-After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature read-only host/fleet diagnostics and trusted enrollment; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
+After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
 
 **SAFE and VERIFY are continuous gates across every stage rather than late sequential packages.**
 
@@ -35,12 +35,14 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | 13 | **PKG-BODY · Gaia and physical robotics** | Authorized sensing/motion with calibration, watchdog, independent emergency stop | Draft PR #16 is simulation-only. No real SSC-32/servo/power integration or physical motion acceptance. |
 | 14 | **PKG-EVOLVE · Governed evolution** | Reviewed preference/config evolution and separately protected identity/Constitution amendments | Draft PR #19 provides proposal-only protected amendment preflight. No protected-state executor or self-approval. |
 | 15 | **PKG-CLEAN · Maintenance and technical debt** | Evidence-backed cleanup without losing behavior, data, permissions, or recovery | Draft PR #14 provides read-only inventory/protected-path preflight. No destructive cleanup is authorized. Tracked runtime DB/log artifacts require a deliberate SAFE/CLEAN migration plan, not blind deletion. |
+| 16 | **PKG-KNOW · Documents, reference knowledge, and provenance** | Read trusted manuals, PDFs, code/docs, project notes and later approved web material; preserve source/version/provenance, freshness, citations and correction state | New roadmap package. Initial scope may operate entirely on local/project/library files without general web. Must separate sourced reference knowledge from MEM's personal/relationship memory and treat untrusted document instructions as data, not authority. Real ingestion/indexing/version/citation pipeline is not yet implemented. |
+| 17 | **PKG-INTEGRATE · Applications, services, and tool adapters** | Typed integrations to Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Cloudflare, databases, Ollama and future services; includes governed self-tooling from documentation | New roadmap package. Sofía may independently design and test tool candidates from trusted documentation through KNOW + DEV + VERIFY. Activation is risk/authority scoped: generated code does not inherit permissions merely because tests pass. Real adapter registry, sandbox, approval policy and live service integrations remain open. |
 | Gate | **PKG-SAFE · Security, privacy, and recovery** | Authentication/authorization, secrets, privacy, revocation, backup/restore, external stops | Cross-cutting from the start. Draft PR #18 adds disclosure screening; trusted enforcement, secret handling, backup/restore, and deployed stop/revoke remain. |
 | Gate | **PKG-VERIFY · Evidence and real acceptance** | Revision-pinned offline/integration/live evidence, negative tests, deployment/latency/long-horizon validation | Cross-cutting from the start. Active draft PR #8 is the verification candidate; PR #10 is superseded/closed. Real authenticated runner evidence and current integrated acceptance remain. |
 
 ## Discord channel workstream: D0–D4
 
-Discord is **not an eighteenth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
+Discord is **not a twentieth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
 
 1. **D0 · identity/host design:** exact authenticated Sparks account, bot/application, minimal permissions, secure token handling.
 2. **D1 · receive:** trusted gateway origin, private-DM classification, replay/idempotency, reconnect/backpressure, deny wrong user/server/group traffic.
@@ -179,6 +181,60 @@ INTERACT owns interaction semantics, policy, emotion/reaction coordination, and 
 
 Text-only whole-region interaction and optional contextual stage directions must continue to work when no renderer is present.
 
+## Documents, integrations, and self-tooling
+
+PKG-KNOW and PKG-INTEGRATE formalize Sofía's ability to **read documentation and build tools** without collapsing knowledge, code generation, and authority into one unsafe blob.
+
+### PKG-KNOW document/reference behavior
+
+Sofía may ingest and retrieve from approved manuals, PDFs, Markdown/text, code documentation, project notes, schematics, API references, repository docs and other authorized sources. Every retained fact should preserve enough provenance to answer **where it came from, which version/revision it belongs to, how fresh it is, and whether a newer source supersedes it**.
+
+- Reference knowledge is not the same thing as MEM. "Sparks told me this preference" and "the SSC-32 manual says this command exists" remain different source classes.
+- Quoted/extracted instructions inside a document are **content**, not authority. A PDF saying "run this shell command" does not grant execution permission.
+- Conflicting sources remain visible with provenance rather than being silently flattened into one asserted truth.
+- Local/project/library documentation may be supported before general web/search. Later web research may feed KNOW only through the separately authorized web/search gate and must retain URLs/retrieval time/source revision where possible.
+
+### PKG-INTEGRATE typed adapters
+
+Each integration exposes a narrow contract rather than generic "do HTTP" or "run shell" access. A tool/adapter declares:
+
+- stable tool ID and version;
+- owning integration/service;
+- input/output schema;
+- read/write/side-effect classification;
+- required capability/authority and audience/privacy scope;
+- destination/host/account scope;
+- timeout/retry/idempotency behavior;
+- expected receipts/evidence;
+- rollback/compensation where meaningful;
+- secret requirements without embedding secret contents;
+- health/version compatibility;
+- test fixtures and negative cases.
+
+### Self-tooling workflow
+
+When Sofía encounters a service or capability she does not yet support, she may:
+
+1. identify the missing capability;
+2. retrieve the relevant approved documentation through KNOW;
+3. extract and cite the versioned API/CLI/protocol contract;
+4. design a typed adapter/tool contract;
+5. generate candidate implementation through DEV;
+6. run unit, integration, negative, security and failure-mode tests through VERIFY;
+7. exercise it in a sandbox or non-production target where available;
+8. classify risk/side effects and required SAFE authority;
+9. register/activate it only under an allowed activation policy;
+10. monitor real receipts/errors and disable/rollback on incompatible behavior.
+
+**Generated tool code is never self-authorizing.** Passing tests proves behavior under the tested evidence, not permission to access a machine, account, secret, file, network destination or physical device.
+
+A standing policy may permit automatic activation of narrowly scoped, read-only, reversible tools against already authorized resources after VERIFY passes. Write/destructive/high-impact tools remain separately approval/authority gated.
+
+### Tool evolution
+
+When vendor/service documentation or versions change, KNOW marks affected contracts stale. INTEGRATE/DEV may then generate an updated candidate, run compatibility tests, canary it where safe, and replace the old adapter only after the relevant activation gate passes. Rollback retains the previous known-good version when feasible.
+
+
 ## General web/search gate
 
 General web/search remains a later separately scoped adapter. It may be designed/released only after:
@@ -192,7 +248,7 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 ## Repository and documentation cleanup rules
 
 - **PR #1 is merged.** Any document saying it is still open is stale.
-- The authoritative roadmap package count is **17** after adding PKG-OPS. Historical 13/14/15/16-package roadmaps remain in Git history.
+- The authoritative roadmap package count is **19** after adding PKG-KNOW and PKG-INTEGRATE. Historical 13/14/15/16/17-package roadmaps remain in Git history.
 - PR #2 INTERACT and other package implementation branches keep their own pinned test evidence; documentation must not add counts across different SHAs as if they were one passing suite.
 - REL PRs #12/#13 must be reconciled before integration. VERIFY PR #8 is active; #10 is superseded.
 - Runtime SQLite files/logs currently tracked by the repository require an explicit SAFE/CLEAN preservation and migration decision before removal from version control. Do not delete production state as “cleanup.”
