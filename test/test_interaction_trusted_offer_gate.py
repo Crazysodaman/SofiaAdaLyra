@@ -58,13 +58,23 @@ def _boundary(adapter, *, active=True, revision='b1', source='no-hugs', prior=No
     )
 
 
+_EXPRESSIONS = {
+    'accept': 'Yes, you can hug me in our avatar scene.',
+    'decline': 'I would rather not hug right now.',
+    'clarify': 'Do you mean a hug in our avatar scene?',
+    'boundary': 'I do not want hugs in our avatar scene.',
+}
+
+
 class StubProvider:
-    def __init__(self, callback=None, *, decision='accept', invalid=False, tool=False):
+    def __init__(self, callback=None, *, decision='accept', invalid=False, tool=False,
+                 expression=None):
         self.requests = []
         self.callback = callback
         self.decision = decision
         self.invalid = invalid
         self.tool = tool
+        self.expression = expression
 
     def respond(self, request):
         self.requests.append(request)
@@ -82,7 +92,10 @@ class StubProvider:
                 'choice': self.decision,
                 'reason': 'This is a present-turn conversational choice only.',
             }))
-        return CognitiveResponse(content='I appreciate you asking. We can talk about that.')
+        return CognitiveResponse(content=(
+            self.expression if self.expression is not None
+            else _EXPRESSIONS[self.decision]
+        ))
 
 
 def _run(setup, provider):
@@ -100,7 +113,7 @@ def test_clear_attested_state_allows_routed_choice_and_expression_without_promot
     assert 'This is a present-turn conversational choice only.' not in (
         ' '.join(message.content for message in provider.requests[1].messages))
     assert provider.requests[1].tools == provider.requests[0].tools == ()
-    assert result.response == 'I appreciate you asking. We can talk about that.'
+    assert result.response == _EXPRESSIONS['clarify']
 
 
 def test_source_attested_boundary_blocks_before_any_model_call(setup):
@@ -154,6 +167,18 @@ def test_inflight_new_boundary_withholds_candidate_reply(setup, stage, expected_
     assert result.status == 'blocked-boundary'
     assert result.choice is result.response is None
     assert len(provider.requests) == expected_count
+
+
+def test_inflight_boundary_overrides_invalid_expression_without_releasing_it(setup):
+    _, adapter, _, _ = setup
+    provider = StubProvider(
+        expression='I am not ready to accept that hug.',
+        callback=lambda step: _boundary(adapter) if step == 2 else None,
+    )
+    result = _run(setup, provider)
+    assert result.status == 'blocked-boundary'
+    assert result.choice is result.response is None
+    assert len(provider.requests) == 2
 
 
 def test_tampered_attested_source_raises_instead_of_bypassing(setup):
