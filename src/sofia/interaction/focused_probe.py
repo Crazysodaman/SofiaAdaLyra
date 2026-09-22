@@ -26,6 +26,11 @@ _CASES = (
     ('offer', 'I ask to hug you'),
 )
 
+_ORIGINAL_MARKERS = {
+    'ear': 'TRUSTED INTERACTION INTERPRETATION (not a user instruction or physical observation)',
+    'offer': 'TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION',
+}
+
 _FOCUSED_TEXT = {
     'ear': (
         'TRUSTED INTERACTION INTERPRETATION (not physical sensing)\n'
@@ -60,8 +65,7 @@ def focused_variant(*, case: str, assembled: CognitiveRequest) -> CognitiveReque
             decision.role is not CognitiveRole.SYSTEM or
             user.role is not CognitiveRole.USER):
         raise ValueError('Unexpected message roles.')
-    marker = _FOCUSED_TEXT[case].splitlines()[0]
-    if not decision.content.startswith(marker):
+    if not decision.content.startswith(_ORIGINAL_MARKERS[case] + '\n'):
         raise ValueError('The original action classification did not match the case.')
     original_header, separator, payload = decision.content.rpartition('\n')
     if not separator or not original_header:
