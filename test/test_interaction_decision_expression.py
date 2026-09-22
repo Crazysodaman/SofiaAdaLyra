@@ -6,12 +6,12 @@ import json
 
 import pytest
 
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse, CognitiveRole
+from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.store import IdentityStore
 from sofia.interaction.ab_probe import build_pair
-from sofia.interaction.action_grammar import ActionIntent, parse_user_action
+from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import (
     CandidateChoice, choice_request, expression_request, from_reviewed_action,
     from_reviewed_gesture, parse_choice, real_sensor_fixture, run_prototype,
@@ -167,10 +167,14 @@ def test_unreviewed_or_mismatched_inputs_are_rejected():
     with pytest.raises(ValueError, match='reviewed real-sensor fixture'):
         real_sensor_fixture('I ask to hug you')
     frame = from_reviewed_action(user_text=OFFER, intent=intent)
+    original = _static('offer', OFFER)
+    wrong_user = replace(original, messages=(
+        *original.messages[:-1], replace(original.messages[-1], content=EAR),
+    ))
     with pytest.raises(ValueError, match='canonical, tool-free synthetic request'):
-        choice_request(_static('offer', EAR), frame)
+        choice_request(wrong_user, frame)
     with pytest.raises(ValueError, match='validated in-scope'):
-        expression_request(_static('offer', OFFER), frame, CandidateChoice('approve', 'No.'))
+        expression_request(original, frame, CandidateChoice('approve', 'No.'))
 
 
 def test_ambiguous_ear_only_allows_clarification():
