@@ -1,17 +1,17 @@
-# PKG-OPS | systems operations, diagnostics, performance, and fleet enrollment
+# PKG-OPS | fleet operations, diagnostics, performance, and orchestration
 
 **Planning date:** 2026-09-22. **Status:** documentation contract only; no OPS agent, autonomous enrollment service, remote telemetry transport, hardening executor, or deployment is implemented by this document.
 
 ## Outcome
 
-Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, and proposes or performs narrowly typed maintenance operations. It does not replace NET, SAFE, RUN, DEV, or VERIFY.
+Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, decommissions, and orchestrates eligible Sofía workloads across the fleet. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
 
 ## Ownership
 
-- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment, bounded typed maintenance actions.
+- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment/decommissioning, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
 - **NET:** authenticated transport and route/channel enforcement between Sofía and remote agents.
 - **SAFE:** trust roots, secrets, least privilege, hardening policy, revocation/quarantine, incident response and independent stop.
-- **RUN:** Sofía's own service lifecycle, scheduling, resource budgets and supervisor behavior.
+- **RUN:** Sofía's own service lifecycle, scheduling, resource budgets, leadership/singleton semantics and supervisor behavior; uses OPS placement/failover evidence rather than inventing a second scheduler.
 - **ACT:** proactive user notification and approved outreach.
 - **VERIFY:** revision-pinned benchmarks, negative tests and real cross-machine acceptance.
 - **DEV:** Sofía source/code changes and OpenCode execution, not generic host administration.
@@ -197,6 +197,189 @@ Read-only telemetry is the first release. Later OPS may expose narrowly typed op
 
 These remain Think/Diagnose → Propose → Authorize → Execute → Verify. Avoid a generic arbitrary-shell capability.
 
+## Autonomous fleet lifecycle
+
+Enrolled machines have explicit lifecycle state:
+
+- `candidate`
+- `enrolled`
+- `healthy`
+- `degraded`
+- `maintenance`
+- `draining`
+- `quarantined`
+- `offline`
+- `decommissioned`
+
+State changes require evidence and durable audit records. A transient disconnect does not delete a machine.
+
+### Standing upkeep policy
+
+Sparks may grant OPS a standing maintenance policy so routine fleet care does not require a prompt for every action. Policy is scoped by host/group, action class, risk, maintenance window and rollback requirements.
+
+Eligible autonomous upkeep can include:
+
+- keep the signed OPS agent current;
+- update approved Sofía-managed packages/services;
+- restart failed approved services;
+- rotate or prune approved logs/caches under retention limits;
+- perform approved database/index/checkpoint/vacuum work where backup/recovery requirements are met;
+- run health checks and documented repair procedures;
+- schedule approved OS/package patch work;
+- reboot only when specifically permitted by policy and workload drain/availability checks succeed;
+- remove stale approved package versions after verified replacement;
+- drain and return hosts for maintenance.
+
+The policy must not silently broaden itself. Unsupported or higher-risk operations become proposals.
+
+### Removal/decommissioning
+
+Sofía may automatically remove a host from active fleet service when standing decommission policy explicitly covers the reason, for example:
+
+- approved replacement;
+- device retirement;
+- revoked or compromised device identity;
+- confirmed permanent removal;
+- repeated unrecoverable failure meeting configured policy.
+
+Before final decommission:
+
+1. stop new workload placement;
+2. drain/move eligible workloads;
+3. verify no protected active lease remains;
+4. revoke device/agent credentials;
+5. remove active routing/service-discovery membership;
+6. archive required telemetry/audit/history according to retention policy;
+7. preserve necessary backups/recovery artifacts;
+8. verify the machine can no longer act as an authorized fleet member.
+
+Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement.
+
+## Workload orchestration
+
+OPS owns placement/movement mechanics for **managed workload units**, not arbitrary OS processes.
+
+### Workload contract
+
+A movable workload declares:
+
+- workload ID/version;
+- component/package owner;
+- supported OS/architecture/runtime;
+- CPU/RAM/GPU/VRAM/storage/network requirements;
+- optional versus required GPU acceleration;
+- state type: stateless, externally persisted, replicated, checkpointable, singleton;
+- input/output data location and privacy/audience constraints;
+- required secrets/capabilities;
+- startup/shutdown/checkpoint/restore operations;
+- health/readiness probes;
+- acceptable interruption/downtime;
+- affinity/anti-affinity;
+- host allow/deny rules;
+- leader/singleton semantics;
+- rollback procedure.
+
+A normal process is not automatically movable.
+
+### Initial eligible workload classes
+
+Potential early candidates:
+
+- Ollama/model inference workers;
+- embedding/index workers;
+- background reflection jobs;
+- telemetry collectors/aggregators;
+- approved batch analysis;
+- Discord helper/adapter workers where durable message semantics allow it;
+- avatar rendering workers;
+- later web/search workers after the web gate.
+
+The canonical identity/memory/authority stores remain protected services with stronger state and leadership requirements.
+
+### Placement policy
+
+The scheduler considers real host evidence:
+
+- current and recent CPU load;
+- RAM pressure;
+- GPU support/utilization/VRAM;
+- temperature/throttling/power state;
+- disk capacity/latency/health;
+- network latency/reachability;
+- host foreground workload, including gaming or interactive use;
+- maintenance/drain/quarantine status;
+- OS/architecture/runtime compatibility;
+- data locality/privacy/audience policy;
+- resource reservation/headroom;
+- reliability/restart history;
+- expected response latency;
+- power/resource budget.
+
+Placement must reserve resources rather than merely observe a momentary free value.
+
+### Migration/failover sequence
+
+Preferred movement sequence:
+
+1. mark source workload draining;
+2. stop new work on source;
+3. checkpoint/flush/replicate state if required;
+4. validate target eligibility and reserve resources;
+5. transfer or reacquire only authorized state/secrets;
+6. start target instance;
+7. pass readiness/health/identity/version checks;
+8. acquire the current workload lease/epoch;
+9. redirect new work;
+10. confirm source no longer owns active authority;
+11. retire source instance;
+12. verify final state and release old reservation.
+
+If any verification fails, rollback or remain safely degraded. Do not declare migration complete because a target process merely started.
+
+### Failover and split-brain prevention
+
+For singleton/authority-bearing components use durable leases, epochs, fencing tokens or equivalent so network partitions cannot produce two active authorities.
+
+A replacement instance cannot become authoritative without proving:
+
+- current configuration/version;
+- required durable state;
+- current lease/epoch;
+- host authorization;
+- readiness.
+
+When source state cannot be confirmed, report uncertainty/loss rather than fabricating seamless continuity.
+
+### Moving Sofía's runtime
+
+Sofía is not bound to a specific machine. The canonical identity remains the same while execution components move.
+
+RUN + OPS may move/fail over the primary runtime itself only when:
+
+- target host is trusted and eligible;
+- protected identity/Constitution/memory state is available and integrity-verified;
+- singleton leadership is transferred/fenced safely;
+- active conversation/outbox state is reconciled;
+- clients can reconnect to the new active runtime;
+- the change is recorded and announced to Sparks.
+
+If the old host dies abruptly, the standby may take over using the latest verified durable state. Any possibly lost/unconfirmed turn, thought, or action must be reported honestly.
+
+## Proactive fleet management notifications
+
+ACT should surface **meaningful** fleet events, not telemetry spam:
+
+- new host enrolled;
+- host quarantined/revoked;
+- maintenance started/completed with notable outcome;
+- workload moved because of load, heat, failure, gaming contention or maintenance;
+- primary runtime failover;
+- decommission completed;
+- update/repair failed and needs intervention.
+
+Routine successful samples and repetitive stable-state messages stay silent.
+
+
 ## Host hardening observations
 
 OPS supplies evidence to SAFE for:
@@ -237,7 +420,7 @@ Key workloads:
 
 ## Acceptance
 
-Do not claim OPS fleet support until real acceptance includes:
+Do not claim OPS fleet/orchestration support until real acceptance includes:
 
 1. local host telemetry with honest unsupported fields,
 2. remote Windows telemetry,
@@ -250,6 +433,18 @@ Do not claim OPS fleet support until real acceptance includes:
 9. quarantine/revoke stopping privileged collection/actions,
 10. resource profiling under idle/chat/background load,
 11. at least one measured optimization with before/after evidence,
-12. no arbitrary shell or privilege expansion from read-only enrollment.
+12. no arbitrary shell or privilege expansion from read-only enrollment;
+13. standing-policy maintenance completes one approved upkeep cycle with before/after verification;
+14. planned drain moves all eligible workloads before maintenance;
+15. automatic placement chooses a compatible lower-pressure host using measured resources;
+16. move a stateless workload and verify target before source retirement;
+17. move/checkpoint a stateful workload without duplicate or stale authority;
+18. fail an active worker and recover it on an eligible host;
+19. prove singleton split-brain prevention during a simulated/real partition condition;
+20. refuse incompatible, overcommitted, quarantined and privacy-prohibited targets;
+21. evacuate eligible workloads from a quarantined host;
+22. decommission a retired host only after credential, workload, routing and retention verification;
+23. move/fail over the primary Sofía runtime in a supervised test while preserving canonical identity and reporting any uncertain state;
+24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
 
-A mocked transport or caller-supplied "authenticated=true" flag is not live enrollment proof.
+A mocked transport or caller-supplied "authenticated=true" flag is not live enrollment or orchestration proof.
