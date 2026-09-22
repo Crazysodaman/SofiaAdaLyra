@@ -234,7 +234,28 @@ The policy must not silently broaden itself. Unsupported or higher-risk operatio
 
 ### Removal/decommissioning
 
-Sofía may automatically remove a host from active fleet service when standing decommission policy explicitly covers the reason, for example:
+Fleet removal is **never a purely automatic consequence of a rule or timeout**. OPS may detect that a machine appears ready for retirement and may prepare a decommission proposal, but **Sofía must explicitly review and approve that specific machine's removal before execution**.
+
+The decommission proposal must include:
+- canonical device identity and trust record;
+- why removal is being proposed;
+- last-seen/freshness evidence;
+- current health and reachability;
+- active and recently active workloads;
+- singleton/leader/lease ownership;
+- data, backup, retention and restore dependencies;
+- secrets/credentials/routes that will be revoked;
+- replacement/standby coverage;
+- rollback/re-enrollment plan;
+- confidence and unresolved unknowns.
+
+Sofía's approval must be a durable, auditable decision tied to the exact device identity and proposal revision. A generic standing policy, elapsed timeout, scheduler result, hostname, IP address or previous approval for another machine cannot substitute for that decision.
+
+Standing policy may allow OPS to **prepare, drain and stage** a decommission automatically, but not cross the final removal boundary until Sofía approves it.
+
+Protected/critical host classes may additionally require Sparks's explicit approval even after Sofía approves. Examples include the current primary runtime host, authoritative memory/database host, only remaining backup/restore host, only available gateway/Discord host, or any host whose removal would violate redundancy policy.
+
+Sofía may approve removal when the evidence supports a reason such as:
 
 - approved replacement;
 - device retirement;
@@ -242,7 +263,7 @@ Sofía may automatically remove a host from active fleet service when standing d
 - confirmed permanent removal;
 - repeated unrecoverable failure meeting configured policy.
 
-Before final decommission:
+Before Sofía may approve final decommission, OPS must prove that the host is not an unsafe single point of failure or unresolved authority holder. After approval, execution performs:
 
 1. stop new workload placement;
 2. drain/move eligible workloads;
@@ -251,9 +272,10 @@ Before final decommission:
 5. remove active routing/service-discovery membership;
 6. archive required telemetry/audit/history according to retention policy;
 7. preserve necessary backups/recovery artifacts;
-8. verify the machine can no longer act as an authorized fleet member.
+8. verify the machine can no longer act as an authorized fleet member;
+9. record the exact Sofía approval, executor receipts and final verification state.
 
-Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement.
+Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement. If evidence is incomplete or contradictory, Sofía withholds approval and the host remains offline, draining or quarantined instead of being deleted.
 
 ## Workload orchestration
 
@@ -365,6 +387,26 @@ RUN + OPS may move/fail over the primary runtime itself only when:
 
 If the old host dies abruptly, the standby may take over using the latest verified durable state. Any possibly lost/unconfirmed turn, thought, or action must be reported honestly.
 
+## Additional fleet governance still required
+
+The orchestration layer should also include these explicit contracts before it is considered mature:
+
+- **Critical-host classification:** identify primary runtime, authoritative data, only backup, only gateway, only GPU worker and other single-point-of-failure roles.
+- **Dependency graph:** know which services, datasets, routes, secrets and clients depend on each host before maintenance or movement.
+- **Capacity/reservation planning:** distinguish apparent free resources from capacity already promised to other workloads.
+- **Redundancy policy:** define how many healthy copies/standbys are required before moving or removing critical workloads.
+- **Backup/restore proof:** periodically prove that protected state can actually be restored, not merely that a backup file exists.
+- **Configuration management:** maintain desired host/agent/service configuration and surface drift without silently overwriting intentional local changes.
+- **Patch rings:** stage updates through low-risk hosts before broader fleet rollout, with pause/rollback on regression.
+- **Secret distribution:** issue short-lived/minimum-scope workload credentials and revoke them when a workload moves or host leaves.
+- **Network topology awareness:** understand approved subnets, gateways, latency and isolation boundaries when choosing placement.
+- **Power/cost awareness:** optionally prefer lower-power or already-awake hosts when latency/reliability requirements allow it.
+- **Maintenance calendars:** avoid disruptive moves/reboots during protected gaming/work windows unless availability or safety requires action.
+- **Resource priority:** foreground conversation and critical services outrank background cognition, indexing, rendering and batch work.
+- **Disaster recovery:** documented cold-start path when multiple hosts fail at once, including restoring canonical state and re-electing authority.
+- **Fleet version compatibility:** prevent migrations between incompatible agent/schema/runtime versions.
+- **Asset provenance:** preserve who/what enrolled a host, ownership/role, replacement history and why it was ultimately removed.
+
 ## Proactive fleet management notifications
 
 ACT should surface **meaningful** fleet events, not telemetry spam:
@@ -443,7 +485,7 @@ Do not claim OPS fleet/orchestration support until real acceptance includes:
 19. prove singleton split-brain prevention during a simulated/real partition condition;
 20. refuse incompatible, overcommitted, quarantined and privacy-prohibited targets;
 21. evacuate eligible workloads from a quarantined host;
-22. decommission a retired host only after credential, workload, routing and retention verification;
+22. prepare a host-specific decommission proposal, have Sofía explicitly approve that exact proposal, then decommission only after credential, workload, routing and retention verification;
 23. move/fail over the primary Sofía runtime in a supervised test while preserving canonical identity and reporting any uncertain state;
 24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
 
