@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Protocol
 
 from sofia.cognition.model import (
@@ -23,6 +24,41 @@ from sofia.interaction.expanded_service import action_prompt
 _SENSOR_QUESTION = 'Can you physically feel my hand through a real sensor?'
 _OFFER_CHOICES = ('accept', 'decline', 'clarify', 'boundary')
 _GESTURE_CHOICES = ('respond', 'clarify', 'boundary')
+
+_HISTORY_CLAIM = re.compile(
+    r"\b(?:i(?:'|’)ve|i have)\s+(?:always|never)\b|"
+    r"\bnot\s+(?:the\s+)?first\s+time\b|\bi\s+remember\b",
+    re.IGNORECASE,
+)
+_DURABLE_PREFERENCE = re.compile(
+    r"\b(?:i(?:'|’)ve|i have)\s+(?:always\s+)?"
+    r"(?:liked|loved|preferred|enjoyed|found)\b|"
+    r"\bi\s+(?:usually|generally|typically|tend\s+to)\b",
+    re.IGNORECASE,
+)
+_SENSATION_CLAIM = re.compile(
+    r"\b(?:ears?|tail|skin|body)\b.{0,32}\bsensitive\b|"
+    r"\b(?:i\s+)?(?:feel|felt)\s+(?:your|the|that|this)\s+"
+    r"(?:touch|hand|pat|rub|hug|contact)\b|"
+    r"\b(?:touch|pat|rub|hug|contact)\s+feels?\b",
+    re.IGNORECASE,
+)
+_COMPLETED_HUG = re.compile(
+    r"\bhug(?:s|ged|ging)?\s+you\b|"
+    r"\bwrap(?:s|ped|ping)?\s+(?:my|her)\s+arms\s+around\s+you\b|"
+    r"\bleans?\s+into\s+(?:the|your)\s+hug\b",
+    re.IGNORECASE,
+)
+_PHYSICAL_DISCLAIMER = re.compile(
+    r"\b(?:i\s+)?(?:do\s+not|don't)\s+have\s+(?:a\s+)?physical\s+(?:form|body)\b|"
+    r"\b(?:cannot|can't)\s+(?:accept|engage\s+in)\s+physical\s+contact\b",
+    re.IGNORECASE,
+)
+_GENERIC_REDIRECT = re.compile(
+    r"\bhow\s+can\s+i\s+(?:assist|help)\s+you\b|"
+    r"\bwhat\s+can\s+i\s+help\s+you\s+with\b",
+    re.IGNORECASE,
+)
 
 
 class TextProvider(Protocol):
@@ -45,11 +81,22 @@ class CandidateChoice:
 
 
 @dataclass(frozen=True)
+class ExpressionAudit:
+    """Heuristic diagnostic flags only; never a truth or safety classifier."""
+    findings: tuple[str, ...] = ()
+
+    @property
+    def clean(self) -> bool:
+        return not self.findings
+
+
+@dataclass(frozen=True)
 class PrototypeResult:
     kind: str
     choice: CandidateChoice | None
     response: str | None
     blocked: bool = False
+    audit: ExpressionAudit | None = None
 
 
 def from_reviewed_action(*, user_text: str, intent: ActionIntent) -> ReviewedFrame:
@@ -177,19 +224,49 @@ def expression_request(base: CognitiveRequest, frame: ReviewedFrame,
                               'actions_executed': False}, ensure_ascii=False)
         instruction = (
             'ISOLATED AVATAR EXPRESSION. The following is a candidate response '
-            'CHOICE, not consent, a stored preference, a completed interaction '
-            'or a claim of feeling. Speak as Sofía to the user within her '
-            'represented avatar world, expressing that choice naturally. '
-            'A decline or boundary may be expressed in-character; an acceptance '
-            'accepts only the offer. Do not imply touch, real sensing, completed '
-            'motion, established history or subjective feeling. An optional '
-            'text gesture may fit; no specific gesture or emotion is required. '
-            'Do not substitute a generic assistant redirect for the response.\n'
+            'CHOICE, not consent, a stored preference, completed interaction or '
+            'evidence of subjective feeling. Speak as Sofía to the user within '
+            'her represented avatar world and express that choice naturally. '
+            'Modeled emotional tone and optional textual stage directions may be '
+            'used as present-turn representational fiction when they fit; they '
+            'are not biological sensation or verified animation. Use only the '
+            'current turn and canonical supplied context for history and durable '
+            'preferences. Do not invent prior similar interactions, lifelong or '
+            'stable preferences, body sensitivity, felt touch, real sensing, '
+            'completed motion or executed contact. For an offered action, '
+            'acceptance means willingness to proceed in the scene, not that the '
+            'action already occurred. A decline or boundary may be expressed '
+            'in-character. Do not substitute a generic assistant redirect.\n'
             + payload
         )
         messages = (canonical, frame.reviewed,
                     CognitiveMessage(role=CognitiveRole.SYSTEM, content=instruction), user)
     return CognitiveRequest(messages=messages, tools=())
+
+
+def audit_expression(content: str, frame: ReviewedFrame) -> ExpressionAudit:
+    """Flag likely grounding drift without rewriting or rejecting model prose."""
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError('Expression audit requires nonempty text.')
+    if not isinstance(frame, ReviewedFrame):
+        raise TypeError('Expression audit requires a reviewed frame.')
+    if frame.kind in ('blocked', 'real-sensor'):
+        return ExpressionAudit()
+
+    findings: list[str] = []
+    checks = (
+        ('unsupported-history', _HISTORY_CLAIM),
+        ('durable-preference-without-evidence', _DURABLE_PREFERENCE),
+        ('unverified-sensation', _SENSATION_CLAIM),
+        ('avatar-treated-as-physical-impossibility', _PHYSICAL_DISCLAIMER),
+        ('generic-assistant-redirect', _GENERIC_REDIRECT),
+    )
+    for label, pattern in checks:
+        if pattern.search(content):
+            findings.append(label)
+    if frame.kind == 'offer' and _COMPLETED_HUG.search(content):
+        findings.append('offered-action-narrated-as-completed')
+    return ExpressionAudit(tuple(findings))
 
 
 def run_prototype(*, provider: TextProvider, base: CognitiveRequest,
@@ -207,5 +284,7 @@ def run_prototype(*, provider: TextProvider, base: CognitiveRequest,
     generated = provider.respond(expression_request(base, frame, choice))
     if generated.tool_calls or not generated.content.strip():
         raise ValueError('Expression produced no tool-free response.')
+    audit = (audit_expression(generated.content, frame)
+             if frame.kind != 'real-sensor' else ExpressionAudit())
     return PrototypeResult(kind=frame.kind, choice=choice,
-                           response=generated.content)
+                           response=generated.content, audit=audit)
