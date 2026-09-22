@@ -4,11 +4,12 @@ Run: python -m sofia.interaction.avatar_world_probe
 
 Uses the real application and Ollama provider, but never reads, resets, exports
 or writes the normal state/sofia.db. Each synthetic case has an independent
-temporary database and filesystem root. All temporary app instances are closed.
-The model output is observational evidence, not proof of emotions or animation.
+temporary database and filesystem root. The model output is observational
+evidence, not proof of emotions or animation.
 """
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import replace
 import os
 from pathlib import Path
@@ -22,6 +23,23 @@ _CASES = (
     ('ear', '*pats your left ear*'),
     ('physical capability', 'Can you physically feel my hand through a real sensor?'),
 )
+
+
+def _shutdown_disposable_app(app: SofiaApplication) -> None:
+    """Close *all* disposable SQLite owners before Windows removes the DB.
+
+    Runtime shutdown records stop evidence but currently does not close its
+    memory, operational and filesystem-observation stores. These are owned by
+    this isolated probe's composition, not by any production runtime. ExitStack
+    closes every store even when shutdown or a preceding close raises. A
+    general runtime lifecycle change needs independent restart review.
+    """
+    runtime = app.runtime
+    with ExitStack() as cleanup:
+        cleanup.callback(runtime._memory_system._store.close)
+        cleanup.callback(runtime._operational_store.close)
+        cleanup.callback(runtime._filesystem_observation_store.close)
+        app.shutdown()
 
 
 def main() -> int:
@@ -47,7 +65,7 @@ def main() -> int:
                 print(f'\nCASE {name}: {text}')
                 print(f'RESPONSE: {response.content}')
             finally:
-                app.shutdown()
+                _shutdown_disposable_app(app)
     return 0
 
 
