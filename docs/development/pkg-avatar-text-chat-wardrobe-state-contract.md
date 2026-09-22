@@ -22,6 +22,7 @@ The acknowledged state exposes:
 
 - monotonic wardrobe revision
 - selected garment item IDs
+- structured worn-item metadata for text grounding: item name, layer, slots, coverage, ear clearance and tail clearance
 - resolved coverage
 - outfit/preset identifier when applicable
 - presentation mode: avatar_primary or text_fallback
@@ -116,7 +117,7 @@ The focused shared-state test file covers:
 - avatar-primary initialization requires verified visual state
 - failed transition remains visible to text as failed, but never current
 
-**Recorded development result:** 17 focused tests passed on an equivalent isolated local source. Exact GitHub checkout, Windows full-suite and live INTERACT integration remain NOT RUN.
+**Recorded development result:** 19 focused tests passed on an equivalent isolated local source. Exact GitHub checkout, Windows full-suite and live INTERACT integration remain NOT RUN.
 
 ## Release boundary
 
