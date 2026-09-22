@@ -2,11 +2,11 @@
 
 **Updated 2026-09-22. PR #4 roadmap reconciliation is merged; this branch adds the documentation-only PKG-OPS proposal and does not deploy capability.**
 
-The authoritative planning roadmap is [ROADMAP.md](ROADMAP.md). It reconciles the historical package proposals into **one ordered 17-package roster**.
+The authoritative planning roadmap is [ROADMAP.md](ROADMAP.md). It reconciles the historical package proposals into **one ordered 19-package roster**.
 
 **Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum principal/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → separately authorized general web/search.
 
-**SAFE + VERIFY are continuous gates**, not late packages. REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN may advance in parallel when they do not bypass the primary release gates.
+**SAFE + VERIFY are continuous gates**, not late packages. KNOW/INTEGRATE/REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN may advance in parallel when they do not bypass the primary release gates.
 
 ## Status definitions
 
@@ -38,6 +38,8 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 | 13 | BODY | Draft PR #16 | Real Gaia calibration, hardware watchdog and independent physical stop |
 | 14 | EVOLVE | Draft PR #19 | Independently verified protected amendment workflow; never self-approve |
 | 15 | CLEAN | Draft PR #14 | Real repo inventory and preservation plan before any deletion/migration |
+| 16 | KNOW | Documentation contract on this branch | Local/manual/repository knowledge ingestion with source/version/provenance, citation, freshness and privacy |
+| 17 | INTEGRATE | Documentation contract on this branch | Typed service adapters plus governed doc→tool→test→activation self-tooling pipeline |
 | Gate | SAFE | Draft PR #18 + merged authority/integrity foundations | Trusted auth/privacy/secrets/recovery enforcement throughout |
 | Gate | VERIFY | Draft PR #8 | Authenticated revision-pinned evidence and real/live negative tests throughout |
 | Channel | Discord D0–D4 | Draft PR #5 + NET/UI/INTERACT/MEM/SAFE | Sparks-only authenticated private DM; no public/multi-user mode initially |
@@ -49,13 +51,13 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 - PR #2 remains the active INTERACT candidate and must not be declared green using older-SHA Windows results.
 - PRs #12/#13 overlap. Choose one REL implementation path before integration.
 - VERIFY PR #8 is active. PR #10 is superseded/closed.
-- Discord is a cross-package channel workstream, **not package 18**.
+- Discord is a cross-package channel workstream, **not package 20**.
 - Search remains intentionally absent from the Discord NET milestone.
 - Runtime SQLite/log artifacts currently tracked in the repository are a SAFE/CLEAN migration problem. Preserve first; do not delete state merely to make Git look tidy.
 
 ## Documentation hierarchy
 
-1. [ROADMAP.md](ROADMAP.md): ordered 17-package roster, release sequence, cross-package ownership.
+1. [ROADMAP.md](ROADMAP.md): ordered 19-package roster, release sequence, cross-package ownership.
 2. This file: compact readiness/navigation index.
 3. Package-specific readiness/review docs on each package branch: revision-specific implementation evidence.
 4. Historical batch and earlier roadmap documents: archival context only.
