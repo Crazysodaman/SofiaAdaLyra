@@ -2,7 +2,7 @@
 
 **Updated 2026-09-22. PR #4 roadmap reconciliation is merged; this branch adds the documentation-only PKG-OPS proposal and does not deploy capability.**
 
-The proposed authoritative roadmap for this branch is now [ROADMAP.md](ROADMAP.md). It reconciles the old 13-package plan, the RUN proposal, and the SOCIAL/AVATAR additions into **one ordered 17-package roster**.
+The authoritative planning roadmap is [ROADMAP.md](ROADMAP.md). It reconciles the historical package proposals into **one ordered 17-package roster**.
 
 **Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum principal/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → separately authorized general web/search.
 
