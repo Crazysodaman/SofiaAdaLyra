@@ -38,3 +38,13 @@ __all__ += [
     "PreferenceTarget", "Season", "Sentiment", "WardrobeContext", "Weather",
     "WeatherObservation", "WornEvidence", "appraise_clothing_change", "period_key",
 ]
+
+from .wardrobe_catalog import (
+    DRAFT_STATUS, GarmentBlueprint, RequestStatus, StyleInput,
+    WardrobePrebuild, build_starter_wardrobe,
+)
+
+__all__ += [
+    "DRAFT_STATUS", "GarmentBlueprint", "RequestStatus", "StyleInput",
+    "WardrobePrebuild", "build_starter_wardrobe",
+]
