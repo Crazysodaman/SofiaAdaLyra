@@ -1,10 +1,10 @@
 # Sofía Ada Lyra | master readiness index
 
-**Updated 2026-09-22. Draft PR #4; documentation-only and not merged/deployed.**
+**Updated 2026-09-22. PR #4 roadmap reconciliation is merged; this branch adds the documentation-only PKG-OPS proposal and does not deploy capability.**
 
-The proposed authoritative roadmap for this branch is now [ROADMAP.md](ROADMAP.md). It reconciles the old 13-package plan, the RUN proposal, and the SOCIAL/AVATAR additions into **one ordered 16-package roster**.
+The authoritative planning roadmap is [ROADMAP.md](ROADMAP.md). It reconciles the historical package proposals into **one ordered 17-package roster**.
 
-**Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum principal/audience boundary → Discord D0–D4 using NET + UI + SAFE → RUN verified 24/7 operation → separately authorized general web/search.
+**Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum principal/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → separately authorized general web/search.
 
 **SAFE + VERIFY are continuous gates**, not late packages. REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN may advance in parallel when they do not bypass the primary release gates.
 
@@ -30,17 +30,18 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 | 5 | NET | Draft PR #11 + merged distributed foundations | Real Discord-scoped transport enforcement; Artemis remains separate; no general web |
 | 6 | UI | Draft PR #6 plus future Discord adapter | Bind same Sofía runtime to authenticated DM/client and verify delivery/renderer receipts |
 | 7 | RUN | Draft PR #3 | Real service/supervisor, restart/backoff, resource limits, multi-day supervised acceptance |
-| 8 | ACT | Draft PR #15 + merged reflection/outbox foundations | One scheduler/outbox path, consent/quiet/stop, real delivery acknowledgement |
-| 9 | REL | Draft PRs #12 and #13 | Reconcile to one absence/reunion pipeline using authenticated MEM evidence |
-| 10 | AVATAR | Draft PR #7 | Continue offline asset/fit/rig work; real renderer/hit-test/ack later |
-| 11 | DEV | Draft PR #17 | Trusted OpenCode executor + scoped test/rollback |
-| 12 | BODY | Draft PR #16 | Real Gaia calibration, hardware watchdog and independent physical stop |
-| 13 | EVOLVE | Draft PR #19 | Independently verified protected amendment workflow; never self-approve |
-| 14 | CLEAN | Draft PR #14 | Real repo inventory and preservation plan before any deletion/migration |
+| 8 | OPS | New documentation contract on this branch | Cross-platform telemetry, historical resource profiling, trusted zero-touch host enrollment, proactive enrollment notice, and bounded IT operations |
+| 9 | ACT | Draft PR #15 + merged reflection/outbox foundations | One scheduler/outbox path, consent/quiet/stop, real delivery acknowledgement |
+| 10 | REL | Draft PRs #12 and #13 | Reconcile to one absence/reunion pipeline using authenticated MEM evidence |
+| 11 | AVATAR | Draft PR #7 | Continue offline asset/fit/rig work; real renderer/hit-test/ack later |
+| 12 | DEV | Draft PR #17 | Trusted OpenCode executor + scoped test/rollback |
+| 13 | BODY | Draft PR #16 | Real Gaia calibration, hardware watchdog and independent physical stop |
+| 14 | EVOLVE | Draft PR #19 | Independently verified protected amendment workflow; never self-approve |
+| 15 | CLEAN | Draft PR #14 | Real repo inventory and preservation plan before any deletion/migration |
 | Gate | SAFE | Draft PR #18 + merged authority/integrity foundations | Trusted auth/privacy/secrets/recovery enforcement throughout |
 | Gate | VERIFY | Draft PR #8 | Authenticated revision-pinned evidence and real/live negative tests throughout |
 | Channel | Discord D0–D4 | Draft PR #5 + NET/UI/INTERACT/MEM/SAFE | Sparks-only authenticated private DM; no public/multi-user mode initially |
-| Later | General web/search | Not implemented by design | Begins only after real Discord and verified RUN 24/7 acceptance |
+| Later | General web/search | Not implemented by design | Begins only after real Discord, OPS deployment-host telemetry/enrollment, and verified RUN 24/7 acceptance |
 
 ## Current known reconciliation points
 
@@ -48,13 +49,13 @@ Never combine test counts from unrelated SHAs or branches into a fictional mega-
 - PR #2 remains the active INTERACT candidate and must not be declared green using older-SHA Windows results.
 - PRs #12/#13 overlap. Choose one REL implementation path before integration.
 - VERIFY PR #8 is active. PR #10 is superseded/closed.
-- Discord is a cross-package channel workstream, **not package 17**.
+- Discord is a cross-package channel workstream, **not package 18**.
 - Search remains intentionally absent from the Discord NET milestone.
 - Runtime SQLite/log artifacts currently tracked in the repository are a SAFE/CLEAN migration problem. Preserve first; do not delete state merely to make Git look tidy.
 
 ## Documentation hierarchy
 
-1. [ROADMAP.md](ROADMAP.md): ordered package roster, release sequence, cross-package ownership.
+1. [ROADMAP.md](ROADMAP.md): ordered 17-package roster, release sequence, cross-package ownership.
 2. This file: compact readiness/navigation index.
 3. Package-specific readiness/review docs on each package branch: revision-specific implementation evidence.
 4. Historical batch and earlier roadmap documents: archival context only.
