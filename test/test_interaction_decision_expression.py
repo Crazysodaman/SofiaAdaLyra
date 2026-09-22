@@ -1,4 +1,5 @@
 """Pure/stubbed decision-expression contract; no SQLite or live Ollama."""
+import argparse
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from sofia.interaction.decision_expression import (
     expression_request, from_reviewed_action, from_reviewed_gesture,
     parse_choice, real_sensor_fixture, run_prototype,
 )
+from sofia.interaction.decision_expression_probe import _sample_count
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore
 
@@ -249,3 +251,14 @@ def test_ambiguous_ear_only_allows_clarification():
     assert frame.choices == ('clarify',)
     with pytest.raises(ValueError, match='choice contract'):
         parse_choice('{"choice":"respond","reason":"Guessing left."}', frame)
+
+
+@pytest.mark.parametrize(('value', 'expected'), (('1', 1), ('3', 3), ('8', 8)))
+def test_probe_sample_count_accepts_bounded_values(value, expected):
+    assert _sample_count(value) == expected
+
+
+@pytest.mark.parametrize('value', ('0', '9', '-1', 'abc'))
+def test_probe_sample_count_rejects_unbounded_or_invalid_values(value):
+    with pytest.raises(argparse.ArgumentTypeError):
+        _sample_count(value)
