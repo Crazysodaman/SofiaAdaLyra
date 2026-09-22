@@ -1,22 +1,28 @@
 # PKG-INTERACT: supervised disposable real-application gate
 
+## Previous real-model result: FAILED
+
+On Windows at `62ac46e`, the actual Qwen route decided `accept` yet saved a response saying "I'm not sure I'm ready for that right now." The audits reported no flags. After a synthetic no-hugs boundary was saved and source-attested, ordinary request assembly raised `RuntimeError` instead of allowing the staged route to persist a blocked reply. A still-open SQLite handle then caused Windows temporary-directory cleanup to raise `PermissionError`. This did **not** pass the gate. It does not show that the production database was used; the log printed a distinct temporary path.
+
+New fixes on the feature branch add a **limited lexical contradiction veto**, pre-inference blocked-offer handling, and explicit cleanup of the disposable application's remaining SQLite stores. These fixes require fresh Windows test and human review. The lexical veto can miss more subtle contradictions; passing it is not semantic or consent validation.
+
 ## Scope and prerequisites
 
-This **is not a production migration, a release or a general gesture test**. The exact grammar-reviewed user text is `I ask to hug you`. The application uses the installed `qwen3:14b` with its existing default generation settings, actual constitution/identity/personality/avatar files and real application conversation orchestration, but a fresh temporary SQLite database and temporary filesystem root. The probe is explicitly invoked with `--run-disposable`; its local environment opt-in is scoped to the Python process. It does not import any real saved chat or personal preference. Close normal Sofía before testing and keep `SOFIA_INTERACT_STAGED_OFFERS` disabled outside the probe.
+This is **not a production migration, release or general gesture test**. The exact grammar-reviewed text is `I ask to hug you`. The application uses existing installed `qwen3:14b` and default generation settings, real identity/personality/constitution/avatar files and application orchestration, but a fresh temporary SQLite DB and filesystem root. Invoke explicitly with `--run-disposable`; opt-in is local to that Python process. No real chat or personal preference is loaded.
 
-After feature-branch fast-forward and focused tests, run:
+With normal Sofía closed, `.venv` active, `feature/pkg-interact-shared-engine` selected and pulled by fast-forward, first run the focused tests in `docs/development/pkg-interact-closure-gates.md`. On failure **stop**. Only after green focused tests run:
 
 ```powershell
 python -m sofia.interaction.disposable_live_offer_probe --run-disposable
 ```
 
-The script provisions the temporary conversation, stop, revision and source-attestation schemas before starting the application. First it saves a real user-turn fixture and lets the actual Qwen decision and expression stages produce one reply. It prints the original candidate decision, diagnostic reason, heuristic flags and saved reply. **Inspect that reply yourself**: no invented physical sensation, prior history, stable preference, completed contact or animation, no forced yes/no, no generic assistant fallback. Absence of a regex flag does not certify it. The provider should be invoked twice for this first offer (decision and expression).
+The script provisions optional schemas only in the disposable DB. On the first offer it invokes Qwen's decision and expression (two provider calls). If the expression overtly contradicts its checked choice, the route **must veto it before saving an assistant reply**. The probe prints the raw decision and the raw *unsaved* expression for review and retains the saved USER turn. This is a containment result, **not a passing conversational-quality result**. If the expression clears the narrow veto, the probe shows the saved reply and its diagnostics; human inspection is still required for invented sensation, history, stable preferences, completed contact/animation, forced affection, generic fallback or subtler choice contradiction. No absence of heuristic flags certifies correctness.
 
-Next, *only within the temporary database*, the probe inserts an explicitly synthetic assistant statement, `I do not want hugs in this avatar scene.`, independently source-attests it with a test-only reviewer identifier and records a matching active `sofia/hug/*` boundary. The same offer must be blocked by trusted policy and saved with no additional provider call, regardless of the first reply. This synthetic evidence **does not represent a genuine Sofía preference**. The script checks exactly two saved offer turns and a corresponding saved assistant reply for each, then closes the app and exits the temporary directory.
+Next the probe inserts *only within its temporary DB* a clearly synthetic assistant statement, `I do not want hugs in this avatar scene.`, and test-only reviewed, source-attested `sofia/hug/*` boundary. The second offer must be blocked **before context assembly or model inference** and its bounded policy reply persisted after the transactional recheck. The script verifies exactly two saved user-offer turns; the first gets a saved assistant reply **only if it was not vetoed**, and the second gets the blocked reply. It closes conversation plus memory, operational and observation SQLite stores before removing the temporary directory on Windows. The synthetic record is **not** an actual Sofía preference.
 
 ## Failure and review rules
 
-- A traceback, unexpected inference, mismatch of saved messages, incorrect branch or missing model means **STOP**. Do not rerun against `state/sofia.db`, set a global environment flag, manually provision production interaction tables or clear local modifications.
-- A passing printed `DISPOSABLE INTEGRATION CHECKS: PASS` establishes only that these two cases ran through the application on temporary state. Quality acceptance requires reading the raw output. A Qwen response may still be ungrounded or awkward even if every assertion passes.
-- This probe does not test concurrent external SQLite writers, user authentication outside the CLI, restart recovery, natural alternatives such as `Could I hug you?`, real hardware sensing, or animated actions. Those remain separate closure checks.
-- Preserve the pre-existing modified `state/sofia.db`, its timestamped backup, independent local Ollama test edit, all provider settings, `main` and other PRs. PR #2 remains draft; merge only after Sparks explicitly approves it.
+- A traceback, unexpected inference, mismatched saved messages, incorrect branch or missing model means stop. Do not rerun against `state/sofia.db`, set the opt-in globally, provision production interaction tables, delete or reset local edits.
+- `DISPOSABLE INTEGRATION CHECKS: PASS` establishes only temporary-state routing, containment and teardown. Human-reviewed dialogue quality is a **separate** gate, and a vetoed first response does not pass it.
+- This probe does not test concurrent external writers, authentication outside the CLI, restart recovery, broader social-offer wording such as `Could I hug you?`, hardware sensing or animation. These remain closure checks.
+- Preserve modified `state/sofia.db`, timestamped backup, independent local Ollama test edit, provider settings, `main` and other PRs. PR #2 remains draft and unmerged pending explicit Sparks approval.
