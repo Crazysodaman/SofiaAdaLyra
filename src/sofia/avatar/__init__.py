@@ -12,6 +12,18 @@ from .scene import Actor, Action, Prop, Proposal, Scene, SceneConflict, SceneDen
 
 __all__ += ["Actor", "Action", "Prop", "Proposal", "Scene", "SceneConflict", "SceneDenied", "SceneError"]
 
+from .shared_wardrobe_state import (
+    PresentationMode, SharedWardrobeState, TransitionStatus, WardrobeChange,
+    WardrobeState, WardrobeStateConflict, WardrobeStateDenied,
+    WardrobeStateError, WardrobeTextProjection,
+)
+
+__all__ += [
+    "PresentationMode", "SharedWardrobeState", "TransitionStatus",
+    "WardrobeChange", "WardrobeState", "WardrobeStateConflict",
+    "WardrobeStateDenied", "WardrobeStateError", "WardrobeTextProjection",
+]
+
 from .wardrobe_routine import (
     Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
     OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
