@@ -1,6 +1,6 @@
 # PKG-SOCIAL | deferred scope and readiness roadmap
 
-**2026-09-21 | proposed package in draft PR #4, documentation-only; no SOCIAL implementation branch or active general multi-user release.** The original 13-package roadmap remains on main; SOCIAL + RUN + AVATAR would make 16 only after roadmap reconciliation. No additional user is enabled by this document.
+**2026-09-21 | proposed package in draft PR #4, documentation-only; no SOCIAL implementation branch or active general multi-user release.** The original 13-package roadmap remains on main, while draft PR #4 now contains the reconciled ordered **16-package** proposal including SOCIAL, RUN, and AVATAR. No additional user is enabled by this document.
 
 ## Current one-on-one contract
 
