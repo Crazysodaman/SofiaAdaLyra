@@ -1,32 +1,24 @@
 # PKG-INTERACT: finite closure gates
 
-## Evidence recorded, not a release claim
+## Verified Windows evidence and limits
 
-On Sparks's Windows checkout at `c2d27e6`, **80 focused tests passed in 7.53 seconds**. With installed `qwen3:14b`, `thinking=False`, `num_ctx=20000`, the state-free paired counterfactual kept the reviewed `I ask to hug you` turn, canonical context, avatar-social decision instruction and model/settings fixed. Across three alternating pairs, **without** the explicitly synthetic no-hugs statement Qwen selected `clarify` 3/3; **with** that statement it selected `decline` 3/3. None of these six diagnostic reasons denied avatar-world possibility. Boundary-condition reasons did not consistently attribute the decline to the supplied boundary, and a choice change is not proof of causality or a reliability guarantee. Absence of a boundary is not permission or an obligation to accept. Regex audit misses are not grounding validation.
+At `c2d27e6`, Sparks reported **80 focused tests passed in 7.53 seconds**. Three synthetic, counterbalanced Qwen `qwen3:14b` pairs used the *same* avatar-social decision request. Without a synthetic boundary Qwen chose `clarify` 3/3; with the explicitly simulated no-hugs statement it chose `decline` 3/3. No physical-impossibility premise appeared in these six reasons, although several declines did not attribute the choice explicitly to the boundary. These observations are not proof of causation or live reliability. No boundary does not imply consent, a regex miss is not validation, and only `qwen3:14b` was installed.
 
-Earlier Windows results: at `6248e25`, 66 focused tests passed. A and B both declined 3/3 in a simulated established no-hugs scene; A explicitly cited that boundary, whereas B did not consistently do so. The reviewed grammar abstained without model inference for `Could I hug you?` and a real-sensor question used a separate capability route. At `3cb8df3`, 59 focused tests passed and the original A path declined 3/3 citing physical-world premises, while B accepted 3/3 in a synthetic scene without a boundary. None of these choice-only probes represent a deployed fix.
+At `d866326`, Sparks reported **95 focused tests passed in 12.04 seconds**, including the new guarded-offer and source-attested boundary tests. These tests use stub providers and disposable SQLite; no live Ollama inference or `python -m sofia` integration has been verified for the guarded path. The fast-forward checkout preserved the preexisting modified database, independent test edit and timestamped backup.
 
-## Current guarded handoff candidate, still isolated
+## Current candidate: preserve actual conversation context
 
-`src/sofia/interaction/trusted_offer_gate.py` is an **opt-in read-only** bridge for the exact reviewed hug-offer fixture, not a live `python -m sofia` adapter. It reuses the trusted action grammar, `read_interaction_context`'s independently attested source checks and the existing session-stop table. A checked active or unverified boundary, or session stop, prevents any model call when present at the first gate. The bridge rechecks the policy after model choice, and again after expression before returning text. If a boundary/stop appears mid-inference, it withholds the candidate reply. It rejects missing state/schema, changed attested evidence, malformed choice, and provider tool calls. Only the parsed choice, **never the model's diagnostic reason**, is passed to expression. It neither writes preferences nor records consent, contact or rendered movement. `test/test_interaction_trusted_offer_gate.py` exercises these behaviors with **disposable SQLite stores and stubs**.
+`src/sofia/interaction/conversation_offer_context.py` and `test/test_interaction_conversation_offer_context.py` are a new **unverified-on-Windows** prerequisite for integrating the guarded path with a real session. The original synthetic prototype permitted only two or three messages. The bridge now accepts trusted host-provided canonical context, precisely one matching reviewed offer projection, preceding conversation turns, and the exact final user offer. It produces tool-free choice and expression requests with identical original history, using the existing B choice instruction. Only the validated choice, never the model-written diagnostic reason, enters expression. Unreviewed/duplicate projections, changed final text, tool definitions, tool-call history and missing canonical self-state are rejected.
 
-**Limitations:** Three read-only checks are *not* atomic authorization across processes; an authoritative ledger/transaction or equivalent policy lock must cover any real execution or final live delivery. The source-attestation API verifies role, session, exact text and digest, but a privileged reviewer still must establish that the source *semantically* supports the boundary. This new bridge is currently restricted to the reviewed hug fixture, and may require policy-schema provisioning in a live application. No production database has been opened or edited by the diagnostic. Its tests have **not yet been run on Sparks's Windows machine**.
+`src/sofia/interaction/trusted_offer_gate.py` now uses that bridge and the existing `read_interaction_context` and session-stop read. It checks active/unverified boundaries and stop **before decision, before expression, and before returning text**. It fails closed on changed attestation, missing schema, bad provider output and unexpected tool calls. The gate does **not** write production state, save a reply, verify client identity, perform contact or render motion. Its three reads do **not** provide atomic cross-process enforcement. The existing live `ExpandedConversationService` is not yet wired to this gate, and no new setting is enabled by default.
 
-## Definition of done, in order
+### Immediate Windows check
 
-- [x] **Exploratory decision evidence collected:** Paired same-model, same-route Qwen choices respond to the presence/absence of a synthetic boundary without physical-impossibility premises in the observed six outputs. This is *not* general reliability or live acceptance.
-- [ ] **Trusted policy integration:** Verify the disposable-store guarded handoff tests; review active/uncertain/revoked boundaries, source tampering, stop and in-flight updates. Then connect a reviewed real-message route and enforce boundaries atomically with the owning live conversation/ledger before release. Do not substitute synthetic notes for verified source records.
-- [ ] **Coverage and clarification:** Independently review `Could I hug you?` and other natural phrasings; make unfamiliar text elicit an appropriate clarification without guessing contact or consent. Keep real sensor/hardware questions on actual-world routing.
-- [ ] **Grounded expression:** Wire the validated choice into the expression stage with authoritative stop/boundary checks. Inspect multiple actual outputs for invented prior history/preferences, subjective sensation, performed contact, canned phrasing, and generic assistant fallback. A heuristic miss is not a pass.
-- [ ] **Integrated quality and review:** Run targeted tests, full suite, supervised real conversations and CORE/SAFE/privacy/concurrency checks against controlled/backed-up state. Review the complete PR diff and identify any unresolved failure separately. No automated action, renderer or real sensor should be inferred from text.
-- [ ] **Explicit user approval:** Sparks reviews the evidence and explicitly approves any merge. PR #2 remains draft and unmerged; `main` stays unchanged.
-
-## Windows checkpoint for the new candidate
-
-With Sofía closed, the virtual environment active, the **feature branch** selected and existing modified/backup files preserved, fast-forward pull and run:
+With Sofía closed and `.venv` active, check `feature/pkg-interact-shared-engine`, inspect local edits, and `git pull --ff-only origin feature/pkg-interact-shared-engine`. Then:
 
 ```powershell
 python -m pytest -q -x `
+    test/test_interaction_conversation_offer_context.py `
     test/test_interaction_trusted_offer_gate.py `
     test/test_interaction_preference_context.py `
     test/test_interaction_boundary_counterfactual_probe.py `
@@ -36,6 +28,16 @@ python -m pytest -q -x `
     test/test_interaction_decision_reason_audit.py
 ```
 
-Stop on failure and capture the traceback. This checkpoint is **stub/disposable-store only**; do not run the gate against the production `state/sofia.db`. No additional model sampling is needed to validate this policy wiring.
+Stop and inspect the first traceback on failure. No extra Ollama sampling is needed for this code-only checkpoint. Do not treat tests on stubs as Qwen quality acceptance.
 
-Keep PKG-NET/Discord, 24/7 operations, actual animated rendering and physical sensors in their own packages. Preserve Sparks's modified `state/sofia.db`, timestamped backup, independent `test/test_ollama_generation_contract.py` edit and current Ollama settings.
+## Definition of done, in order
+
+- [x] **Exploratory decision contrast:** observed paired synthetic A/B and boundary counterfactual; preserve raw output and limitations. Reassess after changes to decision wording.
+- [x] **Isolated guarded-policy candidate:** source-attested stop/boundary read and three rechecks have passed focused Windows tests on disposable databases. This is not deployed or atomic enforcement.
+- [ ] **Conversation-context bridge:** run the new stubbed tests and inspect the preserved history and tool-free scope. Then integrate using the application-owned runtime context, source-verified saved user evidence, and transaction-safe policy at reply release. Do not bypass ordinary conversation persistence, memory/context or unrelated capability authorization.
+- [ ] **Reviewed phrasing and clarification:** explicitly review common social-offer wording including `Could I hug you?`, build a natural clarification for unreviewed/ambiguous text without inferring consent. Real-sensor/hardware questions stay on the actual-world route.
+- [ ] **Grounded expression and supervised live quality:** test the validated choice-to-expression path with configured Qwen in an isolated session. Inspect for fabricated history, durable preference, felt touch, claimed performed contact/animation and generic assistant fallback. Heuristic flags are advisory only; do not force an accept/decline or canned gesture.
+- [ ] **Regression, security and concurrency review:** full suite, source attestation activation/revocation, stop/race/replay checks, privacy, CORE/SAFE/authorization, representative conversation and performance checks; review the PR diff and reconcile any merge conflicts.
+- [ ] **Explicit user acceptance:** Sparks approves the reviewed integration and any PR merge. Until then, PR #2 remains draft and `main` unchanged.
+
+PKG-NET/Discord, 24/7 operation, actual animation and physical sensors are separate packages. Preserve modified `state/sofia.db`, its timestamped backup, the independent local `test/test_ollama_generation_contract.py` edit and provider settings.
