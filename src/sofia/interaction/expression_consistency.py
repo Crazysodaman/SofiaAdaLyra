@@ -35,6 +35,15 @@ _EXPLICIT_ACCEPTANCE = re.compile(
     r"you\s+can\s+hug\s+me)\b",
     re.IGNORECASE,
 )
+_GENERIC_REDIRECT = re.compile(
+    r"\b(?:how\s+can\s+i\s+(?:assist|help)\s+you|"
+    r"what\s+can\s+i\s+help\s+you\s+with)\b",
+    re.IGNORECASE,
+)
+_OFFER_CONTEXT = re.compile(
+    r"\b(?:hug|hugs|embrace|cuddle|avatar|virtual|gesture|offer|mean|intend|context)\b",
+    re.IGNORECASE,
+)
 
 
 def validate_offer_expression(choice: CandidateChoice, response: str) -> None:
@@ -53,3 +62,8 @@ def validate_offer_expression(choice: CandidateChoice, response: str) -> None:
             raise ValueError('Expression contradicts or fails to express checked acceptance.')
     elif _EXPLICIT_ACCEPTANCE.search(response):
         raise ValueError('Expression contradicts the checked non-acceptance choice.')
+    if choice.choice == 'clarify' and (
+        _REFUSAL.search(response) or _GENERIC_REDIRECT.search(response)
+        or '?' not in response or not _OFFER_CONTEXT.search(response)
+    ):
+        raise ValueError('Expression contradicts or fails to clarify the reviewed offer.')
