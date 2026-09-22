@@ -1,6 +1,6 @@
 # Sofía Ada Lyra: 17-package delivery roadmap
 
-**Planning revision:** 2026-09-22 (America/Chicago). **Status:** documentation candidate in draft PR #4; not merged, deployed, or release authority. PR #1 merged to `main` on 2026-09-20. Active implementation remains isolated in its package branches and draft PRs. This roadmap reconciles the original 13 packages with **PKG-SOCIAL**, **PKG-RUN**, **PKG-AVATAR**, and **PKG-OPS**.
+**Planning revision:** 2026-09-22 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 and the roadmap reconciliation PR #4 are merged. Active implementation remains isolated in its package branches and draft PRs. The roadmap now contains **17 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, and PKG-OPS.
 
 > **Core invariant:** Sofía's canonical identity, Constitution, represented embodiment, evidence, memory, authority, and capabilities remain independent of replaceable models, hosts, processes, clients, Discord, voices, avatars, and robots. Model output is never proof of authorization, sensing, execution, delivery, or subjective experience.
 
