@@ -234,7 +234,7 @@ The policy must not silently broaden itself. Unsupported or higher-risk operatio
 
 ### Removal/decommissioning
 
-**Final removal of a fleet machine always requires Sparks' explicit approval for that machine.** A standing policy may let Sofía prepare the removal, but it cannot substitute for the final approval.
+**Final removal of a fleet machine always requires Sparks' explicit approval for that machine.** Sofía may propose and prepare the action, but she may not self-approve it. A standing policy cannot substitute for Sparks' final approval.
 
 Sofía may automatically move a host into a removal-candidate/draining/quarantined state when evidence supports reasons such as:
 
@@ -255,7 +255,7 @@ Before final decommission:
 5. prepare removal from active routing/service-discovery membership;
 6. archive required telemetry/audit/history according to retention policy;
 7. preserve necessary backups/recovery artifacts;
-8. request and record Sparks' explicit approval for the specific host removal;
+8. request and record **Sparks' explicit approval** for the specific host removal; Sofía cannot satisfy this gate herself;
 9. after approval, revoke credentials, remove routing/service-discovery membership, complete decommissioning, and verify the machine can no longer act as an authorized fleet member.
 
 Emergency security quarantine may immediately block scheduling, actions, and privileged communications without waiting for approval, but quarantine is not deletion/decommissioning.
