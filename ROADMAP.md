@@ -27,7 +27,7 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | 5 | **PKG-NET · Scoped networking and distributed operation** | Authenticated network routes and bounded remote capabilities | Discord-only route preflight in PR #11; Artemis distributed foundations exist on main. Real trusted transport/DNS/TLS/redirect enforcement and real Artemis acceptance remain. No general web/search grant. |
 | 6 | **PKG-UI · Clients, Discord adapter, voice, and workbench** | Authenticated interfaces to the same Sofía, delivery/renderer acknowledgments, accessible text fallback | Workbench prototype in PR #6. Real Discord adapter, desktop/web/mobile clients, voice, and production renderer remain unaccepted. |
 | 7 | **PKG-RUN · 24/7 lifecycle and supervision** | External service supervision, single active instance, restart/backoff, bounded periodic cognition, health/recovery | Draft PR #3 has disabled-by-default periodic opportunity mechanics. No OS service, supervisor, soak test, or verified 24/7 uptime yet. |
-| 8 | **PKG-OPS · Systems operations, diagnostics, performance, and fleet enrollment** | Cross-platform host telemetry, performance/resource profiling, IT diagnostics, trusted zero-touch enrollment, configuration drift and bounded maintenance operations | **New roadmap package.** Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics for local and enrolled remote hosts, including Raspberry Pi telemetry. New hosts may be discovered and auto-enrolled without per-host prompts only when a standing policy, approved discovery scope and cryptographic/bootstrap trust proof all succeed; otherwise remain untrusted candidates and are reported. Real agent, remote telemetry, enrollment, history, hardening, and performance acceptance are not yet implemented. |
+| 8 | **PKG-OPS · Fleet operations, diagnostics, performance, and orchestration** | Cross-platform telemetry, trusted zero-touch enrollment/decommissioning, autonomous upkeep, configuration drift, workload placement/failover, and bounded maintenance | Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics across enrolled Windows/Linux/Raspberry Pi hosts. Under standing policy Sofía may discover, enroll, maintain, drain, quarantine, and remove fleet members; perform approved upkeep; and place or move eligible managed workloads according to capability, health, load, thermals, maintenance state, and policy. Real agent, orchestration runtime, remote telemetry/history, hardening, and migration/failover acceptance are not yet implemented. |
 | 9 | **PKG-ACT · Goals, initiative, and outreach** | Evidence-based goals, spontaneous candidate reflection, opt-in outreach, quiet/busy/stop controls, bounded helpers | Draft PR #15 provides outreach eligibility preflight; main has an unsent outbox/reflection foundations. Real sender/delivery receipts and integrated RUN scheduling remain. |
 | 10 | **PKG-REL · Relationship continuity** | Evidence-linked preferences, nuanced warmth/disagreement, absence/reunion awareness without clinginess or invented history | Draft PRs #12 and #13 contain overlapping absence/reunion candidates. Reconcile into **one** pipeline using MEM originals and authenticated actor evidence before integration. |
 | 11 | **PKG-AVATAR · Canonical virtual body and wardrobe** | Canonical adult avatar assets, wardrobe, rig, region mapping, renderer-ready scenes and props | Draft PR #7 contains substantial offline body/wardrobe/scene/tooling candidates. Finished art, rig, renderer, authenticated animation receipts, and live acceptance remain. |
@@ -66,6 +66,104 @@ Sofía may proactively discover, contact, enroll, monitor, and report new machin
 - Fleet telemetry uses a normalized schema but preserves honest capability differences: unsupported GPU/temperature/power metrics remain `unknown`, especially on small systems such as Raspberry Pis.
 
 **Acceptance:** detect a new authorized host, perform challenge/attestation, enroll it read-only, collect normalized CPU/RAM/storage/network/thermal metrics, retain history across restart, notify Sparks once without prompting, and deny/quarantine spoofed, replayed, wrong-network, duplicate-key and revoked hosts. Repeat across at least one Windows host, one Linux host, and one Raspberry Pi-class host before claiming cross-platform fleet support.
+
+## OPS autonomous fleet lifecycle and workload orchestration
+
+Once a host is enrolled and its standing policy permits management, Sofía may manage that host's lifecycle without waiting for a per-action prompt for ordinary approved upkeep.
+
+### Fleet lifecycle
+
+Managed host states are explicit: **candidate → enrolled → healthy/degraded → maintenance → draining → quarantined → decommissioned**.
+
+Within approved policy Sofía may:
+
+- keep the OPS agent and approved managed services current using signed/version-pinned packages;
+- restart failed approved services and recover them through documented runbooks;
+- rotate/prune approved logs and caches within retention rules;
+- perform bounded database/filesystem maintenance when that operation is explicitly typed and backup/rollback requirements are satisfied;
+- schedule approved patch/update work inside maintenance windows;
+- detect pending reboot and perform an authorized reboot only when workload-drain, availability and rollback policy allow it;
+- drain a host before maintenance or decommissioning;
+- remove a machine from the active fleet when it is intentionally retired, repeatedly unreachable beyond policy, replaced, revoked, or explicitly marked for removal;
+- revoke device credentials, stop scheduling new work there, archive required telemetry/audit history, and verify no active Sofía workload remains before decommissioning is final.
+
+Unexpected disappearance is **not** automatic deletion. An unreachable machine becomes degraded/offline first so temporary outages do not erase fleet identity or history.
+
+### Workload registry
+
+Every movable Sofía component must declare a workload contract including:
+
+- stable workload identity and version;
+- CPU/RAM/GPU/VRAM/storage/network requirements;
+- supported OS/architecture/runtime;
+- whether GPU acceleration is optional or required;
+- state model: stateless, externally persisted, replicated, or checkpointable;
+- required data/secrets and audience/privacy scope;
+- restart/checkpoint/restore procedure;
+- health/readiness probe;
+- maximum acceptable interruption;
+- affinity/anti-affinity rules;
+- singleton/leader requirements;
+- placement restrictions and prohibited hosts;
+- rollback target.
+
+Examples of potentially movable workloads include model inference/Ollama workers, embedding/index workers, background reflection jobs, telemetry aggregation, approved batch analysis, Discord helpers, avatar rendering, and later search workers. A workload is not movable merely because it is a process.
+
+### Placement and movement
+
+Sofía may automatically choose an enrolled eligible host using current evidence such as:
+
+- CPU and memory pressure;
+- GPU/VRAM availability and supported acceleration;
+- thermals/throttling/power state;
+- disk health/capacity/latency;
+- network reachability/latency;
+- current foreground use such as gaming or interactive work;
+- maintenance/drain/quarantine state;
+- workload privacy/data locality;
+- expected latency and energy/resource budget;
+- host reliability history.
+
+Movement uses **drain/checkpoint-or-stop → transfer/reacquire approved state → start on target → readiness/health verify → switch traffic/lease → retire old instance**. If the workload/platform genuinely supports live migration, a specialized adapter may use it; generic arbitrary-process live migration is not assumed.
+
+### Canonical Sofía continuity
+
+Sofía's identity is not a PID, VM, GPU, or hostname. Distributed workers are replaceable execution components. Canonical identity/Constitution/relationship/memory authority remains protected and versioned outside any single worker.
+
+For singleton responsibilities, use durable leases/epochs/fencing so two hosts cannot both believe they are the active authority after a partition or failover. A newly started replacement must prove it has the current lease/state before becoming active.
+
+If the primary Sofía runtime host fails and an approved standby exists, RUN + OPS may fail over the runtime to that host using the latest verified durable state, then notify Sparks of the failover and any lost/unconfirmed work. Do not claim seamless continuity if state or messages could not be confirmed.
+
+### Autonomous upkeep limits
+
+Standing policy may pre-authorize low/medium-risk maintenance and workload moves so ordinary fleet care does not require Sparks to approve every event. Higher-risk operations remain separately gated, especially:
+
+- destructive storage actions;
+- firmware/BIOS changes;
+- security-policy weakening;
+- protected identity/Constitution changes;
+- broad credential/permission changes;
+- irreversible database/schema operations without validated backup/rollback;
+- moving data to a host whose privacy/audience/storage policy does not permit it.
+
+Every autonomous action records reason, evidence, policy/grant, before/after state, executor receipt, verification result and rollback outcome.
+
+### Fleet orchestration acceptance
+
+Before claiming autonomous orchestration, demonstrate:
+
+1. enroll a new trusted host and announce it;
+2. schedule a stateless workload onto the best eligible host;
+3. move it because of measurable load/thermal/maintenance pressure;
+4. verify target health before retiring the source;
+5. drain a host for planned maintenance and return it to service;
+6. detect a failed host and fail over an eligible workload without double-running singleton authority;
+7. safely handle a stateful/checkpointable workload with verified state handoff;
+8. refuse a move to an incompatible or privacy-prohibited host;
+9. quarantine a compromised/revoked host and evacuate eligible workloads;
+10. decommission a retired host only after workload/credential/telemetry checks;
+11. preserve canonical Sofía identity and durable state across worker/runtime movement;
+12. report the meaningful change to Sparks once, without noisy per-sample chatter.
 
 ## Relationship, spontaneous thought, and absence behavior
 
@@ -107,8 +205,8 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 3. Integrate MEM originals/provenance/privacy.
 4. Establish SOCIAL's minimum Sparks-only principal/audience boundary.
 5. Complete real Discord D0–D4 using narrow NET + UI + SAFE.
-6. Establish OPS minimum read-only fleet telemetry and trusted autonomous enrollment for deployment hosts.
-7. Deploy and verify RUN 24/7 lifecycle/recovery.
+6. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
+7. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
 8. Only then introduce separately authorized general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.
