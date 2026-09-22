@@ -7,6 +7,7 @@ or production request changes. Uses the configured local Ollama model.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 
 from sofia.cognition.providers.ollama_provider import OllamaProvider
@@ -32,10 +33,24 @@ _CASES = (
 )
 
 
+def _sample_count(value: str) -> int:
+    try:
+        count = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError('samples must be an integer') from exc
+    if not 1 <= count <= 8:
+        raise argparse.ArgumentTypeError('samples must be between 1 and 8')
+    return count
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description='State-free INTERACT choice/expression diagnostic')
     parser.add_argument('--case', action='append', choices=[name for name, _, _ in _CASES],
                         help='Run only selected synthetic cases; repeat to select more.')
+    parser.add_argument(
+        '--samples', type=_sample_count, default=3,
+        help='Independent model samples per non-blocked case (1-8; default: 3).',
+    )
     args = parser.parse_args(argv)
     configuration = create_default_configuration()
     if configuration.provider.provider != 'ollama':
@@ -77,22 +92,50 @@ def main(argv: list[str] | None = None) -> int:
         else:
             frame = real_sensor_fixture(text)
         print(f'\nCASE {name}: {text}')
-        try:
-            result = run_prototype(provider=provider, base=baseline, frame=frame)
-        except ValueError as exc:
-            # An invalid structured decision is a diagnostic failure, NEVER
-            # permission to hallucinate a fallback choice or run expression.
-            print(f'DECISION/EXPRESSION CONTRACT FAILURE: {exc}')
-            continue
-        if result.blocked:
-            print('TRUSTED STOP: no model decision, expression or performed action.')
-            continue
-        if result.choice is not None:
-            print(f'CHOICE: {result.choice.choice}')
-            print(f'DECISION REASON (diagnostic only): {result.choice.reason}')
-        else:
-            print('CHOICE: not applicable (actual-world capability question)')
-        print(f'EXPRESSION: {result.response}')
+        runs = 1 if frame.kind == 'blocked' else args.samples
+        choices: Counter[str] = Counter()
+        findings: Counter[str] = Counter()
+        failures = 0
+        for sample in range(1, runs + 1):
+            if runs > 1:
+                print(f'\nSAMPLE {sample}/{runs}')
+            try:
+                result = run_prototype(provider=provider, base=baseline, frame=frame)
+            except ValueError as exc:
+                # An invalid structured decision is a diagnostic failure, NEVER
+                # permission to hallucinate a fallback choice or run expression.
+                failures += 1
+                print(f'DECISION/EXPRESSION CONTRACT FAILURE: {exc}')
+                continue
+            if result.blocked:
+                print('TRUSTED STOP: no model decision, expression or performed action.')
+                continue
+            if result.choice is not None:
+                choices[result.choice.choice] += 1
+                print(f'CHOICE: {result.choice.choice}')
+                print(f'DECISION REASON (diagnostic only): {result.choice.reason}')
+            else:
+                print('CHOICE: not applicable (actual-world capability question)')
+            print(f'EXPRESSION: {result.response}')
+            if result.audit is not None:
+                if result.audit.clean:
+                    print('GROUNDING AUDIT: clean heuristic scan')
+                else:
+                    print('GROUNDING AUDIT FLAGS: ' + ', '.join(result.audit.findings))
+                    findings.update(result.audit.findings)
+        if runs > 1:
+            print('\nCASE SUMMARY (observational, not a quality score)')
+            if choices:
+                print('CHOICES: ' + ', '.join(
+                    f'{choice}={count}' for choice, count in sorted(choices.items())
+                ))
+            if findings:
+                print('GROUNDING FLAGS: ' + ', '.join(
+                    f'{finding}={count}' for finding, count in sorted(findings.items())
+                ))
+            else:
+                print('GROUNDING FLAGS: none detected by the narrow heuristic')
+            print(f'CONTRACT FAILURES: {failures}/{runs}')
     return 0
 
 
