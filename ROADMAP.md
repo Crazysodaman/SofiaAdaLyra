@@ -27,7 +27,7 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | 5 | **PKG-NET · Scoped networking and distributed operation** | Authenticated network routes and bounded remote capabilities | Discord-only route preflight in PR #11; Artemis distributed foundations exist on main. Real trusted transport/DNS/TLS/redirect enforcement and real Artemis acceptance remain. No general web/search grant. |
 | 6 | **PKG-UI · Clients, Discord adapter, voice, and workbench** | Authenticated interfaces to the same Sofía, delivery/renderer acknowledgments, accessible text fallback | Workbench prototype in PR #6. Real Discord adapter, desktop/web/mobile clients, voice, and production renderer remain unaccepted. |
 | 7 | **PKG-RUN · 24/7 lifecycle and supervision** | External service supervision, single active instance, restart/backoff, bounded periodic cognition, health/recovery | Draft PR #3 has disabled-by-default periodic opportunity mechanics. No OS service, supervisor, soak test, or verified 24/7 uptime yet. |
-| 8 | **PKG-OPS · Fleet operations, diagnostics, performance, and orchestration** | Cross-platform telemetry, trusted zero-touch enrollment/decommissioning, autonomous upkeep, configuration drift, workload placement/failover, and bounded maintenance | Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics across enrolled Windows/Linux/Raspberry Pi hosts. Under standing policy Sofía may discover, enroll, maintain, drain, quarantine, and remove fleet members; perform approved upkeep; and place or move eligible managed workloads according to capability, health, load, thermals, maintenance state, and policy. Real agent, orchestration runtime, remote telemetry/history, hardening, and migration/failover acceptance are not yet implemented. |
+| 8 | **PKG-OPS · Fleet operations, diagnostics, performance, and orchestration** | Cross-platform telemetry, trusted zero-touch enrollment, Sparks-approved decommissioning, autonomous upkeep, configuration drift, workload placement/failover, and bounded maintenance | Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics across enrolled Windows/Linux/Raspberry Pi hosts. Under standing policy Sofía may discover, enroll, maintain, drain, quarantine, and prepare machines for removal; perform approved upkeep; and place or move eligible managed workloads according to capability, health, load, thermals, maintenance state, and policy. **Final machine removal always requires Sparks's explicit approval for that exact host/proposal.** Real agent, orchestration runtime, remote telemetry/history, hardening, and migration/failover acceptance are not yet implemented. |
 | 9 | **PKG-ACT · Goals, initiative, and outreach** | Evidence-based goals, spontaneous candidate reflection, opt-in outreach, quiet/busy/stop controls, bounded helpers | Draft PR #15 provides outreach eligibility preflight; main has an unsent outbox/reflection foundations. Real sender/delivery receipts and integrated RUN scheduling remain. |
 | 10 | **PKG-REL · Relationship continuity** | Evidence-linked preferences, nuanced warmth/disagreement, absence/reunion awareness without clinginess or invented history | Draft PRs #12 and #13 contain overlapping absence/reunion candidates. Reconcile into **one** pipeline using MEM originals and authenticated actor evidence before integration. |
 | 11 | **PKG-AVATAR · Canonical virtual body and wardrobe** | Canonical adult avatar assets, wardrobe, rig, region mapping, renderer-ready scenes and props | Draft PR #7 contains substantial offline body/wardrobe/scene/tooling candidates. Finished art, rig, renderer, authenticated animation receipts, and live acceptance remain. |
@@ -75,6 +75,8 @@ Once a host is enrolled and its standing policy permits management, Sofía may m
 
 Managed host states are explicit: **candidate → enrolled → healthy/degraded → maintenance → draining → quarantined → decommissioned**.
 
+**Removal authority:** Sofía may recommend, stage, drain, and quarantine a host, but she may not permanently remove/decommission any machine without Sparks explicitly approving that exact machine's decommission proposal.
+
 Within approved policy Sofía may:
 
 - keep the OPS agent and approved managed services current using signed/version-pinned packages;
@@ -84,7 +86,7 @@ Within approved policy Sofía may:
 - schedule approved patch/update work inside maintenance windows;
 - detect pending reboot and perform an authorized reboot only when workload-drain, availability and rollback policy allow it;
 - drain a host before maintenance or decommissioning;
-- remove a machine from the active fleet when it is intentionally retired, repeatedly unreachable beyond policy, replaced, revoked, or explicitly marked for removal;
+- prepare a machine-specific removal proposal when it is intentionally retired, repeatedly unreachable beyond policy, replaced, revoked, or explicitly marked for removal; final removal requires Sparks's explicit approval;
 - revoke device credentials, stop scheduling new work there, archive required telemetry/audit history, and verify no active Sofía workload remains before decommissioning is final.
 
 Unexpected disappearance is **not** automatic deletion. An unreachable machine becomes degraded/offline first so temporary outages do not erase fleet identity or history.
@@ -161,7 +163,7 @@ Before claiming autonomous orchestration, demonstrate:
 7. safely handle a stateful/checkpointable workload with verified state handoff;
 8. refuse a move to an incompatible or privacy-prohibited host;
 9. quarantine a compromised/revoked host and evacuate eligible workloads;
-10. decommission a retired host only after workload/credential/telemetry checks;
+10. decommission a retired host only after workload/credential/telemetry checks **and Sparks's explicit approval of that exact removal**;
 11. preserve canonical Sofía identity and durable state across worker/runtime movement;
 12. report the meaningful change to Sparks once, without noisy per-sample chatter.
 
