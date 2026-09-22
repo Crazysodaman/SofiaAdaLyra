@@ -1,34 +1,59 @@
 # Sofía Ada Lyra: PKG-AVATAR delivery roadmap
 
-**Updated 2026-09-21. Status:** proposed package contract in draft PR #4, **not merged**. [PKG-AVATAR draft PR #7](https://github.com/Crazysodaman/SofiaAdaLyra/pull/7) contains headless wardrobe and virtual-prop code plus a new seasonal/activity-aware **wardrobe proposal** module, finer gauntlet/body clothing slots, separate reviewed Sparks/Sofía modeled preferences, chosen-vs-unintended expressive cues and a **fully dressed Blender A0 placeholder script**. Earlier equivalent isolated AVATAR source passed **58 focused Linux tests** (96 alongside UI fixtures); an expanded separate isolated local selection of original AVATAR plus new routine and static Blender checks passed **96 tests**. These are different source revisions, not one aggregated release suite. GitHub checkout, Windows/full suite, actual Blender execution, art fitting and real renderer tests have **not run**. No nude base mesh, finished clothes artwork, rig, rendered character, actual adult asset verification or authenticated animation receipt exists. Review its [package-specific readiness roadmap](https://github.com/Crazysodaman/SofiaAdaLyra/blob/feature/pkg-avatar-offline-wardrobe-scene/docs/development/pkg-avatar-readiness-roadmap.md), [dynamic wardrobe/Blender contract](https://github.com/Crazysodaman/SofiaAdaLyra/blob/feature/pkg-avatar-offline-wardrobe-scene/docs/development/pkg-avatar-dynamic-wardrobe-blender-contract.md) and [Blender starter instructions](https://github.com/Crazysodaman/SofiaAdaLyra/blob/feature/pkg-avatar-offline-wardrobe-scene/tools/avatar/README.md). This is an additive proposal, not a replacement for the [original root roadmap](ROADMAP.md) or the [current proposed master readiness](MASTER-ROADMAP-READINESS.md). Full technical and safety contract: [`docs/development/pkg-avatar-embodiment-wardrobe-objects.md`](docs/development/pkg-avatar-embodiment-wardrobe-objects.md).
+**Updated 2026-09-22. Status:** proposed package in draft PR #4 with implementation candidates in draft PR #7; not merged or deployed. The ordered 16-package project roster now lives in [ROADMAP.md](ROADMAP.md). AVATAR is package 10 in the ordered readiness plan, while UI owns presentation/transport and INTERACT owns interaction semantics.
 
-## Package roster reconciliation
+## Ownership boundary
 
-The current main root roadmap lists **13** packages. The prior draft adds **PKG-SOCIAL** and **PKG-RUN** for a proposed **15**. Adding **PKG-AVATAR · Canonical virtual body, complete wardrobe and interactive objects** yields a proposed **16-package roster**. The earlier addendum's “15” describes its earlier proposal but is superseded by this expanded proposal. Merge/reconcile the earlier 14-package RUN branch roadmap, this addendum and the original 13-package roster before any authoritative root dashboard change. PKG-UI owns presentation and transport, PKG-INTERACT owns canonical event and emotion integration, while AVATAR owns actual art/mesh/rig/clothes/props/scene/motion rendering assets. Do not rename or double-count existing packages.
+**AVATAR owns:** canonical virtual-body art assets, mesh/topology, rig, hair/face/eyes/ears/tail representation, clothing assets and layering, fit anchors, region-compatible geometry, virtual props/scenes, authoring/export pipeline, and renderer-ready animation assets.
 
-## Scope, progress and stage map
+**INTERACT owns:** canonical interaction events, text/avatar input semantics, boundaries/consent, contextual reaction coordination, and lab behavior.
 
-| Stage | Named delivery | Prepared vs outstanding | Release proof |
-| --- | --- | --- | --- |
-| **A0 · Canon and asset architecture** | Audit `src/sofia/data/avatar.json`; map canonical measurements/appearance, adult design, editable art pipeline, rig and whole-region registry | Offline wardrobe/prop metadata and **Blender dressed blockout script** in PR #7; actual Blender execution, canonical asset mapping and renderer choice not approved | Pinned SHA, actual Blender run and reviewed canonical-to-asset map/license and explicit unknowns; no protected changes |
-| **A1 · Unclothed adult modeling base** | Complete appropriately proportioned art mesh, hair, face, eyes, ears/tail, rig, stable region IDs, grip/garment sockets | **NOT BUILT**. A0 primitive blockout is **not** an A1 model. Unclothed base is controlled modeling/fit asset, never default public display | Actual editable source/runtime asset, proportions/rig review, restricted preview denied by independent policy |
-| **A2 · Full layered wardrobe** | Underwear/base layers through full canonical engineer clothing, footwear/gloves/coat and optional reviewed garments, layering, tail/ear fit, presets and undo | Metadata, fine slot definitions, season/activity/lounge/rotation **suggestion code** and source-linked modeled taste in PR #7; physical art/fitting, authentic weather and preference persistence **NOT BUILT** | Dressed startup, checked late lounge/seasonal variation, separately verified preference history, and tested actual movement/coverage/clipping and missing-asset privacy fallback |
-| **A3 · Real renderer/animation** | Responsive optional view, coherent eyes/face/ears/tail/hands/posture, clothes physics, verified action receipts and text fallback | **NOT BUILT**, no real click or animation proof | Real rendered hit tests, authorization, stop, animation ack and no click-through or fictitious sensation |
-| **A4 · Shared interactive scene** | Versioned virtual mugs/notebooks/tools/desk/props for Sparks and Sofía, offer/accept/decline, persisted state | Headless scene transitions with simulated receipts in PR #7; no real renderer or durable integration | Actual two-actor handoff, dedupe/conflict/cancel, restart and privacy test; no imaginary physical device |
-| **A5 · Expansion/polish** | Broader garments/props, contextual gestures, accessibility, LOD/GPU caps, vetted imports and later supervised Sofía-authored outfit drafts | Reviewed Blender/asset-authoring **contract only**; no autonomous Blender executor or produced outfit meshes | Sandbox/diff/license/human approval, real asset inspection and rollback, live low-resource/accessibility/privacy tests |
+**UI owns:** actual client rendering, transport, input routing, accessibility, and acknowledged playback.
 
-**Wardrobe behavior addition:** Internally use multi-layer fine clothing slots (e.g., separate forearm/wrist gauntlets) but present complete outfits. Suggest outfits based on host-provided local time/season, activity and *optional* genuinely sourced recent weather, including an oversized T-shirt + sweatpants during appropriate late-night downtime. Allow optional daily/weekly/monthly variation from actual outfit-worn receipts; preserve signature looks and source-linked reviewed Sparks vs Sofía taste at outfit/item/combination granularity. Chosen vs unintended dress can supply *possible* comfort, confidence, embarrassment or excitement cues, never guaranteed subjective emotions or permission. **Automatic selection remains covered**, private clothing and restricted preview require separate authenticated review. No weather web requests are authorized during the initial Discord-only NET stage. Sofía can first suggest combinations of approved garments; Blender-generated new meshes require later reviewed sandboxed authoring with DEV/SAFE/VERIFY gates, not arbitrary production Python.
+**BODY owns:** real sensors, motors, and physical embodiment.
 
-**Nude base definition:** an underlying unambiguously adult unclothed character art/rigging asset required to fit layered clothing, not a default public display or permission to touch intimate regions. Unknown/public audience defaults to a covered/canonical outfit. Restricted visibility needs independently verified session/viewer eligibility, where permitted, and must not leak via previews, caches, streams or screenshots. Clothing and objects do not imply physical warmth, sensation, robot authority or unrestricted device control.
+No avatar event proves physical sensation, and no virtual interaction grants Gaia authority.
 
-**Suggested initial props:** notebook/pen (implemented only as actual permitted virtual writing), mug (grasp/place), multimeter (simulated unless separately fed trusted data), flashlight (virtual beam), toolkit, chair and model train. A narrative proposal never counts as executed without trusted renderer/executor acknowledgment. Proposed private reflection pages are not automatically shared or shown in the desk; UI/MEM/SAFE own sources, audiences and disclosure.
+## Current candidate state
 
-## Position in the existing sequence
+Draft PR #7 contains substantial offline body/wardrobe/scene/tooling work, including:
+- wardrobe metadata and routines,
+- fine clothing/body slots,
+- modeled preference metadata,
+- virtual scenes/props,
+- dressed GLB/blockout tooling,
+- canonical body/fit contracts,
+- a measured proxy/export workflow.
 
-1. Keep CORE current-revision verification → INTERACT text/headless and supervised live quality → MEM durable originals/privacy. A0 and offline art/metadata may advance in parallel without delaying those gates.
-2. Keep the minimum single-Sparks authenticated audience boundary for Discord D0–D4, using only Discord-required NET destinations. General multi-user work is explicitly deferred.
-3. Verified externally supervised RUN 24/7 follows accepted Discord; **a finished avatar is not a prerequisite**.
-4. A3/A4 depend on accepted INTERACT/UI/SAFE/MEM and actual render/input/receipts. Separate hardware/body authorization remains necessary for any real-world prop action.
-5. General internet searching/browsing begins only **after both Discord and real 24/7 acceptance**, with an independent grant. Weather network fetching is also deferred; current wardrobe weather input is optional externally supplied evidence, not a fetching capability.
+Its reported tests are **isolated revision-specific evidence**, not one integrated release suite. Finished canonical art, production rig, live renderer, authenticated animation receipts, and whole-system acceptance remain open.
 
-**Open decisions for the AVATAR review:** actual 2D/3D format/renderer, canonical fine geometry, licensed mesh/art pipeline, Blender installation/version and secure script execution, private-preview UX, approved underwear/garment details, physics fidelity, minimum catalogue and lounge/signature looks, taste evidence/retention/correction, selected seasonal locale and rotation cadence, garment/hit-test slot mapping, import provenance, scene persistence, client OS/VRAM budget and who may view restricted material. Never invent missing canonical specifications, subjective feelings or accepted tests. **No package merge or deployment occurred in this documentation update.**
+## Stage map
+
+| Stage | Delivery | Current boundary |
+| --- | --- | --- |
+| **A0 · Canon/asset architecture** | Audit canonical appearance/measurements, editable pipeline, licenses, region/fit mapping | Candidate metadata/tooling exists; actual reviewed production asset pipeline still open |
+| **A1 · Canonical adult modeling base** | Complete adult art mesh, face/hair/eyes/ears/tail, rig-ready topology, stable regions/anchors | Measured proxy/contracts exist; finished production model and rig are not accepted |
+| **A2 · Full layered wardrobe** | Canonical engineer outfit plus reviewed additional garments, layering, tail/ear fit, presets/undo | Metadata/routines exist; real fitted assets, clipping/motion/coverage review remain |
+| **A3 · Renderer/animation** | Face/eyes/ears/tail/hands/posture, clothes behavior, input hit tests, trusted animation receipts | Not live accepted |
+| **A4 · Shared interactive scene** | Versioned virtual objects/desk/props, offer/accept/decline, persistent scene state | Headless candidates exist; production persistence/renderer integration remain |
+| **A5 · Expansion/polish** | More garments/props, accessibility, LOD/GPU caps, vetted imports, reviewed authoring | Future reviewed expansion |
+
+## Privacy and representation
+
+The underlying adult modeling base exists for clothing fit/rigging and is not a default public display mode. Unknown/public audiences default to an appropriate covered representation. Restricted previews require independently verified audience/session policy and must not leak through thumbnails, caches, streams, or shared workbench objects.
+
+Wardrobe or avatar output may influence **represented** comfort/confidence/embarrassment/excitement cues when supported by context, but never proves subjective bodily sensation.
+
+## Sequence
+
+- A0/A1/A2 offline asset work may continue without blocking CORE → INTERACT → MEM → Discord → RUN.
+- Text/headless INTERACT must remain functional without AVATAR.
+- A3/A4 require accepted INTERACT + UI + SAFE + MEM boundaries and real renderer acknowledgements.
+- General web/weather fetching remains unavailable during Discord-only NET. Wardrobe may consume externally supplied trusted weather evidence, but may not fetch it itself.
+- Real-world prop/device actions require separate BODY/NET/SAFE authorization.
+
+## Review decisions still open
+
+Renderer/2D-vs-3D stack, canonical fine geometry, licensed art sources, Blender/runtime versions, rig/physics fidelity, private-preview UX, garment catalogue, scene persistence, GPU budget, import provenance, and exactly who may access restricted representations.
+
+No protected identity/Constitution change, production DB mutation, package merge, or deployment is implied by AVATAR documentation.
