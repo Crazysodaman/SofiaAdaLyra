@@ -38,6 +38,28 @@ def _show(label, result, reply: str) -> None:
     print('SAVED ASSISTANT REPLY:', reply)
 
 
+def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
+    """Close ALL app-owned SQLite handles before Windows removes temp files.
+
+    SofiaApplication.shutdown() closes conversation, but current runtime
+    lifetime intentionally retains separate memory, operational and workspace
+    observation connections. Close them here ONLY on the disposable instance.
+    """
+    try:
+        if started:
+            app.shutdown()
+        else:
+            app.conversation.close()
+    finally:
+        try:
+            app.runtime.memory_system._store.close()
+        finally:
+            try:
+                app.runtime.operational_store.close()
+            finally:
+                app.runtime.filesystem_observation_store.close()
+
+
 def run_disposable_probe() -> None:
     """Construct the actual app with an independently isolated state path."""
     with TemporaryDirectory(prefix='sofia-interact-supervised-') as directory:
@@ -60,26 +82,27 @@ def run_disposable_probe() -> None:
         print('Human inspection is required; absent heuristic flags prove nothing.')
 
         app = SofiaApplication(config)
-        # Provision the optional interaction schemas ONLY on the temporary DB.
-        InteractionLedger(state)
-        verifier = VerifiedInteractionState(
-            state, InteractionCatalog(('head', 'left-hand', 'right-hand')),
-        )
         started = False
         outcomes = []
-        original_gate = live_offer_service.run_guarded_offer
+        provider_outputs = []
+        try:
+            # Provision optional schemas ONLY in this temporary database.
+            InteractionLedger(state)
+            verifier = VerifiedInteractionState(
+                state, InteractionCatalog(('head', 'left-hand', 'right-hand')),
+            )
+            original_gate = live_offer_service.run_guarded_offer
 
-        def observe_gate(**kwargs):
-            result = original_gate(**kwargs)
-            outcomes.append(result)
-            return result
+            def observe_gate(**kwargs):
+                result = original_gate(**kwargs)
+                outcomes.append(result)
+                return result
 
-        # Environment changes live only within this process and this scope.
-        with patch.dict(os.environ, {
-            'SOFIA_INTERACT_STAGED_OFFERS': '1',
-            'SOFIA_IDLE_REFLECTIONS': '0',
-        }):
-            try:
+            # Environment changes are scoped to this Python process.
+            with patch.dict(os.environ, {
+                'SOFIA_INTERACT_STAGED_OFFERS': '1',
+                'SOFIA_IDLE_REFLECTIONS': '0',
+            }):
                 app.start()
                 started = True
                 session = app.conversation.session
@@ -87,15 +110,36 @@ def run_disposable_probe() -> None:
                     raise RuntimeError('Application did not start its conversation.')
                 engine = app.runtime.cognitive_system.engine
                 provider = engine.provider
-                with (patch.object(provider, 'respond', wraps=provider.respond) as spy,
+                original_respond = provider.respond
+
+                def observe_provider(request):
+                    response = original_respond(request)
+                    provider_outputs.append(response)
+                    return response
+
+                with (patch.object(provider, 'respond', side_effect=observe_provider) as spy,
                       patch.object(live_offer_service, 'run_guarded_offer',
                                    side_effect=observe_gate)):
-                    first = app.conversation.respond(OFFER)
-                    if len(outcomes) != 1 or outcomes[-1].status != 'responded':
-                        raise RuntimeError('First offer did not complete the guarded path.')
-                    if spy.call_count != 2:
-                        raise RuntimeError('Expected choice and expression inference only.')
-                    _show('no recorded boundary', outcomes[-1], first.content)
+                    first = None
+                    try:
+                        first = app.conversation.respond(OFFER)
+                    except ValueError as exc:
+                        if 'Expression contradicts' not in str(exc):
+                            raise
+                        if len(provider_outputs) != 2 or spy.call_count != 2:
+                            raise RuntimeError('Unexpected inference count on expression veto.') from exc
+                        print('\nCASE: no recorded boundary')
+                        print('GATE STATUS: expression-contradiction-veto; no assistant reply released')
+                        print('RAW DECISION (diagnostic only):', provider_outputs[0].content)
+                        print('RAW EXPRESSION (NOT SAVED):', provider_outputs[1].content)
+                        if app.conversation.messages()[-1].role is not ConversationRole.USER:
+                            raise RuntimeError('Vetoed expression unexpectedly persisted an assistant reply.')
+                    else:
+                        if len(outcomes) != 1 or outcomes[-1].status != 'responded':
+                            raise RuntimeError('First offer did not complete the guarded path.')
+                        if spy.call_count != 2:
+                            raise RuntimeError('Expected choice and expression inference only.')
+                        _show('no recorded boundary', outcomes[-1], first.content)
 
                     # Explicitly test-only simulated Sofía statement, followed
                     # by independently attested policy data in disposable DB.
@@ -116,8 +160,9 @@ def run_disposable_probe() -> None:
                     )
                     print('\nSynthetic no-hugs boundary recorded and source-attested in TEMP DB.')
                     before = spy.call_count
+                    prior_outcomes = len(outcomes)
                     second = app.conversation.respond(OFFER)
-                    if len(outcomes) != 2 or outcomes[-1].status != 'blocked-boundary':
+                    if len(outcomes) != prior_outcomes + 1 or outcomes[-1].status != 'blocked-boundary':
                         raise RuntimeError('Second offer was not blocked by verified boundary.')
                     if spy.call_count != before:
                         raise RuntimeError('Model inference occurred despite active boundary.')
@@ -126,18 +171,24 @@ def run_disposable_probe() -> None:
                     saved = app.conversation.messages()
                     if (sum(m.role is ConversationRole.USER and m.content == OFFER
                             for m in saved) != 2
-                            or sum(m.role is ConversationRole.ASSISTANT and
-                                   m.content == first.content for m in saved) < 1
-                            or saved[-1].content != second.content):
+                            or saved[-1].content != second.content
+                            or saved[-1].role is not ConversationRole.ASSISTANT):
                         raise RuntimeError('Saved conversation did not match probe replies.')
+                    if first is not None and not any(
+                        m.role is ConversationRole.ASSISTANT and m.content == first.content
+                        for m in saved
+                    ):
+                        raise RuntimeError('First completed reply was not saved.')
+                    if first is None and any(
+                        m.role is ConversationRole.ASSISTANT and
+                        m.content == provider_outputs[1].content for m in saved
+                    ):
+                        raise RuntimeError('Vetoed expression leaked into conversation history.')
                     print('\nDISPOSABLE INTEGRATION CHECKS: PASS')
                     print('Provider calls for two offers:', spy.call_count)
                     print('This does NOT certify the human-reviewed quality of reply one.')
-            finally:
-                if started:
-                    app.shutdown()
-                else:
-                    app.conversation.close()
+        finally:
+            _close_disposable_app(app, started=started)
     print('Temporary database directory exited; no production DB was opened.')
 
 
