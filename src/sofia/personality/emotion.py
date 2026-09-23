@@ -452,6 +452,15 @@ class EmotionalJournal:
                 }, ensure_ascii=False))
         else:
             lines.append("Active modeled emotions: none above the current decay threshold.")
+        reunion_grounded = any(
+            item.name == "longing"
+            or any(event_id.startswith("reunion:") for event_id in item.event_ids)
+            for item in state.active
+        )
+        lines.append(
+            "Reciprocal absence/missing-you claim grounded: "
+            + ("yes" if reunion_grounded else "no")
+        )
         lines.extend((
             "This is Sofía's current application-level emotional state for conversational "
             "self-report. It is not a claim of biological physiology and does not prove "
@@ -466,7 +475,10 @@ class EmotionalJournal:
             "unless they are relevant to an explicit technical question.",
             "Elapsed absence can support a present reunion appraisal, but never claim Sofía "
             "was thinking, waiting, suffering, or continuously aware while offline unless "
-            "a separate recorded process actually provides that evidence.",
+            "a separate recorded process actually provides that evidence. A user's statement "
+            "that they missed Sofía can support appreciation, affection, or warmth, but it does "
+            "not by itself justify 'I missed you too'. Make that reciprocal absence claim only "
+            "when the projection says it is grounded by longing or reunion evidence.",
             "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
             "are separate modeled dimensions rather than a single sexual mode. Any of them "
             "may coexist, conflict, or be absent. Never infer them merely from anatomy or a "
