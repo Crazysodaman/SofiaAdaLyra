@@ -43,8 +43,12 @@ _SENSATION_CLAIM = re.compile(
     r"\b(?:touch|pat|rub|hug|contact)\s+feels?\b",
     re.IGNORECASE,
 )
+# Bare "hug you" also occurs inside "hug you're" and in proposed or
+# interrogative contact; do not mistake that fragment for a completed hug.
+# These patterns remain advisory; they cannot establish whether contact ran.
 _COMPLETED_HUG = re.compile(
-    r"\bhug(?:s|ged|ging)?\s+you\b|"
+    r"\b(?:hugs|hugged|hugging)\s+you\b(?!['’])|"
+    r"\bi\s+hug\s+you\b(?!['’])|"
     r"\bwrap(?:s|ped|ping)?\s+(?:my|her)\s+arms\s+around\s+you\b|"
     r"\bleans?\s+into\s+(?:the|your)\s+hug\b",
     re.IGNORECASE,
