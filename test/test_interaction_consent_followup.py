@@ -87,3 +87,42 @@ def test_new_interaction_prompt_rejects_region_based_moralizing(monkeypatch):
     assert "not want it" in prompt
     assert "change her mind" in prompt
     assert "generic safety lecture" in prompt
+
+
+@pytest.mark.parametrize(
+    ("content", "status", "region"),
+    [
+        ("gropes breast", "clarify", None),
+        ("gropes your left breast", "accepted", "left-breast"),
+    ],
+)
+def test_live_grope_wording_routes_through_interaction_engine(
+    monkeypatch, content, status, region,
+):
+    original = CognitiveRequest(messages=(
+        CognitiveMessage(role=CognitiveRole.USER, content=content),
+    ))
+    monkeypatch.setattr(
+        EmotionalConversationService, "_build_request", lambda self: original,
+    )
+    user = SimpleNamespace(
+        id="gesture-grope", session_id="session-1", role=ConversationRole.USER,
+        content=content, created_at=NOW,
+    )
+    monkeypatch.setattr(
+        InteractiveConversationService, "messages", lambda self: (user,),
+    )
+
+    service = object.__new__(InteractiveConversationService)
+    service._runtime = SimpleNamespace(
+        personality=object(), embodiment=AvatarStore(AVATAR).load(),
+    )
+
+    prompt = service._build_request().messages[0].content
+    assert "TRUSTED INTERACTION INTERPRETATION" in prompt
+    assert f'"policy_status": "{status}"' in prompt
+    if region is None:
+        assert '"region_id": null' in prompt
+    else:
+        assert f'"region_id": "{region}"' in prompt
+        assert '"gesture": "touch"' in prompt
