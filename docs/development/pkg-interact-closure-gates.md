@@ -15,6 +15,21 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 **Closure may not be restored from code inspection alone.** The new focused tests must pass on Windows and the real configured Ollama model must pass a supervised conversational probe without the failures above. The unrelated local `18000` versus `32768` Ollama contract edit remains preserved and must not be overwritten merely to obtain a green suite.
 
+### Reopened live-behavior acceptance
+
+Run the focused offline regression slice first:
+
+```powershell
+python -m pytest -q test/test_current_emotional_state.py test/test_response_quality_hardening.py test/test_interaction_consent_followup.py test/test_emotional_journal.py test/test_emotional_conversation_integration.py test/test_ollama_repetition_guard.py test/test_interaction_chat_projection.py test/test_interaction_context_hygiene.py
+```
+
+Then run the actual configured model and application against disposable state only:
+
+```powershell
+python -m sofia.interaction.live_behavior_probe --run-disposable
+```
+
+Human review must confirm that `hru` and `are you happy` answer the emotional/social question directly; generic service closers do not recur; `I missed you` does not manufacture reciprocal longing without absence evidence; sexual/intimate wording routes through the same contextual interaction system rather than a special sexual mode or blanket anatomy refusal; `why` and consent follow-ups remain tied to the preceding represented interaction; and Sofía can express yes, no, uncertainty, not-now, or changed-mind boundaries without treating user desire as her consent.
 
 ## Verified Windows evidence
 
