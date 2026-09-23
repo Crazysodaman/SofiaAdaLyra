@@ -15,6 +15,9 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProvider, LLMProviderError
+from sofia.cognition.repetition_guard import (
+    build_rephrase_request, is_near_duplicate_reply,
+)
 from sofia.config.model import ProviderConfiguration
 
 
@@ -26,6 +29,24 @@ class OllamaProvider(LLMProvider):
         self.client = client if client is not None else Client()
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+        response = self._respond_once(request)
+        if not is_near_duplicate_reply(request, response):
+            return response
+
+        # No tools or external actions are available on this path. Retrying
+        # generates text only; neither candidate is saved by the provider.
+        # If the second call fails or still repeats, preserve the first result
+        # rather than accepting an empty answer or looping indefinitely.
+        try:
+            alternate = self._respond_once(build_rephrase_request(request))
+        except LLMProviderError:
+            return response
+        if (alternate.content.strip() and not alternate.tool_calls
+                and not is_near_duplicate_reply(request, alternate)):
+            return alternate
+        return response
+
+    def _respond_once(self, request: CognitiveRequest) -> CognitiveResponse:
         messages = [self._message_to_ollama(message) for message in request.messages]
         tools = [self._tool_to_ollama(tool) for tool in request.tools]
         kwargs = self._build_chat_kwargs(request=request, messages=messages, tools=tools)
