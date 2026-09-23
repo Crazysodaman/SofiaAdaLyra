@@ -1,8 +1,8 @@
 """Offline bridge from durable Discord inbox rows to Sofía conversation output.
 
 The bridge stages a response in the durable outbox. It never contacts Discord.
-If conversation generation fails after a durable processing claim, the outcome
-is marked unknown and is not automatically retried.
+A supervised channel/session binding must be active before generation, and the
+same binding generation must still be active when outbound authority is attached.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Protocol
 from uuid import uuid4
 
+from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.store import (
     DiscordInboxStore,
     DiscordOutboxRecord,
@@ -33,6 +34,12 @@ class BridgeDisposition(str, Enum):
     OUTCOME_UNKNOWN = "outcome_unknown"
     NOT_FOUND = "not_found"
     NOT_READY = "not_ready"
+    UNBOUND = "unbound"
+    PAUSED = "paused"
+    REVOKED = "revoked"
+    SESSION_MISMATCH = "session_mismatch"
+    WRONG_OWNER = "wrong_owner"
+    BLOCKED = "blocked"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,13 +59,17 @@ class DiscordConversationBridge:
         self,
         *,
         store: DiscordInboxStore,
+        bindings: DiscordBindingStore,
         conversation: ConversationResponder,
     ) -> None:
         if not isinstance(store, DiscordInboxStore):
             raise TypeError("store must be DiscordInboxStore")
+        if not isinstance(bindings, DiscordBindingStore):
+            raise TypeError("bindings must be DiscordBindingStore")
         if not hasattr(conversation, "respond") or not hasattr(conversation, "session_id"):
             raise TypeError("conversation must expose session_id and respond(content)")
         self._store = store
+        self._bindings = bindings
         self._conversation = conversation
 
     def process(
@@ -74,6 +85,8 @@ class DiscordConversationBridge:
             message_id=message_id,
         )
         if existing is not None:
+            if self._bindings.outbox_binding(existing.response_id) is None:
+                return BridgeResult(BridgeDisposition.BLOCKED, existing)
             return BridgeResult(
                 BridgeDisposition.ALREADY_PREPARED,
                 existing,
@@ -84,6 +97,29 @@ class DiscordConversationBridge:
             raise RuntimeError(
                 "Discord conversation bridge requires an active conversation session"
             )
+
+        binding = self._bindings.get(
+            bot_user_id=bot_user_id,
+            channel_id=channel_id,
+        )
+        if binding is None:
+            return BridgeResult(BridgeDisposition.UNBOUND)
+        if binding.state is BindingState.PAUSED:
+            return BridgeResult(BridgeDisposition.PAUSED)
+        if binding.state is BindingState.REVOKED:
+            return BridgeResult(BridgeDisposition.REVOKED)
+        if binding.session_id != session_id:
+            return BridgeResult(BridgeDisposition.SESSION_MISMATCH)
+
+        inbound = self._store.get(
+            bot_user_id=bot_user_id,
+            channel_id=channel_id,
+            message_id=message_id,
+        )
+        if inbound is None:
+            return BridgeResult(BridgeDisposition.NOT_FOUND)
+        if inbound.author_user_id != binding.owner_user_id:
+            return BridgeResult(BridgeDisposition.WRONG_OWNER)
 
         processing_token = str(uuid4())
         claim = self._store.claim_for_processing(
@@ -101,23 +137,6 @@ class DiscordConversationBridge:
                 InboxClaimResult.NOT_READY: BridgeDisposition.NOT_READY,
             }[claim]
             return BridgeResult(disposition)
-
-        inbound = self._store.get(
-            bot_user_id=bot_user_id,
-            channel_id=channel_id,
-            message_id=message_id,
-        )
-        if inbound is None:
-            self._store.mark_outcome_unknown(
-                bot_user_id=bot_user_id,
-                channel_id=channel_id,
-                message_id=message_id,
-                processing_token=processing_token,
-                error_kind="MissingInboxAfterClaim",
-            )
-            raise DiscordBridgeError(
-                "Discord inbox disappeared after a durable processing claim"
-            )
 
         try:
             response = self._conversation.respond(inbound.content)
@@ -147,5 +166,11 @@ class DiscordConversationBridge:
             raise DiscordBridgeError(
                 "Discord conversation response outcome is unknown; automatic retry is blocked"
             ) from exc
+
+        if not self._bindings.attach_outbox(
+            outbox,
+            expected_generation=binding.generation,
+        ):
+            return BridgeResult(BridgeDisposition.BLOCKED, outbox)
 
         return BridgeResult(BridgeDisposition.PREPARED, outbox)
