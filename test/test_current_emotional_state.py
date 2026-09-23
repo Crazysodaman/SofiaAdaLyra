@@ -59,12 +59,18 @@ def test_i_missed_you_is_a_real_relational_cue_not_a_script(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
     assert journal.record_user_cue(
         message_id="m1", content="I missed you", occurred_at=NOW, subject="Sparks",
+        allow_legacy_affection=False,
     )
     event = journal.recent(now=NOW)[0]
     assert event.subject == "Sparks"
     assert event.current_emotions == ("appreciation", "affection", "warmth")
     assert not journal.record_user_cue(
-        message_id="m2", content="I did not miss you", occurred_at=NOW, subject="Sparks",
+        message_id="m2", content="Good girl. *Head pats.*", occurred_at=NOW,
+        subject="Sparks", allow_legacy_affection=False,
+    )
+    assert not journal.record_user_cue(
+        message_id="m3", content="I did not miss you", occurred_at=NOW, subject="Sparks",
+        allow_legacy_affection=False,
     )
 
 
