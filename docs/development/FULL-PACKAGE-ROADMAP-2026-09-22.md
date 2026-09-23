@@ -1,3 +1,5 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
 **Revision:** 2026-09-22 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication or automatic failover. This document expands the authoritative [ROADMAP.md](../../ROADMAP.md), the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
@@ -39,7 +41,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 02. PKG-INTERACT | interaction semantics and virtual lab
 
-- **Current:** substantial candidate in draft PR #2; earlier Windows evidence does not certify its latest head.
+- **Current:** **accepted and merged via PR #2 on 2026-09-23**. Windows closure evidence: 97 focused tests; four-turn disposable real-Qwen application probe; qualified repository run 1665 passed / 2 skipped / 1 unrelated local test deselected; final closure audit 60/60. Staged offers remain off until separately reviewed production schema provisioning.
 - **Build:** shared typed text/avatar/scene interaction events, contextual gestures/touch/body-region semantics, emotion/reaction coordination, consent/boundaries and accessible text-only output; headless virtual lab and clear distinction between text, rendered animation, measured sensation and actual robot action.
 - **Depends on:** CORE/SAFE/VERIFY; AVATAR/UI for visual acknowledgment; BODY separately for physical effects.
 - **Exit:** current-head focused + integrated + live-model interaction tests, believable varied expression without fabricated sensory receipts, and negative consent/scope tests.
@@ -181,7 +183,7 @@ Local authorized docs may be read before general web. KNOW preserves provenance;
 
 ## Immediate engineering order from the current baseline
 
-1. Confirm current `main`/candidate PR revisions, worktree and tests; complete INTERACT live-quality gate without treating old-SHA results as current.
+1. Treat merged INTERACT as the accepted interaction foundation; preserve its off-by-default staged-offer and schema-migration limitation, then advance MEM integration.
 2. Inventory all actual state/authority/outbox/SQLite files and create a consistent **test-only** off-host backup/restore baseline; protect tracked runtime data.
 3. Finish MEM originals/privacy and SOCIAL minimum Sparks identity; complete Discord D0-D4 via NET/UI/SAFE.
 4. Add local RUN service supervisor and externally enforced stop; begin trusted read-only OPS agent/enrollment on real deployment hosts. Verify process-crash restart.
