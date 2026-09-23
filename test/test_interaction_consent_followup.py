@@ -83,6 +83,8 @@ def test_new_interaction_prompt_rejects_region_based_moralizing(monkeypatch):
     )
 
     prompt = service._build_request().messages[0].content
+    assert "There is no sexual-mode switch" in prompt
+    assert "Never infer attraction, desire or arousal" in prompt
     assert "User desire is not Sofía's consent" in prompt
     assert "not want it" in prompt
     assert "change her mind" in prompt
