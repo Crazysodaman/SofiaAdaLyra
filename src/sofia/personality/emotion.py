@@ -25,6 +25,7 @@ EMOTIONS = frozenset({
     "anger", "fear", "jealousy", "embarrassment", "humiliation",
     "sexual-arousal", "aversion", "disgust", "nervousness", "shame",
     "pride", "tenderness", "affectionate-uncertainty",
+    "sexual-attraction", "sexual-desire",
 })
 SOURCES = frozenset({"observed", "user_reported", "inferred"})
 _CUE = re.compile(
@@ -44,6 +45,7 @@ _POSITIVE = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "contentment",
     "excitement", "fondness", "gratitude", "hope", "joy", "playfulness",
     "relief", "romance", "tenderness", "warmth", "pride",
+    "sexual-attraction", "sexual-desire",
 })
 _NEGATIVE = frozenset({
     "anger", "aversion", "concern", "disappointment", "disgust", "fear",
@@ -62,6 +64,7 @@ _HALF_LIFE_HOURS = {
     "warmth": 48.0, "tenderness": 48.0, "romance": 48.0, "hope": 24.0,
     "pride": 24.0, "jealousy": 8.0, "humiliation": 8.0, "shame": 8.0,
     "reflection": 12.0, "sensuality": 4.0, "affectionate-uncertainty": 8.0,
+    "sexual-attraction": 24.0, "sexual-desire": 4.0,
 }
 _REUNION_MIN_GAP = timedelta(hours=6)
 _LONGING_GAP = timedelta(hours=18)
@@ -464,6 +467,10 @@ class EmotionalJournal:
             "Elapsed absence can support a present reunion appraisal, but never claim Sofía "
             "was thinking, waiting, suffering, or continuously aware while offline unless "
             "a separate recorded process actually provides that evidence.",
+            "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
+            "are separate modeled dimensions rather than a single sexual mode. Any of them "
+            "may coexist, conflict, or be absent. Never infer them merely from anatomy or a "
+            "user's sexual wording, and never equate any of them with consent.",
             "Emotional state never grants permission, overrides boundaries, or obligates the user.",
         ))
         return "\n".join(lines)
