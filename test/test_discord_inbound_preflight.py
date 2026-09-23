@@ -9,16 +9,26 @@ from sofia.discord.inbound import DiscordTextEvent, InboundDenial, screen_text_d
 
 OWNER = 123456789012345678
 BOT = 987654321098765432
+CHANNEL = 2002
 
 
-def config(enabled: bool = True) -> SingleUserDiscordConfig:
-    return SingleUserDiscordConfig(OWNER, BOT, enabled)
+def config(
+    enabled: bool = True,
+    *,
+    dm_channel_id: int | None = None,
+) -> SingleUserDiscordConfig:
+    return SingleUserDiscordConfig(
+        OWNER,
+        BOT,
+        enabled,
+        dm_channel_id=dm_channel_id,
+    )
 
 
 def event(**changes: object) -> DiscordTextEvent:
     original = DiscordTextEvent(
         message_id=1001,
-        channel_id=2002,
+        channel_id=CHANNEL,
         content="Hi Sofía 🦊",
         facts=DiscordInboundFacts(OWNER, BOT, "dm", None, False, None, True),
     )
@@ -29,6 +39,18 @@ def test_accepts_exact_owner_text_without_changing_content() -> None:
     source = event()
     result = screen_text_dm(config(), source)
     assert result.accepted and result.event is source and result.denial is None
+
+
+def test_bound_dm_channel_is_enforced() -> None:
+    assert screen_text_dm(
+        config(dm_channel_id=CHANNEL),
+        event(),
+    ).accepted
+    denied = screen_text_dm(
+        config(dm_channel_id=CHANNEL),
+        event(channel_id=3003),
+    )
+    assert denied.denial is InboundDenial.WRONG_CHANNEL
 
 
 @pytest.mark.parametrize(

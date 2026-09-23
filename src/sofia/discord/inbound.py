@@ -20,6 +20,7 @@ from sofia.discord.access import (
 
 class InboundDenial(str, Enum):
     MALFORMED_EVENT = "malformed_event"
+    WRONG_CHANNEL = "wrong_channel"
     UNSUPPORTED_CONTENT = "unsupported_content"
     EMPTY_CONTENT = "empty_content"
     CONTENT_TOO_LONG = "content_too_long"
@@ -70,6 +71,11 @@ def screen_text_dm(
         or type(event.content) is not str
     ):
         return InboundScreen(None, InboundDenial.MALFORMED_EVENT)
+    if (
+        config.dm_channel_id is not None
+        and event.channel_id != config.dm_channel_id
+    ):
+        return InboundScreen(None, InboundDenial.WRONG_CHANNEL)
     if event.attachment_count:
         return InboundScreen(None, InboundDenial.UNSUPPORTED_CONTENT)
     if not event.content.strip():
