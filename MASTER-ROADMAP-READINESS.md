@@ -1,6 +1,8 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # Sofía Ada Lyra | master readiness index
 
-**Updated:** 2026-09-22 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
+**Updated:** 2026-09-23 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
 
 ## Authoritative planning and acceptance documents
 
@@ -32,7 +34,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 | Order | Package | Current evidence-based location/status | Next gate |
 | ---: | --- | --- | --- |
 | 1 | CORE | Foundations merged via PR #1 | Fresh integrated suite and supervised identity/personality/restart/latency review after INTERACT settles. |
-| 2 | INTERACT | Candidate draft PR #2 | Current-head focused/coordinated and real-model interaction/grounding quality tests, then full suite. |
+| 2 | INTERACT | **Accepted foundation merged via PR #2** | Keep staged offers off until separately reviewed production schema provisioning; downstream dependency is MEM. |
 | 3 | MEM | SQLite foundations on `main`; original retrieval preflight draft PR #9 | Durable originals, provenance, privacy, consistent cross-store backup and independent restore. |
 | 4 | SOCIAL | Minimum principal/audience boundary designed | Authenticated Sparks-only identity and negative cross-user/audience leakage before Discord. |
 | 5 | NET | Distributed foundations on `main`, Discord-only route preflight draft PR #11 | Real authenticated narrow transport/DNS/TLS/redirect/remote-host enforcement; no general web. |
@@ -62,7 +64,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 ## Reconciliation notes
 
 - PR #1 merged on 2026-09-20; older documents still describing it as open are historical.
-- PR #2's current head cannot be certified using older Windows results.
+- PR #2 merged on 2026-09-23 after Windows closure evidence: 97 focused, disposable real-Qwen four-turn pass, qualified repository 1665 passed / 2 skipped / 1 unrelated local test deselected, and final 60/60 closure audit.
 - REL PRs #12/#13 overlap; reconcile them before merging both paths.
 - VERIFY PR #8 is active; #10 is superseded/closed.
 - Discord and watchdog/replication are cross-package workstreams, **not twentieth/twenty-first packages**.
