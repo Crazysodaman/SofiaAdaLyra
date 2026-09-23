@@ -1,6 +1,8 @@
-# PKG-INTERACT | branch readiness roadmap
+> **Closure update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Final verified Windows evidence: **97 focused tests**, a four-turn disposable real-application/Qwen probe, **1665 passed / 2 skipped / 1 deselected** in the qualified repository run (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60 closure audit** including both SQLite writer orders, source attestation, revocation, restart-persistent interaction state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. The active dependency gate is now **PKG-MEM**.
 
-**2026-09-21 | draft PR #2 | baseline head `80570daef32db32d54830f86e480974540748146` before this document. NOT merge-ready.** Existing detailed contracts: `pkg-interact-live-quality-repair.md`, `pkg-interact-conversation-projection-repair.md`, `avatar-screen-interaction-contract.md`, `pkg-interact-discord-channel-contract.md`. Do not replace their existing acceptance matrices. This roadmap records the *next review*, not completed work.
+# PKG-INTERACT | accepted closure record
+
+**Closed 2026-09-23 | PR #2 merged to `main` as `d6658d0`.** Existing detailed contracts: `pkg-interact-live-quality-repair.md`, `pkg-interact-conversation-projection-repair.md`, `avatar-screen-interaction-contract.md`, `pkg-interact-discord-channel-contract.md`. Do not replace their existing acceptance matrices. This document is now a historical readiness record. The completed closure evidence is summarized above; future work belongs to downstream packages.
 
 ## Prepared and actually observed
 
@@ -19,4 +21,4 @@ Text/headless interaction, typed canonical regions/policy and isolated lab have 
 
 Check canonical region registry against `src/sofia/data/avatar.json`; define user-visible opt-in, retention and revocation for restricted regions without equating a model's words to consent. Determine eventual renderer coordinate/gesture phase contract, text-versus-animation fallback, screen-control approval and terminal UX. Discord actual account/bot credentials remain unconfigured and never stored in this roadmap. Resolve which original-message/MEM projection is permitted and review personality against a small reproducible conversation set.
 
-**Exit status:** offline new projection tests = NOT RUN on actual branch checkout; live quality = FAILED on older SHA / NOT RUN on new SHA; current full suite = NOT RUN; avatar/Discord = NOT RUN. No merge or deployment. [Master proposed readiness](../../MASTER-ROADMAP-READINESS.md) lives on draft PR #4, not this branch.
+**Exit status:** PKG-INTERACT accepted and merged. The merged interaction foundation is available to downstream packages. Renderer/Discord/voice/physical sensing remain separate package gates. Production staged-offer schema provisioning remains intentionally separate and not performed by the merge. [Master proposed readiness](../../MASTER-ROADMAP-READINESS.md) lives on draft PR #4, not this branch.
