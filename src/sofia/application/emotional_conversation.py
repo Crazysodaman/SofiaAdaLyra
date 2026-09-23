@@ -187,11 +187,11 @@ class EmotionalConversationService(ConversationService):
         subject = self._relationship_subject()
         if messages and messages[-1].role is ConversationRole.USER:
             user = messages[-1]
-            if self._should_record_legacy_affection(user):
-                self.emotional_journal.record_user_cue(
-                    message_id=user.id, content=user.content,
-                    occurred_at=user.created_at, subject=subject,
-                )
+            self.emotional_journal.record_user_cue(
+                message_id=user.id, content=user.content,
+                occurred_at=user.created_at, subject=subject,
+                allow_legacy_affection=self._should_record_legacy_affection(user),
+            )
             self.emotional_journal.observe_contact(
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
