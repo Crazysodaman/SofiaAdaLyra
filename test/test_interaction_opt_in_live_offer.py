@@ -19,6 +19,7 @@ from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.interaction.registry import InteractionCatalog
+from sofia.interaction.reviewed_hug_question import CLARIFICATION
 from sofia.interaction.source_link import VerifiedInteractionState
 
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
@@ -121,6 +122,7 @@ def test_default_off_uses_unchanged_parent_route(monkeypatch, live_candidate):
     monkeypatch.setattr(ExpandedConversationService, 'respond',
                         lambda self, content: 'existing:' + content)
     assert service.respond(OFFER) == 'existing:' + OFFER
+    assert service.respond('Could I hug you?') == 'existing:Could I hug you?'
     assert not _turns(path) and provider.calls == []
 
 
@@ -152,8 +154,6 @@ def test_active_attested_boundary_blocks_before_model(monkeypatch, live_candidat
     service, path, adapter, provider, _ = live_candidate
     _record_boundary(service, adapter)
     monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
-    # Ordinary request assembly intentionally raises under this boundary.
-    # The guarded route must never reach it after verified preflight.
     service._build_request = lambda: (_ for _ in ()).throw(
         AssertionError('Blocked offer entered ordinary context assembly.'))
     result = service.respond(OFFER)
@@ -188,8 +188,54 @@ def test_unreviewed_phrase_uses_parent_not_staged_route(monkeypatch, live_candid
     monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
     monkeypatch.setattr(ExpandedConversationService, 'respond',
                         lambda self, content: 'existing:' + content)
-    assert service.respond('Could I hug you?') == 'existing:Could I hug you?'
+    for text in (
+        'Could I hug you and check your sensors?',
+        'Could I physically hug you?',
+        'If I could hug you, what would happen?',
+        'Can you physically feel my hand through a real sensor?',
+    ):
+        assert service.respond(text) == 'existing:' + text
     assert provider.calls == [] and not _turns(path)
+
+
+@pytest.mark.parametrize('question', (
+    'Could I hug you?', 'Can I hug you?', 'May I give you a hug?',
+))
+def test_reviewed_question_only_clarifies_and_saves_both_turns(
+    monkeypatch, live_candidate, question,
+):
+    service, path, _, provider, _ = live_candidate
+    monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
+    service._build_request = lambda: (_ for _ in ()).throw(
+        AssertionError('Ambiguous question reached ordinary model assembly.'))
+    result = service.respond(question)
+    assert result.content == CLARIFICATION
+    assert _turns(path) == [('user', question), ('assistant', CLARIFICATION)]
+    assert provider.calls == [] and service._active_user_requests == 0
+    assert service._session.id is not None
+
+
+def test_attested_boundary_blocks_reviewed_question_without_model(
+    monkeypatch, live_candidate,
+):
+    service, path, adapter, provider, _ = live_candidate
+    _record_boundary(service, adapter)
+    monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
+    result = service.respond('Could I hug you?')
+    assert 'recorded interaction boundary' in result.content
+    assert CLARIFICATION not in str(_turns(path))
+    assert ('user', 'Could I hug you?') in _turns(path)
+    assert provider.calls == []
+
+
+def test_stop_blocks_reviewed_question_without_model(monkeypatch, live_candidate):
+    service, path, _, provider, ledger = live_candidate
+    ledger.control(session_id=service._session.id, message_id='stop1',
+                   content='Sofía, stop interactions', occurred_at=NOW)
+    monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
+    result = service.respond('Can I hug you?')
+    assert 'paused' in result.content and provider.calls == []
+    assert ('assistant', result.content) in _turns(path)
 
 
 def test_real_sample_accept_then_refuse_is_not_saved(monkeypatch, live_candidate):
