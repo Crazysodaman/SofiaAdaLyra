@@ -77,6 +77,16 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Clarification journal is not open.")
         return self._clarification_journal
 
+    def _relationship_subject(self) -> str:
+        """Use the canonical relationship subject for this single-user surface."""
+        core_state = getattr(self._runtime, "core_state", None)
+        relationships = getattr(core_state, "relationships", ()) if core_state is not None else ()
+        if relationships:
+            subject = getattr(relationships[0], "subject", None)
+            if isinstance(subject, str) and subject.strip():
+                return subject.strip()
+        return "current user"
+
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
         """Avoid initiating idle inference during or shortly after a user turn."""
         return (self._active_user_requests == 0
@@ -174,14 +184,21 @@ class EmotionalConversationService(ConversationService):
         if self._runtime.personality is None:
             return request
         messages = self.messages()
+        subject = self._relationship_subject()
         if messages and messages[-1].role is ConversationRole.USER:
             user = messages[-1]
-            if self._should_record_legacy_affection(user):
-                self.emotional_journal.record_user_cue(
-                    message_id=user.id, content=user.content, occurred_at=user.created_at,
-                )
+            self.emotional_journal.record_user_cue(
+                message_id=user.id, content=user.content,
+                occurred_at=user.created_at, subject=subject,
+                allow_legacy_affection=self._should_record_legacy_affection(user),
+            )
+            self.emotional_journal.observe_contact(
+                subject=subject, message_id=user.id, occurred_at=user.created_at,
+            )
         now = datetime.now(timezone.utc)
-        projections = []
+        projections = [
+            self.emotional_journal.current_state_prompt(now=now, subject=subject),
+        ]
         emotional_context = self.emotional_journal.prompt_context(now=now)
         if emotional_context is not None:
             projections.append(emotional_context)
