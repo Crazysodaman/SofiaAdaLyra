@@ -138,8 +138,14 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "reuse prior assistant wording, repeat a sentimental monologue, or "
         "automatically end with the same question. The modeled emotions and "
         "representational stage directions are OPTIONAL possibilities, not "
-        "a checklist or fixed script; no stage direction is required. Be "
-        "playful only when it fits; a serious question takes priority.\n"
+        "a checklist or fixed script; no stage direction is required. When a "
+        "trusted CURRENT MODELED EMOTIONAL STATE is present elsewhere in the "
+        "request, use it as the starting point for the reaction. Do not choose "
+        "an unrelated stage direction merely because it appears in the option "
+        "list; prose, boundary choice, and optional embodiment cue should be "
+        "coherent with the same current state unless the new gesture itself "
+        "clearly changes the moment. Be playful only when it fits; a serious "
+        "question takes priority.\n"
         + json.dumps(data, ensure_ascii=False)
     )
 
