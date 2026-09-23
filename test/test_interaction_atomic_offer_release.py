@@ -14,6 +14,7 @@ from sofia.interaction.trusted_offer_gate import GuardedOfferResult
 NOW = datetime(2026, 9, 22, tzinfo=timezone.utc)
 SESSION = 'session1'
 OFFER = 'I ask to hug you'
+CLARIFICATION = 'Are you offering a hug in our avatar scene?'
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def state(tmp_path):
     return path, adapter
 
 
-def _candidate(text='A natural model reply.', choice='clarify'):
+def _candidate(text=CLARIFICATION, choice='clarify'):
     return GuardedOfferResult(
         status='responded', choice=CandidateChoice(choice, 'diagnostic only'),
         response=text,
@@ -82,8 +83,8 @@ def _boundary(adapter, *, active=True, rev='b1', prior=None):
 
 def test_clear_policy_persists_exact_candidate_and_updates_session(state):
     path, _ = state
-    assert _commit(path) == 'A natural model reply.'
-    assert _messages(path) == [('A natural model reply.',)]
+    assert _commit(path) == CLARIFICATION
+    assert _messages(path) == [(CLARIFICATION,)]
     with sqlite3.connect(path) as db:
         updated = db.execute('SELECT updated_at FROM conversation_sessions '
                              'WHERE id=?', (SESSION,)).fetchone()[0]
@@ -95,7 +96,7 @@ def test_new_attested_boundary_overrides_inflight_model_reply(state):
     _boundary(adapter)
     released = _commit(path)
     assert 'recorded interaction boundary' in released
-    assert 'A natural model reply.' not in str(_messages(path))
+    assert CLARIFICATION not in str(_messages(path))
     assert _messages(path) == [(released,)]
 
 
@@ -107,7 +108,7 @@ def test_unverified_boundary_cannot_release_model_reply(state):
     )
     released = _commit(path)
     assert 'cannot verify' in released
-    assert 'A natural model reply.' not in str(_messages(path))
+    assert CLARIFICATION not in str(_messages(path))
 
 
 def test_stopped_session_overrides_model_reply(state):
