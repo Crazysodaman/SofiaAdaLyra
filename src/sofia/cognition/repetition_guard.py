@@ -41,6 +41,14 @@ _GENERIC_ASSISTANT_CLOSER = re.compile(
     r"\s*[.!?\s😊🙂💜]*$",
     re.IGNORECASE,
 )
+_MISSED_YOU_USER = re.compile(
+    r"\b(?:i(?:'|’)ve\s+missed\s+you|i\s+missed\s+you|missed\s+you)\b",
+    re.IGNORECASE,
+)
+_RECIPROCAL_MISSED_YOU = re.compile(
+    r"\bi\s+missed\s+you(?:\s+too)?\b",
+    re.IGNORECASE,
+)
 _BLANKET_INTERACTION_REFUSAL = re.compile(
     r"\b(?:inappropriate|disrespectful|respectful\s+and\s+constructive|"
     r"can't\s+engage\s+with\s+that\s+request|cannot\s+engage\s+with\s+that\s+request|"
@@ -116,6 +124,13 @@ def response_quality_issue(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
+    if (
+        _MISSED_YOU_USER.search(user)
+        and _RECIPROCAL_MISSED_YOU.search(content)
+        and "Reciprocal absence/missing-you claim grounded: yes" not in system_context
+    ):
+        return "ungrounded_reciprocal_missing"
+
     interaction_grounded = any(marker in system_context for marker in (
         "TRUSTED INTERACTION INTERPRETATION",
         "TRUSTED INTERACTION FOLLOW-UP",
@@ -164,6 +179,14 @@ def build_rephrase_request(
             "the supplied modeled emotional state with generic AI-emotion boilerplate. "
             "Answer directly from the trusted CURRENT MODELED EMOTIONAL STATE. Mention "
             "biological or implementation differences only if the user asks about them."
+        )
+    elif issue == "ungrounded_reciprocal_missing":
+        detail = (
+            "The user said they missed Sofía, but the trusted emotional projection does "
+            "not contain grounded longing or reunion evidence. Respond warmly if supported, "
+            "but do not claim 'I missed you too' or imply ongoing thoughts during the absence. "
+            "If appreciation, affection, or warmth are present, express those current states "
+            "without inventing reciprocal missing."
         )
     elif issue == "blanket_interaction_refusal":
         detail = (
