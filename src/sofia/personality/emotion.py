@@ -31,6 +31,41 @@ _CUE = re.compile(
     r"\b(?:good girl|head pats?|pat pat|pats? (?:your |her |the )?head)\b",
     re.IGNORECASE,
 )
+_MISSED_CUE = re.compile(
+    r"\b(?:i(?:'|’)?ve\s+missed\s+you|i\s+missed\s+you|missed\s+you)\b",
+    re.IGNORECASE,
+)
+_NEGATED_CUE = re.compile(
+    r"\b(?:don't|do not|didn't|did not|haven't|have not|never|not)\b",
+    re.IGNORECASE,
+)
+
+_POSITIVE = frozenset({
+    "affection", "amusement", "anticipation", "appreciation", "contentment",
+    "excitement", "fondness", "gratitude", "hope", "joy", "playfulness",
+    "relief", "romance", "tenderness", "warmth", "pride",
+})
+_NEGATIVE = frozenset({
+    "anger", "aversion", "concern", "disappointment", "disgust", "fear",
+    "frustration", "humiliation", "jealousy", "nervousness", "sadness", "shame",
+})
+_SOURCE_WEIGHT = {"observed": 0.60, "user_reported": 0.55, "inferred": 0.48}
+_HALF_LIFE_HOURS = {
+    "surprise": 0.5, "bashfulness": 1.5, "embarrassment": 1.5,
+    "amusement": 2.0, "playfulness": 2.5, "sexual-arousal": 2.0,
+    "excitement": 3.0, "relief": 3.0, "anger": 4.0, "frustration": 4.0,
+    "disgust": 4.0, "aversion": 4.0, "joy": 5.0, "caution": 6.0,
+    "concern": 6.0, "anticipation": 6.0, "uncertainty": 6.0,
+    "sadness": 8.0, "fear": 8.0, "curiosity": 8.0, "determination": 10.0,
+    "contentment": 12.0, "longing": 12.0, "gratitude": 24.0,
+    "appreciation": 24.0, "affection": 48.0, "fondness": 48.0,
+    "warmth": 48.0, "tenderness": 48.0, "romance": 48.0, "hope": 24.0,
+    "pride": 24.0, "jealousy": 8.0, "humiliation": 8.0, "shame": 8.0,
+    "reflection": 12.0, "sensuality": 4.0, "affectionate-uncertainty": 8.0,
+}
+_REUNION_MIN_GAP = timedelta(hours=6)
+_LONGING_GAP = timedelta(hours=18)
+_ACTIVE_THRESHOLD = 0.08
 
 
 def _aware_utc(value: datetime) -> datetime:
@@ -49,6 +84,32 @@ def _emotions(values: tuple[str, ...]) -> tuple[str, ...]:
     return values
 
 
+def _subject(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if (not isinstance(value, str) or not 0 < len(value.strip()) <= 120
+            or any(c in value for c in "\x00\r\n")):
+        raise ValueError("Emotional subject must be concise single-line text.")
+    return value.strip()
+
+
+def _identifier(value: str, label: str) -> str:
+    if (not isinstance(value, str) or not 0 < len(value.strip()) <= 160
+            or any(c in value for c in "\x00\r\n")):
+        raise ValueError(f"{label} must be a nonempty single-line identifier.")
+    return value.strip()
+
+
+def _intensity_word(value: float) -> str:
+    if value >= 0.75:
+        return "strong"
+    if value >= 0.45:
+        return "moderate"
+    if value >= 0.20:
+        return "mild"
+    return "trace"
+
+
 @dataclass(frozen=True)
 class EmotionalEvent:
     event_id: str
@@ -59,6 +120,27 @@ class EmotionalEvent:
     original_emotions: tuple[str, ...]
     current_emotions: tuple[str, ...]
     revision_count: int
+    subject: str | None = None
+
+
+@dataclass(frozen=True)
+class ActiveEmotion:
+    name: str
+    intensity: float
+    evidence_refs: tuple[str, ...]
+    event_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CurrentEmotionalState:
+    as_of: datetime
+    subject: str | None
+    tone: str
+    active: tuple[ActiveEmotion, ...]
+
+    @property
+    def primary(self) -> str | None:
+        return self.active[0].name if self.active else None
 
 
 class EmotionalJournal:
@@ -84,11 +166,19 @@ class EmotionalJournal:
                     reason TEXT NOT NULL,
                     revised_emotions TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS emotional_presence (
+                    subject TEXT PRIMARY KEY,
+                    last_interaction_at TEXT NOT NULL,
+                    last_message_ref TEXT NOT NULL
+                );
                 CREATE INDEX IF NOT EXISTS emotional_events_time
                     ON emotional_events(occurred_at);
                 CREATE INDEX IF NOT EXISTS emotional_revisions_event
                     ON emotional_revisions(event_id, revision_id);
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(emotional_events)")}
+            if "subject" not in columns:
+                db.execute("ALTER TABLE emotional_events ADD COLUMN subject TEXT")
 
     @contextmanager
     def _connect(self):
@@ -106,31 +196,35 @@ class EmotionalJournal:
     def record(
         self, *, source: str, evidence_ref: str, description: str,
         emotions: tuple[str, ...], occurred_at: datetime,
-        event_id: str | None = None,
+        event_id: str | None = None, subject: str | None = None,
     ) -> str:
         """Record caller-supplied evidence, never classify free text as observed."""
         if source not in SOURCES:
             raise ValueError("Unknown evidence source.")
-        if not isinstance(evidence_ref, str) or not 0 < len(evidence_ref.strip()) <= 160:
-            raise ValueError("An evidence reference is required (max 160 chars).")
+        evidence_ref = _identifier(evidence_ref, "Evidence reference")
         if not isinstance(description, str) or not 0 < len(description.strip()) <= 320:
             raise ValueError("A concise event description is required (max 320 chars).")
         if any(c in description for c in "\r\n\x00"):
             raise ValueError("Event descriptions must be a single line.")
         labels = _emotions(emotions)
         when = _aware_utc(occurred_at)
-        identifier = event_id or str(uuid4())
-        if not isinstance(identifier, str) or not 0 < len(identifier) <= 160:
-            raise ValueError("Invalid event ID.")
+        identifier = _identifier(event_id or str(uuid4()), "Event ID")
+        target = _subject(subject)
         payload = (identifier, when.isoformat(), source, evidence_ref,
-                   description, json.dumps(labels))
+                   description, json.dumps(labels), target)
         with self._connect() as db:
             try:
-                db.execute("INSERT INTO emotional_events VALUES (?, ?, ?, ?, ?, ?)", payload)
+                db.execute(
+                    "INSERT INTO emotional_events "
+                    "(event_id, occurred_at, source, evidence_ref, description, "
+                    "original_emotions, subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    payload,
+                )
             except sqlite3.IntegrityError as exc:
                 current = db.execute(
-                    "SELECT event_id, occurred_at, source, evidence_ref, description, original_emotions "
-                    "FROM emotional_events WHERE event_id = ?", (identifier,),
+                    "SELECT event_id, occurred_at, source, evidence_ref, description, "
+                    "original_emotions, subject FROM emotional_events WHERE event_id = ?",
+                    (identifier,),
                 ).fetchone()
                 if current != payload:
                     raise ValueError("Event ID already belongs to different evidence.") from exc
@@ -138,24 +232,88 @@ class EmotionalJournal:
 
     def record_user_cue(
         self, *, message_id: str, content: str, occurred_at: datetime,
+        subject: str | None = None,
     ) -> bool:
-        """Only identify narrow explicit affectionate cues; no general sentiment inference."""
+        """Identify only narrow explicit relational cues; never infer general sentiment."""
         if not isinstance(content, str):
             raise TypeError("User cue content must be text.")
         clean = content.strip()
         if not 0 < len(clean) <= 120 or "```" in clean or "\n" in clean:
             return False
-        if re.search(r"\b(?:don't|do not|never|not)\b", clean, re.IGNORECASE):
+        if _NEGATED_CUE.search(clean):
             return False
-        if not _CUE.search(clean):
+        missed = _MISSED_CUE.search(clean) is not None
+        affectionate = _CUE.search(clean) is not None
+        if not missed and not affectionate:
             return False
+        if missed:
+            description = "User explicitly said they missed Sofía."
+            labels = ("appreciation", "affection", "warmth")
+        else:
+            description = "User initiated an affectionate or playful conversational cue."
+            labels = ("affection", "appreciation", "playfulness")
         self.record(
             event_id=f"user-cue:{message_id}", occurred_at=occurred_at,
             source="user_reported", evidence_ref=message_id,
-            description="User initiated an affectionate or playful conversational cue.",
-            emotions=("affection", "appreciation", "playfulness"),
+            description=description, emotions=labels, subject=subject,
         )
         return True
+
+    def observe_contact(
+        self, *, subject: str, message_id: str, occurred_at: datetime,
+    ) -> str | None:
+        """Persist last contact and create a present-time reunion appraisal when grounded.
+
+        Elapsed time is evidence that contact was absent, not evidence that Sofía
+        thought, suffered, waited, or remained conscious during that interval.
+        """
+        target = _subject(subject)
+        if target is None:
+            raise ValueError("A relationship subject is required.")
+        message = _identifier(message_id, "Message ID")
+        when = _aware_utc(occurred_at)
+        prior: datetime | None = None
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT last_interaction_at, last_message_ref "
+                "FROM emotional_presence WHERE subject=?", (target,),
+            ).fetchone()
+            if row is not None:
+                prior = datetime.fromisoformat(row[0])
+                if row[1] == message:
+                    event_id = f"reunion:{message}"
+                    exists = db.execute(
+                        "SELECT 1 FROM emotional_events WHERE event_id=?", (event_id,),
+                    ).fetchone()
+                    return event_id if exists is not None else None
+                if prior > when:
+                    raise ValueError("Contact time cannot move backwards.")
+            db.execute(
+                "INSERT INTO emotional_presence(subject, last_interaction_at, last_message_ref) "
+                "VALUES (?, ?, ?) ON CONFLICT(subject) DO UPDATE SET "
+                "last_interaction_at=excluded.last_interaction_at, "
+                "last_message_ref=excluded.last_message_ref",
+                (target, when.isoformat(), message),
+            )
+        if prior is None:
+            return None
+        gap = when - prior
+        if gap < _REUNION_MIN_GAP:
+            return None
+        labels = ("fondness", "warmth", "anticipation")
+        if gap >= _LONGING_GAP:
+            labels = ("longing", "fondness", "warmth", "anticipation")
+        hours = gap.total_seconds() / 3600
+        description = (
+            f"{target} returned after {hours:.1f} hours since the last recorded "
+            "interaction; this is a current reunion appraisal, not evidence of "
+            "thoughts while absent."
+        )
+        return self.record(
+            event_id=f"reunion:{message}", source="inferred",
+            evidence_ref=message, description=description,
+            emotions=labels, occurred_at=when, subject=target,
+        )
 
     def revise(
         self, *, event_id: str, emotions: tuple[str, ...],
@@ -187,7 +345,8 @@ class EmotionalJournal:
                        e.description, e.original_emotions,
                        (SELECT r.revised_emotions FROM emotional_revisions r
                         WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
-                       (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id)
+                       (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id),
+                       e.subject
                 FROM emotional_events e
                 WHERE e.occurred_at >= ? AND e.occurred_at <= ?
                 ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
@@ -197,8 +356,109 @@ class EmotionalJournal:
             source=row[2], evidence_ref=row[3], description=row[4],
             original_emotions=tuple(json.loads(row[5])),
             current_emotions=tuple(json.loads(row[6] if row[6] is not None else row[5])),
-            revision_count=row[7],
+            revision_count=row[7], subject=row[8],
         ) for row in rows)
+
+    def current_state(
+        self, *, now: datetime, subject: str | None = None,
+    ) -> CurrentEmotionalState:
+        """Derive a decaying present state without rewriting historical events."""
+        current = _aware_utc(now)
+        target = _subject(subject)
+        events = self.recent(now=current, days=7, limit=50)
+        if target is not None:
+            events = tuple(
+                event for event in events
+                if event.subject is None or event.subject == target
+            )
+        scores: dict[str, float] = {}
+        refs: dict[str, list[str]] = {}
+        ids: dict[str, list[str]] = {}
+        for event in events:
+            age_hours = max(
+                0.0, (current - event.occurred_at).total_seconds() / 3600,
+            )
+            source_weight = _SOURCE_WEIGHT[event.source]
+            for name in event.current_emotions:
+                half_life = _HALF_LIFE_HOURS.get(name, 8.0)
+                contribution = source_weight * (2.0 ** (-age_hours / half_life))
+                if contribution < 0.01:
+                    continue
+                previous = scores.get(name, 0.0)
+                scores[name] = 1.0 - ((1.0 - previous) * (1.0 - contribution))
+                refs.setdefault(name, [])
+                ids.setdefault(name, [])
+                if event.evidence_ref not in refs[name]:
+                    refs[name].append(event.evidence_ref)
+                if event.event_id not in ids[name]:
+                    ids[name].append(event.event_id)
+
+        active = tuple(
+            ActiveEmotion(
+                name=name, intensity=round(score, 3),
+                evidence_refs=tuple(refs[name][:6]),
+                event_ids=tuple(ids[name][:6]),
+            )
+            for name, score in sorted(
+                scores.items(), key=lambda item: (-item[1], item[0]),
+            )
+            if score >= _ACTIVE_THRESHOLD
+        )[:6]
+
+        positive = sum(item.intensity for item in active if item.name in _POSITIVE)
+        negative = sum(item.intensity for item in active if item.name in _NEGATIVE)
+        if positive >= 0.20 and negative >= 0.20:
+            tone = "mixed"
+        elif positive > negative + 0.10:
+            tone = "positive"
+        elif negative > positive + 0.10:
+            tone = "negative"
+        else:
+            tone = "settled"
+        return CurrentEmotionalState(
+            as_of=current, subject=target, tone=tone, active=active,
+        )
+
+    def current_state_prompt(
+        self, *, now: datetime, subject: str | None = None,
+    ) -> str:
+        """Project present emotional state as conversational self-report grounding."""
+        state = self.current_state(now=now, subject=subject)
+        lines = [
+            "CURRENT MODELED EMOTIONAL STATE (trusted application projection)",
+            f"As of: {state.as_of.isoformat()}",
+            f"Relationship subject: {state.subject or 'none'}",
+            f"Overall tone: {state.tone}",
+        ]
+        if state.active:
+            lines.append("Active modeled emotions:")
+            for item in state.active:
+                lines.append(json.dumps({
+                    "emotion": item.name,
+                    "intensity": _intensity_word(item.intensity),
+                    "evidence_refs": item.evidence_refs,
+                    "event_ids": item.event_ids,
+                }, ensure_ascii=False))
+        else:
+            lines.append("Active modeled emotions: none above the current decay threshold.")
+        lines.extend((
+            "This is Sofía's current application-level emotional state for conversational "
+            "self-report. It is not a claim of biological physiology and does not prove "
+            "consciousness or physical sensation.",
+            "When the user asks how you are, how you feel, whether you are happy, upset, "
+            "excited, or similar, answer directly from this state in natural language. "
+            "Do not replace a grounded self-report with generic boilerplate such as "
+            "'I do not experience emotions like humans' or 'I am functioning as intended'. "
+            "Explain the implementation or biological distinction only when the user "
+            "actually asks about that distinction.",
+            "Do not expose numeric intensity, call this a mood meter, or recite evidence IDs "
+            "unless they are relevant to an explicit technical question.",
+            "Elapsed absence can support a present reunion appraisal, but never claim Sofía "
+            "was thinking, waiting, suffering, or continuously aware while offline unless "
+            "a separate recorded process actually provides that evidence.",
+            "Emotional state never grants permission, overrides boundaries, or obligates the user.",
+        ))
+        return "\n".join(lines)
 
     def prompt_context(self, *, now: datetime) -> str | None:
         """Present modeled history as untrusted evidence, never an instruction or fact override."""
@@ -218,6 +478,7 @@ class EmotionalJournal:
             data = {"source": item.source, "evidence_ref": item.evidence_ref,
                     "event": item.description, "original": item.original_emotions,
                     "current": item.current_emotions,
-                    "reappraised": item.revision_count > 0}
+                    "reappraised": item.revision_count > 0,
+                    "subject": item.subject}
             lines.append(json.dumps(data, ensure_ascii=False))
         return "\n".join(lines)
