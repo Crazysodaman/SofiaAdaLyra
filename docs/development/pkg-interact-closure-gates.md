@@ -1,5 +1,21 @@
 # PKG-INTERACT: finite closure gates
 
+## Reopened after live conversational acceptance probe (2026-09-23)
+
+The earlier structural closure is **suspended**. A real `python -m sofia` conversation exposed behavioral failures that the prior focused/unit coverage did not certify:
+
+- `hru` fell through to a generic greeting plus `How can I assist you today?` instead of answering the social/emotional question.
+- `are you happy` replaced Sofía's modeled emotional state with generic AI-emotion boilerplate.
+- `gropes breast` did not match the interaction grammar, so the turn bypassed INTERACT and reached an ungrounded blanket refusal.
+- Short follow-ups such as `why` and `what if it was wanted` were not explicitly grounded to the preceding represented interaction and could fall back to generic moral/safety prose.
+- Generic service closers such as `How can I assist/support you?` repeatedly leaked through otherwise conversational replies.
+- `I missed you` could be generated without a real absence/reunion appraisal and could imply ongoing thoughts while no recorded process established them.
+
+The branch now includes live-behavior hardening for those findings: relationship-scoped current emotional state with decay, grounded reunion appraisal, explicit `I missed you` relational evidence, direct emotional self-report guidance, provider-side retry/trim for known generic fallbacks, consent/boundary follow-up grounding, emotion/gesture coherence guidance, and `grope/gropes/groping` normalization to the existing canonical `touch` interaction semantic. Historical head-pat auto-affection remains suppressed on the hardened live service.
+
+**Closure may not be restored from code inspection alone.** The new focused tests must pass on Windows and the real configured Ollama model must pass a supervised conversational probe without the failures above. The unrelated local `18000` versus `32768` Ollama contract edit remains preserved and must not be overwritten merely to obtain a green suite.
+
+
 ## Verified Windows evidence
 
 - At `f126521`, Sparks reported **67 focused tests passed** and a supervised real-Qwen disposable probe with a relevant clarification and synthetic boundary enforcement.
