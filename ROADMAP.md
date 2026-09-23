@@ -1,6 +1,8 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # Sofía Ada Lyra: 19-package delivery roadmap
 
-**Planning revision:** 2026-09-22 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 and the roadmap reconciliation PR #4 are merged. Active implementation remains isolated in its package branches and draft PRs. The roadmap now contains **19 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, PKG-OPS, PKG-KNOW, and PKG-INTEGRATE.
+**Planning revision:** 2026-09-23 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 (CORE), roadmap reconciliation PR #4, and PR #2 (INTERACT) are merged. INTERACT is accepted as the merged foundation for the next MEM gate. The roadmap now contains **19 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, PKG-OPS, PKG-KNOW, and PKG-INTEGRATE.
 
 > **Core invariant:** Sofía's canonical identity, Constitution, represented embodiment, evidence, memory, authority, and capabilities remain independent of replaceable models, hosts, processes, clients, Discord, voices, avatars, and robots. Model output is never proof of authorization, sensing, execution, delivery, or subjective experience.
 
@@ -21,7 +23,7 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | Order | Package | Outcome | Current evidence-based state / next gate |
 | ---: | --- | --- | --- |
 | 1 | **PKG-CORE · Cognition and continuity** | Grounded identity/personality, startup/restart awareness, response performance, adaptive reasoning | Foundations merged in PR #1. Fresh integrated full-suite and supervised live identity/personality/latency review remain open after the current INTERACT gate. |
-| 2 | **PKG-INTERACT · Text/avatar/screen interaction** | Shared canonical whole-body interaction semantics, contextual reactions, virtual lab, truthful expression | Active draft PR #2. Large candidate implementation exists; older coordinated Windows evidence does not certify current head. Current decision/expression and grounding quality remain under active review. |
+| 2 | **PKG-INTERACT · Text/avatar/screen interaction** | Shared canonical whole-body interaction semantics, contextual reactions, virtual lab, truthful expression | **Accepted and merged via PR #2 on 2026-09-23.** Final Windows closure: 97 focused; disposable real-Qwen four-turn pass; qualified repository run 1665 passed / 2 skipped / 1 unrelated local test deselected; final closure audit 60/60. Staged offers remain disabled by default pending separately reviewed production schema provisioning. |
 | 3 | **PKG-MEM · Durable memory and learning** | Preserved originals, provenance-aware retrieval, correction, reviewed durable preferences, archive migration | Draft PR #9 provides read-only original retrieval preflight. Durable integrated memory, privacy, correction, migration, and restart acceptance remain. |
 | 4 | **PKG-SOCIAL · Principal, audience, and isolation** | One Sofía across people/channels with authenticated principals, per-user relationship state, private/shared scopes, no cross-user leakage | Documentation/design only in PR #4. **Minimum Sparks-only principal/audience boundary is required before Discord. General second-user/multi-user rollout stays deferred until explicitly requested.** |
 | 5 | **PKG-NET · Scoped networking and distributed operation** | Authenticated network routes and bounded remote capabilities | Discord-only route preflight in PR #11; Artemis distributed foundations exist on main. Real trusted transport/DNS/TLS/redirect enforcement and real Artemis acceptance remain. No general web/search grant. |
@@ -249,20 +251,19 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 
 - **PR #1 is merged.** Any document saying it is still open is stale.
 - The authoritative roadmap package count is **19** after adding PKG-KNOW and PKG-INTEGRATE. Historical 13/14/15/16/17-package roadmaps remain in Git history.
-- PR #2 INTERACT and other package implementation branches keep their own pinned test evidence; documentation must not add counts across different SHAs as if they were one passing suite.
+- **PR #2 INTERACT is merged.** Preserve its pinned evidence and limitations; other package branches keep their own test evidence and must not borrow INTERACT counts as if they validate another SHA.
 - REL PRs #12/#13 must be reconciled before integration. VERIFY PR #8 is active; #10 is superseded.
 - Runtime SQLite files/logs currently tracked by the repository require an explicit SAFE/CLEAN preservation and migration decision before removal from version control. Do not delete production state as “cleanup.”
 - Do not merge code, deploy services, provision credentials, change protected identity/Constitution, or mutate production databases as a side effect of roadmap maintenance.
 
 ## Current release focus
 
-1. Finish current-head INTERACT diagnosis and live-quality gate.
-2. Run the coordinated full-suite/current-revision gate when INTERACT is stable.
-3. Integrate MEM originals/provenance/privacy.
-4. Establish SOCIAL's minimum Sparks-only principal/audience boundary.
-5. Complete real Discord D0–D4 using narrow NET + UI + SAFE.
-6. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
-7. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
-8. Only then introduce separately authorized general web/search.
+1. **PKG-INTERACT is complete and merged.** Keep staged offers disabled until the separately reviewed production interaction-schema migration.
+2. **Integrate PKG-MEM originals/provenance/privacy** against the merged INTERACT conversation/source contracts.
+3. Establish SOCIAL's minimum Sparks-only principal/audience boundary.
+4. Complete real Discord D0–D4 using narrow NET + UI + SAFE after MEM + SOCIAL minimum.
+5. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
+6. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
+7. Only then introduce separately authorized general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.
