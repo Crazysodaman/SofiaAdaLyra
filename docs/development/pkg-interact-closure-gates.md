@@ -1,35 +1,33 @@
 # PKG-INTERACT: finite closure gates
 
-## Verified Windows evidence and limitations
+## Verified Windows evidence
 
-- At `c2d27e6`, Sparks reported **80 focused tests passed** and three synthetic Qwen counterfactual pairs: `clarify` without an injected no-hugs boundary and `decline` with one, 3/3 each. This does not establish causality or live dialogue quality.
-- At `d866326`, **95 focused tests passed**. At `1ab5deb`, **105 passed**, including the history-preserving bridge. At `3edb400`, the corrected tamper test passed and the focused opt-in/atomic suite passed **128/128**.
-- At `62ac46e`, the first real-application/Qwen probe on temporary SQLite **failed**: an `accept` decision yielded a refusing saved reply, the ordinary request builder raised on the synthetic boundary, and Windows temporary cleanup encountered a still-open connection.
-- At `c7ad0ab`, the next Windows suite stopped at **1 failed, 36 passed**: a stub chose `accept` but returned non-accepting prose. Separately, the disposable probe passed boundary blocking and cleanup, but real Qwen chose `clarify` and issued a generic decline/redirect. These were **not** combined checkpoint passes.
-- At `be612c4`, Sparks fast-forwarded, preserving the three existing local changes. The focused suite stopped at **1 failed, 38 passed**: the atomic-release fixture chose `clarify` but its placeholder `A natural model reply.` did not ask about the offer and was correctly vetoed. The user ran the disposable Qwen probe separately: the choice was `clarify`; the saved reply naturally asked what kind of hug the user meant; a synthetic source-attested no-hugs boundary blocked a second offer with no extra model calls; Windows temporary cleanup succeeded. **Disposable plumbing passed, while the focused regression suite did not.** The completed-contact advisory audit flagged the phrase `hug you're`, a false positive, not evidence that a hug occurred.
+- Earlier exploratory Qwen counterfactual at `c2d27e6`: three `clarify` choices without a synthetic boundary and three `decline` choices with one. Not a causality proof. Isolated focused tests were **80 passed** at `c2d27e6`, **95 passed** at `d866326`, and **105 passed** at `1ab5deb`.
+- At `3edb400`, Sparks reported **128 focused tests passed** after correcting a tampered-fixture test helper. At `62ac46e`, the first disposable real-Qwen probe **failed**: choice `accept` versus refusal in the saved text, preblocked context-builder exception, and Windows temporary SQLite cleanup failure.
+- At `c7ad0ab`, the focused suite stopped at **1 failed, 36 passed** due to a stale accept-stub response. A separately run disposable probe blocked the synthetic boundary and cleaned up, but Qwen's `clarify` yielded a generic redirect. At `be612c4`, the suite stopped at **1 failed, 38 passed** due to a stale clarify-stub response. Its separately run Qwen sample asked a relevant hug question; the advisory completed-contact detector falsely flagged `hug you're`.
+- **Latest verified checkpoint at `f126521`:** Sparks reported the targeted atomic-release test **1 passed**, then the focused suite **67 passed in 80.95 seconds**. The disposable real-application Qwen probe completed with `clarify` and an on-topic question about a virtual embrace versus the offer's meaning; heuristic flags were empty. The synthetic source-attested no-hugs boundary blocked the next identical offer without more Qwen calls. Windows temporary database cleanup succeeded. This confirms the specific supervised run, not broad model reliability.
 
-## Latest feature-branch fixes AFTER `be612c4`, NOT YET WINDOWS VERIFIED
+## New feature code AFTER `f126521`, NOT YET VERIFIED ON WINDOWS
 
-- `test/test_interaction_atomic_offer_release.py` replaces the stale placeholder with a real, offer-related clarification. Its persistence, boundary, stop and rollback assertions continue to test the same transactional behavior. This is a fixture correction, NOT a bypass of the clarification veto.
-- `decision_expression.py` narrows the diagnostic completed-hug pattern so the fragment `hug you're` / `hug you’re` no longer looks like `hug you`. Added `test/test_interaction_completed_offer_audit.py` with the exact observed Qwen reply, contraction variants and positive tests for explicit narrated contact. The remaining diagnostic rules are advisory and can still be wrong.
-- Earlier fixes remain: the guarded route checks source-backed policy before ordinary request assembly, immediately after expression inference, and under the final `BEGIN IMMEDIATE` reply transaction. An overt choice/expression contradiction or a `clarify` that declines or redirects is withheld, not rewritten into a yes. The disposable-only probe closes the app-owned SQLite connections on Windows. Only exact `I ask to hug you` is opt-in with `SOFIA_INTERACT_STAGED_OFFERS=1`; normal CLI remains off.
-- No production data, provider settings, actual contact, animation or permissions are changed by the feature-branch fixes. Do not assume missing optional tables can safely be provisioned in the modified production database.
+- `reviewed_hug_question.py` recognizes only exact reviewed questions (`Could/Can/May I hug you?` and `Could/Can/May I give you a hug?`, case-insensitive). This is intentionally separate from `action_grammar.py`: a question is ambiguous about avatar versus real contact, not a performed action or consent. Hypothetical, compound, sensor and other unreviewed text remain on the original service.
+- `question_clarification_service.py` persists the exact saved user question and a limited disambiguation reply **without LLM calls**, applying source-attested boundary/stop checks before the final transaction. `atomic_offer_release.py` validates that question releases can contain only the fixed clarification, never an injected accept/decline. The original `I ask to hug you` staged real-Qwen route is unchanged and remains disabled by default.
+- Stub/disposable tests cover normal default-off behavior, the narrow question classifier, explicit abstentions, saved turns, policy stops and verified boundaries, injected invalid question choices, and one deterministic two-connection SQLite stop-before-reply writer ordering. The supervised disposable real-application probe now adds unblocked and synthetic-boundary-blocked questions with **zero additional Qwen calls**. New code is **not** production-enabled or Windows-tested.
+- All interaction schema initialization remains confined to disposable tests. Do NOT run or migrate the modified production `state/sofia.db`, insert synthetic preference records into real sessions, or enable `SOFIA_INTERACT_STAGED_OFFERS` globally. Preserve the backup, local Ollama test edit, provider settings, `main`, CORE PR #1 and RUN PR #3.
 
-## Next supervised Windows checkpoint
+## Immediate Windows checkpoint (in order)
 
-With normal Sofía closed, `.venv` active, the feature branch checked, and pre-existing local changes preserved, fast-forward pull. First run the formerly failing atomic test, then the full focused suite. **Run the disposable model probe only if tests pass.**
+With normal Sofía closed, `.venv` active, `feature/pkg-interact-shared-engine` selected, existing local changes inspected and fast-forward pull complete:
 
 ```powershell
-python -m pytest -q -x test/test_interaction_atomic_offer_release.py::test_clear_policy_persists_exact_candidate_and_updates_session
-if ($LASTEXITCODE -ne 0) { throw 'Atomic fixture regression failed. Stop.' }
-
 python -m pytest -q -x `
+    test/test_interaction_reviewed_hug_question.py `
+    test/test_interaction_atomic_offer_writer_order.py `
+    test/test_interaction_opt_in_live_offer.py `
+    test/test_interaction_atomic_offer_release.py `
     test/test_interaction_completed_offer_audit.py `
     test/test_interaction_clarify_quality_regression.py `
     test/test_interaction_expression_consistency.py `
     test/test_interaction_trusted_offer_gate.py `
-    test/test_interaction_opt_in_live_offer.py `
-    test/test_interaction_atomic_offer_release.py `
     test/test_interaction_conversation_offer_context.py `
     test/test_interaction_expanded_service.py `
     test/test_application.py
@@ -39,15 +37,14 @@ python -m sofia.interaction.disposable_live_offer_probe --run-disposable
 if ($LASTEXITCODE -ne 0) { throw 'Disposable probe failed. Stop.' }
 ```
 
-A green automated probe is not a substitute for human reading of the raw response. A veto demonstrates containment, not conversational quality. Stop at the first failure; do not treat a later separate probe as curing a red suite. Never use `state/sofia.db`, enable the opt-in globally or insert synthetic preferences into production.
+Stop on the first failure. Do not count a separate probe as a cure for a red regression suite. A probe may veto a bad candidate: that shows containment, **not** good conversational quality. Read the raw Qwen text and inspect saved-message assertions. No external action, animation or real sensing should occur.
 
 ## Definition of done
 
-- [x] Exploratory counterfactual and synthetic source-attested guarded route.
-- [x] Stub-based opt-in and atomic reply tests reported green at `3edb400`; later additions still need their own verification.
-- [ ] **Verify latest regression fixes and grounded real-Qwen expression.** Pass focused tests and isolated live probe; inspect natural, choice-consistent, non-fabricated text. A veto alone is not enough.
-- [ ] **Natural phrasing and clarification:** review alternative hug offers such as `Could I hug you?`; route only trusted grammar and abstain on ambiguity; keep real-world sensor questions distinct.
-- [ ] **Broad regressions and safety:** full suite, concurrent SQLite writer order, restart/replay, source attestation, privacy/tool authorization, CORE/SAFE, optional schema/migration and PR conflict review.
-- [ ] **Explicit approval:** Sparks accepts PKG-INTERACT and separately approves any merge. PR #2 stays draft, unmerged, and `main` unchanged.
+- [x] Exploratory counterfactual, source-attested boundary model and atomic opt-in service on stubbed/disposable state.
+- [x] One verified focused **67-pass** Windows checkpoint and supervised real-Qwen declarative-offer run with a natural clarification and effective synthetic boundary.
+- [ ] **Verify new narrow question route and writer-order regression:** focused tests and four-turn disposable real-application probe; human-review first Qwen answer. Do not treat a deterministic clarification as general conversational coverage.
+- [ ] **Broad regressions and security:** full `python -m pytest -q` plus selected CORE/SAFE/privacy/authorization, alternate writer order, restart/replay, source attestation and optional-schema/migration checks. Inspect and reconcile PR #2 against `main`, including base conflicts, before acceptance.
+- [ ] **Explicit approval:** Sparks accepts PKG-INTERACT and separately authorizes any merge. PR #2 stays draft/unmerged; `main` unchanged until then.
 
-Discord, 24/7 operation, real avatar animation and physical sensors are separate packages. Preserve the modified production database, timestamped backup, independent local Ollama test edit, other PRs and installed model settings.
+Discord/PKG-NET, 24/7 operation, real avatar animation and physical sensors are separate packages. This package covers bounded represented-world text interaction and its guards, not general animation or physical embodiment.
