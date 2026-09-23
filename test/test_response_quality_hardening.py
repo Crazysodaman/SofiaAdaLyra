@@ -98,3 +98,45 @@ def test_grounded_interaction_blanket_moral_refusal_gets_retried():
     response = _provider(client).respond(request)
     assert response.content == second
     assert len(client.calls) == 2
+
+
+def test_i_missed_you_too_requires_reunion_or_longing_evidence():
+    no_reunion = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: no"
+        ),
+    )
+    draft = CognitiveResponse(content="I missed you too. It's good to see you.")
+    assert response_quality_issue(no_reunion, draft) == "ungrounded_reciprocal_missing"
+
+    grounded = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: yes\n"
+            '{"emotion": "longing", "event_ids": ["reunion:return"]}'
+        ),
+    )
+    assert response_quality_issue(grounded, draft) is None
+
+
+def test_ungrounded_i_missed_you_too_gets_rephrased_warmly_without_false_absence():
+    system = (
+        "CURRENT MODELED EMOTIONAL STATE\n"
+        "Overall tone: positive\n"
+        "Reciprocal absence/missing-you claim grounded: no\n"
+        '{"emotion": "warmth", "event_ids": ["user-cue:m1"]}'
+    )
+    client = _Client(
+        "I missed you too. I've been thinking about you.",
+        "It's really good to hear that. I'm feeling warm and glad you're here.",
+    )
+    response = _provider(client).respond(_request("I missed you", system=system))
+
+    assert response.content == "It's really good to hear that. I'm feeling warm and glad you're here."
+    assert len(client.calls) == 2
+    assert "do not claim 'I missed you too'" in client.calls[1]["messages"][-2]["content"]
