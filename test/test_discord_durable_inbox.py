@@ -65,6 +65,34 @@ def test_same_message_id_in_different_dm_channel_is_distinct(tmp_path) -> None:
     assert store.count() == 2
 
 
+def test_unsigned_64_bit_snowflakes_round_trip_as_text(tmp_path) -> None:
+    high_bot = (1 << 63) + 123
+    high_channel = (1 << 63) + 456
+    high_message = (1 << 63) + 789
+    high_config = SingleUserDiscordConfig(OWNER, high_bot, True)
+    high_event = DiscordTextEvent(
+        message_id=high_message,
+        channel_id=high_channel,
+        content="future-safe snowflake",
+        facts=DiscordInboundFacts(
+            OWNER, high_bot, "dm", None, False, None, True
+        ),
+    )
+    screened = screen_text_dm(high_config, high_event)
+    store = DiscordInboxStore(tmp_path / "state.sqlite3")
+
+    assert store.accept(screened) is InboxAcceptResult.INSERTED
+    record = store.get(
+        bot_user_id=high_bot,
+        channel_id=high_channel,
+        message_id=high_message,
+    )
+    assert record is not None
+    assert record.bot_user_id == high_bot
+    assert record.channel_id == high_channel
+    assert record.message_id == high_message
+
+
 def test_concurrent_duplicate_claims_insert_once(tmp_path) -> None:
     store = DiscordInboxStore(tmp_path / "state.sqlite3")
     screened = accepted()

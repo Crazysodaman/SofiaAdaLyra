@@ -36,7 +36,11 @@ class DiscordInboxRecord:
 
 
 class DiscordInboxStore:
-    """Crash-safe inbox backed by the configured Sofía SQLite state file."""
+    """Crash-safe inbox backed by the configured Sofía SQLite state file.
+
+    Discord snowflakes are unsigned 64-bit identifiers. SQLite INTEGER is
+    signed 64-bit, so snowflakes are persisted as canonical decimal TEXT.
+    """
 
     def __init__(self, database_path: Path | str) -> None:
         self._database_path = Path(database_path)
@@ -55,10 +59,10 @@ class DiscordInboxStore:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS discord_inbox (
-                    bot_user_id INTEGER NOT NULL,
-                    channel_id INTEGER NOT NULL,
-                    message_id INTEGER NOT NULL,
-                    author_user_id INTEGER NOT NULL,
+                    bot_user_id TEXT NOT NULL,
+                    channel_id TEXT NOT NULL,
+                    message_id TEXT NOT NULL,
+                    author_user_id TEXT NOT NULL,
                     content TEXT NOT NULL,
                     payload_digest TEXT NOT NULL,
                     received_at TEXT NOT NULL,
@@ -96,6 +100,7 @@ class DiscordInboxStore:
 
         digest = self._digest(screened)
         received_at = datetime.now(timezone.utc).isoformat()
+        key = (str(bot_user_id), str(event.channel_id), str(event.message_id))
 
         connection = self._connect()
         try:
@@ -108,7 +113,7 @@ class DiscordInboxStore:
                   AND channel_id = ?
                   AND message_id = ?
                 """,
-                (bot_user_id, event.channel_id, event.message_id),
+                key,
             ).fetchone()
 
             if row is not None:
@@ -134,10 +139,8 @@ class DiscordInboxStore:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    bot_user_id,
-                    event.channel_id,
-                    event.message_id,
-                    author_user_id,
+                    *key,
+                    str(author_user_id),
                     event.content,
                     digest,
                     received_at,
@@ -176,17 +179,17 @@ class DiscordInboxStore:
                   AND channel_id = ?
                   AND message_id = ?
                 """,
-                (bot_user_id, channel_id, message_id),
+                (str(bot_user_id), str(channel_id), str(message_id)),
             ).fetchone()
 
         if row is None:
             return None
 
         return DiscordInboxRecord(
-            bot_user_id=row["bot_user_id"],
-            channel_id=row["channel_id"],
-            message_id=row["message_id"],
-            author_user_id=row["author_user_id"],
+            bot_user_id=int(row["bot_user_id"]),
+            channel_id=int(row["channel_id"]),
+            message_id=int(row["message_id"]),
+            author_user_id=int(row["author_user_id"]),
             content=row["content"],
             payload_digest=row["payload_digest"],
             received_at=datetime.fromisoformat(row["received_at"]),
