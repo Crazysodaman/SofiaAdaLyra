@@ -1,4 +1,4 @@
-"""Discord channel boundaries. No live client is started by importing this package."""
+"""Discord channel boundaries. Importing this package starts no live client."""
 
 from sofia.discord.access import (
     AccessDecision,
@@ -6,6 +6,12 @@ from sofia.discord.access import (
     DiscordInboundFacts,
     SingleUserDiscordConfig,
     authorize_private_dm,
+)
+from sofia.discord.bridge import (
+    BridgeDisposition,
+    BridgeResult,
+    DiscordBridgeError,
+    DiscordConversationBridge,
 )
 from sofia.discord.inbound import (
     DiscordTextEvent,
@@ -21,7 +27,9 @@ from sofia.discord.ingress import (
 from sofia.discord.store import (
     DiscordInboxRecord,
     DiscordInboxStore,
+    DiscordOutboxRecord,
     InboxAcceptResult,
+    InboxClaimResult,
 )
 
 __all__ = (
@@ -30,6 +38,10 @@ __all__ = (
     "DiscordInboundFacts",
     "SingleUserDiscordConfig",
     "authorize_private_dm",
+    "BridgeDisposition",
+    "BridgeResult",
+    "DiscordBridgeError",
+    "DiscordConversationBridge",
     "DiscordTextEvent",
     "InboundDenial",
     "InboundScreen",
@@ -39,5 +51,7 @@ __all__ = (
     "IngressOutcome",
     "DiscordInboxRecord",
     "DiscordInboxStore",
+    "DiscordOutboxRecord",
     "InboxAcceptResult",
+    "InboxClaimResult",
 )
