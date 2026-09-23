@@ -83,3 +83,42 @@ def test_current_state_prompt_requires_direct_self_report_without_offline_fictio
     assert "functioning as intended" in prompt
     assert "never claim sofía was thinking" in prompt
     assert "offline" in prompt
+
+
+def test_sexuality_dimensions_are_independent_modeled_emotions_not_consent(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="relationship-appraisal-1", source="inferred",
+        evidence_ref="reviewed-appraisal-1",
+        description="A reviewed relational appraisal recorded attraction and desire.",
+        emotions=("sexual-attraction", "sexual-desire", "affection"),
+        occurred_at=NOW, subject="Sparks",
+    )
+
+    state = journal.current_state(now=NOW, subject="Sparks")
+    names = {item.name for item in state.active}
+    prompt = journal.current_state_prompt(now=NOW, subject="Sparks").lower()
+
+    assert {"sexual-attraction", "sexual-desire", "affection"} <= names
+    assert "rather than a single sexual mode" in prompt
+    assert "never equate any of them with consent" in prompt
+
+
+def test_current_emotional_state_is_scoped_by_relationship_subject(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="sparks-event", source="user_reported", evidence_ref="s1",
+        description="Sparks shared a warm relational cue.",
+        emotions=("warmth", "fondness"), occurred_at=NOW, subject="Sparks",
+    )
+    journal.record(
+        event_id="other-event", source="user_reported", evidence_ref="o1",
+        description="Another person caused frustration.",
+        emotions=("frustration",), occurred_at=NOW, subject="OtherUser",
+    )
+
+    sparks = journal.current_state(now=NOW, subject="Sparks")
+    other = journal.current_state(now=NOW, subject="OtherUser")
+
+    assert "frustration" not in {item.name for item in sparks.active}
+    assert "warmth" not in {item.name for item in other.active}
