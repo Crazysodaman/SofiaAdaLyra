@@ -66,6 +66,9 @@ _HALF_LIFE_HOURS = {
 _REUNION_MIN_GAP = timedelta(hours=6)
 _LONGING_GAP = timedelta(hours=18)
 _ACTIVE_THRESHOLD = 0.08
+_LEGACY_AUTO_AFFECTION_DESCRIPTION = (
+    "User initiated an affectionate or playful conversational cue."
+)
 
 
 def _aware_utc(value: datetime) -> datetime:
@@ -232,7 +235,7 @@ class EmotionalJournal:
 
     def record_user_cue(
         self, *, message_id: str, content: str, occurred_at: datetime,
-        subject: str | None = None,
+        subject: str | None = None, allow_legacy_affection: bool = True,
     ) -> bool:
         """Identify only narrow explicit relational cues; never infer general sentiment."""
         if not isinstance(content, str):
@@ -242,15 +245,17 @@ class EmotionalJournal:
             return False
         if _NEGATED_CUE.search(clean):
             return False
+        if type(allow_legacy_affection) is not bool:
+            raise TypeError("Legacy-affection gate must be an explicit bool.")
         missed = _MISSED_CUE.search(clean) is not None
-        affectionate = _CUE.search(clean) is not None
+        affectionate = allow_legacy_affection and _CUE.search(clean) is not None
         if not missed and not affectionate:
             return False
         if missed:
             description = "User explicitly said they missed Sofía."
             labels = ("appreciation", "affection", "warmth")
         else:
-            description = "User initiated an affectionate or playful conversational cue."
+            description = _LEGACY_AUTO_AFFECTION_DESCRIPTION
             labels = ("affection", "appreciation", "playfulness")
         self.record(
             event_id=f"user-cue:{message_id}", occurred_at=occurred_at,
@@ -365,7 +370,10 @@ class EmotionalJournal:
         """Derive a decaying present state without rewriting historical events."""
         current = _aware_utc(now)
         target = _subject(subject)
-        events = self.recent(now=current, days=7, limit=50)
+        events = tuple(
+            event for event in self.recent(now=current, days=7, limit=50)
+            if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
+        )
         if target is not None:
             events = tuple(
                 event for event in events
