@@ -16,7 +16,7 @@ from sofia.cognition.model import (
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProvider, LLMProviderError
 from sofia.cognition.repetition_guard import (
-    build_rephrase_request, is_near_duplicate_reply,
+    build_rephrase_request, response_quality_issue, trim_generic_assistant_closer,
 )
 from sofia.config.model import ProviderConfiguration
 
@@ -30,19 +30,22 @@ class OllamaProvider(LLMProvider):
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         response = self._respond_once(request)
-        if not is_near_duplicate_reply(request, response):
+        response = trim_generic_assistant_closer(request, response)
+        issue = response_quality_issue(request, response)
+        if issue is None:
             return response
 
         # No tools or external actions are available on this path. Retrying
         # generates text only; neither candidate is saved by the provider.
-        # If the second call fails or still repeats, preserve the first result
-        # rather than accepting an empty answer or looping indefinitely.
+        # A single retry prevents latency spirals while giving generic fallback
+        # completions one explicit chance to obey the grounded conversation state.
         try:
-            alternate = self._respond_once(build_rephrase_request(request))
+            alternate = self._respond_once(build_rephrase_request(request, issue=issue))
         except LLMProviderError:
             return response
+        alternate = trim_generic_assistant_closer(request, alternate)
         if (alternate.content.strip() and not alternate.tool_calls
-                and not is_near_duplicate_reply(request, alternate)):
+                and response_quality_issue(request, alternate) is None):
             return alternate
         return response
 
