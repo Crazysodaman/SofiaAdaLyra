@@ -3,8 +3,8 @@
 The user message must already be saved by the trusted conversation host. A
 BEGIN IMMEDIATE transaction serializes policy changes with reply persistence
 in the same SQLite file. This never executes a gesture or grants permission.
-Only use with the currently isolated exact-offer route and an authenticated
-session. Do not invoke it directly with model-provided message identifiers.
+Only use with the isolated reviewed offer/clarification routes and an
+authenticated session. Never accept model-provided message identifiers.
 """
 from __future__ import annotations
 
@@ -18,6 +18,9 @@ from uuid import uuid4
 from sofia.interaction.architecture_compare import OFFER
 from sofia.interaction.decision_expression import CandidateChoice
 from sofia.interaction.expression_consistency import validate_offer_expression
+from sofia.interaction.reviewed_hug_question import (
+    CLARIFICATION, is_reviewed_hug_question,
+)
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
 _ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$')
@@ -46,10 +49,13 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
     exact text. A newly activated boundary or stop overrides an in-flight
     model reply. An unverifiable source or schema failure raises and rolls
     back rather than delivering candidate text. No auto-consent is recorded.
+    The separate question path may release only the fixed clarification.
     """
+    question = is_reviewed_hug_question(user_content)
     if (not isinstance(user_message_id, str) or _ID.fullmatch(user_message_id) is None
             or not isinstance(session_id, str) or _ID.fullmatch(session_id) is None
-            or user_content != OFFER or not isinstance(result, GuardedOfferResult)):
+            or (user_content != OFFER and not question)
+            or not isinstance(result, GuardedOfferResult)):
         raise ValueError('Exact saved offer and canonical host identifiers are required.')
     if result.status not in ('responded', *_BLOCKED_REPLIES):
         raise ValueError('Unknown guarded offer status.')
@@ -62,6 +68,9 @@ def commit_guarded_offer_reply(*, state_path: str | Path, session_id: str,
     if result.status != 'responded' and (result.choice is not None or result.response is not None):
         raise ValueError('A blocked offer cannot carry model-generated output.')
     if result.status == 'responded':
+        if question and (result.choice.choice != 'clarify'
+                         or result.response != CLARIFICATION):
+            raise ValueError('A reviewed question permits only its clarification.')
         # Defense in depth: callers cannot bypass the guarded inference veto
         # by passing a contradictory pair directly to persistence.
         validate_offer_expression(result.choice, result.response)
