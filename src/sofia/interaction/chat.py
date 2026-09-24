@@ -35,8 +35,12 @@ _LAB_COMMAND = re.compile(
     re.IGNORECASE,
 )
 _INTERACTION_FOLLOWUP = re.compile(
-    r"^\s*(?:why\b.*|what\s+if\b.*\b(?:wanted|consensual|consent)\b.*|"
+    r"^\s*(?:why\b.*|"
+    r"what\s+if\b.*\b(?:wanted|consensual|consent)\b.*|"
     r"what\s+if\s+you\s+(?:wanted|liked|welcomed)\s+it\b.*|"
+    r"what\s+if\s+you\s+(?:did\s+not|didn't|do\s+not|don't)\s+want\s+it\b.*|"
+    r"what\s+if\s+you\s+normally\s+like\s+it\b.*|"
+    r"(?:can|could|would)\s+you\s+change\s+your\s+mind\b.*|"
     r"would\s+it\s+be\s+different\b.*\b(?:want|consent)\w*\b.*)\s*$",
     re.IGNORECASE,
 )
