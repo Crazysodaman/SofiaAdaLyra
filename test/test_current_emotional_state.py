@@ -290,7 +290,7 @@ def test_week_after_tonight_expectation_can_be_angry_without_claiming_offline_su
     assert "thoughts or suffering while absent" in event.description
 
 
-def test_return_expectation_only_applies_when_it_was_the_last_contact(tmp_path):
+def test_return_expectation_survives_final_chatter_before_absence(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
     departure = NOW - timedelta(days=8)
     journal.record_return_expectation(
@@ -306,6 +306,30 @@ def test_return_expectation_only_applies_when_it_was_the_last_contact(tmp_path):
         occurred_at=departure + timedelta(minutes=5),
     )
 
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    event = journal.recent(now=NOW)[0]
+    assert "anger" in event.current_emotions
+    assert "frustration" in event.current_emotions
+
+
+def test_expired_expectation_before_last_contact_is_not_reused(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=8)
+    journal.record_return_expectation(
+        subject="Sparks", source_ref="old-plan",
+        recorded_at=departure,
+        expected_return_at=departure + timedelta(hours=1),
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="old-plan", occurred_at=departure,
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="still-here",
+        occurred_at=departure + timedelta(hours=2),
+    )
     journal.observe_contact(
         subject="Sparks", message_id="return", occurred_at=NOW,
     )
