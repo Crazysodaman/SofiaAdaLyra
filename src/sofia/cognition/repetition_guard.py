@@ -209,6 +209,30 @@ def is_near_duplicate_reply(request: CognitiveRequest, response: CognitiveRespon
     return False
 
 
+def _repeats_previous_short_self_report(
+    request: CognitiveRequest, response: CognitiveResponse,
+) -> bool:
+    """Catch canned short self-reports that simply repeat the previous answer."""
+    if not request.messages or not _EMOTION_SELF_REPORT.search(request.messages[-1].content):
+        return False
+    draft = _normalized(response.content)
+    if len(draft) < 24:
+        return False
+    previous = next(
+        (
+            message for message in reversed(request.messages[:-1])
+            if message.role is CognitiveRole.ASSISTANT
+        ),
+        None,
+    )
+    if previous is None:
+        return False
+    prior = _normalized(previous.content)
+    if len(prior) < 24:
+        return False
+    return SequenceMatcher(None, draft, prior, autojunk=False).ratio() >= 0.96
+
+
 def response_quality_issue(
     request: CognitiveRequest, response: CognitiveResponse,
 ) -> str | None:
@@ -221,6 +245,8 @@ def response_quality_issue(
     user = request.messages[-1].content
     content = response.content
     if _EMOTION_SELF_REPORT.search(user):
+        if _repeats_previous_short_self_report(request, response):
+            return "repeated_emotion_self_report"
         if _EMOTION_DISCLAIMER.search(content):
             return "emotion_disclaimer"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
@@ -342,6 +368,7 @@ def grounded_quality_fallback(
         "emotion_disclaimer",
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
+        "repeated_emotion_self_report",
     ):
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         readable = [label.replace("-", " ") for label in labels[:2]]
@@ -437,6 +464,7 @@ def build_rephrase_request(
         "emotion_disclaimer",
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
+        "repeated_emotion_self_report",
     ):
         detail = (
             "The user asked for Sofía's emotional self-report, but your draft replaced "
