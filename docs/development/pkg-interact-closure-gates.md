@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Second focused Windows checkpoint (2026-09-23)
+
+- After pulling through `21a5bb`, Sparks reran the reopened focused slice: **61 passed, 1 failed in 12.90s**.
+- The sole failure was `test_failed_emotion_repair_returns_grounded_state_fallback`: trimming the trailing generic helper phrase exposed `I'm functioning as intended, but I don't experience happiness in the way humans do.`, and the quality detector recognized generic `emotions`/`feelings` wording but not emotion-specific `happiness` wording.
+- The detector now recognizes `functioning as intended` and emotion-specific disclaimer variants before releasing a reply. This checkpoint must be rerun; it is not yet green evidence.
+- Absence/reunion appraisal was also expanded after this checkpoint: elapsed time alone may support longing/sadness, while frustration/anger require stronger source-backed evidence such as an explicit relative return expectation that was materially missed. Explicit return-duration cues are stored in the existing emotional state database, not a competing relationship store.
+
 ### First reopened Windows/live probe evidence (2026-09-23)
 
 - Sparks ran the focused regression slice on `fix/interact-live-behavior-hardening`: **50 passed in 20.75s**.
