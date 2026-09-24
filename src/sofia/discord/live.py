@@ -94,14 +94,7 @@ def compose_live_discord(
         if not isinstance(active_session, str) or not active_session.strip():
             raise RuntimeError("live Discord requires an active Sofía conversation")
 
-        if existing is None:
-            existing = bindings.bind(
-                bot_user_id=discord_config.bot_user_id,
-                owner_user_id=discord_config.owner_user_id,
-                channel_id=discord_config.dm_channel_id,
-                session_id=active_session,
-            )
-        elif active_session != existing.session_id:
+        if existing is not None and active_session != existing.session_id:
             raise RuntimeError(
                 "resumed Sofía conversation does not match Discord binding"
             )
@@ -128,6 +121,7 @@ def compose_live_discord(
         gate = DiscordOutboundGate(
             config=discord_config,
             bindings=bindings,
+            session_id=active_session,
         )
         sender = DiscordSafeSender(
             gate=gate,
