@@ -70,7 +70,7 @@ _RECIPROCAL_MISSED_YOU = re.compile(
     re.IGNORECASE,
 )
 _UNGROUNDED_WAITING = re.compile(
-    r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s+)?waiting|"
+    r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return)\b",
     re.IGNORECASE,
 )
