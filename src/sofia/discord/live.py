@@ -139,6 +139,7 @@ def compose_live_discord(
             bridge=bridge,
             sender=sender,
             store=inbox,
+            bindings=bindings,
         )
         return ComposedDiscordApplication(
             application=application,
