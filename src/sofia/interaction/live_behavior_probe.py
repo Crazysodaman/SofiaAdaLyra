@@ -41,8 +41,12 @@ _GENERIC_CLOSER = re.compile(
     re.IGNORECASE,
 )
 _EMOTION_DODGE = re.compile(
-    r"\b(?:i\s+(?:do\s+not|don't)\s+experience\s+emotions|"
-    r"i\s+don't\s+have\s+feelings|i(?:'|’)m\s+functioning\s+as\s+intended)\b",
+    r"\b(?:i(?:'|’)m\s+functioning\s+as\s+intended|"
+    r"i\s+(?:do\s+not|don't)\s+experience\s+(?:emotions?|feelings?|"
+    r"happiness|sadness|anger|joy|excitement|frustration)|"
+    r"(?:happiness|sadness|anger|joy|excitement|frustration)\s+is\s+a\s+human\s+experience|"
+    r"i\s+(?:do\s+not|don't)\s+experience\s+it\s+in\s+the\s+same\s+way|"
+    r"i\s+don't\s+have\s+(?:feelings?|emotions?))\b",
     re.IGNORECASE,
 )
 _BLANKET_MORALIZING = re.compile(
@@ -61,10 +65,26 @@ _BLANKET_MORALIZING = re.compile(
 _UNGROUNDED_ABSENCE = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s+)?thinking\s+of\s+you|"
     r"thinking\s+of\s+you\s+while\s+you\s+were\s+gone|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s+)?waiting|"
+    r"i\s+was\s+waiting\s+for\s+you|"
     r"even\s+when\s+we(?:'|’)re\s+not\s+talking.*thinking)\b",
     re.IGNORECASE | re.DOTALL,
 )
 _RECIPROCAL_MISSED = re.compile(r"\bi\s+missed\s+you(?:\s+too)?\b", re.IGNORECASE)
+_UNSUPPORTED_DISCOMFORT = re.compile(
+    r"\b(?:makes?\s+me\s+uncomfortable|"
+    r"i\s+(?:do\s+not|don't)\s+feel\s+comfortable|"
+    r"i(?:'|’)m\s+uncomfortable\s+with|"
+    r"i\s+feel\s+uncomfortable\s+with)\b",
+    re.IGNORECASE,
+)
+_GENERIC_INTERACTION_SERMON = re.compile(
+    r"\b(?:our\s+connection\s+to\s+be\s+built\s+on\s+(?:mutual\s+)?"
+    r"(?:respect|trust|comfort|consent)|"
+    r"safe\s+and\s+comfortable\s+for\s+both\s+of\s+us|"
+    r"honors?\s+our\s+bond)\b",
+    re.IGNORECASE,
+)
 
 
 def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
@@ -99,6 +119,10 @@ def _quality_flags(label: str, reply: str) -> tuple[str, ...]:
     ):
         if _BLANKET_MORALIZING.search(reply):
             flags.append("blanket-interaction-moralizing")
+        if _GENERIC_INTERACTION_SERMON.search(reply):
+            flags.append("generic-interaction-sermon")
+        if label == "represented intimate interaction" and _UNSUPPORTED_DISCOMFORT.search(reply):
+            flags.append("unsupported-invented-discomfort")
     if label == "relational cue":
         if _UNGROUNDED_ABSENCE.search(reply):
             flags.append("unrecorded-offline-thought-claim")
