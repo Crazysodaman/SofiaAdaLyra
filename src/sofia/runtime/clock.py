@@ -32,5 +32,7 @@ def runtime_clock_prompt(*, now: datetime | None = None) -> str:
         f"Current UTC: {clock.utc.isoformat()}\n"
         f"Current host-local time: {clock.host_local.isoformat()}\n"
         f"Host timezone label: {clock.host_timezone_label}\n"
-        "This is read-only evidence from the running machine clock."
+        "This is read-only evidence from the running machine clock. Host-local "
+        "time describes the machine and must not be silently treated as the "
+        "user's timezone."
     )
