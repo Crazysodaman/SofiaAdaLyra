@@ -169,7 +169,9 @@ def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
                 app.runtime.filesystem_observation_store.close()
 
 
-def _quality_flags(label: str, reply: str) -> tuple[str, ...]:
+def _quality_flags(
+    label: str, reply: str, previous_reply: str | None = None,
+) -> tuple[str, ...]:
     flags: list[str] = []
     if _GENERIC_CLOSER.search(reply):
         flags.append("generic-assistant-closer")
@@ -178,6 +180,13 @@ def _quality_flags(label: str, reply: str) -> tuple[str, ...]:
             flags.append("emotion-self-report-dodge")
         if _EMOTION_TANGENT.search(reply) and _EMOTION_STATE_LANGUAGE.search(reply) is None:
             flags.append("emotion-self-report-tangent")
+        if (
+            label == "direct emotion self-report"
+            and previous_reply is not None
+            and " ".join(re.findall(r"\w+", previous_reply.casefold()))
+            == " ".join(re.findall(r"\w+", reply.casefold()))
+        ):
+            flags.append("repeated-emotion-self-report")
     if label in (
         "represented intimate interaction",
         "interaction reason follow-up",
@@ -252,9 +261,11 @@ def run_disposable_probe() -> int:
                 print("\nSTARTUP:")
                 print(startup.content)
 
+            previous_reply: str | None = None
             for label, user_text in _CASES:
                 response = app.conversation.respond(user_text)
-                flags = _quality_flags(label, response.content)
+                flags = _quality_flags(label, response.content, previous_reply)
+                previous_reply = response.content
                 print(f"\nCASE: {label}")
                 print("USER:", user_text)
                 print("SOFÍA:", response.content)
