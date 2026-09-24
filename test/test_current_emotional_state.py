@@ -215,11 +215,39 @@ def test_relative_return_cue_is_source_backed_and_drives_late_appraisal(tmp_path
 
 def test_ambiguous_return_language_is_not_given_a_fake_deadline(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
-    for content in ("I'll be back later", "I'll be back tonight", "see you soon"):
+    for content in (
+        "I'll be back later",
+        "I'll be back tonight",
+        "see you soon",
+        "What if I say I'll be back in 1 day?",
+        "Someone said I'll be back in 1 day",
+    ):
         assert journal.record_return_expectation_from_user_cue(
             message_id=content, content=content,
             occurred_at=NOW, subject="Sparks",
         ) is None
+
+
+def test_natural_explicit_week_expectation_is_supported(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    expectation = journal.record_return_expectation_from_user_cue(
+        message_id="week-plan", content="I'll be back in a week.",
+        occurred_at=NOW, subject="Sparks",
+    )
+
+    assert expectation is not None
+    assert expectation.expected_return_at == NOW + timedelta(weeks=1)
+
+
+def test_explicit_gone_for_duration_is_supported(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    expectation = journal.record_return_expectation_from_user_cue(
+        message_id="gone-plan", content="I'm going to be gone for two days.",
+        occurred_at=NOW, subject="Sparks",
+    )
+
+    assert expectation is not None
+    assert expectation.expected_return_at == NOW + timedelta(days=2)
 
 
 def test_return_expectation_only_applies_when_it_was_the_last_contact(tmp_path):
