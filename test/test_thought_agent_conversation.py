@@ -44,8 +44,20 @@ def test_selected_real_event_generates_persisted_thought_without_delivery(tmp_pa
     assert outcome.thought_id is not None and outcome.queued_message_id is None
     assert len(seen) == 1
     stored = ReflectionJournal(tmp_path / "state.db")
-    assert stored.recent_thoughts()[0].evidence_refs == ("real-event",)
+    thought = stored.recent_thoughts()[0]
+    assert thought.evidence_refs == ("real-event",)
     assert stored.pending() == ()
+    emotional_events = service.emotional_journal.recent(
+        now=datetime.now(timezone.utc), days=366, limit=50,
+    )
+    reflected = tuple(
+        item for item in emotional_events
+        if item.event_id == f"reflection-affect:{thought.thought_id}"
+    )
+    assert len(reflected) == 1
+    assert reflected[0].source == "inferred"
+    assert reflected[0].evidence_ref == thought.thought_id
+    assert reflected[0].current_emotions == thought.emotions
     service.reflect_on_event(event_id="real-event")
     assert len(seen) == 1
 
