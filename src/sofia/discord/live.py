@@ -21,6 +21,7 @@ from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender
 from sofia.discord.discordpy import DiscordLiveRuntime, run_discordpy_client
 from sofia.discord.ingress import DiscordIngress
 from sofia.discord.outbound import DiscordOutboundGate
+from sofia.discord.process_lock import DiscordProcessLock
 from sofia.discord.provisioning import DiscordProvisioning
 from sofia.discord.store import DiscordInboxStore
 
@@ -162,15 +163,17 @@ def run_live_discord(
     runner=run_discordpy_client,
 ) -> None:
     """Run the explicitly enabled Discord channel in the foreground."""
-    composed = compose_live_discord(
-        provisioning,
-        configuration=configuration,
-        application_factory=application_factory,
-    )
-    try:
-        runner(provisioning.require_token(), composed.runtime)
-    finally:
-        composed.shutdown()
+    config = configuration or create_default_configuration()
+    with DiscordProcessLock(config.state_path):
+        composed = compose_live_discord(
+            provisioning,
+            configuration=config,
+            application_factory=application_factory,
+        )
+        try:
+            runner(provisioning.require_token(), composed.runtime)
+        finally:
+            composed.shutdown()
 
 
 def main() -> int:
