@@ -210,7 +210,13 @@ def _quality_flags(
             flags.append("hypothetical-leaks-present-willingness")
         if (
             label in ("represented intimate interaction", "interaction reason follow-up")
-            and _CATEGORICAL_INTERACTION_STANCE.search(reply)
+            and (
+                _CATEGORICAL_INTERACTION_STANCE.search(reply)
+                or (
+                    label == "interaction reason follow-up"
+                    and _PRESENT_UNGROUNDED_WILLINGNESS.search(reply)
+                )
+            )
             and _INTERACTION_UNCERTAINTY.search(reply) is None
         ):
             flags.append("unsupported-invented-certainty")
