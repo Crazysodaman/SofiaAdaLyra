@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from sofia.discord.binding import BindingState, DiscordBindingStore
+from sofia.discord.discordpy import ensure_verified_binding
 from sofia.discord.live import compose_live_discord, run_live_discord
 from sofia.discord.provisioning import DiscordProvisioning
 
@@ -53,7 +54,7 @@ def provisioning() -> DiscordProvisioning:
     )
 
 
-def test_first_live_composition_creates_durable_session_binding(tmp_path) -> None:
+def test_first_live_composition_defers_binding_until_discord_verification(tmp_path) -> None:
     FakeApplication.starts.clear()
     config = Configuration(tmp_path / "state.sqlite3")
     composed = compose_live_discord(
@@ -61,11 +62,16 @@ def test_first_live_composition_creates_durable_session_binding(tmp_path) -> Non
         configuration=config,
         application_factory=FakeApplication,
     )
-    binding = composed.bindings.get(bot_user_id=BOT, channel_id=CHANNEL)
-    assert binding is not None
+    assert composed.bindings.get(bot_user_id=BOT, channel_id=CHANNEL) is None
+    assert FakeApplication.starts == [None]
+
+    binding = ensure_verified_binding(composed.runtime)
     assert binding.session_id == "new-discord-session"
     assert binding.state is BindingState.ACTIVE
-    assert FakeApplication.starts == [None]
+    assert binding.generation == 1
+
+    same = ensure_verified_binding(composed.runtime)
+    assert same.generation == 1
     composed.shutdown()
 
 
@@ -77,6 +83,7 @@ def test_restart_resumes_bound_conversation_session(tmp_path) -> None:
         configuration=config,
         application_factory=FakeApplication,
     )
+    ensure_verified_binding(first.runtime)
     first.shutdown()
 
     second = compose_live_discord(
@@ -96,6 +103,7 @@ def test_revoked_binding_refuses_live_restart(tmp_path) -> None:
         configuration=config,
         application_factory=FakeApplication,
     )
+    ensure_verified_binding(first.runtime)
     first.shutdown()
     store = DiscordBindingStore(config.state_path)
     store.revoke(bot_user_id=BOT, channel_id=CHANNEL)
