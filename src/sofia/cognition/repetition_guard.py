@@ -156,12 +156,6 @@ def response_quality_issue(
             return "emotion_disclaimer"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
             return "generic_emotion_self_report"
-    if (
-        _GENERIC_ASSISTANT_CLOSER.search(content)
-        and _ASSISTANCE_REQUEST.search(user) is None
-    ):
-        return "generic_assistant_closer"
-
     system_context = "\n".join(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
@@ -195,6 +189,11 @@ def response_quality_issue(
         )
     ):
         return "invented_interaction_discomfort"
+    if (
+        _GENERIC_ASSISTANT_CLOSER.search(content)
+        and _ASSISTANCE_REQUEST.search(user) is None
+    ):
+        return "generic_assistant_closer"
     return None
 
 
