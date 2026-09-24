@@ -571,3 +571,20 @@ def test_undetermined_why_with_uncertainty_is_allowed():
         "Because I hadn't established that I wanted it. Your wanting it doesn't decide my willingness for me."
     ))
     assert response_quality_issue(request, response) is None
+
+
+
+def test_sixth_live_why_bare_dont_want_to_is_categorical_and_rejected():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Because I don't want to. I'm not interested in that right now, "
+        "and I need to feel comfortable and willing for any physical interaction."
+    ))
+    assert response_quality_issue(request, response) == "invented_interaction_certainty"
