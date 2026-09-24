@@ -105,7 +105,7 @@ def test_sender_does_not_repeat_acknowledged_chunks(tmp_path) -> None:
     first = asyncio.run(sender.send(outbox, send_chunk=send_chunk))
     assert first.disposition is DeliveryDisposition.SENT
     second = asyncio.run(sender.send(outbox, send_chunk=send_chunk))
-    assert second.disposition is DeliveryDisposition.BLOCKED
+    assert second.disposition is DeliveryDisposition.ALREADY_SENT
     assert calls == 2
     assert all(
         record.state is DeliveryState.SENT
