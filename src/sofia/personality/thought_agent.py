@@ -15,7 +15,7 @@ import json
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
-from sofia.personality.emotion import EMOTIONS, EmotionalEvent
+from sofia.personality.emotion import EmotionalEvent
 from sofia.personality.reflection import ReflectionJournal
 
 
@@ -80,7 +80,6 @@ class ThoughtAgent:
             "original_modeled_emotions": event.original_emotions,
             "current_modeled_emotions": event.current_emotions,
             "reappraisals": event.revision_count,
-            "allowed_emotions": sorted(EMOTIONS),
             # Never infer escalation from an emotion label or model phrasing.
             "verified_worsening": verified_worsening,
         }
@@ -91,10 +90,8 @@ class ThoughtAgent:
             "Do not claim you ran a check, observed a cause, experienced a physical sensation, "
             "or thought while offline. An interesting hypothesis must be identified as tentative. "
             "Do not manufacture distress or guilt about an unanswered message. "
-            "Output ONLY a JSON object with exactly these keys: "
-            "subject, thought, share, message, urgency, emotions. "
-            "The first five values are strings. emotions is a JSON array of zero to four "
-            "modeled emotion-label strings selected only from allowed_emotions in the JSON data. "
+            "Output ONLY a JSON object with exactly these string keys: "
+            "subject, thought, share, message, urgency. "
             "share is 'now', 'later', or 'none'. Choose 'now' only when there is "
             "a meaningful new insight worth initiating a message about; otherwise choose 'later'. "
             "Use 'none' when the evidence supports no useful reflection. "
