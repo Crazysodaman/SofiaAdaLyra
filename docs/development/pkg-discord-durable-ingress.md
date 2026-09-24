@@ -70,6 +70,7 @@ The newer supervised provisioning, foreground lifecycle, reconnect recovery, and
 - Each network chunk gets a durable in-flight token before Discord I/O. A hard restart with an in-flight token converts it to `outcome_unknown` rather than resending it.
 - Prepared replies that have never entered network I/O are discovered on reconnect and safely resumed through the normal outbound gate.
 - Foreground transport shutdown always closes the Sofía application lifecycle.
+- The live process holds an OS-backed non-blocking lock keyed to the state database, so a second live Discord process cannot concurrently recover or process the same channel state. The lock lives in the host temporary directory and is released automatically when the process exits.
 
 ## Live provisioning contract
 
@@ -96,9 +97,10 @@ python -m sofia.discord status
 python -m sofia.discord pause
 python -m sofia.discord resume
 python -m sofia.discord revoke
+python -m sofia.discord reenroll
 ```
 
-These controls require the exact owner, bot, and DM-channel ID environment variables so they cannot select a binding by display name. `status` reports the durable binding state, conversation session, binding generation, pending outbox count, and counts of quarantined generation/delivery outcomes without printing message content. `revoke` is persistent and cannot be undone with `resume`; a revoked channel requires supervised re-enrollment.
+These controls require the exact owner, bot, and DM-channel ID environment variables so they cannot select a binding by display name. `status` reports the durable binding state, conversation session, binding generation, pending outbox count, and counts of quarantined generation/delivery outcomes without printing message content. `revoke` is persistent and cannot be undone with `resume`; `reenroll` is the separate supervised action that reactivates the exact same enrolled owner/channel/session with a new binding generation.
 
 ## Next engineering slice after current tests
 
