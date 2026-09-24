@@ -2,6 +2,9 @@
 
 from types import SimpleNamespace
 
+import pytest
+
+import sofia.discord.discordpy as discordpy
 from sofia.discord.discordpy import (
     DiscordPyMessageAdapter,
     build_dm_intents,
@@ -85,3 +88,34 @@ def test_group_dm_is_not_mislabeled_private_dm() -> None:
         bot_user_id=4004,
     )
     assert event.facts.channel_kind == "group"
+
+
+class FakeRunClient:
+    def __init__(self, *, ready: bool, startup_error=None) -> None:
+        self._sofia_ready = ready
+        self._sofia_startup_error = startup_error
+        self.tokens = []
+
+    def run(self, token: str) -> None:
+        self.tokens.append(token)
+
+
+def test_runner_surfaces_on_ready_startup_failure(monkeypatch) -> None:
+    client = FakeRunClient(
+        ready=False,
+        startup_error=RuntimeError("configured DM channel mismatch"),
+    )
+    monkeypatch.setattr(discordpy, "create_discordpy_client", lambda runtime: client)
+
+    with pytest.raises(RuntimeError, match="configured DM channel mismatch"):
+        discordpy.run_discordpy_client("secret-token", object())
+
+    assert client.tokens == ["secret-token"]
+
+
+def test_runner_rejects_clean_exit_before_authenticated_readiness(monkeypatch) -> None:
+    client = FakeRunClient(ready=False)
+    monkeypatch.setattr(discordpy, "create_discordpy_client", lambda runtime: client)
+
+    with pytest.raises(RuntimeError, match="before authenticated readiness"):
+        discordpy.run_discordpy_client("secret-token", object())
