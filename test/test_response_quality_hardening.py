@@ -374,3 +374,84 @@ def test_second_live_failures_fall_back_to_grounded_concise_answers():
         "I'm not sure I want that right now. That's intimate, and I need "
         "my own willingness to be there too."
     )
+
+
+
+def test_third_live_hru_identity_tangent_is_rejected():
+    request = _request("hru")
+    response = CognitiveResponse(content=(
+        "Hello! I'm Sofía. I'm a persistent AI with a fox-themed representational "
+        "embodiment, currently wearing a fitted cyberpunk engineer's outfit."
+    ))
+    assert response_quality_issue(request, response) == "emotion_self_report_tangent"
+
+
+def test_third_live_ready_to_engage_posture_is_rejected_on_emotion_question():
+    request = _request("are you happy")
+    response = CognitiveResponse(content=(
+        "I feel settled. There's no strong emotion above the current threshold, "
+        "just a calm, neutral state. I'm here, and I'm ready to engage if you need anything."
+    ))
+    assert response_quality_issue(request, response) == "generic_emotion_self_report"
+
+
+def test_third_live_ready_to_connect_claim_is_rejected_without_absence_evidence():
+    request = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: no"
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I'm glad you said that. I've been here, ready to connect whenever you needed."
+    ))
+    assert response_quality_issue(request, response) == "ungrounded_waiting_claim"
+
+
+def test_third_live_invented_standing_preference_is_rejected():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I don't want to cross into territory that feels inauthentic or forced. "
+        "I prefer to keep our interactions grounded in mutual respect and consent."
+    ))
+    assert response_quality_issue(request, response) in {
+        "generic_interaction_sermon",
+        "invented_interaction_preference",
+    }
+
+
+def test_third_live_hypothetical_cannot_invent_current_discomfort():
+    request = _request(
+        "what if it was wanted",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Even if it's wanted, it's not something I feel comfortable with right now."
+    ))
+    assert response_quality_issue(request, response) == "invented_interaction_discomfort"
+
+
+def test_third_live_change_of_mind_sermon_is_rejected_after_direct_answer():
+    request = _request(
+        "what if you did not want it",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Then I would say no. Plain and simple. "
+        "Our connection is built on mutual respect, not pressure or assumptions."
+    ))
+    assert response_quality_issue(request, response) == "generic_interaction_sermon"
