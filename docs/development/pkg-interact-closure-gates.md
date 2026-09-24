@@ -17,6 +17,15 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Absence, background emotion, and runtime clock hardening
+
+- Absence is no longer a simple `gap => warm reunion` mapping. The emotional journal now distinguishes ordinary elapsed gaps from source-backed return expectations and can produce mixed longing, sadness, disappointment, frustration, anger, relief, warmth and fondness according to evidence.
+- Elapsed time alone does not manufacture anger or blame. Stronger negative lateness appraisals require an explicit return expectation or, in a future REL expansion, another reviewed relationship expectation source.
+- Explicit relative return language such as `I'll be back in a week`, `I'm going to be gone for two days`, `tonight`, `later today`, and `tomorrow` is persisted conservatively. Vague `later` / `soon` language abstains. Coarse daypart words use generous expected-by windows rather than pretending to know the user's timezone.
+- While the application is running **and** `SOFIA_IDLE_REFLECTIONS=1`, the idle worker now observes bounded absence milestones, prioritizes a newly observed milestone for private reflection, and a recorded reflection can refresh the corresponding modeled affect in `CurrentEmotionalState`. This is real runtime activity, not retroactive offline thought.
+- If the process was not running, no background-thought or background-emotion event is backdated. On restart or reunion, Sofía may appraise the currently observed elapsed gap but must not claim she spent offline time thinking or suffering.
+- Every personality-enabled conversation now receives a read-only runtime clock projection containing current UTC and host-local time. Host-local describes the machine running Sofía and is not silently treated as the user's timezone.
+
 ### Second focused Windows checkpoint (2026-09-23)
 
 - After pulling through `21a5bb`, Sparks reran the reopened focused slice: **61 passed, 1 failed in 12.90s**.
