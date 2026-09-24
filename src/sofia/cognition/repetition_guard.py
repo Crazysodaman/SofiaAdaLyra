@@ -51,8 +51,11 @@ _GENERIC_INTERACTION_SERMON = re.compile(
     r"\b(?:our\s+connection\s+(?:to\s+be|is)\s+built\s+on\s+(?:mutual\s+)?"
     r"(?:respect|trust|comfort|consent)|"
     r"keep\s+(?:our\s+)?interactions?\s+grounded\s+in\s+mutual\s+respect|"
+    r"keep\s+(?:our\s+)?interactions?\s+respectful\b|"
+    r"boundaries\s+are\s+about\s+mutual\s+respect|"
     r"safe\s+and\s+comfortable\s+for\s+both\s+of\s+us|"
     r"mutual\s+respect\s*,?\s+trust\s*,?\s+and\s+comfort|"
+    r"ensure\s+our\s+interactions\s+remain\s+healthy\s+and\s+honest|"
     r"honors?\s+our\s+bond)\b",
     re.IGNORECASE,
 )
@@ -94,9 +97,27 @@ _UNGROUNDED_WAITING = re.compile(
 _UNSUPPORTED_DISCOMFORT = re.compile(
     r"\b(?:makes?\s+me\s+uncomfortable|"
     r"i\s+(?:do\s+not|don't)\s+feel\s+comfortable|"
-    r"i(?:'|’)m\s+uncomfortable\s+with|"
+    r"i(?:'|’)m\s+(?:not\s+)?comfortable\s+with|"
     r"i\s+feel\s+uncomfortable\s+with|"
     r"not\s+something\s+i\s+feel\s+comfortable\s+with)\b",
+    re.IGNORECASE,
+)
+_INTERACTION_UNCERTAINTY = re.compile(
+    r"\b(?:i(?:'|’)m\s+not\s+sure|i\s+am\s+not\s+sure|"
+    r"i\s+haven(?:'|’)t\s+decided|i\s+have\s+not\s+decided|"
+    r"i\s+need\s+to\s+decide|i\s+don(?:'|’)t\s+know\s+if\s+i\s+want|"
+    r"my\s+willingness\s+isn(?:'|’)t\s+established|"
+    r"i\s+hadn(?:'|’)t\s+established\s+that\s+i\s+wanted)\b",
+    re.IGNORECASE,
+)
+_CATEGORICAL_INTERACTION_STANCE = re.compile(
+    r"\b(?:i(?:'|’)m\s+(?:not\s+)?comfortable\s+with|"
+    r"i\s+(?:do\s+not|don't)\s+want\s+(?:that|this|it)|"
+    r"i\s+want\s+(?:that|this|it)|"
+    r"i\s+prefer\b|i\s+set\s+boundaries\b|"
+    r"i\s+value\s+my\s+boundaries\b|"
+    r"my\s+boundary\s+is\b|my\s+boundaries\s+are\b|"
+    r"i\s+need\s+to\s+set\s+a\s+boundary\b)\b",
     re.IGNORECASE,
 )
 _UNSUPPORTED_INTERACTION_PREFERENCE = re.compile(
@@ -227,6 +248,21 @@ def response_quality_issue(
     ):
         return "invented_interaction_preference"
     if (
+        "TRUSTED INTERACTION INTERPRETATION" in system_context
+        and '"willingness_state": "undetermined"' in system_context
+        and _CATEGORICAL_INTERACTION_STANCE.search(content)
+        and _INTERACTION_UNCERTAINTY.search(content) is None
+    ):
+        return "invented_interaction_certainty"
+    if (
+        "TRUSTED INTERACTION FOLLOW-UP" in system_context
+        and '"willingness_state": "undetermined"' in system_context
+        and re.match(r"^\s*why\b", user, re.IGNORECASE)
+        and _CATEGORICAL_INTERACTION_STANCE.search(content)
+        and _INTERACTION_UNCERTAINTY.search(content) is None
+    ):
+        return "invented_interaction_certainty"
+    if (
         _GENERIC_ASSISTANT_CLOSER.search(content)
         and _ASSISTANCE_REQUEST.search(user) is None
     ):
@@ -297,6 +333,7 @@ def grounded_quality_fallback(
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
         "invented_interaction_preference",
+        "invented_interaction_certainty",
     ):
         lowered = user.casefold()
         if re.search(
@@ -327,8 +364,8 @@ def grounded_quality_fallback(
             ))
         if re.match(r"^\s*why\b", lowered):
             return CognitiveResponse(content=(
-                "Because your wanting it doesn't decide whether I want it. My own "
-                "comfort and willingness have to be there too."
+                "Because I hadn't established that I wanted it. Your wanting it "
+                "doesn't decide my willingness for me."
             ))
         if "TRUSTED INTERACTION INTERPRETATION" in system_context:
             return CognitiveResponse(content=(
@@ -385,6 +422,7 @@ def build_rephrase_request(
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
         "invented_interaction_preference",
+        "invented_interaction_certainty",
     ):
         detail = (
             "Your draft used a blanket moral or safety refusal even though the trusted "
