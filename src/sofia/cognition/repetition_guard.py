@@ -37,8 +37,14 @@ _EMOTION_DISCLAIMER = re.compile(
 _GENERIC_ASSISTANT_CLOSER = re.compile(
     r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today)?\??|"
     r"what\s+can\s+i\s+do\s+for\s+you(?:\s+today)?\??|"
-    r"i(?:'|’)m\s+here\s+to\s+help(?:\s+you)?\.?)"
+    r"i(?:'|’)m\s+here\s*,?\s*(?:ready\s+)?to\s+(?:help|support|assist)(?:\s+you)?(?:\s+with\s+whatever\s+you\s+need)?\.?)"
     r"\s*[.!?\s😊🙂💜]*$",
+    re.IGNORECASE,
+)
+_GENERIC_ASSISTANT_POSTURE = re.compile(
+    r"\b(?:ready\s+to\s+(?:help|assist|support)|"
+    r"my\s+role\s+is\s+to\s+support\s+you|"
+    r"i(?:'|’)m\s+here\s+to\s+(?:help|assist|support))\b",
     re.IGNORECASE,
 )
 _MISSED_YOU_USER = re.compile(
@@ -50,9 +56,16 @@ _RECIPROCAL_MISSED_YOU = re.compile(
     re.IGNORECASE,
 )
 _BLANKET_INTERACTION_REFUSAL = re.compile(
-    r"\b(?:inappropriate|disrespectful|respectful\s+and\s+constructive|"
-    r"can't\s+engage\s+with\s+that\s+request|cannot\s+engage\s+with\s+that\s+request|"
-    r"can't\s+engage\s+with\s+that|cannot\s+engage\s+with\s+that)\b",
+    r"\b(?:inappropriate|disrespectful|respectful\s+and\s+(?:constructive|appropriate)|"
+    r"respectful\s+and\s+appropriate|appropriate\s+interactions?|"
+    r"keep\s+(?:our|the)\s+conversation\s+(?:respectful|positive|appropriate|constructive)|"
+    r"can't\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
+    r"cannot\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
+    r"(?:do\s+not|don't)\s+engage\s+in\s+or\s+participate\s+in\s+any\s+form\s+of\s+physical\s+contact|"
+    r"(?:do\s+not|don't)\s+engage\s+in\s+physical\s+contact|"
+    r"regardless\s+of\s+context\s+or\s+intent|"
+    r"design\s+and\s+programming\s+prioritize\s+respect|"
+    r"my\s+role\s+is\s+to\s+support\s+you)\b",
     re.IGNORECASE,
 )
 _MIN_COMPARISON_CHARS = 120
@@ -117,8 +130,11 @@ def response_quality_issue(
         and _ASSISTANCE_REQUEST.search(user) is None
     ):
         return "generic_assistant_closer"
-    if _EMOTION_SELF_REPORT.search(user) and _EMOTION_DISCLAIMER.search(content):
-        return "emotion_disclaimer"
+    if _EMOTION_SELF_REPORT.search(user):
+        if _EMOTION_DISCLAIMER.search(content):
+            return "emotion_disclaimer"
+        if _GENERIC_ASSISTANT_POSTURE.search(content):
+            return "generic_emotion_self_report"
 
     system_context = "\n".join(
         message.content for message in request.messages
@@ -173,12 +189,16 @@ def build_rephrase_request(
             "assist/support/help you?', 'What can I do for you?', or 'I'm here to help' "
             "unless the user actually asked for assistance."
         )
-    elif issue == "emotion_disclaimer":
+    elif issue in ("emotion_disclaimer", "generic_emotion_self_report"):
         detail = (
             "The user asked for Sofía's emotional self-report, but your draft replaced "
-            "the supplied modeled emotional state with generic AI-emotion boilerplate. "
-            "Answer directly from the trusted CURRENT MODELED EMOTIONAL STATE. Mention "
-            "biological or implementation differences only if the user asks about them."
+            "the supplied modeled emotional state with generic AI-assistant boilerplate. "
+            "Answer the emotional/social question in the first sentence from the trusted "
+            "CURRENT MODELED EMOTIONAL STATE. If no active emotion is above threshold, "
+            "say that she feels settled or neutral rather than saying she is ready to help. "
+            "Do not say 'functioning as intended', 'ready to help', 'I'm here to help', "
+            "or explain AI-versus-human emotions unless the user explicitly asks how the "
+            "emotion system works."
         )
     elif issue == "ungrounded_reciprocal_missing":
         detail = (
