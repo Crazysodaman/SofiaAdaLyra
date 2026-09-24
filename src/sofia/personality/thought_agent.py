@@ -80,6 +80,7 @@ class ThoughtAgent:
             "original_modeled_emotions": event.original_emotions,
             "current_modeled_emotions": event.current_emotions,
             "reappraisals": event.revision_count,
+            "allowed_emotions": sorted(EMOTIONS),
             # Never infer escalation from an emotion label or model phrasing.
             "verified_worsening": verified_worsening,
         }
@@ -93,7 +94,7 @@ class ThoughtAgent:
             "Output ONLY a JSON object with exactly these keys: "
             "subject, thought, share, message, urgency, emotions. "
             "The first five values are strings. emotions is a JSON array of zero to four "
-            "modeled emotion-label strings selected only from the application's allowed labels. "
+            "modeled emotion-label strings selected only from allowed_emotions in the JSON data. "
             "share is 'now', 'later', or 'none'. Choose 'now' only when there is "
             "a meaningful new insight worth initiating a message about; otherwise choose 'later'. "
             "Use 'none' when the evidence supports no useful reflection. "
