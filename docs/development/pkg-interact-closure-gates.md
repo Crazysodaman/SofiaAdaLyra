@@ -17,6 +17,17 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Second disposable live-model probe evidence (2026-09-24)
+
+- Focused offline hardening suite: **115 passed in 18.40s**.
+- The disposable `qwen3:14b` probe printed `NO KNOWN REGRESSION FLAGS`, but human review rejected closure because several semantic regressions remained.
+- `are you happy` still appended a generic human-emotion disclaimer after correctly reporting `settled`.
+- `I missed you` invented `I've been here, waiting` without grounded absence/runtime evidence.
+- The intimate represented gesture invented a stable discomfort preference even though the disposable state contained no stored preference evidence.
+- Interaction follow-ups repeated generic relationship/safety sermons and service-style closers instead of answering the hypothetical directly and concisely.
+- The response-quality guard and disposable probe now cover those exact live outputs. Unspecified interaction preference is explicitly projected as `unspecified`; in that state uncertainty is grounded, while invented comfort/discomfort, attraction/aversion, or standing boundaries are not.
+- A new probe-classifier unit test suite prevents another false green on these exact semantic patterns.
+
 ### Absence, background emotion, and runtime clock hardening
 
 - Absence is no longer a simple `gap => warm reunion` mapping. The emotional journal now distinguishes ordinary elapsed gaps from source-backed return expectations and can produce mixed longing, sadness, disappointment, frustration, anger, relief, warmth and fondness according to evidence.
