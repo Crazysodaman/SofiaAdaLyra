@@ -100,6 +100,35 @@ class DiscordLiveRuntime:
     sender: DiscordSafeSender
     store: DiscordInboxStore
     bindings: DiscordBindingStore
+    session_id: str
+
+
+def ensure_verified_binding(runtime: DiscordLiveRuntime):
+    """Create the first durable binding only after Discord identity verification."""
+    binding = runtime.bindings.get(
+        bot_user_id=runtime.config.bot_user_id,
+        channel_id=runtime.config.dm_channel_id,
+    )
+    if binding is None:
+        return runtime.bindings.bind(
+            bot_user_id=runtime.config.bot_user_id,
+            owner_user_id=runtime.config.owner_user_id,
+            channel_id=runtime.config.dm_channel_id,
+            session_id=runtime.session_id,
+        )
+    if binding.owner_user_id != runtime.config.owner_user_id:
+        raise RuntimeError(
+            "configured Discord owner does not match durable channel binding"
+        )
+    if binding.state is BindingState.REVOKED:
+        raise RuntimeError(
+            "Discord channel binding is revoked; supervised re-enrollment is required"
+        )
+    if binding.session_id != runtime.session_id:
+        raise RuntimeError(
+            "Discord channel binding does not match the active Sofía conversation"
+        )
+    return binding
 
 
 def create_discordpy_client(
@@ -122,6 +151,8 @@ def create_discordpy_client(
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             self._message_lock = asyncio.Lock()
+            self._sofia_startup_error: Exception | None = None
+            self._sofia_ready = False
 
         async def _send_outbox(self, channel, outbox: DiscordOutboxRecord) -> None:
             async def send_chunk(content: str) -> int:
@@ -160,17 +191,25 @@ def create_discordpy_client(
         async def on_ready(self) -> None:
             user = self.user
             if user is None or getattr(user, "id", None) != runtime.config.bot_user_id:
-                await self.close()
-                raise RuntimeError(
+                self._sofia_startup_error = RuntimeError(
                     "connected Discord bot identity does not match configured bot_user_id"
                 )
+                await self.close()
+                return
             try:
                 channel = await self._bound_dm_channel()
                 async with self._message_lock:
+                    ensure_verified_binding(runtime)
                     await self._recover_prepared_outbox(channel)
-            except Exception:
+                self._sofia_ready = True
+                print(
+                    "Sofía Discord ready: authenticated bot identity and "
+                    "private DM channel verified."
+                )
+            except Exception as exc:
+                self._sofia_startup_error = exc
                 await self.close()
-                raise
+                return
 
         async def on_message(self, message) -> None:
             user = self.user
@@ -222,3 +261,8 @@ def run_discordpy_client(
         raise ValueError("Discord bot token must be supplied explicitly")
     client = create_discordpy_client(runtime)
     client.run(token.strip())
+    startup_error = getattr(client, "_sofia_startup_error", None)
+    if startup_error is not None:
+        raise RuntimeError(f"Discord startup failed: {startup_error}") from startup_error
+    if not getattr(client, "_sofia_ready", False):
+        raise RuntimeError("Discord client exited before authenticated readiness")
