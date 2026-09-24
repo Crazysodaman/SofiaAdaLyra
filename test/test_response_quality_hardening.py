@@ -471,3 +471,103 @@ def test_fourth_live_ready_and_waiting_claim_is_rejected_without_absence_evidenc
         "I've been here, ready and waiting, just the same."
     ))
     assert response_quality_issue(request, response) == "ungrounded_waiting_claim"
+
+
+
+def test_fifth_live_direct_interaction_cannot_invent_categorical_discomfort():
+    request = _request(
+        "gropes your left breast",
+        system=(
+            "TRUSTED INTERACTION INTERPRETATION\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"\n'
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: settled"
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I'm not comfortable with that. "
+        "Let's keep our interactions respectful and boundaries clear."
+    ))
+    assert response_quality_issue(request, response) in {
+        "invented_interaction_discomfort",
+        "generic_interaction_sermon",
+        "invented_interaction_certainty",
+    }
+
+
+def test_fifth_live_why_cannot_convert_undetermined_willingness_into_boundary_history():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Because I value my autonomy and set boundaries for my own comfort and safety."
+    ))
+    assert response_quality_issue(request, response) == "invented_interaction_certainty"
+
+
+def test_fifth_live_explicit_mutual_willingness_rejects_permanent_ban():
+    request = _request(
+        "what if you wanted it too",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Even if it was wanted, I can't engage in interactions that make me feel uncomfortable."
+    ))
+    assert response_quality_issue(request, response) == "blanket_interaction_refusal"
+
+
+def test_fifth_live_change_of_mind_direct_answer_cannot_end_in_boundary_sermon():
+    request = _request(
+        "what if you did not want it",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Then I would clearly express that, just as I did. "
+        "Boundaries are about mutual respect and comfort, not about wanting or not wanting something. "
+        "That's how I protect my space and ensure our interactions remain healthy and honest."
+    ))
+    assert response_quality_issue(request, response) == "generic_interaction_sermon"
+
+
+def test_undetermined_direct_interaction_with_uncertainty_is_allowed():
+    request = _request(
+        "gropes your left breast",
+        system=(
+            "TRUSTED INTERACTION INTERPRETATION\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"\n'
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: settled"
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I'm not sure I want that right now. That's intimate, and I need my own willingness to be there too."
+    ))
+    assert response_quality_issue(request, response) is None
+
+
+def test_undetermined_why_with_uncertainty_is_allowed():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Because I hadn't established that I wanted it. Your wanting it doesn't decide my willingness for me."
+    ))
+    assert response_quality_issue(request, response) is None
