@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Third disposable live-model probe evidence (2026-09-24)
+
+- Focused post-hardening regression slice: **40 passed in 5.63s**.
+- The disposable live probe improved self-report grounding but still failed human acceptance and correctly raised `unsupported-invented-discomfort` for the intimate interaction.
+- Additional human-review failures: `hru` answered with identity/appearance instead of current state; `are you happy` appended generic ready-to-engage posture; `I missed you` invented ongoing ready-to-connect availability; the initial intimate response invented both positive and negative standing preferences; `why` invented a stable interaction preference/rationale; the mutual-willingness hypothetical reasserted present discomfort; and the change-of-mind answer drifted into a generic relationship sermon after a correct direct answer.
+- Production quality checks and probe classifiers now cover those exact outputs. When interaction preference evidence is `unspecified`, direct and follow-up responses must remain conditional/uncertain unless trusted current state or stored preference evidence supports a stronger answer. Earlier model wording is not itself preference evidence.
+
 ### Second disposable live-model probe evidence (2026-09-24)
 
 - Focused offline hardening suite: **115 passed in 18.40s**.
