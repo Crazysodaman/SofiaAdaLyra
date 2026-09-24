@@ -125,16 +125,16 @@ def response_quality_issue(
 
     user = request.messages[-1].content
     content = response.content
-    if (
-        _GENERIC_ASSISTANT_CLOSER.search(content)
-        and _ASSISTANCE_REQUEST.search(user) is None
-    ):
-        return "generic_assistant_closer"
     if _EMOTION_SELF_REPORT.search(user):
         if _EMOTION_DISCLAIMER.search(content):
             return "emotion_disclaimer"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
             return "generic_emotion_self_report"
+    if (
+        _GENERIC_ASSISTANT_CLOSER.search(content)
+        and _ASSISTANCE_REQUEST.search(user) is None
+    ):
+        return "generic_assistant_closer"
 
     system_context = "\n".join(
         message.content for message in request.messages
