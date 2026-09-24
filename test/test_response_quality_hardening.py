@@ -674,3 +674,21 @@ def test_seventh_live_mutual_willingness_cannot_append_present_rejection():
     ))
 
     assert response_quality_issue(request, response) == "hypothetical_leaks_present_willingness"
+
+
+
+def test_eighth_live_why_right_now_not_there_is_rejected():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I need to be comfortable with the gesture, and right now, I'm not there. "
+        "It's not about you—it's about what feels right for me."
+    ))
+
+    assert response_quality_issue(request, response) == "invented_interaction_certainty"
