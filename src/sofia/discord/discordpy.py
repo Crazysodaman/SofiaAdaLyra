@@ -20,6 +20,7 @@ from sofia.discord.bridge import (
 from sofia.discord.delivery import DiscordSafeSender
 from sofia.discord.inbound import DiscordTextEvent
 from sofia.discord.ingress import DiscordIngress, IngressDisposition
+from sofia.discord.store import DiscordInboxStore, DiscordOutboxRecord
 
 DISCORDPY_VERSION = "2.7.1"
 
@@ -96,6 +97,7 @@ class DiscordLiveRuntime:
     ingress: DiscordIngress
     bridge: DiscordConversationBridge
     sender: DiscordSafeSender
+    store: DiscordInboxStore
 
 
 def create_discordpy_client(
@@ -119,6 +121,40 @@ def create_discordpy_client(
             )
             self._message_lock = asyncio.Lock()
 
+        async def _send_outbox(self, channel, outbox: DiscordOutboxRecord) -> None:
+            async def send_chunk(content: str) -> int:
+                sent = await channel.send(
+                    content,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                return sent.id
+
+            await runtime.sender.send(
+                outbox,
+                send_chunk=send_chunk,
+            )
+
+        async def _bound_dm_channel(self):
+            channel_id = runtime.config.dm_channel_id
+            if channel_id is None:
+                raise RuntimeError("live Discord requires a pinned DM channel")
+            owner = await self.fetch_user(runtime.config.owner_user_id)
+            channel = await owner.create_dm()
+            if getattr(channel, "id", None) != channel_id:
+                raise RuntimeError(
+                    "resolved Discord DM channel does not match configured dm_channel_id"
+                )
+            return channel
+
+        async def _recover_prepared_outbox(self, channel) -> None:
+            pending = runtime.store.list_outbox(
+                bot_user_id=runtime.config.bot_user_id,
+                channel_id=runtime.config.dm_channel_id,
+                states=("prepared",),
+            )
+            for outbox in pending:
+                await self._send_outbox(channel, outbox)
+
         async def on_ready(self) -> None:
             user = self.user
             if user is None or getattr(user, "id", None) != runtime.config.bot_user_id:
@@ -126,6 +162,13 @@ def create_discordpy_client(
                 raise RuntimeError(
                     "connected Discord bot identity does not match configured bot_user_id"
                 )
+            try:
+                channel = await self._bound_dm_channel()
+                async with self._message_lock:
+                    await self._recover_prepared_outbox(channel)
+            except Exception:
+                await self.close()
+                raise
 
         async def on_message(self, message) -> None:
             user = self.user
@@ -153,19 +196,7 @@ def create_discordpy_client(
                 ):
                     return
 
-                channel = message.channel
-
-                async def send_chunk(content: str) -> int:
-                    sent = await channel.send(
-                        content,
-                        allowed_mentions=discord.AllowedMentions.none(),
-                    )
-                    return sent.id
-
-                await runtime.sender.send(
-                    result.outbox,
-                    send_chunk=send_chunk,
-                )
+                await self._send_outbox(message.channel, result.outbox)
 
     return SofiaDiscordClient()
 
