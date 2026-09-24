@@ -692,3 +692,37 @@ def test_eighth_live_why_right_now_not_there_is_rejected():
     ))
 
     assert response_quality_issue(request, response) == "invented_interaction_certainty"
+
+
+
+def test_ninth_live_hru_internal_decay_language_is_rejected():
+    request = _request("hru")
+    response = CognitiveResponse(content=(
+        "I'm settled, as always. No active emotions above the current decay threshold."
+    ))
+    assert response_quality_issue(request, response) in {
+        "emotion_implementation_leak",
+        "emotion_temporal_overclaim",
+    }
+
+
+def test_ninth_live_hru_as_always_is_rejected_without_history_evidence():
+    request = _request("hru")
+    response = CognitiveResponse(content="I'm settled, as always.")
+    assert response_quality_issue(request, response) == "emotion_temporal_overclaim"
+
+
+def test_ninth_live_why_boundary_misalignment_is_rejected_when_willingness_undetermined():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I need to feel willing and comfortable. "
+        "This feels out of alignment with my own boundaries."
+    ))
+    assert response_quality_issue(request, response) == "invented_interaction_certainty"
