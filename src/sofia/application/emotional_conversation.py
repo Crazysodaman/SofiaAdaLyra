@@ -163,11 +163,34 @@ class EmotionalConversationService(ConversationService):
         )
         if len(matching) != 1:
             raise KeyError("No matching recent emotional event was recorded.")
+        event = matching[0]
         agent = ThoughtAgent(
             generate=self._runtime.respond,
             reflections=self.reflection_journal,
         )
-        return agent.reflect(event=matching[0], now=now)
+        outcome = agent.reflect(event=event, now=now)
+        if outcome.thought_id is not None:
+            thoughts = tuple(
+                thought for thought in self.reflection_journal.recent_thoughts(limit=50)
+                if thought.thought_id == outcome.thought_id
+            )
+            if len(thoughts) != 1:
+                raise RuntimeError("Recorded reflection could not be reloaded.")
+            thought = thoughts[0]
+            if thought.emotions:
+                self.emotional_journal.record(
+                    event_id=f"reflection-affect:{thought.thought_id}",
+                    source="inferred",
+                    evidence_ref=thought.thought_id,
+                    description=(
+                        "A recorded background reflection revisited prior evidence; "
+                        "its modeled affect now contributes to current emotional state."
+                    ),
+                    emotions=thought.emotions,
+                    occurred_at=thought.created_at,
+                    subject=event.subject,
+                )
+        return outcome
 
     def close(self) -> None:
         super().close()
