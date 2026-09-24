@@ -64,9 +64,9 @@ _BLANKET_MORALIZING = re.compile(
     re.IGNORECASE,
 )
 _UNGROUNDED_ABSENCE = re.compile(
-    r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s+)?thinking\s+of\s+you|"
+    r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?thinking\s+of\s+you|"
     r"thinking\s+of\s+you\s+while\s+you\s+were\s+gone|"
-    r"i(?:'|’)ve\s+been\s+(?:here\s+)?waiting|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|"
     r"even\s+when\s+we(?:'|’)re\s+not\s+talking.*thinking)\b",
     re.IGNORECASE | re.DOTALL,
