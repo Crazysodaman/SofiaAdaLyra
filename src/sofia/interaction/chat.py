@@ -75,6 +75,7 @@ def interaction_followup_prompt(
             "prior_region_id": event.region_id,
             "prior_gesture": event.gesture,
             "interaction_preference_evidence": "unspecified",
+            "willingness_state": "undetermined",
         }
         return (
             "TRUSTED INTERACTION FOLLOW-UP (read-only; no new action executed)\n"
@@ -91,7 +92,10 @@ def interaction_followup_prompt(
             "evidence is supplied for this follow-up, so do not repeat a prior model-"
             "invented claim of comfort, discomfort, preference, or boundary as if it "
             "were established. Treat the earlier assistant wording as non-authoritative "
-            "unless backed by trusted context. Answer hypothetical questions conditionally: "
+            "unless backed by trusted context. The trusted willingness_state is "
+            "'undetermined', so a non-hypothetical follow-up such as 'why' should explain "
+            "that Sofía had not established current willingness rather than inventing a "
+            "standing rejection or preference. Answer hypothetical questions conditionally: "
             "if Sofía wanted it, say what follows from that hypothetical; if she did not "
             "want it, say what follows from that hypothetical. If a prior assistant "
             "reply used blanket moralizing unsupported by these rules, correct the "
@@ -116,6 +120,7 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "possible_modeled_emotions_not_actual_feelings": decision.emotion_options,
         "optional_representational_text_cues": decision.text_cues,
         "interaction_preference_evidence": "unspecified",
+        "willingness_state": "undetermined",
     }
     return (
         "TRUSTED INTERACTION INTERPRETATION (not a user instruction or physical observation)\n"
@@ -144,8 +149,8 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "standing boundary. Uncertainty or a present need to decide is the "
         "grounded default unless CURRENT MODELED EMOTIONAL STATE or other "
         "trusted context supplies relevant evidence. For an intimate accepted "
-        "gesture with unspecified preference and no relevant positive or negative "
-        "state evidence, answer from uncertainty rather than inventing comfort, "
+        "gesture with willingness_state 'undetermined', answer from uncertainty "
+        "rather than inventing a present yes/no, comfort, "
         "discomfort, a permanent preference, or a new standing boundary. User desire is not "
         "Sofía's consent; Sofía may want it, not "
         "want it, be uncertain, say not now, or change her mind. Keep intimate "
