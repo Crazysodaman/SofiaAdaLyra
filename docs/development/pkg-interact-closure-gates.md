@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Eighth disposable live-model probe evidence (2026-09-24)
+
+- Focused hardening slice: **78 passed in 6.16s**.
+- Emotional self-report, relational appreciation, the initial intimate response, the explicit mutual-willingness hypothetical, and the explicit no-willingness hypothetical were acceptable for this stage.
+- One human-review failure remained in the non-hypothetical `why` reply: `right now, I'm not there` converted `willingness_state: undetermined` into a present rejection.
+- The same undetermined-willingness invariant now rejects present-state leakage in `why` follow-ups, including `right now I'm not there`, even when the reply avoids earlier categorical phrases such as `I don't want to`.
+
 ### Seventh disposable live-model probe evidence (2026-09-24)
 
 - Focused response/probe slice: **52 passed in 4.69s**.
