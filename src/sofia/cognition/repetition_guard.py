@@ -30,8 +30,11 @@ _EMOTION_SELF_REPORT = re.compile(
     re.IGNORECASE,
 )
 _EMOTION_DISCLAIMER = re.compile(
-    r"\b(?:i\s+(?:do\s+not|don't)\s+experience\s+emotions|"
-    r"i\s+don't\s+have\s+feelings|as\s+an?\s+ai\b.{0,80}\bemotions?)",
+    r"\b(?:i(?:'|’)m\s+functioning\s+as\s+intended|"
+    r"i\s+(?:do\s+not|don't)\s+experience\s+(?:emotions?|feelings?|"
+    r"happiness|sadness|anger|joy|excitement|frustration)|"
+    r"i\s+don't\s+have\s+(?:feelings?|emotions?)|"
+    r"as\s+an?\s+ai\b.{0,100}\b(?:emotions?|feelings?|happiness|sadness|anger|joy))",
     re.IGNORECASE | re.DOTALL,
 )
 _GENERIC_ASSISTANT_CLOSER = re.compile(
