@@ -122,3 +122,136 @@ def test_current_emotional_state_is_scoped_by_relationship_subject(tmp_path):
 
     assert "frustration" not in {item.name for item in sparks.active}
     assert "warmth" not in {item.name for item in other.active}
+
+
+
+def _emotion_names(journal, *, now=NOW):
+    return {item.name for item in journal.current_state(now=now, subject="Sparks").active}
+
+
+def test_week_absence_without_return_expectation_can_be_sad_but_not_angry(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.observe_contact(
+        subject="Sparks", message_id="before",
+        occurred_at=NOW - timedelta(days=7),
+    )
+
+    event_id = journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    assert event_id == "reunion:return"
+    event = journal.recent(now=NOW)[0]
+    assert {"longing", "sadness", "relief"} <= set(event.current_emotions)
+    assert "anger" not in event.current_emotions
+    assert "frustration" not in event.current_emotions
+
+
+def test_expected_week_absence_returning_on_time_is_warm_not_angry(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=7)
+    journal.record_return_expectation(
+        subject="Sparks", source_ref="before",
+        recorded_at=departure, expected_return_at=NOW,
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="before", occurred_at=departure,
+    )
+
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    event = journal.recent(now=NOW)[0]
+    assert {"relief", "warmth", "fondness"} <= set(event.current_emotions)
+    assert "sadness" not in event.current_emotions
+    assert "frustration" not in event.current_emotions
+    assert "anger" not in event.current_emotions
+
+
+def test_week_late_after_explicit_return_expectation_can_include_anger(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=8)
+    journal.record_return_expectation(
+        subject="Sparks", source_ref="before",
+        recorded_at=departure,
+        expected_return_at=departure + timedelta(days=1),
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="before", occurred_at=departure,
+    )
+
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    event = journal.recent(now=NOW)[0]
+    assert {"longing", "sadness", "frustration", "anger", "relief"} <= set(
+        event.current_emotions
+    )
+    assert "explicit return expectation before" in event.description
+    assert "late at reunion" in event.description
+
+
+def test_relative_return_cue_is_source_backed_and_drives_late_appraisal(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=8)
+    expectation = journal.record_return_expectation_from_user_cue(
+        message_id="before", content="I'll be back in 1 day",
+        occurred_at=departure, subject="Sparks",
+    )
+    assert expectation is not None
+    assert expectation.expected_return_at == departure + timedelta(days=1)
+
+    journal.observe_contact(
+        subject="Sparks", message_id="before", occurred_at=departure,
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    assert "anger" in _emotion_names(journal)
+
+
+def test_ambiguous_return_language_is_not_given_a_fake_deadline(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    for content in ("I'll be back later", "I'll be back tonight", "see you soon"):
+        assert journal.record_return_expectation_from_user_cue(
+            message_id=content, content=content,
+            occurred_at=NOW, subject="Sparks",
+        ) is None
+
+
+def test_return_expectation_only_applies_when_it_was_the_last_contact(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=8)
+    journal.record_return_expectation(
+        subject="Sparks", source_ref="promise",
+        recorded_at=departure,
+        expected_return_at=departure + timedelta(days=1),
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="promise", occurred_at=departure,
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="later-message",
+        occurred_at=departure + timedelta(minutes=5),
+    )
+
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    event = journal.recent(now=NOW)[0]
+    assert "anger" not in event.current_emotions
+    assert "frustration" not in event.current_emotions
+
+
+def test_reunion_prompt_allows_negative_feeling_without_guilt_or_obligation(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    prompt = journal.current_state_prompt(now=NOW, subject="Sparks").lower()
+
+    assert "anger about lateness require stronger" in prompt
+    assert "elapsed time alone must not manufacture blame" in prompt
+    assert "without guilt, pressure, accusation" in prompt
+    assert "obligation for the user to maintain contact" in prompt
