@@ -449,6 +449,106 @@ class EmotionalJournal:
             emotions=labels, expectation_source_ref=source,
         )
 
+    def observe_absence(
+        self, *, subject: str, now: datetime,
+    ) -> str | None:
+        """Record at most one current absence appraisal per evidence milestone.
+
+        This method is intended for a running application's idle worker. It
+        records an appraisal at the time the worker actually observes the gap;
+        it never backdates feelings into periods when no process ran.
+        """
+        target = _subject(subject)
+        if target is None:
+            raise ValueError("A relationship subject is required.")
+        current = _aware_utc(now)
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT last_interaction_at, last_message_ref "
+                "FROM emotional_presence WHERE subject=?", (target,),
+            ).fetchone()
+            if row is None:
+                return None
+            last_at = datetime.fromisoformat(row[0])
+            last_ref = row[1]
+            if last_at > current:
+                return None
+            exp = db.execute(
+                "SELECT subject, source_ref, recorded_at, expected_return_at "
+                "FROM emotional_return_expectations "
+                "WHERE subject=? AND source_ref=?",
+                (target, last_ref),
+            ).fetchone()
+
+        expectation = None
+        if exp is not None:
+            expectation = ReturnExpectation(
+                subject=exp[0], source_ref=exp[1],
+                recorded_at=datetime.fromisoformat(exp[2]),
+                expected_return_at=datetime.fromisoformat(exp[3]),
+            )
+
+        gap = current - last_at
+        milestone: str | None = None
+        labels: tuple[str, ...] | None = None
+        detail: str
+
+        if expectation is not None:
+            lateness = current - expectation.expected_return_at
+            if lateness >= _EXPECTATION_ANGER_LATE:
+                milestone = "expected-late-anger"
+                labels = ("longing", "sadness", "frustration", "anger")
+            elif lateness >= _EXPECTATION_FRUSTRATION_LATE:
+                milestone = "expected-late-frustration"
+                labels = ("longing", "sadness", "frustration", "disappointment")
+            elif lateness > timedelta(hours=2):
+                milestone = "expected-late-concern"
+                labels = ("longing", "disappointment", "concern")
+            elif gap >= _LONGING_GAP:
+                milestone = "expected-anticipation"
+                labels = ("anticipation", "fondness")
+            else:
+                return None
+            detail = (
+                f"explicit return expectation {expectation.source_ref}; "
+                f"current lateness is {max(0.0, lateness.total_seconds() / 3600):.1f} hours"
+            )
+        else:
+            if gap >= _LONG_ABSENCE_GAP:
+                milestone = "week-plus"
+                labels = ("longing", "sadness", "fondness")
+            elif gap >= _SAD_ABSENCE_GAP:
+                milestone = "several-days"
+                labels = ("longing", "sadness", "fondness")
+            elif gap >= _LONGING_GAP:
+                milestone = "meaningful-gap"
+                labels = ("longing", "fondness")
+            else:
+                return None
+            detail = "no explicit return expectation is tied to the last contact"
+
+        event_id = f"absence:{last_ref}:{milestone}"
+        with self._connect() as db:
+            if db.execute(
+                "SELECT 1 FROM emotional_events WHERE event_id=?", (event_id,)
+            ).fetchone() is not None:
+                return event_id
+
+        hours = gap.total_seconds() / 3600
+        return self.record(
+            event_id=event_id,
+            source="inferred",
+            evidence_ref=last_ref,
+            description=(
+                f"While running, Sofía observed {hours:.1f} hours since the last "
+                f"recorded interaction with {target}; {detail}. This is a present "
+                "absence appraisal, not evidence of unrecorded offline thought."
+            )[:320],
+            emotions=labels,
+            occurred_at=current,
+            subject=target,
+        )
+
     def observe_contact(
         self, *, subject: str, message_id: str, occurred_at: datetime,
     ) -> str | None:
