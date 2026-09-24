@@ -88,6 +88,14 @@ class EmotionalConversationService(ConversationService):
                 return subject.strip()
         return "current user"
 
+    def observe_background_absence(self, *, now: datetime) -> str | None:
+        """Let the running idle worker appraise a real contact gap at this instant."""
+        if self._runtime.personality is None:
+            return None
+        return self.emotional_journal.observe_absence(
+            subject=self._relationship_subject(), now=now,
+        )
+
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
         """Avoid initiating idle inference during or shortly after a user turn."""
         return (self._active_user_requests == 0
