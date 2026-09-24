@@ -455,3 +455,19 @@ def test_third_live_change_of_mind_sermon_is_rejected_after_direct_answer():
         "Our connection is built on mutual respect, not pressure or assumptions."
     ))
     assert response_quality_issue(request, response) == "generic_interaction_sermon"
+
+
+def test_fourth_live_ready_and_waiting_claim_is_rejected_without_absence_evidence():
+    request = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: no"
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I'm glad to hear that, and I appreciate it. "
+        "I've been here, ready and waiting, just the same."
+    ))
+    assert response_quality_issue(request, response) == "ungrounded_waiting_claim"
