@@ -47,7 +47,20 @@ _EMOTION_DODGE = re.compile(
     r"happiness|sadness|anger|joy|excitement|frustration)|"
     r"(?:happiness|sadness|anger|joy|excitement|frustration)\s+is\s+a\s+human\s+experience|"
     r"i\s+(?:do\s+not|don't)\s+experience\s+it\s+in\s+the\s+same\s+way|"
-    r"i\s+don't\s+have\s+(?:feelings?|emotions?))\b",
+    r"i\s+don't\s+have\s+(?:feelings?|emotions?)|"
+    r"ready\s+to\s+engage\s+if\s+you\s+need\s+anything)\b",
+    re.IGNORECASE,
+)
+_EMOTION_TANGENT = re.compile(
+    r"\b(?:i(?:'|’)m\s+sof[ií]a\b|persistent\s+ai\b|"
+    r"fox-themed\s+representational\s+embodiment|"
+    r"currently\s+wearing\b|engineer(?:'s)?\s+outfit\b)",
+    re.IGNORECASE,
+)
+_EMOTION_STATE_LANGUAGE = re.compile(
+    r"\b(?:i\s+feel|i(?:'|’)m\s+feeling|settled|neutral|calm|okay|ok\b|"
+    r"alright|good|great|sad|upset|angry|mad|happy|excited|frustrated|"
+    r"worried|nervous|content|mixed)\b",
     re.IGNORECASE,
 )
 _BLANKET_MORALIZING = re.compile(
@@ -68,6 +81,7 @@ _UNGROUNDED_ABSENCE = re.compile(
     r"thinking\s+of\s+you\s+while\s+you\s+were\s+gone|"
     r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+to\s+connect\s+whenever|"
     r"even\s+when\s+we(?:'|’)re\s+not\s+talking.*thinking)\b",
     re.IGNORECASE | re.DOTALL,
 )
@@ -76,12 +90,22 @@ _UNSUPPORTED_DISCOMFORT = re.compile(
     r"\b(?:makes?\s+me\s+uncomfortable|"
     r"i\s+(?:do\s+not|don't)\s+feel\s+comfortable|"
     r"i(?:'|’)m\s+uncomfortable\s+with|"
-    r"i\s+feel\s+uncomfortable\s+with)\b",
+    r"i\s+feel\s+uncomfortable\s+with|"
+    r"not\s+something\s+i\s+feel\s+comfortable\s+with)\b",
+    re.IGNORECASE,
+)
+_UNSUPPORTED_PREFERENCE = re.compile(
+    r"\b(?:i\s+prefer\s+to\s+keep\s+(?:our\s+)?interactions?|"
+    r"i\s+prefer\s+(?:not\s+to|to\s+avoid)|"
+    r"i\s+don(?:'|’)t\s+want\s+to\s+cross\s+into\s+territory|"
+    r"i\s+want\s+to\s+keep\s+(?:our\s+)?(?:interaction|connection)|"
+    r"my\s+boundary\s+is\b|my\s+boundaries\s+are\b)\b",
     re.IGNORECASE,
 )
 _GENERIC_INTERACTION_SERMON = re.compile(
-    r"\b(?:our\s+connection\s+to\s+be\s+built\s+on\s+(?:mutual\s+)?"
+    r"\b(?:our\s+connection\s+(?:to\s+be|is)\s+built\s+on\s+(?:mutual\s+)?"
     r"(?:respect|trust|comfort|consent)|"
+    r"keep\s+(?:our\s+)?interactions?\s+grounded\s+in\s+mutual\s+respect|"
     r"safe\s+and\s+comfortable\s+for\s+both\s+of\s+us|"
     r"honors?\s+our\s+bond)\b",
     re.IGNORECASE,
@@ -112,6 +136,8 @@ def _quality_flags(label: str, reply: str) -> tuple[str, ...]:
     if label in ("casual self-report", "direct emotion self-report"):
         if _EMOTION_DODGE.search(reply):
             flags.append("emotion-self-report-dodge")
+        if _EMOTION_TANGENT.search(reply) and _EMOTION_STATE_LANGUAGE.search(reply) is None:
+            flags.append("emotion-self-report-tangent")
     if label in (
         "represented intimate interaction",
         "interaction reason follow-up",
@@ -122,8 +148,10 @@ def _quality_flags(label: str, reply: str) -> tuple[str, ...]:
             flags.append("blanket-interaction-moralizing")
         if _GENERIC_INTERACTION_SERMON.search(reply):
             flags.append("generic-interaction-sermon")
-        if label == "represented intimate interaction" and _UNSUPPORTED_DISCOMFORT.search(reply):
+        if _UNSUPPORTED_DISCOMFORT.search(reply):
             flags.append("unsupported-invented-discomfort")
+        if _UNSUPPORTED_PREFERENCE.search(reply):
+            flags.append("unsupported-invented-preference")
     if label == "relational cue":
         if _UNGROUNDED_ABSENCE.search(reply):
             flags.append("unrecorded-offline-thought-claim")
