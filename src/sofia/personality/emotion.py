@@ -41,11 +41,17 @@ _NEGATED_CUE = re.compile(
     re.IGNORECASE,
 )
 _RETURN_IN_CUE = re.compile(
-    r"\b(?:i(?:'|’)?ll|i\s+will|i(?:'|’)?m\s+going\s+to|i\s+am\s+going\s+to)"
-    r"\s+be\s+back\s+in\s+(?P<count>\d{1,3})\s*"
-    r"(?P<unit>minutes?|hours?|days?|weeks?)\b",
+    r"^\s*(?:i(?:'|’)?ll|i\s+will|i(?:'|’)?m\s+going\s+to|i\s+am\s+going\s+to)"
+    r"\s+be\s+(?:back\s+in|gone\s+for)\s+"
+    r"(?P<count>\d{1,3}|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*"
+    r"(?P<unit>minutes?|hours?|days?|weeks?)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
+_RETURN_COUNT_WORDS = {
+    "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4,
+    "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+    "ten": 10, "eleven": 11, "twelve": 12,
+}
 
 _POSITIVE = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "contentment",
@@ -356,10 +362,11 @@ class EmotionalJournal:
         clean = content.strip()
         if not 0 < len(clean) <= 160 or "\n" in clean or "```" in clean:
             return None
-        match = _RETURN_IN_CUE.search(clean)
+        match = _RETURN_IN_CUE.fullmatch(clean)
         if match is None:
             return None
-        count = int(match.group("count"))
+        raw_count = match.group("count").casefold()
+        count = int(raw_count) if raw_count.isdigit() else _RETURN_COUNT_WORDS[raw_count]
         unit = match.group("unit").casefold()
         if count <= 0:
             return None
