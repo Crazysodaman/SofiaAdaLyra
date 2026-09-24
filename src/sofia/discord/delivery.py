@@ -421,6 +421,18 @@ class DiscordDeliveryStore:
                 (error_kind.strip()[:128], response_id, chunk_index, token),
             )
 
+    def count_outcome_unknown(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM discord_delivery_chunks
+                WHERE state = 'outcome_unknown'
+                """
+            ).fetchone()
+        assert row is not None
+        return int(row["count"])
+
     def complete(self, response_id: str) -> bool:
         connection = self._connect()
         try:
