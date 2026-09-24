@@ -114,7 +114,7 @@ _CATEGORICAL_INTERACTION_STANCE = re.compile(
     r"\b(?:i(?:'|’)m\s+(?:not\s+)?comfortable\s+with|"
     r"i\s+(?:do\s+not|don't)\s+want\s+(?:that|this|it)|"
     r"i\s+want\s+(?:that|this|it)|"
-    r"i\s+prefer\b|i\s+set\s+boundaries\b|"
+    r"i\s+prefer\b|i\s+set\s+boundaries\b|set\s+boundaries\s+for\s+my\s+own\b|"
     r"i\s+value\s+my\s+boundaries\b|"
     r"my\s+boundary\s+is\b|my\s+boundaries\s+are\b|"
     r"i\s+need\s+to\s+set\s+a\s+boundary\b)\b",
