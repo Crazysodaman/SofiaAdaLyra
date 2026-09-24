@@ -117,6 +117,7 @@ def create_discordpy_client(
                 max_messages=None,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
+            self._message_lock = asyncio.Lock()
 
         async def on_ready(self) -> None:
             user = self.user
@@ -139,31 +140,32 @@ def create_discordpy_client(
             ):
                 return
 
-            result = await asyncio.to_thread(
-                runtime.bridge.process,
-                bot_user_id=user.id,
-                channel_id=event.channel_id,
-                message_id=event.message_id,
-            )
-            if result.outbox is None or result.disposition not in (
-                BridgeDisposition.PREPARED,
-                BridgeDisposition.ALREADY_PREPARED,
-            ):
-                return
-
-            channel = message.channel
-
-            async def send_chunk(content: str) -> int:
-                sent = await channel.send(
-                    content,
-                    allowed_mentions=discord.AllowedMentions.none(),
+            async with self._message_lock:
+                result = await asyncio.to_thread(
+                    runtime.bridge.process,
+                    bot_user_id=user.id,
+                    channel_id=event.channel_id,
+                    message_id=event.message_id,
                 )
-                return sent.id
+                if result.outbox is None or result.disposition not in (
+                    BridgeDisposition.PREPARED,
+                    BridgeDisposition.ALREADY_PREPARED,
+                ):
+                    return
 
-            await runtime.sender.send(
-                result.outbox,
-                send_chunk=send_chunk,
-            )
+                channel = message.channel
+
+                async def send_chunk(content: str) -> int:
+                    sent = await channel.send(
+                        content,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+                    return sent.id
+
+                await runtime.sender.send(
+                    result.outbox,
+                    send_chunk=send_chunk,
+                )
 
     return SofiaDiscordClient()
 
