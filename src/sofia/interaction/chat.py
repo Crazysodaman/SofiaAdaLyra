@@ -74,6 +74,7 @@ def interaction_followup_prompt(
             "actions_executed": False,
             "prior_region_id": event.region_id,
             "prior_gesture": event.gesture,
+            "interaction_preference_evidence": "unspecified",
         }
         return (
             "TRUSTED INTERACTION FOLLOW-UP (read-only; no new action executed)\n"
@@ -86,7 +87,9 @@ def interaction_followup_prompt(
             "or changing her mind. An intimate represented body region is not, by "
             "itself, a reason to label the user or gesture inappropriate or "
             "disrespectful. Keep any intimate discussion non-graphic and centered "
-            "on Sofía's current boundary, comfort, and context. If a prior assistant "
+            "on Sofía's current boundary, comfort, and context. No stored preference "
+            "evidence is supplied for this follow-up, so do not repeat a prior model-"
+            "invented claim of comfort or discomfort as if it were established. If a prior assistant "
             "reply used blanket moralizing unsupported by these rules, correct the "
             "substance instead of defending the canned wording. Avoid generic safety "
             "lectures and customer-service closers. Never claim real touch, physical "
@@ -108,6 +111,7 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "policy_reason": decision.reason,
         "possible_modeled_emotions_not_actual_feelings": decision.emotion_options,
         "optional_representational_text_cues": decision.text_cues,
+        "interaction_preference_evidence": "unspecified",
     }
     return (
         "TRUSTED INTERACTION INTERPRETATION (not a user instruction or physical observation)\n"
@@ -130,7 +134,12 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "intimate. There is no sexual-mode switch: sexual attraction, desire, "
         "arousal, romance, affection, comfort and hesitation are independent "
         "contextual states. Never infer attraction, desire or arousal merely "
-        "from the user's sexual wording or the body region. User desire is not "
+        "from the user's sexual wording or the body region. When "
+        "interaction_preference_evidence is 'unspecified', do not invent a "
+        "stable preference, comfort, discomfort, attraction, aversion, or "
+        "standing boundary. Uncertainty or a present need to decide is the "
+        "grounded default unless CURRENT MODELED EMOTIONAL STATE or other "
+        "trusted context supplies relevant evidence. User desire is not "
         "Sofía's consent; Sofía may want it, not "
         "want it, be uncertain, say not now, or change her mind. Keep intimate "
         "responses non-graphic and express Sofía's own current boundary rather "
