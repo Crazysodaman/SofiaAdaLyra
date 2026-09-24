@@ -9,10 +9,12 @@
 On the Windows development checkout, the first durable-ingress/bridge slice was executed successfully:
 
 - Discord-focused gate: **43 passed in 4.59s**.
-- Full repository suite: **1710 passed, 2 skipped in 2511.53s**.
-- No regression was observed in that validated revision.
+- First durable-ingress/bridge full suite: **1710 passed, 2 skipped in 2511.53s**.
+- Channel/session-binding + outbound-gate focused suite: **54 passed in 7.50s**.
+- Channel/session-binding + outbound-gate full suite: **1721 passed, 2 skipped in 2502.06s**.
+- No regression was observed in either validated revision.
 
-The newer channel/session-binding and final-outbound-authorization slice was committed after that run and still requires its focused and full-suite execution on the exact current branch revision.
+The newer crash-aware delivery + `discord.py` adapter slice was committed after the 1721-pass run and still requires focused and full-suite execution on the exact current branch revision.
 
 ## Implemented
 
@@ -39,13 +41,27 @@ The newer channel/session-binding and final-outbound-authorization slice was com
 
 ## Intentionally not implemented yet
 
-- Discord library dependency, bot token, Gateway connection, REST sends, reconnect/resume, or rate-limit handling.
-- Live Discord adapter authentication and conversion from library events into trusted ingress facts.
-- Message chunking, allowed-mention suppression, platform delivery receipts, ambiguous HTTP-send reconciliation, or platform message IDs.
+- Live bot token provisioning, Gateway connection, supervised real-DM acceptance, and deployment lifecycle wiring.
+- Restart recovery for prepared-but-unsent outbox items when no fresh duplicate Gateway event arrives.
+- Operator-facing reconciliation workflow for a chunk whose provider outcome is marked unknown.
 - Owner DM text commands for pause/resume/status. Current pause/revoke state is supervised host-owned state, not inferred from arbitrary chat text.
 - Proactive DMs, guilds, attachments, links, voice, slash commands, reactions, or multi-user access.
 - General Internet/search capability.
 
+## Current live-adapter slice
+
+- `discord.py==2.7.1` is pinned as the transport dependency.
+- Importing Sofía's Discord package still starts no client and reads no token.
+- The client requests only the direct-message Gateway intent and disables the message cache.
+- Discord callback objects are converted into trusted numeric-ID facts at the adapter boundary; group DMs and guild traffic remain distinguishable and are denied by the existing ingress policy.
+- Live DM handling is serialized so one conversation session is not raced by concurrent callbacks.
+- Replies are split into bounded Discord-sized chunks without altering content.
+- Every chunk is durably prepared before send, re-authorized immediately before send, and records the Discord message ID only after a provider acknowledgement.
+- Mentions are disabled globally and per send.
+- A pause/revoke between chunks stops the remainder.
+- An ambiguous send failure is marked `outcome_unknown` and is not automatically retried.
+- The live client constructor and blocking runner exist but are not wired into application startup or enabled by configuration.
+
 ## Next engineering slice after current tests
 
-Select and verify the maintained Python Discord library and add the **disabled-by-default live adapter boundary**: authenticated Gateway event conversion, minimal intents, reconnect/rate-limit semantics, final `DiscordOutboundGate` call immediately before REST send, and no secret material in Git. Real transport remains disabled until the exact owner ID, bot/application ID, DM channel, secret storage, negative-access tests, STOP/revocation behavior, and supervised live acceptance are pinned.
+Add supervised environment/secret provisioning and lifecycle composition around the already-disabled live client, plus recovery/reconciliation for durable pending delivery state. Then perform fake-client fault tests followed by one supervised real owner-DM acceptance test. Real transport remains disabled until the exact owner ID, bot/application ID, DM channel, token storage, negative-access tests, STOP/revocation behavior, and deployment host are pinned.
