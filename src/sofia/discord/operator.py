@@ -69,8 +69,10 @@ def control_discord(
     *,
     configuration: SofiaConfiguration | None = None,
 ) -> DiscordOperatorStatus:
-    if action not in {"status", "pause", "resume", "revoke"}:
-        raise ValueError("Discord operator action must be status, pause, resume, or revoke")
+    if action not in {"status", "pause", "resume", "revoke", "reenroll"}:
+        raise ValueError(
+            "Discord operator action must be status, pause, resume, revoke, or reenroll"
+        )
     config = configuration or create_default_configuration()
     if action != "status":
         bindings = DiscordBindingStore(config.state_path)
@@ -92,10 +94,21 @@ def control_discord(
                 bot_user_id=identity.bot_user_id,
                 channel_id=identity.dm_channel_id,
             )
-        else:
+        elif action == "revoke":
             bindings.revoke(
                 bot_user_id=identity.bot_user_id,
                 channel_id=identity.dm_channel_id,
+            )
+        else:
+            if binding.state is not BindingState.REVOKED:
+                raise RuntimeError(
+                    "Discord re-enrollment is only valid for a revoked binding"
+                )
+            bindings.bind(
+                bot_user_id=identity.bot_user_id,
+                owner_user_id=identity.owner_user_id,
+                channel_id=identity.dm_channel_id,
+                session_id=binding.session_id,
             )
     return inspect_discord_state(identity, configuration=config)
 
