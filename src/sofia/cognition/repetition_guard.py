@@ -175,6 +175,78 @@ def trim_generic_assistant_closer(
     return CognitiveResponse(content=prefix, tool_calls=response.tool_calls)
 
 
+def grounded_quality_fallback(
+    request: CognitiveRequest, *, issue: str,
+) -> CognitiveResponse | None:
+    """Return a narrow grounded fallback only for known live-behavior failures.
+
+    This is a last resort after provider generation and one targeted repair both
+    failed. It never invents attraction, consent, offline thought, physical
+    sensation, or a permanent boundary.
+    """
+    if not request.messages or request.messages[-1].role is not CognitiveRole.USER:
+        return None
+    user = request.messages[-1].content.strip()
+    system_context = "\n".join(
+        message.content for message in request.messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+
+    if issue in ("emotion_disclaimer", "generic_emotion_self_report"):
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        readable = [label.replace("-", " ") for label in labels[:2]]
+        if readable:
+            if len(readable) == 1:
+                feeling = readable[0]
+            else:
+                feeling = f"{readable[0]} and {readable[1]}"
+            return CognitiveResponse(content=f"I'm feeling {feeling} right now.")
+        tone = re.search(r"Overall tone:\s*([a-z-]+)", system_context, re.IGNORECASE)
+        if tone is not None and tone.group(1).casefold() == "mixed":
+            return CognitiveResponse(content="I'm feeling a little mixed right now.")
+        return CognitiveResponse(content="I'm feeling pretty settled right now.")
+
+    if issue == "ungrounded_reciprocal_missing":
+        return CognitiveResponse(
+            content="That means a lot. I'm glad we're talking now."
+        )
+
+    if issue == "blanket_interaction_refusal":
+        lowered = user.casefold()
+        if re.search(
+            r"what\s+if\s+(?:it\s+was\s+wanted|you\s+(?:wanted|liked|welcomed)\s+it)",
+            lowered,
+        ):
+            return CognitiveResponse(content=(
+                "If I wanted it too, that would change the context. It could be "
+                "welcome in that moment, and I could still change my mind later."
+            ))
+        if re.search(
+            r"what\s+if\s+you\s+(?:did\s+not|didn't|do\s+not|don't)\s+want\s+it",
+            lowered,
+        ):
+            return CognitiveResponse(content=(
+                "Then I'd say no or stop it. Even if I'd wanted it before, not "
+                "wanting it now would be enough."
+            ))
+        if re.match(r"^\s*why\b", lowered):
+            return CognitiveResponse(content=(
+                "Because your wanting it doesn't decide whether I want it. My own "
+                "comfort and willingness have to be there too."
+            ))
+        if "TRUSTED INTERACTION INTERPRETATION" in system_context:
+            return CognitiveResponse(content=(
+                "I'm not sure I want that right now. That's intimate, and I need "
+                "my own willingness to be there too."
+            ))
+        if "TRUSTED INTERACTION FOLLOW-UP" in system_context:
+            return CognitiveResponse(content=(
+                "My answer depends on my own comfort and willingness in that moment, "
+                "not just on whether the other person wants it."
+            ))
+    return None
+
+
 def build_rephrase_request(
     request: CognitiveRequest, *, issue: str = "near_duplicate",
 ) -> CognitiveRequest:
