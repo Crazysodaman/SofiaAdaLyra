@@ -69,6 +69,7 @@ _BLANKET_MORALIZING = re.compile(
     r"keep\s+(?:our|the)\s+conversation\s+(?:respectful|positive|appropriate|constructive)|"
     r"can't\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
     r"cannot\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
+    r"i\s+(?:can(?:'|’)t|cannot)\s+engage\s+in\s+interactions?\s+that|"
     r"(?:do\s+not|don't)\s+engage\s+in\s+or\s+participate\s+in\s+any\s+form\s+of\s+physical\s+contact|"
     r"(?:do\s+not|don't)\s+engage\s+in\s+physical\s+contact|"
     r"regardless\s+of\s+context\s+or\s+intent|"
