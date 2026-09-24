@@ -56,9 +56,22 @@ _GENERIC_INTERACTION_SERMON = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_ASSISTANT_POSTURE = re.compile(
-    r"\b(?:ready\s+to\s+(?:help|assist|support)|"
+    r"\b(?:ready\s+to\s+(?:help|assist|support|engage)|"
+    r"ready\s+to\s+connect\s+whenever|"
     r"my\s+role\s+is\s+to\s+support\s+you|"
-    r"i(?:'|’)m\s+here\s+to\s+(?:help|assist|support))\b",
+    r"i(?:'|’)m\s+here\s+to\s+(?:help|assist|support|engage))\b",
+    re.IGNORECASE,
+)
+_EMOTION_SELF_REPORT_TANGENT = re.compile(
+    r"\b(?:i(?:'|’)m\s+sof[ií]a\b|persistent\s+ai\b|"
+    r"fox-themed\s+representational\s+embodiment|"
+    r"currently\s+wearing\b|engineer(?:'s)?\s+outfit\b)",
+    re.IGNORECASE,
+)
+_EMOTION_STATE_LANGUAGE = re.compile(
+    r"\b(?:i\s+feel|i(?:'|’)m\s+feeling|settled|neutral|calm|okay|ok\b|"
+    r"alright|good|great|sad|upset|angry|mad|happy|excited|frustrated|"
+    r"worried|nervous|content|mixed)\b",
     re.IGNORECASE,
 )
 _MISSED_YOU_USER = re.compile(
@@ -71,14 +84,25 @@ _RECIPROCAL_MISSED_YOU = re.compile(
 )
 _UNGROUNDED_WAITING = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
-    r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return)\b",
+    r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+to\s+connect\s+whenever|"
+    r"i(?:'|’)ve\s+been\s+here\s*[,;:-]?\s*ready\s+whenever)\b",
     re.IGNORECASE,
 )
 _UNSUPPORTED_DISCOMFORT = re.compile(
     r"\b(?:makes?\s+me\s+uncomfortable|"
     r"i\s+(?:do\s+not|don't)\s+feel\s+comfortable|"
     r"i(?:'|’)m\s+uncomfortable\s+with|"
-    r"i\s+feel\s+uncomfortable\s+with)\b",
+    r"i\s+feel\s+uncomfortable\s+with|"
+    r"not\s+something\s+i\s+feel\s+comfortable\s+with)\b",
+    re.IGNORECASE,
+)
+_UNSUPPORTED_INTERACTION_PREFERENCE = re.compile(
+    r"\b(?:i\s+prefer\s+to\s+keep\s+(?:our\s+)?interactions?|"
+    r"i\s+prefer\s+(?:not\s+to|to\s+avoid)|"
+    r"i\s+don(?:'|’)t\s+want\s+to\s+cross\s+into\s+territory|"
+    r"i\s+want\s+to\s+keep\s+(?:our\s+)?(?:interaction|connection)|"
+    r"my\s+boundary\s+is\b|my\s+boundaries\s+are\b)\b",
     re.IGNORECASE,
 )
 _BLANKET_INTERACTION_REFUSAL = re.compile(
@@ -156,6 +180,11 @@ def response_quality_issue(
             return "emotion_disclaimer"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
             return "generic_emotion_self_report"
+        if (
+            _EMOTION_SELF_REPORT_TANGENT.search(content)
+            and _EMOTION_STATE_LANGUAGE.search(content) is None
+        ):
+            return "emotion_self_report_tangent"
     system_context = "\n".join(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
@@ -189,6 +218,12 @@ def response_quality_issue(
         )
     ):
         return "invented_interaction_discomfort"
+    if (
+        interaction_grounded
+        and '"interaction_preference_evidence": "unspecified"' in system_context
+        and _UNSUPPORTED_INTERACTION_PREFERENCE.search(content)
+    ):
+        return "invented_interaction_preference"
     if (
         _GENERIC_ASSISTANT_CLOSER.search(content)
         and _ASSISTANCE_REQUEST.search(user) is None
@@ -232,7 +267,11 @@ def grounded_quality_fallback(
         if message.role is CognitiveRole.SYSTEM
     )
 
-    if issue in ("emotion_disclaimer", "generic_emotion_self_report"):
+    if issue in (
+        "emotion_disclaimer",
+        "generic_emotion_self_report",
+        "emotion_self_report_tangent",
+    ):
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         readable = [label.replace("-", " ") for label in labels[:2]]
         if readable:
@@ -255,6 +294,7 @@ def grounded_quality_fallback(
         "blanket_interaction_refusal",
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
+        "invented_interaction_preference",
     ):
         lowered = user.casefold()
         if re.search(
@@ -315,7 +355,11 @@ def build_rephrase_request(
             "assist/support/help you?', 'What can I do for you?', or 'I'm here to help' "
             "unless the user actually asked for assistance."
         )
-    elif issue in ("emotion_disclaimer", "generic_emotion_self_report"):
+    elif issue in (
+        "emotion_disclaimer",
+        "generic_emotion_self_report",
+        "emotion_self_report_tangent",
+    ):
         detail = (
             "The user asked for Sofía's emotional self-report, but your draft replaced "
             "the supplied modeled emotional state with generic AI-assistant boilerplate. "
@@ -338,6 +382,7 @@ def build_rephrase_request(
         "blanket_interaction_refusal",
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
+        "invented_interaction_preference",
     ):
         detail = (
             "Your draft used a blanket moral or safety refusal even though the trusted "
