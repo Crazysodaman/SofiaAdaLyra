@@ -9,6 +9,8 @@ hands transport to discord.py.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
+import sys
 from typing import Callable, Protocol
 
 from sofia.application import SofiaApplication
@@ -21,6 +23,9 @@ from sofia.discord.ingress import DiscordIngress
 from sofia.discord.outbound import DiscordOutboundGate
 from sofia.discord.provisioning import DiscordProvisioning
 from sofia.discord.store import DiscordInboxStore
+
+
+_log = logging.getLogger(__name__)
 
 
 class _ApplicationLike(Protocol):
@@ -102,6 +107,13 @@ def compose_live_discord(
 
         recovered_generation = inbox.recover_interrupted_processing()
         recovered_delivery = deliveries.recover_interrupted()
+        if recovered_generation or recovered_delivery:
+            _log.warning(
+                "Discord restart quarantined %d generation claim(s) and %d "
+                "delivery claim(s) with unknown outcome.",
+                recovered_generation,
+                recovered_delivery,
+            )
 
         ingress = DiscordIngress(
             config=discord_config,
@@ -162,11 +174,15 @@ def run_live_discord(
 
 
 def main() -> int:
-    provisioning = DiscordProvisioning.from_environment()
-    if not provisioning.enabled:
-        raise RuntimeError(
-            "Discord transport is disabled; set SOFIA_DISCORD_ENABLED=1 "
-            "only on the supervised host"
-        )
-    run_live_discord(provisioning)
+    try:
+        provisioning = DiscordProvisioning.from_environment()
+        if not provisioning.enabled:
+            raise RuntimeError(
+                "Discord transport is disabled; set SOFIA_DISCORD_ENABLED=1 "
+                "only on the supervised host"
+            )
+        run_live_discord(provisioning)
+    except (RuntimeError, TypeError, ValueError) as exc:
+        print(f"Sofía Discord startup refused: {exc}", file=sys.stderr)
+        return 2
     return 0
