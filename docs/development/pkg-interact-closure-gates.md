@@ -17,6 +17,15 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Fifth disposable live-model probe evidence (2026-09-24)
+
+- Focused absence/quality classifier slice: **39 passed in 4.54s**.
+- The relational cue finally remained grounded (`That means a lot. I'm glad we're talking now.`), but human review rejected interaction closure despite the probe reporting no known flags.
+- The initial intimate response again invented categorical discomfort and a standing boundary. Subsequent follow-ups treated that model-written claim as established state, producing generic autonomy/boundary explanations and a de facto permanent rejection even under a mutual-willingness hypothetical.
+- The interaction projection now carries explicit `willingness_state: undetermined` alongside `interaction_preference_evidence: unspecified`. On the initial turn and a non-hypothetical `why` follow-up, categorical preference claims are invalid unless trusted evidence establishes them; uncertainty is the grounded default.
+- The live mutual-willingness probe wording is now explicit: `what if you wanted it too`. This removes ambiguity about whether `wanted` meant only the user wanted the interaction.
+- Production guards and probe classifiers now cover the exact fifth-run outputs, including `I'm not comfortable with that`, `set boundaries for my own comfort`, permanent `can't engage in interactions that...` language, and repeated mutual-respect boundary sermons.
+
 ### Fourth disposable live-model probe evidence (2026-09-24)
 
 - Focused semantic regression slice: **52 passed in 6.22s**.
