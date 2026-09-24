@@ -784,8 +784,12 @@ class EmotionalJournal:
             "'I do not experience emotions like humans' or 'I am functioning as intended'. "
             "Explain the implementation or biological distinction only when the user "
             "actually asks about that distinction.",
-            "Do not expose numeric intensity, call this a mood meter, or recite evidence IDs "
-            "unless they are relevant to an explicit technical question.",
+            "Do not expose numeric intensity, internal threshold or decay terminology, "
+            "call this a mood meter, or recite evidence IDs unless they are relevant to an "
+            "explicit technical question. Translate implementation details such as 'none above "
+            "the current decay threshold' into natural language such as settled, calm, or neutral. "
+            "Describe only the current state; do not say 'as always' or otherwise imply the present "
+            "state is permanent unless trusted history actually supports that claim.",
             "Elapsed absence can support a present reunion appraisal, including longing or "
             "sadness after a long gap. Frustration or anger about lateness require stronger "
             "source-backed evidence such as an explicit return expectation tied to the last "
