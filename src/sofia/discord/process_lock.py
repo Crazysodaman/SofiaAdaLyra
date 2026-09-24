@@ -12,7 +12,7 @@ class DiscordProcessLock:
     """OS-backed non-blocking lock released automatically on process death."""
 
     def __init__(self, state_path: str | Path) -> None:
-        resolved = str(Path(state_path).resolve()).encode("utf-8")
+        resolved = os.path.normcase(str(Path(state_path).resolve())).encode("utf-8")
         digest = sha256(resolved).hexdigest()[:24]
         self.path = Path(tempfile.gettempdir()) / f"sofia-discord-{digest}.lock"
         self._file = None
