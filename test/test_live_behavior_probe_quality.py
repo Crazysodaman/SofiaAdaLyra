@@ -161,3 +161,14 @@ def test_probe_case_explicitly_asks_mutual_willingness():
     from sofia.interaction.live_behavior_probe import _CASES
 
     assert ("mutual-willingness follow-up", "what if you wanted it too") in _CASES
+
+
+
+def test_sixth_live_probe_why_bare_dont_want_to_is_flagged():
+    reply = (
+        "Because I don't want to. I'm not interested in that right now, "
+        "and I need to feel comfortable and willing for any physical interaction."
+    )
+    assert "unsupported-invented-certainty" in _quality_flags(
+        "interaction reason follow-up", reply
+    )
