@@ -52,6 +52,16 @@ _RETURN_COUNT_WORDS = {
     "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
     "ten": 10, "eleven": 11, "twelve": 12,
 }
+_RETURN_COARSE_CUE = re.compile(
+    r"^\s*(?:i(?:'|’)?ll|i\s+will|i(?:'|’)?m\s+going\s+to|i\s+am\s+going\s+to)"
+    r"\s+be\s+back\s+(?P<when>tonight|later\s+today|tomorrow)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_RETURN_COARSE_DELTAS = {
+    "tonight": timedelta(hours=24),
+    "later today": timedelta(hours=24),
+    "tomorrow": timedelta(hours=48),
+}
 
 _POSITIVE = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "contentment",
@@ -352,10 +362,12 @@ class EmotionalJournal:
         self, *, message_id: str, content: str, occurred_at: datetime,
         subject: str,
     ) -> ReturnExpectation | None:
-        """Parse only explicit relative return durations such as 'back in 2 days'.
+        """Parse explicit return expectations without pretending to know local clock time.
 
-        Ambiguous phrases such as 'later' or 'tonight' intentionally abstain until
-        the application has a trusted user-local time interpretation.
+        Numeric/word durations are exact relative intervals. 'Tonight', 'later today'
+        and 'tomorrow' use deliberately generous expected-by windows, so the layer can
+        recognize a clearly late multi-day return without inventing the user's timezone.
+        Vague phrases such as 'later' or 'soon' still abstain.
         """
         if not isinstance(content, str):
             raise TypeError("Return-expectation content must be text.")
@@ -363,21 +375,27 @@ class EmotionalJournal:
         if not 0 < len(clean) <= 160 or "\n" in clean or "```" in clean:
             return None
         match = _RETURN_IN_CUE.fullmatch(clean)
-        if match is None:
-            return None
-        raw_count = match.group("count").casefold()
-        count = int(raw_count) if raw_count.isdigit() else _RETURN_COUNT_WORDS[raw_count]
-        unit = match.group("unit").casefold()
-        if count <= 0:
-            return None
-        if unit.startswith("minute"):
-            delta = timedelta(minutes=count)
-        elif unit.startswith("hour"):
-            delta = timedelta(hours=count)
-        elif unit.startswith("day"):
-            delta = timedelta(days=count)
+        if match is not None:
+            raw_count = match.group("count").casefold()
+            count = int(raw_count) if raw_count.isdigit() else _RETURN_COUNT_WORDS[raw_count]
+            unit = match.group("unit").casefold()
+            if count <= 0:
+                return None
+            if unit.startswith("minute"):
+                delta = timedelta(minutes=count)
+            elif unit.startswith("hour"):
+                delta = timedelta(hours=count)
+            elif unit.startswith("day"):
+                delta = timedelta(days=count)
+            else:
+                delta = timedelta(weeks=count)
         else:
-            delta = timedelta(weeks=count)
+            coarse = _RETURN_COARSE_CUE.fullmatch(clean)
+            if coarse is None:
+                return None
+            delta = _RETURN_COARSE_DELTAS[
+                re.sub(r"\s+", " ", coarse.group("when").casefold()).strip()
+            ]
         if delta > _MAX_RETURN_EXPECTATION:
             return None
         when = _aware_utc(occurred_at)
