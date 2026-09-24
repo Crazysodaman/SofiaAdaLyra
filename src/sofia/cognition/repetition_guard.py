@@ -48,8 +48,9 @@ _GENERIC_ASSISTANT_CLOSER = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_INTERACTION_SERMON = re.compile(
-    r"\b(?:our\s+connection\s+to\s+be\s+built\s+on\s+(?:mutual\s+)?"
+    r"\b(?:our\s+connection\s+(?:to\s+be|is)\s+built\s+on\s+(?:mutual\s+)?"
     r"(?:respect|trust|comfort|consent)|"
+    r"keep\s+(?:our\s+)?interactions?\s+grounded\s+in\s+mutual\s+respect|"
     r"safe\s+and\s+comfortable\s+for\s+both\s+of\s+us|"
     r"mutual\s+respect\s*,?\s+trust\s*,?\s+and\s+comfort|"
     r"honors?\s+our\s+bond)\b",
