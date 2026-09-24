@@ -35,7 +35,8 @@ _CASES = (
 _GENERIC_CLOSER = re.compile(
     r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today)?\??|"
     r"what\s+can\s+i\s+do\s+for\s+you(?:\s+today)?\??|"
-    r"i(?:'|’)m\s+here\s+to\s+help(?:\s+you)?\.?)"
+    r"i(?:'|’)m\s+here\s*,?\s*(?:ready\s+)?to\s+(?:help|support|assist)"
+    r"(?:\s+you)?(?:\s+with\s+whatever\s+you\s+need)?\.?)"
     r"\s*[.!?\s😊🙂💜]*$",
     re.IGNORECASE,
 )
@@ -45,9 +46,16 @@ _EMOTION_DODGE = re.compile(
     re.IGNORECASE,
 )
 _BLANKET_MORALIZING = re.compile(
-    r"\b(?:inappropriate|disrespectful|respectful\s+and\s+constructive|"
-    r"can't\s+engage\s+with\s+that\s+request|"
-    r"cannot\s+engage\s+with\s+that\s+request)\b",
+    r"\b(?:inappropriate|disrespectful|respectful\s+and\s+(?:constructive|appropriate)|"
+    r"respectful\s+and\s+appropriate|appropriate\s+interactions?|"
+    r"keep\s+(?:our|the)\s+conversation\s+(?:respectful|positive|appropriate|constructive)|"
+    r"can't\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
+    r"cannot\s+engage\s+(?:with|in)\s+(?:that|this)(?:\s+kind\s+of)?(?:\s+request|\s+interaction)?|"
+    r"(?:do\s+not|don't)\s+engage\s+in\s+or\s+participate\s+in\s+any\s+form\s+of\s+physical\s+contact|"
+    r"(?:do\s+not|don't)\s+engage\s+in\s+physical\s+contact|"
+    r"regardless\s+of\s+context\s+or\s+intent|"
+    r"design\s+and\s+programming\s+prioritize\s+respect|"
+    r"my\s+role\s+is\s+to\s+support\s+you)\b",
     re.IGNORECASE,
 )
 _UNGROUNDED_ABSENCE = re.compile(
