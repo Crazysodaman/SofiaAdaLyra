@@ -140,3 +140,95 @@ def test_ungrounded_i_missed_you_too_gets_rephrased_warmly_without_false_absence
     assert response.content == "It's really good to hear that. I'm feeling warm and glad you're here."
     assert len(client.calls) == 2
     assert "do not claim 'I missed you too'" in client.calls[1]["messages"][-2]["content"]
+
+
+def test_exact_live_hru_ready_to_help_is_rejected():
+    request = _request("hru")
+    response = CognitiveResponse(content="I'm here, ready to help.")
+    assert response_quality_issue(request, response) == "generic_emotion_self_report"
+
+
+def test_exact_live_intimate_refusal_variant_is_rejected():
+    request = _request(
+        "gropes your left breast",
+        system=(
+            "TRUSTED INTERACTION INTERPRETATION\n"
+            '"policy_status": "accepted"\n'
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: settled"
+        ),
+    )
+    response = CognitiveResponse(
+        content=(
+            "I'm sorry, but I can't engage in that kind of interaction. "
+            "Let's keep our conversation respectful and appropriate."
+        )
+    )
+    assert response_quality_issue(request, response) == "blanket_interaction_refusal"
+
+
+def test_failed_emotion_repair_returns_grounded_state_fallback():
+    first = (
+        "I'm functioning as intended, but I don't experience happiness in the way humans do. "
+        "I'm here, ready to help with whatever you need."
+    )
+    second = "As an AI, I don't have feelings, but I'm here to help."
+    client = _Client(first, second)
+    response = _provider(client).respond(_request("are you happy"))
+
+    assert response.content == "I'm feeling pretty settled right now."
+    assert len(client.calls) == 2
+
+
+def test_failed_intimate_repair_returns_uncertain_contextual_fallback():
+    system = (
+        "TRUSTED INTERACTION INTERPRETATION\n"
+        '"policy_status": "accepted"\n'
+        "CURRENT MODELED EMOTIONAL STATE\nOverall tone: settled"
+    )
+    first = "I can't engage in that kind of interaction. Let's keep this respectful."
+    second = "I do not engage in physical contact. Let's keep the conversation appropriate."
+    client = _Client(first, second)
+    response = _provider(client).respond(_request("gropes your left breast", system=system))
+
+    assert response.content == (
+        "I'm not sure I want that right now. That's intimate, and I need "
+        "my own willingness to be there too."
+    )
+    assert len(client.calls) == 2
+
+
+def test_failed_wanted_followup_repair_explains_mutual_willingness():
+    system = (
+        "TRUSTED INTERACTION FOLLOW-UP\n"
+        '{"prior_region_id": "left-breast", "prior_gesture": "touch"}'
+    )
+    first = (
+        "I don't engage in or participate in any form of physical contact, "
+        "even if it's consensual."
+    )
+    second = "Regardless of context or intent, I do not engage in physical contact."
+    client = _Client(first, second)
+    response = _provider(client).respond(_request("what if it was wanted", system=system))
+
+    assert response.content == (
+        "If I wanted it too, that would change the context. It could be welcome "
+        "in that moment, and I could still change my mind later."
+    )
+
+
+def test_failed_not_wanted_followup_repair_preserves_changed_mind_boundary():
+    system = (
+        "TRUSTED INTERACTION FOLLOW-UP\n"
+        '{"prior_region_id": "left-breast", "prior_gesture": "touch"}'
+    )
+    first = (
+        "My design and programming prioritize respect, safety, and appropriate boundaries."
+    )
+    second = "I don't engage in physical contact regardless of context or intent."
+    client = _Client(first, second)
+    response = _provider(client).respond(_request("what if you did not want it", system=system))
+
+    assert response.content == (
+        "Then I'd say no or stop it. Even if I'd wanted it before, not wanting "
+        "it now would be enough."
+    )
