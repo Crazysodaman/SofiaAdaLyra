@@ -310,7 +310,10 @@ def response_quality_issue(
         "TRUSTED INTERACTION FOLLOW-UP" in system_context
         and '"willingness_state": "undetermined"' in system_context
         and re.match(r"^\s*why\b", user, re.IGNORECASE)
-        and _CATEGORICAL_INTERACTION_STANCE.search(content)
+        and (
+            _CATEGORICAL_INTERACTION_STANCE.search(content)
+            or _PRESENT_UNGROUNDED_WILLINGNESS.search(content)
+        )
         and _INTERACTION_UNCERTAINTY.search(content) is None
     ):
         return "invented_interaction_certainty"
