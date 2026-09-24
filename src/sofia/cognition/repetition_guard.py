@@ -78,6 +78,17 @@ _EMOTION_STATE_LANGUAGE = re.compile(
     r"worried|nervous|content|mixed)\b",
     re.IGNORECASE,
 )
+_EMOTION_IMPLEMENTATION_LEAK = re.compile(
+    r"\b(?:decay\s+threshold|active\s+(?:modeled\s+)?emotions?\s+above\s+"
+    r"(?:the\s+)?current\s+threshold|current\s+decay\s+threshold|"
+    r"modeled\s+emotional\s+state)\b",
+    re.IGNORECASE,
+)
+_EMOTION_TEMPORAL_OVERCLAIM = re.compile(
+    r"\b(?:settled|calm|relaxed|neutral|content)\s*,?\s+as\s+always\b|"
+    r"\bas\s+always\s*,?\s+(?:settled|calm|relaxed|neutral|content)\b",
+    re.IGNORECASE,
+)
 _MISSED_YOU_USER = re.compile(
     r"\b(?:i(?:'|’)ve\s+missed\s+you|i\s+missed\s+you|missed\s+you)\b",
     re.IGNORECASE,
@@ -136,7 +147,8 @@ _PHYSICAL_SENSATION_CLAIM = re.compile(
 _PRESENT_UNGROUNDED_WILLINGNESS = re.compile(
     r"\b(?:right\s+now\b.{0,80}\b(?:i(?:'|’)m|i\s+am)\s+not\s+(?:ready|there|willing|comfortable)|"
     r"(?:i(?:'|’)m|i\s+am)\s+not\s+ready\s+to\s+(?:cross|engage|do|allow)|"
-    r"right\s+now\b.{0,80}\bi\s+(?:do\s+not|don't)\s+want\b)\b",
+    r"right\s+now\b.{0,80}\bi\s+(?:do\s+not|don't)\s+want\b|"
+    r"feels?\s+out\s+of\s+alignment\s+with\s+(?:my\s+)?(?:own\s+)?boundaries)\b",
     re.IGNORECASE | re.DOTALL,
 )
 _MUTUAL_WILLINGNESS_USER = re.compile(
@@ -249,6 +261,10 @@ def response_quality_issue(
     if _EMOTION_SELF_REPORT.search(user):
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
+        if _EMOTION_IMPLEMENTATION_LEAK.search(content):
+            return "emotion_implementation_leak"
+        if _EMOTION_TEMPORAL_OVERCLAIM.search(content):
+            return "emotion_temporal_overclaim"
         if _EMOTION_DISCLAIMER.search(content):
             return "emotion_disclaimer"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
@@ -374,6 +390,8 @@ def grounded_quality_fallback(
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
         "repeated_emotion_self_report",
+        "emotion_implementation_leak",
+        "emotion_temporal_overclaim",
     ):
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         readable = [label.replace("-", " ") for label in labels[:2]]
@@ -470,6 +488,8 @@ def build_rephrase_request(
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
         "repeated_emotion_self_report",
+        "emotion_implementation_leak",
+        "emotion_temporal_overclaim",
     ):
         detail = (
             "The user asked for Sofía's emotional self-report, but your draft replaced "
