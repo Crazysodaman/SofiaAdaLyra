@@ -17,6 +17,14 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Sixth disposable live-model probe evidence (2026-09-24)
+
+- Focused semantic regression slice: **66 passed in 7.54s**.
+- `hru`, direct emotional self-report, and `I missed you` were grounded and acceptable for this stage.
+- The initial intimate interaction correctly stayed uncertain under `willingness_state: undetermined`, and both explicit hypothetical follow-ups remained conditional rather than creating a permanent anatomy rule.
+- One human-review failure remained: the non-hypothetical `why` reply converted undetermined willingness into a definite rejection with `Because I don't want to.` The probe missed the bare infinitive form even though it already rejected `I don't want it/that/this`.
+- Production and probe categorical-willingness detectors now include bare `I don't want to`, and the exact sixth-run reply is locked into regression tests.
+
 ### Fifth disposable live-model probe evidence (2026-09-24)
 
 - Focused absence/quality classifier slice: **39 passed in 4.54s**.
