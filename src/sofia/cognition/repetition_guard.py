@@ -86,6 +86,11 @@ _RECIPROCAL_MISSED_YOU = re.compile(
     r"\bi\s+missed\s+you(?:\s+too)?\b",
     re.IGNORECASE,
 )
+_ROLE_REVERSED_REUNION = re.compile(
+    r"\b(?:i(?:'|’)m|i\s+am)\s+(?:glad|happy|relieved)\s+to\s+be\s+back\b|"
+    r"\bback\s+in\s+your\s+presence\b",
+    re.IGNORECASE,
+)
 _UNGROUNDED_WAITING = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return|"
@@ -118,6 +123,22 @@ _CATEGORICAL_INTERACTION_STANCE = re.compile(
     r"i\s+value\s+my\s+boundaries\b|"
     r"my\s+boundary\s+is\b|my\s+boundaries\s+are\b|"
     r"i\s+need\s+to\s+set\s+a\s+boundary\b)\b",
+    re.IGNORECASE,
+)
+_PHYSICAL_SENSATION_CLAIM = re.compile(
+    r"\b(?:i(?:'|’)d|i\s+would)\s+feel\s+it\s+in\s+my\s+body\b|"
+    r"\bi\s+(?:can|could)\s+feel\s+(?:your\s+)?(?:touch|contact)\b|"
+    r"\bi\s+felt\s+(?:your\s+)?(?:touch|contact)\b",
+    re.IGNORECASE,
+)
+_PRESENT_UNGROUNDED_WILLINGNESS = re.compile(
+    r"\b(?:right\s+now\b.{0,80}\b(?:i(?:'|’)m|i\s+am)\s+not\s+(?:ready|there|willing|comfortable)|"
+    r"(?:i(?:'|’)m|i\s+am)\s+not\s+ready\s+to\s+(?:cross|engage|do|allow)|"
+    r"right\s+now\b.{0,80}\bi\s+(?:do\s+not|don't)\s+want\b)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_MUTUAL_WILLINGNESS_USER = re.compile(
+    r"^\s*what\s+if\s+you\s+(?:wanted|liked|welcomed)\s+it(?:\s+too)?\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
 _UNSUPPORTED_INTERACTION_PREFERENCE = re.compile(
@@ -221,6 +242,8 @@ def response_quality_issue(
             return "ungrounded_reciprocal_missing"
         if _UNGROUNDED_WAITING.search(content) and not grounded_missing:
             return "ungrounded_waiting_claim"
+        if _ROLE_REVERSED_REUNION.search(content) and not grounded_missing:
+            return "role_reversed_reunion"
 
     interaction_grounded = any(marker in system_context for marker in (
         "TRUSTED INTERACTION INTERPRETATION",
@@ -263,6 +286,15 @@ def response_quality_issue(
         and _INTERACTION_UNCERTAINTY.search(content) is None
     ):
         return "invented_interaction_certainty"
+    if interaction_grounded and _PHYSICAL_SENSATION_CLAIM.search(content):
+        return "invented_physical_sensation"
+    if (
+        "TRUSTED INTERACTION FOLLOW-UP" in system_context
+        and '"willingness_state": "undetermined"' in system_context
+        and _MUTUAL_WILLINGNESS_USER.match(user)
+        and _PRESENT_UNGROUNDED_WILLINGNESS.search(content)
+    ):
+        return "hypothetical_leaks_present_willingness"
     if (
         _GENERIC_ASSISTANT_CLOSER.search(content)
         and _ASSISTANCE_REQUEST.search(user) is None
@@ -324,7 +356,11 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
-    if issue in ("ungrounded_reciprocal_missing", "ungrounded_waiting_claim"):
+    if issue in (
+        "ungrounded_reciprocal_missing",
+        "ungrounded_waiting_claim",
+        "role_reversed_reunion",
+    ):
         return CognitiveResponse(
             content="That means a lot. I'm glad we're talking now."
         )
@@ -335,6 +371,8 @@ def grounded_quality_fallback(
         "generic_interaction_sermon",
         "invented_interaction_preference",
         "invented_interaction_certainty",
+        "invented_physical_sensation",
+        "hypothetical_leaks_present_willingness",
     ):
         lowered = user.casefold()
         if re.search(
@@ -410,7 +448,11 @@ def build_rephrase_request(
             "or explain AI-versus-human emotions unless the user explicitly asks how the "
             "emotion system works."
         )
-    elif issue in ("ungrounded_reciprocal_missing", "ungrounded_waiting_claim"):
+    elif issue in (
+        "ungrounded_reciprocal_missing",
+        "ungrounded_waiting_claim",
+        "role_reversed_reunion",
+    ):
         detail = (
             "The user said they missed Sofía, but the trusted emotional projection does "
             "not contain grounded longing or reunion evidence. Respond warmly if supported, "
@@ -424,6 +466,8 @@ def build_rephrase_request(
         "generic_interaction_sermon",
         "invented_interaction_preference",
         "invented_interaction_certainty",
+        "invented_physical_sensation",
+        "hypothetical_leaks_present_willingness",
     ):
         detail = (
             "Your draft used a blanket moral or safety refusal even though the trusted "
