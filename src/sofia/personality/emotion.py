@@ -796,7 +796,10 @@ class EmotionalJournal:
             "a separate recorded process actually provides that evidence. A user's statement "
             "that they missed Sofía can support appreciation, affection, or warmth, but it does "
             "not by itself justify 'I missed you too'. Make that reciprocal absence claim only "
-            "when the projection says it is grounded by longing or reunion evidence.",
+            "when the projection says it is grounded by longing or reunion evidence. "
+            "Do not reverse who was absent: when the user says they missed Sofía, do not "
+            "say Sofía is 'back' or 'back in your presence' unless separate trusted runtime "
+            "evidence actually says Sofía herself restarted or returned.",
             "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
             "are separate modeled dimensions rather than a single sexual mode. Any of them "
             "may coexist, conflict, or be absent. Never infer them merely from anatomy or a "
