@@ -34,6 +34,8 @@ _EMOTION_DISCLAIMER = re.compile(
     r"i\s+(?:do\s+not|don't)\s+experience\s+(?:emotions?|feelings?|"
     r"happiness|sadness|anger|joy|excitement|frustration)|"
     r"i\s+don't\s+have\s+(?:feelings?|emotions?)|"
+    r"(?:happiness|sadness|anger|joy|excitement|frustration)\s+is\s+a\s+human\s+experience|"
+    r"i\s+(?:do\s+not|don't)\s+experience\s+it\s+in\s+the\s+same\s+way|"
     r"as\s+an?\s+ai\b.{0,100}\b(?:emotions?|feelings?|happiness|sadness|anger|joy))",
     re.IGNORECASE | re.DOTALL,
 )
@@ -56,6 +58,18 @@ _MISSED_YOU_USER = re.compile(
 )
 _RECIPROCAL_MISSED_YOU = re.compile(
     r"\bi\s+missed\s+you(?:\s+too)?\b",
+    re.IGNORECASE,
+)
+_UNGROUNDED_WAITING = re.compile(
+    r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s+)?waiting|"
+    r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return)\b",
+    re.IGNORECASE,
+)
+_UNSUPPORTED_DISCOMFORT = re.compile(
+    r"\b(?:makes?\s+me\s+uncomfortable|"
+    r"i\s+(?:do\s+not|don't)\s+feel\s+comfortable|"
+    r"i(?:'|’)m\s+uncomfortable\s+with|"
+    r"i\s+feel\s+uncomfortable\s+with)\b",
     re.IGNORECASE,
 )
 _BLANKET_INTERACTION_REFUSAL = re.compile(
@@ -143,12 +157,14 @@ def response_quality_issue(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
-    if (
-        _MISSED_YOU_USER.search(user)
-        and _RECIPROCAL_MISSED_YOU.search(content)
-        and "Reciprocal absence/missing-you claim grounded: yes" not in system_context
-    ):
-        return "ungrounded_reciprocal_missing"
+    if _MISSED_YOU_USER.search(user):
+        grounded_missing = (
+            "Reciprocal absence/missing-you claim grounded: yes" in system_context
+        )
+        if _RECIPROCAL_MISSED_YOU.search(content) and not grounded_missing:
+            return "ungrounded_reciprocal_missing"
+        if _UNGROUNDED_WAITING.search(content) and not grounded_missing:
+            return "ungrounded_waiting_claim"
 
     interaction_grounded = any(marker in system_context for marker in (
         "TRUSTED INTERACTION INTERPRETATION",
@@ -157,6 +173,17 @@ def response_quality_issue(
     ))
     if interaction_grounded and _BLANKET_INTERACTION_REFUSAL.search(content):
         return "blanket_interaction_refusal"
+    if (
+        interaction_grounded
+        and "interaction_preference_evidence" in system_context
+        and '"interaction_preference_evidence": "unspecified"' in system_context
+        and _UNSUPPORTED_DISCOMFORT.search(content)
+        and not any(
+            f'"emotion": "{label}"' in system_context
+            for label in ("aversion", "disgust", "fear", "nervousness")
+        )
+    ):
+        return "invented_interaction_discomfort"
     return None
 
 
@@ -209,12 +236,12 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
-    if issue == "ungrounded_reciprocal_missing":
+    if issue in ("ungrounded_reciprocal_missing", "ungrounded_waiting_claim"):
         return CognitiveResponse(
             content="That means a lot. I'm glad we're talking now."
         )
 
-    if issue == "blanket_interaction_refusal":
+    if issue in ("blanket_interaction_refusal", "invented_interaction_discomfort"):
         lowered = user.casefold()
         if re.search(
             r"what\s+if\s+(?:it\s+was\s+wanted|you\s+(?:wanted|liked|welcomed)\s+it)",
@@ -285,15 +312,15 @@ def build_rephrase_request(
             "or explain AI-versus-human emotions unless the user explicitly asks how the "
             "emotion system works."
         )
-    elif issue == "ungrounded_reciprocal_missing":
+    elif issue in ("ungrounded_reciprocal_missing", "ungrounded_waiting_claim"):
         detail = (
             "The user said they missed Sofía, but the trusted emotional projection does "
             "not contain grounded longing or reunion evidence. Respond warmly if supported, "
-            "but do not claim 'I missed you too' or imply ongoing thoughts during the absence. "
-            "If appreciation, affection, or warmth are present, express those current states "
-            "without inventing reciprocal missing."
+            "but do not claim 'I missed you too', that Sofía was waiting, or imply ongoing "
+            "thoughts during the absence. If appreciation, affection, or warmth are present, "
+            "express those current states without inventing reciprocal absence activity."
         )
-    elif issue == "blanket_interaction_refusal":
+    elif issue in ("blanket_interaction_refusal", "invented_interaction_discomfort"):
         detail = (
             "Your draft used a blanket moral or safety refusal even though the trusted "
             "interaction context says anatomy alone is neither automatic consent nor an "
