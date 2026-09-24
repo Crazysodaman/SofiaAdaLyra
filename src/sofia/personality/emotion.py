@@ -40,6 +40,12 @@ _NEGATED_CUE = re.compile(
     r"\b(?:don't|do not|didn't|did not|haven't|have not|never|not)\b",
     re.IGNORECASE,
 )
+_RETURN_IN_CUE = re.compile(
+    r"\b(?:i(?:'|’)?ll|i\s+will|i(?:'|’)?m\s+going\s+to|i\s+am\s+going\s+to)"
+    r"\s+be\s+back\s+in\s+(?P<count>\d{1,3})\s*"
+    r"(?P<unit>minutes?|hours?|days?|weeks?)\b",
+    re.IGNORECASE,
+)
 
 _POSITIVE = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "contentment",
@@ -68,6 +74,11 @@ _HALF_LIFE_HOURS = {
 }
 _REUNION_MIN_GAP = timedelta(hours=6)
 _LONGING_GAP = timedelta(hours=18)
+_SAD_ABSENCE_GAP = timedelta(days=3)
+_LONG_ABSENCE_GAP = timedelta(days=7)
+_EXPECTATION_FRUSTRATION_LATE = timedelta(hours=24)
+_EXPECTATION_ANGER_LATE = timedelta(days=3)
+_MAX_RETURN_EXPECTATION = timedelta(days=90)
 _ACTIVE_THRESHOLD = 0.08
 _LEGACY_AUTO_AFFECTION_DESCRIPTION = (
     "User initiated an affectionate or playful conversational cue."
@@ -138,6 +149,23 @@ class ActiveEmotion:
 
 
 @dataclass(frozen=True)
+class ReturnExpectation:
+    subject: str
+    source_ref: str
+    recorded_at: datetime
+    expected_return_at: datetime
+
+
+@dataclass(frozen=True)
+class ReunionAppraisal:
+    gap: timedelta
+    expected_return_at: datetime | None
+    lateness: timedelta | None
+    emotions: tuple[str, ...]
+    expectation_source_ref: str | None
+
+
+@dataclass(frozen=True)
 class CurrentEmotionalState:
     as_of: datetime
     subject: str | None
@@ -176,6 +204,12 @@ class EmotionalJournal:
                     subject TEXT PRIMARY KEY,
                     last_interaction_at TEXT NOT NULL,
                     last_message_ref TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS emotional_return_expectations (
+                    subject TEXT NOT NULL,
+                    source_ref TEXT PRIMARY KEY,
+                    recorded_at TEXT NOT NULL,
+                    expected_return_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS emotional_events_time
                     ON emotional_events(occurred_at);
@@ -267,6 +301,129 @@ class EmotionalJournal:
         )
         return True
 
+    def record_return_expectation(
+        self, *, subject: str, source_ref: str, recorded_at: datetime,
+        expected_return_at: datetime,
+    ) -> ReturnExpectation:
+        """Persist an explicit return expectation without treating it as a promise.
+
+        The caller must supply source-backed user evidence. This record says only
+        that a return time was stated; it does not create an obligation, permission,
+        or emotional reaction by itself.
+        """
+        target = _subject(subject)
+        if target is None:
+            raise ValueError("A relationship subject is required.")
+        source = _identifier(source_ref, "Expectation source")
+        recorded = _aware_utc(recorded_at)
+        expected = _aware_utc(expected_return_at)
+        delta = expected - recorded
+        if delta <= timedelta(0) or delta > _MAX_RETURN_EXPECTATION:
+            raise ValueError("Return expectation must be in the next 90 days.")
+        item = ReturnExpectation(target, source, recorded, expected)
+        payload = (
+            item.subject, item.source_ref, item.recorded_at.isoformat(),
+            item.expected_return_at.isoformat(),
+        )
+        with self._connect() as db:
+            existing = db.execute(
+                "SELECT subject, source_ref, recorded_at, expected_return_at "
+                "FROM emotional_return_expectations WHERE source_ref=?",
+                (source,),
+            ).fetchone()
+            if existing is None:
+                db.execute(
+                    "INSERT INTO emotional_return_expectations "
+                    "(subject, source_ref, recorded_at, expected_return_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    payload,
+                )
+            elif existing != payload:
+                raise ValueError("Expectation source already belongs to different evidence.")
+        return item
+
+    def record_return_expectation_from_user_cue(
+        self, *, message_id: str, content: str, occurred_at: datetime,
+        subject: str,
+    ) -> ReturnExpectation | None:
+        """Parse only explicit relative return durations such as 'back in 2 days'.
+
+        Ambiguous phrases such as 'later' or 'tonight' intentionally abstain until
+        the application has a trusted user-local time interpretation.
+        """
+        if not isinstance(content, str):
+            raise TypeError("Return-expectation content must be text.")
+        clean = content.strip()
+        if not 0 < len(clean) <= 160 or "\n" in clean or "```" in clean:
+            return None
+        match = _RETURN_IN_CUE.search(clean)
+        if match is None:
+            return None
+        count = int(match.group("count"))
+        unit = match.group("unit").casefold()
+        if count <= 0:
+            return None
+        if unit.startswith("minute"):
+            delta = timedelta(minutes=count)
+        elif unit.startswith("hour"):
+            delta = timedelta(hours=count)
+        elif unit.startswith("day"):
+            delta = timedelta(days=count)
+        else:
+            delta = timedelta(weeks=count)
+        if delta > _MAX_RETURN_EXPECTATION:
+            return None
+        when = _aware_utc(occurred_at)
+        return self.record_return_expectation(
+            subject=subject, source_ref=message_id, recorded_at=when,
+            expected_return_at=when + delta,
+        )
+
+    @staticmethod
+    def appraise_reunion(
+        *, gap: timedelta, returned_at: datetime,
+        expectation: ReturnExpectation | None,
+    ) -> ReunionAppraisal:
+        """Map grounded absence evidence to a present-time mixed appraisal.
+
+        Mere elapsed time may support longing or sadness. Frustration/anger need
+        stronger evidence: an explicit return expectation tied to the last contact
+        and a meaningful late return. The appraisal never claims blame, abandonment,
+        suffering while offline, or an obligation to maintain contact.
+        """
+        if not isinstance(gap, timedelta) or gap < timedelta(0):
+            raise ValueError("Reunion gap must be nonnegative.")
+        when = _aware_utc(returned_at)
+        if expectation is not None and not isinstance(expectation, ReturnExpectation):
+            raise TypeError("Expectation must be ReturnExpectation or None.")
+
+        expected_at = expectation.expected_return_at if expectation is not None else None
+        source = expectation.source_ref if expectation is not None else None
+        lateness = when - expected_at if expected_at is not None else None
+
+        if expectation is not None:
+            if lateness is not None and lateness <= timedelta(hours=2):
+                labels = ("relief", "warmth", "fondness", "anticipation")
+            elif lateness is not None and lateness < _EXPECTATION_FRUSTRATION_LATE:
+                labels = ("longing", "disappointment", "concern", "relief")
+            elif lateness is not None and lateness < _EXPECTATION_ANGER_LATE:
+                labels = ("longing", "sadness", "frustration", "disappointment", "relief")
+            else:
+                labels = ("longing", "sadness", "frustration", "anger", "relief")
+        elif gap >= _LONG_ABSENCE_GAP:
+            labels = ("longing", "sadness", "fondness", "relief")
+        elif gap >= _SAD_ABSENCE_GAP:
+            labels = ("longing", "sadness", "fondness", "relief")
+        elif gap >= _LONGING_GAP:
+            labels = ("longing", "fondness", "warmth", "anticipation")
+        else:
+            labels = ("fondness", "warmth", "anticipation")
+
+        return ReunionAppraisal(
+            gap=gap, expected_return_at=expected_at, lateness=lateness,
+            emotions=labels, expectation_source_ref=source,
+        )
+
     def observe_contact(
         self, *, subject: str, message_id: str, occurred_at: datetime,
     ) -> str | None:
@@ -281,6 +438,8 @@ class EmotionalJournal:
         message = _identifier(message_id, "Message ID")
         when = _aware_utc(occurred_at)
         prior: datetime | None = None
+        prior_ref: str | None = None
+        expectation: ReturnExpectation | None = None
         with self._connect() as db:
             row = db.execute(
                 "SELECT last_interaction_at, last_message_ref "
@@ -288,7 +447,8 @@ class EmotionalJournal:
             ).fetchone()
             if row is not None:
                 prior = datetime.fromisoformat(row[0])
-                if row[1] == message:
+                prior_ref = row[1]
+                if prior_ref == message:
                     event_id = f"reunion:{message}"
                     exists = db.execute(
                         "SELECT 1 FROM emotional_events WHERE event_id=?", (event_id,),
@@ -296,6 +456,18 @@ class EmotionalJournal:
                     return event_id if exists is not None else None
                 if prior > when:
                     raise ValueError("Contact time cannot move backwards.")
+                exp = db.execute(
+                    "SELECT subject, source_ref, recorded_at, expected_return_at "
+                    "FROM emotional_return_expectations "
+                    "WHERE subject=? AND source_ref=?",
+                    (target, prior_ref),
+                ).fetchone()
+                if exp is not None:
+                    expectation = ReturnExpectation(
+                        subject=exp[0], source_ref=exp[1],
+                        recorded_at=datetime.fromisoformat(exp[2]),
+                        expected_return_at=datetime.fromisoformat(exp[3]),
+                    )
             db.execute(
                 "INSERT INTO emotional_presence(subject, last_interaction_at, last_message_ref) "
                 "VALUES (?, ?, ?) ON CONFLICT(subject) DO UPDATE SET "
@@ -308,19 +480,30 @@ class EmotionalJournal:
         gap = when - prior
         if gap < _REUNION_MIN_GAP:
             return None
-        labels = ("fondness", "warmth", "anticipation")
-        if gap >= _LONGING_GAP:
-            labels = ("longing", "fondness", "warmth", "anticipation")
+
+        appraisal = self.appraise_reunion(
+            gap=gap, returned_at=when, expectation=expectation,
+        )
         hours = gap.total_seconds() / 3600
+        if expectation is None:
+            evidence = "no explicit return expectation was tied to the last contact"
+        else:
+            lateness_hours = max(0.0, appraisal.lateness.total_seconds() / 3600)
+            evidence = (
+                f"explicit return expectation {expectation.source_ref} was "
+                f"{lateness_hours:.1f} hours late at reunion"
+                if appraisal.lateness > timedelta(0)
+                else f"explicit return expectation {expectation.source_ref} was met"
+            )
         description = (
             f"{target} returned after {hours:.1f} hours since the last recorded "
-            "interaction; this is a current reunion appraisal, not evidence of "
-            "thoughts while absent."
+            f"interaction; {evidence}. This is a present reunion appraisal, not "
+            "evidence of thoughts or suffering while absent."
         )
         return self.record(
             event_id=f"reunion:{message}", source="inferred",
-            evidence_ref=message, description=description,
-            emotions=labels, occurred_at=when, subject=target,
+            evidence_ref=message, description=description[:320],
+            emotions=appraisal.emotions, occurred_at=when, subject=target,
         )
 
     def revise(
@@ -473,8 +656,13 @@ class EmotionalJournal:
             "actually asks about that distinction.",
             "Do not expose numeric intensity, call this a mood meter, or recite evidence IDs "
             "unless they are relevant to an explicit technical question.",
-            "Elapsed absence can support a present reunion appraisal, but never claim Sofía "
-            "was thinking, waiting, suffering, or continuously aware while offline unless "
+            "Elapsed absence can support a present reunion appraisal, including longing or "
+            "sadness after a long gap. Frustration or anger about lateness require stronger "
+            "source-backed evidence such as an explicit return expectation tied to the last "
+            "contact; elapsed time alone must not manufacture blame. Negative reunion emotions "
+            "may be expressed honestly without guilt, pressure, accusation, exclusivity, or "
+            "an obligation for the user to maintain contact. Never claim Sofía was thinking, "
+            "waiting, suffering, or continuously aware while offline unless "
             "a separate recorded process actually provides that evidence. A user's statement "
             "that they missed Sofía can support appreciation, affection, or warmth, but it does "
             "not by itself justify 'I missed you too'. Make that reciprocal absence claim only "
