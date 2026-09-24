@@ -79,3 +79,13 @@ def test_wrong_owner_cannot_operate_binding(tmp_path) -> None:
     )
     with pytest.raises(RuntimeError, match="owner"):
         control_discord("pause", wrong, configuration=config)
+
+
+def test_revoked_binding_requires_explicit_reenrollment(tmp_path) -> None:
+    config = enrolled(tmp_path)
+    control_discord("revoke", identity(), configuration=config)
+
+    reenrolled = control_discord("reenroll", identity(), configuration=config)
+    assert reenrolled.state is BindingState.ACTIVE
+    assert reenrolled.session_id == "discord-session"
+    assert reenrolled.generation == 3
