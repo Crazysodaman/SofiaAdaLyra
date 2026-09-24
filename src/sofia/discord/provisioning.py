@@ -41,6 +41,16 @@ class DiscordIdentity:
     bot_user_id: int
     dm_channel_id: int
 
+    def __post_init__(self) -> None:
+        if not _snowflake(self.owner_user_id):
+            raise ValueError("owner_user_id must be a positive Discord snowflake")
+        if not _snowflake(self.bot_user_id):
+            raise ValueError("bot_user_id must be a positive Discord snowflake")
+        if not _snowflake(self.dm_channel_id):
+            raise ValueError("dm_channel_id must be a positive Discord snowflake")
+        if self.owner_user_id == self.bot_user_id:
+            raise ValueError("Discord owner and bot IDs must differ")
+
     @classmethod
     def from_environment(
         cls,
