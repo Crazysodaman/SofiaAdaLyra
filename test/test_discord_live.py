@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from sofia.discord.binding import BindingState, DiscordBindingStore
-from sofia.discord.live import compose_live_discord
+from sofia.discord.live import compose_live_discord, run_live_discord
 from sofia.discord.provisioning import DiscordProvisioning
 
 
@@ -106,3 +106,29 @@ def test_revoked_binding_refuses_live_restart(tmp_path) -> None:
             configuration=config,
             application_factory=FakeApplication,
         )
+
+
+def test_foreground_runner_always_shuts_application_down(tmp_path) -> None:
+    FakeApplication.starts.clear()
+    config = Configuration(tmp_path / "state.sqlite3")
+    applications = []
+
+    def factory(configuration):
+        app = FakeApplication(configuration)
+        applications.append(app)
+        return app
+
+    def failing_runner(token, runtime):
+        assert token == "secret"
+        raise RuntimeError("simulated Discord transport failure")
+
+    with pytest.raises(RuntimeError, match="simulated Discord transport failure"):
+        run_live_discord(
+            provisioning(),
+            configuration=config,
+            application_factory=factory,
+            runner=failing_runner,
+        )
+
+    assert len(applications) == 1
+    assert applications[0].shutdown_called is True
