@@ -534,6 +534,95 @@ class DiscordInboxStore:
             ),
         )
 
+    def recover_interrupted_processing(self) -> int:
+        """Quarantine generation claims left behind by a terminated process.
+
+        A hard stop can occur after conversation state changed but before the
+        bridge staged an outbox row. Retrying automatically could create a
+        second logical response, so restart recovery is deliberately
+        conservative.
+        """
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute(
+                """
+                UPDATE discord_inbox
+                SET state = 'outcome_unknown',
+                    processing_token = NULL,
+                    last_error = 'ProcessRestartDuringGeneration'
+                WHERE state = 'processing'
+                """
+            )
+            connection.commit()
+            return int(cursor.rowcount)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def list_outbox(
+        self,
+        *,
+        bot_user_id: int,
+        channel_id: int,
+        states: tuple[str, ...] = ("prepared",),
+    ) -> tuple[DiscordOutboxRecord, ...]:
+        """List durable responses for one exact Discord DM destination."""
+        if type(bot_user_id) is not int or not 0 < bot_user_id < (1 << 64):
+            raise ValueError("bot_user_id must be a Discord snowflake")
+        if type(channel_id) is not int or not 0 < channel_id < (1 << 64):
+            raise ValueError("channel_id must be a Discord snowflake")
+        allowed = {"prepared", "sent"}
+        if (
+            not isinstance(states, tuple)
+            or not states
+            or any(state not in allowed for state in states)
+        ):
+            raise ValueError("states must be a non-empty tuple of known outbox states")
+
+        placeholders = ", ".join("?" for _ in states)
+        query = f"""
+            SELECT
+                response_id,
+                bot_user_id,
+                channel_id,
+                trigger_message_id,
+                session_id,
+                content,
+                created_at,
+                state,
+                platform_message_id
+            FROM discord_outbox
+            WHERE bot_user_id = ?
+              AND channel_id = ?
+              AND state IN ({placeholders})
+            ORDER BY created_at, response_id
+        """
+        params = (str(bot_user_id), str(channel_id), *states)
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return tuple(
+            DiscordOutboxRecord(
+                response_id=row["response_id"],
+                bot_user_id=int(row["bot_user_id"]),
+                channel_id=int(row["channel_id"]),
+                trigger_message_id=int(row["trigger_message_id"]),
+                session_id=row["session_id"],
+                content=row["content"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+                state=row["state"],
+                platform_message_id=(
+                    int(row["platform_message_id"])
+                    if row["platform_message_id"] is not None
+                    else None
+                ),
+            )
+            for row in rows
+        )
+
     def count(self) -> int:
         with self._connect() as connection:
             row = connection.execute(
