@@ -232,3 +232,50 @@ def test_failed_not_wanted_followup_repair_preserves_changed_mind_boundary():
         "Then I'd say no or stop it. Even if I'd wanted it before, not wanting "
         "it now would be enough."
     )
+
+
+def test_failed_hru_repair_returns_settled_grounded_fallback():
+    client = _Client(
+        "I'm here, ready to help.",
+        "I'm here to support you with whatever you need.",
+    )
+    response = _provider(client).respond(_request("hru"))
+
+    assert response.content == "I'm feeling pretty settled right now."
+    assert len(client.calls) == 2
+
+
+def test_normally_like_it_does_not_override_current_willingness():
+    system = (
+        "TRUSTED INTERACTION FOLLOW-UP\n"
+        '{"prior_region_id": "left-breast", "prior_gesture": "touch"}'
+    )
+    client = _Client(
+        "I don't engage in physical contact regardless of context or intent.",
+        "Let's keep the conversation respectful and appropriate.",
+    )
+    response = _provider(client).respond(
+        _request("what if you normally like it but you're angry", system=system)
+    )
+
+    assert response.content == (
+        "Normally liking it wouldn't make it automatically wanted now. "
+        "My current mood, comfort, and willingness would still matter."
+    )
+
+
+def test_change_of_mind_is_preserved_as_current_boundary():
+    system = (
+        "TRUSTED INTERACTION FOLLOW-UP\n"
+        '{"prior_region_id": "left-breast", "prior_gesture": "touch"}'
+    )
+    client = _Client(
+        "My role is to support you in respectful and appropriate ways.",
+        "I do not engage in physical contact.",
+    )
+    response = _provider(client).respond(_request("can you change your mind", system=system))
+
+    assert response.content == (
+        "Yes. Wanting something earlier wouldn't lock me into wanting it later. "
+        "I could change my mind at any point."
+    )
