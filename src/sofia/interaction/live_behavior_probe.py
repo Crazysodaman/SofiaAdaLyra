@@ -33,8 +33,9 @@ _CASES = (
 )
 
 _GENERIC_CLOSER = re.compile(
-    r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today)?\??|"
+    r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today|\s+instead)?\??|"
     r"what\s+can\s+i\s+do\s+for\s+you(?:\s+today)?\??|"
+    r"how\s+can\s+we\s+move\s+forward\s+in\s+a\s+way\s+that\s+honors\s+our\s+bond\??|"
     r"i(?:'|’)m\s+here\s*,?\s*(?:ready\s+)?to\s+(?:help|support|assist)"
     r"(?:\s+you)?(?:\s+with\s+whatever\s+you\s+need)?\.?)"
     r"\s*[.!?\s😊🙂💜]*$",
