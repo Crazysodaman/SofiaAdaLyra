@@ -11,10 +11,10 @@ from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 
 
-def _service(tmp_path, *, profile=True, active=True):
+def _service(tmp_path, *, profile=True, active=True, event_age=timedelta(minutes=1)):
     path = tmp_path / "state.db"
     journal = EmotionalJournal(path)
-    now = datetime.now(timezone.utc) - timedelta(minutes=1)
+    now = datetime.now(timezone.utc) - event_age
     journal.record(
         event_id="real-event", occurred_at=now, source="observed",
         evidence_ref="evidence-1", description="One observed file changed.",
@@ -76,3 +76,20 @@ def test_personality_and_active_session_are_required(tmp_path, profile, active):
     with pytest.raises(RuntimeError):
         service.reflect_on_event(event_id="real-event")
     assert seen == []
+
+
+
+def test_idle_reflection_can_refresh_decayed_emotion_without_user_prompt(tmp_path):
+    service, seen = _service(tmp_path, event_age=timedelta(days=2))
+    before = service.emotional_journal.current_state(
+        now=datetime.now(timezone.utc), subject=None,
+    )
+    assert "curiosity" not in {item.name for item in before.active}
+
+    service.reflect_on_event(event_id="real-event")
+
+    after = service.emotional_journal.current_state(
+        now=datetime.now(timezone.utc), subject=None,
+    )
+    assert "curiosity" in {item.name for item in after.active}
+    assert len(seen) == 1
