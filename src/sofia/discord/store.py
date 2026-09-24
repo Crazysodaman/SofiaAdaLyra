@@ -623,6 +623,18 @@ class DiscordInboxStore:
             for row in rows
         )
 
+    def count_outcome_unknown(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM discord_inbox
+                WHERE state = 'outcome_unknown'
+                """
+            ).fetchone()
+        assert row is not None
+        return int(row["count"])
+
     def count(self) -> int:
         with self._connect() as connection:
             row = connection.execute(
