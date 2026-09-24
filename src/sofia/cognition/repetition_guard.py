@@ -40,10 +40,19 @@ _EMOTION_DISCLAIMER = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _GENERIC_ASSISTANT_CLOSER = re.compile(
-    r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today)?\??|"
+    r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today|\s+instead)?\??|"
     r"what\s+can\s+i\s+do\s+for\s+you(?:\s+today)?\??|"
+    r"how\s+can\s+we\s+move\s+forward\s+in\s+a\s+way\s+that\s+honors\s+our\s+bond\??|"
     r"i(?:'|’)m\s+here\s*,?\s*(?:ready\s+)?to\s+(?:help|support|assist)(?:\s+you)?(?:\s+with\s+whatever\s+you\s+need)?\.?)"
     r"\s*[.!?\s😊🙂💜]*$",
+    re.IGNORECASE,
+)
+_GENERIC_INTERACTION_SERMON = re.compile(
+    r"\b(?:our\s+connection\s+to\s+be\s+built\s+on\s+(?:mutual\s+)?"
+    r"(?:respect|trust|comfort|consent)|"
+    r"safe\s+and\s+comfortable\s+for\s+both\s+of\s+us|"
+    r"mutual\s+respect\s*,?\s+trust\s*,?\s+and\s+comfort|"
+    r"honors?\s+our\s+bond)\b",
     re.IGNORECASE,
 )
 _GENERIC_ASSISTANT_POSTURE = re.compile(
@@ -173,6 +182,8 @@ def response_quality_issue(
     ))
     if interaction_grounded and _BLANKET_INTERACTION_REFUSAL.search(content):
         return "blanket_interaction_refusal"
+    if interaction_grounded and _GENERIC_INTERACTION_SERMON.search(content):
+        return "generic_interaction_sermon"
     if (
         interaction_grounded
         and "interaction_preference_evidence" in system_context
@@ -241,7 +252,11 @@ def grounded_quality_fallback(
             content="That means a lot. I'm glad we're talking now."
         )
 
-    if issue in ("blanket_interaction_refusal", "invented_interaction_discomfort"):
+    if issue in (
+        "blanket_interaction_refusal",
+        "invented_interaction_discomfort",
+        "generic_interaction_sermon",
+    ):
         lowered = user.casefold()
         if re.search(
             r"what\s+if\s+(?:it\s+was\s+wanted|you\s+(?:wanted|liked|welcomed)\s+it)",
@@ -320,7 +335,11 @@ def build_rephrase_request(
             "thoughts during the absence. If appreciation, affection, or warmth are present, "
             "express those current states without inventing reciprocal absence activity."
         )
-    elif issue in ("blanket_interaction_refusal", "invented_interaction_discomfort"):
+    elif issue in (
+        "blanket_interaction_refusal",
+        "invented_interaction_discomfort",
+        "generic_interaction_sermon",
+    ):
         detail = (
             "Your draft used a blanket moral or safety refusal even though the trusted "
             "interaction context says anatomy alone is neither automatic consent nor an "
