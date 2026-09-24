@@ -1,5 +1,5 @@
 """Offline conversation projection tests without contacting Ollama."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
@@ -42,3 +42,33 @@ def test_no_personality_means_no_implicit_persona_or_emotional_projection(monkey
     service, original = _service(monkeypatch, tmp_path, personality=False)
     assert service._build_request() is original
     assert service.emotional_journal.recent(now=datetime.now(timezone.utc)) == ()
+
+
+
+def test_explicit_return_duration_reaches_reunion_appraisal(monkeypatch, tmp_path):
+    departure = datetime.now(timezone.utc) - timedelta(days=7)
+    request = CognitiveRequest(messages=(CognitiveMessage(
+        role=CognitiveRole.USER, content="I'll be back in a week.",
+    ),))
+    user = SimpleNamespace(
+        id="departure-plan", content="I'll be back in a week.",
+        role=ConversationRole.USER, created_at=departure,
+    )
+    monkeypatch.setattr(ConversationService, "_build_request", lambda self: request)
+    monkeypatch.setattr(
+        EmotionalConversationService, "messages", lambda self: (user,),
+    )
+    service = object.__new__(EmotionalConversationService)
+    service._runtime = SimpleNamespace(personality=object())
+    service._emotional_journal = EmotionalJournal(tmp_path / "state.db")
+
+    service._build_request()
+    reunion_at = departure + timedelta(days=7)
+    event_id = service.emotional_journal.observe_contact(
+        subject="current user", message_id="return", occurred_at=reunion_at,
+    )
+
+    assert event_id == "reunion:return"
+    event = service.emotional_journal.recent(now=reunion_at)[0]
+    assert {"relief", "warmth", "fondness"} <= set(event.current_emotions)
+    assert "anger" not in event.current_emotions
