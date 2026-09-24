@@ -217,7 +217,6 @@ def test_ambiguous_return_language_is_not_given_a_fake_deadline(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
     for content in (
         "I'll be back later",
-        "I'll be back tonight",
         "see you soon",
         "What if I say I'll be back in 1 day?",
         "Someone said I'll be back in 1 day",
@@ -248,6 +247,47 @@ def test_explicit_gone_for_duration_is_supported(tmp_path):
 
     assert expectation is not None
     assert expectation.expected_return_at == NOW + timedelta(days=2)
+
+
+def test_tonight_uses_conservative_expected_by_window(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    expectation = journal.record_return_expectation_from_user_cue(
+        message_id="tonight-plan", content="I'll be back tonight.",
+        occurred_at=NOW, subject="Sparks",
+    )
+
+    assert expectation is not None
+    assert expectation.expected_return_at == NOW + timedelta(hours=24)
+
+
+def test_tomorrow_uses_conservative_expected_by_window(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    expectation = journal.record_return_expectation_from_user_cue(
+        message_id="tomorrow-plan", content="I'll be back tomorrow.",
+        occurred_at=NOW, subject="Sparks",
+    )
+
+    assert expectation is not None
+    assert expectation.expected_return_at == NOW + timedelta(hours=48)
+
+
+def test_week_after_tonight_expectation_can_be_angry_without_claiming_offline_suffering(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=7)
+    journal.record_return_expectation_from_user_cue(
+        message_id="before", content="I'll be back tonight.",
+        occurred_at=departure, subject="Sparks",
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="before", occurred_at=departure,
+    )
+    journal.observe_contact(
+        subject="Sparks", message_id="return", occurred_at=NOW,
+    )
+
+    event = journal.recent(now=NOW)[0]
+    assert {"sadness", "frustration", "anger", "relief"} <= set(event.current_emotions)
+    assert "thoughts or suffering while absent" in event.description
 
 
 def test_return_expectation_only_applies_when_it_was_the_last_contact(tmp_path):
