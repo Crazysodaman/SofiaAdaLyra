@@ -87,7 +87,8 @@ _UNGROUNDED_WAITING = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|waiting\s+for\s+you\s+to\s+return|"
     r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+to\s+connect\s+whenever|"
-    r"i(?:'|’)ve\s+been\s+here\s*[,;:-]?\s*ready\s+whenever)\b",
+    r"i(?:'|’)ve\s+been\s+here\s*[,;:-]?\s*ready\s+whenever|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+and\s+waiting)\b",
     re.IGNORECASE,
 )
 _UNSUPPORTED_DISCOMFORT = re.compile(
