@@ -17,6 +17,14 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### First reopened Windows/live probe evidence (2026-09-23)
+
+- Sparks ran the focused regression slice on `fix/interact-live-behavior-hardening`: **50 passed in 20.75s**.
+- The disposable real-application probe used configured `qwen3:14b`, `thinking=False`, `num_ctx=20000`, and confirmed production `state/sofia.db` was not used.
+- The probe correctly preserved the `I missed you` grounding improvement, but exposed broader live failures: `hru` returned generic ready-to-help posture; `are you happy` returned the generic AI-emotion disclaimer; the intimate represented interaction returned a blanket refusal; `why`, wanted-consent, and not-wanted follow-ups returned generic moral/support language.
+- The first probe's detector only formally flagged the direct emotion self-report, so both the live behavior and the detector were reopened. Subsequent hardening expands exact Qwen-phrase detection, adds negative/changed-mind follow-up parsing, and uses a narrow grounded fallback only after one targeted model repair also fails.
+- This evidence does **not** close INTERACT. Rerun the focused slice and disposable live probe after pulling the later hardening commits.
+
 Run the focused offline regression slice first:
 
 ```powershell
