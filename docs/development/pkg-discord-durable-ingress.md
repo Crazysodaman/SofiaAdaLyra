@@ -89,6 +89,17 @@ python -m sofia.discord
 
 Without the explicit enable flag, startup refuses before any Discord connection.
 
+The same module also exposes local host controls that do **not** require the bot token and do **not** connect to Discord:
+
+```powershell
+python -m sofia.discord status
+python -m sofia.discord pause
+python -m sofia.discord resume
+python -m sofia.discord revoke
+```
+
+These controls require the exact owner, bot, and DM-channel ID environment variables so they cannot select a binding by display name. `status` reports the durable binding state, conversation session, binding generation, pending outbox count, and counts of quarantined generation/delivery outcomes without printing message content. `revoke` is persistent and cannot be undone with `resume`; a revoked channel requires supervised re-enrollment.
+
 ## Next engineering slice after current tests
 
 Run the expanded offline/fake-client acceptance gate for provisioning, restart recovery, lifecycle cleanup, and adapter behavior. If green, perform one supervised real owner-DM acceptance: connect the exact bot identity, verify the exact DM channel, send one owner DM, receive one Sofía reply, verify the Discord message receipt in SQLite, exercise pause/revoke, restart the process, and verify conversation continuity. After a final full regression pass, PKG-DISCORD v1 is ready to merge. Automated resolution of genuinely ambiguous provider outcomes remains deliberately manual/fail-closed rather than inventing delivery certainty.
