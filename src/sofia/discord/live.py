@@ -121,7 +121,6 @@ def compose_live_discord(
         gate = DiscordOutboundGate(
             config=discord_config,
             bindings=bindings,
-            session_id=active_session,
         )
         sender = DiscordSafeSender(
             gate=gate,
@@ -134,6 +133,7 @@ def compose_live_discord(
             sender=sender,
             store=inbox,
             bindings=bindings,
+            session_id=active_session,
         )
         return ComposedDiscordApplication(
             application=application,
