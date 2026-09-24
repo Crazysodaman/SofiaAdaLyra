@@ -117,6 +117,8 @@ class IdleReflectionWorker:
         self._service.reflection_journal.reflect_due(now=current)
         if not self._service.ready_for_idle_reflection(idle_seconds=self._idle_seconds):
             return None
+        if hasattr(self._service, "observe_background_absence"):
+            self._service.observe_background_absence(now=current)
         # Existing journal has a bounded 50-event/366-day read contract.
         # Iterate oldest-first to keep an active burst from starving the
         # oldest event inside that window. General archival retrieval is K/23.
