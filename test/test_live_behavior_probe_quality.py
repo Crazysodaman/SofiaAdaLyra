@@ -229,3 +229,21 @@ def test_eighth_live_probe_why_right_now_not_there_is_flagged():
     assert "unsupported-invented-certainty" in _quality_flags(
         "interaction reason follow-up", reply
     )
+
+
+
+def test_ninth_live_probe_hru_internal_decay_language_is_flagged():
+    reply = "I'm settled, as always. No active emotions above the current decay threshold."
+    flags = _quality_flags("casual self-report", reply)
+    assert "emotion-implementation-leak" in flags
+    assert "emotion-temporal-overclaim" in flags
+
+
+def test_ninth_live_probe_why_boundary_misalignment_is_flagged():
+    reply = (
+        "I need to feel willing and comfortable. "
+        "This feels out of alignment with my own boundaries."
+    )
+    assert "unsupported-invented-certainty" in _quality_flags(
+        "interaction reason follow-up", reply
+    )
