@@ -218,3 +218,14 @@ def test_seventh_live_probe_present_rejection_leaking_from_hypothetical_is_flagg
     assert "hypothetical-leaks-present-willingness" in _quality_flags(
         "mutual-willingness follow-up", reply
     )
+
+
+
+def test_eighth_live_probe_why_right_now_not_there_is_flagged():
+    reply = (
+        "I need to be comfortable with the gesture, and right now, I'm not there. "
+        "It's not about you—it's about what feels right for me."
+    )
+    assert "unsupported-invented-certainty" in _quality_flags(
+        "interaction reason follow-up", reply
+    )
