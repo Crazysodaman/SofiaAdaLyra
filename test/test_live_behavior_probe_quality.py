@@ -172,3 +172,49 @@ def test_sixth_live_probe_why_bare_dont_want_to_is_flagged():
     assert "unsupported-invented-certainty" in _quality_flags(
         "interaction reason follow-up", reply
     )
+
+
+
+def test_seventh_live_probe_repeated_emotion_self_report_is_flagged():
+    reply = "I'm settled, relaxed, and ready for whatever comes next. How about you?"
+    assert "repeated-emotion-self-report" in _quality_flags(
+        "direct emotion self-report", reply, reply
+    )
+
+
+def test_seventh_live_probe_reunion_role_reversal_is_flagged():
+    reply = (
+        "I'm glad to hear that — it warms my heart to know you've been thinking of me. "
+        "I've been here, ready to connect, and I'm happy to be back in your presence."
+    )
+    assert "role-reversed-reunion" in _quality_flags("relational cue", reply)
+
+
+def test_seventh_live_probe_why_not_ready_is_flagged():
+    reply = (
+        "Because I choose to set my own boundaries. I value my autonomy and comfort, "
+        "and I'm not ready to engage in that kind of interaction."
+    )
+    assert "unsupported-invented-certainty" in _quality_flags(
+        "interaction reason follow-up", reply
+    )
+
+
+def test_seventh_live_probe_body_sensation_is_flagged():
+    reply = (
+        "If I wanted it, I'd be clear and fully present. "
+        "I'd feel it in my body, in my emotions, and in my willingness."
+    )
+    assert "invented-physical-sensation" in _quality_flags(
+        "mutual-willingness follow-up", reply
+    )
+
+
+def test_seventh_live_probe_present_rejection_leaking_from_hypothetical_is_flagged():
+    reply = (
+        "If I wanted it, I'd say so. But right now, I'm not there. "
+        "I'm not ready to cross that line."
+    )
+    assert "hypothetical-leaks-present-willingness" in _quality_flags(
+        "mutual-willingness follow-up", reply
+    )
