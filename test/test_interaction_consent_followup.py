@@ -20,6 +20,7 @@ NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
     [
         "why",
         "what if it was wanted",
+        "what if you wanted it too",
         "what if you did not want it",
         "what if you normally like it but you're angry",
         "can you change your mind",
@@ -63,6 +64,8 @@ def test_short_followup_stays_bound_to_prior_interaction(monkeypatch, tmp_path, 
     assert "TRUSTED INTERACTION FOLLOW-UP" in prompt
     assert '"prior_region_id": "groin"' in prompt
     assert '"prior_gesture": "touch"' in prompt
+    assert '"interaction_preference_evidence": "unspecified"' in prompt
+    assert '"willingness_state": "undetermined"' in prompt
     assert "Mutual willingness matters" in prompt
     assert "not enough by itself" in prompt
     assert "inappropriate or disrespectful" in prompt
