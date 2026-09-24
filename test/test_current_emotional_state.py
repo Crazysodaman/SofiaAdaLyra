@@ -41,7 +41,8 @@ def test_reunion_is_grounded_in_elapsed_contact_and_is_idempotent(tmp_path):
     assert len(events) == 1
     assert events[0].subject == "Sparks"
     assert "longing" in events[0].current_emotions
-    assert "not evidence of thoughts while absent" in events[0].description
+    assert "not evidence of thoughts" in events[0].description
+    assert "suffering while absent" in events[0].description
 
 
 def test_short_absence_updates_presence_without_manufacturing_longing(tmp_path):
