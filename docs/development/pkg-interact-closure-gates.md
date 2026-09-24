@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Fourth disposable live-model probe evidence (2026-09-24)
+
+- Focused semantic regression slice: **52 passed in 6.22s**.
+- The disposable live probe improved substantially: `hru` and `are you happy` were state-first, the represented intimate interaction returned grounded uncertainty, and all three consent/boundary follow-ups remained conditional instead of creating an anatomy-wide or permanent rule.
+- Human review found one remaining false-grounding issue in the relational cue: `I've been here, ready and waiting, just the same.` The probe did not flag the reordered `ready and waiting` phrase.
+- Production and probe absence-activity detectors now cover `ready and waiting` variants, and the exact fourth-run sentence is locked into unit tests.
+
 ### Third disposable live-model probe evidence (2026-09-24)
 
 - Focused post-hardening regression slice: **40 passed in 5.63s**.
