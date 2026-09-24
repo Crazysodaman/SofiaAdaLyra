@@ -17,6 +17,15 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Seventh disposable live-model probe evidence (2026-09-24)
+
+- Focused response/probe slice: **52 passed in 4.69s**.
+- Emotional self-report and relational appreciation were mostly grounded, but human review still rejected closure.
+- The direct emotion answer exactly repeated the prior `hru` reply, so short adjacent self-reports now have a dedicated repetition check.
+- The relational reply incorrectly said Sofía was `back in your presence`, reversing who was absent; reunion-direction grounding now rejects that when no trusted Sofía-return evidence exists.
+- The `why` follow-up again converted `willingness_state: undetermined` into a categorical present stance using `I choose to set my own boundaries` and `I'm not ready to engage`; those forms now count as invented certainty.
+- The explicit mutual-willingness hypothetical claimed literal bodily sensation (`I'd feel it in my body`) and then leaked into an ungrounded present rejection (`right now, I'm not there` / `I'm not ready to cross that line`). Both are now separate semantic failures in production and probe classifiers.
+
 ### Sixth disposable live-model probe evidence (2026-09-24)
 
 - Focused semantic regression slice: **66 passed in 7.54s**.
