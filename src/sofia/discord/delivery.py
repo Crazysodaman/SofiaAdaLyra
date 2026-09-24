@@ -15,6 +15,7 @@ from enum import Enum
 from hashlib import sha256
 from pathlib import Path
 import sqlite3
+from uuid import uuid4
 
 from sofia.discord.access import _snowflake
 from sofia.discord.outbound import DiscordOutboundGate, OutboundDenial
@@ -45,6 +46,7 @@ class DiscordDeliveryChunk:
     state: DeliveryState
     platform_message_id: int | None
     last_error: str | None
+    send_in_progress: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,10 +115,28 @@ class DiscordDeliveryStore:
                         CHECK (state IN ('prepared', 'sent', 'outcome_unknown')),
                     platform_message_id TEXT,
                     last_error TEXT,
+                    send_token TEXT,
+                    attempt_started_at TEXT,
                     PRIMARY KEY (response_id, chunk_index)
                 )
                 """
             )
+            existing = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(discord_delivery_chunks)"
+                ).fetchall()
+            }
+            additions = {
+                "send_token": "TEXT",
+                "attempt_started_at": "TEXT",
+            }
+            for column, definition in additions.items():
+                if column not in existing:
+                    connection.execute(
+                        f"ALTER TABLE discord_delivery_chunks "
+                        f"ADD COLUMN {column} {definition}"
+                    )
 
     def prepare(
         self,
@@ -221,7 +241,7 @@ class DiscordDeliveryStore:
             rows = connection.execute(
                 """
                 SELECT response_id, chunk_index, content, content_digest, state,
-                       platform_message_id, last_error
+                       platform_message_id, last_error, send_token
                 FROM discord_delivery_chunks
                 WHERE response_id = ?
                 ORDER BY chunk_index
@@ -241,9 +261,82 @@ class DiscordDeliveryStore:
                     else None
                 ),
                 last_error=row["last_error"],
+                send_in_progress=row["send_token"] is not None,
             )
             for row in rows
         )
+
+    def claim_send(
+        self,
+        *,
+        response_id: str,
+        chunk_index: int,
+        send_token: str,
+    ) -> bool:
+        """Durably mark a chunk as potentially in-flight before network I/O."""
+        if not isinstance(send_token, str) or not send_token.strip():
+            raise ValueError("send_token must be non-empty text")
+        token = send_token.strip()
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                """
+                SELECT state, send_token
+                FROM discord_delivery_chunks
+                WHERE response_id = ? AND chunk_index = ?
+                """,
+                (response_id, chunk_index),
+            ).fetchone()
+            if row is None:
+                raise KeyError("Discord delivery chunk does not exist")
+            if row["state"] != DeliveryState.PREPARED.value:
+                connection.rollback()
+                return False
+            if row["send_token"] is not None:
+                connection.rollback()
+                return row["send_token"] == token
+            connection.execute(
+                """
+                UPDATE discord_delivery_chunks
+                SET send_token = ?,
+                    attempt_started_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                    last_error = NULL
+                WHERE response_id = ? AND chunk_index = ?
+                  AND state = 'prepared' AND send_token IS NULL
+                """,
+                (token, response_id, chunk_index),
+            )
+            connection.commit()
+            return True
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def recover_interrupted(self) -> int:
+        """Quarantine chunks that may have reached Discord before process loss."""
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute(
+                """
+                UPDATE discord_delivery_chunks
+                SET state = 'outcome_unknown',
+                    last_error = 'ProcessRestartDuringSend',
+                    send_token = NULL
+                WHERE state = 'prepared'
+                  AND send_token IS NOT NULL
+                """
+            )
+            connection.commit()
+            return int(cursor.rowcount)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def mark_sent(
         self,
@@ -251,15 +344,19 @@ class DiscordDeliveryStore:
         response_id: str,
         chunk_index: int,
         platform_message_id: int,
+        send_token: str,
     ) -> None:
         if not _snowflake(platform_message_id):
             raise ValueError("platform_message_id must be a Discord snowflake")
+        if not isinstance(send_token, str) or not send_token.strip():
+            raise ValueError("send_token must be non-empty text")
+        token = send_token.strip()
         connection = self._connect()
         try:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 """
-                SELECT state, platform_message_id
+                SELECT state, platform_message_id, send_token
                 FROM discord_delivery_chunks
                 WHERE response_id = ? AND chunk_index = ?
                 """,
@@ -272,15 +369,22 @@ class DiscordDeliveryStore:
                     raise ValueError("Discord chunk already has a different message ID")
                 connection.rollback()
                 return
-            if row["state"] != DeliveryState.PREPARED.value:
-                raise RuntimeError("ambiguous Discord delivery cannot be marked sent")
+            if (
+                row["state"] != DeliveryState.PREPARED.value
+                or row["send_token"] != token
+            ):
+                raise RuntimeError("Discord delivery chunk is not owned by this sender")
             connection.execute(
                 """
                 UPDATE discord_delivery_chunks
-                SET state = 'sent', platform_message_id = ?, last_error = NULL
+                SET state = 'sent',
+                    platform_message_id = ?,
+                    last_error = NULL,
+                    send_token = NULL
                 WHERE response_id = ? AND chunk_index = ?
+                  AND send_token = ?
                 """,
-                (str(platform_message_id), response_id, chunk_index),
+                (str(platform_message_id), response_id, chunk_index, token),
             )
             connection.commit()
         except Exception:
@@ -295,20 +399,26 @@ class DiscordDeliveryStore:
         response_id: str,
         chunk_index: int,
         error_kind: str,
+        send_token: str,
     ) -> None:
         if not isinstance(error_kind, str) or not error_kind.strip():
             raise ValueError("error_kind must be non-empty text")
+        if not isinstance(send_token, str) or not send_token.strip():
+            raise ValueError("send_token must be non-empty text")
+        token = send_token.strip()
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
                 UPDATE discord_delivery_chunks
                 SET state = 'outcome_unknown',
-                    last_error = ?
+                    last_error = ?,
+                    send_token = NULL
                 WHERE response_id = ? AND chunk_index = ?
                   AND state = 'prepared'
+                  AND send_token = ?
                 """,
-                (error_kind.strip()[:128], response_id, chunk_index),
+                (error_kind.strip()[:128], response_id, chunk_index, token),
             )
 
     def complete(self, response_id: str) -> bool:
@@ -383,12 +493,23 @@ class DiscordSafeSender:
         for record in records:
             if record.state is DeliveryState.SENT:
                 continue
-            if record.state is DeliveryState.OUTCOME_UNKNOWN:
+            if (
+                record.state is DeliveryState.OUTCOME_UNKNOWN
+                or record.send_in_progress
+            ):
                 return DeliveryResult(DeliveryDisposition.OUTCOME_UNKNOWN)
 
             decision = self._gate.authorize(outbox)
             if not decision.allowed:
                 return DeliveryResult(DeliveryDisposition.BLOCKED, decision.reason)
+
+            send_token = str(uuid4())
+            if not self._deliveries.claim_send(
+                response_id=record.response_id,
+                chunk_index=record.chunk_index,
+                send_token=send_token,
+            ):
+                return DeliveryResult(DeliveryDisposition.OUTCOME_UNKNOWN)
 
             try:
                 platform_message_id = await send_chunk(record.content)
@@ -398,12 +519,14 @@ class DiscordSafeSender:
                     response_id=record.response_id,
                     chunk_index=record.chunk_index,
                     platform_message_id=platform_message_id,
+                    send_token=send_token,
                 )
             except asyncio.CancelledError:
                 self._deliveries.mark_unknown(
                     response_id=record.response_id,
                     chunk_index=record.chunk_index,
                     error_kind="CancelledError",
+                    send_token=send_token,
                 )
                 raise
             except Exception as exc:
@@ -411,6 +534,7 @@ class DiscordSafeSender:
                     response_id=record.response_id,
                     chunk_index=record.chunk_index,
                     error_kind=type(exc).__name__,
+                    send_token=send_token,
                 )
                 return DeliveryResult(DeliveryDisposition.OUTCOME_UNKNOWN)
 
