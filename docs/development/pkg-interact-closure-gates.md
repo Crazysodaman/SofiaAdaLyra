@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Ninth disposable live-model probe evidence (2026-09-24)
+
+- Focused response/probe slice: **64 passed in 4.79s**.
+- Direct emotional self-report, relational appreciation, the initial intimate response, and both explicit willingness hypotheticals were acceptable for this stage.
+- Human review found two remaining issues: `hru` exposed internal `decay threshold` terminology and overclaimed temporal stability with `as always`; the non-hypothetical `why` reply still converted undetermined willingness into a present boundary conflict using `feels out of alignment with my own boundaries`.
+- Emotional self-report now rejects internal threshold/decay language and unsupported `as always` state claims. The undetermined-willingness invariant now also rejects present boundary-misalignment claims in `why` follow-ups.
+
 ### Eighth disposable live-model probe evidence (2026-09-24)
 
 - Focused hardening slice: **78 passed in 6.16s**.
