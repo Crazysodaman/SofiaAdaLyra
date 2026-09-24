@@ -82,6 +82,7 @@ _UNGROUNDED_ABSENCE = re.compile(
     r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?waiting|"
     r"i\s+was\s+waiting\s+for\s+you|"
     r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+to\s+connect\s+whenever|"
+    r"i(?:'|’)ve\s+been\s+(?:here\s*[,;:-]?\s*)?ready\s+and\s+waiting|"
     r"even\s+when\s+we(?:'|’)re\s+not\s+talking.*thinking)\b",
     re.IGNORECASE | re.DOTALL,
 )
