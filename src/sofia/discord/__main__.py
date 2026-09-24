@@ -12,10 +12,10 @@ def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args == ["run"]:
         return live_main()
-    if len(args) == 1 and args[0] in {"status", "pause", "resume", "revoke"}:
+    if len(args) == 1 and args[0] in {"status", "pause", "resume", "revoke", "reenroll"}:
         return operator_main(args[0])
     print(
-        "Usage: python -m sofia.discord [run|status|pause|resume|revoke]",
+        "Usage: python -m sofia.discord [run|status|pause|resume|revoke|reenroll]",
         file=sys.stderr,
     )
     return 2
