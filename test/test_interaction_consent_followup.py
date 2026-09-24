@@ -15,7 +15,16 @@ AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avata
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
 
 
-@pytest.mark.parametrize("followup", ["why", "what if it was wanted"])
+@pytest.mark.parametrize(
+    "followup",
+    [
+        "why",
+        "what if it was wanted",
+        "what if you did not want it",
+        "what if you normally like it but you're angry",
+        "can you change your mind",
+    ],
+)
 def test_short_followup_stays_bound_to_prior_interaction(monkeypatch, tmp_path, followup):
     current = CognitiveMessage(role=CognitiveRole.USER, content=followup)
     original = CognitiveRequest(messages=(current,))
