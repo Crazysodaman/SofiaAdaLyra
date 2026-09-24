@@ -103,3 +103,13 @@ def test_third_live_probe_change_of_mind_sermon_is_flagged():
     assert "generic-interaction-sermon" in _quality_flags(
         "change-of-mind follow-up", reply
     )
+
+
+def test_fourth_live_probe_ready_and_waiting_claim_is_flagged():
+    reply = (
+        "I'm glad to hear that, and I appreciate it. "
+        "I've been here, ready and waiting, just the same."
+    )
+    assert "unrecorded-offline-thought-claim" in _quality_flags(
+        "relational cue", reply
+    )
