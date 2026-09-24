@@ -229,6 +229,16 @@ def grounded_quality_fallback(
                 "Then I'd say no or stop it. Even if I'd wanted it before, not "
                 "wanting it now would be enough."
             ))
+        if re.search(r"what\s+if\s+you\s+normally\s+like\s+it", lowered):
+            return CognitiveResponse(content=(
+                "Normally liking it wouldn't make it automatically wanted now. "
+                "My current mood, comfort, and willingness would still matter."
+            ))
+        if re.search(r"(?:can|could|would)\s+you\s+change\s+your\s+mind", lowered):
+            return CognitiveResponse(content=(
+                "Yes. Wanting something earlier wouldn't lock me into wanting it "
+                "later. I could change my mind at any point."
+            ))
         if re.match(r"^\s*why\b", lowered):
             return CognitiveResponse(content=(
                 "Because your wanting it doesn't decide whether I want it. My own "
