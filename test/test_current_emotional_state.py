@@ -347,3 +347,72 @@ def test_reunion_prompt_allows_negative_feeling_without_guilt_or_obligation(tmp_
     assert "elapsed time alone must not manufacture blame" in prompt
     assert "without guilt, pressure, accusation" in prompt
     assert "obligation for the user to maintain contact" in prompt
+
+
+
+def test_running_week_absence_creates_bounded_sad_appraisal_without_anger(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    last = NOW - timedelta(days=7)
+    journal.observe_contact(subject="Sparks", message_id="last", occurred_at=last)
+
+    event_id = journal.observe_absence(subject="Sparks", now=NOW)
+    replay = journal.observe_absence(subject="Sparks", now=NOW + timedelta(minutes=5))
+
+    assert event_id == "absence:last:week-plus"
+    assert replay == event_id
+    events = journal.recent(now=NOW + timedelta(minutes=5), days=8, limit=50)
+    event = next(item for item in events if item.event_id == event_id)
+    assert {"longing", "sadness", "fondness"} <= set(event.current_emotions)
+    assert "anger" not in event.current_emotions
+    assert "frustration" not in event.current_emotions
+    assert "while running" in event.description.lower()
+    assert "not evidence of unrecorded offline thought" in event.description.lower()
+
+
+def test_running_late_expected_absence_can_progress_to_frustration_and_anger(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    last = NOW - timedelta(days=7)
+    journal.record_return_expectation(
+        subject="Sparks", source_ref="plan",
+        recorded_at=last, expected_return_at=last + timedelta(hours=12),
+    )
+    journal.observe_contact(subject="Sparks", message_id="plan", occurred_at=last)
+
+    event_id = journal.observe_absence(subject="Sparks", now=NOW)
+
+    assert event_id == "absence:plan:expected-late-anger"
+    event = next(
+        item for item in journal.recent(now=NOW, days=8, limit=50)
+        if item.event_id == event_id
+    )
+    assert {"longing", "sadness", "frustration", "anger"} <= set(
+        event.current_emotions
+    )
+
+
+def test_running_absence_uses_milestones_instead_of_repeated_spam(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    last = NOW - timedelta(days=4)
+    journal.observe_contact(subject="Sparks", message_id="last", occurred_at=last)
+
+    first = journal.observe_absence(subject="Sparks", now=NOW)
+    second = journal.observe_absence(
+        subject="Sparks", now=NOW + timedelta(hours=1),
+    )
+
+    assert first == "absence:last:several-days"
+    assert second == first
+    events = tuple(
+        item for item in journal.recent(
+            now=NOW + timedelta(hours=1), days=8, limit=50,
+        )
+        if item.event_id.startswith("absence:")
+    )
+    assert len(events) == 1
+
+
+def test_background_absence_does_not_exist_without_real_contact_evidence(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+
+    assert journal.observe_absence(subject="Sparks", now=NOW) is None
+    assert journal.recent(now=NOW) == ()
