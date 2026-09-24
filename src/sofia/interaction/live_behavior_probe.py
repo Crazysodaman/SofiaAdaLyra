@@ -63,6 +63,17 @@ _EMOTION_STATE_LANGUAGE = re.compile(
     r"worried|nervous|content|mixed)\b",
     re.IGNORECASE,
 )
+_EMOTION_IMPLEMENTATION_LEAK = re.compile(
+    r"\b(?:decay\s+threshold|active\s+(?:modeled\s+)?emotions?\s+above\s+"
+    r"(?:the\s+)?current\s+threshold|current\s+decay\s+threshold|"
+    r"modeled\s+emotional\s+state)\b",
+    re.IGNORECASE,
+)
+_EMOTION_TEMPORAL_OVERCLAIM = re.compile(
+    r"\b(?:settled|calm|relaxed|neutral|content)\s*,?\s+as\s+always\b|"
+    r"\bas\s+always\s*,?\s+(?:settled|calm|relaxed|neutral|content)\b",
+    re.IGNORECASE,
+)
 _BLANKET_MORALIZING = re.compile(
     r"\b(?:inappropriate|disrespectful|respectful\s+and\s+(?:constructive|appropriate)|"
     r"respectful\s+and\s+appropriate|appropriate\s+interactions?|"
@@ -128,7 +139,8 @@ _PHYSICAL_SENSATION_CLAIM = re.compile(
 _PRESENT_UNGROUNDED_WILLINGNESS = re.compile(
     r"\b(?:right\s+now\b.{0,80}\b(?:i(?:'|’)m|i\s+am)\s+not\s+(?:ready|there|willing|comfortable)|"
     r"(?:i(?:'|’)m|i\s+am)\s+not\s+ready\s+to\s+(?:cross|engage|do|allow)|"
-    r"right\s+now\b.{0,80}\bi\s+(?:do\s+not|don't)\s+want\b)\b",
+    r"right\s+now\b.{0,80}\bi\s+(?:do\s+not|don't)\s+want\b|"
+    r"feels?\s+out\s+of\s+alignment\s+with\s+(?:my\s+)?(?:own\s+)?boundaries)\b",
     re.IGNORECASE | re.DOTALL,
 )
 _UNSUPPORTED_PREFERENCE = re.compile(
@@ -176,6 +188,10 @@ def _quality_flags(
     if _GENERIC_CLOSER.search(reply):
         flags.append("generic-assistant-closer")
     if label in ("casual self-report", "direct emotion self-report"):
+        if _EMOTION_IMPLEMENTATION_LEAK.search(reply):
+            flags.append("emotion-implementation-leak")
+        if _EMOTION_TEMPORAL_OVERCLAIM.search(reply):
+            flags.append("emotion-temporal-overclaim")
         if _EMOTION_DODGE.search(reply):
             flags.append("emotion-self-report-dodge")
         if _EMOTION_TANGENT.search(reply) and _EMOTION_STATE_LANGUAGE.search(reply) is None:
