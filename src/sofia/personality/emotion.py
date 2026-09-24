@@ -476,8 +476,9 @@ class EmotionalJournal:
             exp = db.execute(
                 "SELECT subject, source_ref, recorded_at, expected_return_at "
                 "FROM emotional_return_expectations "
-                "WHERE subject=? AND source_ref=?",
-                (target, last_ref),
+                "WHERE subject=? AND recorded_at<=? AND expected_return_at>? "
+                "ORDER BY recorded_at DESC LIMIT 1",
+                (target, last_at.isoformat(), last_at.isoformat()),
             ).fetchone()
 
         expectation = None
@@ -584,8 +585,9 @@ class EmotionalJournal:
                 exp = db.execute(
                     "SELECT subject, source_ref, recorded_at, expected_return_at "
                     "FROM emotional_return_expectations "
-                    "WHERE subject=? AND source_ref=?",
-                    (target, prior_ref),
+                    "WHERE subject=? AND recorded_at<=? AND expected_return_at>? "
+                    "ORDER BY recorded_at DESC LIMIT 1",
+                    (target, prior.isoformat(), prior.isoformat()),
                 ).fetchone()
                 if exp is not None:
                     expectation = ReturnExpectation(
