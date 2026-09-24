@@ -15,7 +15,7 @@ import json
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
-from sofia.personality.emotion import EmotionalEvent
+from sofia.personality.emotion import EMOTIONS, EmotionalEvent
 from sofia.personality.reflection import ReflectionJournal
 
 
