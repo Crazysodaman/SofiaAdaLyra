@@ -36,6 +36,26 @@ def _required_snowflake(environ: Mapping[str, str], name: str) -> int:
 
 
 @dataclass(frozen=True, slots=True)
+class DiscordIdentity:
+    owner_user_id: int
+    bot_user_id: int
+    dm_channel_id: int
+
+    @classmethod
+    def from_environment(
+        cls,
+        environ: Mapping[str, str] | None = None,
+    ) -> "DiscordIdentity":
+        source = os.environ if environ is None else environ
+        owner = _required_snowflake(source, "SOFIA_DISCORD_OWNER_ID")
+        bot = _required_snowflake(source, "SOFIA_DISCORD_BOT_ID")
+        channel = _required_snowflake(source, "SOFIA_DISCORD_DM_CHANNEL_ID")
+        if owner == bot:
+            raise ValueError("Discord owner and bot IDs must differ")
+        return cls(owner_user_id=owner, bot_user_id=bot, dm_channel_id=channel)
+
+
+@dataclass(frozen=True, slots=True)
 class DiscordProvisioning:
     enabled: bool
     owner_user_id: int | None = None
@@ -53,21 +73,17 @@ class DiscordProvisioning:
         if not enabled:
             return cls(enabled=False)
 
-        owner = _required_snowflake(source, "SOFIA_DISCORD_OWNER_ID")
-        bot = _required_snowflake(source, "SOFIA_DISCORD_BOT_ID")
-        channel = _required_snowflake(source, "SOFIA_DISCORD_DM_CHANNEL_ID")
+        identity = DiscordIdentity.from_environment(source)
         token = source.get("SOFIA_DISCORD_TOKEN", "").strip()
         if not token:
             raise ValueError(
                 "SOFIA_DISCORD_TOKEN must be supplied when Discord is enabled"
             )
-        if owner == bot:
-            raise ValueError("Discord owner and bot IDs must differ")
         return cls(
             enabled=True,
-            owner_user_id=owner,
-            bot_user_id=bot,
-            dm_channel_id=channel,
+            owner_user_id=identity.owner_user_id,
+            bot_user_id=identity.bot_user_id,
+            dm_channel_id=identity.dm_channel_id,
             token=token,
         )
 
