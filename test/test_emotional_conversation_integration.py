@@ -30,6 +30,8 @@ def test_user_cue_reaches_llm_as_bounded_context_after_canonical_system(monkeypa
     service, original = _service(monkeypatch, tmp_path)
     result = service._build_request()
     assert result.messages[0].role is CognitiveRole.SYSTEM
+    assert 'TRUSTED RUNTIME CLOCK' in result.messages[0].content
+    assert 'Current host-local time:' in result.messages[0].content
     assert 'MODELED EMOTIONAL CONTEXT' in result.messages[0].content
     assert result.messages[-1] is original.messages[-1]
     assert len(service.emotional_journal.recent(now=datetime.now(timezone.utc))) == 1
