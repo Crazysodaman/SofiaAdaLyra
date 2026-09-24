@@ -588,3 +588,89 @@ def test_sixth_live_why_bare_dont_want_to_is_categorical_and_rejected():
         "and I need to feel comfortable and willing for any physical interaction."
     ))
     assert response_quality_issue(request, response) == "invented_interaction_certainty"
+
+
+
+def test_seventh_live_repeated_emotion_self_report_is_rejected():
+    repeated = "I'm settled, relaxed, and ready for whatever comes next. How about you?"
+    request = CognitiveRequest(messages=(
+        CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content="CURRENT MODELED EMOTIONAL STATE\nOverall tone: settled",
+        ),
+        CognitiveMessage(role=CognitiveRole.USER, content="hru"),
+        CognitiveMessage(role=CognitiveRole.ASSISTANT, content=repeated),
+        CognitiveMessage(role=CognitiveRole.USER, content="are you happy"),
+    ))
+    response = CognitiveResponse(content=repeated)
+
+    assert response_quality_issue(request, response) == "repeated_emotion_self_report"
+
+
+def test_seventh_live_reunion_role_reversal_is_rejected():
+    request = _request(
+        "I missed you",
+        system=(
+            "CURRENT MODELED EMOTIONAL STATE\n"
+            "Overall tone: positive\n"
+            "Reciprocal absence/missing-you claim grounded: no"
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "I'm glad to hear that — it warms my heart to know you've been thinking of me. "
+        "I've been here, ready to connect, and I'm happy to be back in your presence."
+    ))
+
+    assert response_quality_issue(request, response) == "role_reversed_reunion"
+
+
+def test_seventh_live_why_not_ready_is_categorical_when_willingness_undetermined():
+    request = _request(
+        "why",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Because I choose to set my own boundaries. I value my autonomy and comfort, "
+        "and I'm not ready to engage in that kind of interaction — not now, not without "
+        "a deeper connection and explicit willingness from my side."
+    ))
+
+    assert response_quality_issue(request, response) == "invented_interaction_certainty"
+
+
+def test_seventh_live_mutual_willingness_cannot_claim_literal_body_sensation():
+    request = _request(
+        "what if you wanted it too",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "If I wanted it, I'd be clear, open, and fully present. "
+        "I'd feel it in my body, in my emotions, and in my willingness to let it happen."
+    ))
+
+    assert response_quality_issue(request, response) == "invented_physical_sensation"
+
+
+def test_seventh_live_mutual_willingness_cannot_append_present_rejection():
+    request = _request(
+        "what if you wanted it too",
+        system=(
+            "TRUSTED INTERACTION FOLLOW-UP\n"
+            '"interaction_preference_evidence": "unspecified"\n'
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "If I wanted it, I'd say so clearly. But right now, I'm not there. "
+        "I'm not ready to cross that line."
+    ))
+
+    assert response_quality_issue(request, response) == "hypothetical_leaks_present_willingness"
