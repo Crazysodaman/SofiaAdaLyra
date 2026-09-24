@@ -13,12 +13,13 @@ from importlib import import_module
 from types import ModuleType
 
 from sofia.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import (
     BridgeDisposition,
     DiscordConversationBridge,
 )
 from sofia.discord.delivery import DiscordSafeSender
-from sofia.discord.inbound import DiscordTextEvent
+from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.ingress import DiscordIngress, IngressDisposition
 from sofia.discord.store import DiscordInboxStore, DiscordOutboxRecord
 
@@ -98,6 +99,7 @@ class DiscordLiveRuntime:
     bridge: DiscordConversationBridge
     sender: DiscordSafeSender
     store: DiscordInboxStore
+    bindings: DiscordBindingStore
 
 
 def create_discordpy_client(
@@ -176,14 +178,24 @@ def create_discordpy_client(
                 return
 
             event = adapter.to_event(message, bot_user_id=user.id)
-            outcome = runtime.ingress.receive(event)
-            if outcome.disposition not in (
-                IngressDisposition.ACCEPTED,
-                IngressDisposition.DUPLICATE,
-            ):
+            if not screen_text_dm(runtime.config, event).accepted:
                 return
 
             async with self._message_lock:
+                binding = runtime.bindings.get(
+                    bot_user_id=user.id,
+                    channel_id=event.channel_id,
+                )
+                if binding is None or binding.state is not BindingState.ACTIVE:
+                    return
+
+                outcome = runtime.ingress.receive(event)
+                if outcome.disposition not in (
+                    IngressDisposition.ACCEPTED,
+                    IngressDisposition.DUPLICATE,
+                ):
+                    return
+
                 result = await asyncio.to_thread(
                     runtime.bridge.process,
                     bot_user_id=user.id,
