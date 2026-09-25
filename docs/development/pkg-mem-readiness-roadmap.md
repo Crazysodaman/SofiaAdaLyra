@@ -1,21 +1,20 @@
-# PKG-MEM | branch readiness roadmap
+# PKG-MEM | readiness roadmap
 
-**2026-09-21 | draft PR #9 | baseline head `5b411cccc8c661d2abf3586360fe5633061f31ba` before this update. Offline slice, not an integrated memory product.** Also read `pkg-mem-original-retrieval-review.md` and root `ROADMAP.md` for the original-memory/learning outcome.
+**Accepted gate: 2026-09-24 | PR #9 merged to main.**
 
-## Existing, evidence and limitations
+## Accepted implementation
 
-Read-only source-preserving selection of `ConversationMessage` originals by ID in a caller-authorized session with explicit omitted/missing IDs and timestamp validation. **23 focused tests passed on equivalent staged code with a test-only conversation-model stand-in**, not on an actual GitHub checkout; no verified auth, persistent user memory or archive import. Existing conversation and emotional journals on main are separate foundations; don't introduce a second database.
+The original/provenance gate is integrated on `main`. It now provides exact persisted conversation-original retrieval scoped to one authorized session; durable provenance-backed memory candidates; explicit propose/promote/reject/revoke lifecycle; promoted-only cognition projection and deterministic relevance retrieval; source invalidation propagation; and a reviewed workflow that can create a candidate only from exact persisted source messages.
 
-## Next code and test gates
+Evidence recorded at acceptance: **54/54 focused PKG-MEM tests passed** on the user's Windows Python 3.12 environment after one test-fixture correction, followed by a reported **full repository pytest pass**. Production `state/sofia.db` was not intentionally modified or committed by this gate.
 
-1. Inspect/pin actual `ConversationMessage`, conversation store, emotional/reflection journals, schema/migrations, source timestamps and auth/session boundaries. Reconcile interface against INTERACT PR #2 rather than copying its parser or state.
-2. Implement/store **immutable original content**, stable actor/session/order/time and source pointers; derivations, summaries and reflection hypotheses must link to originals, declare omissions/uncertainty and never replace the original. Keep protected canonical identity and Constitution independent of recalled text.
-3. Add reviewed preference-candidate lifecycle (propose, evidence, correct/reject, promote, revoke); source changes, contradictions and deletion propagate into indexes and workbench pages. Private reflections remain unshared until an independently authorized audience is granted.
-4. Plan/test an opt-in, deduplicated ChatGPT archive importer with source hashes, provenance, dry-run and reversible migration on **disposable DB copies only**; malformed, cross-session and duplicated imports fail safely. Decide retention/export/delete policy with Sparks at this gate, not by guessing.
-5. Run on actual branch + Windows Python 3.12.9: `python -m pytest -q test/test_memory_retrieval_projection.py`; targeted conversation/MEM regression; restart/reopen, corruption, correction, deletion, unauthorized retrieval, prompt-injection and backup/restore negatives. Then coordinated full repo pytest after INTERACT acceptance.
+## Remaining gates
 
-## Decisions requiring review
+1. Bind memory/session access to authenticated PKG-SOCIAL principals and audiences rather than relying only on caller-provided session authorization.
+2. Decide and implement retention, erasure, encryption, export and derived-index propagation policy.
+3. Add opt-in, deduplicated archive migration with source hashes, dry-run, rollback and disposable-database acceptance.
+4. Add backup/restore, corruption/recovery and deletion/correction integration acceptance across restart.
+5. Integrate promoted retrieval into the final cognition path with measured provider/token budgeting and supervised live memory-quality tests.
+6. Keep canonical identity and Constitution protected from recalled or imported text.
 
-Choose encryption/retention/erasure and original-versus-derived record longevity; verified single-account session binding; archive location/consent; retrieval token-budget behavior; how modeled emotional appraisals can influence responses without being treated as authoritative facts. No second-user memory until future SOCIAL scope is explicitly approved.
-
-**Exit:** isolated retrieval slice tested only. GitHub checkout, current Windows/full suite, persistent database and restart tests, private/audience review and migration acceptance = **NOT RUN**. No prod `state/sofia.db` changes, merge or deployment.
+**Current state:** original/provenance gate accepted and merged. PKG-MEM as a whole remains active until the remaining privacy/migration/recovery/live-quality gates are accepted.
