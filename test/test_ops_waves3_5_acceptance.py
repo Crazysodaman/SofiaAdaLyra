@@ -15,6 +15,7 @@ from sofia.ops import (
     FleetRemovalApprovalRequired,HostLifecycle,HostUpdateAssignment,JsonLeaseTable,LeaseTable,
     MachineNodeBinding,MaintenanceOperation,MaintenancePolicy,MaintenanceRequest,
     ManagedWorkload,MigrationCoordinator,MigrationPlan,MigrationStage,PromotionDenied,
+    WorkloadOrchestrator,
     PromotionEvidence,PromotionGuard,RecoveryDenied,RecoveryGuard,RestoreVerification,
     SplitBrainRisk,StateMode,TelemetryHistory,UpdatePlanner,UpdateRing,WorkloadContract,
     WorkloadInstance,WorkloadPhase,detect_drift,
@@ -213,3 +214,23 @@ def test_durable_lease_and_fence_state_survive_restart(tmp_path:Path):
     assert restored.is_fenced("sofia","venus")
     second=restored.transfer("sofia","venus","terra",now=NOW+timedelta(seconds=1),ttl=timedelta(minutes=1),state_verified=True)
     assert second.epoch>first.epoch
+
+def test_workload_orchestrator_executes_checkpoint_readiness_fence_and_lease_transfer():
+    contract=WorkloadContract("sofia","1",("windows",),("x86_64",),singleton=True)
+    workload=ManagedWorkload(contract,StateMode.PERSISTENT,checkpoint_required=True)
+    plan=MigrationPlan("m-exec",workload,"venus","terra")
+    leases=LeaseTable()
+    leases.acquire("sofia","venus",now=NOW-timedelta(seconds=1),ttl=timedelta(minutes=5))
+    events=[]
+    class Backend:
+        def drain(self,w,h): events.append(("drain",h))
+        def checkpoint(self,w,h): events.append(("checkpoint",h)); return "cp-1"
+        def start(self,w,h,cp): events.append(("start",h,cp))
+        def ready(self,w,h): events.append(("ready",h)); return True
+        def fence(self,w,h): events.append(("fence",h))
+        def stop(self,w,h): events.append(("stop",h))
+    receipt=WorkloadOrchestrator(leases).migrate(plan,Backend(),now=NOW,lease_ttl=timedelta(minutes=5))
+    assert receipt.checkpoint_id=="cp-1"
+    assert leases.current("sofia").holder_host_id=="terra"
+    assert ("fence","venus") in events
+    assert events[-1]==("stop","venus")
