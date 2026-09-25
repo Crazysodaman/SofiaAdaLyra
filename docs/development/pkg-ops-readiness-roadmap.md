@@ -1,3 +1,5 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # PKG-OPS | fleet operations, diagnostics, performance, and orchestration
 
 **Planning date:** 2026-09-22. **Status:** documentation contract only; no OPS agent, autonomous enrollment service, remote telemetry transport, hardening executor, or deployment is implemented by this document.
