@@ -1,4 +1,4 @@
-> **Project status update — 2026-09-24:** PKG-DISCORD v1 has supervised live acceptance for the Sparks-only private-DM transport path. The live run also exposed two cross-package gaps now tracked outside Discord: SOCIAL must project the authenticated owner principal into shared cognition, and INTERACT/CORE has a new narrow live-quality repair gate for generic/canned assistant fallback. Existing accepted INTERACT safety/ledger semantics remain accepted.
+> **Project status update — 2026-09-24:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS Wave 1 foundations are merged to `main` via PR #99 (`f7356c3`). Dedicated package acceptance passed 11/11, cross-package acceptance passed 5/5, combined focused acceptance passed 16/16, and the full repository suite was reported passing on the integration branch. This is a merged Wave 1 foundation, not completion or live deployment of the four package roadmaps. 
 
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
