@@ -76,7 +76,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 07. PKG-RUN | supervision, watchdog and 24/7/failover
 
-- **Current:** draft PR #3 provides disabled-by-default periodic mechanics; no verified OS service, multi-day soak, independently running watchdog or production automatic failover.
+- **Current:** **local lifecycle source implementation is merged via PR #107.** `main` now includes the disabled-by-default periodic opportunity gate, local singleton lease with monotonic fencing epochs, stale-owner rejection, host-neutral supervisor, readiness timeout, bounded exponential restart/backoff-window control and durable supervisor events. Windows offline acceptance passed **78 tests with 1 skip**. No verified OS service, independently running watchdog, standby promotion, cross-host consensus/fencing, multi-day soak or production automatic failover is claimed.
 - **Build:** external OS/service supervisor per host, bounded restart/backoff, singleton role, health/readiness checks, startup reconciliation, scheduled cognition with budget/stop; independent fleet watchdog, standby already powered/running a supervisor, fenced lease/epoch, verified state and compatible host before promotion; reconcile messages/actions and reconnect UI after failover. A dead host cannot run its own rescue. Optional WOL/IPMI only if hardware/authority actually supports it.
 - **Depends on:** OPS enrolled hosts/capacity; MEM durable state; SAFE leadership/stop/credentials; NET transport; ACT ledger/outbox; VERIFY failure lab. See [RUN watchdog contract](pkg-run-watchdog-failover-contract.md).
 - **Exit:** process crash restarts locally; host crash promotes **only one** verified standby where possible; split brain/stale leader denied, uncertain effects not replayed, no-safe-target state fails closed; actual RTO/RPO and multi-day soak recorded. Never claim uninterrupted generation or universal zero loss.
@@ -90,7 +90,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 09. PKG-ACT | goals, initiative and delivery
 
-- **Current:** reflection journal and unsent outbox foundations on `main`; outreach preflight candidate draft PR #15; real sender not accepted.
+- **Current:** **durable ACT outreach/delivery source implementation is merged via PR #105.** `main` now includes source-linked outreach eligibility, immutable recipient/channel binding to INTERACT queued messages, durable send attempts, bounded retry/dedupe, acknowledged delivery history and fail-closed `outcome_unknown` handling. Windows offline acceptance passed **90 tests**. No real sender/channel activation or RUN-triggered outreach is claimed.
 - **Build:** event-driven/periodic opportunity evaluation while actually running, evidence-backed candidate thoughts and goals, scheduled eligible outreach, quiet/busy/mute/stop, dedupe, bounded notices, durable outbox/receipt/retry semantics, resource fairness and operator control.
 - **Depends on:** CORE/MEM/SOCIAL/REL; RUN supervisor; UI sender; SAFE/VERIFY; shared durable operation ledger.
 - **Exit:** demonstrated meaningful opt-in outreach with real receipt and no cross-user disclosure, repeat spam, fabricated shutdown-time activity or blind duplicate sends.
@@ -125,7 +125,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 14. PKG-EVOLVE | governed configuration and protected amendment
 
-- **Current:** proposal-only protected amendment candidate draft PR #19; no accepted protected-state executor/self-approval.
+- **Current:** **governed EVOLVE revision source implementation is merged via PR #106.** `main` now includes reviewed reversible preference/config revisions plus a stricter independently authorized identity/Constitution amendment executor with exact proposal fingerprints, pre-change backups, atomic protected writes, Constitution hash update/verification, durable audit and separately approved rollback. Windows disposable/offline acceptance passed **62 tests**. No self-approval path exists and no production protected state was modified.
 - **Build:** evidence-backed preference/config proposals, revision history, reversible reviewed improvements and separately authorized identity/Constitution amendment workflow; preserve canonical continuity and audited human authority.
 - **Depends on:** CORE/SAFE/VERIFY, MEM/DEV.
 - **Exit:** unapproved protected changes denied, reviewed change tied to exact revision and verified rollback; no silent self-amendment.
