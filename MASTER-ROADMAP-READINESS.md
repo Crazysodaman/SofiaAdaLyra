@@ -1,4 +1,4 @@
-> **Project status update — 2026-09-24:** PKG-DISCORD v1 is live accepted for the supervised Sparks-only private-DM transport path. A new INTERACT/CORE live-quality repair gate is open for generic/canned conversational fallback discovered through that channel; accepted INTERACT safety semantics remain intact. SOCIAL minimum principal projection also remains open because transport authentication is not yet carried into cognition as `Sparks`.
+> **Project status update — 2026-09-24:** PKG-DISCORD v1 is live accepted for the supervised Sparks-only private-DM transport path and merged to `main` via PR #64 (`ba2111b`). A new INTERACT/CORE live-quality repair gate is open for generic/canned conversational fallback discovered through that channel; accepted INTERACT safety semantics remain intact. SOCIAL minimum principal projection also remains open because transport authentication is not yet carried into cognition as `Sparks`.
 
 # Sofía Ada Lyra | master readiness index
 
