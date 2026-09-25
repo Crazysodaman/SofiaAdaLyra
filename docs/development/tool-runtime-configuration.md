@@ -1,6 +1,6 @@
 # Sofía Runtime Tool Configuration
 
-**Status:** tool-completion branch configuration contract.
+**Status:** repository-accepted runtime-tool configuration contract merged via PR #104 on 2026-09-25. Focused tool/mTLS acceptance passed 34/34, surrounding subsystem regression passed 270/270, and the full repository pytest suite was reported passing before merge. Live service/host deployment remains separately gated.
 
 This document describes how concrete runtime tools are enabled. Tool code being registered does not itself authorize use. Provider-visible tools are filtered by `SofiaConfiguration.standing_allowed_capabilities`, and consequential capabilities must be explicitly granted.
 
@@ -187,7 +187,7 @@ python -m sofia.distributed.operator retire --node-id <uuid>
 
 ## Explicitly unfinished/live acceptance
 
-Source implementation is not live acceptance. Before production use:
+Repository acceptance is not live acceptance. Before production use:
 
 1. run compile/focused/full tests;
 2. provision certificates outside Git;
