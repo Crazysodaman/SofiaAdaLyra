@@ -95,3 +95,7 @@ __all__ += [
     "PresentationRuntimeBundle", "load_or_bootstrap_presentation",
     "presentation_state_path", "EmotionStyleInfluence",
 ]
+
+from .presentation_routine import HeadlessPresentationRoutine, PresentationRoutineResult
+
+__all__ += ["HeadlessPresentationRoutine", "PresentationRoutineResult"]
