@@ -40,7 +40,7 @@ class StorageAdapter:
         out=[]
         for item in sorted(target.iterdir(),key=lambda x:x.name.casefold()):
             stat=item.stat()
-            out.append({"name":item.name,"path":str(item.relative_to(self._root(root_index))),
+            out.append({"name":item.name,"path":item.relative_to(self._root(root_index)).as_posix(),
                         "is_dir":item.is_dir(),"size_bytes":0 if item.is_dir() else stat.st_size})
         return tuple(out)
 
@@ -58,12 +58,12 @@ class StorageAdapter:
         with NamedTemporaryFile("w",encoding="utf-8",delete=False,dir=target.parent,prefix=target.name+".",suffix=".tmp") as fh:
             fh.write(content); temp=Path(fh.name)
         temp.replace(target)
-        return {"path":str(target.relative_to(self._root(root_index))),"bytes":len(content.encode("utf-8"))}
+        return {"path":target.relative_to(self._root(root_index)).as_posix(),"bytes":len(content.encode("utf-8"))}
 
     def mkdir(self,root_index:int,relative_path:str)->dict:
         target=self._path(root_index,relative_path)
         target.mkdir(parents=True,exist_ok=False)
-        return {"path":str(target.relative_to(self._root(root_index))),"created":True}
+        return {"path":target.relative_to(self._root(root_index)).as_posix(),"created":True}
 
     def copy(self,root_index:int,source:str,destination:str,*,overwrite:bool=False)->dict:
         src=self._path(root_index,source); dst=self._path(root_index,destination)
