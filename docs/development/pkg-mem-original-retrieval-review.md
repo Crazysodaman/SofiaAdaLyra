@@ -15,3 +15,10 @@
 - Add durable original preservation, archive import, controlled promotion of candidates, explicit retention/deletion including derived indexes and restore, migration/rollback on disposable DBs, and privacy-negative tests. These are **not implemented here**.
 - Evaluate true provider token budgeting with measured tokenizer; this slice only counts Python characters. Verify evidence omission is displayed, and unauthorized material is filtered before retrieval and prompt assembly.
 - Run focused, integration, pinned full-suite, restart/recovery and supervised live memory-quality checks after INTERACT is accepted. Record revision/environment/results accurately. No identity/Constitution edits or DB migration are authorized.
+
+
+## Current branch implementation checkpoint (2026-09-24)
+
+The branch now also contains the real ConversationStore bridge, durable provenance-backed candidates, explicit propose/promote/reject/revoke lifecycle, promoted-only cognition projection, deterministic promoted relevance retrieval, explicit supersession, source invalidation propagation, and a reviewed workflow that creates candidates only from exact persisted source messages. These additions preserve originals rather than rewriting them.
+
+The next action is the requested test gate. None of these newer files are claimed passing until Sparks runs the focused branch suite. Archive import, retention/erasure policy, encryption decisions, backup/restore acceptance, SOCIAL principal binding, and live cognition-quality acceptance remain later package gates rather than hidden assumptions.
