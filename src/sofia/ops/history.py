@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime
-import json
+import json,os
 from pathlib import Path
 from .model import HostTelemetry
 
@@ -13,7 +13,7 @@ class TelemetryHistory:
         self.path.parent.mkdir(parents=True,exist_ok=True)
         payload=asdict(telemetry); payload["observed_at"]=telemetry.observed_at.isoformat(); payload["host_id"]=host_id
         with self.path.open("a",encoding="utf-8") as fh:
-            fh.write(json.dumps(payload,sort_keys=True)+"\n"); fh.flush()
+            fh.write(json.dumps(payload,sort_keys=True)+"\n"); fh.flush(); os.fsync(fh.fileno())
     def latest(self,host_id:str)->HostTelemetry|None:
         if not self.path.exists(): return None
         found=None
