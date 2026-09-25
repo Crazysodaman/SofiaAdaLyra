@@ -28,6 +28,7 @@ from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.observation import FilesystemObservationStore
@@ -335,7 +336,15 @@ def compose(
         filesystem_root=filesystem_root,
         state_path=state_path,
     )
+    remote_fleet_tools = create_configured_remote_fleet_tools(
+        state_path
+    )
     for registration in integration_tools:
+        capability_system.register(
+            capability=registration.capability,
+            handler=registration.handler,
+        )
+    for registration in remote_fleet_tools:
         capability_system.register(
             capability=registration.capability,
             handler=registration.handler,
@@ -367,6 +376,7 @@ def compose(
             + create_machine_tool_bindings()
             + create_ops_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)
+            + tuple(registration.binding for registration in remote_fleet_tools)
         ),
     )
 
