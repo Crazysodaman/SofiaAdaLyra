@@ -9,6 +9,7 @@ description = "Sofía Ada Lyra"
 requires-python = ">=3.12"
 dependencies = [
     "ollama",
+    "discord.py==2.7.1",
 ]
 
 [tool.setuptools.packages.find]
