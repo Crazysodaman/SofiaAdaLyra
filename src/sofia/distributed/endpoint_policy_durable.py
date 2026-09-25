@@ -61,6 +61,23 @@ class DurableEndpointPolicy:
                 (str(node_id),),
             )
 
+    def get(self, node_id: UUID) -> NodeEndpoint | None:
+        """Return the active human-approved endpoint for a node."""
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        row = self._db.execute(
+            """SELECT hostname, port, transport, revoked
+               FROM approved_remote_endpoint WHERE node_id = ?""",
+            (str(node_id),),
+        ).fetchone()
+        if row is None or row[3]:
+            return None
+        return NodeEndpoint(
+            hostname=row[0],
+            port=int(row[1]),
+            transport=NodeTransport(row[2]),
+        )
+
     def permits(self, node_id: UUID, endpoint: NodeEndpoint) -> bool:
         if not isinstance(node_id, UUID) or not isinstance(endpoint, NodeEndpoint):
             return False
