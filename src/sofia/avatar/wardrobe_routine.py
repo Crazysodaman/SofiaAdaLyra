@@ -93,11 +93,49 @@ class WeatherObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class EmotionStyleInfluence:
+    """Trusted modeled-emotion evidence that may gently bias style selection.
+
+    The host maps an already-grounded modeled emotion to presentation style
+    tags. AVATAR does not infer emotion from user text. Influence is bounded
+    so it cannot override privacy, coverage, activity compatibility or season.
+    """
+
+    emotion: str
+    intensity: float
+    style_tags: tuple[str, ...]
+    evidence_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.emotion, str) or not self.emotion.strip() or len(self.emotion) > 64:
+            raise WardrobeError("invalid emotion influence name")
+        if isinstance(self.intensity, bool) or not isinstance(self.intensity, (int, float)):
+            raise WardrobeError("emotion influence intensity must be numeric")
+        if not 0.0 <= float(self.intensity) <= 1.0:
+            raise WardrobeError("emotion influence intensity must be between zero and one")
+        if (
+            not isinstance(self.style_tags, tuple)
+            or not self.style_tags
+            or len(set(self.style_tags)) != len(self.style_tags)
+            or any(not isinstance(tag, str) or not tag.strip() or len(tag) > 64 for tag in self.style_tags)
+        ):
+            raise WardrobeError("invalid emotion style tags")
+        if (
+            not isinstance(self.evidence_refs, tuple)
+            or not self.evidence_refs
+            or len(set(self.evidence_refs)) != len(self.evidence_refs)
+            or any(not isinstance(ref, str) or not ref.strip() or len(ref) > 160 for ref in self.evidence_refs)
+        ):
+            raise WardrobeError("emotion influence requires bounded evidence refs")
+
+
+@dataclass(frozen=True, slots=True)
 class WardrobeContext:
     now: datetime  # trusted host-local clock; never inferred from chat text
     season: Season  # trusted host-selected locale/hemisphere; not hardcoded month
     activity: Activity
     weather: WeatherObservation | None = None
+    emotion_influences: tuple[EmotionStyleInfluence, ...] = ()
 
     def __post_init__(self) -> None:
         _aware(self.now)
@@ -105,6 +143,11 @@ class WardrobeContext:
             raise WardrobeError("season and activity must be typed")
         if self.weather is not None and not isinstance(self.weather, WeatherObservation):
             raise WardrobeError("invalid weather evidence")
+        if (
+            not isinstance(self.emotion_influences, tuple)
+            or any(not isinstance(item, EmotionStyleInfluence) for item in self.emotion_influences)
+        ):
+            raise WardrobeError("invalid emotion influences")
 
     @property
     def effective_weather(self) -> Weather | None:
@@ -302,6 +345,16 @@ class OutfitPlanner:
                     result += int(preference.sentiment) * (
                         3 if preference.actor is PreferenceActor.SOFIA else 1
                     )
+            # Emotion is intentionally a small bounded influence, never a
+            # deterministic outfit switch. Even many active emotions can add
+            # at most three points, below activity/season and strong reviewed
+            # Sofía preference signals.
+            emotion_bias = 0.0
+            plan_tags = set(plan.style_tags)
+            for influence in context.emotion_influences:
+                if plan_tags.intersection(influence.style_tags):
+                    emotion_bias += float(influence.intensity)
+            result += min(3, round(emotion_bias * 2))
             result -= sum(4 for record in recent[-7:] if record.outfit_id == plan.outfit_id)
             return result
 
@@ -319,6 +372,8 @@ class OutfitPlanner:
                     return OutfitProposal(p.outfit_id, prior[1], key, ("verified_previous_choice",))
         best_plan, best_outfit = sorted(compatible, key=lambda entry: (-score(entry), entry[0].outfit_id))[0]
         reasons = ("covered_candidate", "season_and_activity", "late_lounge" if best_plan.lounge and context.lounge_window else "ordinary_rotation")
+        if any(set(best_plan.style_tags).intersection(item.style_tags) for item in context.emotion_influences):
+            reasons += ("modeled_emotion_influence",)
         if context.weather is not None and weather is None:
             reasons += ("weather_missing_or_stale",)
         return OutfitProposal(best_plan.outfit_id, best_outfit, key, reasons)
