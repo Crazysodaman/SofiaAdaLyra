@@ -8,6 +8,7 @@ from sofia.avatar.presentation import (
     AppearanceState,
     AttireMode,
     PresentationAuthority,
+    PresentationConflict,
     PrivatePresentationGrant,
 )
 from sofia.avatar.presentation_store import PresentationStore, PresentationStoreError
@@ -82,7 +83,7 @@ def test_store_refuses_unsettled_transition(tmp_path):
         outfit_id="lounge.relaxed",
         reason="pending",
     )
-    with pytest.raises(Exception, match="unresolved"):
+    with pytest.raises(PresentationConflict, match="unresolved"):
         PresentationStore(tmp_path / "presentation.json").save(authority)
 
 
