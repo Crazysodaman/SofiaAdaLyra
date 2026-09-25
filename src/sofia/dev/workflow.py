@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
+from hashlib import sha256
 from tempfile import TemporaryDirectory
 import subprocess
 from .git_workspace import GitWorkspace,GitWorkspaceError,path_in_scope
@@ -19,7 +20,7 @@ class EngineeringCandidate:
 class EngineeringWorkflow:
     def __init__(self,workspace:Path,executable:str="opencode")->None:
         self.workspace=workspace.resolve(); self.executable=executable
-        self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=()
+        self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=(); self._applied_hashes:dict[str,str|None]={}
 
     def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
         if not request.authorized: raise PermissionError("build requires independent authorization")
@@ -72,7 +73,21 @@ class EngineeringWorkflow:
             text=True,capture_output=True,check=False)
         if applied.returncode: raise GitWorkspaceError(applied.stderr.strip() or "candidate patch failed")
         self._applied_paths=patch_paths
+        self._applied_hashes={}
+        for path in patch_paths:
+            target=self.workspace/path
+            self._applied_hashes[path]=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
         return self.git.changed_paths()
+
+    def rollback_applied(self,*,authorized:bool)->None:
+        if not authorized: raise PermissionError("rollback requires separate authorization")
+        if not self._applied_paths: return
+        for path,expected in self._applied_hashes.items():
+            target=self.workspace/path
+            current=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
+            if current!=expected: raise GitWorkspaceError(f"refusing rollback because reviewed path changed after apply: {path}")
+        self.git.run("restore","--worktree","--staged","--",*self._applied_paths)
+        self._applied_paths=(); self._applied_hashes={}
 
     def commit(self,message:str,*,authorized:bool)->str:
         if not authorized: raise PermissionError("commit requires separate authorization")
@@ -80,7 +95,7 @@ class EngineeringWorkflow:
         if not self._applied_paths: raise GitWorkspaceError("no reviewed candidate paths are pending commit")
         self.git.run("add","--",*self._applied_paths)
         self.git.run("commit","-m",message,"--",*self._applied_paths)
-        self._applied_paths=()
+        self._applied_paths=(); self._applied_hashes={}
         return self.git.head_sha()
 
     def push(self,branch:str,*,authorized:bool,remote:str="origin")->None:
