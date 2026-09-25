@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import replace
 from .model import FleetHost, HostLifecycle
+from .approval import FleetRemovalApproval
 
 class FleetRemovalApprovalRequired(PermissionError): pass
 
@@ -24,12 +25,21 @@ class FleetRegistry:
         self._hosts[host.host_id]=host
     def host(self,host_id:str)->FleetHost|None: return self._hosts.get(host_id)
     def hosts(self)->tuple[FleetHost,...]: return tuple(self._hosts[k] for k in sorted(self._hosts))
-    def transition(self,host_id:str,state:HostLifecycle,*,sparks_approved_removal:bool=False)->FleetHost:
+    def transition(self,host_id:str,state:HostLifecycle)->FleetHost:
         host=self._hosts[host_id]
         if state not in _ALLOWED[host.lifecycle]: raise ValueError(f"invalid fleet transition: {host.lifecycle.value} -> {state.value}")
-        if state is HostLifecycle.DECOMMISSIONED and not sparks_approved_removal:
-            raise FleetRemovalApprovalRequired("final fleet removal requires Sparks explicit approval")
+        if state is HostLifecycle.DECOMMISSIONED:
+            raise FleetRemovalApprovalRequired("final fleet removal requires exact Sparks approval evidence")
         if state is HostLifecycle.ENROLLED and not host.trusted: raise PermissionError("untrusted candidate cannot enroll")
         updated=replace(host,lifecycle=state); self._hosts[host_id]=updated; return updated
     def update_telemetry(self,host_id:str,telemetry)->FleetHost:
         host=self._hosts[host_id]; updated=replace(host,telemetry=telemetry); self._hosts[host_id]=updated; return updated
+
+    def decommission(self,host_id:str,*,proposal_revision:str,approval:FleetRemovalApproval)->FleetHost:
+        if not isinstance(approval,FleetRemovalApproval): raise TypeError("FleetRemovalApproval required")
+        if approval.host_id!=host_id: raise FleetRemovalApprovalRequired("approval is for a different machine")
+        if approval.proposal_revision!=proposal_revision: raise FleetRemovalApprovalRequired("approval revision does not match removal proposal")
+        host=self._hosts[host_id]
+        if HostLifecycle.DECOMMISSIONED not in _ALLOWED[host.lifecycle]:
+            raise ValueError(f"invalid fleet transition: {host.lifecycle.value} -> decommissioned")
+        updated=replace(host,lifecycle=HostLifecycle.DECOMMISSIONED); self._hosts[host_id]=updated; return updated

@@ -19,3 +19,10 @@ class KnowledgeStore:
     def fact(self,fact_id:str): return self._facts.get(fact_id)
     def facts_for(self,document_id:str)->tuple[KnowledgeFact,...]:
         return tuple(self._facts[x] for x in self._by_document.get(document_id,()))
+    def documents(self)->tuple[KnowledgeDocument,...]:
+        return tuple(self._documents[k] for k in sorted(self._documents))
+    def facts(self)->tuple[KnowledgeFact,...]:
+        return tuple(self._facts[k] for k in sorted(self._facts))
+    def active_facts(self)->tuple[KnowledgeFact,...]:
+        superseded={old for fact in self._facts.values() for old in fact.supersedes}
+        return tuple(f for f in self.facts() if f.fact_id not in superseded)
