@@ -3,16 +3,16 @@ from pathlib import Path
 from uuid import uuid4
 import pytest
 
-from sofia.machine.model import (
+from sofia.distributed.identity import NodeEnrollment\nfrom sofia.distributed.model import DistributedNode\nfrom sofia.machine.model import (
     HardwareProfile,MachineIdentity,MachineProfile,MachineVerification,
     OperatingSystemInfo,PlatformFamily,VirtualizationInfo,
 )
 from sofia.ops import (
-    DesiredHostState,DesiredWorkloadPlacement,FailureDomain,FleetHost,FleetRegistry,
+    AuthenticatedPeerEvidence,BackupEvidence,DesiredHostState,DesiredWorkloadPlacement,FailureDomain,FleetEnrollmentService,FleetHost,FleetRegistry,
     FleetRemovalApproval,FleetRemovalApprovalRequired,HostLifecycle,LeaseTable,
-    MaintenanceOperation,MaintenancePolicy,MaintenanceRequest,ManagedWorkload,
+    HostUpdateAssignment,MachineNodeBinding,MaintenanceOperation,MaintenancePolicy,MaintenanceRequest,ManagedWorkload,
     MigrationCoordinator,MigrationPlan,MigrationStage,PromotionDenied,PromotionEvidence,
-    PromotionGuard,SplitBrainRisk,StateMode,TelemetryHistory,WorkloadContract,
+    PromotionGuard,RecoveryDenied,RecoveryGuard,RestoreVerification,SplitBrainRisk,StateMode,TelemetryHistory,UpdatePlanner,UpdateRing,WorkloadContract,
     WorkloadInstance,WorkloadPhase,detect_drift,
 )
 from sofia.ops.machine_bridge import fleet_host_from_machine,telemetry_from_system_result
@@ -112,3 +112,42 @@ def test_maintenance_is_typed_and_respects_no_reboot_pin():
     remote=to_remote_operation(service,remote_request_id=uuid4(),node_id=uuid4(),grant_id=uuid4())
     assert remote.capability=="service.manage" and remote.operation=="restart" and remote.parameters["service"]=="Spooler"
     assert "command" not in remote.parameters and "shell" not in remote.parameters
+
+def test_authenticated_enrollment_binds_machine_node_and_peer_key():
+    node_id=uuid4(); pin="a"*64
+    enrollment=NodeEnrollment(DistributedNode(node_id,"venus-node"),pin,NOW,"Sparks")
+    candidate=FleetHost("venus","windows","x86_64",HostLifecycle.CANDIDATE,False)
+    binding=MachineNodeBinding("venus",node_id,NOW,"authenticated-net-binding")
+    peer=AuthenticatedPeerEvidence(node_id,pin,NOW,"NET authenticated transport")
+    registry=FleetRegistry()
+    enrolled=FleetEnrollmentService(registry).enroll(candidate,binding=binding,enrollment=enrollment,peer=peer)
+    assert enrolled.trusted and enrolled.lifecycle is HostLifecycle.ENROLLED
+
+def test_authenticated_enrollment_rejects_wrong_peer_key():
+    node_id=uuid4(); enrollment=NodeEnrollment(DistributedNode(node_id,"venus-node"),"a"*64,NOW,"Sparks")
+    candidate=FleetHost("venus","windows","x86_64",HostLifecycle.CANDIDATE,False)
+    with pytest.raises(PermissionError):
+        FleetEnrollmentService(FleetRegistry()).enroll(
+            candidate,
+            binding=MachineNodeBinding("venus",node_id,NOW,"binding"),
+            enrollment=enrollment,
+            peer=AuthenticatedPeerEvidence(node_id,"b"*64,NOW,"NET"),
+        )
+
+def test_recovery_requires_verified_restore_and_independent_failure_domain():
+    backup=BackupEvidence("b1","venus","backup-physical",NOW,"c"*64)
+    good=RestoreVerification("b1",NOW,"VERIFY",True)
+    guard=RecoveryGuard(); guard.require(backup,good,target_failure_domain="terra-physical")
+    with pytest.raises(RecoveryDenied): guard.require(backup,good,target_failure_domain="backup-physical")
+    with pytest.raises(RecoveryDenied): guard.require(backup,RestoreVerification("b1",NOW,"VERIFY",False),target_failure_domain="terra-physical")
+
+def test_update_rings_canary_before_general_and_require_health_and_rollback():
+    planner=UpdatePlanner()
+    ordered=planner.order((
+        HostUpdateAssignment("prod",UpdateRing.GENERAL),
+        HostUpdateAssignment("canary",UpdateRing.CANARY),
+        HostUpdateAssignment("early",UpdateRing.EARLY),
+    ))
+    assert [x.host_id for x in ordered]==["canary","early","prod"]
+    assert planner.next_ring_allowed(UpdateRing.CANARY,health_verified=True,rollback_ready=True)
+    assert not planner.next_ring_allowed(UpdateRing.CANARY,health_verified=False,rollback_ready=True)
