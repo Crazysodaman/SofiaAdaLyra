@@ -84,6 +84,9 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
 def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
+    state_path = Path(configuration.state_path)
+    filesystem_root = Path(configuration.filesystem_root)
+
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
     )
@@ -121,13 +124,13 @@ def compose(
     )
 
     knowledge_store = JsonKnowledgeStore(
-        configuration.state_path.parent / "knowledge.json"
+        state_path.parent / "knowledge.json"
     )
     knowledge_lifecycle = KnowledgeLifecycle(
-        configuration.state_path.parent / "knowledge-lifecycle.json"
+        state_path.parent / "knowledge-lifecycle.json"
     )
     knowledge_service = KnowledgeService(
-        configuration.filesystem_root,
+        filesystem_root,
         knowledge_store,
         knowledge_lifecycle,
     )
@@ -136,15 +139,15 @@ def compose(
     )
 
     dev_service = DevToolService(
-        configuration.filesystem_root,
-        configuration.state_path,
+        filesystem_root,
+        state_path,
     )
     dev_capabilities = DevCapabilitySet(
         dev_service
     )
 
     codebase_inspector = CodebaseInspector(
-        root=configuration.filesystem_root,
+        root=filesystem_root,
     )
 
     codebase_capability = CodebaseCapability(
@@ -197,7 +200,7 @@ def compose(
             return False
 
         configured_root = (
-            configuration.filesystem_root.resolve()
+            filesystem_root.resolve()
         )
 
         if (
@@ -302,8 +305,8 @@ def compose(
         )
 
     integration_tools = create_configured_integration_tools(
-        filesystem_root=configuration.filesystem_root,
-        state_path=configuration.state_path,
+        filesystem_root=filesystem_root,
+        state_path=state_path,
     )
     for registration in integration_tools:
         capability_system.register(
@@ -329,7 +332,7 @@ def compose(
         bindings=(
             (create_tool_catalog_binding(),)
             + create_default_tool_bindings(
-                configuration.filesystem_root
+                filesystem_root
             )
             + create_system_tool_bindings()
             + create_knowledge_tool_bindings()
