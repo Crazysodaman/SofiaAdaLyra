@@ -52,6 +52,7 @@ def setup(tmp_path):
         node_id=node.node_id,
         observed_at=NOW,
         capabilities=(RemoteCapability("system.inspect", ("read",)),),
+        source="authenticated-test-transport",
     )
     transport = FakeTransport(inventory)
     auth = DurableRemoteAuthorization(tmp_path / "auth.db")
