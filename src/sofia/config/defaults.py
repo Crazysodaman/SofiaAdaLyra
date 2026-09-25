@@ -40,6 +40,9 @@ def create_default_configuration() -> SofiaConfiguration:
         "knowledge.search",
         "knowledge.document",
         "dev.status",
+        "ollama.models",
+        "ollama.running",
+        "ollama.model.show",
         *extra_capabilities,
     )))
 
