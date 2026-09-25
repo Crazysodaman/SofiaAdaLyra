@@ -14,3 +14,10 @@
 - Enforce destination at the **actual transport** with pinned purpose, trusted config/issuer, DNS result/address family checks, connection target versus HTTP Host/SNI, TLS certificate validation, proxy environment and redirect blocking or reauthorization. URL string checking **cannot defeat DNS rebinding, proxy bypass, request smuggling or a malicious caller**. Revalidate reconnect and every outbound hop, including websocket upgrades; test negative cases with a controlled local network fixture.
 - Reconcile with existing distributed NET capabilities, node/operation/expiry grants and PKG-SAFE rather than creating competing authority. Wire only after the single-user DM gate and authenticated Discord adapter are independently verified. No general HTTP client, browser, web search, arbitrary shell or broad network permission is granted here.
 - Release only after bounded real gateway/API checks, revocation, outage/rate-limit/reconnect recovery, secrets handling, traffic audit and coordinated live acceptance. Do not merge or deploy from passing offline unit tests.
+
+
+## Current branch implementation checkpoint (2026-09-24)
+
+The branch now also contains durable node identity enrollment/retirement, exact durable endpoint approval, durable exact-scope grants and per-node revocation, durable replay/audit reservation, endpoint-bound and identity-bound gateways, coordinated retirement, and a DurableRemoteControl composition root. The complete local admission chain is therefore represented in code while the actual authenticated production transport remains intentionally injected and unimplemented.
+
+The next action is the requested test gate. None of these newer files are claimed passing until Sparks runs the focused branch suite. Real DNS/TLS/proxy enforcement, authenticated Artemis transport, Discord live networking, outage/reconnect acceptance, firewall policy, and RUN 24/7 remain later live/integration gates.
