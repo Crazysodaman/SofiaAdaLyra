@@ -16,12 +16,15 @@ from sofia.integrations.github import GitHubAdapter
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.integrations.jmri import JmriAdapter
+from sofia.integrations.local_maintenance import LocalCommandResult,LocalMaintenanceAdapter
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.integrations.sqlite import SQLiteReadAdapter
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
+from sofia.ops.capability import OpsToolService
+from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
 
 
 class FakeHttp:
@@ -82,7 +85,10 @@ def test_composition_registers_core_tool_families(tmp_path):
             "network.inspect","service.inspect","hardware.inspect","knowledge.search",
             "knowledge.document","knowledge.ingest.text","knowledge.ingest.pdf",
             "knowledge.document.write","dev.status","dev.build","dev.apply","dev.rollback",
-            "dev.commit","dev.push","storage.usage","ollama.models","ollama.running","ollama.model.show"} <= names
+            "dev.commit","dev.push","machine.list","machine.get","machine.discover.local",
+            "machine.refresh.local","ops.fleet.list","ops.fleet.get","ops.telemetry.latest",
+            "ops.placement.choose","ops.drift.detect","ops.migration.plan",
+            "storage.usage","ollama.models","ollama.running","ollama.model.show"} <= names
 
 
 def test_ungranted_mutating_dev_tool_is_denied(tmp_path):
@@ -227,3 +233,75 @@ def test_configured_service_catalog_registers_homelab_tools(tmp_path,monkeypatch
     assert {"home_assistant.states","home_assistant.service.call","portainer.containers",
             "portainer.container.restart","jmri.power","jmri.power.set","github.repository",
             "github.pull_request.create","github.pull_request.merge"} <= names
+
+
+def test_tool_catalog_reports_registered_and_standing_authorized(tmp_path):
+    runtime=compose(_configuration(tmp_path,allowed=("tool.catalog","dev.status")))
+    cap=runtime.capability_system.resolve("tool.catalog")
+    result=runtime.capability_system.execute(CapabilityRequest(
+        capability=cap,parameters={},requested_scope=None,rationale="inventory tools",
+    ))
+    assert result.kind is CapabilityResultKind.SUCCESS
+    by_name={item["name"]:item for item in result.evidence}
+    assert by_name["dev.status"]["standing_authorized"] is True
+    assert by_name["dev.apply"]["standing_authorized"] is False
+    assert "machine.list" in by_name
+    assert "ops.placement.choose" in by_name
+
+
+def test_ops_placement_tool_uses_durable_fleet_evidence(tmp_path):
+    service=OpsToolService(tmp_path/"sofia.db")
+    now=__import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+    service.registry.register_candidate(FleetHost(
+        "venus","windows","x86_64",HostLifecycle.CANDIDATE,True,
+        HostTelemetry(now,cpu_percent=25,ram_used_bytes=4,ram_total_bytes=16,storage_free_bytes=100),
+    ))
+    service.registry.transition("venus",HostLifecycle.ENROLLED)
+    decision=service.choose_placement({
+        "workload_id":"test","version":"1","supported_platforms":["windows"],
+        "supported_architectures":["x86_64"],"min_ram_bytes":1,
+    })
+    assert decision["host_id"]=="venus"
+
+
+def test_ops_migration_plan_does_not_execute(tmp_path):
+    service=OpsToolService(tmp_path/"sofia.db")
+    plan=service.migration_plan({
+        "migration_id":"m1",
+        "workload":{
+            "workload_id":"sofia","version":"1","supported_platforms":["windows"],
+            "supported_architectures":["x86_64"],"singleton":True,
+        },
+        "source_host_id":"venus","target_host_id":"terra",
+        "state_mode":"persistent","checkpoint_required":True,
+    })
+    assert plan["stage"]=="planned"
+    assert plan["source_host_id"]=="venus"
+    assert plan["target_host_id"]=="terra"
+    assert plan["checkpoint_required"] is True
+
+
+def test_local_maintenance_uses_fixed_argv_and_rejects_shell_input():
+    calls=[]
+    def runner(argv):
+        calls.append(tuple(argv))
+        return LocalCommandResult(tuple(argv),0,"","")
+    adapter=LocalMaintenanceAdapter(runner)
+    adapter.system="Windows"
+    adapter.service("Spooler","restart")
+    assert calls==[("sc.exe","stop","Spooler"),("sc.exe","start","Spooler")]
+    with pytest.raises(ValueError):
+        adapter.service("Spooler & whoami","restart")
+    with pytest.raises(ValueError):
+        adapter.package_update("pkg;rm")
+
+
+def test_local_reboot_is_fixed_platform_command():
+    calls=[]
+    def runner(argv):
+        calls.append(tuple(argv))
+        return LocalCommandResult(tuple(argv),0,"","")
+    adapter=LocalMaintenanceAdapter(runner)
+    adapter.system="Linux"
+    adapter.reboot()
+    assert calls==[("systemctl","reboot")]
