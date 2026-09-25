@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Current-branch concurrency and policy-integrity audit (2026-09-24)
+
+- Sparks reran the deterministic SQLite writer-order regression on `fix/interact-live-behavior-hardening`: **2 passed in 3.93s**.
+- Sparks then reran the documented concurrency/policy-integrity audit covering writer ordering, source linkage/attestation, boundary revocation, temporal/restart behavior, repeated stop handling, authorization, external authentication, and cognitive tool authority: **60 passed in 9.57s**.
+- These current-branch results revalidate the targeted concurrency and policy-integrity closure gate after the live-behavior hardening changes.
+- The remaining technical regression gate is the current-branch qualified/full suite while preserving the known independent local Ollama generation-contract edit and its `18000` versus `32768` mismatch.
+
 ### Post-live broader focused regression evidence (2026-09-24)
 
 - After accepting the tenth disposable live-behavior probe, Sparks ran the documented broader focused offline regression slice on the same hardening branch.
