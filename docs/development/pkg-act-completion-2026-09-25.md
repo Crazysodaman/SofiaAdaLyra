@@ -1,6 +1,6 @@
 # PKG-ACT completion candidate
 
-**Revision:** 2026-09-25. **Branch:** `feature/pkg-act-completion`. **Status:** source candidate based on current `main`; focused tests are authored but have **not yet been executed on the current Windows checkout**. No sender, schedule, Discord delivery, general web access, or live autonomous outreach is enabled by this branch.
+**Revision:** 2026-09-25. **Branch:** `feature/pkg-act-completion`. **Status:** focused offline acceptance passed on the current Windows checkout. No sender, schedule, Discord delivery, general web access, or live autonomous outreach is enabled by this branch.
 
 ## Ownership
 
@@ -32,3 +32,12 @@ python -m pytest -q test/test_action.py test/test_action_authority_boundary.py t
 ```
 
 A passing offline gate supports repository integration only. Real Discord/channel delivery and long-running RUN scheduling remain separately deferred/live-gated.
+
+## Windows acceptance evidence
+
+Executed on Sparks's Windows checkout on 2026-09-25:
+
+- `python -m pytest -q test/test_act_outreach.py test/test_act_delivery.py test/test_interaction_goal_journal.py` → **52 passed in 6.07s**.
+- `python -m pytest -q test/test_action.py test/test_action_authority_boundary.py test/test_idle_reflection_worker.py test/test_idle_reflection_application.py` → **38 passed in 10.37s**.
+
+Current ACT offline evidence total: **90 passing tests across the focused and surrounding regression gates**. No live delivery claim is implied.
