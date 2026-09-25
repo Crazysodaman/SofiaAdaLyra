@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime,timezone
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 import json,sqlite3,ssl
+from re import fullmatch
+from threading import RLock
 from pathlib import Path
 from typing import Any,Callable,Mapping
 from uuid import UUID
@@ -28,7 +30,7 @@ class RemoteAgentConfig:
     def __post_init__(self):
         if not self.node_name.strip(): raise ValueError("node_name required")
         if not 1<=self.listen_port<=65535: raise ValueError("listen_port out of range")
-        if len(self.expected_client_public_key_sha256)!=64: raise ValueError("client public-key pin must be SHA-256")
+        if fullmatch(r"[0-9a-f]{64}",self.expected_client_public_key_sha256) is None: raise ValueError("client public-key pin must be lowercase SHA-256")
 
 class RemoteAgentDispatcher:
     def __init__(self)->None:
@@ -52,6 +54,7 @@ class AgentRequestLedger:
     def __init__(self,path:Path)->None:
         path.parent.mkdir(parents=True,exist_ok=True)
         self._db=sqlite3.connect(path,timeout=5.0,check_same_thread=False)
+        self._lock=RLock()
         self._db.execute("PRAGMA busy_timeout = 5000")
         self._db.execute("""CREATE TABLE IF NOT EXISTS agent_request (
             request_id TEXT PRIMARY KEY,
@@ -64,25 +67,28 @@ class AgentRequestLedger:
         )""")
         self._db.commit()
     def reserve(self,request_id:UUID,node_id:UUID,capability:str,operation:str)->tuple[str,str|None,str|None]|None:
-        row=self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
-        if row is not None: return row
-        try:
-            with self._db:
-                self._db.execute(
-                    "INSERT INTO agent_request(request_id,node_id,capability,operation,state) VALUES(?,?,?,?,?)",
-                    (str(request_id),str(node_id),capability,operation,"reserved"),
-                )
-        except sqlite3.IntegrityError:
-            return self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
-        return None
+        with self._lock:
+            row=self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
+            if row is not None: return row
+            try:
+                with self._db:
+                    self._db.execute(
+                        "INSERT INTO agent_request(request_id,node_id,capability,operation,state) VALUES(?,?,?,?,?)",
+                        (str(request_id),str(node_id),capability,operation,"reserved"),
+                    )
+            except sqlite3.IntegrityError:
+                return self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
+            return None
     def finish(self,request_id:UUID,outcome:RemoteOutcome,message:str)->None:
-        with self._db:
-            cursor=self._db.execute(
-                "UPDATE agent_request SET state='final',outcome=?,message=? WHERE request_id=? AND state='reserved'",
-                (outcome.value,message[:1000],str(request_id)),
-            )
-            if cursor.rowcount!=1: raise RuntimeError("agent request is not reserved")
-    def close(self)->None: self._db.close()
+        with self._lock:
+            with self._db:
+                cursor=self._db.execute(
+                    "UPDATE agent_request SET state='final',outcome=?,message=? WHERE request_id=? AND state='reserved'",
+                    (outcome.value,message[:1000],str(request_id)),
+                )
+                if cursor.rowcount!=1: raise RuntimeError("agent request is not reserved")
+    def close(self)->None:
+        with self._lock: self._db.close()
 
 class RemoteAgentServer:
     def __init__(self,config:RemoteAgentConfig,dispatcher:RemoteAgentDispatcher)->None:
