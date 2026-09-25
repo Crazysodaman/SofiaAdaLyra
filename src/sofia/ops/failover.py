@@ -1,8 +1,10 @@
 """Fail-closed promotion checks for standby workload authority."""
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import datetime,timedelta
 from .fleet import FleetRegistry
 from .model import HostLifecycle
+from .lease import AuthorityLease,LeaseTable
 
 class PromotionDenied(PermissionError): pass
 
@@ -32,3 +34,20 @@ class PromotionGuard:
         if not evidence.state_verified: raise PromotionDenied("durable state is not verified")
         if not evidence.source_fenced: raise PromotionDenied("source authority is not fenced")
         if not evidence.witness_quorum: raise PromotionDenied("independent witness quorum is absent")
+
+class FailoverCoordinator:
+    def __init__(self,guard:PromotionGuard,leases:LeaseTable)->None:
+        self.guard=guard; self.leases=leases
+    def promote(self,evidence:PromotionEvidence,*,now:datetime,lease_ttl:timedelta)->AuthorityLease:
+        self.guard.require(evidence)
+        current=self.leases.current(evidence.workload_id)
+        if current is None or current.holder_host_id!=evidence.source_host_id:
+            raise PromotionDenied("source is not the recorded workload authority holder")
+        self.leases.fence(evidence.workload_id,evidence.source_host_id)
+        try:
+            return self.leases.transfer(
+                evidence.workload_id,evidence.source_host_id,evidence.target_host_id,
+                now=now,ttl=lease_ttl,state_verified=evidence.state_verified,
+            )
+        except Exception as exc:
+            raise PromotionDenied("authority lease transfer failed") from exc
