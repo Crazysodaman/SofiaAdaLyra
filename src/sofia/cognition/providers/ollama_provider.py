@@ -15,6 +15,10 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProvider, LLMProviderError
+from sofia.cognition.repetition_guard import (
+    build_rephrase_request, grounded_quality_fallback, response_quality_issue,
+    trim_generic_assistant_closer,
+)
 from sofia.config.model import ProviderConfiguration
 
 
@@ -26,6 +30,31 @@ class OllamaProvider(LLMProvider):
         self.client = client if client is not None else Client()
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+        response = self._respond_once(request)
+        response = trim_generic_assistant_closer(request, response)
+        issue = response_quality_issue(request, response)
+        if issue is None:
+            return response
+
+        # No tools or external actions are available on this path. Retrying
+        # generates text only; neither candidate is saved by the provider.
+        # A single retry prevents latency spirals while giving generic fallback
+        # completions one explicit chance to obey the grounded conversation state.
+        try:
+            alternate = self._respond_once(build_rephrase_request(request, issue=issue))
+        except LLMProviderError:
+            return response
+        alternate = trim_generic_assistant_closer(request, alternate)
+        if alternate.content.strip() and not alternate.tool_calls:
+            alternate_issue = response_quality_issue(request, alternate)
+            if alternate_issue is None:
+                return alternate
+        fallback = grounded_quality_fallback(request, issue=issue)
+        if fallback is not None:
+            return fallback
+        return response
+
+    def _respond_once(self, request: CognitiveRequest) -> CognitiveResponse:
         messages = [self._message_to_ollama(message) for message in request.messages]
         tools = [self._tool_to_ollama(tool) for tool in request.tools]
         kwargs = self._build_chat_kwargs(request=request, messages=messages, tools=tools)
