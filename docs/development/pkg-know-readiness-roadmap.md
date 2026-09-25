@@ -1,8 +1,8 @@
-> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+> **Project status update — 2026-09-25:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS planned Waves 1–5 source implementation is merged to `main` via PR #99 and PR #103 (`0cc067a`). The affected package trees passed `compileall`, the combined Waves 1–5 focused gate passed **60/60**, and the full repository pytest suite was reported passing on the convergence branch. This is repository/source acceptance, not proof of production remote NET transport, deployed multi-host orchestration, RUN 24/7 supervision, live failover, soak, or HA.
 
 # PKG-KNOW | documents, reference knowledge, provenance, and authoring
 
-**Planning date:** 2026-09-22. **Status:** documentation contract only. No new ingestion/indexing, writing, or publishing deployment is created by this document.
+**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 source controls are on `main` via PRs #99/#103: local/repository ingestion, durable provenance, source lifecycle and provenance-first retrieval. PDF/manual ingestion, richer semantic retrieval/citation, audience/privacy integration and live documentation-authoring/publishing acceptance remain.
 
 ## Outcome
 
