@@ -8,6 +8,7 @@ from sofia.authorization.model import (
     FilesystemAuthorizationOperation,
 )
 from sofia.capability.gateway import CapabilityGateway
+from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
@@ -310,6 +311,15 @@ def compose(
             handler=registration.handler,
         )
 
+    tool_catalog_capability = ToolCatalogCapability(
+        capability_system,
+        configuration.standing_allowed_capabilities,
+    )
+    capability_system.register(
+        capability=tool_catalog_capability.capability,
+        handler=tool_catalog_capability.execute,
+    )
+
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
     )
@@ -317,7 +327,8 @@ def compose(
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
         bindings=(
-            create_default_tool_bindings(
+            (create_tool_catalog_binding(),)
+            + create_default_tool_bindings(
                 configuration.filesystem_root
             )
             + create_system_tool_bindings()
