@@ -12,7 +12,7 @@ from sofia.machine.model import (
 from sofia.ops import (
     AuthenticatedPeerEvidence,BackupEvidence,DesiredHostState,DesiredWorkloadPlacement,
     FailureDomain,FleetEnrollmentService,FleetHost,FleetRegistry,FleetRemovalApproval,
-    FleetRemovalApprovalRequired,HostLifecycle,HostUpdateAssignment,LeaseTable,
+    FleetRemovalApprovalRequired,HostLifecycle,HostUpdateAssignment,JsonLeaseTable,LeaseTable,
     MachineNodeBinding,MaintenanceOperation,MaintenancePolicy,MaintenanceRequest,
     ManagedWorkload,MigrationCoordinator,MigrationPlan,MigrationStage,PromotionDenied,
     PromotionEvidence,PromotionGuard,RecoveryDenied,RecoveryGuard,RestoreVerification,
@@ -202,3 +202,14 @@ def test_update_rings_canary_before_general_and_require_health_and_rollback():
     assert [x.host_id for x in ordered]==["canary","early","prod"]
     assert planner.next_ring_allowed(UpdateRing.CANARY,health_verified=True,rollback_ready=True)
     assert not planner.next_ring_allowed(UpdateRing.CANARY,health_verified=False,rollback_ready=True)
+
+def test_durable_lease_and_fence_state_survive_restart(tmp_path:Path):
+    path=tmp_path/"leases.json"
+    table=JsonLeaseTable(path)
+    first=table.acquire("sofia","venus",now=NOW,ttl=timedelta(minutes=1))
+    table.fence("sofia","venus")
+    restored=JsonLeaseTable(path)
+    assert restored.current("sofia")==first
+    assert restored.is_fenced("sofia","venus")
+    second=restored.transfer("sofia","venus","terra",now=NOW+timedelta(seconds=1),ttl=timedelta(minutes=1),state_verified=True)
+    assert second.epoch>first.epoch
