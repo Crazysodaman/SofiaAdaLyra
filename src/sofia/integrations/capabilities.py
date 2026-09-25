@@ -8,10 +8,12 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from .github import GitHubAdapter
+from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter
 from .hyperv import HyperVAdapter
 from .jmri import JmriAdapter
 from .portainer import PortainerAdapter
+from .ollama import OllamaAdapter
 from .sqlite import SQLiteReadAdapter
 from .storage import StorageAdapter
 
@@ -43,6 +45,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
     if ha_url and ha_token:
         ha=HomeAssistantAdapter(ha_url,ha_token)
         tools.extend((
+            _tool("home_assistant.services","List Home Assistant service domains and services. Read-only.",_object(),
+                lambda p:ha.services()),
             _tool("home_assistant.states","List Home Assistant entity states. Read-only.",_object(),
                 lambda p:ha.states()),
             _tool("home_assistant.state","Read one Home Assistant entity state. Read-only.",
@@ -59,6 +63,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
     if port_url and port_key and port_endpoint:
         port=PortainerAdapter(port_url,port_key,int(port_endpoint))
         tools.extend((
+            _tool("portainer.endpoints","List Portainer endpoints. Read-only.",_object(),
+                lambda p:port.endpoints()),
             _tool("portainer.containers","List Docker containers through Portainer. Read-only.",_object(),
                 lambda p:port.containers()),
             _tool("portainer.container","Inspect one Docker container through Portainer. Read-only.",
@@ -97,6 +103,42 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
             _tool("github.issue.create","Create an issue in the configured GitHub repository.",
                 _object({"title":{"type":"string"},"body":{"type":"string"}},["title"]),
                 lambda p:gh.create_issue(p["title"],p.get("body",""))),
+            _tool("github.pull_requests","List configured GitHub repository pull requests. Read-only.",
+                _object({"state":{"type":"string"},"limit":{"type":"integer"}}),
+                lambda p:gh.pull_requests(state=p.get("state","open"),limit=p.get("limit",30))),
+            _tool("github.pull_request.create","Create a pull request in the configured GitHub repository.",
+                _object({"title":{"type":"string"},"head":{"type":"string"},"base":{"type":"string"},"body":{"type":"string"},"draft":{"type":"boolean"}},["title","head","base"]),
+                lambda p:gh.create_pull_request(p["title"],p["head"],p["base"],body=p.get("body",""),draft=bool(p.get("draft",False)))),
+            _tool("github.pull_request.merge","Merge one configured GitHub repository pull request.",
+                _object({"number":{"type":"integer"},"merge_method":{"type":"string"}},["number"]),
+                lambda p:gh.merge_pull_request(p["number"],merge_method=p.get("merge_method","merge"))),
+        ))
+
+
+    ollama_url=os.environ.get("SOFIA_OLLAMA_URL","http://127.0.0.1:11434").strip()
+    if ollama_url:
+        ollama=OllamaAdapter(ollama_url)
+        tools.extend((
+            _tool("ollama.models","List installed Ollama models. Read-only.",_object(),lambda p:ollama.models()),
+            _tool("ollama.running","Inspect currently loaded Ollama models/processes. Read-only.",_object(),lambda p:ollama.running()),
+            _tool("ollama.model.show","Inspect one Ollama model's metadata. Read-only.",
+                _object({"name":{"type":"string"}},["name"]),lambda p:ollama.show(p["name"])),
+        ))
+
+    discord_ids=(
+        os.environ.get("SOFIA_DISCORD_OWNER_ID","").strip(),
+        os.environ.get("SOFIA_DISCORD_BOT_ID","").strip(),
+        os.environ.get("SOFIA_DISCORD_DM_CHANNEL_ID","").strip(),
+    )
+    if all(discord_ids):
+        from sofia.discord.provisioning import DiscordIdentity
+        identity=DiscordIdentity(int(discord_ids[0]),int(discord_ids[1]),int(discord_ids[2]))
+        discord=DiscordOperatorAdapter(state_path,identity)
+        tools.extend((
+            _tool("discord.status","Inspect durable Discord channel/binding/delivery status. Read-only.",_object(),lambda p:discord.status()),
+            _tool("discord.pause","Pause the configured Discord binding.",_object(),lambda p:discord.control("pause")),
+            _tool("discord.resume","Resume the configured Discord binding.",_object(),lambda p:discord.control("resume")),
+            _tool("discord.revoke","Revoke the configured Discord binding.",_object(),lambda p:discord.control("revoke")),
         ))
 
     if platform.system()=="Windows":
