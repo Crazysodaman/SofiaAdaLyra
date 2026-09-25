@@ -4,8 +4,9 @@ from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter
 from .hyperv import HyperVAdapter
 from .jmri import JmriAdapter
+from .local_maintenance import LocalMaintenanceAdapter
 from .portainer import PortainerAdapter
 from .ollama import OllamaAdapter
 from .sqlite import SQLiteReadAdapter
 from .storage import StorageAdapter
-__all__=["DiscordOperatorAdapter","GitHubAdapter","HomeAssistantAdapter","HyperVAdapter","JmriAdapter","PortainerAdapter","OllamaAdapter","SQLiteReadAdapter","StorageAdapter"]
+__all__=["DiscordOperatorAdapter","GitHubAdapter","HomeAssistantAdapter","HyperVAdapter","JmriAdapter","LocalMaintenanceAdapter","PortainerAdapter","OllamaAdapter","SQLiteReadAdapter","StorageAdapter"]
