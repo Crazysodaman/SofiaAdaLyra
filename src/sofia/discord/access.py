@@ -28,11 +28,16 @@ class Denial(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class SingleUserDiscordConfig:
-    """Exact Discord account IDs, configured outside message content."""
+    """Exact Discord account IDs, configured outside message content.
+
+    dm_channel_id may remain unset for offline provisioning tests. A live
+    adapter must use a supervised binding before transport is enabled.
+    """
 
     owner_user_id: int
     bot_user_id: int
     enabled: bool = False
+    dm_channel_id: int | None = None
 
     def __post_init__(self) -> None:
         if not _snowflake(self.owner_user_id):
@@ -43,17 +48,13 @@ class SingleUserDiscordConfig:
             raise ValueError("owner_user_id and bot_user_id must differ")
         if type(self.enabled) is not bool:
             raise TypeError("enabled must be a boolean")
+        if self.dm_channel_id is not None and not _snowflake(self.dm_channel_id):
+            raise ValueError("dm_channel_id must be a positive Discord snowflake")
 
 
 @dataclass(frozen=True, slots=True)
 class DiscordInboundFacts:
-    """Metadata derived by an authenticated adapter, not raw user claims.
-
-    ``authenticated_source`` alone cannot verify a gateway message. The
-    adapter must establish authenticated origin *before* constructing facts.
-    ``recipient_user_id`` must refer to the bot receiving this DM, not a
-    mention or a name supplied in message text.
-    """
+    """Metadata derived by an authenticated adapter, not raw user claims."""
 
     author_user_id: int | None
     recipient_user_id: int | None
@@ -74,12 +75,7 @@ def authorize_private_dm(
     config: SingleUserDiscordConfig,
     facts: DiscordInboundFacts,
 ) -> AccessDecision:
-    """Authorize only authenticated, human-authored owner-to-bot private DMs.
-
-    No message content, display name, relationship state, guild role, or LLM
-    instruction can override this check. An accepted inbound event grants
-    *no* permission to send proactive messages, access files, or browse.
-    """
+    """Authorize only authenticated, human-authored owner-to-bot private DMs."""
     if not isinstance(config, SingleUserDiscordConfig):
         raise TypeError("config must be SingleUserDiscordConfig")
     if not isinstance(facts, DiscordInboundFacts):

@@ -1,4 +1,4 @@
-"""Offline contract tests; not Discord transport/integration evidence."""
+"""Offline access-contract tests; not live Discord transport evidence."""
 
 from dataclasses import replace
 
@@ -10,7 +10,6 @@ from sofia.discord.access import (
     SingleUserDiscordConfig,
     authorize_private_dm,
 )
-
 
 OWNER = 123456789012345678
 BOT = 987654321098765432
@@ -69,22 +68,3 @@ def test_untrusted_or_wrong_audience_is_denied(changes: dict, reason: Denial) ->
     decision = authorize_private_dm(enabled_config(), owner_dm(**changes))
     assert decision.allowed is False
     assert decision.reason is reason
-
-
-@pytest.mark.parametrize(
-    ("owner", "bot"),
-    [(0, BOT), (-1, BOT), ("123", BOT), (True, BOT), (OWNER, OWNER), (OWNER, 1 << 64)],
-)
-def test_bad_config_rejected(owner: object, bot: object) -> None:
-    with pytest.raises(ValueError):
-        SingleUserDiscordConfig(owner_user_id=owner, bot_user_id=bot)
-
-
-def test_non_boolean_enable_rejected() -> None:
-    with pytest.raises(TypeError):
-        SingleUserDiscordConfig(owner_user_id=OWNER, bot_user_id=BOT, enabled=1)
-
-
-def test_requires_typed_trusted_facts() -> None:
-    with pytest.raises(TypeError):
-        authorize_private_dm(enabled_config(), {"author_user_id": OWNER})

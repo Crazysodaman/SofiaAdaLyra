@@ -1,17 +1,13 @@
-"""Offline Discord DM ingress screening and *process-local* replay preflight.
+"""Offline Discord DM ingress screening.
 
-No Discord transport, origin authentication, durable inbox, conversation dispatch,
-message delivery, token handling, or production database access exists here.
-Never use this in-memory ledger as a crash-safe inbox or a security boundary.
+No Discord transport, token handling, conversation dispatch, or outbound send
+exists here. A DiscordTextEvent is data produced by a future trusted adapter.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from hashlib import blake2b
-from secrets import token_bytes
-from threading import Lock
 
 from sofia.discord.access import (
     Denial,
@@ -24,6 +20,7 @@ from sofia.discord.access import (
 
 class InboundDenial(str, Enum):
     MALFORMED_EVENT = "malformed_event"
+    WRONG_CHANNEL = "wrong_channel"
     UNSUPPORTED_CONTENT = "unsupported_content"
     EMPTY_CONTENT = "empty_content"
     CONTENT_TOO_LONG = "content_too_long"
@@ -56,7 +53,7 @@ def screen_text_dm(
     *,
     max_chars: int = 4000,
 ) -> InboundScreen:
-    """Screen only. No queueing, execution, message persistence, or replies."""
+    """Screen one text DM without queueing, executing, or replying."""
     if not isinstance(config, SingleUserDiscordConfig):
         raise TypeError("config must be SingleUserDiscordConfig")
     if not isinstance(event, DiscordTextEvent):
@@ -74,6 +71,11 @@ def screen_text_dm(
         or type(event.content) is not str
     ):
         return InboundScreen(None, InboundDenial.MALFORMED_EVENT)
+    if (
+        config.dm_channel_id is not None
+        and event.channel_id != config.dm_channel_id
+    ):
+        return InboundScreen(None, InboundDenial.WRONG_CHANNEL)
     if event.attachment_count:
         return InboundScreen(None, InboundDenial.UNSUPPORTED_CONTENT)
     if not event.content.strip():
@@ -87,49 +89,3 @@ def screen_text_dm(
     except UnicodeEncodeError:
         return InboundScreen(None, InboundDenial.MALFORMED_EVENT)
     return InboundScreen(event, None)
-
-
-class ReplayResult(str, Enum):
-    CLAIMED = "claimed"
-    DUPLICATE = "duplicate"
-    CONFLICT = "conflict"
-    FULL = "full"
-
-
-class InMemoryReplayLedger:
-    """Bounded, atomic duplicate check for offline tests within ONE process.
-
-    A CLAIMED value is NOT a durable enqueue, processing result, or send receipt.
-    Restart clears this ledger; use a transactional durable inbox before live D1.
-    """
-
-    def __init__(self, *, capacity: int = 1024) -> None:
-        if type(capacity) is not int or capacity < 1:
-            raise ValueError("capacity must be a positive integer")
-        self._capacity = capacity
-        self._key = token_bytes(32)
-        self._seen: dict[tuple[int, int, int], bytes] = {}
-        self._lock = Lock()
-
-    def claim(self, screened: InboundScreen) -> ReplayResult:
-        if not isinstance(screened, InboundScreen) or not screened.accepted:
-            raise ValueError("an accepted inbound screen is required")
-        event = screened.event
-        assert event is not None
-        # Keep message text out of the ledger; this digest is local and secret-keyed.
-        digest = blake2b(
-            event.facts.author_user_id.to_bytes(8, "big")
-            + len(event.content.encode("utf-8")).to_bytes(8, "big")
-            + event.content.encode("utf-8"),
-            key=self._key,
-            digest_size=32,
-        ).digest()
-        identity = (event.facts.recipient_user_id, event.channel_id, event.message_id)
-        with self._lock:
-            old = self._seen.get(identity)
-            if old is not None:
-                return ReplayResult.DUPLICATE if old == digest else ReplayResult.CONFLICT
-            if len(self._seen) >= self._capacity:
-                return ReplayResult.FULL
-            self._seen[identity] = digest
-            return ReplayResult.CLAIMED
