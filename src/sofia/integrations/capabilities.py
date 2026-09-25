@@ -45,6 +45,16 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
     ha_token=os.environ.get("SOFIA_HOME_ASSISTANT_TOKEN","").strip()
     if ha_url and ha_token:
         ha=HomeAssistantAdapter(ha_url,ha_token)
+        notify_service=os.environ.get("SOFIA_NOTIFICATION_HA_SERVICE","").strip()
+        if notify_service:
+            if "/" in notify_service or not notify_service.replace("_","").replace("-","").isalnum():
+                raise ValueError("SOFIA_NOTIFICATION_HA_SERVICE must be one Home Assistant notify service name")
+            tools.append(
+                _tool("notification.send","Send one notification through the configured Home Assistant notify service.",
+                    _object({"message":{"type":"string"},"title":{"type":"string"}},["message"]),
+                    lambda p:ha.call_service("notify",notify_service,
+                        {"message":p["message"],**({"title":p["title"]} if p.get("title") else {})})
+            )
         tools.extend((
             _tool("home_assistant.services","List Home Assistant service domains and services. Read-only.",_object(),
                 lambda p:ha.services()),
