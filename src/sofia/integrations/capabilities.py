@@ -180,7 +180,31 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
     )
     storage_roots=tuple(dict.fromkeys((filesystem_root,state_path.parent,*extra_storage)))
     storage=StorageAdapter(storage_roots)
-    tools.append(_tool("storage.usage","Inspect disk usage for Sofía's repository/state roots. Read-only.",_object(),lambda p:storage.usage()))
+    tools.extend((
+        _tool("storage.roots","List configured storage/NAS roots by index. Read-only.",_object(),lambda p:storage.roots_info()),
+        _tool("storage.usage","Inspect disk usage for configured storage/NAS roots. Read-only.",_object(),lambda p:storage.usage()),
+        _tool("storage.list","List one directory inside a configured storage/NAS root. Read-only.",
+            _object({"root_index":{"type":"integer"},"path":{"type":"string"}},["root_index"]),
+            lambda p:storage.list(p["root_index"],p.get("path","."))),
+        _tool("storage.read_text","Read one bounded UTF-8 file inside a configured storage/NAS root. Read-only.",
+            _object({"root_index":{"type":"integer"},"path":{"type":"string"},"max_bytes":{"type":"integer"}},["root_index","path"]),
+            lambda p:storage.read_text(p["root_index"],p["path"],max_bytes=p.get("max_bytes",1024*1024))),
+        _tool("storage.write_text","Write one bounded text file inside a configured storage/NAS root.",
+            _object({"root_index":{"type":"integer"},"path":{"type":"string"},"content":{"type":"string"},"overwrite":{"type":"boolean"}},["root_index","path","content"]),
+            lambda p:storage.write_text(p["root_index"],p["path"],p["content"],overwrite=bool(p.get("overwrite",False)))),
+        _tool("storage.mkdir","Create one directory inside a configured storage/NAS root.",
+            _object({"root_index":{"type":"integer"},"path":{"type":"string"}},["root_index","path"]),
+            lambda p:storage.mkdir(p["root_index"],p["path"])),
+        _tool("storage.copy","Copy one file inside the same configured storage/NAS root.",
+            _object({"root_index":{"type":"integer"},"source":{"type":"string"},"destination":{"type":"string"},"overwrite":{"type":"boolean"}},["root_index","source","destination"]),
+            lambda p:storage.copy(p["root_index"],p["source"],p["destination"],overwrite=bool(p.get("overwrite",False)))),
+        _tool("storage.move","Move one path inside the same configured storage/NAS root.",
+            _object({"root_index":{"type":"integer"},"source":{"type":"string"},"destination":{"type":"string"},"overwrite":{"type":"boolean"}},["root_index","source","destination"]),
+            lambda p:storage.move(p["root_index"],p["source"],p["destination"],overwrite=bool(p.get("overwrite",False)))),
+        _tool("storage.delete","Delete one path inside a configured storage/NAS root.",
+            _object({"root_index":{"type":"integer"},"path":{"type":"string"},"recursive":{"type":"boolean"}},["root_index","path"]),
+            lambda p:storage.delete(p["root_index"],p["path"],recursive=bool(p.get("recursive",False)))),
+    ))
 
     if state_path.exists():
         sqlite=SQLiteReadAdapter(state_path)
