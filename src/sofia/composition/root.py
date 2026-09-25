@@ -262,6 +262,12 @@ def compose(
         handler=filesystem_capability.execute,
     )
 
+    ToolCatalog(
+        capability_system,
+        repository_root=configuration.filesystem_root,
+        state_path=configuration.state_path,
+    ).register()
+
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
     )
