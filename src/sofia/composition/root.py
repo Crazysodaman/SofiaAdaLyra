@@ -31,6 +31,7 @@ from sofia.embodiment.store import AvatarStore
 from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
+from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
@@ -186,6 +187,10 @@ def compose(
     filesystem_capability = FilesystemCapability(
         inspector_provider=filesystem_inspector_provider,
     )
+    filesystem_changes_capability = FilesystemChangesCapability(
+        filesystem_root,
+        filesystem_observation_store,
+    )
 
     def capability_authorized(
         request,
@@ -295,6 +300,10 @@ def compose(
         capability=filesystem_capability.capability,
         handler=filesystem_capability.execute,
     )
+    capability_system.register(
+        capability=filesystem_changes_capability.capability,
+        handler=filesystem_changes_capability.execute,
+    )
 
     for system_capability in create_local_system_capabilities():
         capability_system.register(
@@ -366,7 +375,7 @@ def compose(
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
         bindings=(
-            (create_tool_catalog_binding(),)
+            (create_tool_catalog_binding(),create_filesystem_changes_binding())
             + create_default_tool_bindings(
                 filesystem_root
             )
