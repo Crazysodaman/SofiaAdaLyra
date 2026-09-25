@@ -1,6 +1,7 @@
 """GitHub REST adapter for repository inspection and bounded issue creation."""
 from __future__ import annotations
 from urllib.parse import quote
+from base64 import b64decode
 from typing import Any
 from .http import JsonHttpClient
 
@@ -25,6 +26,12 @@ class GitHubAdapter:
         if not path.strip() or path.startswith("/") or ".." in path.split("/"): raise ValueError("invalid repository path")
         data=self.http.request("GET",f"/repos/{self.repository}/contents/{quote(path,safe='/')}",query={"ref":ref})
         if not isinstance(data,dict): raise RuntimeError("invalid GitHub content response")
+        if data.get("encoding")=="base64" and isinstance(data.get("content"),str):
+            try:
+                decoded=b64decode(data["content"],validate=False).decode("utf-8")
+                data={**data,"decoded_text":decoded}
+            except (ValueError,UnicodeDecodeError):
+                pass
         return data
     def create_issue(self,title:str,body:str="")->dict[str,Any]:
         if not title.strip(): raise ValueError("issue title required")
