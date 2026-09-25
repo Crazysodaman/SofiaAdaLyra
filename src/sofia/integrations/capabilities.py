@@ -12,6 +12,7 @@ from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter
 from .hyperv import HyperVAdapter
 from .jmri import JmriAdapter
+from .local_maintenance import LocalMaintenanceAdapter
 from .portainer import PortainerAdapter
 from .ollama import OllamaAdapter
 from .sqlite import SQLiteReadAdapter
@@ -139,6 +140,26 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
             _tool("discord.pause","Pause the configured Discord binding.",_object(),lambda p:discord.control("pause")),
             _tool("discord.resume","Resume the configured Discord binding.",_object(),lambda p:discord.control("resume")),
             _tool("discord.revoke","Revoke the configured Discord binding.",_object(),lambda p:discord.control("revoke")),
+        ))
+
+
+    if platform.system() in ("Windows","Linux"):
+        local_maintenance=LocalMaintenanceAdapter()
+        tools.extend((
+            _tool("local.service.start","Start one exact local operating-system service.",
+                _object({"name":{"type":"string"}},["name"]),
+                lambda p:local_maintenance.service(p["name"],"start")),
+            _tool("local.service.stop","Stop one exact local operating-system service.",
+                _object({"name":{"type":"string"}},["name"]),
+                lambda p:local_maintenance.service(p["name"],"stop")),
+            _tool("local.service.restart","Restart one exact local operating-system service.",
+                _object({"name":{"type":"string"}},["name"]),
+                lambda p:local_maintenance.service(p["name"],"restart")),
+            _tool("local.host.reboot","Reboot the current host using the platform's fixed reboot operation.",
+                _object(),lambda p:local_maintenance.reboot()),
+            _tool("local.package.update","Update one exact local package using the platform package manager.",
+                _object({"package":{"type":"string"}},["package"]),
+                lambda p:local_maintenance.package_update(p["package"])),
         ))
 
     if platform.system()=="Windows":
