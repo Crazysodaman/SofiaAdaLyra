@@ -31,3 +31,21 @@ class GitHubAdapter:
         data=self.http.request("POST",f"/repos/{self.repository}/issues",payload={"title":title,"body":body})
         if not isinstance(data,dict): raise RuntimeError("invalid GitHub create-issue response")
         return data
+    def pull_requests(self,*,state:str="open",limit:int=30)->list[dict[str,Any]]:
+        if state not in ("open","closed","all"): raise ValueError("invalid pull request state")
+        if not 1<=limit<=100: raise ValueError("limit must be 1..100")
+        data=self.http.request("GET",f"/repos/{self.repository}/pulls",query={"state":state,"per_page":limit})
+        if not isinstance(data,list): raise RuntimeError("invalid GitHub pull request response")
+        return data
+    def create_pull_request(self,title:str,head:str,base:str,*,body:str="",draft:bool=False)->dict[str,Any]:
+        if not title.strip() or not head.strip() or not base.strip(): raise ValueError("title, head and base required")
+        data=self.http.request("POST",f"/repos/{self.repository}/pulls",
+            payload={"title":title,"head":head,"base":base,"body":body,"draft":bool(draft)})
+        if not isinstance(data,dict): raise RuntimeError("invalid GitHub create-pull response")
+        return data
+    def merge_pull_request(self,number:int,*,merge_method:str="merge")->dict[str,Any]:
+        if number<1: raise ValueError("pull request number must be positive")
+        if merge_method not in ("merge","squash","rebase"): raise ValueError("invalid merge method")
+        data=self.http.request("PUT",f"/repos/{self.repository}/pulls/{number}/merge",payload={"merge_method":merge_method})
+        if not isinstance(data,dict): raise RuntimeError("invalid GitHub merge response")
+        return data
