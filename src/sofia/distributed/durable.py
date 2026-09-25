@@ -95,6 +95,51 @@ class DurableRemoteAuthorization(RemoteAuthorization):
             )
         return cursor.rowcount
 
+    def find_active(self, *, node_id: UUID, capability: str,
+                    operation: str, now: datetime) -> RemoteGrant | None:
+        _aware(now, "now")
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        rows = self._db.execute(
+            """SELECT grant_id, approved_by, expires_at
+               FROM remote_standing_grant
+               WHERE node_id = ? AND capability = ? AND operation = ? AND revoked = 0
+               ORDER BY expires_at DESC""",
+            (str(node_id), capability, operation),
+        ).fetchall()
+        for grant_id, approved_by, expiry in rows:
+            try:
+                expires_at = datetime.fromisoformat(expiry)
+                _aware(expires_at, "expires_at")
+            except (TypeError, ValueError):
+                continue
+            if now < expires_at:
+                return RemoteGrant(
+                    UUID(grant_id), node_id, capability, operation,
+                    approved_by, expires_at,
+                )
+        return None
+
+    def active_grants_for_node(self, node_id: UUID, *, now: datetime) -> tuple[RemoteGrant, ...]:
+        _aware(now, "now")
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        rows = self._db.execute(
+            """SELECT grant_id, capability, operation, approved_by, expires_at
+               FROM remote_standing_grant
+               WHERE node_id = ? AND revoked = 0 ORDER BY capability, operation""",
+            (str(node_id),),
+        ).fetchall()
+        grants=[]
+        for grant_id, capability, operation, approved_by, expiry in rows:
+            try:
+                expires_at=datetime.fromisoformat(expiry); _aware(expires_at,"expires_at")
+            except (TypeError,ValueError):
+                continue
+            if now<expires_at:
+                grants.append(RemoteGrant(UUID(grant_id),node_id,capability,operation,approved_by,expires_at))
+        return tuple(grants)
+
     def permits(self, grant_id: UUID, *, node_id: UUID, capability: str,
                 operation: str, now: datetime) -> bool:
         _aware(now, "now")
