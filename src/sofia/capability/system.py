@@ -72,6 +72,17 @@ class CapabilitySystem:
             handler,
         )
 
+    def capabilities(self) -> tuple[Capability, ...]:
+        """Return the registered canonical capability descriptors."""
+        return tuple(
+            self._capabilities[name][0]
+            for name in sorted(self._capabilities)
+        )
+
+    def capability_names(self) -> tuple[str, ...]:
+        """Return registered capability names in stable order."""
+        return tuple(capability.name for capability in self.capabilities())
+
     def resolve(self, name: str) -> Capability:
         try:
             capability, _ = self._capabilities[name]
