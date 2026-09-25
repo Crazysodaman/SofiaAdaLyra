@@ -21,6 +21,7 @@ from sofia.cognition.test_engine import TestCognitiveEngine
 from sofia.cognition.tools import (
     CognitiveToolDispatcher,
     create_default_tool_bindings,
+    create_system_tool_bindings,
 )
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
@@ -34,6 +35,7 @@ from sofia.memory.system import MemorySystem
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.system.capability import create_local_system_capabilities
 
 
 def _create_cognitive_engine(configuration: SofiaConfiguration):
@@ -225,6 +227,9 @@ def compose(
             if authorized_operation not in authorization.operations:
                 return False
 
+        if request.capability.name != "filesystem.inspect":
+            return request.capability.name in configuration.standing_allowed_capabilities
+
         return True
 
     capability_system = CapabilitySystem(
@@ -241,14 +246,23 @@ def compose(
         handler=filesystem_capability.execute,
     )
 
+    for system_capability in create_local_system_capabilities():
+        capability_system.register(
+            capability=system_capability.capability,
+            handler=system_capability.execute,
+        )
+
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
     )
 
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
-        bindings=create_default_tool_bindings(
-            configuration.filesystem_root
+        bindings=(
+            create_default_tool_bindings(
+                configuration.filesystem_root
+            )
+            + create_system_tool_bindings()
         ),
     )
 
