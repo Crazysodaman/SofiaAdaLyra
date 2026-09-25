@@ -1,6 +1,6 @@
 """Durable exact-version activation state for governed adapters."""
 from __future__ import annotations
-import json
+import json,os
 from pathlib import Path
 
 class AdapterActivationStore:
@@ -20,5 +20,6 @@ class AdapterActivationStore:
         if self.path is None: return
         self.path.parent.mkdir(parents=True,exist_ok=True)
         tmp=self.path.with_suffix(self.path.suffix+".tmp")
-        tmp.write_text(json.dumps(self._enabled,sort_keys=True,indent=2),encoding="utf-8")
+        with tmp.open("w",encoding="utf-8") as fh:
+            json.dump(self._enabled,fh,sort_keys=True,indent=2); fh.flush(); os.fsync(fh.fileno())
         tmp.replace(self.path)
