@@ -3,6 +3,11 @@ from __future__ import annotations
 
 import os
 
+from sofia.avatar.presentation_store import PresentationStoreError
+from sofia.avatar.runtime_state import (
+    PresentationRuntimeBundle,
+    load_or_bootstrap_presentation,
+)
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
@@ -44,6 +49,7 @@ class SofiaApplication:
             runtime=self._runtime, conversation_store=conversation_store,
         )
         self._idle_worker: IdleReflectionWorker | None = None
+        self._presentation_bundle: PresentationRuntimeBundle | None = None
 
     @property
     def runtime(self) -> SofiaRuntime:
@@ -68,6 +74,16 @@ class SofiaApplication:
         try:
             enabled = _idle_reflections_enabled()
             self._runtime.start()
+            if self._runtime.embodiment is None:
+                raise SofiaApplicationError(
+                    "AVATAR presentation requires canonical embodiment."
+                )
+            bundle = load_or_bootstrap_presentation(
+                embodiment=self._runtime.embodiment,
+                state_path=self._configuration.state_path,
+            )
+            self._runtime.set_avatar_presentation(bundle.authority)
+            self._presentation_bundle = bundle
             # Filter internal database noise in *both* pending awareness and
             # the runtime's cognitive context before the first model call.
             # The unfiltered snapshot stays preserved in the observation store.
@@ -85,7 +101,13 @@ class SofiaApplication:
                 worker.start()
                 self._idle_worker = worker
             return response
-        except (SofiaRuntimeError, RuntimeError, TypeError, ValueError) as exc:
+        except (
+            SofiaRuntimeError,
+            PresentationStoreError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             raise SofiaApplicationError("Sofía application failed to start.") from exc
 
     def shutdown(self) -> None:
@@ -99,8 +121,12 @@ class SofiaApplication:
                 raise SofiaApplicationError("Idle reflection has not stopped safely.") from exc
             self._idle_worker = None
         try:
+            bundle = getattr(self, "_presentation_bundle", None)
+            if bundle is not None:
+                bundle.store.save(bundle.authority)
             self._runtime.shutdown()
-        except SofiaRuntimeError as exc:
+        except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
+            self._presentation_bundle = None
             self._conversation_service.close()
