@@ -152,10 +152,16 @@ Human review must confirm that `hru` and `are you happy` answer the emotional/so
 
 ## Next gates (in order)
 
-1. **Resolve the one local Ollama contract mismatch without discarding local work:** all other collected tests passed in the qualified run. Preserve the entire modified file and its second test; reconcile whether the intended contract input/expectation is `18000` or `32768` before editing. Do not change the provider merely to satisfy the stale expectation.
+1. **Ollama generation contract reconciled:** the provider contract is explicit passthrough from `ProviderConfiguration.context_size` to Ollama `options["num_ctx"]`. The contract test is now parameterized across both `18000` and `32768` and expects the configured value unchanged. No provider or runtime-default change was required.
 2. **Audit additional concurrency and policy integrity:** existing qualified-suite coverage already exercises restart persistence (`test_interaction_temporal.py`), replay/idempotence and session stops, source-attestation tamper detection, unverified revocation, scoped boundaries, external authentication, filesystem authority and unauthorized-tool hiding. A second deterministic SQLite writer-order regression covers the opposite serialization order (reply lock first, later stop waits). At `db40d58`, Sparks reported **2/2 writer-order tests passed in 17.21 seconds**, followed by the complete closure-audit selection **60/60 passed in 10.56 seconds**.
 3. **Review PR scope and base integration:** the only path-level overlap with the 55 newer `main` commits was the root `ROADMAP.md`, now synchronized byte-for-byte to `main`. GitHub subsequently recomputed PR #2 as **mergeable=true**. The PR remains draft and unmerged. Optional interaction tables are intentionally not auto-created by normal startup/read paths; any future production provisioning remains a separate reviewed migration before enabling staged offers.
-4. **Human acceptance and separate merge approval:** the technical closure gates are now satisfied except for the known unrelated local Ollama test expectation mismatch (`18000` input versus `32768` expected), which remains preserved and unmodified. Sparks reviews the demonstrated dialogue and known limitation (staged offers remain off until a separately reviewed schema migration), explicitly accepts PKG-INTERACT, and separately authorizes any merge. PR #2 stays draft and `main` unchanged until then.
+4. **Human acceptance and separate merge approval:** the technical closure gates now include the reconciled Ollama generation contract. Sparks reviews the demonstrated dialogue and known limitation (staged offers remain off until a separately reviewed schema migration), explicitly accepts PKG-INTERACT, and separately authorizes any merge. PR #2 stays draft and `main` unchanged until then.
+
+### Ollama generation-contract reconciliation (2026-09-24)
+
+- The former local mismatch was a test inconsistency, not a provider defect: a locally edited fixture supplied `context_size=18000` but still expected `num_ctx=32768`.
+- `OllamaProvider` intentionally translates `ProviderConfiguration.context_size` directly to Ollama `options["num_ctx"]`; the standard runtime default remains independently configured at `20000`.
+- The committed contract test now parameterizes both `18000` and `32768` and asserts exact passthrough. This removes the magic-value ambiguity without changing provider behavior or runtime defaults.
 
 ## Safety and scope
 
