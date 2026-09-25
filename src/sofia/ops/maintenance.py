@@ -6,7 +6,7 @@ from .fleet import FleetRegistry
 from .model import HostLifecycle
 
 class MaintenanceOperation(str,Enum):
-    SERVICE_RESTART="service_restart"; HOST_REBOOT="host_reboot"; PACKAGE_UPDATE="package_update"; DRAIN="drain"
+    SERVICE_RESTART="service_restart"; HOST_REBOOT="host_reboot"; PACKAGE_UPDATE="package_update"; DRAIN="drain"; CONTAINER_RESTART="container_restart"; VM_START="vm_start"; VM_STOP="vm_stop"
 
 @dataclass(frozen=True)
 class MaintenanceRequest:
@@ -30,3 +30,5 @@ class MaintenancePolicy:
             raise ValueError("service_restart requires an exact service target")
         if request.operation is MaintenanceOperation.PACKAGE_UPDATE and request.target is None:
             raise ValueError("package_update requires an exact package target")
+        if request.operation in (MaintenanceOperation.CONTAINER_RESTART,MaintenanceOperation.VM_START,MaintenanceOperation.VM_STOP) and request.target is None:
+            raise ValueError(f"{request.operation.value} requires an exact target")
