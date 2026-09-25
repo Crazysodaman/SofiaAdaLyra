@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from re import fullmatch
 
 class RecoveryDenied(PermissionError): pass
 
@@ -13,6 +14,7 @@ class BackupEvidence:
         if self.created_at.tzinfo is None: raise ValueError("backup timestamp must be timezone-aware")
         if not all((self.backup_id.strip(),self.source_host_id.strip(),self.failure_domain.strip(),self.content_digest.strip())):
             raise ValueError("complete backup evidence required")
+        if fullmatch(r"[0-9a-f]{64}",self.content_digest) is None: raise ValueError("backup digest must be lowercase SHA-256")
 
 @dataclass(frozen=True)
 class RestoreVerification:
