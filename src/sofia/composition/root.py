@@ -32,6 +32,10 @@ from sofia.embodiment.store import AvatarStore
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
+from sofia.knowledge.capability import KnowledgeSearchCapability, KnowledgeSourceReadCapability
+from sofia.knowledge.lifecycle import KnowledgeLifecycle
+from sofia.knowledge.persistence import JsonKnowledgeStore
+from sofia.machine.capability import MachineInspectionCapability
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 from sofia.operational.store import OperationalStore
