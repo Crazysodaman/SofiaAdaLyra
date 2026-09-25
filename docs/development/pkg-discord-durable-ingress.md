@@ -2,7 +2,7 @@
 
 **Branch:** `feature/pkg-discord`  
 **Base:** current `main` after the INTERACT merge  
-**Status:** v1 transport accepted live on 2026-09-24 and ready for merge. The supported scope is one explicitly provisioned, Sparks-only private DM channel using the shared Sofía runtime. General web/search, guilds, multi-user access, and proactive outbound initiative remain outside this package.
+**Status:** v1 transport accepted live on 2026-09-24 and merged to `main` via PR #64 (`ba2111b`). The supported scope is one explicitly provisioned, Sparks-only private DM channel using the shared Sofía runtime. General web/search, guilds, multi-user access, and proactive outbound initiative remain outside this package.
 
 ## Verified acceptance evidence
 
@@ -107,7 +107,7 @@ These controls require the exact owner, bot, and DM-channel ID environment varia
 
 ## Closure and handoff
 
-PKG-DISCORD v1 transport is closed for the accepted scope and may merge to `main`.
+PKG-DISCORD v1 transport is closed for the accepted scope and merged to `main` via PR #64 (`ba2111b`).
 
 Post-merge work is deliberately split by ownership:
 
