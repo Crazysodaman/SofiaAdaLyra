@@ -1,4 +1,4 @@
-> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+> **Project status update — 2026-09-24:** PKG-DISCORD v1 has supervised live acceptance for the Sparks-only private-DM transport path. The live run also exposed two cross-package gaps now tracked outside Discord: SOCIAL must project the authenticated owner principal into shared cognition, and INTERACT/CORE has a new narrow live-quality repair gate for generic/canned assistant fallback. Existing accepted INTERACT safety/ledger semantics remain accepted.
 
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
@@ -34,14 +34,14 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 01. PKG-CORE | cognition, identity, continuity
 
-- **Current:** foundations on `main` after PR #1; fresh integrated suite and supervised identity/personality/latency review remain open.
+- **Current:** foundations on `main` after PR #1. A joint INTERACT/CORE live-quality repair gate is open after supervised Discord dialogue exposed generic assistant fallback despite correct self/embodiment grounding.
 - **Build:** canonical identity/Constitution and integrity boot checks; observed restart time/gaps; varied evidence-grounded startup/file-change remarks; model/provider abstraction, deliberation/response budget, graceful unknowns, context budget and cognitive operation audit; no invented offline thoughts or subjective experience.
 - **Depends on:** SAFE/VERIFY at every step; INTERACT for end-to-end quality; MEM for durable grounding.
 - **Exit:** current-revision full suite + supervised real-model startup, identity, conversational naturalness, restart awareness and measured response latency; no repetitive fixed notices or unsupported execution claims.
 
 ### 02. PKG-INTERACT | interaction semantics and virtual lab
 
-- **Current:** **accepted and merged via PR #2 on 2026-09-23**. Windows closure evidence: 97 focused tests; four-turn disposable real-Qwen application probe; qualified repository run 1665 passed / 2 skipped / 1 unrelated local test deselected; final closure audit 60/60. Staged offers remain off until separately reviewed production schema provisioning.
+- **Current:** **accepted semantic/safety foundation merged via PR #2 and hardened via PR #29.** Supervised Discord use on 2026-09-24 exposed a narrower natural-dialogue regression, so a new INTERACT/CORE quality-repair gate is open. This does not invalidate accepted stop, consent, ledger, source-attestation, virtual-lab or embodiment semantics. Staged offers remain off until separately reviewed production schema provisioning.
 - **Build:** shared typed text/avatar/scene interaction events, contextual gestures/touch/body-region semantics, emotion/reaction coordination, consent/boundaries and accessible text-only output; headless virtual lab and clear distinction between text, rendered animation, measured sensation and actual robot action.
 - **Depends on:** CORE/SAFE/VERIFY; AVATAR/UI for visual acknowledgment; BODY separately for physical effects.
 - **Exit:** current-head focused + integrated + live-model interaction tests, believable varied expression without fabricated sensory receipts, and negative consent/scope tests.
@@ -55,21 +55,21 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 04. PKG-SOCIAL | authenticated principals and audience boundaries
 
-- **Current:** design on `main`; initial production principal isolation not accepted.
+- **Current:** design on `main`; supervised Discord proved transport-level owner authentication works, but the authenticated owner principal is not yet projected into shared cognition as `Sparks`. Production principal isolation/projection remains unaccepted.
 - **Build:** one Sofía across channels, exact authenticated principal, per-user relationship and conversation scope, private/shared data promotion only by policy, authenticated grants and anti-leakage. First release is **Sparks-only private DM**; no open guild or second-user rollout by implication.
 - **Depends on:** MEM/SAFE, NET/UI for channel identity, VERIFY negative tests.
 - **Exit:** wrong account, replay, forged audience, accidental shared memory and group traffic cannot read/write Sparks' private history; audited revocation works across restart.
 
 ### 05. PKG-NET | authenticated and scoped transport
 
-- **Current:** merged distributed-operation foundations and draft Discord-route preflight PR #11; real trusted transport, DNS/TLS/redirect enforcement and Artemis host acceptance remain.
+- **Current:** merged distributed-operation foundations; the narrow private-DM Discord transport path now has supervised live acceptance. Broader trusted transport, DNS/TLS/redirect enforcement and Artemis host acceptance remain.
 - **Build:** Discord-only initial network paths, peer authentication, target allowlists, bounded retries/backpressure, remote host/agent transport and verified network evidence. Separate any later web/search permission from Discord connectivity. Transport access never equals application/action authority.
 - **Depends on:** SAFE/SOCIAL/VERIFY; UI for Discord, OPS for enrolled host operations.
 - **Exit:** real authenticated Discord route and remote-host negative tests for wrong destination, DNS/redirect bypass, stale peers, replay and revoked grants; no general search/browsing grant.
 
 ### 06. PKG-UI | channels, clients, voice, renderer
 
-- **Current:** workbench prototype draft PR #6; production Discord, desktop/web/mobile/voice and renderer not yet live accepted.
+- **Current:** workbench prototype draft PR #6; the Sparks-only Discord DM adapter is now live accepted for v1 transport. Desktop/web/mobile/voice, renderer and proactive outbound UI remain unaccepted.
 - **Build:** Sparks-only Discord D0-D4 adapter; canonical conversation routing across clients; send receipts/dedupe, accessibility-friendly text fallback, eventually voice, desktop/web/mobile and avatar renderer with actual animation acknowledgments.
 - **Depends on:** CORE/INTERACT, SOCIAL/MEM, NET/SAFE, RUN/VERIFY.
 - **Exit:** actual authenticated DM received and replied to once across reconnect/restart, stop/revoke works, real delivery is distinguished from queued/simulated delivery; later clients separately tested.
@@ -169,7 +169,9 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### Discord D0-D4 (channel, not a twentieth package)
 
-D0 exact Sparks identity and bot/scopes/secrets; D1 authenticated private DM receive, deny wrong origins and replay; D2 bind shared Sofía runtime and originals, verified reply receipt/dedupe; D3 stop/revoke/privacy/outage; D4 supervised real DM across restart/reconnect and separate activation approval. No public guild or general second user initially; Discord NET route does not authorize web search.
+**2026-09-24 status:** v1 Sparks-only private-DM transport is live accepted and ready to merge. The supervised run verified bot authentication, Gateway connection, exact DM verification before enrollment, durable ingress/outbox, shared-runtime response, visible delivery, fail-closed outcome-unknown handling, and the worker-thread persistence repair. The transport remains intentionally narrow: no public guild, general second user, proactive DM initiative, or general web/search grant.
+
+The live acceptance also produced two downstream findings that are not Discord adapter responsibilities: SOCIAL must project the authenticated principal into cognition, and INTERACT/CORE must repair generic/canned ordinary dialogue.
 
 ### Two data locations and an independent watchdog (architecture, not a package)
 
@@ -183,9 +185,9 @@ Local authorized docs may be read before general web. KNOW preserves provenance;
 
 ## Immediate engineering order from the current baseline
 
-1. Treat merged INTERACT as the accepted interaction foundation; preserve its off-by-default staged-offer and schema-migration limitation, then advance MEM integration.
+1. Keep merged INTERACT as the accepted safety/semantic foundation, but run the new INTERACT/CORE live-quality repair gate for generic/canned dialogue.
 2. Inventory all actual state/authority/outbox/SQLite files and create a consistent **test-only** off-host backup/restore baseline; protect tracked runtime data.
-3. Finish MEM originals/privacy and SOCIAL minimum Sparks identity; complete Discord D0-D4 via NET/UI/SAFE.
+3. Finish MEM originals/privacy and implement SOCIAL minimum Sparks principal projection. PKG-DISCORD v1 transport is already live accepted; keep identity/personality fixes out of the adapter.
 4. Add local RUN service supervisor and externally enforced stop; begin trusted read-only OPS agent/enrollment on real deployment hosts. Verify process-crash restart.
 5. Implement durable cross-service action/outbox ledger, effective capability registry, host capacity fairness and independent operator controls; test crash/unknown outcome.
 6. Build isolated standby/watchdog/fencing and candidate data-replication prototype; benchmark SQLite+backups versus a replication-capable backend, then separately approve any state migration/production activation.
