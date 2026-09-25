@@ -20,6 +20,18 @@ from .executor import (
     ProtectedAmendmentExecutor,
     ProtectedPaths,
 )
+from .revision import (
+    ReviewedRevisionExecutor,
+    RevisionAdapter,
+    RevisionApproval,
+    RevisionApprovalVerifier,
+    RevisionExecution,
+    RevisionExecutionError,
+    RevisionProposal,
+    RevisionScope,
+    RevisionStatus,
+    revision_content_digest,
+)
 
 __all__ = [
     "AmendmentApproval",
@@ -33,7 +45,17 @@ __all__ = [
     "ProtectedAmendmentExecutor",
     "ProtectedPaths",
     "ProtectedTarget",
+    "ReviewedRevisionExecutor",
+    "RevisionAdapter",
+    "RevisionApproval",
+    "RevisionApprovalVerifier",
+    "RevisionExecution",
+    "RevisionExecutionError",
+    "RevisionProposal",
+    "RevisionScope",
+    "RevisionStatus",
     "approval_matches",
     "content_digest",
     "inspect",
+    "revision_content_digest",
 ]
