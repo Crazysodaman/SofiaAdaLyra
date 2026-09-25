@@ -8,6 +8,7 @@ from sofia.knowledge.capability import KnowledgeSearchCapability, KnowledgeSourc
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.machine.capability import MachineInspectionCapability
+from sofia.machine.hardware_capability import HardwareInspectionCapability
 from sofia.system.capability import create_system_capabilities
 from sofia.system.factory import create_system_backend
 
@@ -32,6 +33,9 @@ class ToolCatalog:
 
         machine = MachineInspectionCapability()
         self._system.register(machine.capability, machine.execute)
+
+        hardware = HardwareInspectionCapability()
+        self._system.register(hardware.capability, hardware.execute)
 
         store = JsonKnowledgeStore(
             self._state_path.with_name("knowledge.json")
