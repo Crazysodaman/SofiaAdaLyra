@@ -28,6 +28,9 @@ class KnowledgeService:
         return f"doc-{key}"
     def _record_text(self,path:Path,text:str,raw:bytes,source_kind:SourceKind,version:str,*,page:int|None=None)->KnowledgeDocument:
         digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest)
+        existing=self.store.document(document_id)
+        if existing is not None:
+            return existing
         doc=KnowledgeDocument(document_id,source_kind,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
         lines=text.splitlines()
@@ -61,6 +64,10 @@ class KnowledgeService:
             from pypdf import PdfReader
         except ImportError as exc: raise KnowledgeServiceError("PDF ingestion requires pypdf") from exc
         raw=path.read_bytes(); digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest)
+        existing=self.store.document(document_id)
+        if existing is not None:
+            return {"document_id":existing.document_id,"source_uri":existing.source_uri,"version":existing.version,
+                "facts":len(self.store.facts_for(existing.document_id)),"pages":None,"already_ingested":True}
         doc=KnowledgeDocument(document_id,SourceKind.MANUAL,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
         reader=PdfReader(str(path)); fact_count=0
