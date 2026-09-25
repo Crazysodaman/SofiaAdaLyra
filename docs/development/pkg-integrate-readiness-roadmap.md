@@ -1,8 +1,8 @@
-> **Project status update — 2026-09-25:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS planned Waves 1–5 source implementation is merged to `main` via PR #99 and PR #103 (`0cc067a`). The affected package trees passed `compileall`, the combined Waves 1–5 focused gate passed **60/60**, and the full repository pytest suite was reported passing on the convergence branch. This is repository/source acceptance, not proof of production remote NET transport, deployed multi-host orchestration, RUN 24/7 supervision, live failover, soak, or HA.
+> **Project status update — 2026-09-25:** PR #104 (`24e3888a`) merged the runtime toolbox completion gate. INTEGRATE now includes concrete cognition-wired adapters for Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Ollama, SQLite, storage/NAS, notifications, Discord operator controls, and bounded local maintenance. The focused tool/mTLS gate passed **34/34**, the surrounding regression gate passed **270/270**, and the full repository pytest suite was reported passing before merge. Live service canaries, credentials/endpoints, health/version/rollback receipts and end-to-end self-tool activation remain separately gated.
 
 # PKG-INTEGRATE | applications, services, and self-tooling
 
-**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 source controls are on `main` via PRs #99/#103: typed schema enforcement, capability/side-effect policy, durable adapter activation, durable receipts/idempotency protection and CapabilitySystem bridging. No production service adapter canary or self-generated live-tool activation is certified yet.
+**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 controls plus the runtime-tool completion gate are on `main` via PRs #99/#103/#104. Typed schema/policy/receipts/activation infrastructure and concrete adapters are repository accepted. No production service adapter canary or self-generated live-tool activation is certified yet.
 
 ## Outcome
 
@@ -17,7 +17,7 @@ Potential adapters include:
 - GitHub
 - Docker/Portainer
 - Hyper-V/VM management
-- Cloudflare
+- Cloudflare: **deferred by Sparks until explicitly requested; do not implement or activate before then**
 - Ollama
 - SQL/SQLite and other approved databases
 - NAS/storage systems
