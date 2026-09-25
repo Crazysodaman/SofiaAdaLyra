@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import replace
-from .model import FleetHost, HostLifecycle
+from .model import FleetHost, HostLifecycle\nfrom .approval import FleetRemovalApproval
 
 class FleetRemovalApprovalRequired(PermissionError): pass
 
@@ -33,3 +33,9 @@ class FleetRegistry:
         updated=replace(host,lifecycle=state); self._hosts[host_id]=updated; return updated
     def update_telemetry(self,host_id:str,telemetry)->FleetHost:
         host=self._hosts[host_id]; updated=replace(host,telemetry=telemetry); self._hosts[host_id]=updated; return updated
+
+    def decommission(self,host_id:str,*,proposal_revision:str,approval:FleetRemovalApproval)->FleetHost:
+        if not isinstance(approval,FleetRemovalApproval): raise TypeError("FleetRemovalApproval required")
+        if approval.host_id!=host_id: raise FleetRemovalApprovalRequired("approval is for a different machine")
+        if approval.proposal_revision!=proposal_revision: raise FleetRemovalApprovalRequired("approval revision does not match removal proposal")
+        return self.transition(host_id,HostLifecycle.DECOMMISSIONED,sparks_approved_removal=True)
