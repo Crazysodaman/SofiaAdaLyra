@@ -76,5 +76,6 @@ def create_default_configuration() -> SofiaConfiguration:
             "system.inspect",
             "network.inspect",
             "service.inspect",
+            "hardware.inspect",
         ),
     )
