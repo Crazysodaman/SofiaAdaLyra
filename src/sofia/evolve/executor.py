@@ -338,11 +338,6 @@ class ProtectedAmendmentExecutor:
         target_path = self._target_path(proposal.target)
         current_content = self._read_text(target_path)
         observed_digest = content_digest(current_content)
-        status = inspect(proposal, moment, observed_digest=observed_digest)
-        if status is not ProposalStatus.REQUIRES_EXPLICIT_REVIEW:
-            raise ProtectedAmendmentError(
-                f"proposal is not applicable: {status.value}"
-            )
         if not isinstance(proposed_content, str):
             raise TypeError("proposed_content must be text")
         if content_digest(proposed_content) != proposal.proposed_digest:
@@ -360,10 +355,16 @@ class ProtectedAmendmentExecutor:
             if (
                 existing.status is AmendmentExecutionStatus.APPLIED
                 and existing.to_digest == proposal.proposed_digest
-                and content_digest(self._read_text(target_path)) == proposal.proposed_digest
+                and observed_digest == proposal.proposed_digest
             ):
                 return existing
             raise ProtectedAmendmentError("proposal already has a terminal execution record")
+
+        status = inspect(proposal, moment, observed_digest=observed_digest)
+        if status is not ProposalStatus.REQUIRES_EXPLICIT_REVIEW:
+            raise ProtectedAmendmentError(
+                f"proposal is not applicable: {status.value}"
+            )
 
         content_backup, hash_backup = self._create_backups(proposal)
         try:
