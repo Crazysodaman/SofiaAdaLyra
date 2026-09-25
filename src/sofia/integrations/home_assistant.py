@@ -10,6 +10,10 @@ class HomeAssistantAdapter:
     def health(self)->dict[str,Any]:
         data=self.http.request("GET","/api/")
         return {"reachable":True,"response":data}
+    def services(self)->list[dict[str,Any]]:
+        data=self.http.request("GET","/api/services")
+        if not isinstance(data,list): raise RuntimeError("invalid Home Assistant services response")
+        return data
     def states(self)->list[dict[str,Any]]:
         data=self.http.request("GET","/api/states")
         if not isinstance(data,list): raise RuntimeError("invalid Home Assistant states response")
