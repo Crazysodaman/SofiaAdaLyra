@@ -114,6 +114,21 @@ class DurableMemoryCandidateStore:
             created_at=datetime.fromisoformat(row[1]),
         )
 
+    def list_ids(self, *, status: CandidateStatus | None = None) -> tuple[UUID, ...]:
+        if status is not None and not isinstance(status, CandidateStatus):
+            raise TypeError("status must be CandidateStatus or None")
+        if status is None:
+            rows = self._db.execute(
+                "SELECT candidate_id FROM memory_candidate ORDER BY created_at ASC, candidate_id ASC"
+            ).fetchall()
+        else:
+            rows = self._db.execute(
+                """SELECT candidate_id FROM memory_candidate
+                   WHERE status = ? ORDER BY created_at ASC, candidate_id ASC""",
+                (status.value,),
+            ).fetchall()
+        return tuple(UUID(row[0]) for row in rows)
+
     def candidate_ids_for_source(self, *, session_id: str, message_id: str) -> tuple[UUID, ...]:
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("session_id must be nonempty")
