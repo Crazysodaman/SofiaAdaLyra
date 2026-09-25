@@ -119,18 +119,18 @@ Those become the visual AVATAR gate after the headless software state is accepte
 Run:
 
 ```powershell
-python -m pytest -q ^
-  test/test_avatar_body_contract.py ^
-  test/test_avatar_scene.py ^
-  test/test_avatar_shared_wardrobe_state.py ^
-  test/test_avatar_starter_user_preferences.py ^
-  test/test_avatar_style_context.py ^
-  test/test_avatar_wardrobe_catalog.py ^
-  test/test_avatar_wardrobe_metadata.py ^
-  test/test_avatar_wardrobe_routine.py ^
-  test/test_avatar_presentation.py ^
-  test/test_avatar_presentation_store.py ^
-  test/test_avatar_presentation_routine.py ^
+python -m pytest -q `
+  test/test_avatar_body_contract.py `
+  test/test_avatar_scene.py `
+  test/test_avatar_shared_wardrobe_state.py `
+  test/test_avatar_starter_user_preferences.py `
+  test/test_avatar_style_context.py `
+  test/test_avatar_wardrobe_catalog.py `
+  test/test_avatar_wardrobe_metadata.py `
+  test/test_avatar_wardrobe_routine.py `
+  test/test_avatar_presentation.py `
+  test/test_avatar_presentation_store.py `
+  test/test_avatar_presentation_routine.py `
   test/test_avatar_runtime_projection.py
 ```
 
