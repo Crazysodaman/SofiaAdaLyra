@@ -444,6 +444,14 @@ def create_system_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
         ),
         CognitiveToolBinding(
             definition=CognitiveToolDefinition(
+                name="inspect_hardware",
+                description="Inspect local CPU, GPU, memory, storage, network adapters and virtualization hardware. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="hardware.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
                 name="inspect_services",
                 description="Inspect local service state and configuration. Read-only.",
                 parameters={"type":"object","properties":{
