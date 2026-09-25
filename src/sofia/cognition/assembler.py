@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from typing import Any
 
+from sofia.avatar.cognition import presentation_prompt
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -171,6 +172,14 @@ class CognitiveContextAssembler:
                 "and other component dimensions are separate design data."
             ),
         ]
+
+        if context.avatar_presentation is not None:
+            sections.extend(
+                [
+                    "",
+                    presentation_prompt(context.avatar_presentation),
+                ]
+            )
 
         if context.identity is not None:
             sections.extend(
