@@ -18,11 +18,11 @@ class ToolCatalog:
         capability_system: CapabilitySystem,
         *,
         repository_root: Path,
-        state_path: Path,
+        state_path: Path | str,
     ) -> None:
         self._system = capability_system
         self._root = repository_root
-        self._state_path = state_path
+        self._state_path = Path(state_path)
 
     def register(self) -> None:
         backend = create_system_backend()
