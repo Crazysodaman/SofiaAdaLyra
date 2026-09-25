@@ -1,8 +1,8 @@
-> **Project status update — 2026-09-24:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS Wave 1 foundations are merged to `main` via PR #99 (`f7356c3`). Dedicated package acceptance passed 11/11, cross-package acceptance passed 5/5, combined focused acceptance passed 16/16, and the full repository suite was reported passing on the integration branch. This is a merged Wave 1 foundation, not completion or live deployment of the four package roadmaps. 
+> **Project status update — 2026-09-25:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS planned Waves 1–5 source implementation is merged to `main` via PR #99 and PR #103 (`0cc067a`). The affected package trees passed `compileall`, the combined Waves 1–5 focused gate passed **60/60**, and the full repository pytest suite was reported passing on the convergence branch. This is repository/source acceptance, not proof of production remote NET transport, deployed multi-host orchestration, RUN 24/7 supervision, live failover, soak, or HA.
 
 # Sofía Ada Lyra | master readiness index
 
-**Updated:** 2026-09-24 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
+**Updated:** 2026-09-25 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
 
 ## Authoritative planning and acceptance documents
 
@@ -40,16 +40,16 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 | 5 | NET | Distributed foundations on `main`; narrow Discord private-DM transport live accepted | Broader DNS/TLS/redirect/remote-host enforcement; no general web. |
 | 6 | UI | Workbench prototype draft PR #6; Sparks-only Discord DM adapter live accepted for v1 transport | Keep Discord narrow while desktop/web/mobile/voice/renderer and proactive outbound remain separately gated. |
 | 7 | RUN | Periodic-opportunity candidate draft PR #3; no certified OS supervisor/24-7/HA | OS supervision and independent watchdog; safe standby startup, exclusive lease/fencing, ledger reconciliation, multi-day soak and measured host-failover proof. |
-| 8 | OPS | **Wave 1 fleet lifecycle, telemetry model and placement foundation merged via PR #99; existing read-only inspection foundations remain on `main`** | Trusted cross-platform enrollment/telemetry, measured capacity, maintenance and compatible workload relocation, failover/rollback, Sparks-only final machine-removal approval. |
+| 8 | OPS | **Planned Waves 1–5 source implementation merged via PRs #99/#103; compileall + 60/60 focused + full repository regression reported passing.** Includes trusted-enrollment evidence, telemetry/history, typed maintenance, workload migration, leases/fencing, failover/recovery policy and exact Sparks removal approval. | Live authenticated remote-agent telemetry and maintenance across real hosts, RUN supervisor integration, measured migration/failover/rollback, restore proof and soak. |
 | 9 | ACT | Unsent outbox/reflection foundations on `main`, outreach preflight draft PR #15 | One durable scheduler/outbox ledger, consent/quiet/stop and actual delivery receipt. |
 | 10 | REL | Overlapping absence/reunion candidates draft PRs #12/#13 | Reconcile one evidence-grounded, scoped and non-clingy relationship pipeline. |
 | 11 | AVATAR | Offline asset/tooling candidate draft PR #7 | Rig/renderer/hit-test/animation receipt and accessible text fallback. |
-| 12 | DEV | **Wave 1 bounded OpenCode/workspace/proposal foundation merged via PR #99** | Trusted OpenCode execution, scoped changes, tests and rollback; doc-grounded candidate tool creation. |
+| 12 | DEV | **Planned Waves 1–5 source implementation merged via PRs #99/#103.** Includes base-SHA/scope checks, detached worktree execution, reviewed patch application, targeted-test evidence, guarded rollback and separate commit/push authorization. | Live OpenCode execution on the intended host plus end-to-end KNOW→DEV→VERIFY candidate-tool acceptance; consequential publish/deploy/restart remains separately gated. |
 | 13 | BODY | Simulation-only candidate draft PR #16 | Real Gaia SSC-32/calibration and independently verified hardware emergency stop. |
 | 14 | EVOLVE | Protected amendment proposal preflight draft PR #19 | Reviewed independently authorized config/identity/Constitution changes; never self-approve. |
 | 15 | CLEAN | Inventory/protected-path preflight draft PR #14 | Recovery-first state preservation, safe cleanup migration and rollback. |
-| 16 | KNOW | **Wave 1 provenance document/fact model and registry merged via PR #99** | Real local/PDF/repo ingestion, source/version citations and privacy; scoped, reviewed documentation generation/upkeep. |
-| 17 | INTEGRATE | **Wave 1 typed adapter registry, authority gate and invocation receipts merged via PR #99** | Typed live service adapter, truthful registry, KNOW→DEV→SAFE/VERIFY→scoped activation→rollback proof. |
+| 16 | KNOW | **Planned Waves 1–5 source implementation merged via PRs #99/#103.** Local/repository ingestion, durable provenance, version/supersession/invalidation state and provenance-first retrieval are on `main`. | PDF/manual ingestion, richer semantic retrieval/citation ranges, audience/privacy integration and live documentation-authoring/upkeep acceptance. |
+| 17 | INTEGRATE | **Planned Waves 1–5 source implementation merged via PRs #99/#103.** Typed schemas, capability/side-effect policy, durable activation/receipts, duplicate-invocation protection and CapabilitySystem bridge are on `main`. | Canary one real service adapter, prove destination/account scope, live health/version behavior and rollback; then complete KNOW→DEV→SAFE/VERIFY→activation proof. |
 | Gate | SAFE | Authority/integrity foundations; disclosure preflight draft PR #18 | Real identity, secrets, revocation, independent stop, backups/restore, fencing and protected exact-device approvals. |
 | Gate | VERIFY | Active candidate draft PR #8; PR #10 superseded | Current-revision live negative/security and failure tests, integrated suite, restore, latency, RPO/RTO and soak evidence. |
 
@@ -62,6 +62,8 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 - **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance.
 
 ## Reconciliation notes
+
+- PR #103 merged on 2026-09-25 at `0cc067a`, integrating DEV/KNOW/INTEGRATE/OPS Waves 2–5 after 60/60 focused acceptance and a reported passing full repository suite. Source implementation is accepted; live NET/RUN deployment/failover claims remain open.
 
 - PR #1 merged on 2026-09-20; older documents still describing it as open are historical.
 - PR #2 merged on 2026-09-23 after Windows closure evidence: 97 focused, disposable real-Qwen four-turn pass, qualified repository 1665 passed / 2 skipped / 1 unrelated local test deselected, and final 60/60 closure audit.
