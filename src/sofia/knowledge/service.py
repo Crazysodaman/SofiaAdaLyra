@@ -23,11 +23,12 @@ class KnowledgeService:
         except ValueError as exc: raise PermissionError("knowledge path escapes authorized root") from exc
         return candidate
     @staticmethod
-    def _document_id(path:Path,digest:str)->str:
-        key=sha256((path.as_posix()+"\0"+digest).encode("utf-8")).hexdigest()[:20]
+    def _document_id(path:Path,digest:str,version:str)->str:
+        if not isinstance(version,str) or not version.strip(): raise ValueError("knowledge source version required")
+        key=sha256((path.as_posix()+"\0"+version+"\0"+digest).encode("utf-8")).hexdigest()[:20]
         return f"doc-{key}"
     def _record_text(self,path:Path,text:str,raw:bytes,source_kind:SourceKind,version:str,*,page:int|None=None)->KnowledgeDocument:
-        digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest)
+        digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest,version)
         existing=self.store.document(document_id)
         if existing is not None:
             return existing
