@@ -64,6 +64,9 @@ def create_default_configuration() -> SofiaConfiguration:
         "ollama.models",
         "ollama.running",
         "ollama.model.show",
+        "sqlite.state.tables",
+        "sqlite.state.query",
+        "sqlite.state.integrity",
         *extra_capabilities,
     )))
 
