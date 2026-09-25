@@ -48,7 +48,7 @@ def test_isolated_build_does_not_touch_real_workspace(tmp_path:Path,monkeypatch)
 def test_apply_commit_and_push_have_separate_authority(tmp_path:Path):
     root,sha=_repo(tmp_path); flow=EngineeringWorkflow(root)
     patch='diff --git a/src/allowed.py b/src/allowed.py\nindex 4903f36..7e03b80 100644\n--- a/src/allowed.py\n+++ b/src/allowed.py\n@@ -1 +1 @@\n-VALUE = 1\n+VALUE = 2\n'
-    candidate=EngineeringCandidate("p",sha,patch,("src/allowed.py",),True)
+    candidate=EngineeringCandidate("p",sha,patch,("src/allowed.py",),("src/allowed.py",),True)
     with pytest.raises(PermissionError): flow.apply(candidate,authorized=False)
     changed=flow.apply(candidate,authorized=True)
     assert "src/allowed.py" in changed
@@ -59,5 +59,5 @@ def test_apply_commit_and_push_have_separate_authority(tmp_path:Path):
 
 def test_candidate_apply_refuses_stale_base(tmp_path:Path):
     root,sha=_repo(tmp_path); flow=EngineeringWorkflow(root)
-    candidate=EngineeringCandidate("p","0"*40,"",(),True)
+    candidate=EngineeringCandidate("p","0"*40,"",(),("src/allowed.py",),True)
     with pytest.raises(Exception): flow.apply(candidate,authorized=True)
