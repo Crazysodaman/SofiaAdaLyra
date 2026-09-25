@@ -38,6 +38,7 @@ def create_default_configuration() -> SofiaConfiguration:
         "storage.usage",
         "knowledge.search",
         "knowledge.document",
+        "dev.status",
         *extra_capabilities,
     )))
 
