@@ -1,5 +1,14 @@
 # PKG-INTERACT: finite closure gates
 
+## Final hardening acceptance and integration (2026-09-24)
+
+- Sparks reported the unqualified full repository test suite passed with no deselections after the Ollama context contract fix.
+- The post-merge hardening review found no remaining blocking technical defect.
+- Hardening integration PR #29 was merged/closed into `main` at `f0221a36d619074aaebdb900ea240166b9c98f1d`.
+- PKG-INTERACT hardening is accepted complete for its current package boundary. Staged offers remain disabled by default and production schema provisioning remains separately reviewed.
+- Future SOCIAL/MEM/RUN/AVATAR/UI/BODY work does not reopen this gate unless it regresses accepted INTERACT behavior.
+
+
 ## Reopened after live conversational acceptance probe (2026-09-23)
 
 The earlier structural closure is **suspended**. A real `python -m sofia` conversation exposed behavioral failures that the prior focused/unit coverage did not certify:
