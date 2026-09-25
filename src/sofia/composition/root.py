@@ -30,6 +30,7 @@ from sofia.embodiment.store import AvatarStore
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
+from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability
@@ -259,6 +260,16 @@ def compose(
         handler=hardware_capability.execute,
     )
 
+    integration_tools = create_configured_integration_tools(
+        filesystem_root=configuration.filesystem_root,
+        state_path=configuration.state_path,
+    )
+    for registration in integration_tools:
+        capability_system.register(
+            capability=registration.capability,
+            handler=registration.handler,
+        )
+
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
     )
@@ -270,6 +281,7 @@ def compose(
                 configuration.filesystem_root
             )
             + create_system_tool_bindings()
+            + tuple(registration.binding for registration in integration_tools)
         ),
     )
 
