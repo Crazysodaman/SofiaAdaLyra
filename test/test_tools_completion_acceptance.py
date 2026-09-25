@@ -20,9 +20,13 @@ from sofia.integrations.local_maintenance import LocalCommandResult,LocalMainten
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.integrations.sqlite import SQLiteReadAdapter
+from sofia.integrations.storage import StorageAdapter
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
+from sofia.filesystem.change_capability import FilesystemChangesCapability
+from sofia.filesystem.observation import FilesystemObservationStore
+from sofia.capability.model import CapabilityRequest
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
 
@@ -305,3 +309,62 @@ def test_local_reboot_is_fixed_platform_command():
     adapter.system="Linux"
     adapter.reboot()
     assert calls==[("systemctl","reboot")]
+
+
+def test_filesystem_change_tool_ignores_runtime_state_directory(tmp_path):
+    state_dir=tmp_path/"state"; state_dir.mkdir()
+    state_path=state_dir/"sofia.db"
+    store=FilesystemObservationStore(state_path)
+    capability=FilesystemChangesCapability(tmp_path,store)
+    first=capability.execute(CapabilityRequest(
+        capability=capability.capability,parameters={},requested_scope=None,rationale="baseline"))
+    assert first["baseline_available"] is False
+    (tmp_path/"source.txt").write_text("one",encoding="utf-8")
+    second=capability.execute(CapabilityRequest(
+        capability=capability.capability,parameters={},requested_scope=None,rationale="delta"))
+    assert second["total_changes"]==1
+    assert second["new"][0]["path"]=="source.txt"
+    third=capability.execute(CapabilityRequest(
+        capability=capability.capability,parameters={},requested_scope=None,rationale="stable"))
+    assert third["total_changes"]==0
+    store.close()
+
+
+def test_storage_adapter_is_root_confined_and_supports_bounded_management(tmp_path):
+    root=tmp_path/"nas"; root.mkdir()
+    storage=StorageAdapter((root,))
+    assert storage.roots_info()[0]["index"]==0
+    storage.mkdir(0,"docs")
+    storage.write_text(0,"docs/a.txt","hello")
+    assert storage.read_text(0,"docs/a.txt")=="hello"
+    storage.copy(0,"docs/a.txt","docs/b.txt")
+    storage.move(0,"docs/b.txt","docs/c.txt")
+    assert {x["name"] for x in storage.list(0,"docs")}=={"a.txt","c.txt"}
+    storage.delete(0,"docs/c.txt")
+    with pytest.raises(PermissionError):
+        storage.write_text(0,"../escape.txt","nope")
+
+
+def test_sqlite_management_is_specific_not_arbitrary_write(tmp_path):
+    db=tmp_path/"state.db"
+    with sqlite3.connect(db) as connection:
+        connection.execute("CREATE TABLE example(value TEXT)")
+        connection.execute("INSERT INTO example VALUES ('x')")
+    adapter=SQLiteReadAdapter(db)
+    assert adapter.integrity_check()==("ok",)
+    backup=adapter.backup()
+    assert Path(backup["destination"]).exists()
+    checkpoint=adapter.wal_checkpoint("PASSIVE")
+    assert len(checkpoint)==3
+    assert adapter.vacuum()["vacuumed"] is True
+    with pytest.raises(PermissionError):
+        adapter.query("UPDATE example SET value='y'")
+
+
+def test_notification_tool_is_registered_only_when_ha_notify_service_configured(tmp_path,monkeypatch):
+    monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL","http://ha.local")
+    monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN","token")
+    monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE","mobile_app_sparks")
+    names={x.capability.name for x in create_configured_integration_tools(
+        filesystem_root=tmp_path,state_path=tmp_path/"sofia.db")}
+    assert "notification.send" in names
