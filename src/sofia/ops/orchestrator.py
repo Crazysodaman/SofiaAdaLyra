@@ -34,6 +34,9 @@ class WorkloadOrchestrator:
 
     def migrate(self,plan:MigrationPlan,backend:WorkloadBackend,*,now:datetime,lease_ttl:timedelta)->MigrationReceipt:
         workload_id=plan.workload.contract.workload_id
+        current=self.leases.current(workload_id)
+        if current is None or current.holder_host_id!=plan.source_host_id or not current.active(now):
+            raise MigrationExecutionError("source does not hold a current workload authority lease")
         checkpoint_id=None; events=[]; target_started=False; source_fenced=False
         try:
             backend.drain(workload_id,plan.source_host_id); events.append("source_drained")
