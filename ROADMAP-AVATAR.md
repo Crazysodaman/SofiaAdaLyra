@@ -2,7 +2,7 @@
 
 # Sofía Ada Lyra: PKG-AVATAR delivery roadmap
 
-**Updated 2026-09-23. Status:** proposed package in draft PR #4 with implementation candidates in draft PR #7; not merged or deployed. The ordered 16-package project roster now lives in [ROADMAP.md](ROADMAP.md). AVATAR is package 10 in the ordered readiness plan, while UI owns presentation/transport and INTERACT owns interaction semantics.
+**Reconciled 2026-09-25. Status:** AVATAR remains an unmerged package candidate in stale draft PR #7; rebuild it from current `main` rather than merging the old branch directly. The authoritative project roster is now the **19-package** [ROADMAP.md](ROADMAP.md). AVATAR is package 11 there, while UI owns presentation/transport and INTERACT owns interaction semantics. Current presentation direction includes mutable wardrobe, hairstyle, hair color and tail color; emotion may influence presentation but must not control it or override established preferences, privacy, renderer truthfulness or authority.
 
 ## Ownership boundary
 
