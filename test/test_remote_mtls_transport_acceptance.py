@@ -14,6 +14,8 @@ from cryptography.x509.oid import ExtendedKeyUsageOID,NameOID
 
 from sofia.distributed.agent import RemoteAgentConfig,RemoteAgentDispatcher,RemoteAgentServer
 from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
+from sofia.distributed.capability import RemoteFleetToolService
+from sofia.distributed.operator import enroll_node,approve_endpoint,grant_operation,retire_node
 from sofia.distributed.identity import NodeEnrollment
 from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
 from sofia.distributed.operations import RemoteOperationRequest,RemoteOutcome
@@ -160,3 +162,34 @@ def test_transport_rejects_server_key_not_matching_enrollment_pin(tmp_path:Path)
         assert transport.authenticate(enrollment) is False
     finally:
         server.close(); thread.join(timeout=2)
+
+
+def test_operator_provisions_exact_node_endpoint_grant_and_retirement(tmp_path:Path):
+    ca_key,ca_cert,ca_path=_ca(tmp_path)
+    server_cert,server_key=_leaf(tmp_path,ca_key,ca_cert,"localhost","server")
+    client_cert,client_key=_leaf(tmp_path,ca_key,ca_cert,"controller","client")
+    state_path=tmp_path/"sofia.db"; state_path.touch()
+    node_id=uuid4()
+    enroll_node(state_path,node_id=node_id,name="venus",server_certificate=server_cert)
+    approve_endpoint(state_path,node_id=node_id,hostname="localhost",port=7443)
+    grant=grant_operation(state_path,node_id=node_id,capability="system.inspect",operation="system",hours=1)
+    service=RemoteFleetToolService(
+        state_path,ca_file=ca_path,client_certificate=client_cert,client_private_key=client_key
+    )
+    try:
+        nodes=service.nodes()
+        assert len(nodes)==1
+        assert nodes[0]["node_id"]==str(node_id)
+        assert nodes[0]["endpoint"]["hostname"]=="localhost"
+        assert nodes[0]["authorized_operations"][0]["capability"]=="system.inspect"
+        assert nodes[0]["authorized_operations"][0]["operation"]=="system"
+    finally:
+        service.close()
+    retire_node(state_path,node_id)
+    service=RemoteFleetToolService(
+        state_path,ca_file=ca_path,client_certificate=client_cert,client_private_key=client_key
+    )
+    try:
+        assert service.nodes()==()
+    finally:
+        service.close()
