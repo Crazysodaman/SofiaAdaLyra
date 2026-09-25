@@ -37,6 +37,7 @@ def create_default_configuration() -> SofiaConfiguration:
         "network.inspect",
         "service.inspect",
         "hardware.inspect",
+        "storage.roots",
         "storage.usage",
         "knowledge.search",
         "knowledge.document",
