@@ -200,7 +200,11 @@ def test_readiness_timeout_stops_process_and_enters_backoff(state):
         FakeBackend(),
         policy,
     )
-    lease = store.acquire(owner_id="local-supervisor", now=START).lease
+    lease = store.acquire(
+        owner_id="local-supervisor",
+        now=START,
+        ttl_seconds=300,
+    ).lease
     assert supervisor.reconcile(lease, now=START).action == "started"
 
     waiting = supervisor.reconcile(
