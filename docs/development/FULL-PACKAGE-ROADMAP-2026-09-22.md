@@ -62,7 +62,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 05. PKG-NET | authenticated and scoped transport
 
-- **Current:** merged distributed-operation foundations; the narrow private-DM Discord transport path now has supervised live acceptance. Broader trusted transport, DNS/TLS/redirect enforcement and Artemis host acceptance remain.
+- **Current:** durable distributed-operation foundations plus a pinned mutual-TLS remote agent/transport are on `main` via PR #104. CA validation, server public-key pinning, durable node enrollment, exact endpoint approval, exact operation grants and replay protection are repository accepted. The narrow private-DM Discord path remains live accepted; real Windows/Linux/Pi agent deployment and outage/revocation acceptance remain.
 - **Build:** Discord-only initial network paths, peer authentication, target allowlists, bounded retries/backpressure, remote host/agent transport and verified network evidence. Separate any later web/search permission from Discord connectivity. Transport access never equals application/action authority.
 - **Depends on:** SAFE/SOCIAL/VERIFY; UI for Discord, OPS for enrolled host operations.
 - **Exit:** real authenticated Discord route and remote-host negative tests for wrong destination, DNS/redirect bypass, stale peers, replay and revoked grants; no general search/browsing grant.
@@ -83,7 +83,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 08. PKG-OPS | fleet telemetry, placement and maintenance
 
-- **Current:** planned Waves 1–5 source implementation is merged via PRs #99/#103. Fleet lifecycle/placement, telemetry/history bridges, authenticated enrollment evidence, typed maintenance, workload migration, leases/fencing, guarded failover, recovery/update rings and exact Sparks removal approval are on `main`. Production remote agent/transport, real-host orchestration and soak/failover proof remain open.
+- **Current:** Waves 1–5 plus toolbox/fleet-transport source completion are merged via PRs #99/#103/#104. Fleet lifecycle/placement, machine/system telemetry, machine inventory cognition, fleet status/telemetry, placement/drift/migration planning, typed local/remote maintenance and the pinned mTLS remote agent/transport are repository accepted. Real heterogeneous-host deployment, workload execution, RUN integration and soak/failover proof remain open.
 - **Build:** scoped Windows/Linux/Pi discovery, attested enrollment and signed agent, truthful CPU/GPU/VRAM/RAM/disk/network/thermal/service/VM/container history; capacity and failure-domain graph, workload contracts, reservations, bounded upkeep, patch windows, UPS/power, maintenance/drain/quarantine, eligible workload placement/move/recovery, backup/replication and primary/standby placement observation. Preserve gaming priority and unknown metrics as unknown.
 - **Depends on:** NET/SAFE/VERIFY, RUN for managed processes/failover, MEM for state lineage, ACT for meaningful notices.
 - **Exit:** real heterogeneous hosts enrolled under policy, spoofed/revoked devices denied, measured load-driven workload move and service recovery verified, dependency-safe drain/failover/rollback proven; final machine decommission remains blocked pending **Sparks' explicit exact-device approval**. No arbitrary process teleportation.
@@ -111,7 +111,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 12. PKG-DEV | engineering, code changes and candidate tools
 
-- **Current:** planned Waves 1–5 source implementation is merged via PRs #99/#103. Exact SHA/scope checks, detached worktrees, test evidence, candidate patch review, guarded rollback and separately authorized apply/commit/push are on `main`; live OpenCode host/self-tooling acceptance remains.
+- **Current:** Waves 1–5 plus cognition-wired DEV status/build/apply/rollback/commit/push tooling are on `main` via PR #104. Exact SHA/scope checks, detached worktrees, test evidence, candidate patch review and separate mutating grants remain intact; live OpenCode host/self-tooling acceptance remains.
 - **Build:** source/revision inspection, diagnosis/proposal, protected-path review, minimum-scope code edits, OpenCode sandbox, generated tests, diff/review, bounded approved execution and rollback; collaborate with KNOW to read versioned API docs and INTEGRATE to produce adapter candidates. Also draft/update source-backed technical documentation under scoped write/publish authority.
 - **Depends on:** KNOW/INTEGRATE, SAFE/VERIFY, CORE; OPS/RUN for approved host execution.
 - **Exit:** real doc→typed tool→sandbox tests→authority classification→policy/approval→canary→receipts→rollback, including denial of unauthorized writes; no tool self-grants authority or modifies protected Constitution autonomously.
@@ -139,15 +139,15 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 16. PKG-KNOW | reading, writing and source-grounded documents
 
-- **Current:** planned Waves 1–5 source implementation is merged via PRs #99/#103. Local/repository ingestion, durable provenance, lifecycle invalidation/supersession and provenance-first retrieval are on `main`; PDF/manual, richer semantic/citation and audience/privacy acceptance remain.
+- **Current:** Waves 1–5 plus PDF/manual ingestion, cognition-wired provenance search/document inspection, version-aware source identities and bounded project-document writing are on `main` via PR #104. Richer semantic/citation and audience/privacy acceptance remain.
 - **Build:** authorized Markdown/text/PDF/manual/schema/repo ingestion, original/source/version/date/citation and staleness tracking; exact and semantic retrieval, conflict/correction/privacy handling; source-backed README, API docs, runbooks, architecture diagrams, changelogs and maintenance docs with tested examples and reviewable diffs. Document instructions never confer execution authority.
 - **Depends on:** MEM/SOCIAL/SAFE for scope, DEV for code-aware edits, INTEGRATE for adapter contracts, OPS for observed runbooks, VERIFY for factual/example checks.
 - **Exit:** ingest/cite multiple revisions, reject invented facts, create and update a real doc with verifiable references, deny secret/private publication, flag stale docs and preserve rollback. Local docs work precedes web; web material enters only after general-web gate.
 
 ### 17. PKG-INTEGRATE | typed app/service adapters and self-tooling
 
-- **Current:** planned Waves 1–5 source implementation is merged via PRs #99/#103. Typed schemas, policy, durable activation/receipts, duplicate protection and CapabilitySystem bridging are on `main`; real service canary/health/version/rollback and full self-tooling activation acceptance remain.
-- **Build:** least-privilege typed adapters for approved Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Cloudflare, Ollama, databases/NAS and notifications; schema, service/version, side effects, host/account/audience, exact grants, timeouts/idempotency, receipts, canary/rollback and health. Tool factory: identify gap → KNOW docs → DEV candidate → SAFE review → VERIFY tests → scoped activation → observed maintenance.
+- **Current:** Waves 1–5 plus concrete cognition-wired adapters are on `main` via PR #104: Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, storage/NAS, notifications and Discord operator controls. Real service canary/health/version/rollback and full self-tooling activation acceptance remain.
+- **Build:** least-privilege typed adapters for approved Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Ollama, databases/NAS and notifications; schema, service/version, side effects, host/account/audience, exact grants, timeouts/idempotency, receipts, canary/rollback and health. **Cloudflare is deferred until Sparks explicitly requests it.** Tool factory: identify gap → KNOW docs → DEV candidate → SAFE review → VERIFY tests → scoped activation → observed maintenance.
 - **Depends on:** NET/SAFE, KNOW/DEV, OPS/RUN for hosts, VERIFY, SOCIAL/MEM privacy.
 - **Exit:** register and use one real authorized read-only adapter, deny wrong host/account, generate and canary a doc-grounded candidate, refuse self-authorization, rollback incompatible tool and show truthful availability. Do not expose all backend capabilities to LLM simply because code exists.
 
