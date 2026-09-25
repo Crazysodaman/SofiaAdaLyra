@@ -2,21 +2,23 @@
 
 **Branch:** `feature/pkg-discord`  
 **Base:** current `main` after the INTERACT merge  
-**Status:** offline implementation only. No Discord client, bot token, network access, or platform send is enabled.
+**Status:** v1 transport accepted live on 2026-09-24 and ready for merge. The supported scope is one explicitly provisioned, Sparks-only private DM channel using the shared Sofía runtime. General web/search, guilds, multi-user access, and proactive outbound initiative remain outside this package.
 
-## Verified local evidence
+## Verified acceptance evidence
 
-On the Windows development checkout, the first durable-ingress/bridge slice was executed successfully:
+Revision-pinned evidence accumulated across the package build and final live repair:
 
-- Discord-focused gate: **43 passed in 4.59s**.
-- First durable-ingress/bridge full suite: **1710 passed, 2 skipped in 2511.53s**.
-- Channel/session-binding + outbound-gate focused suite: **54 passed in 7.50s**.
-- Channel/session-binding + outbound-gate full suite: **1721 passed, 2 skipped in 2502.06s**.
-- No regression was observed in either validated revision.
-- Crash-aware delivery + `discord.py` adapter focused suite: **62 passed in 16.89s**.
-- The subsequent full repository suite on that adapter revision was reported **PASS** locally after installing `discord.py==2.7.1`; the exact final count was not captured in the chat transcript.
+- First durable-ingress/bridge focused gate: **43 passed**; full suite at that slice: **1710 passed, 2 skipped**.
+- Channel/session binding + outbound gate focused gate: **54 passed**; full suite at that slice: **1721 passed, 2 skipped**.
+- Crash-aware delivery + `discord.py` adapter focused gate: **62 passed**; the subsequent repository suite was reported PASS locally, although the exact count was not retained.
+- Final Discord-focused gate after live startup and SQLite thread-affinity repairs: **88 passed, 1670 deselected**.
+- Conversation + persistent-memory worker-thread repair gate: **28 passed**.
+- Supervised live acceptance verified: static-token login, Discord Gateway connection, exact configured bot identity, exact private DM resolution, durable enrollment, authenticated owner DM ingress, one shared Sofía response, and one visible Discord reply.
+- The first live message exposed a real SQLite thread-affinity failure. The failed message was conservatively quarantined as `outcome_unknown`; ConversationStore and persistent MemoryStore were hardened for serialized cross-thread use and the live retry succeeded.
+- A deliberately wrong pre-provisioned DM channel was revoked and not reused. First enrollment of the corrected channel occurred only after authenticated Discord identity/channel verification.
+- No bot token or exact production Discord account/channel identifiers are stored in this document.
 
-The newer supervised provisioning, foreground lifecycle, reconnect recovery, and hard-crash quarantine slice was committed after that pass and still requires focused and full-suite execution on the exact current branch revision.
+Current-head package acceptance relies on the focused gates plus supervised live evidence above. A new repository-wide full-suite run after the final thread-safety repair is not claimed here and belongs to the next integrated verification gate.
 
 ## Implemented
 
@@ -41,12 +43,13 @@ The newer supervised provisioning, foreground lifecycle, reconnect recovery, and
 - A reply prepared before pause remains stale after resume; resume does not resurrect old queued speech.
 - `DiscordIngress` remains the trusted-adapter boundary. A future live adapter must authenticate the gateway/library event before setting `authenticated_source=True`.
 
-## Intentionally not implemented yet
+## Intentionally outside v1 transport scope
 
-- Live bot token provisioning, Gateway connection, supervised real-DM acceptance, and deployment lifecycle wiring.
-- Automated reconciliation of an `outcome_unknown` chunk with Discord history. Unknown delivery is intentionally quarantined rather than guessed or resent.
-- Owner DM text commands for pause/resume/status. Current pause/revoke state is supervised host-owned state, not inferred from arbitrary chat text.
-- Proactive DMs, guilds, attachments, links, voice, slash commands, reactions, or multi-user access.
+- Automated reconciliation of an `outcome_unknown` generation or delivery with Discord history. Ambiguous outcomes remain quarantined rather than guessed or replayed.
+- Chat-text administration. Pause/resume/revoke/status remain host-side operator controls instead of model- or message-driven authority.
+- Proactive DMs, guilds, attachments, voice, slash commands, reactions, or multi-user access.
+- Authenticated-principal projection into cognition. Discord proves the exact owner account at the transport boundary, but PKG-SOCIAL owns projecting that principal as `Sparks` into shared cognitive context.
+- Generic conversational/personality quality. The live channel exposed a canned-assistant regression; that is tracked by a new INTERACT/CORE quality-repair gate rather than patched inside Discord.
 - General Internet/search capability.
 
 ## Current live-adapter slice
@@ -102,6 +105,15 @@ python -m sofia.discord reenroll
 
 These controls require the exact owner, bot, and DM-channel ID environment variables so they cannot select a binding by display name. `status` reports the durable binding state, conversation session, binding generation, pending outbox count, and counts of quarantined generation/delivery outcomes without printing message content. `revoke` is persistent and cannot be undone with `resume`; `reenroll` is the separate supervised action that reactivates the exact same enrolled owner/channel/session with a new binding generation.
 
-## Next engineering slice after current tests
+## Closure and handoff
 
-Run the expanded offline/fake-client acceptance gate for provisioning, restart recovery, lifecycle cleanup, and adapter behavior. If green, perform one supervised real owner-DM acceptance: connect the exact bot identity, verify the exact DM channel, send one owner DM, receive one Sofía reply, verify the Discord message receipt in SQLite, exercise pause/revoke, restart the process, and verify conversation continuity. After a final full regression pass, PKG-DISCORD v1 is ready to merge. Automated resolution of genuinely ambiguous provider outcomes remains deliberately manual/fail-closed rather than inventing delivery certainty.
+PKG-DISCORD v1 transport is closed for the accepted scope and may merge to `main`.
+
+Post-merge work is deliberately split by ownership:
+
+1. **INTERACT/CORE quality repair:** remove generic/canned assistant fallback while preserving grounding, embodiment, and non-repetitive natural voice.
+2. **SOCIAL minimum principal projection:** map the independently authenticated owner principal into shared Sofía cognitive context so identity-aware questions do not fall back to generic privacy boilerplate.
+3. **RUN/OPS deployment:** move from supervised foreground execution to the separately gated 24/7 service/watchdog/fleet architecture.
+4. **VERIFY:** rerun integrated full-suite/live checks against the merged revision as downstream packages advance.
+
+Discord remains a transport adapter to the canonical Sofía runtime, never a second identity, personality, memory system, or authority source.
