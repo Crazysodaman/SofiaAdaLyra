@@ -1,0 +1,25 @@
+# INTERACT live quality repair: evidence and verification
+
+Status: **candidate implementation; Windows, new A/B and live acceptance pending on the current code SHA.** This document supplements [the live CLI review](pkg-interact-live-cli-review.md) and [the bounded context repair with real A/B evidence](pkg-interact-conversation-projection-repair.md). The real supervised CLI at `412dc32` failed natural character responses despite 264 coordinated test passes. Exact stop/resume, stopped touch/hug, and compound nonexecution had acceptable **text** outputs, not independently audited ledger or renderer effects.
+
+## Source-backed repairs
+
+The legacy `EmotionalJournal.record_user_cue` automatically assigned `(affection, appreciation, playfulness)` when a user sent a narrow pat/praise cue. A user's gesture is **not evidence of Sofía's reaction**. The live `ExpandedConversationService` now prevents these auto-reactions; older event records remain stored but identifiable auto-labels and contaminated reflection summaries are excluded from provider-bound SYSTEM context. No database is deleted, reset, migrated, or rewritten by the projection filter. The social-action prompt clarifies offer versus described contact; personality guidance discourages repetitive gesture interrogation and requests a discriminating diagnostic check, including `sc.exe` rather than PowerShell's `sc` alias.
+
+Sparks then ran the synthetic A/B test against `qwen3:14b`, thinking disabled, context window 20,000. A was approximately **3,300 characters**, B's original complete static context was **72,318–74,443 characters**. Both produced some generic or incorrectly grounded answers, including physical-body disclaimers. The posted log ends **before technical B's reply**. This establishes that both model behavior and prompt construction require investigation; it does not isolate a single cause or prove any version successful.
+
+The latest candidate wires `ConversationalContextAssembler` for Ollama. It retains the protected Constitution on disk and runtime verification, canonical self-state, personality and user request, while replacing its *verbatim* provider projection with a bounded operational reference for long-document, tool-free ordinary chat. Explicit constitutional questions, tool-bearing operations and short constitutional documents still use full text. The A/B probe's B arm now uses this new bounded static path, not the former full static path. Its result will be a **new** comparison, never a replay of prior B. A compact projection is not exhaustive constitutional enforcement or deterministic conversational quality.
+
+## Tests and acceptance
+
+**Reported Windows evidence:** `23fe17d` passed **26 focused tests in 6.59 s** and **274 coordinated interaction/application tests in 93.68 s**. That predates the bounded-context code. No new Windows pass, complete suite or supervised live quality acceptance has been reported for the current candidate.
+
+1. Close Sofía. Preserve modified `state/sofia.db`, untracked timestamped backup and local edit to `test/test_ollama_generation_contract.py`; fast-forward pull feature branch only. Do not reset or clean.
+2. Run `python -m pytest -q -x test/test_conversational_context_projection.py test/test_interaction_ab_probe.py test/test_interaction_context_hygiene.py test/test_interaction_expanded_service.py test/test_interaction_live_discussion.py`, followed by the current-SHA coordinated interaction/application suite. Capture the first traceback if either fails.
+3. Run `python -m sofia.interaction.ab_probe` with Ollama available. Compare each pair for short, grounded, distinct character replies, offered-versus-described action, absence of invented preferences/history/physical sensations, and a first discriminating Windows service diagnostic. This makes model calls but does not open production SQLite or use real user conversation history. It is not full live context.
+4. Repeat a **fresh supervised multi-turn `python -m sofia`** transcript including pat, offered/described hug, stop and denied gestures, resume, hypothetical, compound action, and technical diagnosis. Normal live conversation writes to the existing DB; do not reset it for testing. Inspect stored evidence read-only where needed.
+5. Only after live approval: full `pytest -q` at pinned code SHA; CORE/SAFE review of the shorter projection and continuing unbounded history risk; privacy, security and migration review using copies; then a separate explicit PR merge decision. PR #2 remains draft; `main`, other branches, production DB and backup are untouched by these GitHub commits.
+
+## Remaining limits
+
+No autonomy/delivery, Discord transport, voice/renderer playback, global stop, transactional boundary enforcement, automatic reviewed preferences or guaranteed model quality is implemented by this repair. ConversationService still forwards the entire active session, so history budgeting remains open. No raw prompt logging, external notifications or background worker has been enabled.
