@@ -1,5 +1,7 @@
-﻿from dataclasses import dataclass
+﻿from dataclasses import asdict,dataclass,is_dataclass
 from pathlib import Path
+from enum import Enum
+import json
 from typing import Any
 
 from sofia.authority.model import Authority
@@ -250,10 +252,34 @@ class CognitiveToolDispatcher:
 
             else:
                 lines.append(
-                    str(evidence)
+                    CognitiveToolDispatcher._format_generic_evidence(
+                        evidence
+                    )
                 )
 
         return "\n".join(lines)
+
+
+    @staticmethod
+    def _format_generic_evidence(value: Any) -> str:
+        def normalize(item):
+            if is_dataclass(item):
+                return normalize(asdict(item))
+            if isinstance(item, Enum):
+                return item.value
+            if isinstance(item, Path):
+                return str(item)
+            if isinstance(item, dict):
+                return {str(k): normalize(v) for k,v in item.items()}
+            if isinstance(item, (tuple,list,set,frozenset)):
+                return [normalize(v) for v in item]
+            if item is None or isinstance(item,(str,int,float,bool)):
+                return item
+            return str(item)
+        try:
+            return json.dumps(normalize(value),ensure_ascii=False,sort_keys=True,indent=2)
+        except (TypeError,ValueError):
+            return str(value)
 
     @staticmethod
     def _format_filesystem_result(
@@ -406,5 +432,60 @@ def create_default_tool_bindings(
             ),
             capability_name="codebase.inspect",
             requested_scope=root,
+        ),
+    )
+
+def create_system_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
+    """Read-only local system tools. Authority still controls exposure."""
+    return (
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_processes",
+                description="Inspect local running processes. Read-only.",
+                parameters={"type":"object","properties":{
+                    "pid":{"type":"integer"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="process.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_system",
+                description="Inspect the local operating system, host identity and uptime. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="system.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_network",
+                description="Inspect local network interfaces, routes and DNS. Read-only.",
+                parameters={"type":"object","properties":{
+                    "interface":{"type":"string"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="network.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_hardware",
+                description="Inspect local CPU, GPU, memory, storage, network adapters and virtualization hardware. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="hardware.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_services",
+                description="Inspect local service state and configuration. Read-only.",
+                parameters={"type":"object","properties":{
+                    "name":{"type":"string"},
+                    "state":{"type":"string"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="service.inspect",
         ),
     )

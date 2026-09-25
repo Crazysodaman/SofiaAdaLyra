@@ -529,7 +529,13 @@ class SofiaRuntime:
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
             ),
-            authority=Authority(),
+            authority=Authority(
+                can_inspect_filesystem=(
+                    self._filesystem_authorization is not None
+                    and self._filesystem_inspector.authorized
+                ),
+                allowed_capabilities=self._configuration.standing_allowed_capabilities,
+            ),
         )
 
         return self._cognitive_system.respond(

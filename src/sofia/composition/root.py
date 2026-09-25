@@ -8,6 +8,7 @@ from sofia.authorization.model import (
     FilesystemAuthorizationOperation,
 )
 from sofia.capability.gateway import CapabilityGateway
+from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
@@ -21,19 +22,31 @@ from sofia.cognition.test_engine import TestCognitiveEngine
 from sofia.cognition.tools import (
     CognitiveToolDispatcher,
     create_default_tool_bindings,
+    create_system_tool_bindings,
 )
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.distributed.capability import create_configured_remote_fleet_tools
+from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
+from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
+from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.store import MemoryStore
+from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
+from sofia.knowledge.lifecycle import KnowledgeLifecycle
+from sofia.knowledge.persistence import JsonKnowledgeStore
+from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
+from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
+from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.system.capability import create_local_system_capabilities
 
 
 def _create_cognitive_engine(configuration: SofiaConfiguration):
@@ -74,6 +87,9 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
 def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
+    state_path = Path(configuration.state_path)
+    filesystem_root = Path(configuration.filesystem_root)
+
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
     )
@@ -110,8 +126,45 @@ def compose(
         configuration.state_path
     )
 
+    knowledge_store = JsonKnowledgeStore(
+        state_path.parent / "knowledge.json"
+    )
+    knowledge_lifecycle = KnowledgeLifecycle(
+        state_path.parent / "knowledge-lifecycle.json"
+    )
+    knowledge_service = KnowledgeService(
+        filesystem_root,
+        knowledge_store,
+        knowledge_lifecycle,
+    )
+    knowledge_capabilities = KnowledgeCapabilitySet(
+        knowledge_service
+    )
+
+    dev_service = DevToolService(
+        filesystem_root,
+        state_path,
+    )
+    dev_capabilities = DevCapabilitySet(
+        dev_service
+    )
+
+    machine_service = MachineToolService(
+        state_path
+    )
+    machine_capabilities = MachineCapabilitySet(
+        machine_service
+    )
+
+    ops_service = OpsToolService(
+        state_path
+    )
+    ops_capabilities = OpsCapabilitySet(
+        ops_service
+    )
+
     codebase_inspector = CodebaseInspector(
-        root=configuration.filesystem_root,
+        root=filesystem_root,
     )
 
     codebase_capability = CodebaseCapability(
@@ -134,6 +187,10 @@ def compose(
     filesystem_capability = FilesystemCapability(
         inspector_provider=filesystem_inspector_provider,
     )
+    filesystem_changes_capability = FilesystemChangesCapability(
+        filesystem_root,
+        filesystem_observation_store,
+    )
 
     def capability_authorized(
         request,
@@ -142,6 +199,9 @@ def compose(
 
         if runtime is None:
             return False
+
+        if request.capability.name != "filesystem.inspect":
+            return request.capability.name in configuration.standing_allowed_capabilities
 
         authorization = runtime.filesystem_authorization
 
@@ -161,7 +221,7 @@ def compose(
             return False
 
         configured_root = (
-            configuration.filesystem_root.resolve()
+            filesystem_root.resolve()
         )
 
         if (
@@ -240,6 +300,73 @@ def compose(
         capability=filesystem_capability.capability,
         handler=filesystem_capability.execute,
     )
+    capability_system.register(
+        capability=filesystem_changes_capability.capability,
+        handler=filesystem_changes_capability.execute,
+    )
+
+    for system_capability in create_local_system_capabilities():
+        capability_system.register(
+            capability=system_capability.capability,
+            handler=system_capability.execute,
+        )
+
+    hardware_capability = HardwareInspectionCapability()
+    capability_system.register(
+        capability=hardware_capability.capability,
+        handler=hardware_capability.execute,
+    )
+
+    for knowledge_capability in knowledge_capabilities.capabilities():
+        capability_system.register(
+            capability=knowledge_capability,
+            handler=knowledge_capabilities.execute,
+        )
+
+    for dev_capability in dev_capabilities.capabilities():
+        capability_system.register(
+            capability=dev_capability,
+            handler=dev_capabilities.execute,
+        )
+
+    for machine_capability in machine_capabilities.capabilities():
+        capability_system.register(
+            capability=machine_capability,
+            handler=machine_capabilities.execute,
+        )
+
+    for ops_capability in ops_capabilities.capabilities():
+        capability_system.register(
+            capability=ops_capability,
+            handler=ops_capabilities.execute,
+        )
+
+    integration_tools = create_configured_integration_tools(
+        filesystem_root=filesystem_root,
+        state_path=state_path,
+    )
+    remote_fleet_tools = create_configured_remote_fleet_tools(
+        state_path
+    )
+    for registration in integration_tools:
+        capability_system.register(
+            capability=registration.capability,
+            handler=registration.handler,
+        )
+    for registration in remote_fleet_tools:
+        capability_system.register(
+            capability=registration.capability,
+            handler=registration.handler,
+        )
+
+    tool_catalog_capability = ToolCatalogCapability(
+        capability_system,
+        configuration.standing_allowed_capabilities,
+    )
+    capability_system.register(
+        capability=tool_catalog_capability.capability,
+        handler=tool_catalog_capability.execute,
+    )
 
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
@@ -247,8 +374,18 @@ def compose(
 
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
-        bindings=create_default_tool_bindings(
-            configuration.filesystem_root
+        bindings=(
+            (create_tool_catalog_binding(),create_filesystem_changes_binding())
+            + create_default_tool_bindings(
+                filesystem_root
+            )
+            + create_system_tool_bindings()
+            + create_knowledge_tool_bindings()
+            + create_dev_tool_bindings()
+            + create_machine_tool_bindings()
+            + create_ops_tool_bindings()
+            + tuple(registration.binding for registration in integration_tools)
+            + tuple(registration.binding for registration in remote_fleet_tools)
         ),
     )
 

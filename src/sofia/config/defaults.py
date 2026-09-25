@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from sofia.config.model import (
     ProviderConfiguration,
@@ -21,6 +22,53 @@ def create_default_configuration() -> SofiaConfiguration:
         parents=True,
         exist_ok=True,
     )
+
+    extra_capabilities=tuple(
+        part.strip()
+        for part in os.environ.get("SOFIA_ALLOWED_CAPABILITIES","").split(",")
+        if part.strip()
+    )
+    standing_capabilities=tuple(dict.fromkeys((
+        "tool.catalog",
+        "codebase.inspect",
+        "filesystem.changes",
+        "process.inspect",
+        "system.inspect",
+        "network.inspect",
+        "service.inspect",
+        "hardware.inspect",
+        "storage.roots",
+        "storage.usage",
+        "knowledge.search",
+        "knowledge.document",
+        "dev.status",
+        "machine.list",
+        "machine.get",
+        "machine.discover.local",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "ops.telemetry.latest",
+        "ops.placement.choose",
+        "ops.drift.detect",
+        "ops.migration.plan",
+        "remote.nodes",
+        "remote.process.inspect",
+        "remote.system.inspect",
+        "remote.network.inspect",
+        "remote.service.inspect",
+        "remote.hardware.inspect",
+        "remote.vm.list",
+        "remote.vm.get",
+        "remote.container.list",
+        "remote.container.get",
+        "ollama.models",
+        "ollama.running",
+        "ollama.model.show",
+        "sqlite.state.tables",
+        "sqlite.state.query",
+        "sqlite.state.integrity",
+        *extra_capabilities,
+    )))
 
     return SofiaConfiguration(
         constitution_path=(
@@ -70,4 +118,5 @@ def create_default_configuration() -> SofiaConfiguration:
             thinking=False,
         ),
         filesystem_root=repository_root,
+        standing_allowed_capabilities=standing_capabilities,
     )

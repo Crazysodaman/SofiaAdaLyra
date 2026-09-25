@@ -90,6 +90,7 @@ class SofiaConfiguration:
     state_path: Path
     provider: ProviderConfiguration
     filesystem_root: Path
+    standing_allowed_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider, ProviderConfiguration):
@@ -112,6 +113,16 @@ class SofiaConfiguration:
             raise ValueError(
                 "SofiaConfiguration avatar_path must not be empty."
             )
+
+        if not isinstance(self.standing_allowed_capabilities, tuple):
+            raise TypeError(
+                "SofiaConfiguration standing_allowed_capabilities must be a tuple."
+            )
+        for capability in self.standing_allowed_capabilities:
+            if not isinstance(capability, str) or not capability.strip():
+                raise ValueError(
+                    "standing_allowed_capabilities must contain nonempty strings."
+                )
 
         if not self.state_path:
             raise ValueError(
