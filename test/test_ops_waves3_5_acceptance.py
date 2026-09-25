@@ -150,7 +150,7 @@ def test_maintenance_is_typed_and_respects_no_reboot_pin():
         policy.require(reboot)
     service=MaintenanceRequest("r2","venus",MaintenanceOperation.SERVICE_RESTART,"Spooler",True)
     policy.require(service)
-    remote=to_remote_operation(service,remote_request_id=uuid4(),node_id=uuid4(),grant_id=uuid4())
+    remote=to_remote_operation(service,policy=policy,remote_request_id=uuid4(),node_id=uuid4(),grant_id=uuid4())
     assert remote.capability=="service.manage"
     assert remote.operation=="restart"
     assert remote.parameters["service"]=="Spooler"
