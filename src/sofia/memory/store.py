@@ -138,6 +138,7 @@ class MemoryStore:
         Close the SQLite connection when persistence is enabled.
         """
 
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
+        with self._lock:
+            if self._connection is not None:
+                self._connection.close()
+                self._connection = None
