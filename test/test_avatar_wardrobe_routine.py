@@ -5,8 +5,8 @@ import pytest
 
 from sofia.avatar.wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from sofia.avatar.wardrobe_routine import (
-    Activity, Cadence, ChangeOrigin, OutfitPlan, OutfitPlanner, Preference,
-    PreferenceActor, PreferenceTarget, Season, Sentiment, WardrobeContext,
+    Activity, Cadence, ChangeOrigin, EmotionStyleInfluence, OutfitPlan, OutfitPlanner,
+    Preference, PreferenceActor, PreferenceTarget, Season, Sentiment, WardrobeContext,
     Weather, WeatherObservation, WornEvidence, appraise_clothing_change, period_key,
 )
 
@@ -36,8 +36,9 @@ def plans():
     )
 
 
-def ctx(*, now=NOW, season=Season.AUTUMN, activity=Activity.CONVERSATION, weather=None):
-    return WardrobeContext(now, season, activity, weather)
+def ctx(*, now=NOW, season=Season.AUTUMN, activity=Activity.CONVERSATION,
+        weather=None, emotion_influences=()):
+    return WardrobeContext(now, season, activity, weather, emotion_influences)
 
 
 def pref(actor, target, identifier, sentiment, *, reviewed=True):
@@ -86,6 +87,62 @@ def test_stale_weather_is_ignored_and_labelled():
 def test_future_weather_does_not_count():
     future = WeatherObservation(Weather.HOT, NOW + timedelta(seconds=2), "weather_01")
     assert ctx(weather=future).effective_weather is None
+
+
+
+
+def test_modeled_emotion_can_nudge_daytime_outfit_without_forcing_it():
+    influence = EmotionStyleInfluence(
+        "contentment", 1.0, ("cozy",), ("emotion:event:01",),
+    )
+    result = OutfitPlanner(wardrobe(), plans()).suggest(
+        ctx(now=NOW.replace(hour=14), emotion_influences=(influence,))
+    )
+    assert result.outfit_id == "lounge"
+    assert "modeled_emotion_influence" in result.reasons
+
+
+def test_emotion_cannot_override_activity_compatibility():
+    influence = EmotionStyleInfluence(
+        "contentment", 1.0, ("cozy",), ("emotion:event:02",),
+    )
+    result = OutfitPlanner(wardrobe(), plans()).suggest(
+        ctx(activity=Activity.ENGINEERING, emotion_influences=(influence,))
+    )
+    assert result.outfit_id == "engineer"
+
+
+def test_season_outweighs_emotion_bias():
+    seasonal = (
+        OutfitPlan(
+            "spring.only", ("tee", "sweats"),
+            frozenset({Activity.CONVERSATION}), frozenset({Season.SPRING}),
+            style_tags=("cozy",),
+        ),
+        OutfitPlan(
+            "winter.only", ("workshirt", "workpants"),
+            frozenset({Activity.CONVERSATION}), frozenset({Season.WINTER}),
+            style_tags=("technical",),
+        ),
+    )
+    influence = EmotionStyleInfluence(
+        "playfulness", 1.0, ("cozy",), ("emotion:event:03",),
+    )
+    result = OutfitPlanner(wardrobe(), seasonal).suggest(
+        ctx(
+            now=NOW.replace(hour=14),
+            season=Season.WINTER,
+            emotion_influences=(influence,),
+        )
+    )
+    assert result.outfit_id == "winter.only"
+
+
+def test_emotion_influence_requires_evidence_and_bounded_intensity():
+    with pytest.raises(WardrobeError):
+        EmotionStyleInfluence("joy", 1.1, ("cozy",), ("emotion:event:04",))
+    with pytest.raises(WardrobeError):
+        EmotionStyleInfluence("joy", 0.5, ("cozy",), ())
 
 
 def test_preferences_separate_sparks_and_sofia():
