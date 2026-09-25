@@ -11,6 +11,7 @@ dependencies = [
     "ollama",
     "discord.py==2.7.1",
     "pypdf",
+    "cryptography",
 ]
 
 [tool.setuptools.packages.find]
