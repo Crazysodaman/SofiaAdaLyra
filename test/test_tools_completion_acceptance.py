@@ -377,3 +377,30 @@ def test_knowledge_same_bytes_different_versions_keep_distinct_provenance(tmp_pa
     first=service.ingest_text("manual.txt",version="rev-a")
     second=service.ingest_text("manual.txt",version="rev-b")
     assert first["document_id"]!=second["document_id"]
+
+
+def test_knowledge_pdf_identity_includes_declared_version(tmp_path):
+    from pypdf import PdfWriter
+    pdf=tmp_path/"manual.pdf"
+    writer=PdfWriter()
+    writer.add_blank_page(width=72,height=72)
+    with pdf.open("wb") as handle:
+        writer.write(handle)
+    service=KnowledgeService(
+        tmp_path,
+        JsonKnowledgeStore(tmp_path/"pdf-knowledge.json"),
+        KnowledgeLifecycle(tmp_path/"pdf-lifecycle.json"),
+    )
+    first=service.ingest_pdf("manual.pdf",version="rev-a")
+    second=service.ingest_pdf("manual.pdf",version="rev-b")
+    assert first["document_id"]!=second["document_id"]
+
+
+def test_storage_returns_canonical_forward_slash_relative_paths(tmp_path):
+    root=tmp_path/"nas"; root.mkdir()
+    storage=StorageAdapter((root,))
+    storage.mkdir(0,"docs")
+    written=storage.write_text(0,"docs/test.txt","hello")
+    assert written["path"]=="docs/test.txt"
+    listed=storage.list(0,"docs")
+    assert listed[0]["path"]=="docs/test.txt"
