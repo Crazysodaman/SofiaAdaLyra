@@ -32,6 +32,7 @@ from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.machine.capability import HardwareInspectionCapability
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -251,6 +252,12 @@ def compose(
             capability=system_capability.capability,
             handler=system_capability.execute,
         )
+
+    hardware_capability = HardwareInspectionCapability()
+    capability_system.register(
+        capability=hardware_capability.capability,
+        handler=hardware_capability.execute,
+    )
 
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
