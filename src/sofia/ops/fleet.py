@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import replace
-from .model import FleetHost, HostLifecycle\nfrom .approval import FleetRemovalApproval
+from .model import FleetHost, HostLifecycle
+from .approval import FleetRemovalApproval
 
 class FleetRemovalApprovalRequired(PermissionError): pass
 
