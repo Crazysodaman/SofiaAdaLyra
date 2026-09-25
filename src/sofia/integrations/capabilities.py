@@ -213,6 +213,13 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
             _tool("sqlite.state.query","Run a bounded read-only query against Sofía's state database.",
                 _object({"sql":{"type":"string"},"limit":{"type":"integer"}},["sql"]),
                 lambda p:sqlite.query(p["sql"],limit=p.get("limit",200))),
+            _tool("sqlite.state.integrity","Run SQLite integrity_check against Sofía's state database. Read-only.",_object(),
+                lambda p:sqlite.integrity_check()),
+            _tool("sqlite.state.backup","Create a consistent timestamped backup of Sofía's state database.",_object(),
+                lambda p:sqlite.backup()),
+            _tool("sqlite.state.wal_checkpoint","Run one explicit WAL checkpoint mode against Sofía's state database.",
+                _object({"mode":{"type":"string"}}),lambda p:sqlite.wal_checkpoint(p.get("mode","PASSIVE"))),
+            _tool("sqlite.state.vacuum","Run VACUUM against Sofía's state database.",_object(),lambda p:sqlite.vacuum()),
         ))
 
     return tuple(tools)
