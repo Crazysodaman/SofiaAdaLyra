@@ -110,12 +110,19 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
         assert application.conversation.respond(text).content == 'Isolated response.'
         assert len(captured) == 1
         request = captured[0]
-        assert request.tools == ()
+        # Current main exposes the authorized cognitive tool surface to Ollama.
+        # Presence of tools does not mean any tool was called or action executed.
+        assert request.tools
+        tool_names = {tool.name for tool in request.tools}
+        assert 'tool_catalog' in tool_names
+        assert len(tool_names) == len(request.tools)
         assert request.messages[-1].role is CognitiveRole.USER
         assert request.messages[-1].content == text
         system = '\n'.join(message.content for message in request.messages
                            if message.role is CognitiveRole.SYSTEM)
         assert 'AVATAR-WORLD CONVERSATIONAL INTERPRETATION' in system
+        assert 'CURRENT AVATAR PRESENTATION' in system
+        assert '"outfit_id": "engineer.signature"' in system
         assert 'actual capabilities' in system
         assert 'No emotion forces a particular gesture' in system
         if kind == 'gesture':
