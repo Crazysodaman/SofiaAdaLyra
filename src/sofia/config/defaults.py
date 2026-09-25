@@ -70,4 +70,11 @@ def create_default_configuration() -> SofiaConfiguration:
             thinking=False,
         ),
         filesystem_root=repository_root,
+        standing_allowed_capabilities=(
+            "codebase.inspect",
+            "process.inspect",
+            "system.inspect",
+            "network.inspect",
+            "service.inspect",
+        ),
     )
