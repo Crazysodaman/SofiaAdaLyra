@@ -1,7 +1,8 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Protocol
-from .model import AdapterManifest, ToolInvocation, ToolReceipt\nfrom .schema import validate_object
+from .model import AdapterManifest, ToolInvocation, ToolReceipt
+from .schema import validate_object
 
 class AdapterRegistrationError(RuntimeError): pass
 class Adapter(Protocol):
