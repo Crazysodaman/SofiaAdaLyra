@@ -107,3 +107,95 @@ def test_stop_without_start_is_safe_and_start_twice_is_rejected(tmp_path):
         worker.start()
     worker.stop(timeout_seconds=2)
     assert worker._thread is None
+
+
+
+def test_idle_worker_observes_running_absence_before_selecting_event(tmp_path):
+    path = tmp_path / "state.db"
+    emotions = EmotionalJournal(path)
+    reflections = ReflectionJournal(path)
+    seen = []
+
+    class Service:
+        emotional_journal = emotions
+        reflection_journal = reflections
+
+        @staticmethod
+        def ready_for_idle_reflection(*, idle_seconds):
+            return True
+
+        @staticmethod
+        def observe_background_absence(*, now):
+            seen.append(now)
+            return None
+
+        @staticmethod
+        def reflect_on_event(*, event_id):
+            return None
+
+    worker = IdleReflectionWorker(service=Service(), state_path=path)
+    assert worker.run_once(now=NOW) is None
+    assert seen == [NOW]
+
+
+def test_busy_worker_does_not_create_background_absence_appraisal(tmp_path):
+    path = tmp_path / "state.db"
+    emotions = EmotionalJournal(path)
+    reflections = ReflectionJournal(path)
+    seen = []
+
+    class Service:
+        emotional_journal = emotions
+        reflection_journal = reflections
+
+        @staticmethod
+        def ready_for_idle_reflection(*, idle_seconds):
+            return False
+
+        @staticmethod
+        def observe_background_absence(*, now):
+            seen.append(now)
+            return None
+
+    worker = IdleReflectionWorker(service=Service(), state_path=path)
+    assert worker.run_once(now=NOW) is None
+    assert seen == []
+
+
+
+def test_new_absence_milestone_is_reflected_before_older_backlog(tmp_path):
+    path = tmp_path / "state.db"
+    emotions = EmotionalJournal(path)
+    reflections = ReflectionJournal(path)
+    emotions.record(
+        event_id="older", evidence_ref="old-evidence", source="observed",
+        description="An older recorded event.", emotions=("curiosity",),
+        occurred_at=NOW - timedelta(days=3),
+    )
+    calls = []
+
+    class Service:
+        emotional_journal = emotions
+        reflection_journal = reflections
+
+        @staticmethod
+        def ready_for_idle_reflection(*, idle_seconds):
+            return True
+
+        @staticmethod
+        def observe_background_absence(*, now):
+            emotions.record(
+                event_id="absence:new", evidence_ref="last-contact",
+                source="inferred", description="Current absence milestone.",
+                emotions=("longing",), occurred_at=now,
+            )
+            return "absence:new"
+
+        @staticmethod
+        def reflect_on_event(*, event_id):
+            calls.append(event_id)
+
+    worker = IdleReflectionWorker(service=Service(), state_path=path)
+
+    assert worker.run_once(now=NOW) == "absence:new"
+    assert calls == ["absence:new"]
