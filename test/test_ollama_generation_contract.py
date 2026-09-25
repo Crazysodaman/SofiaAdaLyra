@@ -1,4 +1,6 @@
-﻿from sofia.cognition.model import (
+﻿import pytest
+
+from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
     CognitiveRole,
@@ -39,13 +41,14 @@ def make_request() -> CognitiveRequest:
     )
 
 
-def test_ollama_generation_configuration_is_translated():
+@pytest.mark.parametrize("context_size", [18000, 32768])
+def test_ollama_generation_configuration_is_translated(context_size):
     configuration = ProviderConfiguration(
         provider="ollama",
         model="qwen3:14b",
         temperature=0.2,
         seed=42,
-        context_size=32768,
+        context_size=context_size,
         thinking=True,
     )
 
@@ -62,7 +65,7 @@ def test_ollama_generation_configuration_is_translated():
     assert client.kwargs["options"] == {
         "temperature": 0.2,
         "seed": 42,
-        "num_ctx": 32768,
+        "num_ctx": context_size,
     }
     assert client.kwargs["think"] is True
 
