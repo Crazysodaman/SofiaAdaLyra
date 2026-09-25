@@ -21,6 +21,8 @@ from sofia.cognition.test_engine import TestCognitiveEngine
 from sofia.cognition.tools import (
     CognitiveToolDispatcher,
     create_default_tool_bindings,
+    create_knowledge_tool_bindings,
+    create_machine_tool_bindings,
     create_system_tool_bindings,
 )
 from sofia.config.model import SofiaConfiguration
