@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Protocol
-from .model import AdapterManifest, ToolInvocation, ToolReceipt
+from .model import AdapterManifest, ToolInvocation, ToolReceipt\nfrom .schema import validate_object
 
 class AdapterRegistrationError(RuntimeError): pass
 class Adapter(Protocol):
@@ -21,10 +21,10 @@ class AdapterRegistry:
     def invoke(self,request:ToolInvocation)->ToolReceipt:
         adapter=self._adapters.get(request.tool_id)
         if adapter is None: raise KeyError(f"unknown tool: {request.tool_id}")
-        if not request.authorized: raise PermissionError("tool invocation requires authority outside the registry")
+        if not request.authorized: raise PermissionError("tool invocation requires authority outside the registry")\n        validate_object(adapter.manifest.input_schema,dict(request.arguments))
         started=datetime.now(timezone.utc)
         try:
-            output=adapter.invoke(dict(request.arguments)); ok=True; error=None
+            output=adapter.invoke(dict(request.arguments)); validate_object(adapter.manifest.output_schema,output); ok=True; error=None
         except Exception as exc:
             output=None; ok=False; error=f"{type(exc).__name__}: {exc}"
         finished=datetime.now(timezone.utc)
