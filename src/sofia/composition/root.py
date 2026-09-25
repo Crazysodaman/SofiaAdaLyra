@@ -30,6 +30,7 @@ from sofia.composition.tools import (
     install_readonly_capabilities,
 )
 from sofia.composition.catalog import ToolCatalog
+from sofia.config.integrations import create_external_observation_capabilities
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
