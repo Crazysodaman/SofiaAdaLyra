@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from typing import Any
 from .model import ToolReceipt
@@ -40,5 +41,5 @@ class JsonlReceiptLedger:
              "started_at":rec.started_at.isoformat(),"finished_at":rec.finished_at.isoformat(),
              "succeeded":rec.succeeded,"output_digest":rec.output_digest,"error":rec.error}
         with self.path.open("a",encoding="utf-8") as fh:
-            fh.write(json.dumps(raw,sort_keys=True)+"\n"); fh.flush()
+            fh.write(json.dumps(raw,sort_keys=True)+"\n"); fh.flush(); os.fsync(fh.fileno())
         self._records[rec.invocation_id]=rec; return rec
