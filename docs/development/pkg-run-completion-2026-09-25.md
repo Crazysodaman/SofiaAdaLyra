@@ -1,6 +1,6 @@
 # PKG-RUN local lifecycle completion candidate
 
-**Revision:** 2026-09-25. **Branch:** `feature/pkg-run-completion`. **Status:** source candidate based on current `main`; focused tests are authored but have **not yet been executed on the current Windows checkout**. No Windows service, Linux unit, watchdog host, standby, or automatic failover is installed or claimed.
+**Revision:** 2026-09-25. **Branch:** `feature/pkg-run-completion`. **Status:** focused local lifecycle/offline acceptance passed on the current Windows checkout. No Windows service, Linux unit, watchdog host, standby, or automatic failover is installed or claimed.
 
 ## Implemented candidate
 
@@ -43,3 +43,12 @@ python -m pytest -q test/test_idle_reflection_worker.py test/test_idle_reflectio
 ## Still intentionally outside this offline package gate
 
 Real OS service installation, independent watchdog placement, multi-host consensus/fencing, standby promotion, Discord reconnection, data replication/restore, resource measurements, host-failure drills, and multi-day soak remain live/deployment acceptance work. Unit tests must not be used to claim high availability.
+
+## Windows acceptance evidence
+
+Executed on Sparks's Windows checkout on 2026-09-25:
+
+- `python -m pytest -q test/test_run_periodic_thought.py test/test_run_lease.py test/test_run_supervisor.py` → **36 passed in 6.05s**.
+- `python -m pytest -q test/test_idle_reflection_worker.py test/test_idle_reflection_application.py test/test_runtime.py test/test_runtime_action_integration.py` → **42 passed, 1 skipped in 24.22s**.
+
+Current RUN offline evidence total: **78 passing tests and 1 skip across the focused and surrounding regression gates**. This remains local lifecycle evidence only, not real service/failover/soak acceptance.
