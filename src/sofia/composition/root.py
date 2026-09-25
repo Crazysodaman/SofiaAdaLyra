@@ -154,6 +154,15 @@ def compose(
         if runtime is None:
             return False
 
+        if request.capability.name in {
+            "process.inspect",
+            "system.inspect",
+            "network.inspect",
+            "service.inspect",
+            "machine.inspect",
+        }:
+            return request.requested_scope is None
+
         authorization = runtime.filesystem_authorization
 
         if authorization is None:
