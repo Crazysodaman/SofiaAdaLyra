@@ -8,17 +8,11 @@
 
 ## Acceptance status
 
-**REVIEW IN PROGRESS — no blocking design defect found.**
+**ACCEPTED — post-merge PKG-INTERACT hardening complete.**
 
-The candidate is acceptable in architecture, behavior, authority boundaries, and targeted regression evidence. Final hardening acceptance is conditional on one remaining verification gate:
+Sparks reported the final **unqualified full repository suite passed with no deselections** after the Ollama generation-contract reconciliation. No blocking technical finding remains in this review.
 
-```powershell
-python -m pytest -q
-```
-
-The current branch must complete an **unqualified full repository suite with no deselections** after the Ollama generation-contract reconciliation.
-
-Acceptance of this hardening candidate does not itself merge, rebase, reset, force-push, deploy, enable staged offers, migrate production interaction tables, or change model settings.
+The accepted hardening branch was integrated into `main` through PR #29. GitHub records PR #29 as merged/closed with merge commit SHA `f0221a36d619074aaebdb900ea240166b9c98f1d` (fast-forward integration). This acceptance does not enable staged offers, migrate production interaction tables, deploy services, or change model settings.
 
 ## Evidence reviewed
 
@@ -83,7 +77,7 @@ These are not blockers for PKG-INTERACT hardening acceptance because they belong
 
 ### Blocking
 
-- **Unqualified current-branch full suite not yet reported after the final hardening and Ollama-contract commits.**
+- **None known.**
 
 ### Non-blocking
 
@@ -91,19 +85,8 @@ These are not blockers for PKG-INTERACT hardening acceptance because they belong
 - Multi-user relationship subject selection must be replaced before exposing the same runtime to general second-user channels.
 - Current absence/return parsing intentionally favors truth-preserving abstention over broad natural-language coverage.
 
-## Final acceptance gate
+## Final acceptance
 
-When the current branch reports a clean:
+Sparks reported the unqualified full suite passed and explicitly authorized both acceptance and integration. The hardening candidate is accepted as complete for the PKG-INTERACT package boundary and integrated into `main` via PR #29.
 
-```powershell
-python -m pytest -q
-```
-
-with no deselections or unexplained failures, the technical review has no remaining known blocker.
-
-At that point Sparks can make two separate decisions:
-
-1. **Accept the post-merge PKG-INTERACT hardening candidate as complete.**
-2. **Separately authorize integration into `main`.**
-
-No merge is authorized by this review document.
+Future work listed under known limitations remains owned by MEM, SOCIAL, RUN, AVATAR/UI/BODY, SAFE, VERIFY, or cleanup/refactoring follow-up and does not reopen this accepted hardening unless a regression is discovered.
