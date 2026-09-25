@@ -37,6 +37,8 @@ def test_text_ear_interaction_projects_same_shared_policy_without_renderer(monke
     assert '"region_id": "left-ear"' in result.messages[0].content
     assert '"gesture": "tap"' in result.messages[0].content
     assert '"policy_status": "accepted"' in result.messages[0].content
+    assert '"interaction_preference_evidence": "unspecified"' in result.messages[0].content
+    assert '"willingness_state": "undetermined"' in result.messages[0].content
     assert "*one ear flicks*" in result.messages[0].content
     assert "NOT sensed" in result.messages[0].content
     assert result.messages[-1] is original.messages[-1]

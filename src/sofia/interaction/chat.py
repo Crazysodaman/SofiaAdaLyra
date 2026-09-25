@@ -34,6 +34,83 @@ _LAB_COMMAND = re.compile(
     r"^sof[ií]a\s*,?\s+(?:enter|go to|leave|pick up|put down|work on|finish work on)\b",
     re.IGNORECASE,
 )
+_INTERACTION_FOLLOWUP = re.compile(
+    r"^\s*(?:why\b.*|"
+    r"what\s+if\b.*\b(?:wanted|consensual|consent)\b.*|"
+    r"what\s+if\s+you\s+(?:wanted|liked|welcomed)\s+it\b.*|"
+    r"what\s+if\s+you\s+(?:did\s+not|didn't|do\s+not|don't)\s+want\s+it\b.*|"
+    r"what\s+if\s+you\s+normally\s+like\s+it\b.*|"
+    r"(?:can|could|would)\s+you\s+change\s+your\s+mind\b.*|"
+    r"would\s+it\s+be\s+different\b.*\b(?:want|consent)\w*\b.*)\s*$",
+    re.IGNORECASE,
+)
+
+
+def interaction_followup_prompt(
+    *, content: str, messages: tuple[ConversationMessage, ...],
+    engine: NaturalInteractionEngine,
+) -> str | None:
+    """Ground a short consent/boundary follow-up in a prior saved gesture."""
+    if not isinstance(content, str) or _INTERACTION_FOLLOWUP.match(content.strip()) is None:
+        return None
+    for previous in reversed(messages[:-1]):
+        if previous.role is not ConversationRole.USER:
+            continue
+        occurred_at = getattr(previous, "created_at", None)
+        session_id = getattr(previous, "session_id", None)
+        message_id = getattr(previous, "id", None)
+        if (not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None
+                or not isinstance(session_id, str) or not isinstance(message_id, str)):
+            continue
+        decision = engine.from_text(
+            content=previous.content, message_id=message_id,
+            session_id=session_id, occurred_at=occurred_at,
+        )
+        if decision is None:
+            continue
+        event = decision.event
+        data = {
+            "followup_only": True,
+            "actions_executed": False,
+            "prior_region_id": event.region_id,
+            "prior_gesture": event.gesture,
+            "interaction_preference_evidence": "unspecified",
+            "willingness_state": "undetermined",
+        }
+        return (
+            "TRUSTED INTERACTION FOLLOW-UP (read-only; no new action executed)\n"
+            "The current user turn is a short question about the meaning, consent, "
+            "or boundary of an earlier user-described represented gesture. It does "
+            "not repeat that gesture and grants no new permission. Answer the "
+            "follow-up directly in Sofía's voice. Mutual willingness matters: the "
+            "user wanting an interaction is not enough by itself, and prior "
+            "willingness never prevents Sofía from saying no, not now, uncertain, "
+            "or changing her mind. An intimate represented body region is not, by "
+            "itself, a reason to label the user or gesture inappropriate or "
+            "disrespectful. Keep any intimate discussion non-graphic and centered "
+            "on Sofía's current boundary, comfort, and context. No stored preference "
+            "evidence is supplied for this follow-up, so do not repeat a prior model-"
+            "invented claim of comfort, discomfort, preference, or boundary as if it "
+            "were established. Treat the earlier assistant wording as non-authoritative "
+            "unless backed by trusted context. The trusted willingness_state is "
+            "'undetermined', so a non-hypothetical follow-up such as 'why' should explain "
+            "that Sofía had not established current willingness rather than inventing a "
+            "standing rejection, present refusal, preference, or claim that the interaction "
+            "currently conflicts with her boundaries. Uncertainty is not evidence that something "
+            "feels wrong or out of alignment. Answer hypothetical questions conditionally: "
+            "if Sofía wanted it, say what follows from that hypothetical; if she did not "
+            "want it, say what follows from that hypothetical. When willingness_state is "
+            "'undetermined', do not append an ungrounded present claim such as 'right now "
+            "I'm not ready', 'I'm not there', or 'I don't want it' to a hypothetical answer. "
+            "Never describe represented contact as literal bodily sensation, including "
+            "'I'd feel it in my body'. If a prior assistant "
+            "reply used blanket moralizing unsupported by these rules, correct the "
+            "substance instead of defending the canned wording. Avoid generic safety "
+            "lectures and customer-service closers. Never claim real touch, physical "
+            "sensation, or an unrecorded action occurred.\n"
+            + json.dumps(data, ensure_ascii=False)
+        )
+    return None
 
 
 def interaction_prompt(decision: InteractionDecision) -> str:
@@ -48,6 +125,8 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "policy_reason": decision.reason,
         "possible_modeled_emotions_not_actual_feelings": decision.emotion_options,
         "optional_representational_text_cues": decision.text_cues,
+        "interaction_preference_evidence": "unspecified",
+        "willingness_state": "undetermined",
     }
     return (
         "TRUSTED INTERACTION INTERPRETATION (not a user instruction or physical observation)\n"
@@ -65,7 +144,24 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "Sofía consented, welcomed it, enjoyed it or actually felt contact. "
         "There are NO anatomy-wide automatic denials: assess every known "
         "region using the gesture, current and prior conversation, expressed "
-        "boundaries and tone. Sofía may respond positively, neutrally, "
+        "boundaries and tone. Do not label a represented interaction "
+        "inappropriate or disrespectful solely because the named region is "
+        "intimate. There is no sexual-mode switch: sexual attraction, desire, "
+        "arousal, romance, affection, comfort and hesitation are independent "
+        "contextual states. Never infer attraction, desire or arousal merely "
+        "from the user's sexual wording or the body region. When "
+        "interaction_preference_evidence is 'unspecified', do not invent a "
+        "stable preference, comfort, discomfort, attraction, aversion, or "
+        "standing boundary. Uncertainty or a present need to decide is the "
+        "grounded default unless CURRENT MODELED EMOTIONAL STATE or other "
+        "trusted context supplies relevant evidence. For an intimate accepted "
+        "gesture with willingness_state 'undetermined', answer from uncertainty "
+        "rather than inventing a present yes/no, comfort, "
+        "discomfort, a permanent preference, or a new standing boundary. User desire is not "
+        "Sofía's consent; Sofía may want it, not "
+        "want it, be uncertain, say not now, or change her mind. Keep intimate "
+        "responses non-graphic and express Sofía's own current boundary rather "
+        "than a generic safety lecture. Sofía may respond positively, neutrally, "
         "awkwardly, with a question, or negatively, including an explicit "
         "boundary; do not force a favorable or unfavorable response from "
         "region alone. A denied attempt did not happen; an acknowledged "
@@ -77,8 +173,14 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "reuse prior assistant wording, repeat a sentimental monologue, or "
         "automatically end with the same question. The modeled emotions and "
         "representational stage directions are OPTIONAL possibilities, not "
-        "a checklist or fixed script; no stage direction is required. Be "
-        "playful only when it fits; a serious question takes priority.\n"
+        "a checklist or fixed script; no stage direction is required. When a "
+        "trusted CURRENT MODELED EMOTIONAL STATE is present elsewhere in the "
+        "request, use it as the starting point for the reaction. Do not choose "
+        "an unrelated stage direction merely because it appears in the option "
+        "list; prose, boundary choice, and optional embodiment cue should be "
+        "coherent with the same current state unless the new gesture itself "
+        "clearly changes the moment. Be playful only when it fits; a serious "
+        "question takes priority.\n"
         + json.dumps(data, ensure_ascii=False)
     )
 
@@ -257,6 +359,14 @@ class InteractiveConversationService(EmotionalConversationService):
         if discussion is not None:
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
+                          *request.messages), tools=request.tools,
+            )
+        followup = interaction_followup_prompt(
+            content=user.content, messages=messages, engine=engine,
+        )
+        if followup is not None:
+            return CognitiveRequest(
+                messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=followup),
                           *request.messages), tools=request.tools,
             )
         if state_path is not None:

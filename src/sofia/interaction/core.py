@@ -31,6 +31,7 @@ _VERBS = {
     "pats": "pat", "pat": "pat", "patting": "pat",
     "taps": "tap", "tap": "tap", "tapping": "tap",
     "touches": "touch", "touch": "touch", "touching": "touch",
+    "gropes": "touch", "grope": "touch", "groping": "touch",
     "strokes": "stroke", "stroke": "stroke", "stroking": "stroke",
     "rubs": "rub", "rub": "rub", "rubbing": "rub",
     "holds": "hold", "hold": "hold", "holding": "hold",
