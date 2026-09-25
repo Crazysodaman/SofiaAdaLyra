@@ -354,7 +354,7 @@ class OutfitPlanner:
             for influence in context.emotion_influences:
                 if plan_tags.intersection(influence.style_tags):
                     emotion_bias += float(influence.intensity)
-            result += min(3, round(emotion_bias * 2))
+            result += min(3, round(emotion_bias * 3))
             result -= sum(4 for record in recent[-7:] if record.outfit_id == plan.outfit_id)
             return result
 
