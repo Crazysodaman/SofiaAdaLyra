@@ -23,8 +23,8 @@ class LeaseTable:
     def acquire(self,workload_id:str,host_id:str,*,now:datetime,ttl:timedelta)->AuthorityLease:
         if ttl<=timedelta(0): raise ValueError("ttl must be positive")
         current=self._leases.get(workload_id)
-        if current is not None and current.active(now) and current.holder_host_id!=host_id:
-            raise SplitBrainRisk("active authority lease is held by another host")
+        if current is not None and current.active(now) and current.holder_host_id!=host_id and not self.is_fenced(workload_id,current.holder_host_id):
+            raise SplitBrainRisk("active unfenced authority lease is held by another host")
         epoch=self._epoch.get(workload_id,0)+1; self._epoch[workload_id]=epoch
         lease=AuthorityLease(workload_id,host_id,epoch,now,now+ttl); self._leases[workload_id]=lease
         self._fenced.discard((workload_id,host_id)); return lease
