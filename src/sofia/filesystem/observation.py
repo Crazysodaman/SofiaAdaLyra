@@ -129,6 +129,7 @@ class FilesystemObserver:
         "__pycache__",
         ".pytest_cache",
         "node_modules",
+        "state",
     }
 
     def __init__(self, root: Path) -> None:
