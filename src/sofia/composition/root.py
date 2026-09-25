@@ -39,7 +39,8 @@ from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
-from sofia.machine.capability import HardwareInspectionCapability
+from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
+from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -144,6 +145,20 @@ def compose(
     )
     dev_capabilities = DevCapabilitySet(
         dev_service
+    )
+
+    machine_service = MachineToolService(
+        state_path
+    )
+    machine_capabilities = MachineCapabilitySet(
+        machine_service
+    )
+
+    ops_service = OpsToolService(
+        state_path
+    )
+    ops_capabilities = OpsCapabilitySet(
+        ops_service
     )
 
     codebase_inspector = CodebaseInspector(
@@ -304,6 +319,18 @@ def compose(
             handler=dev_capabilities.execute,
         )
 
+    for machine_capability in machine_capabilities.capabilities():
+        capability_system.register(
+            capability=machine_capability,
+            handler=machine_capabilities.execute,
+        )
+
+    for ops_capability in ops_capabilities.capabilities():
+        capability_system.register(
+            capability=ops_capability,
+            handler=ops_capabilities.execute,
+        )
+
     integration_tools = create_configured_integration_tools(
         filesystem_root=filesystem_root,
         state_path=state_path,
@@ -337,6 +364,8 @@ def compose(
             + create_system_tool_bindings()
             + create_knowledge_tool_bindings()
             + create_dev_tool_bindings()
+            + create_machine_tool_bindings()
+            + create_ops_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)
         ),
     )
