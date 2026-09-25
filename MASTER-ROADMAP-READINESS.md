@@ -1,4 +1,4 @@
-> **Project status update — 2026-09-24:** PKG-DISCORD v1 is live accepted for the supervised Sparks-only private-DM transport path and merged to `main` via PR #64 (`ba2111b`). A new INTERACT/CORE live-quality repair gate is open for generic/canned conversational fallback discovered through that channel; accepted INTERACT safety semantics remain intact. SOCIAL minimum principal projection also remains open because transport authentication is not yet carried into cognition as `Sparks`.
+> **Project status update — 2026-09-24:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS Wave 1 foundations are merged to `main` via PR #99 (`f7356c3`). Dedicated package acceptance passed 11/11, cross-package acceptance passed 5/5, combined focused acceptance passed 16/16, and the full repository suite was reported passing on the integration branch. This is a merged Wave 1 foundation, not completion or live deployment of the four package roadmaps. 
 
 # Sofía Ada Lyra | master readiness index
 
@@ -40,16 +40,16 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 | 5 | NET | Distributed foundations on `main`; narrow Discord private-DM transport live accepted | Broader DNS/TLS/redirect/remote-host enforcement; no general web. |
 | 6 | UI | Workbench prototype draft PR #6; Sparks-only Discord DM adapter live accepted for v1 transport | Keep Discord narrow while desktop/web/mobile/voice/renderer and proactive outbound remain separately gated. |
 | 7 | RUN | Periodic-opportunity candidate draft PR #3; no certified OS supervisor/24-7/HA | OS supervision and independent watchdog; safe standby startup, exclusive lease/fencing, ledger reconciliation, multi-day soak and measured host-failover proof. |
-| 8 | OPS | Read-only inspection foundations on `main`; fleet agent/orchestration contract only | Trusted cross-platform enrollment/telemetry, measured capacity, maintenance and compatible workload relocation, failover/rollback, Sparks-only final machine-removal approval. |
+| 8 | OPS | **Wave 1 fleet lifecycle, telemetry model and placement foundation merged via PR #99; existing read-only inspection foundations remain on `main`** | Trusted cross-platform enrollment/telemetry, measured capacity, maintenance and compatible workload relocation, failover/rollback, Sparks-only final machine-removal approval. |
 | 9 | ACT | Unsent outbox/reflection foundations on `main`, outreach preflight draft PR #15 | One durable scheduler/outbox ledger, consent/quiet/stop and actual delivery receipt. |
 | 10 | REL | Overlapping absence/reunion candidates draft PRs #12/#13 | Reconcile one evidence-grounded, scoped and non-clingy relationship pipeline. |
 | 11 | AVATAR | Offline asset/tooling candidate draft PR #7 | Rig/renderer/hit-test/animation receipt and accessible text fallback. |
-| 12 | DEV | Proposal preflight draft PR #17 | Trusted OpenCode execution, scoped changes, tests and rollback; doc-grounded candidate tool creation. |
+| 12 | DEV | **Wave 1 bounded OpenCode/workspace/proposal foundation merged via PR #99** | Trusted OpenCode execution, scoped changes, tests and rollback; doc-grounded candidate tool creation. |
 | 13 | BODY | Simulation-only candidate draft PR #16 | Real Gaia SSC-32/calibration and independently verified hardware emergency stop. |
 | 14 | EVOLVE | Protected amendment proposal preflight draft PR #19 | Reviewed independently authorized config/identity/Constitution changes; never self-approve. |
 | 15 | CLEAN | Inventory/protected-path preflight draft PR #14 | Recovery-first state preservation, safe cleanup migration and rollback. |
-| 16 | KNOW | Reading/provenance and document-authoring contracts on `main` | Real local/PDF/repo ingestion, source/version citations and privacy; scoped, reviewed documentation generation/upkeep. |
-| 17 | INTEGRATE | General adapter foundations on `main`, package self-tooling design only | Typed live service adapter, truthful registry, KNOW→DEV→SAFE/VERIFY→scoped activation→rollback proof. |
+| 16 | KNOW | **Wave 1 provenance document/fact model and registry merged via PR #99** | Real local/PDF/repo ingestion, source/version citations and privacy; scoped, reviewed documentation generation/upkeep. |
+| 17 | INTEGRATE | **Wave 1 typed adapter registry, authority gate and invocation receipts merged via PR #99** | Typed live service adapter, truthful registry, KNOW→DEV→SAFE/VERIFY→scoped activation→rollback proof. |
 | Gate | SAFE | Authority/integrity foundations; disclosure preflight draft PR #18 | Real identity, secrets, revocation, independent stop, backups/restore, fencing and protected exact-device approvals. |
 | Gate | VERIFY | Active candidate draft PR #8; PR #10 superseded | Current-revision live negative/security and failure tests, integrated suite, restore, latency, RPO/RTO and soak evidence. |
 
