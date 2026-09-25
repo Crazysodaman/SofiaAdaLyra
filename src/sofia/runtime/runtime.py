@@ -529,7 +529,7 @@ class SofiaRuntime:
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
             ),
-            authority=Authority(),
+            authority=self._operation_authority(),
         )
 
         return self._cognitive_system.respond(
