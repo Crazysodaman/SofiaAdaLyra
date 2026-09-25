@@ -110,7 +110,13 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
                 lambda p:hv.stop(p["name"],force=bool(p.get("force",False)))),
         ))
 
-    storage=StorageAdapter((filesystem_root,state_path.parent))
+    extra_storage=tuple(
+        Path(value.strip())
+        for value in os.environ.get("SOFIA_STORAGE_ROOTS","").split(os.pathsep)
+        if value.strip()
+    )
+    storage_roots=tuple(dict.fromkeys((filesystem_root,state_path.parent,*extra_storage)))
+    storage=StorageAdapter(storage_roots)
     tools.append(_tool("storage.usage","Inspect disk usage for Sofía's repository/state roots. Read-only.",_object(),lambda p:storage.usage()))
 
     if state_path.exists():
