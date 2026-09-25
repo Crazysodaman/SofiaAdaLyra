@@ -2,8 +2,8 @@
 
 The raw filesystem observation stays in the observation store. The runtime's
 conversational projection and pending continuity event must agree about what
-was externally relevant. This adapter currently updates the two runtime-owned
-projection fields together; a later runtime API can encapsulate that detail.
+was externally relevant. Suppress only the configured conversation and virtual
+lab SQLite files and their exact sidecars, never unrelated database changes.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from sofia.continuity.model import (
     ContinuityEventKind, create_continuity_event,
 )
 from sofia.filesystem.change_filter import exclude_internal_state_changes
+from sofia.interaction.world_setup import lab_state_path
 
 _AWARENESS_KINDS = frozenset({
     ContinuityEventKind.RUNTIME_RESUMED,
@@ -22,7 +23,7 @@ _AWARENESS_KINDS = frozenset({
 
 
 def normalize_runtime_workspace_awareness(runtime) -> None:
-    """Filter the configured state DB before the first model request.
+    """Filter only owned SQLite files before the first model request.
 
     Only call after runtime.start and before conversation.open/start. A mock
     runtime without workspace evidence remains unchanged; a real event without
@@ -31,9 +32,9 @@ def normalize_runtime_workspace_awareness(runtime) -> None:
     changes = getattr(runtime, "workspace_changes", None)
     if changes is None:
         return
-    filtered = exclude_internal_state_changes(
-        changes, state_path=Path(runtime.configuration.state_path),
-    )
+    state = Path(runtime.configuration.state_path)
+    filtered = exclude_internal_state_changes(changes, state_path=state)
+    filtered = exclude_internal_state_changes(filtered, state_path=lab_state_path(state))
     if filtered is changes:
         return
     continuity = runtime.runtime_continuity

@@ -117,6 +117,19 @@ class IdleReflectionWorker:
         self._service.reflection_journal.reflect_due(now=current)
         if not self._service.ready_for_idle_reflection(idle_seconds=self._idle_seconds):
             return None
+        absence_event_id = None
+        if hasattr(self._service, "observe_background_absence"):
+            absence_event_id = self._service.observe_background_absence(now=current)
+        if absence_event_id is not None and self._claim(absence_event_id, current):
+            try:
+                self._service.reflect_on_event(event_id=absence_event_id)
+            except Exception as exc:
+                self.last_error = type(exc).__name__
+                self._finish(absence_event_id, current, exc)
+                raise
+            self._finish(absence_event_id, current, None)
+            self.last_error = None
+            return absence_event_id
         # Existing journal has a bounded 50-event/366-day read contract.
         # Iterate oldest-first to keep an active burst from starving the
         # oldest event inside that window. General archival retrieval is K/23.

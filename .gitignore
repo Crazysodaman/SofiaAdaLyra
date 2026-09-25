@@ -30,3 +30,7 @@ Thumbs.db
 
 # Local cognitive-engine evaluation results
 batch-f-results.json
+
+# Generated virtual lab world state (do not silently commit private runtime state)
+/state/*-lab.db
+/state/*-lab.db-*
