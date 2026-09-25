@@ -4,23 +4,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import subprocess
-from .git_workspace import GitWorkspace, GitWorkspaceError
-from .opencode import EngineeringExecutionRequest, OpenCodeAdapter
+from .git_workspace import GitWorkspace,GitWorkspaceError,path_in_scope
+from .opencode import EngineeringExecutionRequest,OpenCodeAdapter
 
 @dataclass(frozen=True)
 class EngineeringCandidate:
-    proposal_id: str
-    base_sha: str
-    patch: str
-    changed_paths: tuple[str,...]
-    tests_passed: bool | None
+    proposal_id:str
+    base_sha:str
+    patch:str
+    changed_paths:tuple[str,...]
+    allowed_paths:tuple[str,...]
+    tests_passed:bool|None
 
 class EngineeringWorkflow:
-    def __init__(self, workspace: Path, executable: str="opencode") -> None:
+    def __init__(self,workspace:Path,executable:str="opencode")->None:
         self.workspace=workspace.resolve(); self.executable=executable
-        self.git=GitWorkspace(self.workspace)
+        self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=()
 
-    def build(self, request: EngineeringExecutionRequest) -> EngineeringCandidate:
+    def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
         if not request.authorized: raise PermissionError("build requires independent authorization")
         self.git.require_head(request.base_sha)
         self.git.require_clean_scope(request.allowed_paths)
@@ -37,31 +38,52 @@ class EngineeringWorkflow:
                 patch=sg.patch()
                 if result.returncode!=0: raise GitWorkspaceError("OpenCode candidate execution failed")
                 if request.tests and result.tests_passed is not True: raise GitWorkspaceError("candidate tests failed")
-                return EngineeringCandidate(request.proposal_id,request.base_sha,patch,changed,result.tests_passed)
+                return EngineeringCandidate(request.proposal_id,request.base_sha,patch,changed,request.allowed_paths,result.tests_passed)
             finally:
                 subprocess.run(("git","worktree","remove","--force",str(sandbox)),
                     cwd=self.workspace,text=True,capture_output=True,check=False)
 
-    def apply(self,candidate: EngineeringCandidate,*,authorized: bool) -> tuple[str,...]:
+    @staticmethod
+    def _patch_paths(workspace:Path,patch:str)->tuple[str,...]:
+        if not patch: return ()
+        cp=subprocess.run(("git","apply","--numstat","-"),cwd=workspace,input=patch,text=True,capture_output=True,check=False)
+        if cp.returncode: raise GitWorkspaceError(cp.stderr.strip() or "unable to inspect candidate patch")
+        paths=[]
+        for line in cp.stdout.splitlines():
+            parts=line.split("\t")
+            if len(parts)>=3: paths.append(parts[-1])
+        return tuple(sorted(set(paths)))
+
+    def apply(self,candidate:EngineeringCandidate,*,authorized:bool)->tuple[str,...]:
         if not authorized: raise PermissionError("applying engineering candidate requires separate authorization")
         self.git.require_head(candidate.base_sha)
-        if not candidate.patch: return ()
+        self.git.require_clean_scope(candidate.allowed_paths)
+        patch_paths=self._patch_paths(self.workspace,candidate.patch)
+        if patch_paths!=tuple(sorted(set(candidate.changed_paths))):
+            raise GitWorkspaceError("candidate patch paths do not match reviewed changed_paths")
+        outside=tuple(p for p in patch_paths if not path_in_scope(p,candidate.allowed_paths))
+        if outside: raise GitWorkspaceError("candidate patch escapes approved scope: "+", ".join(outside))
+        if not candidate.patch:
+            self._applied_paths=(); return ()
         check=subprocess.run(("git","apply","--check","-"),cwd=self.workspace,input=candidate.patch,
             text=True,capture_output=True,check=False)
         if check.returncode: raise GitWorkspaceError(check.stderr.strip() or "candidate patch no longer applies")
-        apply=subprocess.run(("git","apply","-"),cwd=self.workspace,input=candidate.patch,
+        applied=subprocess.run(("git","apply","-"),cwd=self.workspace,input=candidate.patch,
             text=True,capture_output=True,check=False)
-        if apply.returncode: raise GitWorkspaceError(apply.stderr.strip() or "candidate patch failed")
+        if applied.returncode: raise GitWorkspaceError(applied.stderr.strip() or "candidate patch failed")
+        self._applied_paths=patch_paths
         return self.git.changed_paths()
 
-    def commit(self,message: str,*,authorized: bool) -> str:
+    def commit(self,message:str,*,authorized:bool)->str:
         if not authorized: raise PermissionError("commit requires separate authorization")
         if not message.strip(): raise ValueError("commit message required")
-        self.git.run("add","-A")
-        self.git.run("commit","-m",message)
+        if not self._applied_paths: raise GitWorkspaceError("no reviewed candidate paths are pending commit")
+        self.git.run("add","--",*self._applied_paths)
+        self.git.run("commit","-m",message,"--",*self._applied_paths)
+        self._applied_paths=()
         return self.git.head_sha()
 
-    def push(self,branch: str,*,authorized: bool,remote: str="origin") -> None:
+    def push(self,branch:str,*,authorized:bool,remote:str="origin")->None:
         if not authorized: raise PermissionError("push requires separate authorization")
         if not branch.strip() or branch.startswith("-"): raise ValueError("exact branch name required")
         self.git.run("push",remote,f"HEAD:refs/heads/{branch}")
