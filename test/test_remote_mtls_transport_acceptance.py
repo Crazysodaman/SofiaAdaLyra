@@ -193,3 +193,29 @@ def test_operator_provisions_exact_node_endpoint_grant_and_retirement(tmp_path:P
         assert service.nodes()==()
     finally:
         service.close()
+
+
+def test_agent_replay_id_cannot_be_rebound_to_different_operation(tmp_path:Path):
+    from sofia.distributed.agent import AgentRequestLedger
+    from sofia.distributed.operations import RemoteOutcome
+    node_id=uuid4(); request_id=uuid4()
+    ledger=AgentRequestLedger(tmp_path/"ledger.db")
+    try:
+        assert ledger.reserve(request_id,node_id,"system.inspect","system") is None
+        ledger.finish(request_id,RemoteOutcome.REPORTED_SUCCESS,"ok")
+        with __import__("pytest").raises(PermissionError):
+            ledger.reserve(request_id,node_id,"service.manage","restart")
+    finally:
+        ledger.close()
+
+
+def test_agent_parameter_firewall_rejects_execution_and_secret_fields():
+    from sofia.distributed.agent import _bounded_parameters
+    import pytest
+    for key in ("command","shell","argv","token","private_key"):
+        with pytest.raises(ValueError):
+            _bounded_parameters({key:"x"})
+    with pytest.raises(TypeError):
+        _bounded_parameters({"nested":{"x":1}})
+    with pytest.raises(ValueError):
+        _bounded_parameters({"ratio":float("inf")})
