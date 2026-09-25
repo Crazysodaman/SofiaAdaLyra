@@ -25,7 +25,10 @@ from sofia.cognition.tools import (
     create_machine_tool_bindings,
     create_system_tool_bindings,
 )
-from sofia.composition.tools import create_readonly_tool_bindings
+from sofia.composition.tools import (
+    create_readonly_tool_bindings,
+    install_readonly_capabilities,
+)
 from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
