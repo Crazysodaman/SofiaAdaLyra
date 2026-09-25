@@ -17,6 +17,13 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Post-live broader focused regression evidence (2026-09-24)
+
+- After accepting the tenth disposable live-behavior probe, Sparks ran the documented broader focused offline regression slice on the same hardening branch.
+- Result: **109 passed in 11.27s**.
+- This satisfies the reopened broader focused regression gate for current-state emotion, response quality hardening, consent follow-up grounding, emotional journal/conversation integration, Ollama repetition guard behavior, interaction chat projection, and interaction context hygiene.
+- Remaining work is the documented concurrency/policy-integrity closure audit and the known qualified full-suite gate; PKG-INTERACT is still unmerged pending explicit package acceptance and separate merge approval.
+
 ### Tenth disposable live-model probe evidence (2026-09-24)
 
 - Focused response/probe slice: **69 passed in 5.54s**.
