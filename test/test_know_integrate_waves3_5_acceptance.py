@@ -4,8 +4,8 @@ import pytest
 
 from sofia.capability import Capability,CapabilitySystem
 from sofia.integrate import (
-    AdapterDisabledError,AdapterManifest,CapabilitySystemAdapter,DuplicateInvocationError,
-    GovernedAdapterRegistry,InvocationContext,JsonlReceiptLedger,SideEffectClass,ToolInvocation,
+    AdapterActivationStore,AdapterDisabledError,AdapterManifest,CapabilitySystemAdapter,DuplicateInvocationError,
+    GovernedAdapterRegistry,InvocationContext,JsonlReceiptLedger,SchemaValidationError,SideEffectClass,ToolInvocation,validate_object,
 )
 from sofia.knowledge import (
     DocumentDisposition,KnowledgeDocument,KnowledgeFact,KnowledgeLifecycle,KnowledgeRetriever,
@@ -70,3 +70,26 @@ def test_capability_adapter_uses_existing_authority_boundary():
     adapter=CapabilitySystemAdapter(system,tool_id="system.inspect.adapter",capability_name="system.inspect")
     out=adapter.invoke({})
     assert out["kind"]=="success" and out["evidence"]["hostname"]=="venus"
+
+def test_invalidated_document_is_not_retrieved(tmp_path:Path):
+    store=KnowledgeStore()
+    doc=KnowledgeDocument("d-invalid",SourceKind.MANUAL,"manual://old","1",NOW,"d"*64,True)
+    store.register_document(doc)
+    store.record_fact(KnowledgeFact("f-invalid","d-invalid","obsolete breaker value","p1",NOW))
+    lifecycle=KnowledgeLifecycle(tmp_path/"life.json")
+    lifecycle.register("d-invalid")
+    lifecycle.invalidate("d-invalid")
+    assert KnowledgeRetriever(store,lifecycle).search("breaker")==()
+
+def test_adapter_activation_version_survives_restart(tmp_path:Path):
+    path=tmp_path/"activation.json"
+    activation=AdapterActivationStore(path)
+    reg=GovernedAdapterRegistry(JsonlReceiptLedger(tmp_path/"receipts.jsonl"),activations=activation)
+    reg.register(Echo())
+    reg.enable("echo","1")
+    assert AdapterActivationStore(path).version("echo")=="1"
+
+def test_schema_validator_rejects_nested_wrong_type():
+    schema={"type":"object","required":["count"],"properties":{"count":{"type":"integer","minimum":1}}}
+    with pytest.raises(SchemaValidationError):
+        validate_object(schema,{"count":"1"})
