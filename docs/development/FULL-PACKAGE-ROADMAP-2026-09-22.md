@@ -169,7 +169,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### Discord D0-D4 (channel, not a twentieth package)
 
-**2026-09-24 status:** v1 Sparks-only private-DM transport is live accepted and ready to merge. The supervised run verified bot authentication, Gateway connection, exact DM verification before enrollment, durable ingress/outbox, shared-runtime response, visible delivery, fail-closed outcome-unknown handling, and the worker-thread persistence repair. The transport remains intentionally narrow: no public guild, general second user, proactive DM initiative, or general web/search grant.
+**2026-09-25 status:** v1 Sparks-only private-DM transport is live accepted and merged via PR #64. The supervised run verified bot authentication, Gateway connection, exact DM verification before enrollment, durable ingress/outbox, shared-runtime response, visible delivery, fail-closed outcome-unknown handling, and the worker-thread persistence repair. The transport remains intentionally narrow: no public guild, general second user, proactive DM initiative, or general web/search grant.
 
 The live acceptance also produced two downstream findings that are not Discord adapter responsibilities: SOCIAL must project the authenticated principal into cognition, and INTERACT/CORE must repair generic/canned ordinary dialogue.
 
@@ -185,13 +185,18 @@ Local authorized docs may be read before general web. KNOW preserves provenance;
 
 ## Immediate engineering order from the current baseline
 
-1. Keep merged INTERACT as the accepted safety/semantic foundation, but run the new INTERACT/CORE live-quality repair gate for generic/canned dialogue.
-2. Inventory all actual state/authority/outbox/SQLite files and create a consistent **test-only** off-host backup/restore baseline; protect tracked runtime data.
-3. Finish MEM originals/privacy and implement SOCIAL minimum Sparks principal projection. PKG-DISCORD v1 transport is already live accepted; keep identity/personality fixes out of the adapter.
-4. Add local RUN service supervisor and externally enforced stop; begin trusted read-only OPS agent/enrollment on real deployment hosts. Verify process-crash restart.
-5. Implement durable cross-service action/outbox ledger, effective capability registry, host capacity fairness and independent operator controls; test crash/unknown outcome.
-6. Build isolated standby/watchdog/fencing and candidate data-replication prototype; benchmark SQLite+backups versus a replication-capable backend, then separately approve any state migration/production activation.
-7. Verify actual host failover, stale-leader rejection, storage/partition/UPS faults, Discord reconnection, privacy and single-instance invariants; multi-day soak and measured recovery.
-8. Continue gated REL/ACT/AVATAR/KNOW/INTEGRATE/DEV/CLEAN/Evolve/BODY work as dependencies permit; authorize web/search only after the primary release gates.
+1. **CORE/INTERACT quality repair:** replace the stale doc-only PR #68 with a current-`main` implementation branch for natural greetings, varied closings, personality persistence in technical mode, and matched CLI/Discord behavior without reopening accepted safety semantics.
+2. **SOCIAL minimum:** add authenticated `principal_id` / audience projection into shared cognition so the enrolled Discord owner is actually represented as Sparks; bind person-scoped MEM/REL/ACT behavior to it. General second-user rollout remains deferred.
+3. **MEM + SAFE + CLEAN recovery baseline:** inventory every durable store, define retention/erasure/encryption, create verified backup/restore, then migrate live runtime databases out of tracked Git state. Do not delete or untrack `sofia.db` / `state/sofia.db` until recovery is proved.
+4. **Wire accepted primitives:** connect RUN's local lease/supervisor/periodic gate, ACT's queue/delivery ledger, and EVOLVE's approval/execution boundaries into one application-owned orchestration path with no duplicate schedulers or self-approval.
+5. **VERIFY foundation:** rebuild VERIFY from current `main`, add revision-pinned evidence manifests and GitHub Actions CI for full/static gates, then add resource/latency, restore, outage, denial and crash-matrix evidence.
+6. **REL consolidation:** rebuild stale PRs #12/#13 as one authenticated, non-clingy relationship pipeline using MEM originals and SOCIAL principal evidence. Keep absence/reunion present-tense and source-grounded.
+7. **CLEAN branch/doc hygiene:** rebuild stale PR #14; classify tracked DB/log/migration artifacts and old branches/PRs. Retain provenance, but stop treating 300+ commit-behind drafts as merge candidates.
+8. **AVATAR/UI next offline lane:** rebuild AVATAR #7 and UI #6 on current `main`; preserve one presentation state across wardrobe, hairstyle, hair/tail color and renderer receipts. Emotion may influence presentation but does not control it. No discrete sexual mode; intimate/emotional dimensions remain context/consent-bound.
+9. **OPS/RUN/NET live fleet lane:** deploy the signed agent on Windows/Linux/Pi, prove attestation/enrollment, standing-policy upkeep, workload movement, local service restart, independent watchdog, cross-host fencing, restore and multi-day soak. Only Sparks approves final machine removal.
+10. **INTEGRATE/DEV/KNOW live activation:** canary Home Assistant, JMRI, GitHub, Portainer/Hyper-V/Ollama/storage and OpenCode/document workflows with real receipts, rollback and scoped authority. Cloudflare remains deferred.
+11. **Reliability/data redundancy:** implement and test the chosen two-data-copy + witness/fencing + independent backup design; measure RPO/RTO rather than promising zero loss.
+12. **BODY later hardware phase:** rebuild BODY on current `main`, then real Gaia SSC-32/servo calibration, sensors/power, bounded gait and independent physical E-stop.
+13. **General web/search last:** only after real 24/7 RUN/OPS acceptance, with separate authorization, provenance and revocation.
 
 **No implementation, deployment, new data stores, full-suite rerun or live hardware failover test is performed by this roadmap update.**
