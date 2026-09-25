@@ -27,6 +27,7 @@ from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
@@ -131,6 +132,14 @@ def compose(
     )
     knowledge_capabilities = KnowledgeCapabilitySet(
         knowledge_service
+    )
+
+    dev_service = DevToolService(
+        configuration.filesystem_root,
+        configuration.state_path,
+    )
+    dev_capabilities = DevCapabilitySet(
+        dev_service
     )
 
     codebase_inspector = CodebaseInspector(
@@ -285,6 +294,12 @@ def compose(
             handler=knowledge_capabilities.execute,
         )
 
+    for dev_capability in dev_capabilities.capabilities():
+        capability_system.register(
+            capability=dev_capability,
+            handler=dev_capabilities.execute,
+        )
+
     integration_tools = create_configured_integration_tools(
         filesystem_root=configuration.filesystem_root,
         state_path=configuration.state_path,
@@ -307,6 +322,7 @@ def compose(
             )
             + create_system_tool_bindings()
             + create_knowledge_tool_bindings()
+            + create_dev_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)
         ),
     )
