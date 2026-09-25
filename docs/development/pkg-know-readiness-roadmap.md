@@ -1,8 +1,8 @@
-> **Project status update — 2026-09-25:** PKG-DEV + PKG-KNOW/INTEGRATE + PKG-OPS planned Waves 1–5 source implementation is merged to `main` via PR #99 and PR #103 (`0cc067a`). The affected package trees passed `compileall`, the combined Waves 1–5 focused gate passed **60/60**, and the full repository pytest suite was reported passing on the convergence branch. This is repository/source acceptance, not proof of production remote NET transport, deployed multi-host orchestration, RUN 24/7 supervision, live failover, soak, or HA.
+> **Project status update — 2026-09-25:** PR #104 (`24e3888a`) merged the runtime toolbox completion gate. KNOW now has cognition-wired local/repository text ingestion, PDF/manual ingestion, durable provenance search/document inspection, version-aware source identity, and bounded project-document writing. The focused tool/mTLS gate passed **34/34**, the surrounding regression gate passed **270/270**, and the full repository pytest suite was reported passing before merge. Live authoring/upkeep, privacy/audience isolation, richer semantic/citation behavior, and service canaries remain separately gated.
 
 # PKG-KNOW | documents, reference knowledge, provenance, and authoring
 
-**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 source controls are on `main` via PRs #99/#103: local/repository ingestion, durable provenance, source lifecycle and provenance-first retrieval. PDF/manual ingestion, richer semantic retrieval/citation, audience/privacy integration and live documentation-authoring/publishing acceptance remain.
+**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 controls plus the runtime-tool completion gate are on `main` via PRs #99/#103/#104. Local/repository text ingestion, PDF/manual ingestion, durable provenance, source lifecycle, provenance-first retrieval, cognition bindings and bounded document writing are repository accepted. Richer semantic retrieval/citation ranges, audience/privacy integration and live documentation-authoring/publishing acceptance remain.
 
 ## Outcome
 
