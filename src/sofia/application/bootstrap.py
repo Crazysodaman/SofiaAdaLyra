@@ -10,6 +10,7 @@ from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
+from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 
@@ -39,7 +40,7 @@ class SofiaApplication:
         self._configuration = configuration
         self._runtime: SofiaRuntime = compose(configuration)
         conversation_store = ConversationStore(configuration.state_path)
-        self._conversation_service: ConversationService = EmotionalConversationService(
+        self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime, conversation_store=conversation_store,
         )
         self._idle_worker: IdleReflectionWorker | None = None
