@@ -32,6 +32,10 @@ from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.store import MemoryStore
+from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
+from sofia.knowledge.lifecycle import KnowledgeLifecycle
+from sofia.knowledge.persistence import JsonKnowledgeStore
+from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability
 from sofia.operational.store import OperationalStore
@@ -112,6 +116,21 @@ def compose(
 
     filesystem_observation_store = FilesystemObservationStore(
         configuration.state_path
+    )
+
+    knowledge_store = JsonKnowledgeStore(
+        configuration.state_path.parent / "knowledge.json"
+    )
+    knowledge_lifecycle = KnowledgeLifecycle(
+        configuration.state_path.parent / "knowledge-lifecycle.json"
+    )
+    knowledge_service = KnowledgeService(
+        configuration.filesystem_root,
+        knowledge_store,
+        knowledge_lifecycle,
+    )
+    knowledge_capabilities = KnowledgeCapabilitySet(
+        knowledge_service
     )
 
     codebase_inspector = CodebaseInspector(
@@ -260,6 +279,12 @@ def compose(
         handler=hardware_capability.execute,
     )
 
+    for knowledge_capability in knowledge_capabilities.capabilities():
+        capability_system.register(
+            capability=knowledge_capability,
+            handler=knowledge_capabilities.execute,
+        )
+
     integration_tools = create_configured_integration_tools(
         filesystem_root=configuration.filesystem_root,
         state_path=configuration.state_path,
@@ -281,6 +306,7 @@ def compose(
                 configuration.filesystem_root
             )
             + create_system_tool_bindings()
+            + create_knowledge_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)
         ),
     )
