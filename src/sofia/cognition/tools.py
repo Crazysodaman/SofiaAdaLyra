@@ -471,6 +471,14 @@ def create_machine_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
             ),
             capability_name="machine.inspect",
         ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_hardware",
+                description="Inspect local CPU, GPU, memory, storage, network adapter, and virtualization inventory. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="hardware.inspect",
+        ),
     )
 
 
