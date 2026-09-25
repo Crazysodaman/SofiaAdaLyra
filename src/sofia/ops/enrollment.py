@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass,replace
 from datetime import datetime
 from uuid import UUID
+from re import fullmatch
 from sofia.distributed.identity import NodeEnrollment
 from .fleet import FleetRegistry
 from .model import FleetHost,HostLifecycle
@@ -18,7 +19,7 @@ class MachineNodeBinding:
 class AuthenticatedPeerEvidence:
     node_id:UUID; public_key_sha256:str; observed_at:datetime; verifier:str
     def __post_init__(self):
-        if len(self.public_key_sha256)!=64: raise ValueError("peer key fingerprint must be SHA-256")
+        if fullmatch(r"[0-9a-f]{64}",self.public_key_sha256) is None: raise ValueError("peer key fingerprint must be lowercase SHA-256")
         if self.observed_at.tzinfo is None: raise ValueError("observed_at must be timezone-aware")
         if not self.verifier.strip(): raise ValueError("independent verifier identity required")
 
@@ -26,6 +27,7 @@ class FleetEnrollmentService:
     def __init__(self,registry:FleetRegistry)->None: self.registry=registry
     def enroll(self,candidate:FleetHost,*,binding:MachineNodeBinding,enrollment:NodeEnrollment,peer:AuthenticatedPeerEvidence)->FleetHost:
         if candidate.lifecycle is not HostLifecycle.CANDIDATE: raise ValueError("fleet enrollment starts from a candidate")
+        if candidate.trusted: raise ValueError("candidate must enter authenticated enrollment untrusted")
         if candidate.host_id!=binding.host_id: raise PermissionError("binding is for a different machine")
         if binding.node_id!=enrollment.node.node_id or peer.node_id!=enrollment.node.node_id:
             raise PermissionError("machine binding, enrollment and authenticated peer disagree")
