@@ -31,6 +31,7 @@ def create_default_configuration() -> SofiaConfiguration:
     standing_capabilities=tuple(dict.fromkeys((
         "tool.catalog",
         "codebase.inspect",
+        "filesystem.changes",
         "process.inspect",
         "system.inspect",
         "network.inspect",
