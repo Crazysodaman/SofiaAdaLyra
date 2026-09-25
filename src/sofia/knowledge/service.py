@@ -64,7 +64,7 @@ class KnowledgeService:
         try:
             from pypdf import PdfReader
         except ImportError as exc: raise KnowledgeServiceError("PDF ingestion requires pypdf") from exc
-        raw=path.read_bytes(); digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest)
+        raw=path.read_bytes(); digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest,version)
         existing=self.store.document(document_id)
         if existing is not None:
             return {"document_id":existing.document_id,"source_uri":existing.source_uri,"version":existing.version,
@@ -102,4 +102,4 @@ class KnowledgeService:
         with NamedTemporaryFile("w",encoding="utf-8",delete=False,dir=path.parent,prefix=path.name+".",suffix=".tmp") as fh:
             fh.write(content); tmp=Path(fh.name)
         tmp.replace(path)
-        return {"path":str(path.relative_to(self.root)),"bytes":len(content.encode("utf-8")),"overwritten":overwrite}
+        return {"path":path.relative_to(self.root).as_posix(),"bytes":len(content.encode("utf-8")),"overwritten":overwrite}
