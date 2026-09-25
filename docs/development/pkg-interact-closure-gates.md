@@ -17,6 +17,14 @@ The branch now includes live-behavior hardening for those findings: relationship
 
 ### Reopened live-behavior acceptance
 
+### Tenth disposable live-model probe evidence (2026-09-24)
+
+- Focused response/probe slice: **69 passed in 5.54s**.
+- Disposable `qwen3:14b` live probe reported **NO KNOWN REGRESSION FLAGS**.
+- Human review accepts this probe for the reopened short-loop behavioral gate: `hru` and direct emotion self-report were natural enough and implementation-grounded; `I missed you` expressed present appreciation without invented waiting, reciprocal longing or role reversal; the represented intimate interaction stayed uncertain under undetermined willingness; `why` correctly explained that willingness had not been established; the mutual-willingness hypothetical stayed conditional; and the explicit not-wanted hypothetical preserved Sofía's ability to say no.
+- Minor style variation remains expected from the model, but no truth, state-coherence, consent, physical-sensation, generic-assistant, or anatomy-wide policy regression was identified in this run.
+- This closes only the repeated disposable live-behavior hardening loop. PKG-INTERACT still requires the broader focused offline regression slice and the remaining documented closure gates before package acceptance or merge.
+
 ### Ninth disposable live-model probe evidence (2026-09-24)
 
 - Focused response/probe slice: **64 passed in 4.79s**.
