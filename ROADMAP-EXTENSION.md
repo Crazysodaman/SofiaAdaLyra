@@ -1,4 +1,4 @@
-# Roadmap extension: historical change record
+> **Historical note updated 2026-09-23:** this file is retained for provenance only. PKG-INTERACT was subsequently accepted and merged via PR #2. The authoritative 19-package state and current MEM-first dependency gate are in [ROADMAP.md](ROADMAP.md). The older sequencing text below is historical, not current release status.\n\n# Roadmap extension: historical change record
 
 **Consolidated on 2026-09-20.** The authoritative 13-package roster, scope and delivery order now live in [`ROADMAP.md`](ROADMAP.md). This extension is retained to explain the addition of PKG-CLEAN and PKG-INTERACT, **not** as a separate or competing schedule. The [previous extension](https://github.com/Crazysodaman/SofiaAdaLyra/blob/959617fe22c903cd07f31e8771b98b271136ae1b/ROADMAP-EXTENSION.md) remains accessible through Git history.
 
