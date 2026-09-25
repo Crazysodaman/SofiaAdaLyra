@@ -36,6 +36,7 @@ def telemetry_from_hardware(inspection:HardwareInspection,*,observed_at:datetime
 def telemetry_from_system_result(result:SystemCapabilityResult)->HostTelemetry:
     if result.kind is not SystemCapabilityResultKind.SUCCESS:
         raise ValueError("system capability result is not successful")
-    if not isinstance(result.evidence,HardwareInspection):
-        raise TypeError("hardware.inspect evidence required")
-    return telemetry_from_hardware(result.evidence,observed_at=result.observed_at)
+    if not isinstance(result.evidence,Mapping):
+        raise TypeError("hardware.inspect mapping evidence required")
+    fields={k:result.evidence.get(k) for k in ("cpu","gpu","memory","storage","network","virtualization")}
+    return telemetry_from_hardware(HardwareInspection(**fields),observed_at=result.observed_at)
