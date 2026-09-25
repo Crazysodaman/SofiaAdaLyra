@@ -85,6 +85,16 @@ class DurableRemoteAuthorization(RemoteAuthorization):
                 (str(grant_id),),
             )
 
+    def revoke_node(self, node_id: UUID) -> int:
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID.")
+        with self._db:
+            cursor = self._db.execute(
+                "UPDATE remote_standing_grant SET revoked = 1 WHERE node_id = ? AND revoked = 0",
+                (str(node_id),),
+            )
+        return cursor.rowcount
+
     def permits(self, grant_id: UUID, *, node_id: UUID, capability: str,
                 operation: str, now: datetime) -> bool:
         _aware(now, "now")
