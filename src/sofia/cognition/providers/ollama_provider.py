@@ -16,7 +16,8 @@ from sofia.cognition.model import (
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProvider, LLMProviderError
 from sofia.cognition.repetition_guard import (
-    build_rephrase_request, response_quality_issue, trim_generic_assistant_closer,
+    build_rephrase_request, grounded_quality_fallback, response_quality_issue,
+    trim_generic_assistant_closer,
 )
 from sofia.config.model import ProviderConfiguration
 
@@ -44,9 +45,13 @@ class OllamaProvider(LLMProvider):
         except LLMProviderError:
             return response
         alternate = trim_generic_assistant_closer(request, alternate)
-        if (alternate.content.strip() and not alternate.tool_calls
-                and response_quality_issue(request, alternate) is None):
-            return alternate
+        if alternate.content.strip() and not alternate.tool_calls:
+            alternate_issue = response_quality_issue(request, alternate)
+            if alternate_issue is None:
+                return alternate
+        fallback = grounded_quality_fallback(request, issue=issue)
+        if fallback is not None:
+            return fallback
         return response
 
     def _respond_once(self, request: CognitiveRequest) -> CognitiveResponse:

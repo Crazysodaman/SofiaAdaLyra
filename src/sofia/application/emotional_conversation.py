@@ -17,6 +17,7 @@ from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
+from sofia.runtime.clock import runtime_clock_prompt
 from sofia.runtime.runtime import SofiaRuntime
 
 
@@ -86,6 +87,14 @@ class EmotionalConversationService(ConversationService):
             if isinstance(subject, str) and subject.strip():
                 return subject.strip()
         return "current user"
+
+    def observe_background_absence(self, *, now: datetime) -> str | None:
+        """Let the running idle worker appraise a real contact gap at this instant."""
+        if self._runtime.personality is None:
+            return None
+        return self.emotional_journal.observe_absence(
+            subject=self._relationship_subject(), now=now,
+        )
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
         """Avoid initiating idle inference during or shortly after a user turn."""
@@ -163,11 +172,34 @@ class EmotionalConversationService(ConversationService):
         )
         if len(matching) != 1:
             raise KeyError("No matching recent emotional event was recorded.")
+        event = matching[0]
         agent = ThoughtAgent(
             generate=self._runtime.respond,
             reflections=self.reflection_journal,
         )
-        return agent.reflect(event=matching[0], now=now)
+        outcome = agent.reflect(event=event, now=now)
+        if outcome.thought_id is not None:
+            thoughts = tuple(
+                thought for thought in self.reflection_journal.recent_thoughts(limit=50)
+                if thought.thought_id == outcome.thought_id
+            )
+            if len(thoughts) != 1:
+                raise RuntimeError("Recorded reflection could not be reloaded.")
+            thought = thoughts[0]
+            if thought.emotions:
+                self.emotional_journal.record(
+                    event_id=f"reflection-affect:{thought.thought_id}",
+                    source="inferred",
+                    evidence_ref=thought.thought_id,
+                    description=(
+                        "A recorded background reflection revisited prior evidence; "
+                        "its modeled affect now contributes to current emotional state."
+                    ),
+                    emotions=thought.emotions,
+                    occurred_at=thought.created_at,
+                    subject=event.subject,
+                )
+        return outcome
 
     def close(self) -> None:
         super().close()
@@ -192,11 +224,16 @@ class EmotionalConversationService(ConversationService):
                 occurred_at=user.created_at, subject=subject,
                 allow_legacy_affection=self._should_record_legacy_affection(user),
             )
+            self.emotional_journal.record_return_expectation_from_user_cue(
+                message_id=user.id, content=user.content,
+                occurred_at=user.created_at, subject=subject,
+            )
             self.emotional_journal.observe_contact(
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
         now = datetime.now(timezone.utc)
         projections = [
+            runtime_clock_prompt(now=now),
             self.emotional_journal.current_state_prompt(now=now, subject=subject),
         ]
         emotional_context = self.emotional_journal.prompt_context(now=now)

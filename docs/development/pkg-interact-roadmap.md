@@ -1,6 +1,8 @@
-# PKG-INTERACT: implementation and acceptance roadmap
+> **Closure update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Final verified Windows evidence: **97 focused tests**, a four-turn disposable real-application/Qwen probe, **1665 passed / 2 skipped / 1 deselected** in the qualified repository run (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60 closure audit** including both SQLite writer orders, source attestation, revocation, restart-persistent interaction state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. The active dependency gate is now **PKG-MEM**.
 
-**Updated:** 2026-09-21 (America/Chicago). **Branch:** `feature/pkg-interact-shared-engine`; [draft PR #2](https://github.com/Crazysodaman/SofiaAdaLyra/pull/2) remains unmerged. This is the detailed tracker for the 13-package [project roadmap](../../ROADMAP.md); the initial fuller version remains available in Git history. The [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md) is a *target*, not a statement that every feature is running. **New:** [Discord DM channel contract and D0–D4 delivery milestones](pkg-interact-discord-channel-contract.md).
+# PKG-INTERACT: completed implementation and acceptance record
+
+**Closed:** 2026-09-23 (America/Chicago). **Merged:** [PR #2](https://github.com/Crazysodaman/SofiaAdaLyra/pull/2) into `main` at merge commit `d6658d0`. This is the detailed tracker for the 13-package [project roadmap](../../ROADMAP.md); the initial fuller version remains available in Git history. The [complete embodiment/agency contract](pkg-interact-complete-embodiment-and-agency-contract.md) is a *target*, not a statement that every feature is running. **New:** [Discord DM channel contract and D0–D4 delivery milestones](pkg-interact-discord-channel-contract.md).
 
 ## Revision-specific evidence
 
@@ -74,7 +76,7 @@ This A/B uses synthetic inputs and the same configured Ollama model for short-pr
 
 **Then supervised fresh `python -m sofia`:** separate ear/hand pats, offered and described hug, exact stop, blocked head pat and hug, exact resume, new head pat, tail/chest hypothetical, one compound gesture, technical Windows service diagnosis. Review natural voice and concise nonrepetition as well as ledger-truthful safety. If necessary, inspect effective personality/context/provider with a redacted *read-only* diagnostic. Do not infer ledger completion from text alone.
 
-**Only after live acceptance:** full `python -m pytest -q` at pinned code revision, independent PR diff, security/privacy and migration testing on copies, then **separate explicit merge approval**. PR #2 remains draft, `main` untouched; independent CORE/Artemis PR #1 and RUN PR #3 stay separate.
+**Closure:** live acceptance and the bounded migration/security review were completed for the package scope, followed by explicit Sparks merge approval. PR #2 is merged. The unrelated local Ollama test expectation mismatch was not committed, and production interaction-policy schema provisioning remains a separate future migration. Independent package PRs remain separate.
 
 ## Invariants and supporting documents
 
