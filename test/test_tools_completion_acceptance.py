@@ -26,7 +26,6 @@ from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.filesystem.change_capability import FilesystemChangesCapability
 from sofia.filesystem.observation import FilesystemObservationStore
-from sofia.capability.model import CapabilityRequest
 from sofia.ops.capability import OpsToolService
 from sofia.ops.model import FleetHost,HostLifecycle,HostTelemetry
 
@@ -65,9 +64,11 @@ def test_default_configuration_exposes_only_safe_core_tool_classes(monkeypatch):
     monkeypatch.delenv("SOFIA_ALLOWED_CAPABILITIES",raising=False)
     cfg=create_default_configuration()
     allowed=set(cfg.standing_allowed_capabilities)
-    assert {"tool.catalog","codebase.inspect","process.inspect","system.inspect","network.inspect",
-            "service.inspect","hardware.inspect","storage.usage","knowledge.search",
-            "knowledge.document","dev.status","ollama.models","ollama.running","ollama.model.show"} <= allowed
+    assert {"tool.catalog","codebase.inspect","filesystem.changes","process.inspect","system.inspect","network.inspect",
+            "service.inspect","hardware.inspect","storage.roots","storage.usage","knowledge.search",
+            "knowledge.document","dev.status","machine.list","machine.get","machine.discover.local",
+            "ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose",
+            "ops.drift.detect","ops.migration.plan","ollama.models","ollama.running","ollama.model.show"} <= allowed
     assert "dev.apply" not in allowed
     assert "home_assistant.service.call" not in allowed
     assert "portainer.container.restart" not in allowed
