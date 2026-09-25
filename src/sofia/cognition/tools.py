@@ -1,5 +1,7 @@
-﻿from dataclasses import dataclass
+﻿from dataclasses import asdict,dataclass,is_dataclass
 from pathlib import Path
+from enum import Enum
+import json
 from typing import Any
 
 from sofia.authority.model import Authority
@@ -250,10 +252,34 @@ class CognitiveToolDispatcher:
 
             else:
                 lines.append(
-                    str(evidence)
+                    CognitiveToolDispatcher._format_generic_evidence(
+                        evidence
+                    )
                 )
 
         return "\n".join(lines)
+
+
+    @staticmethod
+    def _format_generic_evidence(value: Any) -> str:
+        def normalize(item):
+            if is_dataclass(item):
+                return normalize(asdict(item))
+            if isinstance(item, Enum):
+                return item.value
+            if isinstance(item, Path):
+                return str(item)
+            if isinstance(item, dict):
+                return {str(k): normalize(v) for k,v in item.items()}
+            if isinstance(item, (tuple,list,set,frozenset)):
+                return [normalize(v) for v in item]
+            if item is None or isinstance(item,(str,int,float,bool)):
+                return item
+            return str(item)
+        try:
+            return json.dumps(normalize(value),ensure_ascii=False,sort_keys=True,indent=2)
+        except (TypeError,ValueError):
+            return str(value)
 
     @staticmethod
     def _format_filesystem_result(
