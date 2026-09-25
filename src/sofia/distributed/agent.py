@@ -15,6 +15,20 @@ from sofia.distributed.operations import RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
 
 AgentHandler=Callable[[Mapping[str,Any]],Any]
+_FORBIDDEN_PARAMETERS=frozenset({"command","commands","cmd","shell","script","executable","argv","arguments","password","token","secret","private_key"})
+
+def _bounded_parameters(parameters:dict[str,Any])->dict[str,Any]:
+    clean={}
+    for key,value in parameters.items():
+        if not isinstance(key,str) or not key.strip() or len(key)>128:
+            raise ValueError("invalid remote parameter key")
+        if key.lower() in _FORBIDDEN_PARAMETERS:
+            raise ValueError("arbitrary execution and secret parameters are forbidden")
+        if type(value) not in (str,int,float,bool,type(None)):
+            raise TypeError("remote agent accepts bounded JSON scalar parameters only")
+        clean[key]=value
+    return clean
+
 
 @dataclass(frozen=True)
 class RemoteAgentConfig:
@@ -136,6 +150,7 @@ class RemoteAgentServer:
                     parameters=payload.get("parameters",{})
                     if node_id!=owner.config.node_id: raise PermissionError("wrong node")
                     if not isinstance(parameters,dict): raise ValueError("parameters must be object")
+                    parameters=_bounded_parameters(parameters)
                     existing=owner.ledger.reserve(request_id,node_id,capability,operation)
                     if existing is not None:
                         state,outcome,message=existing
