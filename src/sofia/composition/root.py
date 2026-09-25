@@ -267,8 +267,13 @@ def compose(
 
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
-        bindings=create_default_tool_bindings(
-            configuration.filesystem_root
+        bindings=(
+            create_default_tool_bindings(
+                configuration.filesystem_root
+            )
+            + create_readonly_tool_bindings(
+                configuration.filesystem_root
+            )
         ),
     )
 
