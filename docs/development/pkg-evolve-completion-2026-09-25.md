@@ -1,6 +1,6 @@
 # PKG-EVOLVE completion candidate
 
-**Revision:** 2026-09-25. **Branch:** `feature/pkg-evolve-completion`. **Status:** source candidate based on current `main`; focused tests are authored but have **not yet been executed on the current Windows checkout**. No production identity, Constitution, preference, or configuration state was changed.
+**Revision:** 2026-09-25. **Branch:** `feature/pkg-evolve-completion`. **Status:** focused disposable/offline acceptance passed on the current Windows checkout. No production identity, Constitution, preference, or configuration state was changed.
 
 ## Two evolution lanes
 
@@ -39,3 +39,12 @@ python -m pytest -q test/test_constitution.py test/test_constitution_integrity.p
 ```
 
 These tests must use disposable state/files. No real protected amendment is required for repository acceptance.
+
+## Windows acceptance evidence
+
+Executed on Sparks's Windows checkout on 2026-09-25:
+
+- `python -m pytest -q test/test_evolve_amendment.py test/test_evolve_executor.py test/test_evolve_revision.py` → **36 passed in 4.32s**.
+- `python -m pytest -q test/test_constitution.py test/test_constitution_integrity.py test/test_constitution_store.py test/test_identity.py` → **26 passed in 4.12s**.
+
+Current EVOLVE offline evidence total: **62 passing tests across the focused and protected-state regression gates**. Production protected state was not modified.
