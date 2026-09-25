@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime,timezone
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 import json,sqlite3,ssl
+from math import isfinite
 from re import fullmatch
 from threading import RLock
 from pathlib import Path
@@ -26,6 +27,8 @@ def _bounded_parameters(parameters:dict[str,Any])->dict[str,Any]:
             raise ValueError("arbitrary execution and secret parameters are forbidden")
         if type(value) not in (str,int,float,bool,type(None)):
             raise TypeError("remote agent accepts bounded JSON scalar parameters only")
+        if type(value) is float and not isfinite(value):
+            raise ValueError("nonfinite remote parameters are forbidden")
         clean[key]=value
     return clean
 
@@ -82,8 +85,14 @@ class AgentRequestLedger:
         self._db.commit()
     def reserve(self,request_id:UUID,node_id:UUID,capability:str,operation:str)->tuple[str,str|None,str|None]|None:
         with self._lock:
-            row=self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
-            if row is not None: return row
+            row=self._db.execute(
+                "SELECT node_id,capability,operation,state,outcome,message FROM agent_request WHERE request_id=?",
+                (str(request_id),),
+            ).fetchone()
+            if row is not None:
+                if row[0]!=str(node_id) or row[1]!=capability or row[2]!=operation:
+                    raise PermissionError("request ID is already bound to a different remote operation")
+                return (row[3],row[4],row[5])
             try:
                 with self._db:
                     self._db.execute(
@@ -91,7 +100,15 @@ class AgentRequestLedger:
                         (str(request_id),str(node_id),capability,operation,"reserved"),
                     )
             except sqlite3.IntegrityError:
-                return self._db.execute("SELECT state,outcome,message FROM agent_request WHERE request_id=?",(str(request_id),)).fetchone()
+                row=self._db.execute(
+                    "SELECT node_id,capability,operation,state,outcome,message FROM agent_request WHERE request_id=?",
+                    (str(request_id),),
+                ).fetchone()
+                if row is None:
+                    raise
+                if row[0]!=str(node_id) or row[1]!=capability or row[2]!=operation:
+                    raise PermissionError("request ID is already bound to a different remote operation")
+                return (row[3],row[4],row[5])
             return None
     def finish(self,request_id:UUID,outcome:RemoteOutcome,message:str)->None:
         with self._lock:
