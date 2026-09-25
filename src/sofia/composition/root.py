@@ -145,6 +145,9 @@ def compose(
         if runtime is None:
             return False
 
+        if request.capability.name != "filesystem.inspect":
+            return request.capability.name in configuration.standing_allowed_capabilities
+
         authorization = runtime.filesystem_authorization
 
         if authorization is None:
@@ -226,9 +229,6 @@ def compose(
 
             if authorized_operation not in authorization.operations:
                 return False
-
-        if request.capability.name != "filesystem.inspect":
-            return request.capability.name in configuration.standing_allowed_capabilities
 
         return True
 
