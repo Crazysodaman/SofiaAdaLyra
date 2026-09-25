@@ -12,6 +12,7 @@ from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
+from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.factory import create_llm_provider
 from sofia.cognition.rules import RuleEngine
@@ -255,7 +256,14 @@ def compose(
         configuration
     )
 
-    context_assembler = CognitiveContextAssembler()
+    # Normal Ollama conversation uses a compact projection of the verified
+    # Constitution. Full assembly remains the default for other providers,
+    # constitutional questions, and any operation with exposed tools.
+    context_assembler = (
+        ConversationalContextAssembler()
+        if configuration.provider.provider == "ollama"
+        else CognitiveContextAssembler()
+    )
 
     action_executor = TestActionExecutor()
 
