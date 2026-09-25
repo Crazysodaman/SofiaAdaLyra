@@ -1,0 +1,28 @@
+# PKG-INTERACT: isolated decision -> expression diagnostic
+
+## Verified evidence and unresolved behavior
+
+At `56e91de`, Sparks reported 17 focused tests passed and one state-free Qwen sample per case. The hug choice was `decline` and the response addressed the offer, but the ear expression invented a longstanding preference and bodily comfort. A stopped gesture made no model call, and an explicit sensor question correctly denied real sensing.
+
+At `b318c2d`, **28 focused tests passed in 6.33 s** on Windows. Three further Qwen samples per non-blocked case showed: hug choices `decline` 3/3, with **two reasons explicitly citing lack of physical presence** and a third giving ambiguous inability; ear choices `respond` 3/3 with varied expressions, some ungrounded user-intent interpretations; stopped gesture bypassed model calls; sensor replies denied real sensing 3/3. All expression scans said `clean heuristic scan`, illustrating that **no regex match is not proof of groundedness or a quality gate**. Sample size is limited and unseeded; there is no live acceptance or outcome prediction here. The issue is not that Sofía declined a hug. A contextual boundary is valid. The defect is reasoning about an avatar-scene offer as if it demanded physical contact.
+
+## Three boundaries
+
+1. **Interpret:** Reuse reviewed `ActionIntent` or `InteractionDecision` from existing grammar; no new untrusted text classifier or body policy. A denied gesture bypasses both model calls. The exact real-sensor fixture bypasses avatar choice. Recognition is not consent.
+2. **Choose:** The configured Ollama model receives canonical bounded self-state, reviewed classification and exact user text. It returns strict in-scope JSON with `choice` and a short diagnostic `reason`; invalid results stop before expression. Acceptance, decline, clarification and boundaries are conversational choices only, never persisted permissions or executed actions.
+3. **Express:** Only the validated choice enters the separate expression request; the model's reason never becomes evidence. Present-turn modeled tone and optional textual avatar gestures are allowed, but not invented lifelong preferences, previous interactions, actual touch, biological sensations or verified animations. The actual-sensor fixture remains on the separate capability-grounding path.
+
+## Diagnostic audits, not enforcement
+
+`src/sofia/interaction/decision_expression.py` supplies the pure two-stage prototype and a narrow expression audit (unsupported history, durable preferences, unverified sensation, physical-impossibility redirect, generic assistant redirect and offered-hug-completion text patterns). New `src/sofia/interaction/decision_reason_audit.py` **separately inspects only the model-authored reason for reviewed avatar offers**. It flags an explicit `physical-impossibility-premise`, or an `ambiguous-ability-premise` for a statement like “not able to accept hugs” without evidence of why. “I prefer space” or “I'm not comfortable with hugs right now” is not flagged as physical impossibility. A reason audit does not deem a boundary right or wrong, infer a stable preference, validate an emotion, or change the chosen response.
+
+`src/sofia/interaction/decision_expression_probe.py` uses synthetic, state-free requests with the configured Ollama model. It supports `--samples 1..8` (default 3); it reports original choices, diagnostic reasons, final text, **decision flags and expression flags separately**, and contract failures. Empty scans now read `no patterns detected (not verified)`; the real-sensor fixture is explicitly outside the avatar expression audit. The audits can miss bad prose or flag benign wording. Human inspection of every raw response remains essential. Neither audit rejects, rewrites, scores, persists or executes model output.
+
+`test/test_interaction_decision_expression.py` and `test/test_interaction_decision_reason_audit.py` exercise construction, boundaries, patterns and stubbed probe reporting without real Ollama, SQLite or production conversation access. The prototype does not run in `python -m sofia` and is not an exact replay of a saved session.
+
+## Next verification gate
+
+1. With Sofía closed, fast-forward `feature/pkg-interact-shared-engine` without resetting or stashing unrelated local changes. Run `python -m pytest -q -x test/test_interaction_decision_expression.py test/test_interaction_decision_reason_audit.py`. **New commits have not yet been verified on Windows.** Stop if tests fail.
+2. If green, run `python -m sofia.interaction.decision_expression_probe --case offer --samples 3`. This is a **diagnostic comparison of decision premises**, not another production prompt rewrite. Inspect the reason next to each flag and response; a valid decline must remain a valid option. Additional ear/sensor probes are optional if investigating those cases further.
+3. If the physical-impossibility premise persists, compare a separately available compatible model through the same *fixed* fixture and settings only after verifying its actual installation and compatibility. **Do not blindly retry failed model downloads or change the default model.** If no suitable alternative exists, keep the result as an unresolved model/architecture limitation; do not simulate evidence.
+4. Before live integration: broader regression, repeated model review, CORE/SAFE/privacy/concurrency review and explicit user merge approval. Keep PR #2 draft. Do not touch `main`, other PRs, production `state/sofia.db`, its timestamped backup, Sparks's separately edited `test/test_ollama_generation_contract.py`, identity, Constitution, real emotion journal, model settings, Discord or renderer.
