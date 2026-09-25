@@ -1,21 +1,21 @@
-# PKG-NET | branch readiness roadmap
+# PKG-NET | readiness roadmap
 
-**2026-09-21 | draft PR #11 | baseline head `04efbcac15d9ba2886f59647929762fb384d12ac` before this note.** Read `pkg-net-discord-route-review.md` and the original distributed-homelab roadmap contract. **Discord network connectivity now; general browsing/search only after Discord D0–D4 and verified RUN 24/7.** The broader authenticated Artemis transport is a separate NET acceptance stage, not secretly included in Discord-only allowlisting.
+**Accepted gate: 2026-09-24 | PR #11 merged to main.**
 
-## Prepared and limits
+## Accepted implementation
 
-Disabled-by-default lexical Discord REST/Gateway URL classifier; 29 focused tests passed on equivalent isolated source (72 when combined with unrelated MEM/VERIFY fixtures). URL shape inspection is **not** a firewall, trusted host identity, DNS/IP binding, redirect defense, TLS validation or access grant. No live outbound traffic occurred.
+The durable local admission gate is integrated on `main`. It now provides durable node identity enrollment/retirement, exact durable endpoint approval, durable exact-scope authorization and per-node grant revocation, durable replay/audit state, identity-bound and endpoint-bound gateways, coordinated retirement, and a `DurableRemoteControl` composition root around an injected authenticated transport.
 
-## Work/test gates
+Evidence recorded at acceptance: **57/57 focused PKG-NET tests passed** on the user's Windows Python 3.12 environment, followed by a reported **full repository pytest pass**.
 
-1. Pin checkout and inspect existing peer enrollment, grants, capability inventory, replay ledger and transport; avoid a second authorization system. Audit documented Discord REST/Gateway destinations and required paths against current provider behavior at review time.
-2. At trusted connector boundary, constrain scheme, exact host, DNS result/IP, TLS hostname/certificate, proxy/redirect and outbound firewall policy; disable redirects and arbitrary DNS rebinding. Keep network grants scoped to a bot/session and needed Discord operations, expire/revoke/audit; no generic HTTP client or search API in this phase.
-3. Integrate with INTERACT + SAFE + PR #5 verified Sparks-only private DM gate; independently validate gateway origin. Deny other user, guild/group, bot/webhook, stale session, forged metadata, redirect/lookalike domains and revoke mid-connection.
-4. Focused tests on actual branch and Windows, then disposable integration with fake DNS/proxy/TLS/network outage; real Discord reachability, reconnect, retry and authenticated send/receive are **distinct live D0–D4 gates**. Record precise endpoints and redacted logs, never secrets.
-5. Separately plan the original NET outcome: authenticated Artemis agent and peer enrollment, node/capability/operation/expiry grants, local-to-Artemis end-to-end execution, replay denial after restart, revocation, outage and audited results. No unrestricted shell, ambient network scan, presumed remote GPU or service install.
+This acceptance does **not** claim that a public-key fingerprint alone authenticates a peer. The actual production transport remains a separate boundary.
 
-## Review decisions
+## Remaining gates
 
-Which deployment host, bot identity and approved egress route; actual Windows firewall/Cloudflare/proxy/DNS topology; required Discord endpoint changes; Artemis identity/transport/service permissions and safe task allowlist. Do **not** infer credentials, actual user Discord ID or production topology from example fixtures.
+1. Implement a standard, peer-authenticated production transport. Do not invent custom cryptography.
+2. Enforce real destination/network controls at the connector boundary, including DNS/address handling, TLS hostname/certificate validation, proxy behavior and redirects.
+3. Add audited key rotation and stronger retirement/decommission journal semantics where multi-database operations must recover safely.
+4. Wire the production composition root and run local-to-Artemis authenticated end-to-end operations with replay, revocation, outage and restart negatives.
+5. Preserve the already accepted narrow Discord transport scope and keep general web/search separately gated until RUN/OPS prerequisites are met.
 
-**Status:** offline route classifier only; actual branch checkout/Windows/CI/full suite/Discord and Artemis live transport = NOT RUN. No internet search, merge, deployment or production state changes.
+**Current state:** durable local admission gate accepted and merged. PKG-NET as a whole remains active until production transport and live Artemis acceptance are complete.
