@@ -1,8 +1,8 @@
-> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+> **Project status update — 2026-09-24:** PKG-DISCORD v1 is live accepted for the supervised Sparks-only private-DM transport path. A new INTERACT/CORE live-quality repair gate is open for generic/canned conversational fallback discovered through that channel; accepted INTERACT safety semantics remain intact. SOCIAL minimum principal projection also remains open because transport authentication is not yet carried into cognition as `Sparks`.
 
 # Sofía Ada Lyra | master readiness index
 
-**Updated:** 2026-09-23 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
+**Updated:** 2026-09-24 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
 
 ## Authoritative planning and acceptance documents
 
@@ -33,12 +33,12 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 
 | Order | Package | Current evidence-based location/status | Next gate |
 | ---: | --- | --- | --- |
-| 1 | CORE | Foundations merged via PR #1 | Fresh integrated suite and supervised identity/personality/restart/latency review after INTERACT settles. |
-| 2 | INTERACT | **Accepted foundation merged via PR #2** | Keep staged offers off until separately reviewed production schema provisioning; downstream dependency is MEM. |
+| 1 | CORE | Foundations merged via PR #1 | Joint INTERACT/CORE live-quality repair for generic assistant fallback, then fresh integrated identity/personality/restart/latency evidence. |
+| 2 | INTERACT | **Accepted foundation merged via PR #2 plus accepted hardening via PR #29** | New narrow live-quality repair gate with CORE for natural/non-canned dialogue; accepted interaction safety/ledger semantics remain closed. |
 | 3 | MEM | SQLite foundations on `main`; original retrieval preflight draft PR #9 | Durable originals, provenance, privacy, consistent cross-store backup and independent restore. |
-| 4 | SOCIAL | Minimum principal/audience boundary designed | Authenticated Sparks-only identity and negative cross-user/audience leakage before Discord. |
-| 5 | NET | Distributed foundations on `main`, Discord-only route preflight draft PR #11 | Real authenticated narrow transport/DNS/TLS/redirect/remote-host enforcement; no general web. |
-| 6 | UI | Workbench prototype draft PR #6; Discord adapter not live accepted | D0-D4 actual Sparks DM, reconnect, delivery receipt, stop/privacy and real end-to-end acceptance. |
+| 4 | SOCIAL | Minimum principal/audience boundary designed; live Discord proved transport auth but missing cognition projection | Project the authenticated owner as Sparks in shared cognition and add negative cross-user/audience leakage tests. |
+| 5 | NET | Distributed foundations on `main`; narrow Discord private-DM transport live accepted | Broader DNS/TLS/redirect/remote-host enforcement; no general web. |
+| 6 | UI | Workbench prototype draft PR #6; Sparks-only Discord DM adapter live accepted for v1 transport | Keep Discord narrow while desktop/web/mobile/voice/renderer and proactive outbound remain separately gated. |
 | 7 | RUN | Periodic-opportunity candidate draft PR #3; no certified OS supervisor/24-7/HA | OS supervision and independent watchdog; safe standby startup, exclusive lease/fencing, ledger reconciliation, multi-day soak and measured host-failover proof. |
 | 8 | OPS | Read-only inspection foundations on `main`; fleet agent/orchestration contract only | Trusted cross-platform enrollment/telemetry, measured capacity, maintenance and compatible workload relocation, failover/rollback, Sparks-only final machine-removal approval. |
 | 9 | ACT | Unsent outbox/reflection foundations on `main`, outreach preflight draft PR #15 | One durable scheduler/outbox ledger, consent/quiet/stop and actual delivery receipt. |
