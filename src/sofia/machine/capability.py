@@ -9,10 +9,26 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 
 from .discovery import create_machine_discovery
-from .hardware import create_hardware_discovery
+from .hardware import HardwareDiscovery,create_hardware_discovery
 from .inventory import MachineInventory
 from .persistence import MachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
+
+HARDWARE_INSPECT_CAPABILITY=Capability(
+    name="hardware.inspect",
+    description="Inspect local CPU, GPU, memory, storage, network-adapter and virtualization hardware. Read-only.",
+)
+
+class HardwareInspectionCapability:
+    def __init__(self,discovery:HardwareDiscovery|None=None)->None:
+        self.discovery=discovery or create_hardware_discovery()
+        self.capability=HARDWARE_INSPECT_CAPABILITY
+    def execute(self,request:CapabilityRequest):
+        if request.capability.name!=self.capability.name:
+            raise ValueError("capability mismatch")
+        if request.parameters:
+            raise ValueError("hardware.inspect does not accept parameters")
+        return self.discovery.discover()
 
 class MachineToolService:
     def __init__(self,state_path:Path)->None:
