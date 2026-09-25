@@ -20,7 +20,7 @@ class EngineeringCandidate:
 class EngineeringWorkflow:
     def __init__(self,workspace:Path,executable:str="opencode")->None:
         self.workspace=workspace.resolve(); self.executable=executable
-        self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=(); self._applied_hashes:dict[str,str|None]={}
+        self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=(); self._applied_hashes:dict[str,str|None]={}; self._applied_existed:dict[str,bool]={}
 
     def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
         if not request.authorized: raise PermissionError("build requires independent authorization")
@@ -69,11 +69,12 @@ class EngineeringWorkflow:
         check=subprocess.run(("git","apply","--check","-"),cwd=self.workspace,input=candidate.patch,
             text=True,capture_output=True,check=False)
         if check.returncode: raise GitWorkspaceError(check.stderr.strip() or "candidate patch no longer applies")
+        existed={path:(self.workspace/path).exists() for path in patch_paths}
         applied=subprocess.run(("git","apply","-"),cwd=self.workspace,input=candidate.patch,
             text=True,capture_output=True,check=False)
         if applied.returncode: raise GitWorkspaceError(applied.stderr.strip() or "candidate patch failed")
         self._applied_paths=patch_paths
-        self._applied_hashes={}
+        self._applied_hashes={}; self._applied_existed=existed
         for path in patch_paths:
             target=self.workspace/path
             self._applied_hashes[path]=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
@@ -86,8 +87,14 @@ class EngineeringWorkflow:
             target=self.workspace/path
             current=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
             if current!=expected: raise GitWorkspaceError(f"refusing rollback because reviewed path changed after apply: {path}")
-        self.git.run("restore","--worktree","--staged","--",*self._applied_paths)
-        self._applied_paths=(); self._applied_hashes={}
+        tracked=[path for path in self._applied_paths if self._applied_existed.get(path,False)]
+        created=[path for path in self._applied_paths if not self._applied_existed.get(path,False)]
+        if tracked: self.git.run("restore","--worktree","--staged","--",*tracked)
+        for path in created:
+            target=self.workspace/path
+            if target.is_file(): target.unlink()
+            elif target.exists(): raise GitWorkspaceError(f"refusing rollback of non-file candidate path: {path}")
+        self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
 
     def commit(self,message:str,*,authorized:bool)->str:
         if not authorized: raise PermissionError("commit requires separate authorization")
@@ -95,7 +102,7 @@ class EngineeringWorkflow:
         if not self._applied_paths: raise GitWorkspaceError("no reviewed candidate paths are pending commit")
         self.git.run("add","--",*self._applied_paths)
         self.git.run("commit","-m",message,"--",*self._applied_paths)
-        self._applied_paths=(); self._applied_hashes={}
+        self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
         return self.git.head_sha()
 
     def push(self,branch:str,*,authorized:bool,remote:str="origin")->None:
