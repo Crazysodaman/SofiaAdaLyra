@@ -84,19 +84,17 @@ The intended workflow is:
 
 ## Current Boundary
 
-This batch establishes OpenCode as project development tooling.
+PKG-DEV planned Waves 1–5 source controls are now on `main` via PRs #99/#103. Sofía has a bounded OpenCode execution adapter plus base-SHA verification, exact workspace/diff scope checks, detached Git worktrees, targeted-test evidence, reviewed patch application and guarded rollback. Applying, committing and pushing remain separate authorization boundaries.
 
-It does not yet expose OpenCode as a runtime capability to Sofía.
-
-The later controlled-modification batch will define the runtime boundary if and when OpenCode becomes callable by Sofía herself.
+This is **not** yet proof of a live autonomous OpenCode runtime session on the production Sofía host. End-to-end KNOW→DEV→VERIFY self-tooling, consequential publication/deployment/restart, and production remote-system operations remain separately gated.
 
 ## Git
 
 OpenCode may inspect Git state.
 
-OpenCode must not push to the remote repository.
+OpenCode itself does not receive blanket remote-push authority. The DEV workflow exposes push only as a separate explicitly authorized operation.
 
-Git commits require approval.
+Git commits and pushes remain distinct authorization boundaries.
 
 Published history must not be rewritten without explicit human direction.
 
