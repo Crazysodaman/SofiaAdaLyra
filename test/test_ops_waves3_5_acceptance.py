@@ -11,7 +11,7 @@ from sofia.machine.model import (
 )
 from sofia.ops import (
     AuthenticatedPeerEvidence,BackupEvidence,DesiredHostState,DesiredWorkloadPlacement,
-    FailureDomain,FleetEnrollmentService,FleetHost,FleetRegistry,FleetRemovalApproval,
+    FailoverCoordinator,FailureDomain,FleetEnrollmentService,FleetHost,FleetRegistry,FleetRemovalApproval,
     FleetRemovalApprovalRequired,HostLifecycle,HostUpdateAssignment,JsonLeaseTable,LeaseTable,
     MachineNodeBinding,MaintenanceOperation,MaintenancePolicy,MaintenanceRequest,
     ManagedWorkload,MigrationCoordinator,MigrationPlan,MigrationStage,PromotionDenied,
@@ -234,3 +234,13 @@ def test_workload_orchestrator_executes_checkpoint_readiness_fence_and_lease_tra
     assert leases.current("sofia").holder_host_id=="terra"
     assert ("fence","venus") in events
     assert events[-1]==("stop","venus")
+
+def test_failover_coordinator_transfers_authority_only_after_guard_proof():
+    fleet=_fleet("terra")
+    guard=PromotionGuard(fleet,(FailureDomain("venus","fd-a"),FailureDomain("terra","fd-b")))
+    leases=LeaseTable()
+    leases.acquire("sofia","venus",now=NOW-timedelta(seconds=1),ttl=timedelta(minutes=5))
+    evidence=PromotionEvidence("sofia","venus","terra",True,True,True)
+    promoted=FailoverCoordinator(guard,leases).promote(evidence,now=NOW,lease_ttl=timedelta(minutes=5))
+    assert promoted.holder_host_id=="terra"
+    assert leases.is_fenced("sofia","venus")
