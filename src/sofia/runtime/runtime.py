@@ -536,6 +536,35 @@ class SofiaRuntime:
             operation
         )
 
+    def _operation_authority(self) -> Authority:
+        allowed = [
+            "process.inspect",
+            "system.inspect",
+            "network.inspect",
+            "service.inspect",
+            "machine.inspect",
+        ]
+        filesystem_allowed = (
+            self._filesystem_authorization is not None
+            and self._filesystem_authorization.decision
+            is AuthorizationDecision.ALLOW
+        )
+        if filesystem_allowed:
+            allowed.extend(
+                (
+                    "codebase.inspect",
+                    "knowledge.source.read",
+                    "knowledge.search",
+                )
+            )
+        return Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=False,
+            can_inspect_filesystem=filesystem_allowed,
+            allowed_capabilities=tuple(allowed),
+        )
+
     def consume_continuity_awareness(self) -> ContinuityEvent | None:
         event = self._pending_continuity_event
         self._pending_continuity_event = None
