@@ -1,6 +1,8 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # Sofía Ada Lyra: PKG-AVATAR delivery roadmap
 
-**Updated 2026-09-22. Status:** proposed package in draft PR #4 with implementation candidates in draft PR #7; not merged or deployed. The ordered 16-package project roster now lives in [ROADMAP.md](ROADMAP.md). AVATAR is package 10 in the ordered readiness plan, while UI owns presentation/transport and INTERACT owns interaction semantics.
+**Updated 2026-09-23. Status:** proposed package in draft PR #4 with implementation candidates in draft PR #7; not merged or deployed. The ordered 16-package project roster now lives in [ROADMAP.md](ROADMAP.md). AVATAR is package 10 in the ordered readiness plan, while UI owns presentation/transport and INTERACT owns interaction semantics.
 
 ## Ownership boundary
 
@@ -46,9 +48,9 @@ Wardrobe or avatar output may influence **represented** comfort/confidence/embar
 
 ## Sequence
 
-- A0/A1/A2 offline asset work may continue without blocking CORE → INTERACT → MEM → Discord → RUN.
+- A0/A1/A2 offline asset work may continue. INTERACT is now merged; the active dependency chain is MEM → SOCIAL minimum → Discord → OPS/RUN.
 - Text/headless INTERACT must remain functional without AVATAR.
-- A3/A4 require accepted INTERACT + UI + SAFE + MEM boundaries and real renderer acknowledgements.
+- A3/A4 now have the accepted INTERACT foundation, but still require UI + SAFE + MEM boundaries and real renderer acknowledgements.
 - General web/weather fetching remains unavailable during Discord-only NET. Wardrobe may consume externally supplied trusted weather evidence, but may not fetch it itself.
 - Real-world prop/device actions require separate BODY/NET/SAFE authorization.
 

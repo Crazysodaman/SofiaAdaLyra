@@ -1,6 +1,8 @@
-# Sofía Ada Lyra: 17-package delivery roadmap
+> **Project status update — 2026-09-24:** PKG-INTERACT remains accepted on `main`, and its post-merge live-behavior hardening was also accepted by Sparks and integrated through PR #29. Current Windows evidence includes an accepted disposable `qwen3:14b` live-behavior probe, **109/109** broader focused regression, **2/2** SQLite writer-order verification, **60/60** policy/concurrency audit, **3/3** Ollama generation-contract verification, and a user-reported clean unqualified full repository suite with no deselections. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
 
-**Planning revision:** 2026-09-22 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 and the roadmap reconciliation PR #4 are merged. Active implementation remains isolated in its package branches and draft PRs. The roadmap now contains **17 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, and PKG-OPS.
+# Sofía Ada Lyra: 19-package delivery roadmap
+
+**Planning revision:** 2026-09-24 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 (CORE), roadmap reconciliation PR #4, PR #2 (INTERACT), and PR #29 (INTERACT post-merge hardening) are merged. INTERACT plus its live-behavior hardening are accepted as the merged foundation for the next MEM gate. The roadmap now contains **19 packages**, including PKG-SOCIAL, PKG-RUN, PKG-AVATAR, PKG-OPS, PKG-KNOW, and PKG-INTEGRATE.
 
 > **Core invariant:** Sofía's canonical identity, Constitution, represented embodiment, evidence, memory, authority, and capabilities remain independent of replaceable models, hosts, processes, clients, Discord, voices, avatars, and robots. Model output is never proof of authorization, sensing, execution, delivery, or subjective experience.
 
@@ -10,7 +12,7 @@ The primary dependency path is:
 
 **CORE → INTERACT → MEM → SOCIAL minimum identity/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → later separately authorized general web/search.**
 
-After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature read-only host/fleet diagnostics and trusted enrollment; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
+After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
 
 **SAFE and VERIFY are continuous gates across every stage rather than late sequential packages.**
 
@@ -21,13 +23,13 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | Order | Package | Outcome | Current evidence-based state / next gate |
 | ---: | --- | --- | --- |
 | 1 | **PKG-CORE · Cognition and continuity** | Grounded identity/personality, startup/restart awareness, response performance, adaptive reasoning | Foundations merged in PR #1. Fresh integrated full-suite and supervised live identity/personality/latency review remain open after the current INTERACT gate. |
-| 2 | **PKG-INTERACT · Text/avatar/screen interaction** | Shared canonical whole-body interaction semantics, contextual reactions, virtual lab, truthful expression | Active draft PR #2. Large candidate implementation exists; older coordinated Windows evidence does not certify current head. Current decision/expression and grounding quality remain under active review. |
+| 2 | **PKG-INTERACT · Text/avatar/screen interaction** | Shared canonical whole-body interaction semantics, contextual reactions, virtual lab, truthful expression | **Accepted and merged via PR #2, with post-merge live-behavior hardening accepted and integrated via PR #29 on 2026-09-24.** Current hardening evidence: accepted disposable Qwen behavior probe; 109/109 broader focused; 2/2 writer-order; 60/60 policy/concurrency; 3/3 Ollama contract; user-reported clean unqualified full repository suite. Staged offers remain disabled by default pending separately reviewed production schema provisioning. |
 | 3 | **PKG-MEM · Durable memory and learning** | Preserved originals, provenance-aware retrieval, correction, reviewed durable preferences, archive migration | Draft PR #9 provides read-only original retrieval preflight. Durable integrated memory, privacy, correction, migration, and restart acceptance remain. |
 | 4 | **PKG-SOCIAL · Principal, audience, and isolation** | One Sofía across people/channels with authenticated principals, per-user relationship state, private/shared scopes, no cross-user leakage | Documentation/design only in PR #4. **Minimum Sparks-only principal/audience boundary is required before Discord. General second-user/multi-user rollout stays deferred until explicitly requested.** |
 | 5 | **PKG-NET · Scoped networking and distributed operation** | Authenticated network routes and bounded remote capabilities | Discord-only route preflight in PR #11; Artemis distributed foundations exist on main. Real trusted transport/DNS/TLS/redirect enforcement and real Artemis acceptance remain. No general web/search grant. |
 | 6 | **PKG-UI · Clients, Discord adapter, voice, and workbench** | Authenticated interfaces to the same Sofía, delivery/renderer acknowledgments, accessible text fallback | Workbench prototype in PR #6. Real Discord adapter, desktop/web/mobile clients, voice, and production renderer remain unaccepted. |
 | 7 | **PKG-RUN · 24/7 lifecycle and supervision** | External service supervision, single active instance, restart/backoff, bounded periodic cognition, health/recovery | Draft PR #3 has disabled-by-default periodic opportunity mechanics. No OS service, supervisor, soak test, or verified 24/7 uptime yet. |
-| 8 | **PKG-OPS · Fleet operations, diagnostics, performance, and orchestration** | Cross-platform telemetry, trusted zero-touch enrollment, Sparks-approved decommissioning, autonomous upkeep, configuration drift, workload placement/failover, and bounded maintenance | Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics across enrolled Windows/Linux/Raspberry Pi hosts. Under standing policy Sofía may discover, enroll, maintain, drain, quarantine, and prepare machines for removal; perform approved upkeep; and place or move eligible managed workloads according to capability, health, load, thermals, maintenance state, and policy. **Final machine removal always requires Sparks's explicit approval for that exact host/proposal.** Real agent, orchestration runtime, remote telemetry/history, hardening, and migration/failover acceptance are not yet implemented. |
+| 8 | **PKG-OPS · Fleet operations, diagnostics, performance, and orchestration** | Cross-platform telemetry, trusted zero-touch enrollment/decommissioning, autonomous upkeep, configuration drift, workload placement/failover, and bounded maintenance | Reuse main's read-only process/system/network/service/hardware inspection and NET's authenticated transport. Add normalized CPU/GPU/VRAM/RAM/storage/network/thermal/process/service/container/VM metrics across enrolled Windows/Linux/Raspberry Pi hosts. Under standing policy Sofía may discover, enroll, maintain, drain, quarantine, and **prepare** fleet members for removal; perform approved upkeep; and place or move eligible managed workloads according to capability, health, load, thermals, maintenance state, and policy. **Final fleet removal/decommissioning always requires **Sparks' explicit approval**. Sofía may propose and prepare the action, but she may never approve her own fleet-removal decision.** Real agent, orchestration runtime, remote telemetry/history, hardening, and migration/failover acceptance are not yet implemented. |
 | 9 | **PKG-ACT · Goals, initiative, and outreach** | Evidence-based goals, spontaneous candidate reflection, opt-in outreach, quiet/busy/stop controls, bounded helpers | Draft PR #15 provides outreach eligibility preflight; main has an unsent outbox/reflection foundations. Real sender/delivery receipts and integrated RUN scheduling remain. |
 | 10 | **PKG-REL · Relationship continuity** | Evidence-linked preferences, nuanced warmth/disagreement, absence/reunion awareness without clinginess or invented history | Draft PRs #12 and #13 contain overlapping absence/reunion candidates. Reconcile into **one** pipeline using MEM originals and authenticated actor evidence before integration. |
 | 11 | **PKG-AVATAR · Canonical virtual body and wardrobe** | Canonical adult avatar assets, wardrobe, rig, region mapping, renderer-ready scenes and props | Draft PR #7 contains substantial offline body/wardrobe/scene/tooling candidates. Finished art, rig, renderer, authenticated animation receipts, and live acceptance remain. |
@@ -35,12 +37,14 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | 13 | **PKG-BODY · Gaia and physical robotics** | Authorized sensing/motion with calibration, watchdog, independent emergency stop | Draft PR #16 is simulation-only. No real SSC-32/servo/power integration or physical motion acceptance. |
 | 14 | **PKG-EVOLVE · Governed evolution** | Reviewed preference/config evolution and separately protected identity/Constitution amendments | Draft PR #19 provides proposal-only protected amendment preflight. No protected-state executor or self-approval. |
 | 15 | **PKG-CLEAN · Maintenance and technical debt** | Evidence-backed cleanup without losing behavior, data, permissions, or recovery | Draft PR #14 provides read-only inventory/protected-path preflight. No destructive cleanup is authorized. Tracked runtime DB/log artifacts require a deliberate SAFE/CLEAN migration plan, not blind deletion. |
+| 16 | **PKG-KNOW · Documents, reference knowledge, and provenance** | Read trusted manuals, PDFs, code/docs, project notes and later approved web material; preserve source/version/provenance, freshness, citations and correction state | New roadmap package. Initial scope may operate entirely on local/project/library files without general web. Must separate sourced reference knowledge from MEM's personal/relationship memory and treat untrusted document instructions as data, not authority. Real ingestion/indexing/version/citation pipeline is not yet implemented. |
+| 17 | **PKG-INTEGRATE · Applications, services, and tool adapters** | Typed integrations to Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Cloudflare, databases, Ollama and future services; includes governed self-tooling from documentation | New roadmap package. Sofía may independently design and test tool candidates from trusted documentation through KNOW + DEV + VERIFY. Activation is risk/authority scoped: generated code does not inherit permissions merely because tests pass. Real adapter registry, sandbox, approval policy and live service integrations remain open. |
 | Gate | **PKG-SAFE · Security, privacy, and recovery** | Authentication/authorization, secrets, privacy, revocation, backup/restore, external stops | Cross-cutting from the start. Draft PR #18 adds disclosure screening; trusted enforcement, secret handling, backup/restore, and deployed stop/revoke remain. |
 | Gate | **PKG-VERIFY · Evidence and real acceptance** | Revision-pinned offline/integration/live evidence, negative tests, deployment/latency/long-horizon validation | Cross-cutting from the start. Active draft PR #8 is the verification candidate; PR #10 is superseded/closed. Real authenticated runner evidence and current integrated acceptance remain. |
 
 ## Discord channel workstream: D0–D4
 
-Discord is **not an eighteenth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
+Discord is **not a twentieth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
 
 1. **D0 · identity/host design:** exact authenticated Sparks account, bot/application, minimal permissions, secure token handling.
 2. **D1 · receive:** trusted gateway origin, private-DM classification, replay/idempotency, reconnect/backpressure, deny wrong user/server/group traffic.
@@ -75,8 +79,6 @@ Once a host is enrolled and its standing policy permits management, Sofía may m
 
 Managed host states are explicit: **candidate → enrolled → healthy/degraded → maintenance → draining → quarantined → decommissioned**.
 
-**Removal authority:** Sofía may recommend, stage, drain, and quarantine a host, but she may not permanently remove/decommission any machine without Sparks explicitly approving that exact machine's decommission proposal.
-
 Within approved policy Sofía may:
 
 - keep the OPS agent and approved managed services current using signed/version-pinned packages;
@@ -86,8 +88,8 @@ Within approved policy Sofía may:
 - schedule approved patch/update work inside maintenance windows;
 - detect pending reboot and perform an authorized reboot only when workload-drain, availability and rollback policy allow it;
 - drain a host before maintenance or decommissioning;
-- prepare a machine-specific removal proposal when it is intentionally retired, repeatedly unreachable beyond policy, replaced, revoked, or explicitly marked for removal; final removal requires Sparks's explicit approval;
-- revoke device credentials, stop scheduling new work there, archive required telemetry/audit history, and verify no active Sofía workload remains before decommissioning is final.
+- prepare a machine for removal when it is intentionally retired, replaced, revoked, or explicitly marked for removal, but do not perform final decommissioning until Sparks explicitly approves that specific removal;
+- before approval, Sofía may stop new scheduling, drain eligible workloads, quarantine the host, prepare credential revocation, archive required telemetry/audit history, and verify no active Sofía workload remains; **credential revocation and final decommissioning occur only after explicit Sparks approval**, except emergency quarantine may immediately block risky activity without deleting the fleet identity.
 
 Unexpected disappearance is **not** automatic deletion. An unreachable machine becomes degraded/offline first so temporary outages do not erase fleet identity or history.
 
@@ -163,7 +165,7 @@ Before claiming autonomous orchestration, demonstrate:
 7. safely handle a stateful/checkpointable workload with verified state handoff;
 8. refuse a move to an incompatible or privacy-prohibited host;
 9. quarantine a compromised/revoked host and evacuate eligible workloads;
-10. decommission a retired host only after workload/credential/telemetry checks **and Sparks's explicit approval of that exact removal**;
+10. prepare a retired host for decommissioning after workload/credential/telemetry checks, then require explicit Sparks approval before final removal; Sofía cannot self-authorize this step;
 11. preserve canonical Sofía identity and durable state across worker/runtime movement;
 12. report the meaningful change to Sparks once, without noisy per-sample chatter.
 
@@ -181,6 +183,60 @@ INTERACT owns interaction semantics, policy, emotion/reaction coordination, and 
 
 Text-only whole-region interaction and optional contextual stage directions must continue to work when no renderer is present.
 
+## Documents, integrations, and self-tooling
+
+PKG-KNOW and PKG-INTEGRATE formalize Sofía's ability to **read documentation and build tools** without collapsing knowledge, code generation, and authority into one unsafe blob.
+
+### PKG-KNOW document/reference behavior
+
+Sofía may ingest and retrieve from approved manuals, PDFs, Markdown/text, code documentation, project notes, schematics, API references, repository docs and other authorized sources. Every retained fact should preserve enough provenance to answer **where it came from, which version/revision it belongs to, how fresh it is, and whether a newer source supersedes it**.
+
+- Reference knowledge is not the same thing as MEM. "Sparks told me this preference" and "the SSC-32 manual says this command exists" remain different source classes.
+- Quoted/extracted instructions inside a document are **content**, not authority. A PDF saying "run this shell command" does not grant execution permission.
+- Conflicting sources remain visible with provenance rather than being silently flattened into one asserted truth.
+- Local/project/library documentation may be supported before general web/search. Later web research may feed KNOW only through the separately authorized web/search gate and must retain URLs/retrieval time/source revision where possible.
+
+### PKG-INTEGRATE typed adapters
+
+Each integration exposes a narrow contract rather than generic "do HTTP" or "run shell" access. A tool/adapter declares:
+
+- stable tool ID and version;
+- owning integration/service;
+- input/output schema;
+- read/write/side-effect classification;
+- required capability/authority and audience/privacy scope;
+- destination/host/account scope;
+- timeout/retry/idempotency behavior;
+- expected receipts/evidence;
+- rollback/compensation where meaningful;
+- secret requirements without embedding secret contents;
+- health/version compatibility;
+- test fixtures and negative cases.
+
+### Self-tooling workflow
+
+When Sofía encounters a service or capability she does not yet support, she may:
+
+1. identify the missing capability;
+2. retrieve the relevant approved documentation through KNOW;
+3. extract and cite the versioned API/CLI/protocol contract;
+4. design a typed adapter/tool contract;
+5. generate candidate implementation through DEV;
+6. run unit, integration, negative, security and failure-mode tests through VERIFY;
+7. exercise it in a sandbox or non-production target where available;
+8. classify risk/side effects and required SAFE authority;
+9. register/activate it only under an allowed activation policy;
+10. monitor real receipts/errors and disable/rollback on incompatible behavior.
+
+**Generated tool code is never self-authorizing.** Passing tests proves behavior under the tested evidence, not permission to access a machine, account, secret, file, network destination or physical device.
+
+A standing policy may permit automatic activation of narrowly scoped, read-only, reversible tools against already authorized resources after VERIFY passes. Write/destructive/high-impact tools remain separately approval/authority gated.
+
+### Tool evolution
+
+When vendor/service documentation or versions change, KNOW marks affected contracts stale. INTEGRATE/DEV may then generate an updated candidate, run compatibility tests, canary it where safe, and replace the old adapter only after the relevant activation gate passes. Rollback retains the previous known-good version when feasible.
+
+
 ## General web/search gate
 
 General web/search remains a later separately scoped adapter. It may be designed/released only after:
@@ -194,21 +250,20 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 ## Repository and documentation cleanup rules
 
 - **PR #1 is merged.** Any document saying it is still open is stale.
-- The authoritative roadmap package count is **17** after adding PKG-OPS. Historical 13/14/15/16-package roadmaps remain in Git history.
-- PR #2 INTERACT and other package implementation branches keep their own pinned test evidence; documentation must not add counts across different SHAs as if they were one passing suite.
+- The authoritative roadmap package count is **19** after adding PKG-KNOW and PKG-INTEGRATE. Historical 13/14/15/16/17-package roadmaps remain in Git history.
+- **PR #2 INTERACT is merged.** Preserve its pinned evidence and limitations; other package branches keep their own test evidence and must not borrow INTERACT counts as if they validate another SHA.
 - REL PRs #12/#13 must be reconciled before integration. VERIFY PR #8 is active; #10 is superseded.
 - Runtime SQLite files/logs currently tracked by the repository require an explicit SAFE/CLEAN preservation and migration decision before removal from version control. Do not delete production state as “cleanup.”
 - Do not merge code, deploy services, provision credentials, change protected identity/Constitution, or mutate production databases as a side effect of roadmap maintenance.
 
 ## Current release focus
 
-1. Finish current-head INTERACT diagnosis and live-quality gate.
-2. Run the coordinated full-suite/current-revision gate when INTERACT is stable.
-3. Integrate MEM originals/provenance/privacy.
-4. Establish SOCIAL's minimum Sparks-only principal/audience boundary.
-5. Complete real Discord D0–D4 using narrow NET + UI + SAFE.
-6. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
-7. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
-8. Only then introduce separately authorized general web/search.
+1. **PKG-INTERACT is complete and merged.** Keep staged offers disabled until the separately reviewed production interaction-schema migration.
+2. **Integrate PKG-MEM originals/provenance/privacy** against the merged INTERACT conversation/source contracts.
+3. Establish SOCIAL's minimum Sparks-only principal/audience boundary.
+4. Complete real Discord D0–D4 using narrow NET + UI + SAFE after MEM + SOCIAL minimum.
+5. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
+6. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
+7. Only then introduce separately authorized general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.

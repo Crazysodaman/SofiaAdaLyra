@@ -1,14 +1,16 @@
+> **Project status update — 2026-09-23:** PKG-INTERACT was accepted by Sparks and merged to `main` via PR #2 (merge commit `d6658d0`). Verified Windows evidence includes 97 focused tests, a four-turn disposable real-application/Qwen probe, a qualified repository run of **1665 passed, 2 skipped, 1 deselected** (the deselected case was Sparks's unrelated local Ollama expectation mismatch), and a final **60/60** closure audit including both SQLite writer orders, source attestation, boundary revocation, restart-persistent state, stop behavior, authentication and tool authority. Staged offers remain off by default; production interaction-policy schema provisioning is a separate reviewed migration. **Next dependency gate: PKG-MEM.**
+
 # PKG-OPS | fleet operations, diagnostics, performance, and orchestration
 
 **Planning date:** 2026-09-22. **Status:** documentation contract only; no OPS agent, autonomous enrollment service, remote telemetry transport, hardening executor, or deployment is implemented by this document.
 
 ## Outcome
 
-Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, prepares decommissioning, and orchestrates eligible Sofía workloads across the fleet. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
+Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, **prepares approved decommissioning**, and orchestrates eligible Sofía workloads across the fleet. Final host removal remains an explicit Sparks-approved action. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
 
 ## Ownership
 
-- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment, approval-gated decommission preparation, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
+- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment, decommission preparation, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
 - **NET:** authenticated transport and route/channel enforcement between Sofía and remote agents.
 - **SAFE:** trust roots, secrets, least privilege, hardening policy, revocation/quarantine, incident response and independent stop.
 - **RUN:** Sofía's own service lifecycle, scheduling, resource budgets, leadership/singleton semantics and supervisor behavior; uses OPS placement/failover evidence rather than inventing a second scheduler.
@@ -234,28 +236,9 @@ The policy must not silently broaden itself. Unsupported or higher-risk operatio
 
 ### Removal/decommissioning
 
-Fleet removal is **never a purely automatic consequence of a rule or timeout**. OPS may detect that a machine appears ready for retirement and may prepare a decommission proposal, but **Sparks must explicitly approve that specific machine's removal before execution**.
+**Final removal of a fleet machine always requires Sparks' explicit approval for that machine.** Sofía may propose and prepare the action, but she may not self-approve it. A standing policy cannot substitute for Sparks' final approval.
 
-The decommission proposal must include:
-- canonical device identity and trust record;
-- why removal is being proposed;
-- last-seen/freshness evidence;
-- current health and reachability;
-- active and recently active workloads;
-- singleton/leader/lease ownership;
-- data, backup, retention and restore dependencies;
-- secrets/credentials/routes that will be revoked;
-- replacement/standby coverage;
-- rollback/re-enrollment plan;
-- confidence and unresolved unknowns.
-
-Sparks's approval must be captured as a durable, auditable authorization tied to the exact device identity and proposal revision. A generic standing policy, elapsed timeout, scheduler result, hostname, IP address or previous approval for another machine cannot substitute for that authorization.
-
-Standing policy may allow OPS to **prepare, drain and stage** a decommission automatically, but not cross the final removal boundary until Sparks approves it.
-
-All hosts require Sparks's explicit approval for final removal. Critical-host checks still apply before Sofía may even recommend removal, especially for the current primary runtime host, authoritative memory/database host, only remaining backup/restore host, only available gateway/Discord host, or any host whose removal would violate redundancy policy.
-
-Sofía may recommend removal to Sparks when the evidence supports a reason such as:
+Sofía may automatically move a host into a removal-candidate/draining/quarantined state when evidence supports reasons such as:
 
 - approved replacement;
 - device retirement;
@@ -263,19 +246,23 @@ Sofía may recommend removal to Sparks when the evidence supports a reason such 
 - confirmed permanent removal;
 - repeated unrecoverable failure meeting configured policy.
 
-Before Sofía may recommend final decommission, OPS must prove that the host is not an unsafe single point of failure or unresolved authority holder. After Sparks approves the exact proposal, execution performs:
+Before asking for final approval, Sofía should prepare a concise removal packet with the reason, device identity, current workloads, replacement/failover state, backups/retention status, credential/routing changes that will occur, known risks, and rollback/re-enrollment implications.
+
+Before final decommission:
 
 1. stop new workload placement;
 2. drain/move eligible workloads;
 3. verify no protected active lease remains;
-4. revoke device/agent credentials;
-5. remove active routing/service-discovery membership;
+4. prepare device/agent credential revocation, but do not execute final revocation solely because removal was proposed;
+5. prepare removal from active routing/service-discovery membership;
 6. archive required telemetry/audit/history according to retention policy;
 7. preserve necessary backups/recovery artifacts;
-8. verify the machine can no longer act as an authorized fleet member;
-9. record Sparks's exact approval, executor receipts and final verification state.
+8. request and record **Sparks' explicit approval** for the specific host removal; Sofía cannot satisfy this gate herself;
+9. after approval, revoke credentials, remove routing/service-discovery membership, complete decommissioning, and verify the machine can no longer act as an authorized fleet member.
 
-Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement. If evidence is incomplete or contradictory, Sofía does not recommend removal and the host remains offline, draining or quarantined instead of being deleted.
+Emergency security quarantine may immediately block scheduling, actions, and privileged communications without waiting for approval, but quarantine is not deletion/decommissioning.
+
+Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement.
 
 ## Workload orchestration
 
@@ -387,26 +374,6 @@ RUN + OPS may move/fail over the primary runtime itself only when:
 
 If the old host dies abruptly, the standby may take over using the latest verified durable state. Any possibly lost/unconfirmed turn, thought, or action must be reported honestly.
 
-## Additional fleet governance still required
-
-The orchestration layer should also include these explicit contracts before it is considered mature:
-
-- **Critical-host classification:** identify primary runtime, authoritative data, only backup, only gateway, only GPU worker and other single-point-of-failure roles.
-- **Dependency graph:** know which services, datasets, routes, secrets and clients depend on each host before maintenance or movement.
-- **Capacity/reservation planning:** distinguish apparent free resources from capacity already promised to other workloads.
-- **Redundancy policy:** define how many healthy copies/standbys are required before moving or removing critical workloads.
-- **Backup/restore proof:** periodically prove that protected state can actually be restored, not merely that a backup file exists.
-- **Configuration management:** maintain desired host/agent/service configuration and surface drift without silently overwriting intentional local changes.
-- **Patch rings:** stage updates through low-risk hosts before broader fleet rollout, with pause/rollback on regression.
-- **Secret distribution:** issue short-lived/minimum-scope workload credentials and revoke them when a workload moves or host leaves.
-- **Network topology awareness:** understand approved subnets, gateways, latency and isolation boundaries when choosing placement.
-- **Power/cost awareness:** optionally prefer lower-power or already-awake hosts when latency/reliability requirements allow it.
-- **Maintenance calendars:** avoid disruptive moves/reboots during protected gaming/work windows unless availability or safety requires action.
-- **Resource priority:** foreground conversation and critical services outrank background cognition, indexing, rendering and batch work.
-- **Disaster recovery:** documented cold-start path when multiple hosts fail at once, including restoring canonical state and re-electing authority.
-- **Fleet version compatibility:** prevent migrations between incompatible agent/schema/runtime versions.
-- **Asset provenance:** preserve who/what enrolled a host, ownership/role, replacement history and why it was ultimately removed.
-
 ## Proactive fleet management notifications
 
 ACT should surface **meaningful** fleet events, not telemetry spam:
@@ -420,6 +387,51 @@ ACT should surface **meaningful** fleet events, not telemetry spam:
 - update/repair failed and needs intervention.
 
 Routine successful samples and repetitive stable-state messages stay silent.
+
+
+## Fleet control-plane requirements still needed
+
+These are part of OPS/SAFE/RUN rather than new packages.
+
+### Dependency and service graph
+
+Maintain an evidenced graph of which workloads depend on which databases, storage paths, ports, services, hosts, secrets and upstream/downstream systems. Drain, patch, restart, move and removal planning must consult this graph so Sofía does not "fix" one machine by quietly breaking three others.
+
+### Desired state and configuration drift
+
+Store approved desired-state facts for managed hosts, such as required agent version, expected services, important firewall/port posture, runtime versions, mounted storage, workload assignments and maintenance policy. Detect drift, distinguish intentional changes from unexpected ones, and propose or perform only policy-authorized reconciliation.
+
+### Capacity reservations and headroom
+
+Placement must account for reserved capacity, not just current utilization. Keep enough CPU/RAM/GPU/VRAM/storage/network headroom for foreground work, failover targets and host maintenance. Avoid packing every machine to 99% and then acting surprised when reality occurs.
+
+### Backup, replication and restore placement
+
+Track where authoritative state, backups and replicas live, their freshness, integrity and restore eligibility. Before risky maintenance or stateful workload moves, verify the required recovery point exists on an allowed independent failure domain. Periodically test restores rather than treating "backup completed" as proof of recoverability.
+
+### Maintenance windows and update rings
+
+Support host/workload groups such as canary, normal and delayed update rings. Apply an update to a small eligible subset first, verify health/performance, then widen rollout. Respect quiet/production windows and workload availability requirements.
+
+### Credentials, certificates and key rotation
+
+Track agent/device certificate expiry, trust roots and scoped secret versions without exposing secret contents to unnecessary components. Rotate credentials before expiry, verify new credentials, and retire old ones safely. Suspected compromise triggers quarantine and a separately audited rotation/recovery path.
+
+### Power and UPS awareness
+
+Where hardware exposes it, observe UPS/battery/power source, graceful-shutdown deadlines and power-loss events. RUN + OPS should drain/checkpoint critical workloads before predicted shutdown when possible and avoid scheduling heavy optional work onto a host running on limited backup power.
+
+### Network/failure-domain awareness
+
+Know enough topology to avoid putting every replica or failover target behind the same switch, host, storage device or power source when alternatives exist. Placement should understand "different machine" is not always "different failure domain."
+
+### Hardware lifecycle and predictive maintenance
+
+Track storage wear, thermal/throttling history, repeated hardware errors, unexpected resets and other supported signals. Trends may justify maintenance/replacement recommendations, but hardware retirement still follows the explicit-removal-approval rule.
+
+### Audit and explainability
+
+For every autonomous maintenance, placement or failover decision, keep compact evidence explaining what changed, why, what policy permitted it, what alternatives were rejected, verification result and rollback status. This is operational evidence, not raw hidden reasoning.
 
 
 ## Host hardening observations
@@ -485,7 +497,7 @@ Do not claim OPS fleet/orchestration support until real acceptance includes:
 19. prove singleton split-brain prevention during a simulated/real partition condition;
 20. refuse incompatible, overcommitted, quarantined and privacy-prohibited targets;
 21. evacuate eligible workloads from a quarantined host;
-22. prepare a host-specific decommission proposal, have Sparks explicitly approve that exact proposal, then decommission only after credential, workload, routing and retention verification;
+22. prepare a retired host for removal, present the removal packet, refuse final decommissioning without Sparks' explicit approval, then complete credential/routing removal only after approval;
 23. move/fail over the primary Sofía runtime in a supervised test while preserving canonical identity and reporting any uncertain state;
 24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
 
