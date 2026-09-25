@@ -68,6 +68,21 @@ class DurableNodeIdentityRegistry:
             datetime.fromisoformat(row[2]), row[3],
         )
 
+    def active(self) -> tuple[NodeEnrollment, ...]:
+        rows = self._db.execute(
+            """SELECT node_id, name, public_key_sha256, provisioned_at, recorded_by
+               FROM distributed_node_identity WHERE retired = 0 ORDER BY name, node_id"""
+        ).fetchall()
+        return tuple(
+            NodeEnrollment(
+                DistributedNode(UUID(row[0]), row[1]),
+                row[2],
+                datetime.fromisoformat(row[3]),
+                row[4],
+            )
+            for row in rows
+        )
+
     def retire(self, node_id: UUID) -> None:
         if not isinstance(node_id, UUID):
             raise TypeError("node_id must be a UUID")
