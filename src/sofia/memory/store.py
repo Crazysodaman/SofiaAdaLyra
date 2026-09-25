@@ -1,6 +1,7 @@
 ﻿from datetime import datetime
 from pathlib import Path
 import sqlite3
+from threading import RLock
 
 from sofia.memory.model import MemoryRecord
 
@@ -21,12 +22,15 @@ class MemoryStore:
     ) -> None:
         self._database_path = database_path
         self._memories: dict[str, MemoryRecord] = {}
+        self._lock = RLock()
 
         self._connection: sqlite3.Connection | None = None
 
         if database_path is not None:
             self._connection = sqlite3.connect(
-                str(database_path)
+                str(database_path),
+                timeout=5.0,
+                check_same_thread=False,
             )
 
             self._initialize_database()
@@ -53,46 +57,48 @@ class MemoryStore:
                 "MemoryStore memory must be a MemoryRecord."
             )
 
-        if self._connection is None:
-            self._memories[memory.id] = memory
-            return
+        with self._lock:
+            if self._connection is None:
+                self._memories[memory.id] = memory
+                return
 
-        self._connection.execute(
-            """
-            INSERT INTO memories (
-                id,
-                content,
-                created_at
+            self._connection.execute(
+                """
+                INSERT INTO memories (
+                    id,
+                    content,
+                    created_at
+                )
+                VALUES (?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    content = excluded.content,
+                    created_at = excluded.created_at
+                """,
+                (
+                    memory.id,
+                    memory.content,
+                    memory.created_at.isoformat(),
+                ),
             )
-            VALUES (?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                content = excluded.content,
-                created_at = excluded.created_at
-            """,
-            (
-                memory.id,
-                memory.content,
-                memory.created_at.isoformat(),
-            ),
-        )
 
-        self._connection.commit()
+            self._connection.commit()
 
     def get(
         self,
         memory_id: str,
     ) -> MemoryRecord | None:
-        if self._connection is None:
-            return self._memories.get(memory_id)
+        with self._lock:
+            if self._connection is None:
+                return self._memories.get(memory_id)
 
-        row = self._connection.execute(
-            """
-            SELECT id, content, created_at
-            FROM memories
-            WHERE id = ?
-            """,
-            (memory_id,),
-        ).fetchone()
+            row = self._connection.execute(
+                """
+                SELECT id, content, created_at
+                FROM memories
+                WHERE id = ?
+                """,
+                (memory_id,),
+            ).fetchone()
 
         if row is None:
             return None
@@ -104,18 +110,19 @@ class MemoryStore:
         )
 
     def list_all(self) -> tuple[MemoryRecord, ...]:
-        if self._connection is None:
-            return tuple(
-                self._memories.values()
-            )
+        with self._lock:
+            if self._connection is None:
+                return tuple(
+                    self._memories.values()
+                )
 
-        rows = self._connection.execute(
-            """
-            SELECT id, content, created_at
-            FROM memories
-            ORDER BY created_at ASC
-            """
-        ).fetchall()
+            rows = self._connection.execute(
+                """
+                SELECT id, content, created_at
+                FROM memories
+                ORDER BY created_at ASC
+                """
+            ).fetchall()
 
         return tuple(
             MemoryRecord(
@@ -131,6 +138,7 @@ class MemoryStore:
         Close the SQLite connection when persistence is enabled.
         """
 
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
+        with self._lock:
+            if self._connection is not None:
+                self._connection.close()
+                self._connection = None
