@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-import json
+import json,os
 from pathlib import Path
 
 class DocumentDisposition(str,Enum):
@@ -36,7 +36,10 @@ class KnowledgeLifecycle:
         if self.path is None: return
         self.path.parent.mkdir(parents=True,exist_ok=True)
         payload=[{"document_id":s.document_id,"disposition":s.disposition.value,"replaced_by":s.replaced_by} for s in self._status.values()]
-        tmp=self.path.with_suffix(self.path.suffix+".tmp"); tmp.write_text(json.dumps(payload,sort_keys=True,indent=2),encoding="utf-8"); tmp.replace(self.path)
+        tmp=self.path.with_suffix(self.path.suffix+".tmp")
+        with tmp.open("w",encoding="utf-8") as fh:
+            json.dump(payload,fh,sort_keys=True,indent=2); fh.flush(); os.fsync(fh.fileno())
+        tmp.replace(self.path)
     def _load(self)->None:
         for raw in json.loads(self.path.read_text(encoding="utf-8")):
             s=DocumentStatus(raw["document_id"],DocumentDisposition(raw["disposition"]),raw.get("replaced_by")); self._status[s.document_id]=s
