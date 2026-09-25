@@ -157,6 +157,12 @@ Human review must confirm that `hru` and `are you happy` answer the emotional/so
 3. **Review PR scope and base integration:** the only path-level overlap with the 55 newer `main` commits was the root `ROADMAP.md`, now synchronized byte-for-byte to `main`. GitHub subsequently recomputed PR #2 as **mergeable=true**. The PR remains draft and unmerged. Optional interaction tables are intentionally not auto-created by normal startup/read paths; any future production provisioning remains a separate reviewed migration before enabling staged offers.
 4. **Human acceptance and separate merge approval:** the technical closure gates now include the reconciled Ollama generation contract. Sparks reviews the demonstrated dialogue and known limitation (staged offers remain off until a separately reviewed schema migration), explicitly accepts PKG-INTERACT, and separately authorizes any merge. PR #2 stays draft and `main` unchanged until then.
 
+### Ollama contract Windows verification (2026-09-24)
+
+- After restoring the stale local test edit and pulling the reconciled contract, Sparks ran `test/test_ollama_generation_contract.py`: **3 passed in 2.89s**.
+- This verifies both parameterized passthrough cases (`18000` and `32768`) plus the unconfigured-options case on Windows.
+- The former qualified full-suite exception is no longer needed; the next regression gate is an unqualified full suite with no deselections.
+
 ### Ollama generation-contract reconciliation (2026-09-24)
 
 - The former local mismatch was a test inconsistency, not a provider defect: a locally edited fixture supplied `context_size=18000` but still expected `num_ctx=32768`.
