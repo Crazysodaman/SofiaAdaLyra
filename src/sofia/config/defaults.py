@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from sofia.config.model import (
     ProviderConfiguration,
@@ -21,6 +22,22 @@ def create_default_configuration() -> SofiaConfiguration:
         parents=True,
         exist_ok=True,
     )
+
+    extra_capabilities=tuple(
+        part.strip()
+        for part in os.environ.get("SOFIA_ALLOWED_CAPABILITIES","").split(",")
+        if part.strip()
+    )
+    standing_capabilities=tuple(dict.fromkeys((
+        "codebase.inspect",
+        "process.inspect",
+        "system.inspect",
+        "network.inspect",
+        "service.inspect",
+        "hardware.inspect",
+        "storage.usage",
+        *extra_capabilities,
+    )))
 
     return SofiaConfiguration(
         constitution_path=(
@@ -70,12 +87,5 @@ def create_default_configuration() -> SofiaConfiguration:
             thinking=False,
         ),
         filesystem_root=repository_root,
-        standing_allowed_capabilities=(
-            "codebase.inspect",
-            "process.inspect",
-            "system.inspect",
-            "network.inspect",
-            "service.inspect",
-            "hardware.inspect",
-        ),
+        standing_allowed_capabilities=standing_capabilities,
     )
