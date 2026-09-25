@@ -408,3 +408,50 @@ def create_default_tool_bindings(
             requested_scope=root,
         ),
     )
+
+def create_system_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
+    """Read-only local system tools. Authority still controls exposure."""
+    return (
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_processes",
+                description="Inspect local running processes. Read-only.",
+                parameters={"type":"object","properties":{
+                    "pid":{"type":"integer"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="process.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_system",
+                description="Inspect the local operating system, host identity and uptime. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="system.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_network",
+                description="Inspect local network interfaces, routes and DNS. Read-only.",
+                parameters={"type":"object","properties":{
+                    "interface":{"type":"string"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="network.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_services",
+                description="Inspect local service state and configuration. Read-only.",
+                parameters={"type":"object","properties":{
+                    "name":{"type":"string"},
+                    "state":{"type":"string"},
+                    "limit":{"type":"integer"}
+                },"additionalProperties":False},
+            ),
+            capability_name="service.inspect",
+        ),
+    )
