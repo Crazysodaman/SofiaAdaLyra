@@ -408,3 +408,110 @@ def create_default_tool_bindings(
             requested_scope=root,
         ),
     )
+
+def create_system_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
+    """Host-owned read-only local system inspection tools."""
+    return (
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_processes",
+                description="Inspect running processes on the local host. Read-only.",
+                parameters={
+                    "type":"object",
+                    "properties":{
+                        "pid":{"type":"integer","minimum":0},
+                        "limit":{"type":"integer","minimum":1,"maximum":500},
+                    },
+                    "additionalProperties":False,
+                },
+            ),
+            capability_name="process.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_system",
+                description="Inspect local OS, architecture, uptime and virtualization state. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="system.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_network",
+                description="Inspect local network interfaces, routes and DNS state. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="network.inspect",
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_services",
+                description="Inspect local service state and configuration. Read-only.",
+                parameters={
+                    "type":"object",
+                    "properties":{
+                        "name":{"type":"string"},
+                        "limit":{"type":"integer","minimum":1,"maximum":500},
+                    },
+                    "additionalProperties":False,
+                },
+            ),
+            capability_name="service.inspect",
+        ),
+    )
+
+
+def create_machine_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
+    return (
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="inspect_machine",
+                description="Inspect stable local machine identity and operating-system facts. Read-only.",
+                parameters={"type":"object","properties":{},"additionalProperties":False},
+            ),
+            capability_name="machine.inspect",
+        ),
+    )
+
+
+def create_knowledge_tool_bindings(
+    repository_root: Path,
+) -> tuple[CognitiveToolBinding, ...]:
+    root = repository_root.resolve()
+    return (
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="read_knowledge_source",
+                description="Read a repository text source with version/hash provenance. Read-only source access.",
+                parameters={
+                    "type":"object",
+                    "properties":{
+                        "path":{"type":"string"},
+                        "version":{"type":"string"},
+                        "document_id":{"type":"string"},
+                    },
+                    "required":["path","version"],
+                    "additionalProperties":False,
+                },
+            ),
+            capability_name="knowledge.source.read",
+            requested_scope=root,
+        ),
+        CognitiveToolBinding(
+            definition=CognitiveToolDefinition(
+                name="search_knowledge",
+                description="Search durable trusted knowledge facts and return source/version provenance.",
+                parameters={
+                    "type":"object",
+                    "properties":{
+                        "query":{"type":"string"},
+                        "limit":{"type":"integer","minimum":1,"maximum":50},
+                    },
+                    "required":["query"],
+                    "additionalProperties":False,
+                },
+            ),
+            capability_name="knowledge.search",
+            requested_scope=root,
+        ),
+    )
