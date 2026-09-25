@@ -1,6 +1,7 @@
 ﻿from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from threading import RLock
 from uuid import uuid4
 
 from sofia.conversation.model import (
@@ -27,6 +28,7 @@ class ConversationStore:
     ) -> None:
         self._database_path = Path(database_path)
         self._connection: sqlite3.Connection | None = None
+        self._lock = RLock()
 
         self.open()
 
@@ -37,14 +39,17 @@ class ConversationStore:
         Opening an already-open store is a no-op.
         """
 
-        if self._connection is not None:
-            return
+        with self._lock:
+            if self._connection is not None:
+                return
 
-        self._connection = sqlite3.connect(
-            str(self._database_path)
-        )
+            self._connection = sqlite3.connect(
+                str(self._database_path),
+                timeout=5.0,
+                check_same_thread=False,
+            )
 
-        self._initialize_database()
+            self._initialize_database()
 
     def _initialize_database(self) -> None:
         connection = self._require_connection()
@@ -74,28 +79,29 @@ class ConversationStore:
         connection.commit()
 
     def create_session(self) -> ConversationSession:
-        connection = self._require_connection()
+        with self._lock:
+            connection = self._require_connection()
 
-        now = datetime.now(timezone.utc)
-        session_id = str(uuid4())
+            now = datetime.now(timezone.utc)
+            session_id = str(uuid4())
 
-        connection.execute(
-            """
-            INSERT INTO conversation_sessions (
-                id,
-                created_at,
-                updated_at
+            connection.execute(
+                """
+                INSERT INTO conversation_sessions (
+                    id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?)
+                """,
+                (
+                    session_id,
+                    now.isoformat(),
+                    now.isoformat(),
+                ),
             )
-            VALUES (?, ?, ?)
-            """,
-            (
-                session_id,
-                now.isoformat(),
-                now.isoformat(),
-            ),
-        )
 
-        connection.commit()
+            connection.commit()
 
         return ConversationSession(
             id=session_id,
@@ -107,16 +113,17 @@ class ConversationStore:
         self,
         session_id: str,
     ) -> ConversationSession | None:
-        connection = self._require_connection()
+        with self._lock:
+            connection = self._require_connection()
 
-        row = connection.execute(
-            """
-            SELECT id, created_at, updated_at
-            FROM conversation_sessions
-            WHERE id = ?
-            """,
-            (session_id,),
-        ).fetchone()
+            row = connection.execute(
+                """
+                SELECT id, created_at, updated_at
+                FROM conversation_sessions
+                WHERE id = ?
+                """,
+                (session_id,),
+            ).fetchone()
 
         if row is None:
             return None
@@ -131,64 +138,66 @@ class ConversationStore:
         self,
         message: ConversationMessage,
     ) -> None:
-        connection = self._require_connection()
+        with self._lock:
+            connection = self._require_connection()
 
-        connection.execute(
-            """
-            INSERT INTO conversation_messages (
-                id,
-                session_id,
-                role,
-                content,
-                created_at
+            connection.execute(
+                """
+                INSERT INTO conversation_messages (
+                    id,
+                    session_id,
+                    role,
+                    content,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    session_id = excluded.session_id,
+                    role = excluded.role,
+                    content = excluded.content,
+                    created_at = excluded.created_at
+                """,
+                (
+                    message.id,
+                    message.session_id,
+                    message.role.value,
+                    message.content,
+                    message.created_at.isoformat(),
+                ),
             )
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                session_id = excluded.session_id,
-                role = excluded.role,
-                content = excluded.content,
-                created_at = excluded.created_at
-            """,
-            (
-                message.id,
-                message.session_id,
-                message.role.value,
-                message.content,
-                message.created_at.isoformat(),
-            ),
-        )
 
-        connection.execute(
-            """
-            UPDATE conversation_sessions
-            SET updated_at = ?
-            WHERE id = ?
-            AND updated_at < ?
-            """,
-            (
-                message.created_at.isoformat(),
-                message.session_id,
-                message.created_at.isoformat(),
-            ),
-        )
+            connection.execute(
+                """
+                UPDATE conversation_sessions
+                SET updated_at = ?
+                WHERE id = ?
+                AND updated_at < ?
+                """,
+                (
+                    message.created_at.isoformat(),
+                    message.session_id,
+                    message.created_at.isoformat(),
+                ),
+            )
 
-        connection.commit()
+            connection.commit()
 
     def list_messages(
         self,
         session_id: str,
     ) -> tuple[ConversationMessage, ...]:
-        connection = self._require_connection()
+        with self._lock:
+            connection = self._require_connection()
 
-        rows = connection.execute(
-            """
-            SELECT id, session_id, role, content, created_at
-            FROM conversation_messages
-            WHERE session_id = ?
-            ORDER BY created_at ASC, id ASC
-            """,
-            (session_id,),
-        ).fetchall()
+            rows = connection.execute(
+                """
+                SELECT id, session_id, role, content, created_at
+                FROM conversation_messages
+                WHERE session_id = ?
+                ORDER BY created_at ASC, id ASC
+                """,
+                (session_id,),
+            ).fetchall()
 
         return tuple(
             ConversationMessage(
@@ -209,11 +218,12 @@ class ConversationStore:
         subsequent call to open().
         """
 
-        if self._connection is None:
-            return
+        with self._lock:
+            if self._connection is None:
+                return
 
-        self._connection.close()
-        self._connection = None
+            self._connection.close()
+            self._connection = None
 
     def _require_connection(self) -> sqlite3.Connection:
         if self._connection is None:
