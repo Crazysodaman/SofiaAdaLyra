@@ -369,3 +369,11 @@ def test_notification_tool_is_registered_only_when_ha_notify_service_configured(
     names={x.capability.name for x in create_configured_integration_tools(
         filesystem_root=tmp_path,state_path=tmp_path/"sofia.db")}
     assert "notification.send" in names
+
+
+def test_knowledge_same_bytes_different_versions_keep_distinct_provenance(tmp_path):
+    source=tmp_path/"manual.txt"; source.write_text("same content",encoding="utf-8")
+    service=KnowledgeService(tmp_path,JsonKnowledgeStore(tmp_path/"k.json"),KnowledgeLifecycle(tmp_path/"l.json"))
+    first=service.ingest_text("manual.txt",version="rev-a")
+    second=service.ingest_text("manual.txt",version="rev-b")
+    assert first["document_id"]!=second["document_id"]
