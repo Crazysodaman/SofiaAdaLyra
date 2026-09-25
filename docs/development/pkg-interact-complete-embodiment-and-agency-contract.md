@@ -1,5 +1,7 @@
 # INTERACT: complete embodiment, expression and initiative contract
 
+> **Current-direction clarification — 2026-09-25:** later project decisions supersede any reading of this document as defining a discrete “sexual mode.” Attraction, desire, arousal, sensuality, romance, affection and comfort are separate modeled contextual dimensions, not a mode and never automatic from anatomy or wording. Consent/boundaries remain independent. Whole-body/private-region mapping remains useful for semantic resolution, privacy, boundaries, avatar fit and context-appropriate interaction.
+
 **Status: implementation-ready design, NOT implemented or tested.** This consolidates user requirements discussed on 2026-09-20 and extends [I8–I12](pkg-interact-i8-i12-expansion-contract.md) and [initiative/idle presence](pkg-interact-initiative-and-idle-contract.md). Keep the I1–I7 live repair acceptance, full-suite gate and separate merge decision intact. Do not edit `main`, production `state/sofia.db` or its backup, merge a PR, start an idle worker or send notifications as a consequence of this specification. The current `core.py` has eight gestures, a limited region alias resolver, and candidate expression cues, **not** this feature set.
 
 ## 1. Desired behavior and boundaries
