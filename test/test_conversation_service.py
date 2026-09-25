@@ -1,4 +1,5 @@
-﻿from pathlib import Path
+﻿from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 
@@ -159,6 +160,30 @@ def test_conversation_service_persists_user_and_assistant_messages(
     assert messages[0].role is ConversationRole.USER
     assert messages[0].content == "Hello, Sofía."
 
+    assert messages[1].role is ConversationRole.ASSISTANT
+    assert messages[1].content == "Test cognitive response."
+
+    application.shutdown()
+
+
+def test_conversation_service_can_respond_from_worker_thread(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        response = executor.submit(
+            application.conversation.respond,
+            "Hello from a worker thread.",
+        ).result(timeout=5)
+
+    assert response.content == "Test cognitive response."
+
+    messages = application.conversation.messages()
+    assert len(messages) == 2
+    assert messages[0].role is ConversationRole.USER
+    assert messages[0].content == "Hello from a worker thread."
     assert messages[1].role is ConversationRole.ASSISTANT
     assert messages[1].content == "Test cognitive response."
 
