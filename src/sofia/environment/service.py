@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sofia.runtime.clock import runtime_clock_snapshot
 
@@ -188,9 +188,15 @@ class EnvironmentService:
 
         user_local_time = None
         if timezone_name is not None:
-            user_local_time = current_utc.astimezone(
-                ZoneInfo(timezone_name)
-            )
+            try:
+                zone = ZoneInfo(timezone_name)
+            except ZoneInfoNotFoundError:
+                self._provider_errors["timezone"] = (
+                    "ZoneInfoNotFoundError"
+                )
+                timezone_name = None
+            else:
+                user_local_time = current_utc.astimezone(zone)
 
         season = None
         daylight = None
