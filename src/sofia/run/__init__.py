@@ -5,6 +5,12 @@ from .act_schedule import (
     ActScheduleTick,
     ScheduledActRunner,
 )
+from .health import (
+    RunHealthObservation,
+    RunHealthState,
+    RunHeartbeatSnapshot,
+    RunHeartbeatStore,
+)
 from .lifecycle import (
     RunLifecycleSnapshot,
     RunLifecycleState,
@@ -22,6 +28,14 @@ from .periodic import (
     PeriodicThoughtGate,
     PeriodicThoughtRunner,
 )
+from .watchdog import (
+    HostServiceController,
+    HostServiceObservation,
+    HostServiceState,
+    IndependentRunWatchdog,
+    WatchdogPolicy,
+    WatchdogResult,
+)
 from .supervisor import (
     LocalRuntimeSupervisor,
     ManagedRuntimeBackend,
@@ -35,12 +49,20 @@ __all__ = [
     "ActSchedulePolicy",
     "ActScheduleTick",
     "ScheduledActRunner",
+    "RunHealthObservation",
+    "RunHealthState",
+    "RunHeartbeatSnapshot",
+    "RunHeartbeatStore",
     "RunLifecycleSnapshot",
     "RunLifecycleState",
     "RunLifecycleStore",
     "LeaseResult",
     "LocalRunLeaseStore",
     "LocalRuntimeSupervisor",
+    "HostServiceController",
+    "HostServiceObservation",
+    "HostServiceState",
+    "IndependentRunWatchdog",
     "ManagedRuntimeBackend",
     "OpportunityPolicy",
     "OpportunityResult",
@@ -52,4 +74,6 @@ __all__ = [
     "RuntimeObservation",
     "SupervisorPolicy",
     "SupervisorResult",
+    "WatchdogPolicy",
+    "WatchdogResult",
 ]

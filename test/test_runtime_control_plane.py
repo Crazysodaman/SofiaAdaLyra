@@ -74,6 +74,7 @@ def test_open_wires_shared_ops_run_act_state_without_enabling_activity(tmp_path:
     assert control.ops_service is ops
     assert control.run_lease_store.path.resolve() == state.resolve()
     assert control.run_lifecycle_store.path.resolve() == state.resolve()
+    assert control.run_heartbeat_store.path.resolve() == state.resolve()
     assert control.act_outbox.path.resolve() == state.resolve()
     assert control.run_periodic_gate.policy.enabled is False
 
@@ -142,6 +143,8 @@ def test_close_revokes_runtime_control_plane_access(tmp_path: Path):
         _ = control.run_lease_store
     with pytest.raises(RuntimeError):
         _ = control.run_lifecycle_store
+    with pytest.raises(RuntimeError):
+        _ = control.run_heartbeat_store
 
 
 

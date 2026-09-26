@@ -1,4 +1,6 @@
+from pathlib import Path
 from types import SimpleNamespace
+import sqlite3
 
 import pytest
 
@@ -23,6 +25,8 @@ class FakeServiceFramework:
 
 class FakeWin32Event:
     INFINITE = -1
+    WAIT_OBJECT_0 = 0
+    WAIT_TIMEOUT = 258
 
     def __init__(self) -> None:
         self.set_calls = 0
@@ -35,9 +39,8 @@ class FakeWin32Event:
         self.set_calls += 1
 
     def WaitForSingleObject(self, _event, timeout):
-        assert timeout == self.INFINITE
         self.wait_calls += 1
-        return 0
+        return self.WAIT_OBJECT_0
 
 
 class FakeServiceManager:
@@ -53,7 +56,8 @@ class FakeServiceManager:
 
 
 class FakeApplication:
-    def __init__(self, _configuration, *, fail_start=False) -> None:
+    def __init__(self, configuration, *, fail_start=False) -> None:
+        self.configuration = configuration
         self.fail_start = fail_start
         self.started = 0
         self.stopped = 0
@@ -65,6 +69,20 @@ class FakeApplication:
 
     def shutdown(self):
         self.stopped += 1
+
+
+
+
+def configuration(tmp_path: Path):
+    path = tmp_path / "sofia.db"
+    with sqlite3.connect(path):
+        pass
+    from sofia.run.lifecycle import RunLifecycleStore
+    lifecycle = RunLifecycleStore(path)
+    lifecycle.begin_start(at=windows_service.datetime.now(windows_service.timezone.utc))
+    lifecycle.mark_recovering(at=windows_service.datetime.now(windows_service.timezone.utc))
+    lifecycle.mark_ready(at=windows_service.datetime.now(windows_service.timezone.utc))
+    return SimpleNamespace(state_path=path)
 
 
 def modules():
@@ -79,12 +97,13 @@ def modules():
     return PyWin32Modules(event, service, util, manager), event, manager
 
 
-def test_service_class_runs_application_until_stop_signal():
+def test_service_class_runs_application_until_stop_signal(tmp_path):
     loaded, event, manager = modules()
     apps = []
+    config = configuration(tmp_path)
     Service = create_windows_service_class(
         modules=loaded,
-        configuration_factory=lambda: object(),
+        configuration_factory=lambda: config,
         application_factory=lambda config: apps.append(FakeApplication(config)) or apps[-1],
     )
     Service.statuses = []
@@ -96,16 +115,21 @@ def test_service_class_runs_application_until_stop_signal():
     assert apps[0].started == 1
     assert apps[0].stopped == 1
     assert event.wait_calls == 1
+    from sofia.run.health import RunHeartbeatStore
+    heartbeat = RunHeartbeatStore(config.state_path).current()
+    assert heartbeat is not None
+    assert heartbeat.closed_at is not None
     assert any(status == 4 for status, _ in Service.statuses)
     assert Service.statuses[-1][0] == 1
     assert manager.errors == []
 
 
-def test_service_stop_sets_external_event():
+def test_service_stop_sets_external_event(tmp_path):
     loaded, event, _manager = modules()
+    config = configuration(tmp_path)
     Service = create_windows_service_class(
         modules=loaded,
-        configuration_factory=lambda: object(),
+        configuration_factory=lambda: config,
         application_factory=lambda config: FakeApplication(config),
     )
     Service.statuses = []
@@ -117,11 +141,12 @@ def test_service_stop_sets_external_event():
     assert Service.statuses[-1][0] == 3
 
 
-def test_start_failure_reports_nonzero_service_stop():
+def test_start_failure_reports_nonzero_service_stop(tmp_path):
     loaded, _event, manager = modules()
+    config = configuration(tmp_path)
     Service = create_windows_service_class(
         modules=loaded,
-        configuration_factory=lambda: object(),
+        configuration_factory=lambda: config,
         application_factory=lambda config: FakeApplication(config, fail_start=True),
     )
     Service.statuses = []

@@ -7,13 +7,18 @@ creates/runs the Windows service boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from importlib import import_module
+import os
 from pathlib import Path
 import subprocess
 from typing import Callable, Protocol, Sequence
+from uuid import uuid4
 
 from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration, create_default_configuration
+from sofia.run.health import RunHeartbeatStore
+from sofia.run.lifecycle import RunLifecycleStore
 
 
 SERVICE_NAME = "SofiaAdaLyra"
@@ -21,6 +26,7 @@ SERVICE_DISPLAY_NAME = "Sofía Ada Lyra"
 SERVICE_DESCRIPTION = (
     "Persistent supervised host service for the Sofía Ada Lyra runtime."
 )
+HEARTBEAT_INTERVAL_MS = 5000
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,19 +86,56 @@ def create_windows_service_class(
             win32event.SetEvent(self._stop_event)
 
         def SvcDoRun(self) -> None:
-            application = application_factory(configuration_factory())
+            configuration = configuration_factory()
+            application = application_factory(configuration)
             self._application = application
+            heartbeat: RunHeartbeatStore | None = None
+            lifecycle: RunLifecycleStore | None = None
+            heartbeat_session: str | None = None
+            heartbeat_pid = os.getpid()
             try:
                 application.start()
+                lifecycle = RunLifecycleStore(configuration.state_path)
+                heartbeat = RunHeartbeatStore(configuration.state_path)
+                heartbeat_session = str(uuid4())
+                heartbeat.begin(
+                    session_id=heartbeat_session,
+                    process_id=heartbeat_pid,
+                    at=datetime.now(timezone.utc),
+                    lifecycle=lifecycle.current(),
+                )
                 self.ReportServiceStatus(win32service.SERVICE_RUNNING)
                 servicemanager.LogInfoMsg(
                     f"{SERVICE_DISPLAY_NAME} entered RUNNING state."
                 )
-                win32event.WaitForSingleObject(
-                    self._stop_event,
-                    win32event.INFINITE,
-                )
+
+                wait_timeout = getattr(win32event, "WAIT_TIMEOUT", 258)
+                wait_stopped = getattr(win32event, "WAIT_OBJECT_0", 0)
+                while True:
+                    result = win32event.WaitForSingleObject(
+                        self._stop_event,
+                        HEARTBEAT_INTERVAL_MS,
+                    )
+                    if result == wait_stopped:
+                        break
+                    if result != wait_timeout:
+                        raise RuntimeError(
+                            f"unexpected Windows service wait result: {result}"
+                        )
+                    heartbeat.pulse(
+                        session_id=heartbeat_session,
+                        process_id=heartbeat_pid,
+                        at=datetime.now(timezone.utc),
+                        lifecycle=lifecycle.current(),
+                    )
+
                 application.shutdown()
+                heartbeat.close(
+                    session_id=heartbeat_session,
+                    process_id=heartbeat_pid,
+                    at=datetime.now(timezone.utc),
+                    lifecycle=lifecycle.current(),
+                )
                 self.ReportServiceStatus(win32service.SERVICE_STOPPED)
                 servicemanager.LogInfoMsg(
                     f"{SERVICE_DISPLAY_NAME} stopped cleanly."
