@@ -163,16 +163,21 @@ class EnvironmentService:
             )
             else configured_location
         )
-        timezone_name = (
-            effective_location.timezone
-            if effective_location is not None
-            and effective_location.timezone is not None
-            else (
+        if (
+            current_location is not None
+            and current_location_freshness
+            is EnvironmentFreshness.CURRENT
+        ):
+            # A fresh mobile/current location outranks the configured place.
+            # If the provider cannot prove that current location's timezone,
+            # do not silently reuse the configured/home timezone.
+            timezone_name = current_location.timezone
+        else:
+            timezone_name = (
                 configured_location.timezone
                 if configured_location is not None
                 else None
             )
-        )
 
         user_local_time = None
         if timezone_name is not None:
