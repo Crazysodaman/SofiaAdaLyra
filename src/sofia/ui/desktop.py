@@ -287,6 +287,9 @@ class _TkDesktopWorkbench:
                 self._status.set("Ready")
                 self._refresh_theme()
                 self._input.focus_set()
+                if self._close_requested:
+                    self._finish_close()
+                    return
             elif kind == "sent":
                 self._busy = False
                 self._render_history(payload)
