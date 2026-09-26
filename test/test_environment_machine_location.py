@@ -7,7 +7,12 @@ from sofia.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
+from sofia.environment.factory import (
+    NWS_ENVIRONMENT_CAPABILITY,
+    create_environment_service,
+)
 from sofia.environment.model import LocationSubject
+from sofia.environment.nws import NwsEnvironmentProvider
 from sofia.machine.location import (
     MachineLocationRegistry,
     new_machine_location,
@@ -155,3 +160,62 @@ def test_missing_persistent_location_leaves_configuration_unchanged(
         ._configuration_with_persistent_host_location(original)
     )
     assert effective is original
+
+def test_persistent_host_location_completes_nws_host_configuration(
+    tmp_path,
+    monkeypatch,
+):
+    state = tmp_path / "state"
+    registry = MachineLocationRegistry(
+        state / "machine-locations.json"
+    )
+    registry.set(
+        new_machine_location(
+            machine_id="machine-1",
+            hostname="Artemis",
+            label="Home Lab",
+            timezone_name="America/Chicago",
+            latitude=32.6,
+            longitude=-97.2,
+            updated_at=NOW,
+        )
+    )
+    monkeypatch.setattr(
+        composition_root,
+        "create_machine_discovery",
+        lambda: FakeDiscovery(),
+    )
+    original = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=state / "sofia.db",
+        provider=ProviderConfiguration(
+            provider="test",
+            model="test",
+        ),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=(
+            NWS_ENVIRONMENT_CAPABILITY,
+        ),
+        environment=EnvironmentConfiguration(
+            nws_enabled=True,
+            nws_location_subject=LocationSubject.HOST,
+        ),
+    )
+
+    effective = (
+        composition_root
+        ._configuration_with_persistent_host_location(original)
+    )
+    service = create_environment_service(effective)
+
+    assert effective.environment.host_location is not None
+    assert len(service.providers) == 1
+    assert isinstance(
+        service.providers[0],
+        NwsEnvironmentProvider,
+    )
+
