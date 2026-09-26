@@ -10,6 +10,10 @@
 
 Older Windows full suite on a previous revision: **1,150 passed, 43 failed, 2 skipped**. Shared startup path-type issue diagnosed; two narrow regression fixes committed. The subsequently reported targeted Windows set **17 passed in 125.80 s** on the updated branch. Full-suite rerun deliberately deferred by Sparks until after INTERACT; targeted pass does **not** prove full acceptance. No new tests executed by this roadmap change.
 
+## Shared environment handoff
+
+CORE owns cognitive grounding and the existing runtime clock mechanism; PKG-ENVIRONMENT owns the shared semantic snapshot for time/timezone/location/season/daylight/weather. CORE should consume one bounded ENVIRONMENT projection instead of growing separate geolocation/weather logic. Environmental context is evidence, not authority and not a deterministic emotion rule.
+
 ## Current release checkpoint
 
 1. With INTERACT accepted and merged, pin actual `main` + approved change revision and preserve local `state/sofia.db`, timestamped backups and unrelated working-tree edits. Run focused regressions and **fresh** `python -m pytest -q` with actual summary, failures, skips, machine/OS/model, elapsed time and SHA. Do not silently disable or xfail failures.
@@ -20,6 +24,6 @@ Older Windows full suite on a previous revision: **1,150 passed, 43 failed, 2 sk
 
 ## Review decisions
 
-Which real hardware/provider settings and representative live dialogue cases define acceptance; what latency/resource budget is acceptable while gaming; which startup signals are sufficiently reliable for a factual elapsed time. Current timestamp/user-specific observations must come from the host, not inference from memory.
+Which real hardware/provider settings and representative live dialogue cases define acceptance; what latency/resource budget is acceptable while gaming; which startup signals are sufficiently reliable for a factual elapsed time. Current-code review confirms `runtime_clock_snapshot()` plus the live emotional-conversation projection already provide read-only UTC/host-local clock evidence; host-local time must not silently become the user's timezone. User/site location, season/daylight and weather should enter cognition only through [PKG-ENVIRONMENT](pkg-environment-readiness-roadmap.md), with source/freshness evidence rather than inference from memory.
 
 **Status:** foundational code merged. INTERACT's downstream gate is now satisfied; any remaining CORE current-revision full-suite/live-quality review should use merged `main` and must remain distinct from INTERACT's completed evidence. No new feature code, deployment or protected-state mutation in this note.
