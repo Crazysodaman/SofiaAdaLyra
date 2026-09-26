@@ -72,10 +72,10 @@ class EnvironmentService:
         self._provider_refreshed_at.clear()
         self._provider_errors.clear()
 
+    @staticmethod
     def _configured_location(
-        self,
+        configured,
     ) -> LocationObservation | None:
-        configured = self.configuration.location
         if configured is None:
             return None
         return LocationObservation(
@@ -180,7 +180,12 @@ class EnvironmentService:
         clock = runtime_clock_snapshot(now=now)
         current_utc = clock.utc
 
-        configured_location = self._configured_location()
+        configured_location = self._configured_location(
+            self.configuration.location
+        )
+        host_location = self._configured_location(
+            self.configuration.host_location
+        )
         current_location = None
         weather = None
         indoor = None
@@ -307,6 +312,7 @@ class EnvironmentService:
             user_local_time=user_local_time,
             timezone=timezone_name,
             configured_location=configured_location,
+            host_location=host_location,
             current_location=current_location,
             current_location_freshness=current_location_freshness,
             season=season,
