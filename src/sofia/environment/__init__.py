@@ -24,7 +24,6 @@ from .model import (
     Season,
     WeatherObservation,
 )
-from .nws import NwsApiClient, NwsEnvironmentProvider
 from .query import EnvironmentQueryAnswer, EnvironmentQueryResolver
 
 __all__ = [
@@ -56,6 +55,15 @@ def __getattr__(name: str):
 
         globals()[name] = EnvironmentService
         return EnvironmentService
+    if name in {"NwsApiClient", "NwsEnvironmentProvider"}:
+        from .nws import NwsApiClient, NwsEnvironmentProvider
+
+        value = {
+            "NwsApiClient": NwsApiClient,
+            "NwsEnvironmentProvider": NwsEnvironmentProvider,
+        }[name]
+        globals()[name] = value
+        return value
     raise AttributeError(
         f"module {__name__!r} has no attribute {name!r}"
     )
