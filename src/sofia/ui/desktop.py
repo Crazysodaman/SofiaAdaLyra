@@ -273,6 +273,27 @@ class _TkDesktopWorkbench:
             padx=(16, 0),
         )
 
+        self._quick_tool_selection = self._tk.StringVar(
+            master=self._root,
+            value="Quick Tools",
+        )
+        self._quick_tools = self._ttk.Combobox(
+            header,
+            textvariable=self._quick_tool_selection,
+            values=quick_tool_labels(),
+            state="disabled",
+            width=20,
+            style="Sofia.TCombobox",
+        )
+        self._quick_tools.pack(
+            side="left",
+            padx=(16, 0),
+        )
+        self._quick_tools.bind(
+            "<<ComboboxSelected>>",
+            self._on_quick_tool_selected,
+        )
+
         adaptive = self._ttk.Checkbutton(
             header,
             text="Adaptive theme",
@@ -293,8 +314,19 @@ class _TkDesktopWorkbench:
         )
         status.pack(side="right")
 
-        self._history = self._tk.Text(
+        self._history_shell = self._tk.Canvas(
             outer,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            bg=self._palette.background,
+        )
+        self._history_shell.pack(
+            fill="both",
+            expand=True,
+        )
+        self._history = self._tk.Text(
+            self._history_shell,
             wrap="word",
             state="disabled",
             bg=self._palette.panel,
@@ -302,11 +334,22 @@ class _TkDesktopWorkbench:
             insertbackground=self._palette.secondary,
             selectbackground=self._palette.primary,
             relief="flat",
-            padx=14,
-            pady=14,
+            bd=0,
+            highlightthickness=0,
+            padx=10,
+            pady=10,
             font=("Segoe UI", 11),
         )
-        self._history.pack(fill="both", expand=True)
+        self._history_window = self._history_shell.create_window(
+            10,
+            10,
+            anchor="nw",
+            window=self._history,
+        )
+        self._history_shell.bind(
+            "<Configure>",
+            self._layout_history_shell,
+        )
         self._history.tag_configure(
             "user",
             foreground=self._palette.secondary,
@@ -333,8 +376,21 @@ class _TkDesktopWorkbench:
         )
         composer.pack(fill="x", pady=(10, 0))
 
-        self._input = self._tk.Text(
+        self._input_shell = self._tk.Canvas(
             composer,
+            height=104,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            bg=self._palette.background,
+        )
+        self._input_shell.pack(
+            side="left",
+            fill="both",
+            expand=True,
+        )
+        self._input = self._tk.Text(
+            self._input_shell,
             height=5,
             wrap="word",
             bg=self._palette.panel,
@@ -342,32 +398,120 @@ class _TkDesktopWorkbench:
             insertbackground=self._palette.secondary,
             selectbackground=self._palette.primary,
             relief="flat",
-            padx=10,
-            pady=10,
+            bd=0,
+            highlightthickness=0,
+            padx=8,
+            pady=8,
             font=("Segoe UI", 11),
             undo=True,
         )
-        self._input.pack(
-            side="left",
-            fill="both",
-            expand=True,
+        self._input_window = self._input_shell.create_window(
+            10,
+            10,
+            anchor="nw",
+            window=self._input,
+        )
+        self._input_shell.bind(
+            "<Configure>",
+            self._layout_input_shell,
         )
         self._input.bind("<Return>", self._on_return)
         self._input.bind("<Shift-Return>", self._on_shift_return)
         self._input.bind("<<Modified>>", self._on_modified)
         self._input.edit_modified(False)
 
-        self._send = self._ttk.Button(
-            composer,
+        self._send = _ChamferButton(
+            tk=self._tk,
+            parent=composer,
             text="Send",
-            style="Sofia.TButton",
             command=self._send_current,
+            palette=self._palette,
+            width=112,
+            cut=10,
         )
         self._send.pack(
             side="right",
             padx=(10, 0),
             fill="y",
         )
+
+    def _layout_history_shell(self, _event=None) -> None:
+        self._layout_chamfer_shell(
+            self._history_shell,
+            self._history_window,
+            accent=self._palette.secondary,
+        )
+
+    def _layout_input_shell(self, _event=None) -> None:
+        self._layout_chamfer_shell(
+            self._input_shell,
+            self._input_window,
+            accent=self._palette.primary,
+        )
+
+    def _layout_chamfer_shell(
+        self,
+        canvas,
+        window_id,
+        *,
+        accent: str,
+    ) -> None:
+        width = max(24, int(canvas.winfo_width()))
+        height = max(24, int(canvas.winfo_height()))
+        cut = 10
+        canvas.delete("chamfer")
+        canvas.create_polygon(
+            _chamfer_points(
+                width - 1,
+                height - 1,
+                cut,
+            ),
+            fill=self._palette.panel,
+            outline=accent,
+            width=1,
+            tags=("chamfer",),
+        )
+        canvas.tag_lower("chamfer")
+        inset = cut
+        canvas.coords(
+            window_id,
+            inset,
+            inset,
+        )
+        canvas.itemconfigure(
+            window_id,
+            width=max(1, width - (inset * 2)),
+            height=max(1, height - (inset * 2)),
+        )
+
+    def _on_quick_tool_selected(self, _event=None) -> None:
+        if self._busy or not self._application_ready:
+            return
+        label = self._quick_tool_selection.get()
+        try:
+            tool = quick_tool_by_label(label)
+        except (KeyError, ValueError):
+            return
+
+        current = self._input.get("1.0", "end-1c")
+        if current.strip():
+            self._status.set(
+                "Composer already has text; quick tool was not loaded."
+            )
+            self._quick_tool_selection.set(
+                "Quick Tools"
+            )
+            return
+
+        self._replace_input(tool.prompt)
+        self._worker.save_draft(tool.prompt)
+        self._quick_tool_selection.set(
+            "Quick Tools"
+        )
+        self._status.set(
+            f"Loaded {tool.label}. Press Send to run."
+        )
+        self._input.focus_set()
 
     def _start_background(self) -> None:
         self._busy = True
