@@ -226,7 +226,7 @@ class _TkDesktopWorkbench:
         self._start_background()
 
     def _configure_window(self) -> None:
-        self._root.title("Sofía Ada Lyra")
+        self._root.title("Sofía")
         self._root.geometry("1040x720")
         self._root.minsize(720, 480)
         self._root.configure(
@@ -258,7 +258,7 @@ class _TkDesktopWorkbench:
 
         title = self._ttk.Label(
             header,
-            text="SOFÍA ADA LYRA  //  LOCAL WORKBENCH",
+            text="SOFÍA",
             style="Sofia.TLabel",
         )
         title.pack(side="left")
@@ -673,15 +673,18 @@ class _TkDesktopWorkbench:
             "SofiaPanel.TFrame",
             background=palette.panel,
         )
+        header_font = ("Segoe UI Semibold", 10)
         self._style.configure(
             "Sofia.TLabel",
             background=palette.background,
             foreground=palette.text,
+            font=header_font,
         )
         self._style.configure(
             "SofiaStatus.TLabel",
             background=palette.background,
             foreground=palette.muted,
+            font=header_font,
         )
         self._style.configure(
             "Sofia.TButton",
@@ -800,11 +803,23 @@ class _TkDesktopWorkbench:
         self._last_rendered_ids = ids
 
     def _replace_input(self, content: str) -> None:
-        self._input.edit_modified(False)
-        self._input.delete("1.0", "end")
-        if content:
-            self._input.insert("1.0", content)
-        self._input.edit_modified(False)
+        """Replace composer text even when the widget is temporarily disabled."""
+        if not isinstance(content, str):
+            raise TypeError("content must be a string")
+
+        previous_state = str(self._input.cget("state"))
+        if previous_state == "disabled":
+            self._input.configure(state="normal")
+
+        try:
+            self._input.edit_modified(False)
+            self._input.delete("1.0", "end")
+            if content:
+                self._input.insert("1.0", content)
+            self._input.edit_modified(False)
+        finally:
+            if previous_state == "disabled":
+                self._input.configure(state="disabled")
 
     def _set_enabled(self, enabled: bool) -> None:
         state = "normal" if enabled else "disabled"
