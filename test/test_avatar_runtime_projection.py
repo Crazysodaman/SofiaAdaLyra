@@ -203,5 +203,5 @@ def test_direct_current_self_fact_bypasses_provider_and_uses_typed_state(tmp_pat
     )
 
     assert response.content == "My hair is deep crimson, currently styled long layered."
-    assert provider.requests == ()
+    assert provider.requests == []
     app.shutdown()
