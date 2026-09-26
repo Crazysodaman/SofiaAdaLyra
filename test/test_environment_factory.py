@@ -4,11 +4,14 @@ import pytest
 
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.environment.config import EnvironmentConfiguration
-from sofia.environment.factory import create_environment_service
+from sofia.environment.factory import (
+    HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
+    create_environment_service,
+)
 from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
 
 
-def configuration(environment):
+def configuration(environment, *, capabilities=()):
     return SofiaConfiguration(
         constitution_path=Path("constitution.md"),
         constitution_hash_path=Path("constitution.sha256"),
@@ -21,6 +24,7 @@ def configuration(environment):
             model="test",
         ),
         filesystem_root=Path("."),
+        standing_allowed_capabilities=capabilities,
         environment=environment,
     )
 
@@ -66,7 +70,10 @@ def test_factory_attaches_ha_provider_without_contacting_network(
         configuration(
             EnvironmentConfiguration(
                 home_assistant_weather_entity="weather.home",
-            )
+            ),
+            capabilities=(
+                HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
+            ),
         )
     )
     assert len(service.providers) == 1
@@ -74,3 +81,24 @@ def test_factory_attaches_ha_provider_without_contacting_network(
         service.providers[0],
         HomeAssistantEnvironmentProvider,
     )
+
+def test_factory_rejects_ha_environment_without_explicit_standing_grant(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "SOFIA_HOME_ASSISTANT_URL",
+        "http://home-assistant.invalid",
+    )
+    monkeypatch.setenv(
+        "SOFIA_HOME_ASSISTANT_TOKEN",
+        "test-only-token",
+    )
+    with pytest.raises(PermissionError, match="environment.home_assistant.read"):
+        create_environment_service(
+            configuration(
+                EnvironmentConfiguration(
+                    home_assistant_weather_entity="weather.home",
+                )
+            )
+        )
+
