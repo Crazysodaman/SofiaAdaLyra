@@ -63,3 +63,22 @@ def test_invalid_timezone_is_rejected():
                 "SOFIA_ENVIRONMENT_TIMEZONE": "Mars/Olympus_Mons",
             }
         )
+
+def test_ha_current_location_requires_explicit_subject_without_configured_location():
+    with pytest.raises(ValueError, match="explicit location subject"):
+        environment_configuration_from_environ(
+            {
+                "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_ENTITY": "device_tracker.host",
+            }
+        )
+
+
+def test_ha_current_location_subject_can_be_explicit_host():
+    config = environment_configuration_from_environ(
+        {
+            "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_ENTITY": "device_tracker.host",
+            "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_SUBJECT": "host",
+        }
+    )
+    assert config.home_assistant_current_location_subject is LocationSubject.HOST
+
