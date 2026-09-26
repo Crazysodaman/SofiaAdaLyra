@@ -44,6 +44,19 @@ SCM recovery configuration remain explicit administrative canary steps.
 pytest -q test/test_run_windows_watchdog_service.py test/test_run_watchdog.py test/test_run_health.py test/test_run_windows_service.py test/test_run_lifecycle.py
 ```
 
+
+## Live canary evidence — install/config phase
+
+On 2026-09-26, the local canary checkout at `C:\\SofiaAdaLyra-canary` successfully installed both SCM services:
+
+- `SofiaAdaLyra`: automatic start,
+- `SofiaAdaLyraWatchdog`: delayed automatic start,
+- both hosted by the local canary `pythonservice.exe`,
+- both configured for bounded SCM restart recovery at 5s / 15s / 60s with a 24-hour reset period,
+- both currently configured under `LocalSystem` for the canary.
+
+Installation/configuration is accepted as live evidence. Runtime start, heartbeat, independent watchdog PID, kill/hang/fence recovery, reboot recovery and measured RTO remain open.
+
 ## Live Windows canary
 
 After full-suite acceptance:
