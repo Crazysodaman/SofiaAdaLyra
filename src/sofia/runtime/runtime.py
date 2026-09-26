@@ -37,6 +37,7 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
     FilesystemChangeEvent,
@@ -219,6 +220,7 @@ class SofiaRuntime:
         self._avatar_presentation: PresentationAuthority | None = None
         self._measurement_query_resolver = MeasurementQueryResolver()
         self._avatar_self_fact_resolver = AvatarSelfFactResolver()
+        self._environment_query_resolver = EnvironmentQueryResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -565,6 +567,27 @@ class SofiaRuntime:
             if self_fact.recognized:
                 return CognitiveResponse(content=self_fact.content)
 
+        environment_snapshot = None
+        if (
+            user_content
+            and self._environment_query_resolver.might_match(
+                user_content
+            )
+        ):
+            environment_snapshot = (
+                self._environment_service.snapshot()
+            )
+            environment_answer = (
+                self._environment_query_resolver.resolve(
+                    user_content,
+                    snapshot=environment_snapshot,
+                )
+            )
+            if environment_answer.recognized:
+                return CognitiveResponse(
+                    content=environment_answer.content
+                )
+
         memories = self._memory_system.recall_relevant(
             user_content
         )
@@ -577,7 +600,10 @@ class SofiaRuntime:
                 embodiment=self._embodiment,
             )
 
-        environment_snapshot = self._environment_service.snapshot()
+        if environment_snapshot is None:
+            environment_snapshot = (
+                self._environment_service.snapshot()
+            )
 
         operation = CognitiveOperation(
             context=CognitiveContext(
