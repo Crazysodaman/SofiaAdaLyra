@@ -132,7 +132,12 @@ def environment_prompt(
                 f"Current {current.subject.value} location evidence: "
                 f"{current.label}; observed_at="
                 f"{current.observed_at.isoformat() if current.observed_at else 'unknown'}; "
-                f"source={current.source_id}."
+                f"source={current.source_id}; precision="
+                + (
+                    f"about {current.precision_meters:.0f} m."
+                    if current.precision_meters is not None
+                    else "unknown."
+                )
             )
         )
         lines.append(
