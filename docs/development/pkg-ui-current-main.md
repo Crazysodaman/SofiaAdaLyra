@@ -1,8 +1,8 @@
 # PKG-UI current-main rebuild
 
-**Date:** 2026-09-26. **Branch:** `feature/pkg-ui-current-main`.
-**Baseline:** current `main` at `65a59ba` (PKG-MEM runtime wiring merged).
-**Status:** implementation prepared; Windows focused/full acceptance not yet run.
+**Date:** 2026-09-26. **Historical branch:** `feature/pkg-ui-current-main`.
+**Baseline:** `main` at `65a59ba` when rebuilt.
+**Status:** **foundation accepted and merged via PR #115 at `381ac9a`, then extended by the accepted Windows workbench PR #116 at `7f072861`.** This document is retained as implementation history; current UI status is tracked in `pkg-ui-windows-workbench.md` and the main roadmap.
 
 ## Why this branch exists
 
@@ -63,12 +63,9 @@ Then run the full repository suite before merge.
 
 ## Next UI slices
 
-1. Actual Windows text-first desktop shell using this canonical adapter.
-2. Real generation cancellation/stop only after cognition/provider cancellation
-   exists; do not ship a decorative stop button.
-3. Authorized history search and evidence/action-state presentation.
-4. Renderer adapter with authenticated/typed acknowledgements after AVATAR and
-   SOCIAL/SAFE boundaries are ready.
-5. Voice only with explicit mic/speaker consent and real completion receipts.
-6. Shared workbench persistence/audience integration after SOCIAL principal
-   projection exists.
+1. Real generation cancellation/stop only after cognition/provider cancellation exists; do not ship a decorative stop button.
+2. Authorized history search and evidence/action-state presentation.
+3. Renderer/avatar viewport with authenticated typed acknowledgements after AVATAR and SOCIAL/SAFE boundaries are ready.
+4. Voice only with explicit mic/speaker consent and real completion receipts.
+5. Mobile/web clients only after their authentication/audience boundaries are defined.
+6. Shared workbench persistence/audience integration after SOCIAL principal projection exists.
