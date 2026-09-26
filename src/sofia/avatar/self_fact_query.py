@@ -7,8 +7,6 @@ deliberately conservative and limited to direct self-fact questions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
-
 from sofia.embodiment.model import Embodiment
 
 from .presentation import PresentationProjection
@@ -47,29 +45,45 @@ def _friendly_outfit(outfit_id: str | None) -> str:
 class AvatarSelfFactResolver:
     """Resolve a small set of direct current-presentation questions."""
 
-    _CURRENT_OUTFIT = re.compile(
-        r"^(?:what(?:'s| is)\s+)?(?:outfit\s+(?:are|do)\s+you\s+"
-        r"(?:wear(?:ing)?|have\s+on)|what\s+are\s+you\s+wearing)"
-        r"(?:\s+(?:right\s+now|rn|currently))?$"
-    )
-    _HAIR_COLOR = re.compile(
-        r"^(?:what\s+color\s+is\s+your\s+hair|what(?:'s| is)\s+your\s+hair\s+color)$"
-    )
-    _TAIL_COLOR = re.compile(
-        r"^(?:what\s+color\s+is\s+your\s+tail|what(?:'s| is)\s+your\s+tail\s+color)$"
-    )
-    _CURRENT_LOOK = re.compile(
-        r"^(?:describe\s+(?:how\s+you\s+currently\s+look|your\s+current\s+"
-        r"appearance|how\s+you\s+look)|what\s+do\s+you\s+look\s+like)$"
-    )
-    _FORM_OR_AVATAR = re.compile(
-        r"^(?:do\s+you\s+have\s+(?:a\s+)?(?:physical\s+form(?:\s+or\s+"
-        r"(?:an?\s+)?avatar)?|avatar)|what(?:'s| is)\s+your\s+physical\s+form)$"
-    )
-    _TONIGHT_OUTFIT = re.compile(
-        r"^(?:what\s+outfit\s+would\s+you\s+(?:want|like)\s+to\s+change\s+"
-        r"into\s+tonight|what\s+would\s+you\s+(?:want|like)\s+to\s+wear\s+tonight)$"
-    )
+    _CURRENT_OUTFIT_FORMS = frozenset({
+        "what outfit are you wearing right now",
+        "what outfit are you wearing",
+        "what outfit do you have on",
+        "what are you wearing right now",
+        "what are you wearing",
+        "what are you wearing rn",
+        "what are you currently wearing",
+    })
+    _HAIR_COLOR_FORMS = frozenset({
+        "what color is your hair",
+        "what is your hair color",
+        "what's your hair color",
+    })
+    _TAIL_COLOR_FORMS = frozenset({
+        "what color is your tail",
+        "what is your tail color",
+        "what's your tail color",
+    })
+    _CURRENT_LOOK_FORMS = frozenset({
+        "describe how you currently look",
+        "describe how you look",
+        "describe your current appearance",
+        "what do you look like",
+    })
+    _FORM_OR_AVATAR_FORMS = frozenset({
+        "do you have a physical form or avatar",
+        "do you have a physical form or an avatar",
+        "do you have a physical form",
+        "do you have an avatar",
+        "what is your physical form",
+        "what's your physical form",
+    })
+    _TONIGHT_OUTFIT_FORMS = frozenset({
+        "what outfit would you want to change into tonight",
+        "what outfit would you like to change into tonight",
+        "what would you want to wear tonight",
+        "what would you like to wear tonight",
+    })
 
     def resolve(
         self,
@@ -94,7 +108,7 @@ class AvatarSelfFactResolver:
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
 
-        if self._CURRENT_OUTFIT.fullmatch(normalized):
+        if normalized in self._CURRENT_OUTFIT_FORMS:
             return AvatarSelfFactAnswer(
                 True,
                 (
@@ -104,7 +118,7 @@ class AvatarSelfFactResolver:
                 ),
             )
 
-        if self._HAIR_COLOR.fullmatch(normalized):
+        if normalized in self._HAIR_COLOR_FORMS:
             color = presentation.appearance.hair_color
             style = presentation.appearance.hairstyle
             return AvatarSelfFactAnswer(
@@ -112,13 +126,13 @@ class AvatarSelfFactResolver:
                 f"My hair is {color}, currently styled {style}.",
             )
 
-        if self._TAIL_COLOR.fullmatch(normalized):
+        if normalized in self._TAIL_COLOR_FORMS:
             return AvatarSelfFactAnswer(
                 True,
                 f"My tail is {presentation.appearance.tail_color}.",
             )
 
-        if self._CURRENT_LOOK.fullmatch(normalized):
+        if normalized in self._CURRENT_LOOK_FORMS:
             features = ", ".join(embodiment.physical_self.additional_features)
             skin = appearance.get("skin_color")
             parts = [
@@ -139,7 +153,7 @@ class AvatarSelfFactResolver:
                 "My current look is " + ", ".join(parts) + ".",
             )
 
-        if self._FORM_OR_AVATAR.fullmatch(normalized):
+        if normalized in self._FORM_OR_AVATAR_FORMS:
             features = ", ".join(embodiment.physical_self.additional_features)
             feature_text = f" with {features}" if features else ""
             return AvatarSelfFactAnswer(
@@ -152,7 +166,7 @@ class AvatarSelfFactResolver:
                 ),
             )
 
-        if self._TONIGHT_OUTFIT.fullmatch(normalized):
+        if normalized in self._TONIGHT_OUTFIT_FORMS:
             if "lounge.relaxed" in available_outfit_ids:
                 candidate = _friendly_outfit("lounge.relaxed")
                 return AvatarSelfFactAnswer(
