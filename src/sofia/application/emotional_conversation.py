@@ -17,7 +17,6 @@ from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
-from sofia.runtime.clock import runtime_clock_prompt
 from sofia.runtime.runtime import SofiaRuntime
 
 
@@ -233,8 +232,10 @@ class EmotionalConversationService(ConversationService):
             )
         now = datetime.now(timezone.utc)
         projections = [
-            runtime_clock_prompt(now=now),
-            self.emotional_journal.current_state_prompt(now=now, subject=subject),
+            self.emotional_journal.current_state_prompt(
+                now=now,
+                subject=subject,
+            ),
         ]
         emotional_context = self.emotional_journal.prompt_context(now=now)
         if emotional_context is not None:
