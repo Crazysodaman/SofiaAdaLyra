@@ -1,7 +1,7 @@
 # ACT → Discord authorized sender candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows acceptance required.
+**Status:** candidate; Windows focused acceptance passed **37/37** and the combined OPS/RUN/ACT/EVOLVE regression gate passed **171/171** on 2026-09-26. Full repository pytest remains required before acceptance.
 
 This slice adds a proactive Discord sender specifically for ACT without
 pretending proactive messages are replies to fabricated inbound Discord
