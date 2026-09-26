@@ -117,6 +117,21 @@ def environment_prompt(
     else:
         lines.append("Configured user/site location: unknown.")
 
+    host = snapshot.host_location
+    if host is not None:
+        lines.append(
+            (
+                "Configured runtime host location: "
+                f"{host.label} (source={host.source_id})."
+            )
+        )
+        lines.append(
+            "Configured host location is stable configuration, NOT proof "
+            "that the running machine is physically there now."
+        )
+    else:
+        lines.append("Configured runtime host location: unknown.")
+
     current = snapshot.current_location
     lines.append(
         "Current physical location freshness: "
