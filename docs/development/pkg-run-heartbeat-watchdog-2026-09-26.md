@@ -1,7 +1,7 @@
 # PKG-RUN heartbeat and independent watchdog candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows offline acceptance required.
+**Status:** candidate; Windows focused acceptance passed **62/62** and the surrounding RUN/ACT/Discord regression gate passed **172/172** on 2026-09-26. Full repository pytest remains required before acceptance.
 
 This slice separates **process existence**, **readiness**, and **health**.
 
