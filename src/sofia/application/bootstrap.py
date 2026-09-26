@@ -18,6 +18,8 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
+from sofia.ui.drafts import UIDraftStore
+from sofia.ui.text import UITextClient
 
 
 class SofiaApplicationError(RuntimeError):
@@ -50,6 +52,12 @@ class SofiaApplication:
         )
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
+        self._ui_draft_store = UIDraftStore(configuration.state_path)
+        self._text_ui = UITextClient(
+            conversation=self._conversation_service,
+            drafts=self._ui_draft_store,
+            client_id="local-text",
+        )
 
     @property
     def runtime(self) -> SofiaRuntime:
@@ -62,6 +70,11 @@ class SofiaApplication:
     @property
     def idle_reflection_worker(self) -> IdleReflectionWorker | None:
         return getattr(self, "_idle_worker", None)
+
+    @property
+    def text_ui(self) -> UITextClient:
+        """Return the local text-first UI over the canonical conversation."""
+        return self._text_ui
 
     def start(self, session_id: str | None = None) -> CognitiveResponse | None:
         """Start the runtime and session, then optionally start idle reflection.
@@ -130,3 +143,4 @@ class SofiaApplication:
         finally:
             self._presentation_bundle = None
             self._conversation_service.close()
+            self._ui_draft_store.close()
