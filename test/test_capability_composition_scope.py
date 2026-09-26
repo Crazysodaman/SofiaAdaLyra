@@ -263,19 +263,18 @@ def test_composed_capability_rejects_non_path_scope(
     assert result.evidence is None
 
 
-def test_composed_capability_rejects_scope_without_filesystem_authorization(
+def test_composed_capability_rejects_without_standing_authorization(
     tmp_path,
 ):
-    configuration = create_configuration(
-        tmp_path
+    configuration = replace(
+        create_configuration(tmp_path),
+        standing_allowed_capabilities=(),
     )
 
     runtime = compose(configuration)
-
     runtime.start()
 
     assert runtime.state is RuntimeState.READY
-    assert runtime.filesystem_authorization is None
 
     gateway = CapabilityGateway(
         runtime.capability_system
