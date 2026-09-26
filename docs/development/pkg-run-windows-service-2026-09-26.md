@@ -58,3 +58,10 @@ The Windows canary service host has been corrected to a dedicated machine-wide P
 This closes the per-user/venv service-host deployment defect. Runtime start/READY heartbeat, watchdog independence, kill/hang/fence/reboot recovery and measured RTO remain open.
 
 
+## Live canary evidence — runtime start to READY
+
+On 2026-09-26, `SofiaAdaLyra` successfully started under Windows SCM using the dedicated machine-wide Python 3.13 service host and `LocalSystem`. SCM reported `RUNNING` with a nonzero service PID. Durable RUN lifecycle advanced from `RECOVERING` generation 2 to `READY` generation 3, and the service then created a fenced heartbeat session bound to the same process ID. Observed RECOVERING→READY time was approximately **30 seconds** in this canary.
+
+This is live proof that the Windows service host reaches canonical application READY state. Heartbeat advancement, independent watchdog start/PID, kill/hang/fence/reboot recovery and measured recovery RTO remain open.
+
+
