@@ -99,3 +99,7 @@ __all__ += [
 from .presentation_routine import HeadlessPresentationRoutine, PresentationRoutineResult
 
 __all__ += ["HeadlessPresentationRoutine", "PresentationRoutineResult"]
+
+from .self_fact_query import AvatarSelfFactAnswer, AvatarSelfFactResolver
+
+__all__ += ["AvatarSelfFactAnswer", "AvatarSelfFactResolver"]
