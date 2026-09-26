@@ -1,6 +1,8 @@
-﻿from dataclasses import dataclass
+﻿from dataclasses import dataclass, field
 from typing import Any
 from pathlib import Path
+
+from sofia.environment.config import EnvironmentConfiguration
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,9 @@ class SofiaConfiguration:
     provider: ProviderConfiguration
     filesystem_root: Path
     standing_allowed_capabilities: tuple[str, ...] = ()
+    environment: EnvironmentConfiguration = field(
+        default_factory=EnvironmentConfiguration
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider, ProviderConfiguration):
@@ -127,4 +132,10 @@ class SofiaConfiguration:
         if not self.state_path:
             raise ValueError(
                 "SofiaConfiguration state_path must not be empty."
+            )
+
+        if not isinstance(self.environment, EnvironmentConfiguration):
+            raise TypeError(
+                "SofiaConfiguration environment must be an "
+                "EnvironmentConfiguration."
             )

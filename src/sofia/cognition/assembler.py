@@ -16,8 +16,19 @@ from sofia.continuity.model import (
     ContinuityEventKind,
 )
 from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.environment.prompt import (
+    environment_details_relevant,
+    environment_prompt,
+)
 from sofia.system.knowledge import SystemCapabilityKnowledgeRecord
 from sofia.personality.expression import personality_expression_guidance
+
+
+def _latest_user_content(request: CognitiveRequest) -> str | None:
+    for message in reversed(request.messages):
+        if message.role is CognitiveRole.USER:
+            return message.content
+    return None
 
 
 class CognitiveContextAssembler:
@@ -178,6 +189,19 @@ class CognitiveContextAssembler:
                 [
                     "",
                     presentation_prompt(context.avatar_presentation),
+                ]
+            )
+
+        if context.environment_snapshot is not None:
+            sections.extend(
+                [
+                    "",
+                    environment_prompt(
+                        context.environment_snapshot,
+                        include_details=environment_details_relevant(
+                            _latest_user_content(context.request)
+                        ),
+                    ),
                 ]
             )
 

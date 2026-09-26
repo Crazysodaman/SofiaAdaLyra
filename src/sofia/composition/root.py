@@ -28,6 +28,7 @@ from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.factory import create_environment_service
 from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
@@ -124,6 +125,10 @@ def compose(
 
     filesystem_observation_store = FilesystemObservationStore(
         configuration.state_path
+    )
+
+    environment_service = create_environment_service(
+        configuration
     )
 
     knowledge_store = JsonKnowledgeStore(
@@ -425,6 +430,7 @@ def compose(
         cognitive_system=cognitive_system,
         capability_system=capability_system,
         configuration=configuration,
+        environment_service=environment_service,
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
     )

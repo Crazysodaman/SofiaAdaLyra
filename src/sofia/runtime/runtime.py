@@ -37,6 +37,9 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.prompt import environment_details_relevant
+from sofia.environment.query import EnvironmentQueryResolver
+from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
     FilesystemChangeEvent,
     detect_changes,
@@ -126,6 +129,7 @@ class SofiaRuntime:
         cognitive_system: CognitiveSystem,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
+        environment_service: EnvironmentService | None = None,
         operational_store: OperationalStore | None = None,
         filesystem_observation_store: (
             FilesystemObservationStore | None
@@ -149,6 +153,19 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._environment_service = (
+            environment_service
+            if environment_service is not None
+            else EnvironmentService(configuration.environment)
+        )
+        if not isinstance(
+            self._environment_service,
+            EnvironmentService,
+        ):
+            raise TypeError(
+                "SofiaRuntime environment_service must be an "
+                "EnvironmentService."
+            )
 
         self._operational_store = (
             operational_store
@@ -204,6 +221,7 @@ class SofiaRuntime:
         self._avatar_presentation: PresentationAuthority | None = None
         self._measurement_query_resolver = MeasurementQueryResolver()
         self._avatar_self_fact_resolver = AvatarSelfFactResolver()
+        self._environment_query_resolver = EnvironmentQueryResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -305,6 +323,10 @@ class SofiaRuntime:
         return self._configuration
 
     @property
+    def environment_service(self) -> EnvironmentService:
+        return self._environment_service
+
+    @property
     def operational_store(self) -> OperationalStore:
         return self._operational_store
 
@@ -402,6 +424,7 @@ class SofiaRuntime:
             )
 
         self._state = RuntimeState.STARTING
+        self._environment_service.invalidate()
 
         runtime_id = uuid4()
         started_at = datetime.now(timezone.utc)
@@ -545,6 +568,32 @@ class SofiaRuntime:
             if self_fact.recognized:
                 return CognitiveResponse(content=self_fact.content)
 
+        environment_snapshot = None
+        environment_details_needed = environment_details_relevant(
+            user_content or None
+        )
+        if (
+            user_content
+            and self._environment_query_resolver.might_match(
+                user_content
+            )
+        ):
+            environment_snapshot = (
+                self._environment_service.snapshot(
+                    refresh_providers=environment_details_needed,
+                )
+            )
+            environment_answer = (
+                self._environment_query_resolver.resolve(
+                    user_content,
+                    snapshot=environment_snapshot,
+                )
+            )
+            if environment_answer.recognized:
+                return CognitiveResponse(
+                    content=environment_answer.content
+                )
+
         memories = self._memory_system.recall_relevant(
             user_content
         )
@@ -555,6 +604,13 @@ class SofiaRuntime:
             measurement_query = self._measurement_query_resolver.resolve(
                 query=user_content,
                 embodiment=self._embodiment,
+            )
+
+        if environment_snapshot is None:
+            environment_snapshot = (
+                self._environment_service.snapshot(
+                    refresh_providers=environment_details_needed,
+                )
             )
 
         operation = CognitiveOperation(
@@ -573,6 +629,7 @@ class SofiaRuntime:
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
                 avatar_presentation=self.avatar_presentation_projection,
+                environment_snapshot=environment_snapshot,
             ),
             authority=Authority(
                 can_inspect_filesystem=(
@@ -729,6 +786,7 @@ class SofiaRuntime:
         self._embodiment = None
         self._core_state = None
         self._avatar_presentation = None
+        self._environment_service.invalidate()
         self._runtime_id = None
         self._started_at = None
         self._runtime_continuity = None
