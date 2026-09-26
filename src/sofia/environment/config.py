@@ -74,6 +74,7 @@ class EnvironmentConfiguration:
     home_assistant_indoor_temperature_entity: str | None = None
     home_assistant_indoor_humidity_entity: str | None = None
     home_assistant_current_location_entity: str | None = None
+    home_assistant_current_location_subject: LocationSubject | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -111,6 +112,27 @@ class EnvironmentConfiguration:
                 ):
                     raise ValueError(f"invalid {name}")
                 object.__setattr__(self, name, value.strip())
+
+        if (
+            self.home_assistant_current_location_subject is not None
+            and not isinstance(
+                self.home_assistant_current_location_subject,
+                LocationSubject,
+            )
+        ):
+            raise TypeError(
+                "home_assistant_current_location_subject must be "
+                "LocationSubject or None"
+            )
+        if (
+            self.home_assistant_current_location_entity is not None
+            and self.home_assistant_current_location_subject is None
+            and self.location is None
+        ):
+            raise ValueError(
+                "Home Assistant current-location entity requires an "
+                "explicit location subject when no configured location exists"
+            )
 
     @property
     def home_assistant_enabled(self) -> bool:
@@ -185,6 +207,23 @@ def environment_configuration_from_environ(
         value = env.get(name, "").strip()
         return value or None
 
+    ha_location_entity = optional(
+        "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_ENTITY"
+    )
+    ha_subject_raw = env.get(
+        "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_SUBJECT",
+        "",
+    ).strip().lower()
+    ha_location_subject = None
+    if ha_subject_raw:
+        try:
+            ha_location_subject = LocationSubject(ha_subject_raw)
+        except ValueError as exc:
+            raise ValueError(
+                "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_SUBJECT must be "
+                "user, site, or host"
+            ) from exc
+
     return EnvironmentConfiguration(
         location=location,
         refresh_seconds=_positive_int(
@@ -216,7 +255,6 @@ def environment_configuration_from_environ(
         home_assistant_indoor_humidity_entity=optional(
             "SOFIA_ENVIRONMENT_HA_INDOOR_HUMIDITY_ENTITY"
         ),
-        home_assistant_current_location_entity=optional(
-            "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_ENTITY"
-        ),
+        home_assistant_current_location_entity=ha_location_entity,
+        home_assistant_current_location_subject=ha_location_subject,
     )
