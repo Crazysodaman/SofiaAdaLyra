@@ -17,6 +17,7 @@ from .model import (
     Season,
     WeatherObservation,
 )
+from .query import EnvironmentQueryAnswer, EnvironmentQueryResolver
 from .service import EnvironmentService
 
 __all__ = [
@@ -25,6 +26,8 @@ __all__ = [
     "DaylightState",
     "EnvironmentConfiguration",
     "EnvironmentFreshness",
+    "EnvironmentQueryAnswer",
+    "EnvironmentQueryResolver",
     "EnvironmentService",
     "EnvironmentSnapshot",
     "ForecastPeriod",
