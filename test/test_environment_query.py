@@ -281,3 +281,26 @@ def test_current_indoor_environment_is_directly_queryable():
     assert "humidity 45%" in answer.content
     assert "test.indoor" in answer.content
 
+def test_environment_context_sources_are_direct_and_privacy_bounded():
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    resolver = EnvironmentQueryResolver()
+
+    assert resolver.might_match(
+        "Explain your current environment context sources."
+    )
+    answer = resolver.resolve(
+        "Explain your current environment context sources.",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "Environment context sources:" in answer.content
+    assert "trusted runtime host clock" in answer.content
+    assert "Configured area" in answer.content
+    assert "config.environment" in answer.content
+    assert "not current physical-location proof" in answer.content
+    assert "Current physical location evidence: unavailable." in answer.content
+    assert "Weather/forecast evidence: unavailable." in answer.content
+    assert "32.5" not in answer.content
+    assert "-97.1" not in answer.content
+
