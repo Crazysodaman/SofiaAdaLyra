@@ -47,3 +47,9 @@ batch-f-results.json
 # Local Sofía database recovery snapshots (private runtime state)
 /state/sofia.pre-*.db
 /state/sofia.pre-*.db-*
+
+# Primary Sofía runtime SQLite state (private local state)
+/state/sofia.db
+/state/sofia.db-wal
+/state/sofia.db-shm
+/state/sofia.db-journal
