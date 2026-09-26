@@ -1,4 +1,11 @@
-"""PKG-ENVIRONMENT public surface."""
+"""PKG-ENVIRONMENT public surface without eager runtime imports.
+
+Configuration imports this package while SofiaConfiguration itself is being
+defined, so runtime-dependent services are resolved lazily to avoid a
+config -> environment -> runtime -> config import cycle.
+"""
+from __future__ import annotations
+
 from .config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
@@ -18,7 +25,6 @@ from .model import (
     WeatherObservation,
 )
 from .query import EnvironmentQueryAnswer, EnvironmentQueryResolver
-from .service import EnvironmentService
 
 __all__ = [
     "ConfiguredLocation",
@@ -39,3 +45,14 @@ __all__ = [
     "WeatherObservation",
     "environment_configuration_from_environ",
 ]
+
+
+def __getattr__(name: str):
+    if name == "EnvironmentService":
+        from .service import EnvironmentService
+
+        globals()[name] = EnvironmentService
+        return EnvironmentService
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}"
+    )
