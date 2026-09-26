@@ -7,10 +7,12 @@ from sofia.config.model import SofiaConfiguration
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 
 from .home_assistant import HomeAssistantEnvironmentProvider
+from .nws import NwsEnvironmentProvider
 from .service import EnvironmentService
 
 
 HOME_ASSISTANT_ENVIRONMENT_CAPABILITY = "environment.home_assistant.read"
+NWS_ENVIRONMENT_CAPABILITY = "environment.nws.read"
 
 
 
@@ -53,6 +55,19 @@ def create_environment_service(
                 HomeAssistantAdapter(base_url, token),
                 environment,
             )
+        )
+
+    if environment.nws_enabled:
+        if (
+            NWS_ENVIRONMENT_CAPABILITY
+            not in configuration.standing_allowed_capabilities
+        ):
+            raise PermissionError(
+                "NWS environment reads require standing "
+                f"capability {NWS_ENVIRONMENT_CAPABILITY!r}"
+            )
+        providers.append(
+            NwsEnvironmentProvider(environment)
         )
 
     return EnvironmentService(
