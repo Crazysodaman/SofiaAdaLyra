@@ -26,20 +26,40 @@ Coordinates are internal evidence and are withheld from model-facing environment
 
 ## Runtime-host/server location
 
-Configure the host independently:
+The preferred persistent path stores host location inside Sofía's machine state, keyed by the machine's stable discovered ID:
 
 ```powershell
-$env:SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL="Artemis"
-$env:SOFIA_ENVIRONMENT_HOST_TIMEZONE="America/Chicago"
-$env:SOFIA_ENVIRONMENT_HOST_LATITUDE="<server/site latitude>"
-$env:SOFIA_ENVIRONMENT_HOST_LONGITUDE="<server/site longitude>"
+python -m sofia.machine.location_cli set-local \
+  --label "Home Lab" \
+  --timezone "America/Chicago" \
+  --latitude <LAT> \
+  --longitude <LON>
 ```
+
+This writes `state/machine-locations.json`. On the next Sofía start, composition discovers the current machine identity and injects that record into PKG-ENVIRONMENT as HOST configuration.
+
+A known remote machine can be configured from an inventory-bearing installation:
+
+```powershell
+python -m sofia.machine.location_cli set-known \
+  --hostname "Artemis" \
+  --label "Home Lab" \
+  --timezone "America/Chicago" \
+  --latitude <LAT> \
+  --longitude <LON>
+```
+
+Use `--machine-id` when a hostname is ambiguous. `python -m sofia.machine.location_cli list` lists configured machine labels/timezones without coordinates.
 
 `Where am I?` remains a USER-location question.
 
 `Where are you?` may use the separate HOST configuration and must not reuse the USER location as evidence for the runtime host.
 
-Environment configuration is loaded when Sofía starts. To update a server location, change that host's `SOFIA_ENVIRONMENT_HOST_*` values and restart the Sofía process/service. A future OPS/RUN integration may populate host/site evidence from enrolled fleet metadata, but this candidate does not infer location from hostname, IP address, network range, or account metadata.
+Environment configuration is loaded when Sofía starts, so restart the Sofía process/service after changing a machine location. The machine-location registry is stable configuration, not proof of current physical presence.
+
+For testing/emergency override only, process-local `SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL/TIMEZONE/LATITUDE/LONGITUDE` variables still work and take precedence over the persistent machine record.
+
+This candidate does not infer location from hostname, IP address, network range, or account metadata. A later OPS/RUN fleet layer may replicate/manage this same machine configuration across hosts.
 
 ## NWS weather
 
@@ -107,12 +127,9 @@ A forecast endpoint outage does not erase an otherwise valid current station obs
 
 ## Example: Artemis weather
 
-```powershell
-$env:SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL="Artemis"
-$env:SOFIA_ENVIRONMENT_HOST_TIMEZONE="America/Chicago"
-$env:SOFIA_ENVIRONMENT_HOST_LATITUDE="<LAT>"
-$env:SOFIA_ENVIRONMENT_HOST_LONGITUDE="<LON>"
+First persist Artemis' location in Sofía's machine registry (run locally on Artemis with `set-local`, or use `set-known` from a state instance that already knows Artemis). Then enable the narrow NWS route:
 
+```powershell
 $env:SOFIA_ENVIRONMENT_NWS_ENABLED="true"
 $env:SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT="host"
 $env:SOFIA_ENVIRONMENT_NWS_USER_AGENT="SofiaAdaLyra/1.0"
@@ -144,7 +161,7 @@ The location answer must label Artemis as configured runtime-host location, not 
 
 - arbitrary web browsing/search,
 - IP geolocation,
-- automatic host movement/location inference,
+- automatic host movement/location inference beyond stable machine-ID lookup,
 - NWS alert-to-ACT delivery,
 - background polling beyond the existing ENVIRONMENT refresh behavior,
 - replacing Home Assistant indoor sensors.
