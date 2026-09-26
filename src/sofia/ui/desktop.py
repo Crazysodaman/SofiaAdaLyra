@@ -14,15 +14,7 @@ from typing import Any
 from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration, create_default_configuration
 from sofia.ui.desktop_controller import DesktopWorkbenchController
-
-
-_BG = "#000000"
-_PANEL = "#0b0b0f"
-_PRIMARY = "#9400D3"
-_SECONDARY = "#00C2FF"
-_TERTIARY = "#39FF14"
-_TEXT = "#e8e8ee"
-_MUTED = "#9a9aaa"
+from sofia.ui.theme import ThemePalette, canonical_theme
 
 
 class _TkDesktopWorkbench:
@@ -44,6 +36,15 @@ class _TkDesktopWorkbench:
         self._busy = False
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
+        self._palette = canonical_theme()
+        self._adaptive_theme = self._tk.BooleanVar(
+            master=self._root,
+            value=True,
+        )
+        self._theme_name = self._tk.StringVar(
+            master=self._root,
+            value="Theme: canonical",
+        )
 
         self._configure_window()
         self._build_widgets()
@@ -51,42 +52,27 @@ class _TkDesktopWorkbench:
         self._status.set("Starting Sofía...")
         self._root.protocol("WM_DELETE_WINDOW", self._request_close)
         self._root.after(80, self._poll_events)
+        self._root.after(
+            60_000,
+            self._refresh_theme_timer,
+        )
         self._start_background()
 
     def _configure_window(self) -> None:
         self._root.title("Sofía Ada Lyra")
         self._root.geometry("1040x720")
         self._root.minsize(720, 480)
-        self._root.configure(bg=_BG)
+        self._root.configure(
+            bg=self._palette.background
+        )
 
-        style = self._ttk.Style(self._root)
+        self._style = self._ttk.Style(self._root)
         try:
-            style.theme_use("clam")
+            self._style.theme_use("clam")
         except self._tk.TclError:
             pass
-        style.configure(
-            "Sofia.TFrame",
-            background=_BG,
-        )
-        style.configure(
-            "SofiaPanel.TFrame",
-            background=_PANEL,
-        )
-        style.configure(
-            "Sofia.TLabel",
-            background=_BG,
-            foreground=_TEXT,
-        )
-        style.configure(
-            "SofiaStatus.TLabel",
-            background=_BG,
-            foreground=_MUTED,
-        )
-        style.configure(
-            "Sofia.TButton",
-            background=_PRIMARY,
-            foreground=_TEXT,
-            padding=(14, 8),
+        self._configure_ttk_palette(
+            self._palette
         )
 
     def _build_widgets(self) -> None:
@@ -110,6 +96,28 @@ class _TkDesktopWorkbench:
         )
         title.pack(side="left")
 
+        theme_label = self._ttk.Label(
+            header,
+            textvariable=self._theme_name,
+            style="SofiaStatus.TLabel",
+        )
+        theme_label.pack(
+            side="left",
+            padx=(16, 0),
+        )
+
+        adaptive = self._ttk.Checkbutton(
+            header,
+            text="Adaptive theme",
+            variable=self._adaptive_theme,
+            command=self._refresh_theme,
+            style="Sofia.TCheckbutton",
+        )
+        adaptive.pack(
+            side="right",
+            padx=(10, 0),
+        )
+
         self._status = self._tk.StringVar(value="")
         status = self._ttk.Label(
             header,
@@ -122,10 +130,10 @@ class _TkDesktopWorkbench:
             outer,
             wrap="word",
             state="disabled",
-            bg=_PANEL,
-            fg=_TEXT,
-            insertbackground=_SECONDARY,
-            selectbackground=_PRIMARY,
+            bg=self._palette.panel,
+            fg=self._palette.text,
+            insertbackground=self._palette.secondary,
+            selectbackground=self._palette.primary,
             relief="flat",
             padx=14,
             pady=14,
@@ -134,19 +142,19 @@ class _TkDesktopWorkbench:
         self._history.pack(fill="both", expand=True)
         self._history.tag_configure(
             "user",
-            foreground=_SECONDARY,
+            foreground=self._palette.secondary,
             spacing1=8,
             spacing3=4,
         )
         self._history.tag_configure(
             "sofia",
-            foreground=_TERTIARY,
+            foreground=self._palette.tertiary,
             spacing1=8,
             spacing3=4,
         )
         self._history.tag_configure(
             "body",
-            foreground=_TEXT,
+            foreground=self._palette.text,
             lmargin1=12,
             lmargin2=12,
             spacing3=8,
@@ -162,10 +170,10 @@ class _TkDesktopWorkbench:
             composer,
             height=5,
             wrap="word",
-            bg=_PANEL,
-            fg=_TEXT,
-            insertbackground=_SECONDARY,
-            selectbackground=_PRIMARY,
+            bg=self._palette.panel,
+            fg=self._palette.text,
+            insertbackground=self._palette.secondary,
+            selectbackground=self._palette.primary,
             relief="flat",
             padx=10,
             pady=10,
@@ -277,6 +285,7 @@ class _TkDesktopWorkbench:
                 self._replace_input(draft)
                 self._set_enabled(True)
                 self._status.set("Ready")
+                self._refresh_theme()
                 self._input.focus_set()
             elif kind == "sent":
                 self._busy = False
@@ -284,6 +293,7 @@ class _TkDesktopWorkbench:
                 self._replace_input("")
                 self._set_enabled(True)
                 self._status.set("Ready")
+                self._refresh_theme()
                 self._input.focus_set()
                 if self._close_requested:
                     self._finish_close()
@@ -315,6 +325,107 @@ class _TkDesktopWorkbench:
                     return
 
         self._root.after(80, self._poll_events)
+
+    def _configure_ttk_palette(
+        self,
+        palette: ThemePalette,
+    ) -> None:
+        self._style.configure(
+            "Sofia.TFrame",
+            background=palette.background,
+        )
+        self._style.configure(
+            "SofiaPanel.TFrame",
+            background=palette.panel,
+        )
+        self._style.configure(
+            "Sofia.TLabel",
+            background=palette.background,
+            foreground=palette.text,
+        )
+        self._style.configure(
+            "SofiaStatus.TLabel",
+            background=palette.background,
+            foreground=palette.muted,
+        )
+        self._style.configure(
+            "Sofia.TButton",
+            background=palette.primary,
+            foreground=palette.text,
+            padding=(14, 8),
+        )
+        self._style.configure(
+            "Sofia.TCheckbutton",
+            background=palette.background,
+            foreground=palette.text,
+        )
+
+    def _apply_theme(
+        self,
+        palette: ThemePalette,
+    ) -> None:
+        self._palette = palette
+        self._root.configure(
+            bg=palette.background
+        )
+        self._configure_ttk_palette(
+            palette
+        )
+        self._history.configure(
+            bg=palette.panel,
+            fg=palette.text,
+            insertbackground=palette.secondary,
+            selectbackground=palette.primary,
+        )
+        self._history.tag_configure(
+            "user",
+            foreground=palette.secondary,
+        )
+        self._history.tag_configure(
+            "sofia",
+            foreground=palette.tertiary,
+        )
+        self._history.tag_configure(
+            "body",
+            foreground=palette.text,
+        )
+        self._input.configure(
+            bg=palette.panel,
+            fg=palette.text,
+            insertbackground=palette.secondary,
+            selectbackground=palette.primary,
+        )
+        label = (
+            " · ".join(palette.drivers[:3])
+            if palette.drivers
+            else palette.name
+        )
+        self._theme_name.set(
+            f"Theme: {label}"
+        )
+
+    def _refresh_theme(self) -> None:
+        palette = canonical_theme()
+        if (
+            self._adaptive_theme.get()
+            and self._controller.started
+        ):
+            try:
+                palette = (
+                    self._controller.theme_palette()
+                )
+            except Exception:
+                # Theme projection is optional presentation. A theme-source
+                # failure must never take down conversation.
+                palette = canonical_theme()
+        self._apply_theme(palette)
+
+    def _refresh_theme_timer(self) -> None:
+        self._refresh_theme()
+        self._root.after(
+            60_000,
+            self._refresh_theme_timer,
+        )
 
     def _render_history(self, messages) -> None:
         ids = tuple(message.message_id for message in messages)
