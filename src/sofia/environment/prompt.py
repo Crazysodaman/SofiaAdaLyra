@@ -10,7 +10,7 @@ from .model import (
 
 
 _DETAIL_RE = re.compile(
-    r"\b(?:weather|forecast|temperature|humidity|wind|rain|rainy|snow|snowy|"
+    r"\b(?:environment|environmental|weather|forecast|temperature|humidity|wind|rain|rainy|snow|snowy|"
     r"storm|outside|outdoors|inside|indoors|location|where\s+(?:am|are)\s+(?:i|you)|"
     r"timezone|time\s+zone|season|sunrise|sunset|daylight|dark\s+outside|"
     r"light\s+outside|daytime|nighttime|tonight|tomorrow|outfit|wardrobe|"
