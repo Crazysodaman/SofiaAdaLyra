@@ -37,6 +37,7 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
     FilesystemChangeEvent,
     detect_changes,
@@ -126,6 +127,7 @@ class SofiaRuntime:
         cognitive_system: CognitiveSystem,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
+        environment_service: EnvironmentService | None = None,
         operational_store: OperationalStore | None = None,
         filesystem_observation_store: (
             FilesystemObservationStore | None
@@ -149,6 +151,19 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._environment_service = (
+            environment_service
+            if environment_service is not None
+            else EnvironmentService(configuration.environment)
+        )
+        if not isinstance(
+            self._environment_service,
+            EnvironmentService,
+        ):
+            raise TypeError(
+                "SofiaRuntime environment_service must be an "
+                "EnvironmentService."
+            )
 
         self._operational_store = (
             operational_store
@@ -305,6 +320,10 @@ class SofiaRuntime:
         return self._configuration
 
     @property
+    def environment_service(self) -> EnvironmentService:
+        return self._environment_service
+
+    @property
     def operational_store(self) -> OperationalStore:
         return self._operational_store
 
@@ -402,6 +421,7 @@ class SofiaRuntime:
             )
 
         self._state = RuntimeState.STARTING
+        self._environment_service.invalidate()
 
         runtime_id = uuid4()
         started_at = datetime.now(timezone.utc)
@@ -557,6 +577,8 @@ class SofiaRuntime:
                 embodiment=self._embodiment,
             )
 
+        environment_snapshot = self._environment_service.snapshot()
+
         operation = CognitiveOperation(
             context=CognitiveContext(
                 request=request,
@@ -573,6 +595,7 @@ class SofiaRuntime:
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
                 avatar_presentation=self.avatar_presentation_projection,
+                environment_snapshot=environment_snapshot,
             ),
             authority=Authority(
                 can_inspect_filesystem=(
@@ -729,6 +752,7 @@ class SofiaRuntime:
         self._embodiment = None
         self._core_state = None
         self._avatar_presentation = None
+        self._environment_service.invalidate()
         self._runtime_id = None
         self._started_at = None
         self._runtime_continuity = None
