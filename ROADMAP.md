@@ -2,6 +2,8 @@
 
 > **Project status update — 2026-09-25 (late):** PRs #105 (ACT), #106 (EVOLVE), and #107 (RUN local lifecycle) are merged. Their Windows package gates passed **90**, **62**, and **78 passed / 1 skipped** respectively, and Sparks reported the post-merge current-`main` full pytest suite passing. Repository audit at `13046c2` found **299 Python source files**, **246 Python test files**, and **59 Git branches**. The new ACT/RUN/EVOLVE primitives are not yet wired into the normal application/composition path. SOCIAL principal projection remains absent from `CognitiveContext`. Eleven legacy draft PRs were initially open and all were roughly 330 commits behind `main`; obsolete Discord preflight PR #5 has now been closed as superseded by merged/live-accepted PR #64.
 
+> **Architecture update — 2026-09-25:** current-code review confirmed tested runtime-clock evidence is already injected into the live conversation path, while authoritative geographic location, season/daylight, weather/forecast and a shared environment snapshot are absent. **PKG-ENVIRONMENT is added as package #20** without renumbering packages 1–19.
+
 # Sofía Ada Lyra: 20-package delivery roadmap
 
 **Planning revision:** 2026-09-25 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 (CORE), roadmap reconciliation PR #4, PR #2 (INTERACT), and PR #29 (INTERACT post-merge hardening) are merged. PKG-DISCORD v1 passed supervised live owner-DM transport acceptance and merged to `main` via PR #64 (`ba2111b`). INTERACT remains accepted as the semantic/safety foundation, with a new narrow INTERACT/CORE quality-repair gate opened for generic/canned live dialogue. The roadmap now contains **20 packages**. PKG-ENVIRONMENT is package #20; Discord remains a cross-package workstream rather than a separate package.
@@ -14,7 +16,7 @@ The primary dependency path is:
 
 **CORE → INTERACT → MEM → SOCIAL minimum identity/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → later separately authorized general web/search.**
 
-After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
+After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated. **ENVIRONMENT may begin offline clock/location/timezone/season/daylight work now; trusted local Home Assistant observations may feed it through INTEGRATE, while direct internet weather remains behind separate NET/web authorization.**
 
 **SAFE and VERIFY are continuous gates across every stage rather than late sequential packages.**
 
@@ -53,11 +55,12 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 - **Identity/audience:** Discord transport authentication is real, but shared cognition still lacks an authenticated principal/audience projection. This is the immediate SOCIAL blocker for correct person-specific memory, REL, ACT, AVATAR privacy and future multi-user behavior.
 - **Interaction direction:** there is **no discrete “sexual mode.”** Intimacy/attraction/desire/arousal, when modeled, are ordinary contextual emotional/relationship dimensions with independent consent/boundary checks; anatomy or wording never auto-enables them. Whole-body mapping remains useful for semantics, boundaries, avatar fitting and neutral/private-region handling.
 - **Presentation direction:** avatar style, outfit, hairstyle, hair color and tail color are mutable presentation, separate from identity. Current project direction is that emotion may influence presentation but must not control it or override established preferences, privacy, renderer capability or authority.
+- **Environment ownership:** live clock evidence exists; current geographic location and weather do not. PKG-ENVIRONMENT owns the source/freshness-aware environment projection. AVATAR, INTERACT, ACT, RUN, OPS and optional REL/emotion consumers use that shared projection rather than creating competing current-state logic; precise/current location remains SOCIAL/SAFE scoped.
 - **Release ordering preserved:** Discord v1 is complete; general web/search still waits for genuinely verified 24/7 RUN operation. Cloudflare remains deferred until Sparks explicitly requests it.
 
 ## Discord channel workstream: D0–D4
 
-Discord is **not a twentieth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
+Discord is **not an additional package**. PKG-ENVIRONMENT is package #20; Discord spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
 
 1. **D0 · identity/host design:** exact authenticated Sparks account, bot/application, minimal permissions, secure token handling.
 2. **D1 · receive:** trusted gateway origin, private-DM classification, replay/idempotency, reconnect/backpressure, deny wrong user/server/group traffic.
