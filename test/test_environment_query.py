@@ -374,7 +374,7 @@ def test_weekly_weather_query_is_direct_fahrenheit_and_bounded_to_seven_days():
     assert answer.content.startswith("7-day forecast:")
     assert "day 0" in answer.content
     assert "day 5" in answer.content
-    assert "day 6" not in answer.content
+    assert "day 6" in answer.content
     assert "day 7" not in answer.content
     assert "68.0 °F" in answer.content
     assert "°C" not in answer.content
