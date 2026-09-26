@@ -13,6 +13,10 @@ from typing import Any
 
 from sofia.config import SofiaConfiguration, create_default_configuration
 from sofia.ui.desktop_worker import DesktopApplicationWorker
+from sofia.ui.quick_tools import (
+    quick_tool_by_label,
+    quick_tool_labels,
+)
 from sofia.ui.theme import ThemePalette, canonical_theme
 
 
@@ -41,6 +45,138 @@ def _format_exception_chain(
         )
 
     return "\nCaused by: ".join(lines)
+
+
+def _chamfer_points(
+    width: int,
+    height: int,
+    cut: int = 10,
+) -> tuple[int, ...]:
+    """Return a shallow 45-degree chamfer polygon for a rectangle."""
+    if type(width) is not int or type(height) is not int or type(cut) is not int:
+        raise TypeError("chamfer dimensions must be integers")
+    if width <= 0 or height <= 0:
+        raise ValueError("chamfer width and height must be positive")
+    if cut <= 0:
+        raise ValueError("chamfer cut must be positive")
+
+    actual = min(
+        cut,
+        max(1, (width - 1) // 2),
+        max(1, (height - 1) // 2),
+    )
+    return (
+        actual, 0,
+        width - actual, 0,
+        width, actual,
+        width, height - actual,
+        width - actual, height,
+        actual, height,
+        0, height - actual,
+        0, actual,
+    )
+
+
+class _ChamferButton:
+    """Small Canvas button with shallow 45-degree corners."""
+
+    def __init__(
+        self,
+        *,
+        tk: Any,
+        parent: Any,
+        text: str,
+        command,
+        palette: ThemePalette,
+        width: int = 112,
+        cut: int = 10,
+    ) -> None:
+        self._tk = tk
+        self._command = command
+        self._text = text
+        self._palette = palette
+        self._cut = cut
+        self._state = "normal"
+        self._canvas = tk.Canvas(
+            parent,
+            width=width,
+            height=72,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+            bg=palette.background,
+            cursor="hand2",
+        )
+        self._canvas.bind("<Configure>", self._redraw)
+        self._canvas.bind("<Button-1>", self._invoke)
+        self._canvas.bind("<Return>", self._invoke)
+        self._canvas.bind("<space>", self._invoke)
+
+    def pack(self, **kwargs) -> None:
+        self._canvas.pack(**kwargs)
+
+    def focus_set(self) -> None:
+        self._canvas.focus_set()
+
+    def configure(self, **kwargs) -> None:
+        state = kwargs.pop("state", None)
+        if kwargs:
+            raise TypeError(
+                f"unsupported ChamferButton options: {tuple(kwargs)}"
+            )
+        if state is not None:
+            if state not in {"normal", "disabled"}:
+                raise ValueError("state must be normal or disabled")
+            self._state = state
+            self._canvas.configure(
+                cursor="hand2" if state == "normal" else "",
+            )
+            self._redraw()
+
+    config = configure
+
+    def apply_palette(self, palette: ThemePalette) -> None:
+        self._palette = palette
+        self._canvas.configure(
+            bg=palette.background
+        )
+        self._redraw()
+
+    def _invoke(self, _event=None):
+        if self._state == "normal":
+            self._command()
+        return "break"
+
+    def _redraw(self, _event=None) -> None:
+        width = max(2, int(self._canvas.winfo_width()))
+        height = max(2, int(self._canvas.winfo_height()))
+        self._canvas.delete("all")
+        points = _chamfer_points(
+            width - 1,
+            height - 1,
+            self._cut,
+        )
+        if self._state == "normal":
+            fill = self._palette.primary
+            outline = self._palette.secondary
+            text_color = self._palette.text
+        else:
+            fill = self._palette.panel
+            outline = self._palette.muted
+            text_color = self._palette.muted
+        self._canvas.create_polygon(
+            points,
+            fill=fill,
+            outline=outline,
+            width=1,
+        )
+        self._canvas.create_text(
+            width // 2,
+            height // 2,
+            text=self._text,
+            fill=text_color,
+            font=("Segoe UI Semibold", 10),
+        )
 
 
 class _TkDesktopWorkbench:
