@@ -1,7 +1,7 @@
 # PKG-RUN independent Windows watchdog service candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows offline watchdog-service gate passed **43/43** and the broader production-RUN regression gate passed **183/183** on 2026-09-26. Full repository pytest and live dual-service Windows canary remain required before acceptance.
+**Status:** candidate; Windows offline watchdog-service gate passed **43/43**, broader production-RUN regression passed **183/183**, and Sparks reported the full repository pytest suite green on 2026-09-26. A subsequent service-installability hardening commit pins stable pywin32 class paths; focused + full regression on that final tip and the live dual-service Windows canary remain required before production acceptance.
 
 This slice hosts the accepted-independent-watchdog design as its own native
 Windows Service Control Manager service:
