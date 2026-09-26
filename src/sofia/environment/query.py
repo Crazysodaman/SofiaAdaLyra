@@ -207,10 +207,10 @@ class EnvironmentQueryResolver:
             ]
             configured = snapshot.configured_location
             if configured is None:
-                sources.append("- Configured user/site location: unavailable.")
+                sources.append("- Configured location: unavailable.")
             else:
                 sources.append(
-                    "- Configured user/site location: "
+                    "- Configured location: "
                     f"{configured.label} ({configured.subject.value}) "
                     f"from {configured.source_id}; configuration is not "
                     "current physical-location proof."
