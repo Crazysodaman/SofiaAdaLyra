@@ -250,3 +250,38 @@ def test_newer_current_provider_evidence_wins_tie():
     ).snapshot(now=NOW)
     assert snapshot.weather is newer
 
+def test_snapshot_can_avoid_provider_refresh_and_reuse_cached_evidence():
+    provider = FakeProvider(
+        EnvironmentProviderObservation(
+            weather=WeatherObservation(
+                condition="clear",
+                observed_at=NOW - timedelta(minutes=1),
+                expires_at=NOW + timedelta(minutes=20),
+                source_id="test.weather",
+            )
+        )
+    )
+    service = EnvironmentService(config(), providers=(provider,))
+
+    first = service.snapshot(now=NOW)
+    assert provider.calls == 1
+    assert first.weather is not None
+
+    second = service.snapshot(
+        now=NOW + timedelta(minutes=1),
+        refresh_providers=False,
+    )
+    assert provider.calls == 1
+    assert second.weather is first.weather
+
+
+def test_snapshot_without_refresh_does_not_contact_unobserved_provider():
+    provider = FakeProvider()
+    service = EnvironmentService(config(), providers=(provider,))
+    snapshot = service.snapshot(
+        now=NOW,
+        refresh_providers=False,
+    )
+    assert provider.calls == 0
+    assert snapshot.weather is None
+
