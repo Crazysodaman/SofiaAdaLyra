@@ -1,24 +1,16 @@
-"""National Weather Service provider for PKG-ENVIRONMENT.
+"""National Weather Service normalization for PKG-ENVIRONMENT.
 
-This provider is intentionally narrow: it may contact only api.weather.gov
-over HTTPS, and it normalizes NWS point/forecast/station observations into the
-shared EnvironmentProviderObservation contract. It does not grant arbitrary
-web access or geolocation.
+Network transport belongs to INTEGRATE. This provider consumes the narrow
+NwsAdapter and converts NWS point/forecast/station data into the shared
+EnvironmentProviderObservation contract.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import json
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlparse
-from urllib.request import (
-    HTTPRedirectHandler,
-    Request,
-    build_opener,
-)
 
 from sofia.integrations.http import ServiceHTTPError
+from sofia.integrations.nws import NwsAdapter
 
 from .config import EnvironmentConfiguration
 from .model import (
@@ -27,10 +19,6 @@ from .model import (
     WeatherObservation,
 )
 from .provider import EnvironmentProviderObservation
-
-
-NWS_API_BASE = "https://api.weather.gov"
-NWS_API_HOST = "api.weather.gov"
 
 
 def _aware_timestamp(value: object) -> datetime | None:
@@ -108,111 +96,6 @@ def _precipitation_mm(raw: object) -> float | None:
     return value
 
 
-def _validated_nws_url(value: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("NWS URL/path must be nonempty")
-    url = urljoin(NWS_API_BASE + "/", value.strip())
-    parsed = urlparse(url)
-    if (
-        parsed.scheme != "https"
-        or (parsed.hostname or "").lower() != NWS_API_HOST
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.port not in (None, 443)
-    ):
-        raise ValueError(
-            "NWS provider may contact only https://api.weather.gov"
-        )
-    return url
-
-
-class _NwsRedirectHandler(HTTPRedirectHandler):
-    def redirect_request(
-        self,
-        req,
-        fp,
-        code,
-        msg,
-        headers,
-        newurl,
-    ):
-        _validated_nws_url(newurl)
-        return super().redirect_request(
-            req,
-            fp,
-            code,
-            msg,
-            headers,
-            newurl,
-        )
-
-
-class NwsApiClient:
-    """Small HTTPS client pinned to api.weather.gov."""
-
-    def __init__(
-        self,
-        user_agent: str,
-        *,
-        timeout: float = 10.0,
-    ) -> None:
-        if (
-            not isinstance(user_agent, str)
-            or not user_agent.strip()
-        ):
-            raise ValueError("NWS User-Agent is required")
-        if (
-            isinstance(timeout, bool)
-            or not isinstance(timeout, (int, float))
-            or timeout <= 0
-        ):
-            raise ValueError("NWS timeout must be positive")
-        self.user_agent = user_agent.strip()
-        self.timeout = float(timeout)
-        self._opener = build_opener(_NwsRedirectHandler())
-
-    def get(self, path_or_url: str) -> dict[str, Any]:
-        url = _validated_nws_url(path_or_url)
-        request = Request(
-            url,
-            headers={
-                "Accept": "application/geo+json",
-                "User-Agent": self.user_agent,
-            },
-            method="GET",
-        )
-        try:
-            with self._opener.open(
-                request,
-                timeout=self.timeout,
-            ) as response:
-                raw = response.read()
-        except HTTPError as exc:
-            body = exc.read().decode(
-                "utf-8",
-                errors="replace",
-            )
-            raise ServiceHTTPError(
-                f"NWS HTTP {exc.code}: {body[:500]}"
-            ) from exc
-        except URLError as exc:
-            raise ServiceHTTPError(
-                f"NWS request failed: {exc.reason}"
-            ) from exc
-
-        try:
-            data = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ServiceHTTPError(
-                "NWS returned non-JSON data"
-            ) from exc
-        if not isinstance(data, dict):
-            raise ServiceHTTPError(
-                "NWS returned an invalid JSON document"
-            )
-        return data
-
-
 class NwsEnvironmentProvider:
     """Read current NWS station weather plus bounded point forecast."""
 
@@ -220,9 +103,11 @@ class NwsEnvironmentProvider:
 
     def __init__(
         self,
+        adapter: NwsAdapter,
         configuration: EnvironmentConfiguration,
-        client: NwsApiClient | None = None,
     ) -> None:
+        if not isinstance(adapter, NwsAdapter):
+            raise TypeError("adapter must be NwsAdapter")
         if not isinstance(
             configuration,
             EnvironmentConfiguration,
@@ -246,13 +131,9 @@ class NwsEnvironmentProvider:
                 "NWS requires configured coordinates for its selected "
                 "location subject"
             )
+        self._adapter = adapter
         self._configuration = configuration
         self._location = location
-        self._client = (
-            client
-            if client is not None
-            else NwsApiClient(configuration.nws_user_agent)
-        )
 
     @staticmethod
     def _properties(document: object) -> dict[str, Any]:
@@ -290,16 +171,8 @@ class NwsEnvironmentProvider:
                 row.get("temperatureUnit"),
             )
             is_daytime = row.get("isDaytime")
-            high_c = (
-                temperature
-                if is_daytime is True
-                else None
-            )
-            low_c = (
-                temperature
-                if is_daytime is False
-                else None
-            )
+            high_c = temperature if is_daytime is True else None
+            low_c = temperature if is_daytime is False else None
             probability = None
             raw_probability = row.get(
                 "probabilityOfPrecipitation"
@@ -323,8 +196,8 @@ class NwsEnvironmentProvider:
                 continue
         return tuple(result)
 
-    @staticmethod
     def _station_urls(
+        self,
         document: object,
     ) -> tuple[str, ...]:
         if not isinstance(document, dict):
@@ -340,7 +213,7 @@ class NwsEnvironmentProvider:
             if isinstance(candidate, str) and candidate.strip():
                 try:
                     urls.append(
-                        _validated_nws_url(candidate)
+                        self._adapter.normalize_url(candidate)
                     )
                 except ValueError:
                     continue
@@ -350,12 +223,15 @@ class NwsEnvironmentProvider:
                 continue
             station_id = props.get("stationIdentifier")
             if isinstance(station_id, str) and station_id.strip():
-                urls.append(
-                    _validated_nws_url(
-                        "/stations/"
-                        + station_id.strip()
+                try:
+                    urls.append(
+                        self._adapter.normalize_url(
+                            "/stations/"
+                            + station_id.strip()
+                        )
                     )
-                )
+                except ValueError:
+                    continue
         return tuple(dict.fromkeys(urls))
 
     def _weather_from_observation(
@@ -430,7 +306,7 @@ class NwsEnvironmentProvider:
         ):
             raise ValueError("environment provider time must be aware")
 
-        point = self._client.get(
+        point = self._adapter.get(
             "/points/"
             f"{self._location.latitude:.4f},"
             f"{self._location.longitude:.4f}"
@@ -442,7 +318,7 @@ class NwsEnvironmentProvider:
         if isinstance(forecast_url, str) and forecast_url.strip():
             try:
                 forecast = self._forecast_periods(
-                    self._client.get(forecast_url)
+                    self._adapter.get(forecast_url)
                 )
             except ServiceHTTPError:
                 forecast = ()
@@ -453,7 +329,7 @@ class NwsEnvironmentProvider:
         if not isinstance(stations_url, str) or not stations_url.strip():
             return EnvironmentProviderObservation()
 
-        stations = self._client.get(stations_url)
+        stations = self._adapter.get(stations_url)
         candidates: list[WeatherObservation] = []
         last_station_error: ServiceHTTPError | None = None
         station_urls = self._station_urls(stations)
@@ -463,7 +339,7 @@ class NwsEnvironmentProvider:
                 + "/observations/latest"
             )
             try:
-                observation = self._client.get(latest_url)
+                observation = self._adapter.get(latest_url)
             except ServiceHTTPError as exc:
                 last_station_error = exc
                 continue
