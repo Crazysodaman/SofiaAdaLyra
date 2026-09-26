@@ -24,10 +24,67 @@ def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:
     appearance = dict(embodiment.physical_self.appearance)
     return AppearanceState(
         hairstyle=appearance.get("hairstyle", "canonical default"),
-        hair_color=appearance.get("hair_hex", appearance.get("hair_color", "deep crimson")),
-        tail_color=appearance.get("tail_hex", appearance.get("tail_color", "dark violet")),
+        hair_color=appearance.get("hair_color", appearance.get("hair_hex", "deep crimson")),
+        tail_color=appearance.get("tail_color", appearance.get("tail_hex", "dark violet")),
         style_tags=("canonical", "engineer"),
     )
+
+
+def _migrate_legacy_bootstrap_colors(
+    *,
+    authority: PresentationAuthority,
+    embodiment: Embodiment,
+    store: PresentationStore,
+) -> PresentationAuthority:
+    """Normalize only the original headless bootstrap color encoding.
+
+    Early headless AVATAR builds stored canonical hex values in the semantic
+    hair_color/tail_color fields. Migrate only the untouched revision-1
+    canonical bootstrap state so deliberate later appearance changes are
+    never rewritten.
+    """
+    current = authority.current
+    daily = authority.last_daily
+    if (
+        current.revision != 1
+        or daily.revision != 1
+        or current.reason != "canonical_daily_bootstrap"
+        or daily.reason != "canonical_daily_bootstrap"
+        or current.outfit_id != "engineer.signature"
+        or daily.outfit_id != "engineer.signature"
+        or current.private_only
+        or daily.private_only
+    ):
+        return authority
+
+    canonical = dict(embodiment.physical_self.appearance)
+    hair_hex = canonical.get("hair_hex")
+    tail_hex = canonical.get("tail_hex")
+    hair_name = canonical.get("hair_color")
+    tail_name = canonical.get("tail_color")
+    if (
+        not isinstance(hair_name, str)
+        or not isinstance(tail_name, str)
+        or current.appearance.hair_color != hair_hex
+        or current.appearance.tail_color != tail_hex
+        or daily.appearance.hair_color != hair_hex
+        or daily.appearance.tail_color != tail_hex
+    ):
+        return authority
+
+    migrated = PresentationAuthority(
+        authority._wardrobe,
+        outfits=dict(authority._outfits),
+        canonical_daily_outfit_id=authority._canonical_daily_outfit_id,
+        initial_appearance=AppearanceState(
+            hairstyle=current.appearance.hairstyle,
+            hair_color=hair_name,
+            tail_color=tail_name,
+            style_tags=current.appearance.style_tags,
+        ),
+    )
+    store.save(migrated)
+    return migrated
 
 
 def presentation_state_path(state_path: str | Path) -> Path:
@@ -45,6 +102,11 @@ def load_or_bootstrap_presentation(
     store = PresentationStore(presentation_state_path(state_path))
     if store.exists():
         authority = store.load(catalog.wardrobe, outfits=outfits)
+        authority = _migrate_legacy_bootstrap_colors(
+            authority=authority,
+            embodiment=embodiment,
+            store=store,
+        )
     else:
         authority = PresentationAuthority(
             catalog.wardrobe,
