@@ -85,14 +85,54 @@ class EnvironmentQueryResolver:
             "do you know where you are",
         }
     )
-    _TIMEZONE_FORMS = frozenset(
+    _USER_TIMEZONE_FORMS = frozenset(
         {
             "what is my timezone",
             "what's my timezone",
             "what timezone am i in",
             "what time zone am i in",
+        }
+    )
+    _CONTEXT_TIMEZONE_FORMS = frozenset(
+        {
             "what timezone are you using",
             "what time zone are you using",
+            "what timezone is configured",
+            "what time zone is configured",
+        }
+    )
+    _FORECAST_FORMS = frozenset(
+        {
+            "what's the forecast",
+            "what is the forecast",
+            "what's the weather forecast",
+            "what is the weather forecast",
+            "what's the forecast tomorrow",
+            "what is the forecast tomorrow",
+        }
+    )
+    _SUNRISE_FORMS = frozenset(
+        {
+            "when is sunrise",
+            "what time is sunrise",
+            "when does the sun rise",
+        }
+    )
+    _SUNSET_FORMS = frozenset(
+        {
+            "when is sunset",
+            "what time is sunset",
+            "when does the sun set",
+        }
+    )
+    _INDOOR_FORMS = frozenset(
+        {
+            "what's the indoor temperature",
+            "what is the indoor temperature",
+            "what's the temperature inside",
+            "what is the temperature inside",
+            "what's the indoor humidity",
+            "what is the indoor humidity",
         }
     )
     _SEASON_FORMS = frozenset(
@@ -125,7 +165,12 @@ class EnvironmentQueryResolver:
             | cls._WEATHER_FORMS
             | cls._LOCATION_FORMS
             | cls._SOFIA_LOCATION_FORMS
-            | cls._TIMEZONE_FORMS
+            | cls._USER_TIMEZONE_FORMS
+            | cls._CONTEXT_TIMEZONE_FORMS
+            | cls._FORECAST_FORMS
+            | cls._SUNRISE_FORMS
+            | cls._SUNSET_FORMS
+            | cls._INDOOR_FORMS
             | cls._SEASON_FORMS
             | cls._DAYLIGHT_FORMS
         )
@@ -150,12 +195,18 @@ class EnvironmentQueryResolver:
                 snapshot.user_local_time
                 or snapshot.host_local_time
             )
+            effective = snapshot.effective_location
             if snapshot.user_local_time is not None:
+                subject = (
+                    effective.subject.value
+                    if effective is not None
+                    else "site"
+                )
                 return EnvironmentQueryAnswer(
                     True,
                     (
                         "The current time in the configured/evidenced "
-                        f"timezone ({snapshot.timezone}) is "
+                        f"{subject} timezone ({snapshot.timezone}) is "
                         f"{local.strftime('%Y-%m-%d %H:%M:%S %Z')}."
                     ),
                 )
@@ -174,8 +225,17 @@ class EnvironmentQueryResolver:
                 snapshot.user_local_time
                 or snapshot.host_local_time
             )
+            effective = snapshot.effective_location
             qualifier = (
-                f"in {snapshot.timezone}"
+                (
+                    "for the "
+                    + (
+                        effective.subject.value
+                        if effective is not None
+                        else "site"
+                    )
+                    + f" timezone {snapshot.timezone}"
+                )
                 if snapshot.user_local_time is not None
                 else "on the host machine"
             )
@@ -308,18 +368,139 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._TIMEZONE_FORMS:
-            if snapshot.timezone is None:
+        if normalized in self._USER_TIMEZONE_FORMS:
+            effective = snapshot.effective_location
+            if (
+                snapshot.timezone is None
+                or effective is None
+                or effective.subject is not LocationSubject.USER
+            ):
                 return EnvironmentQueryAnswer(
                     True,
-                    "I don't have an evidenced user/site timezone.",
+                    "I don't have an evidenced user timezone.",
                 )
             return EnvironmentQueryAnswer(
                 True,
                 (
-                    "The configured/evidenced user-site timezone is "
+                    "The configured/evidenced user timezone is "
                     f"{snapshot.timezone}."
                 ),
+            )
+
+        if normalized in self._CONTEXT_TIMEZONE_FORMS:
+            if snapshot.timezone is None:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have an evidenced environment timezone.",
+                )
+            effective = snapshot.effective_location
+            subject = (
+                effective.subject.value
+                if effective is not None
+                else "site"
+            )
+            return EnvironmentQueryAnswer(
+                True,
+                (
+                    f"The configured/evidenced {subject} timezone is "
+                    f"{snapshot.timezone}."
+                ),
+            )
+
+        if normalized in self._FORECAST_FORMS:
+            weather = snapshot.weather
+            if (
+                weather is None
+                or snapshot.weather_freshness
+                is not EnvironmentFreshness.CURRENT
+                or not weather.forecast
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a current forecast observation.",
+                )
+            periods = []
+            for period in weather.forecast[:4]:
+                parts = [period.condition]
+                if period.high_c is not None:
+                    parts.append(f"high {period.high_c:.1f} °C")
+                if period.low_c is not None:
+                    parts.append(f"low {period.low_c:.1f} °C")
+                if period.precipitation_probability is not None:
+                    parts.append(
+                        "precipitation "
+                        f"{period.precipitation_probability:.0f}%"
+                    )
+                periods.append(
+                    f"{period.starts_at.isoformat()}: "
+                    + ", ".join(parts)
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "Current bounded forecast: " + "; ".join(periods) + ".",
+            )
+
+        if normalized in self._SUNRISE_FORMS:
+            if (
+                snapshot.daylight is None
+                or snapshot.daylight.sunrise is None
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a grounded sunrise time for this location/date.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "Approximate sunrise is "
+                f"{snapshot.daylight.sunrise.isoformat()}.",
+            )
+
+        if normalized in self._SUNSET_FORMS:
+            if (
+                snapshot.daylight is None
+                or snapshot.daylight.sunset is None
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a grounded sunset time for this location/date.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "Approximate sunset is "
+                f"{snapshot.daylight.sunset.isoformat()}.",
+            )
+
+        if normalized in self._INDOOR_FORMS:
+            indoor = snapshot.indoor
+            if (
+                indoor is None
+                or snapshot.indoor_freshness
+                is not EnvironmentFreshness.CURRENT
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have current indoor-environment evidence.",
+                )
+            parts = []
+            if indoor.temperature_c is not None:
+                parts.append(
+                    f"temperature {indoor.temperature_c:.1f} °C"
+                )
+            if indoor.humidity_percent is not None:
+                parts.append(
+                    f"humidity {indoor.humidity_percent:.0f}%"
+                )
+            if not parts:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have current indoor temperature or humidity values.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "Current indoor environment: "
+                + ", ".join(parts)
+                + f". Observed at {indoor.observed_at.isoformat()} "
+                f"from {indoor.source_id}.",
             )
 
         if normalized in self._SEASON_FORMS:
