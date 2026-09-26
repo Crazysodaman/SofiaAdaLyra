@@ -89,6 +89,26 @@ def test_direct_location_uses_only_fresh_user_current_evidence():
     assert "Current location evidence says you're at Current place" in answer.content
 
 
+def test_where_are_you_does_not_reuse_user_location_as_host_location():
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "where are you?",
+        snapshot=snapshot,
+    )
+    assert answer.recognized
+    assert "runtime host/site" in answer.content
+    assert "Configured area" not in answer.content
+
+
+def test_timezone_query_reports_only_evidenced_timezone():
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "what's my timezone?",
+        snapshot=snapshot,
+    )
+    assert answer.content.endswith("America/Chicago.")
+
+
 def test_direct_weather_refuses_stale_observation():
     weather = WeatherObservation(
         condition="rainy",
