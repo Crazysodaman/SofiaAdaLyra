@@ -11,6 +11,7 @@ from sofia.cognition.model import (
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.composition.root import compose
 from sofia.config import create_default_configuration
+from sofia.environment.config import EnvironmentConfiguration
 
 
 class CapturingOllamaClient:
@@ -33,6 +34,7 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         default,
         state_path=tmp_path / "sofia.db",
         filesystem_root=tmp_path,
+        environment=EnvironmentConfiguration(),
     )
     runtime = compose(configuration)
     provider = runtime.cognitive_system.engine.provider
