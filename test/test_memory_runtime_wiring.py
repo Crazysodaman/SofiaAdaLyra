@@ -193,12 +193,13 @@ class _RecordingEngine(CognitiveEngine):
 def _write_runtime_files(
     configuration: SofiaConfiguration,
 ) -> None:
+    constitution_content = "# Constitution\n"
     configuration.constitution_path.write_text(
-        "# Constitution\n",
+        constitution_content,
         encoding="utf-8",
     )
     digest = hashlib.sha256(
-        configuration.constitution_path.read_bytes()
+        constitution_content.encode("utf-8")
     ).hexdigest().upper()
     configuration.constitution_hash_path.write_text(
         digest,
