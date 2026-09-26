@@ -127,15 +127,16 @@ def test_nws_can_use_host_location_without_replacing_user_location():
     assert config.configured_location_for(LocationSubject.HOST).label == "Artemis"
 
 
-def test_nws_requires_coordinates_for_selected_subject():
-    with pytest.raises(ValueError, match="NWS requires configured coordinates"):
-        environment_configuration_from_environ(
-            {
-                "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Home",
-                "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
-                "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
-            }
-        )
+def test_nws_allows_selected_coordinates_to_be_injected_after_env_parse():
+    config = environment_configuration_from_environ(
+        {
+            "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
+            "SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT": "host",
+        }
+    )
+    assert config.nws_enabled
+    assert config.nws_location_subject is LocationSubject.HOST
+    assert config.host_location is None
 
 
 def test_ha_tracker_subject_is_not_inferred_when_user_and_host_both_exist():
