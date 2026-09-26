@@ -95,7 +95,7 @@ def _shutdown_disposable_app(app: SofiaApplication) -> None:
     """
     runtime = app.runtime
     with ExitStack() as cleanup:
-        cleanup.callback(runtime._memory_system._store.close)
+        cleanup.callback(runtime._memory_system.close)
         cleanup.callback(runtime._operational_store.close)
         cleanup.callback(runtime._filesystem_observation_store.close)
         app.shutdown()
