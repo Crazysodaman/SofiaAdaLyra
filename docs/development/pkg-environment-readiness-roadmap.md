@@ -192,7 +192,8 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] Supervised live Ollama gate passed on Windows 2026-09-26: time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, unrelated-prompt behavior, and deterministic environment-source provenance all behaved as intended. Provenance remained bounded and did not expose coordinates or provider credentials.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
 - [x] Narrow NWS focused Windows gate passed 2026-09-26: **85 passed in 249.58s** across environment config, NWS provider, factory, model, service, Home Assistant, query, prompt, runtime projection and import-boundary tests.
-- [ ] NWS extension remaining gates: full `pytest -q`, then supervised live canary for HOST identity, NWS weather/forecast provenance, and environment-source reporting.
+- [x] Post-NWS full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
+- [ ] NWS extension remaining gate: supervised live canary for HOST identity, NWS weather/forecast provenance, and environment-source reporting.
 - [ ] General web/search and arbitrary geocoding remain a later separately authorized NET/web stage.
 
 **The accepted PR #110 offline implementation does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. The NWS extension branch adds only the separately authorized narrow `api.weather.gov` route when `SOFIA_ENVIRONMENT_NWS_ENABLED` and `environment.nws.read` are both present. Home Assistant remains separately configured/granted.**
