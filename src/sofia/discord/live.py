@@ -54,6 +54,7 @@ class ComposedDiscordApplication:
     recovered_act_delivery_claims: int
 
     def shutdown(self) -> None:
+        self.act_transport.unbind()
         self.application.shutdown()
 
 

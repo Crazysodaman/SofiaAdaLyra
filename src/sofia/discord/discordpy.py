@@ -289,8 +289,9 @@ def run_discordpy_client(
     try:
         client.run(token.strip())
     finally:
-        if runtime.act_transport is not None:
-            runtime.act_transport.unbind()
+        act_transport = getattr(runtime, "act_transport", None)
+        if act_transport is not None:
+            act_transport.unbind()
     startup_error = getattr(client, "_sofia_startup_error", None)
     if startup_error is not None:
         raise RuntimeError(f"Discord startup failed: {startup_error}") from startup_error

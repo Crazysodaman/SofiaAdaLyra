@@ -510,7 +510,8 @@ class DiscordActDeliveryStore:
                     """
                     SELECT DISTINCT attempt_id
                     FROM discord_act_chunks
-                    WHERE state='prepared' AND send_token IS NOT NULL
+                    WHERE (state='prepared' AND send_token IS NOT NULL)
+                       OR state='sent'
                     """
                 ).fetchall()
             ]

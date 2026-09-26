@@ -185,3 +185,33 @@ def test_recover_interrupted_claim_marks_attempt_unknown(tmp_path: Path):
     assert attempt is not None
     assert attempt.state == "outcome_unknown"
     assert deliveries.chunks("attempt-1")[0].state is DiscordActChunkState.OUTCOME_UNKNOWN
+
+
+
+def test_recover_partial_send_marks_attempt_unknown_without_rewriting_sent_chunk(tmp_path: Path):
+    adapter, bindings, deliveries = sender(tmp_path, lambda content: 8101)
+    message = payload(content="x" * 2500)
+    current = bindings.get(bot_user_id=BOT, channel_id=CHANNEL)
+    assert current is not None
+    deliveries.prepare(message, binding=current)
+    assert deliveries.claim_chunk(
+        attempt_id="attempt-1",
+        chunk_index=0,
+        send_token="token-1",
+    )
+    deliveries.mark_sent(
+        attempt_id="attempt-1",
+        chunk_index=0,
+        platform_message_id=8101,
+        send_token="token-1",
+    )
+
+    recovered = deliveries.recover_interrupted()
+
+    assert recovered == 1
+    attempt = deliveries.attempt("attempt-1")
+    assert attempt is not None
+    assert attempt.state == "outcome_unknown"
+    chunks = deliveries.chunks("attempt-1")
+    assert chunks[0].state is DiscordActChunkState.SENT
+    assert chunks[1].state is DiscordActChunkState.PREPARED
