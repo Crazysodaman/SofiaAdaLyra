@@ -25,6 +25,11 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveRole, CognitiveToolDefinition,
 )
+from sofia.environment.model import (
+    EnvironmentFreshness,
+    EnvironmentSnapshot,
+    Season as EnvironmentSeason,
+)
 
 from .shared_wardrobe_state import SharedWardrobeState, WardrobeTextProjection
 from .style_context import StyleContext
@@ -126,6 +131,97 @@ class HostEnvironmentEvidence:
             raise InteractionBridgeError("clock must be callable")
         now = clock() if clock is not None else datetime.now().astimezone()
         return cls(now, season, activity, "host.system_clock", weather)
+
+    @classmethod
+    def from_environment_snapshot(
+        cls,
+        snapshot: EnvironmentSnapshot,
+        *,
+        activity: Activity,
+    ) -> "HostEnvironmentEvidence":
+        """Adapt the shared PKG-ENVIRONMENT snapshot for wardrobe planning.
+
+        ENVIRONMENT owns freshness and season derivation. AVATAR only maps a
+        current observation into its coarse wardrobe categories.
+        """
+        if not isinstance(snapshot, EnvironmentSnapshot):
+            raise InteractionBridgeError(
+                "snapshot must be EnvironmentSnapshot"
+            )
+        if not isinstance(activity, Activity):
+            raise InteractionBridgeError(
+                "activity must be Activity"
+            )
+        if snapshot.season is None:
+            raise InteractionBridgeError(
+                "environment snapshot has no grounded season"
+            )
+
+        season_map = {
+            EnvironmentSeason.SPRING: Season.SPRING,
+            EnvironmentSeason.SUMMER: Season.SUMMER,
+            EnvironmentSeason.AUTUMN: Season.AUTUMN,
+            EnvironmentSeason.WINTER: Season.WINTER,
+        }
+        observed_at = (
+            snapshot.user_local_time
+            or snapshot.host_local_time
+        )
+
+        weather = None
+        source = snapshot.weather
+        if (
+            source is not None
+            and snapshot.weather_freshness
+            is EnvironmentFreshness.CURRENT
+        ):
+            condition = source.condition.casefold()
+            wet_tokens = (
+                "rain", "shower", "drizzle", "thunder",
+                "storm", "hail", "sleet", "pour",
+            )
+            cold_tokens = (
+                "snow", "ice", "frost", "freez",
+            )
+            temperature = (
+                source.feels_like_c
+                if source.feels_like_c is not None
+                else source.temperature_c
+            )
+            if any(token in condition for token in wet_tokens):
+                wardrobe_weather = Weather.WET
+            elif (
+                any(token in condition for token in cold_tokens)
+                or (temperature is not None and temperature <= 10.0)
+            ):
+                wardrobe_weather = Weather.COLD
+            elif temperature is not None and temperature >= 27.0:
+                wardrobe_weather = Weather.HOT
+            else:
+                wardrobe_weather = Weather.MILD
+
+            weather = HostWeatherEvidence(
+                condition=wardrobe_weather,
+                observed_at=source.observed_at,
+                source_id=source.source_id,
+                location_label=(
+                    source.location_label
+                    or (
+                        snapshot.effective_location.label
+                        if snapshot.effective_location is not None
+                        else "environment"
+                    )
+                ),
+                temperature_c=source.temperature_c,
+            )
+
+        return cls(
+            observed_at=observed_at,
+            season=season_map[snapshot.season],
+            activity=activity,
+            clock_source_id="environment.snapshot",
+            weather=weather,
+        )
 
     def planner_context(self) -> WardrobeContext:
         return WardrobeContext(
