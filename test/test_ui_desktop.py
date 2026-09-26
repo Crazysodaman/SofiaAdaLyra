@@ -1,7 +1,7 @@
 import importlib
 import sys
 
-from sofia.ui.desktop import _format_exception_chain, main
+from sofia.ui.desktop import _chamfer_points, _format_exception_chain, main
 
 
 def test_desktop_module_import_does_not_eagerly_import_tkinter():
@@ -37,3 +37,24 @@ def test_exception_chain_rejects_non_exception():
 
     with pytest.raises(TypeError):
         _format_exception_chain("not an exception")
+
+
+def test_chamfer_points_use_shallow_45_degree_cuts():
+    assert _chamfer_points(100, 60, 10) == (
+        10, 0,
+        90, 0,
+        100, 10,
+        100, 50,
+        90, 60,
+        10, 60,
+        0, 50,
+        0, 10,
+    )
+
+
+def test_chamfer_points_clamp_for_small_controls():
+    points = _chamfer_points(12, 8, 10)
+
+    assert min(points) >= 0
+    assert max(points[0::2]) <= 12
+    assert max(points[1::2]) <= 8
