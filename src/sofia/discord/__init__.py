@@ -1,5 +1,6 @@
 """Discord channel boundaries. Importing this package starts no live client."""
 
+from sofia.discord.act_live import DiscordActTransportBridge
 from sofia.discord.act_sender import (
     DiscordActAttempt,
     DiscordActChunk,
@@ -70,6 +71,7 @@ from sofia.discord.store import (
 )
 
 __all__ = (
+    "DiscordActTransportBridge",
     "DiscordActAttempt",
     "DiscordActChunk",
     "DiscordActChunkState",

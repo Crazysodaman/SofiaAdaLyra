@@ -162,6 +162,11 @@ def test_control_plane_builds_disabled_run_act_scheduler(tmp_path: Path):
 
 def test_open_quarantines_interrupted_act_claims(tmp_path: Path):
     state = _state(tmp_path)
+    with sqlite3.connect(state) as db:
+        db.execute(
+            "INSERT INTO conversation_messages (id, role) VALUES (?, ?)",
+            ("source-recovery", "user"),
+        )
     control = RuntimeControlPlane(state_path=state)
     control.open()
     journal = control.goal_journal

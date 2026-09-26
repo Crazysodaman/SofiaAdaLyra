@@ -63,6 +63,9 @@ def test_first_live_composition_defers_binding_until_discord_verification(tmp_pa
         application_factory=FakeApplication,
     )
     assert composed.bindings.get(bot_user_id=BOT, channel_id=CHANNEL) is None
+    assert composed.runtime.act_sender is None
+    assert composed.runtime.act_transport is composed.act_transport
+    assert composed.runtime.act_transport.connected is False
     assert FakeApplication.starts == [None]
 
     binding = ensure_verified_binding(composed.runtime)
@@ -140,3 +143,20 @@ def test_foreground_runner_always_shuts_application_down(tmp_path) -> None:
 
     assert len(applications) == 1
     assert applications[0].shutdown_called is True
+
+
+
+def test_live_composition_requires_explicit_act_recipient(tmp_path) -> None:
+    FakeApplication.starts.clear()
+    config = Configuration(tmp_path / "state.sqlite3")
+    composed = compose_live_discord(
+        provisioning(),
+        configuration=config,
+        application_factory=FakeApplication,
+        act_recipient_id="sparks",
+    )
+
+    assert composed.runtime.act_sender is not None
+    assert composed.runtime.act_sender.recipient_id == "sparks"
+    assert composed.runtime.act_transport.connected is False
+    composed.shutdown()

@@ -13,6 +13,8 @@ from importlib import import_module
 from types import ModuleType
 
 from sofia.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.discord.act_live import DiscordActTransportBridge
+from sofia.discord.act_sender import DiscordActSafeSender
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import (
     BridgeDisposition,
@@ -101,6 +103,8 @@ class DiscordLiveRuntime:
     store: DiscordInboxStore
     bindings: DiscordBindingStore
     session_id: str
+    act_transport: DiscordActTransportBridge | None = None
+    act_sender: DiscordActSafeSender | None = None
 
 
 def ensure_verified_binding(runtime: DiscordLiveRuntime):
@@ -179,6 +183,23 @@ def create_discordpy_client(
                 )
             return channel
 
+        def _bind_act_transport(self, channel) -> None:
+            if runtime.act_transport is None:
+                return
+
+            async def send_chunk(content: str) -> int:
+                sent = await channel.send(
+                    content,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                return sent.id
+
+            runtime.act_transport.bind(
+                loop=asyncio.get_running_loop(),
+                channel_id=channel.id,
+                send_chunk_async=send_chunk,
+            )
+
         async def _recover_prepared_outbox(self, channel) -> None:
             pending = runtime.store.list_outbox(
                 bot_user_id=runtime.config.bot_user_id,
@@ -201,6 +222,7 @@ def create_discordpy_client(
                 async with self._message_lock:
                     ensure_verified_binding(runtime)
                     await self._recover_prepared_outbox(channel)
+                    self._bind_act_transport(channel)
                 self._sofia_ready = True
                 print(
                     "Sofía Discord ready: authenticated bot identity and "
@@ -210,6 +232,10 @@ def create_discordpy_client(
                 self._sofia_startup_error = exc
                 await self.close()
                 return
+
+        async def on_disconnect(self) -> None:
+            if runtime.act_transport is not None:
+                runtime.act_transport.unbind()
 
         async def on_message(self, message) -> None:
             user = self.user
@@ -260,7 +286,11 @@ def run_discordpy_client(
     if not isinstance(token, str) or not token.strip():
         raise ValueError("Discord bot token must be supplied explicitly")
     client = create_discordpy_client(runtime)
-    client.run(token.strip())
+    try:
+        client.run(token.strip())
+    finally:
+        if runtime.act_transport is not None:
+            runtime.act_transport.unbind()
     startup_error = getattr(client, "_sofia_startup_error", None)
     if startup_error is not None:
         raise RuntimeError(f"Discord startup failed: {startup_error}") from startup_error
