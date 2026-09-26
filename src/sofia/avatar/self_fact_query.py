@@ -112,9 +112,7 @@ class AvatarSelfFactResolver:
             return AvatarSelfFactAnswer(
                 True,
                 (
-                    f"I'm currently wearing my {outfit} in my representational "
-                    "presentation. That's my authoritative current AVATAR state, "
-                    "even if no visual renderer is active."
+                    f"I'm in my {outfit} right now."
                 ),
             )
 
@@ -123,7 +121,7 @@ class AvatarSelfFactResolver:
             style = presentation.appearance.hairstyle
             return AvatarSelfFactAnswer(
                 True,
-                f"My hair is {color}, currently styled {style}.",
+                f"My hair is {color}, worn {style}.",
             )
 
         if normalized in self._TAIL_COLOR_FORMS:
@@ -150,7 +148,7 @@ class AvatarSelfFactResolver:
             parts.append(f"my {outfit}")
             return AvatarSelfFactAnswer(
                 True,
-                "My current look is " + ", ".join(parts) + ".",
+                "Right now, my representational look is " + ", ".join(parts) + ".",
             )
 
         if normalized in self._FORM_OR_AVATAR_FORMS:
@@ -172,9 +170,8 @@ class AvatarSelfFactResolver:
                 return AvatarSelfFactAnswer(
                     True,
                     (
-                        f"Tonight I'd lean toward my {candidate} as a presentation "
-                        "candidate. That's a possible choice, not a claim that I've "
-                        "already changed into it."
+                        f"Tonight I'd lean toward my {candidate}. That's a choice "
+                        "I'm considering, not something I've already changed into."
                     ),
                 )
             return AvatarSelfFactAnswer(
