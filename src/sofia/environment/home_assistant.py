@@ -22,15 +22,17 @@ from .model import (
 from .provider import EnvironmentProviderObservation
 
 
-def _aware_timestamp(value: object, *, fallback: datetime) -> datetime:
-    if isinstance(value, str) and value.strip():
-        try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            parsed = fallback
-        if parsed.tzinfo is not None and parsed.utcoffset() is not None:
-            return parsed.astimezone(timezone.utc)
-    return fallback.astimezone(timezone.utc)
+def _aware_timestamp(value: object) -> datetime | None:
+    """Return only source-backed timestamps; never manufacture freshness."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def _number(value: object) -> float | None:
@@ -177,9 +179,10 @@ class HomeAssistantEnvironmentProvider:
             attrs = {}
 
         observed = _aware_timestamp(
-            state.get("last_updated") or state.get("last_changed"),
-            fallback=now,
+            state.get("last_updated") or state.get("last_changed")
         )
+        if observed is None:
+            return None
         expires = observed + timedelta(
             seconds=self._configuration.weather_max_age_seconds
         )
@@ -250,27 +253,27 @@ class HomeAssistantEnvironmentProvider:
             attrs = temp_state.get("attributes")
             if not isinstance(attrs, dict):
                 attrs = {}
-            temperature_c = _temperature_c(
-                temp_state.get("state"),
-                attrs.get("unit_of_measurement") or "°C",
+            temp_observed = _aware_timestamp(
+                temp_state.get("last_updated")
+                or temp_state.get("last_changed")
             )
-            timestamps.append(
-                _aware_timestamp(
-                    temp_state.get("last_updated")
-                    or temp_state.get("last_changed"),
-                    fallback=now,
+            if temp_observed is not None:
+                temperature_c = _temperature_c(
+                    temp_state.get("state"),
+                    attrs.get("unit_of_measurement") or "°C",
                 )
-            )
+                if temperature_c is not None:
+                    timestamps.append(temp_observed)
 
         if humidity_state is not None:
-            humidity = _number(humidity_state.get("state"))
-            timestamps.append(
-                _aware_timestamp(
-                    humidity_state.get("last_updated")
-                    or humidity_state.get("last_changed"),
-                    fallback=now,
-                )
+            humidity_observed = _aware_timestamp(
+                humidity_state.get("last_updated")
+                or humidity_state.get("last_changed")
             )
+            if humidity_observed is not None:
+                humidity = _number(humidity_state.get("state"))
+                if humidity is not None:
+                    timestamps.append(humidity_observed)
 
         if temperature_c is None and humidity is None:
             return None
@@ -325,9 +328,10 @@ class HomeAssistantEnvironmentProvider:
             else "current location"
         )
         observed = _aware_timestamp(
-            state.get("last_updated") or state.get("last_changed"),
-            fallback=now,
+            state.get("last_updated") or state.get("last_changed")
         )
+        if observed is None:
+            return None
         configured = self._configuration.location
         timezone_value = (
             attrs.get("time_zone")
