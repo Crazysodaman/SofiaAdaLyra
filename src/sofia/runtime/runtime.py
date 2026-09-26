@@ -37,6 +37,7 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.prompt import environment_details_relevant
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
@@ -568,6 +569,9 @@ class SofiaRuntime:
                 return CognitiveResponse(content=self_fact.content)
 
         environment_snapshot = None
+        environment_details_needed = environment_details_relevant(
+            user_content or None
+        )
         if (
             user_content
             and self._environment_query_resolver.might_match(
@@ -575,7 +579,9 @@ class SofiaRuntime:
             )
         ):
             environment_snapshot = (
-                self._environment_service.snapshot()
+                self._environment_service.snapshot(
+                    refresh_providers=environment_details_needed,
+                )
             )
             environment_answer = (
                 self._environment_query_resolver.resolve(
@@ -602,7 +608,9 @@ class SofiaRuntime:
 
         if environment_snapshot is None:
             environment_snapshot = (
-                self._environment_service.snapshot()
+                self._environment_service.snapshot(
+                    refresh_providers=environment_details_needed,
+                )
             )
 
         operation = CognitiveOperation(
