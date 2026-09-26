@@ -6,6 +6,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.environment.config import EnvironmentConfiguration
 
 
 def create_configuration() -> SofiaConfiguration:
@@ -115,6 +116,29 @@ def test_configuration_paths_are_path_objects():
         configuration.filesystem_root,
         Path,
     )
+
+
+def test_configuration_has_safe_default_environment():
+    configuration = create_configuration()
+    assert configuration.environment == EnvironmentConfiguration()
+
+
+def test_configuration_rejects_invalid_environment_type():
+    with pytest.raises(TypeError, match="EnvironmentConfiguration"):
+        SofiaConfiguration(
+            constitution_path=Path("constitution.md"),
+            constitution_hash_path=Path("constitution.sha256"),
+            identity_path=Path("identity.json"),
+            personality_path=Path("personality.json"),
+            avatar_path=Path("avatar.json"),
+            state_path=Path("sofia.db"),
+            provider=ProviderConfiguration(
+                provider="test",
+                model="test-model",
+            ),
+            filesystem_root=Path("."),
+            environment="not-environment",
+        )
 
 
 def test_configuration_is_immutable():
