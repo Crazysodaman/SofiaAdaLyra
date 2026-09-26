@@ -41,7 +41,6 @@ __all__ = [
     "LocationEvidenceKind",
     "LocationObservation",
     "LocationSubject",
-    "NwsApiClient",
     "NwsEnvironmentProvider",
     "Season",
     "WeatherObservation",
@@ -55,15 +54,11 @@ def __getattr__(name: str):
 
         globals()[name] = EnvironmentService
         return EnvironmentService
-    if name in {"NwsApiClient", "NwsEnvironmentProvider"}:
-        from .nws import NwsApiClient, NwsEnvironmentProvider
+    if name == "NwsEnvironmentProvider":
+        from .nws import NwsEnvironmentProvider
 
-        value = {
-            "NwsApiClient": NwsApiClient,
-            "NwsEnvironmentProvider": NwsEnvironmentProvider,
-        }[name]
-        globals()[name] = value
-        return value
+        globals()[name] = NwsEnvironmentProvider
+        return NwsEnvironmentProvider
     raise AttributeError(
         f"module {__name__!r} has no attribute {name!r}"
     )
