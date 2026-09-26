@@ -82,3 +82,71 @@ def test_ha_current_location_subject_can_be_explicit_host():
     )
     assert config.home_assistant_current_location_subject is LocationSubject.HOST
 
+def test_user_and_host_locations_can_coexist():
+    config = environment_configuration_from_environ(
+        {
+            "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Home",
+            "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+            "SOFIA_ENVIRONMENT_LATITUDE": "32.5",
+            "SOFIA_ENVIRONMENT_LONGITUDE": "-97.1",
+            "SOFIA_ENVIRONMENT_LOCATION_SUBJECT": "user",
+            "SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL": "Artemis server room",
+            "SOFIA_ENVIRONMENT_HOST_TIMEZONE": "America/Chicago",
+            "SOFIA_ENVIRONMENT_HOST_LATITUDE": "32.6",
+            "SOFIA_ENVIRONMENT_HOST_LONGITUDE": "-97.2",
+        }
+    )
+    assert config.location is not None
+    assert config.location.subject is LocationSubject.USER
+    assert config.location.label == "Home"
+    assert config.host_location is not None
+    assert config.host_location.subject is LocationSubject.HOST
+    assert config.host_location.label == "Artemis server room"
+    assert config.host_location.source_id == "config.environment.host"
+
+
+def test_nws_can_use_host_location_without_replacing_user_location():
+    config = environment_configuration_from_environ(
+        {
+            "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Home",
+            "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+            "SOFIA_ENVIRONMENT_LATITUDE": "32.5",
+            "SOFIA_ENVIRONMENT_LONGITUDE": "-97.1",
+            "SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL": "Artemis",
+            "SOFIA_ENVIRONMENT_HOST_TIMEZONE": "America/Chicago",
+            "SOFIA_ENVIRONMENT_HOST_LATITUDE": "32.6",
+            "SOFIA_ENVIRONMENT_HOST_LONGITUDE": "-97.2",
+            "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
+            "SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT": "host",
+            "SOFIA_ENVIRONMENT_NWS_USER_AGENT": "SofiaAdaLyra-test",
+        }
+    )
+    assert config.nws_enabled
+    assert config.nws_location_subject is LocationSubject.HOST
+    assert config.configured_location_for(LocationSubject.USER).label == "Home"
+    assert config.configured_location_for(LocationSubject.HOST).label == "Artemis"
+
+
+def test_nws_requires_coordinates_for_selected_subject():
+    with pytest.raises(ValueError, match="NWS requires configured coordinates"):
+        environment_configuration_from_environ(
+            {
+                "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Home",
+                "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+                "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
+            }
+        )
+
+
+def test_ha_tracker_subject_is_not_inferred_when_user_and_host_both_exist():
+    with pytest.raises(ValueError, match="explicit location subject"):
+        environment_configuration_from_environ(
+            {
+                "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Home",
+                "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+                "SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL": "Artemis",
+                "SOFIA_ENVIRONMENT_HOST_TIMEZONE": "America/Chicago",
+                "SOFIA_ENVIRONMENT_HA_CURRENT_LOCATION_ENTITY": "device_tracker.host",
+            }
+        )
+
