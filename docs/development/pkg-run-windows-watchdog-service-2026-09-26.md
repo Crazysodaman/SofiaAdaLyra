@@ -134,6 +134,23 @@ Acceptance evidence after hardening:
 
 The FENCED authority gate is accepted. Reboot recovery and longer soak remain open.
 
+
+## Live canary evidence — post-fence restoration
+
+After the accepted FENCED authority test, the watchdog was stopped, the operator explicitly cleared durable RUN state from `FENCED` to `STOPPED`, and the Sofía Windows service was started manually. The runtime advanced through `STARTING/RECOVERING` to durable `READY`, created a new open heartbeat session bound to the live SCM process, and Windows Event Log recorded `Sofía Ada Lyra entered RUNNING state.`
+
+Measured evidence:
+
+- restored runtime PID: `26736`,
+- new heartbeat session: `b602b185-9731-45b8-849d-858a32d0b802`,
+- RECOVERING timestamp: `2026-09-26T23:10:02.562529+00:00`,
+- READY timestamp: `2026-09-26T23:10:49.024163+00:00`,
+- RECOVERING→READY duration: approximately **46.5 seconds**,
+- heartbeat remained open and fresh after READY,
+- Event Log recorded a clean RUNNING transition.
+
+This proves explicit operator fence clearing restores normal service startup without residual fencing or stale-heartbeat ownership.
+
 ## Live Windows canary
 
 After full-suite acceptance:
