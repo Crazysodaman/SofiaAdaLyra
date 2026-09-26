@@ -6,10 +6,16 @@ preservation explicit around sends and shutdown.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Protocol
 
 from sofia.cognition.model import CognitiveResponse
 from sofia.ui.text import UITextClient, UITextMessage
+from sofia.ui.theme import (
+    AdaptiveThemePolicy,
+    ThemePalette,
+    theme_signals_from_sources,
+)
 
 
 class DesktopApplication(Protocol):
@@ -33,6 +39,7 @@ class DesktopWorkbenchController:
             raise TypeError("application must expose shutdown()")
         self._application = application
         self._started = False
+        self._theme_policy = AdaptiveThemePolicy()
 
     @property
     def started(self) -> bool:
@@ -72,6 +79,45 @@ class DesktopWorkbenchController:
         if not isinstance(content, str):
             raise TypeError("content must be a string")
         self._application.text_ui.save_draft(content)
+
+    def theme_palette(self) -> ThemePalette:
+        """Project adaptive presentation from current trusted runtime state."""
+        if not self._started:
+            raise RuntimeError("desktop workbench is not started")
+
+        runtime = getattr(self._application, "runtime", None)
+        if runtime is None:
+            raise RuntimeError(
+                "desktop application does not expose runtime theme sources"
+            )
+
+        environment = runtime.environment_service.snapshot(
+            refresh_providers=False
+        )
+        presentation = runtime.avatar_presentation_projection
+
+        emotion = None
+        conversation = getattr(
+            self._application,
+            "conversation",
+            None,
+        )
+        current_emotional_state = getattr(
+            conversation,
+            "current_emotional_state",
+            None,
+        )
+        if callable(current_emotional_state):
+            emotion = current_emotional_state(
+                now=datetime.now(timezone.utc)
+            )
+
+        signals = theme_signals_from_sources(
+            environment=environment,
+            presentation=presentation,
+            emotion=emotion,
+        )
+        return self._theme_policy.select(signals)
 
     def send(self, content: str) -> CognitiveResponse:
         """Persist the text as a draft, then send through canonical conversation.
