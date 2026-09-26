@@ -207,3 +207,52 @@ def test_nws_provider_rejects_naive_now():
     )
     with pytest.raises(ValueError, match="time must be aware"):
         provider.observe(now=datetime(2026, 9, 26, 12, 0))
+
+def test_nws_provider_prefers_current_station_over_stale_nearest_station():
+    client = FakeNwsClient(
+        {
+            "/points/32.5000,-97.1000": {
+                "properties": {
+                    "observationStations": (
+                        "https://api.weather.gov/gridpoints/FWD/1,2/stations"
+                    ),
+                }
+            },
+            "https://api.weather.gov/gridpoints/FWD/1,2/stations": {
+                "features": [
+                    {"id": "https://api.weather.gov/stations/KSTALE"},
+                    {"id": "https://api.weather.gov/stations/KFRESH"},
+                ]
+            },
+            "https://api.weather.gov/stations/KSTALE/observations/latest": {
+                "properties": {
+                    "timestamp": "2026-09-26T10:00:00+00:00",
+                    "textDescription": "Old",
+                    "temperature": {
+                        "value": 19.0,
+                        "unitCode": "wmoUnit:degC",
+                    },
+                }
+            },
+            "https://api.weather.gov/stations/KFRESH/observations/latest": {
+                "properties": {
+                    "timestamp": "2026-09-26T11:50:00+00:00",
+                    "textDescription": "Fresh",
+                    "temperature": {
+                        "value": 24.0,
+                        "unitCode": "wmoUnit:degC",
+                    },
+                }
+            },
+        }
+    )
+
+    weather = NwsEnvironmentProvider(
+        configuration(),
+        client=client,
+    ).observe(now=NOW).weather
+
+    assert weather is not None
+    assert weather.condition == "Fresh"
+    assert weather.source_id == "nws:KFRESH"
+
