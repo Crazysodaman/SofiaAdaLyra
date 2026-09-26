@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from queue import Queue
 from threading import Thread
-from typing import Any
-
 from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration
 from sofia.ui.desktop_controller import DesktopWorkbenchController
@@ -79,10 +77,13 @@ class DesktopApplicationWorker:
         self._commands.put((kind, payload))
 
     def _run(self) -> None:
-        application = SofiaApplication(self._configuration)
-        controller = DesktopWorkbenchController(application)
-
         try:
+            application = SofiaApplication(
+                self._configuration
+            )
+            controller = DesktopWorkbenchController(
+                application
+            )
             history = controller.start(
                 session_id=self._session_id
             )
