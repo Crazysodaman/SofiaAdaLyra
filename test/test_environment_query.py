@@ -327,6 +327,73 @@ def test_tomorrow_weather_common_phrasings_are_recognized():
         assert resolver.might_match(query), query
 
 
+def test_weekly_weather_query_is_direct_fahrenheit_and_bounded_to_seven_days():
+    weather = WeatherObservation(
+        condition="clear",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:test",
+        location_label="Home Lab",
+        forecast=tuple(
+            ForecastPeriod(
+                starts_at=NOW + timedelta(days=day, hours=2),
+                condition=f"day {day}",
+                high_c=20.0 + day,
+                precipitation_probability=float(day),
+            )
+            for day in range(8)
+        ),
+    )
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            host_location=ConfiguredLocation(
+                label="Home Lab",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=32.9,
+                longitude=-97.02,
+                source_id="machine.location:test",
+            )
+        ),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    resolver = EnvironmentQueryResolver()
+    answer = resolver.resolve(
+        "what's the 7 day forecast?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert answer.content.startswith("7-day forecast:")
+    assert "day 0" in answer.content
+    assert "day 5" in answer.content
+    assert "day 6" not in answer.content
+    assert "day 7" not in answer.content
+    assert "68.0 °F" in answer.content
+    assert "°C" not in answer.content
+
+
+def test_weekly_weather_common_phrasings_are_recognized():
+    resolver = EnvironmentQueryResolver()
+    for query in (
+        "weekly forecast",
+        "weekly weather",
+        "what's the weather this week?",
+        "this week's weather",
+        "whats this weeks weather",
+        "what's the 7 day forecast?",
+        "seven day forecast",
+    ):
+        assert resolver.might_match(query), query
+
+
 def test_sunrise_and_sunset_are_directly_queryable():
     snapshot = EnvironmentService(config()).snapshot(now=NOW)
     sunrise = EnvironmentQueryResolver().resolve(
