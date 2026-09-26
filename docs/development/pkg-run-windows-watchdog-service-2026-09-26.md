@@ -116,6 +116,24 @@ Measured evidence:
 
 This proves live independent watchdog recovery for a stale-heartbeat/hang-style failure. FENCED-stop behavior, reboot recovery and longer soak remain open.
 
+
+## Live canary evidence — FENCED authority gate accepted
+
+A live operator fence was asserted while the Windows runtime service and independent watchdog were active. The watchdog recorded `fenced_stop` and stopped the runtime service while remaining independently RUNNING. Durable lifecycle remained `FENCED` with the asserted owner/epoch.
+
+A follow-up hardening patch made two fence races explicit: application shutdown preserves `FENCED`, and a fence asserted during startup is treated as a controlled clean stop rather than an SCM failure. The Windows service CLI also refuses `start` before touching SCM when durable RUN state is fenced.
+
+Acceptance evidence after hardening:
+
+- focused RUN regression gate: **48/48 passed**,
+- fenced manual start refused immediately with process exit code `2`,
+- `SofiaAdaLyra` remained `STOPPED` with PID `0` and SCM exit codes `0/0`,
+- `SofiaAdaLyraWatchdog` remained `RUNNING`,
+- durable lifecycle remained `FENCED` with owner `canary`, epoch `1`,
+- no runtime resurrection occurred while fenced.
+
+The FENCED authority gate is accepted. Reboot recovery and longer soak remain open.
+
 ## Live Windows canary
 
 After full-suite acceptance:
