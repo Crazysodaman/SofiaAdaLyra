@@ -10,6 +10,11 @@ from .home_assistant import HomeAssistantEnvironmentProvider
 from .service import EnvironmentService
 
 
+HOME_ASSISTANT_ENVIRONMENT_CAPABILITY = "environment.home_assistant.read"
+
+
+
+
 def create_environment_service(
     configuration: SofiaConfiguration,
 ) -> EnvironmentService:
@@ -22,6 +27,14 @@ def create_environment_service(
     providers = []
 
     if environment.home_assistant_enabled:
+        if (
+            HOME_ASSISTANT_ENVIRONMENT_CAPABILITY
+            not in configuration.standing_allowed_capabilities
+        ):
+            raise PermissionError(
+                "Home Assistant environment reads require standing "
+                f"capability {HOME_ASSISTANT_ENVIRONMENT_CAPABILITY!r}"
+            )
         base_url = os.environ.get(
             "SOFIA_HOME_ASSISTANT_URL",
             "",
