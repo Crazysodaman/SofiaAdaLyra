@@ -86,6 +86,7 @@ class SofiaApplication:
         """
         try:
             enabled = _idle_reflections_enabled()
+            self._ui_draft_store.open()
             self._runtime.start()
             if self._runtime.embodiment is None:
                 raise SofiaApplicationError(
