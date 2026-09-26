@@ -166,7 +166,8 @@ def test_direct_weather_reports_current_source_and_observation():
         snapshot=snapshot,
     )
     assert "Current weather for Configured area: clear" in answer.content
-    assert "24.5 °C" in answer.content
+    assert "76.1 °F" in answer.content
+    assert "°C" not in answer.content
     assert "test.weather" in answer.content
 
 
@@ -236,7 +237,161 @@ def test_direct_forecast_returns_bounded_current_forecast():
     )
     assert "Current bounded forecast:" in answer.content
     assert "cloudy" in answer.content
+    assert "high 75.2 °F" in answer.content
+    assert "low 60.8 °F" in answer.content
+    assert "°C" not in answer.content
     assert "precipitation 20%" in answer.content
+
+
+def test_natural_tomorrow_weather_query_is_direct_and_host_timezone_aware():
+    weather = WeatherObservation(
+        condition="clear",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:test",
+        location_label="Home Lab",
+        forecast=(
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=2),
+                condition="clear tonight",
+                low_c=20.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=20),
+                condition="mostly sunny",
+                high_c=30.0,
+                precipitation_probability=10.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=32),
+                condition="mostly clear",
+                low_c=21.0,
+                precipitation_probability=5.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=44),
+                condition="next day",
+                high_c=31.0,
+            ),
+        ),
+    )
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            host_location=ConfiguredLocation(
+                label="Home Lab",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=32.9,
+                longitude=-97.02,
+                source_id="machine.location:test",
+            )
+        ),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    resolver = EnvironmentQueryResolver()
+    assert resolver.might_match("whats tomorrows weather?")
+
+    answer = resolver.resolve(
+        "whats tomorrows weather?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert answer.content.startswith("Tomorrow's forecast:")
+    assert "mostly sunny" in answer.content
+    assert "high 86.0 °F" in answer.content
+    assert "mostly clear" in answer.content
+    assert "low 69.8 °F" in answer.content
+    assert "clear tonight" not in answer.content
+    assert "next day" not in answer.content
+    assert "°C" not in answer.content
+
+
+def test_tomorrow_weather_common_phrasings_are_recognized():
+    resolver = EnvironmentQueryResolver()
+    for query in (
+        "what's tomorrow's weather?",
+        "what is tomorrow's weather?",
+        "what's the weather tomorrow?",
+        "what will the weather be tomorrow?",
+        "tomorrow's weather",
+        "weather tomorrow",
+    ):
+        assert resolver.might_match(query), query
+
+
+def test_weekly_weather_query_is_direct_fahrenheit_and_bounded_to_seven_days():
+    weather = WeatherObservation(
+        condition="clear",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:test",
+        location_label="Home Lab",
+        forecast=tuple(
+            ForecastPeriod(
+                starts_at=NOW + timedelta(days=day, hours=2),
+                condition=f"day {day}",
+                high_c=20.0 + day,
+                precipitation_probability=float(day),
+            )
+            for day in range(8)
+        ),
+    )
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            host_location=ConfiguredLocation(
+                label="Home Lab",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=32.9,
+                longitude=-97.02,
+                source_id="machine.location:test",
+            )
+        ),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    resolver = EnvironmentQueryResolver()
+    answer = resolver.resolve(
+        "what's the 7 day forecast?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert answer.content.startswith("7-day forecast:")
+    assert "day 0" in answer.content
+    assert "day 5" in answer.content
+    assert "day 6" in answer.content
+    assert "day 7" not in answer.content
+    assert "68.0 °F" in answer.content
+    assert "°C" not in answer.content
+
+
+def test_weekly_weather_common_phrasings_are_recognized():
+    resolver = EnvironmentQueryResolver()
+    for query in (
+        "weekly forecast",
+        "weekly weather",
+        "what's the weather this week?",
+        "this week's weather",
+        "whats this weeks weather",
+        "what's the 7 day forecast?",
+        "seven day forecast",
+    ):
+        assert resolver.might_match(query), query
 
 
 def test_sunrise_and_sunset_are_directly_queryable():
@@ -277,7 +432,8 @@ def test_current_indoor_environment_is_directly_queryable():
         "what's the temperature inside?",
         snapshot=snapshot,
     )
-    assert "temperature 22.0 °C" in answer.content
+    assert "temperature 71.6 °F" in answer.content
+    assert "°C" not in answer.content
     assert "humidity 45%" in answer.content
     assert "test.indoor" in answer.content
 

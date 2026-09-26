@@ -33,6 +33,12 @@ def _value(value: float | None, suffix: str) -> str:
     return f"{value:.1f}{suffix}"
 
 
+def _temperature_f(value_c: float | None) -> str:
+    if value_c is None:
+        return "unknown"
+    return f"{((value_c * 9.0 / 5.0) + 32.0):.1f} F"
+
+
 def environment_prompt(
     snapshot: EnvironmentSnapshot,
     *,
@@ -213,11 +219,11 @@ def environment_prompt(
                 f"Current weather condition: {weather.condition}.",
                 (
                     "Outdoor temperature: "
-                    f"{_value(weather.temperature_c, ' C')}."
+                    f"{_temperature_f(weather.temperature_c)}."
                 ),
                 (
                     "Feels-like temperature: "
-                    f"{_value(weather.feels_like_c, ' C')}."
+                    f"{_temperature_f(weather.feels_like_c)}."
                 ),
                 (
                     "Humidity: "
@@ -245,8 +251,8 @@ def environment_prompt(
                     (
                         f"- {period.starts_at.isoformat()}: "
                         f"{period.condition}; "
-                        f"high={_value(period.high_c, ' C')}; "
-                        f"low={_value(period.low_c, ' C')}; "
+                        f"high={_temperature_f(period.high_c)}; "
+                        f"low={_temperature_f(period.low_c)}; "
                         "precipitation_probability="
                         f"{_value(period.precipitation_probability, '%')}"
                     )
@@ -274,7 +280,7 @@ def environment_prompt(
             [
                 (
                     "Indoor temperature: "
-                    f"{_value(snapshot.indoor.temperature_c, ' C')}."
+                    f"{_temperature_f(snapshot.indoor.temperature_c)}."
                 ),
                 (
                     "Indoor humidity: "

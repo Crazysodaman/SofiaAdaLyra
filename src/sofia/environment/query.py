@@ -6,6 +6,8 @@ must not override typed freshness/location evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .model import (
     EnvironmentFreshness,
@@ -32,6 +34,39 @@ class EnvironmentQueryAnswer:
 
 def _normalize(query: str) -> str:
     return " ".join(query.strip().casefold().split()).rstrip(" ?!.")
+
+
+def _fahrenheit(celsius: float) -> float:
+    return (celsius * 9.0 / 5.0) + 32.0
+
+
+def _forecast_timezone(snapshot: EnvironmentSnapshot):
+    timezone_name = snapshot.timezone
+    if (
+        timezone_name is None
+        and snapshot.host_location is not None
+    ):
+        timezone_name = snapshot.host_location.timezone
+    if timezone_name is not None:
+        try:
+            return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            pass
+    return snapshot.host_local_time.tzinfo
+
+
+def _forecast_period_text(period) -> str:
+    parts = [period.condition]
+    if period.high_c is not None:
+        parts.append(f"high {_fahrenheit(period.high_c):.1f} °F")
+    if period.low_c is not None:
+        parts.append(f"low {_fahrenheit(period.low_c):.1f} °F")
+    if period.precipitation_probability is not None:
+        parts.append(
+            "precipitation "
+            f"{period.precipitation_probability:.0f}%"
+        )
+    return f"{period.starts_at.isoformat()}: " + ", ".join(parts)
 
 
 class EnvironmentQueryResolver:
@@ -107,8 +142,46 @@ class EnvironmentQueryResolver:
             "what is the forecast",
             "what's the weather forecast",
             "what is the weather forecast",
+        }
+    )
+    _TOMORROW_WEATHER_FORMS = frozenset(
+        {
+            "what's tomorrow's weather",
+            "what is tomorrow's weather",
+            "whats tomorrows weather",
+            "what's the weather tomorrow",
+            "what is the weather tomorrow",
+            "how's the weather tomorrow",
+            "how is the weather tomorrow",
+            "what will the weather be tomorrow",
             "what's the forecast tomorrow",
             "what is the forecast tomorrow",
+            "tomorrow's weather",
+            "tomorrows weather",
+            "weather tomorrow",
+        }
+    )
+    _WEEKLY_FORECAST_FORMS = frozenset(
+        {
+            "what's the weekly forecast",
+            "what is the weekly forecast",
+            "weekly forecast",
+            "weekly weather",
+            "what's the weather this week",
+            "what is the weather this week",
+            "how's the weather this week",
+            "how is the weather this week",
+            "weather this week",
+            "forecast this week",
+            "what's this week's weather",
+            "what is this week's weather",
+            "this week's weather",
+            "whats this weeks weather",
+            "this weeks weather",
+            "what's the 7 day forecast",
+            "what is the 7 day forecast",
+            "7 day forecast",
+            "seven day forecast",
         }
     )
     _SUNRISE_FORMS = frozenset(
@@ -177,6 +250,8 @@ class EnvironmentQueryResolver:
             | cls._USER_TIMEZONE_FORMS
             | cls._CONTEXT_TIMEZONE_FORMS
             | cls._FORECAST_FORMS
+            | cls._TOMORROW_WEATHER_FORMS
+            | cls._WEEKLY_FORECAST_FORMS
             | cls._SUNRISE_FORMS
             | cls._SUNSET_FORMS
             | cls._INDOOR_FORMS
@@ -416,11 +491,11 @@ class EnvironmentQueryResolver:
             parts = [weather.condition]
             if weather.temperature_c is not None:
                 parts.append(
-                    f"{weather.temperature_c:.1f} °C"
+                    f"{_fahrenheit(weather.temperature_c):.1f} °F"
                 )
             if weather.feels_like_c is not None:
                 parts.append(
-                    f"feels like {weather.feels_like_c:.1f} °C"
+                    f"feels like {_fahrenheit(weather.feels_like_c):.1f} °F"
                 )
             if weather.humidity_percent is not None:
                 parts.append(
@@ -526,6 +601,96 @@ class EnvironmentQueryResolver:
                 ),
             )
 
+        if normalized in self._WEEKLY_FORECAST_FORMS:
+            weather = snapshot.weather
+            if (
+                weather is None
+                or snapshot.weather_freshness
+                is not EnvironmentFreshness.CURRENT
+                or not weather.forecast
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a current weekly forecast observation.",
+                )
+            zone = _forecast_timezone(snapshot)
+            local_now = (
+                snapshot.utc_time.astimezone(zone)
+                if zone is not None
+                else snapshot.host_local_time
+            )
+            first_day = local_now.date()
+            last_day = first_day + timedelta(days=6)
+            periods = tuple(
+                period
+                for period in weather.forecast
+                if first_day
+                <= (
+                    period.starts_at.astimezone(zone).date()
+                    if zone is not None
+                    else period.starts_at.date()
+                )
+                <= last_day
+            )
+            if not periods:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have forecast periods for the next 7 days.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "7-day forecast: "
+                + "; ".join(
+                    _forecast_period_text(period)
+                    for period in periods[:14]
+                )
+                + ".",
+            )
+
+        if normalized in self._TOMORROW_WEATHER_FORMS:
+            weather = snapshot.weather
+            if (
+                weather is None
+                or snapshot.weather_freshness
+                is not EnvironmentFreshness.CURRENT
+                or not weather.forecast
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a current forecast observation for tomorrow.",
+                )
+            zone = _forecast_timezone(snapshot)
+            local_now = (
+                snapshot.utc_time.astimezone(zone)
+                if zone is not None
+                else snapshot.host_local_time
+            )
+            tomorrow = local_now.date() + timedelta(days=1)
+            periods = tuple(
+                period
+                for period in weather.forecast
+                if (
+                    period.starts_at.astimezone(zone).date()
+                    if zone is not None
+                    else period.starts_at.date()
+                )
+                == tomorrow
+            )
+            if not periods:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have forecast periods for tomorrow.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "Tomorrow's forecast: "
+                + "; ".join(
+                    _forecast_period_text(period)
+                    for period in periods[:4]
+                )
+                + ".",
+            )
+
         if normalized in self._FORECAST_FORMS:
             weather = snapshot.weather
             if (
@@ -538,25 +703,14 @@ class EnvironmentQueryResolver:
                     True,
                     "I don't have a current forecast observation.",
                 )
-            periods = []
-            for period in weather.forecast[:4]:
-                parts = [period.condition]
-                if period.high_c is not None:
-                    parts.append(f"high {period.high_c:.1f} °C")
-                if period.low_c is not None:
-                    parts.append(f"low {period.low_c:.1f} °C")
-                if period.precipitation_probability is not None:
-                    parts.append(
-                        "precipitation "
-                        f"{period.precipitation_probability:.0f}%"
-                    )
-                periods.append(
-                    f"{period.starts_at.isoformat()}: "
-                    + ", ".join(parts)
-                )
             return EnvironmentQueryAnswer(
                 True,
-                "Current bounded forecast: " + "; ".join(periods) + ".",
+                "Current bounded forecast: "
+                + "; ".join(
+                    _forecast_period_text(period)
+                    for period in weather.forecast[:4]
+                )
+                + ".",
             )
 
         if normalized in self._SUNRISE_FORMS:
@@ -603,7 +757,7 @@ class EnvironmentQueryResolver:
             parts = []
             if indoor.temperature_c is not None:
                 parts.append(
-                    f"temperature {indoor.temperature_c:.1f} °C"
+                    f"temperature {_fahrenheit(indoor.temperature_c):.1f} °F"
                 )
             if indoor.humidity_percent is not None:
                 parts.append(
