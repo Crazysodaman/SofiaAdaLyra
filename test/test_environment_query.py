@@ -243,6 +243,90 @@ def test_direct_forecast_returns_bounded_current_forecast():
     assert "precipitation 20%" in answer.content
 
 
+def test_natural_tomorrow_weather_query_is_direct_and_host_timezone_aware():
+    weather = WeatherObservation(
+        condition="clear",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:test",
+        location_label="Home Lab",
+        forecast=(
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=2),
+                condition="clear tonight",
+                low_c=20.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=20),
+                condition="mostly sunny",
+                high_c=30.0,
+                precipitation_probability=10.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=32),
+                condition="mostly clear",
+                low_c=21.0,
+                precipitation_probability=5.0,
+            ),
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=44),
+                condition="next day",
+                high_c=31.0,
+            ),
+        ),
+    )
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            host_location=ConfiguredLocation(
+                label="Home Lab",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=32.9,
+                longitude=-97.02,
+                source_id="machine.location:test",
+            )
+        ),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    resolver = EnvironmentQueryResolver()
+    assert resolver.might_match("whats tomorrows weather?")
+
+    answer = resolver.resolve(
+        "whats tomorrows weather?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert answer.content.startswith("Tomorrow's forecast:")
+    assert "mostly sunny" in answer.content
+    assert "high 86.0 °F" in answer.content
+    assert "mostly clear" in answer.content
+    assert "low 69.8 °F" in answer.content
+    assert "clear tonight" not in answer.content
+    assert "next day" not in answer.content
+    assert "°C" not in answer.content
+
+
+def test_tomorrow_weather_common_phrasings_are_recognized():
+    resolver = EnvironmentQueryResolver()
+    for query in (
+        "what's tomorrow's weather?",
+        "what is tomorrow's weather?",
+        "what's the weather tomorrow?",
+        "what will the weather be tomorrow?",
+        "tomorrow's weather",
+        "weather tomorrow",
+    ):
+        assert resolver.might_match(query), query
+
+
 def test_sunrise_and_sunset_are_directly_queryable():
     snapshot = EnvironmentService(config()).snapshot(now=NOW)
     sunrise = EnvironmentQueryResolver().resolve(
