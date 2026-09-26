@@ -326,7 +326,7 @@ class _TkDesktopWorkbench:
                     "Sofía could not start",
                     detail,
                 )
-                self._finish_close()
+                self._root.destroy()
                 return
             elif kind == "send_error":
                 self._busy = False
