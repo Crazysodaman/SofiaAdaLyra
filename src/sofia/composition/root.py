@@ -52,6 +52,7 @@ from sofia.machine.location import MachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
+from sofia.runtime.control_plane import RuntimeControlPlane
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.system.capability import create_local_system_capabilities
 
@@ -221,6 +222,10 @@ def compose(
     )
     ops_capabilities = OpsCapabilitySet(
         ops_service
+    )
+    runtime_control_plane = RuntimeControlPlane(
+        state_path=state_path,
+        ops_service=ops_service,
     )
 
     codebase_inspector = CodebaseInspector(
@@ -512,6 +517,7 @@ def compose(
         capability_system=capability_system,
         configuration=configuration,
         environment_service=environment_service,
+        control_plane=runtime_control_plane,
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
     )

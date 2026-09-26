@@ -189,3 +189,44 @@ def test_start_failure_is_exposed_as_application_error(
         application.start()
 
     assert application.runtime.state is RuntimeState.FAILED
+
+
+def test_start_opens_disabled_runtime_control_plane(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    application.start()
+
+    control = application.runtime.control_plane
+    assert control.opened is True
+    assert control.run_periodic_gate.policy.enabled is False
+
+    application.shutdown()
+
+
+def test_shutdown_closes_runtime_control_plane(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    application.start()
+    control = application.runtime.control_plane
+
+    application.shutdown()
+
+    assert control.opened is False
+    with pytest.raises(RuntimeError):
+        _ = control.act_outbox

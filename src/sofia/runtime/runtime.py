@@ -60,6 +60,7 @@ from sofia.operational.model import (
 from sofia.operational.store import OperationalStore
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
+from sofia.runtime.control_plane import RuntimeControlPlane
 from sofia.runtime.model import RuntimeState
 from sofia.self_model.model import (
     SofiaCoreState,
@@ -134,6 +135,7 @@ class SofiaRuntime:
         filesystem_observation_store: (
             FilesystemObservationStore | None
         ) = None,
+        control_plane: RuntimeControlPlane | None = None,
     ) -> None:
         if not isinstance(
             capability_system,
@@ -153,6 +155,22 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._control_plane = (
+            control_plane
+            if control_plane is not None
+            else RuntimeControlPlane(
+                state_path=Path(configuration.state_path),
+            )
+        )
+        if not isinstance(
+            self._control_plane,
+            RuntimeControlPlane,
+        ):
+            raise TypeError(
+                "SofiaRuntime control_plane must be a "
+                "RuntimeControlPlane."
+            )
+
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -321,6 +339,10 @@ class SofiaRuntime:
     @property
     def configuration(self) -> SofiaConfiguration:
         return self._configuration
+
+    @property
+    def control_plane(self) -> RuntimeControlPlane:
+        return self._control_plane
 
     @property
     def environment_service(self) -> EnvironmentService:

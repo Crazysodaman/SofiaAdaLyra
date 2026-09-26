@@ -109,6 +109,7 @@ class SofiaApplication:
             # The unfiltered snapshot stays preserved in the observation store.
             normalize_runtime_workspace_awareness(self._runtime)
             self._conversation_service.open()
+            self._runtime.control_plane.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
             if enabled and self._runtime.personality is not None:
@@ -144,6 +145,7 @@ class SofiaApplication:
             bundle = getattr(self, "_presentation_bundle", None)
             if bundle is not None:
                 bundle.store.save(bundle.authority)
+            self._runtime.control_plane.close()
             self._runtime.shutdown()
         except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
