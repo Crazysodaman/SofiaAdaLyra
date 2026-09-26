@@ -177,14 +177,14 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] HA environment reads require explicit standing capability plus credentials.
 - [x] Provider arbitration prefers fresher/newer evidence instead of registration order.
 - [x] Unrelated turns keep the trusted clock but omit detailed environment data and avoid provider refresh.
-- [x] Deterministic direct answers cover time/date, user vs runtime location, timezone, weather, forecast, season, daylight/sunrise/sunset and indoor state.
+- [x] Deterministic direct answers cover time/date, user vs runtime location, timezone, weather, forecast, season, daylight/sunrise/sunset, indoor state, and bounded environment-source provenance.
 - [x] AVATAR can consume the shared season/current-weather snapshot without fetching weather itself.
 - [x] DST, hemisphere/polar daylight, stale/future evidence, provider outage, subject isolation, precision and import-boundary tests are represented in the branch test suite.
-- [ ] Sync project dependencies in the active venv (`python -m pip install -e .`) before Windows acceptance. PKG-ENVIRONMENT adds the declared `tzdata` dependency because Windows does not normally ship an IANA ZoneInfo database.
+- [x] Windows acceptance venv synchronized with `python -m pip install -e .`; `tzdata 2026.4` installed and `ZoneInfo('America/Chicago')` resolved successfully on 2026-09-26.
 - [x] Focused ENVIRONMENT gate passed on Windows 2026-09-26: **79 passed in 216.44s** after dependency sync and the import/provider/location/relevance fixes.
 - [x] Touched regression gate passed on Windows 2026-09-26: **61 passed in 13.91s** (`runtime_clock`, configuration, cognitive context/assembler, emotional conversation integration, default provider boundary).
 - [x] Current-branch full pytest suite passed on Windows 2026-09-26. Exact aggregate count was not captured in chat evidence, so no synthetic count is recorded.
-- [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior.
+- [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior. Initial 2026-09-26 run passed time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, and unrelated database behavior; environment-source provenance was misrouted to workspace context and is being repaired with a deterministic provenance query before final rerun.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
 - [ ] Direct internet weather/geocoding remains a later separately authorized NET/web stage.
 
