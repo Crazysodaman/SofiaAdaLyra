@@ -161,6 +161,29 @@ class EnvironmentQueryResolver:
             "weather tomorrow",
         }
     )
+    _WEEKLY_FORECAST_FORMS = frozenset(
+        {
+            "what's the weekly forecast",
+            "what is the weekly forecast",
+            "weekly forecast",
+            "weekly weather",
+            "what's the weather this week",
+            "what is the weather this week",
+            "how's the weather this week",
+            "how is the weather this week",
+            "weather this week",
+            "forecast this week",
+            "what's this week's weather",
+            "what is this week's weather",
+            "this week's weather",
+            "whats this weeks weather",
+            "this weeks weather",
+            "what's the 7 day forecast",
+            "what is the 7 day forecast",
+            "7 day forecast",
+            "seven day forecast",
+        }
+    )
     _SUNRISE_FORMS = frozenset(
         {
             "when is sunrise",
@@ -228,6 +251,7 @@ class EnvironmentQueryResolver:
             | cls._CONTEXT_TIMEZONE_FORMS
             | cls._FORECAST_FORMS
             | cls._TOMORROW_WEATHER_FORMS
+            | cls._WEEKLY_FORECAST_FORMS
             | cls._SUNRISE_FORMS
             | cls._SUNSET_FORMS
             | cls._INDOOR_FORMS
@@ -575,6 +599,52 @@ class EnvironmentQueryResolver:
                     f"The configured/evidenced {subject} timezone is "
                     f"{snapshot.timezone}."
                 ),
+            )
+
+        if normalized in self._WEEKLY_FORECAST_FORMS:
+            weather = snapshot.weather
+            if (
+                weather is None
+                or snapshot.weather_freshness
+                is not EnvironmentFreshness.CURRENT
+                or not weather.forecast
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have a current weekly forecast observation.",
+                )
+            zone = _forecast_timezone(snapshot)
+            local_now = (
+                snapshot.utc_time.astimezone(zone)
+                if zone is not None
+                else snapshot.host_local_time
+            )
+            first_day = local_now.date()
+            last_day = first_day + timedelta(days=6)
+            periods = tuple(
+                period
+                for period in weather.forecast
+                if first_day
+                <= (
+                    period.starts_at.astimezone(zone).date()
+                    if zone is not None
+                    else period.starts_at.date()
+                )
+                <= last_day
+            )
+            if not periods:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have forecast periods for the next 7 days.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                "7-day forecast: "
+                + "; ".join(
+                    _forecast_period_text(period)
+                    for period in periods[:14]
+                )
+                + ".",
             )
 
         if normalized in self._TOMORROW_WEATHER_FORMS:
