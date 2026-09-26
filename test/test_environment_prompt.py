@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta, timezone
 
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.model import WeatherObservation
+from sofia.environment.model import (
+    LocationEvidenceKind,
+    LocationObservation,
+    LocationSubject,
+    WeatherObservation,
+)
 from sofia.environment.prompt import environment_prompt
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
@@ -48,6 +53,39 @@ def test_prompt_never_exposes_coordinates():
     assert "32.5" not in prompt
     assert "-97.1" not in prompt
     assert "Coordinates are intentionally withheld" not in prompt
+
+
+def test_stale_current_location_label_is_not_projected_as_current():
+    stale = LocationObservation(
+        label="Old private place",
+        source_id="test.location",
+        subject=LocationSubject.USER,
+        kind=LocationEvidenceKind.CURRENT,
+        timezone="America/Denver",
+        latitude=39.7,
+        longitude=-104.9,
+        observed_at=NOW - timedelta(hours=2),
+        expires_at=NOW - timedelta(hours=1),
+    )
+    snapshot = EnvironmentService(
+        configuration(),
+        providers=(
+            type(
+                "LocationProvider",
+                (),
+                {
+                    "name": "location",
+                    "observe": lambda self, *, now: EnvironmentProviderObservation(
+                        current_location=stale
+                    ),
+                },
+            )(),
+        ),
+    ).snapshot(now=NOW)
+    prompt = environment_prompt(snapshot)
+    assert "Current physical location freshness: stale." in prompt
+    assert "Old private place" not in prompt
+    assert "do not present it as current" in prompt
 
 
 def test_stale_weather_is_not_projected_as_current():
