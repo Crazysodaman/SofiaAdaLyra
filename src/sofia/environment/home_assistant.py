@@ -317,6 +317,13 @@ class HomeAssistantEnvironmentProvider:
         longitude = _number(attrs.get("longitude"))
         if latitude is None or longitude is None:
             return None
+        precision_meters = _number(
+            attrs.get("gps_accuracy")
+            if attrs.get("gps_accuracy") is not None
+            else attrs.get("accuracy")
+        )
+        if precision_meters is not None and precision_meters < 0:
+            precision_meters = None
 
         state_label = state.get("state")
         label = (
@@ -363,6 +370,7 @@ class HomeAssistantEnvironmentProvider:
             timezone=timezone_name,
             latitude=latitude,
             longitude=longitude,
+            precision_meters=precision_meters,
             observed_at=observed,
             expires_at=observed
             + timedelta(
