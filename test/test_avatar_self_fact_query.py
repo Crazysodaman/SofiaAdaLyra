@@ -46,13 +46,13 @@ def test_current_outfit_is_deterministic_authoritative_fact():
     result = answer("What outfit are you wearing right now?")
     assert result.recognized
     assert "signature engineer outfit" in result.content
-    assert "authoritative current AVATAR state" in result.content
+    assert result.content == "I'm in my signature engineer outfit right now."
 
 
 def test_hair_and_tail_color_use_current_presentation():
     hair = answer("What color is your hair?")
     tail = answer("What color is your tail?")
-    assert hair.content == "My hair is deep crimson, currently styled long layered."
+    assert hair.content == "My hair is deep crimson, worn long layered."
     assert tail.content == "My tail is dark violet."
 
 
@@ -79,7 +79,7 @@ def test_tonight_question_proposes_lounge_without_claiming_change():
     result = answer("What outfit would you want to change into tonight?")
     assert result.recognized
     assert "relaxed lounge outfit" in result.content
-    assert "not a claim that I've already changed" in result.content
+    assert "not something I've already changed into" in result.content
 
 
 def test_unrelated_question_remains_for_cognition():
