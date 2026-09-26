@@ -348,6 +348,13 @@ class HomeAssistantEnvironmentProvider:
             latitude=latitude,
             longitude=longitude,
             observed_at=observed,
+            expires_at=observed
+            + timedelta(
+                seconds=(
+                    self._configuration
+                    .current_location_max_age_seconds
+                )
+            ),
         )
 
     def observe(
