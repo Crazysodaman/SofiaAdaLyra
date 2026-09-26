@@ -203,3 +203,50 @@ def test_provider_failure_is_degraded_evidence_not_runtime_failure():
     assert snapshot.weather is None
     assert snapshot.provider_errors == ("fake:RuntimeError",)
     assert "secret details" not in snapshot.provider_errors[0]
+
+def test_fresher_provider_evidence_beats_registration_order():
+    stale = WeatherObservation(
+        condition="stale-first",
+        observed_at=NOW - timedelta(hours=2),
+        expires_at=NOW - timedelta(hours=1),
+        source_id="test.stale",
+    )
+    current = WeatherObservation(
+        condition="fresh-second",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="test.current",
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(EnvironmentProviderObservation(weather=stale)),
+            FakeProvider(EnvironmentProviderObservation(weather=current)),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.weather is current
+    assert snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+
+
+def test_newer_current_provider_evidence_wins_tie():
+    older = WeatherObservation(
+        condition="older",
+        observed_at=NOW - timedelta(minutes=10),
+        expires_at=NOW + timedelta(minutes=10),
+        source_id="test.older",
+    )
+    newer = WeatherObservation(
+        condition="newer",
+        observed_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="test.newer",
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(EnvironmentProviderObservation(weather=older)),
+            FakeProvider(EnvironmentProviderObservation(weather=newer)),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.weather is newer
+
