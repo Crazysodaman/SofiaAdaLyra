@@ -35,6 +35,8 @@ class WorkloadContract:
     workload_id:str; version:str; supported_platforms:tuple[str,...]; supported_architectures:tuple[str,...]
     min_ram_bytes:int=0; min_storage_bytes:int=0; gpu_required:bool=False; min_vram_bytes:int=0
     singleton:bool=False; allowed_host_ids:tuple[str,...]=(); denied_host_ids:tuple[str,...]=()
+    allow_interactive_host:bool=False
     def __post_init__(self):
         if not self.workload_id.strip() or not self.version.strip(): raise ValueError("workload identity required")
         if not self.supported_platforms or not self.supported_architectures: raise ValueError("platform and architecture support required")
+        if not isinstance(self.allow_interactive_host,bool): raise TypeError("allow_interactive_host must be boolean")
