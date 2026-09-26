@@ -329,9 +329,14 @@ class HomeAssistantEnvironmentProvider:
             fallback=now,
         )
         configured = self._configuration.location
+        timezone_value = (
+            attrs.get("time_zone")
+            or attrs.get("timezone")
+        )
         timezone_name = (
-            configured.timezone
-            if configured is not None
+            str(timezone_value).strip()
+            if timezone_value is not None
+            and str(timezone_value).strip()
             else None
         )
         subject = (
