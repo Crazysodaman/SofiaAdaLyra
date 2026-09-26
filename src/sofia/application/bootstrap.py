@@ -162,6 +162,22 @@ class SofiaApplication:
                     )
                 except Exception:
                     pass
+
+            worker = getattr(self, "_idle_worker", None)
+            if worker is not None:
+                try:
+                    worker.stop()
+                except Exception:
+                    pass
+                self._idle_worker = None
+
+            if self._runtime.state is RuntimeState.READY:
+                try:
+                    self._runtime.shutdown()
+                except Exception:
+                    pass
+
+            self._presentation_bundle = None
             if control.opened:
                 control.close()
             if conversation_opened:
