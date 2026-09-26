@@ -11,6 +11,7 @@ from sofia.cognition.tools import CognitiveToolBinding
 from .discovery import create_machine_discovery
 from .hardware import HardwareDiscovery,create_hardware_discovery
 from .inventory import MachineInventory
+from .location import MachineLocationRegistry
 from .persistence import MachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
 
@@ -33,15 +34,18 @@ class HardwareInspectionCapability:
 class MachineToolService:
     def __init__(self,state_path:Path)->None:
         self.persistence=MachineInventoryPersistence(state_path.parent/"machine-inventory.json")
+        self.location_registry=MachineLocationRegistry(
+            state_path.parent/"machine-locations.json"
+        )
         try:
             self.inventory=self.persistence.load()
         except FileNotFoundError:
             self.inventory=MachineInventory()
         self.refresher=MachineInventoryRefresher(create_machine_discovery(),create_hardware_discovery())
 
-    @staticmethod
-    def _observation(value)->dict[str,Any]:
+    def _observation(self,value)->dict[str,Any]:
         profile=value.profile
+        location=self.location_registry.get(value.machine_id)
         return {
             "machine_id":value.machine_id,
             "hostname":value.hostname,
@@ -49,6 +53,16 @@ class MachineToolService:
             "observed_at":value.observed_at.isoformat(),
             "verified_at":value.verified_at.isoformat(),
             "source":value.provenance.source_name,
+            "configured_location":(
+                None
+                if location is None
+                else {
+                    "label":location.label,
+                    "timezone":location.timezone,
+                    "source":location.source,
+                    "updated_at":location.updated_at.isoformat(),
+                }
+            ),
             "operating_system":{
                 "family":profile.operating_system.family.value,
                 "name":profile.operating_system.name,
