@@ -319,29 +319,97 @@ class RunLifecycleStore:
         owner_id: str | None = None,
         epoch: int | None = None,
     ) -> RunLifecycleSnapshot:
-        current = self.current()
-        if current.state is RunLifecycleState.FENCED:
-            raise RuntimeError("fenced RUN lifecycle requires explicit operator clear")
-        if current.state in (
-            RunLifecycleState.STOPPED,
-            RunLifecycleState.FAILED,
-        ):
-            return self.transition(
-                expected=current.state,
-                target=RunLifecycleState.STARTING,
-                at=at,
-                detail="startup requested",
-                owner_id=owner_id,
-                epoch=epoch,
+        """Record one process-start boundary atomically.
+
+        A clean terminal state enters STARTING. Any surviving nonterminal state
+        means the previous process did not complete a clean shutdown, so the new
+        process records a fresh RECOVERING generation even when the previous
+        durable state was already RECOVERING. FENCED authority is never cleared
+        implicitly.
+        """
+        moment = _utc(at)
+        owner, lease_epoch = _authority(owner_id, epoch)
+
+        db = self._connect()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                """
+                SELECT state, generation, updated_at, detail, owner_id, epoch
+                FROM run_lifecycle_state WHERE state_key='runtime'
+                """
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("RUN lifecycle state is missing")
+
+            current = self._snapshot(row)
+            if current.state is RunLifecycleState.FENCED:
+                raise RuntimeError(
+                    "fenced RUN lifecycle requires explicit operator clear"
+                )
+
+            if current.state in (
+                RunLifecycleState.STOPPED,
+                RunLifecycleState.FAILED,
+            ):
+                target = RunLifecycleState.STARTING
+                detail = "startup requested"
+            else:
+                target = RunLifecycleState.RECOVERING
+                detail = f"unclean restart from {current.state.value}"
+
+            generation = current.generation + 1
+            changed = db.execute(
+                """
+                UPDATE run_lifecycle_state
+                SET state=?, generation=?, updated_at=?, detail=?,
+                    owner_id=?, epoch=?
+                WHERE state_key='runtime' AND generation=?
+                """,
+                (
+                    target.value,
+                    generation,
+                    moment.isoformat(),
+                    detail,
+                    owner,
+                    lease_epoch,
+                    current.generation,
+                ),
             )
-        return self.transition(
-            expected=current.state,
-            target=RunLifecycleState.RECOVERING,
-            at=at,
-            detail=f"unclean restart from {current.state.value}",
-            owner_id=owner_id,
-            epoch=epoch,
-        )
+            if changed.rowcount != 1:
+                raise RuntimeError("RUN lifecycle changed concurrently")
+
+            db.execute(
+                """
+                INSERT INTO run_lifecycle_events
+                (generation, from_state, to_state, occurred_at, detail,
+                 owner_id, epoch)
+                VALUES (?,?,?,?,?,?,?)
+                """,
+                (
+                    generation,
+                    current.state.value,
+                    target.value,
+                    moment.isoformat(),
+                    detail,
+                    owner,
+                    lease_epoch,
+                ),
+            )
+            db.commit()
+            return RunLifecycleSnapshot(
+                state=target,
+                generation=generation,
+                updated_at=moment,
+                detail=detail,
+                owner_id=owner,
+                epoch=lease_epoch,
+            )
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     def mark_recovering(self, *, at: datetime, detail: str = "startup recovery") -> RunLifecycleSnapshot:
         current = self.current()
