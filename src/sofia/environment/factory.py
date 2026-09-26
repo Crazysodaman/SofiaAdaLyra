@@ -5,6 +5,7 @@ import os
 
 from sofia.config.model import SofiaConfiguration
 from sofia.integrations.home_assistant import HomeAssistantAdapter
+from sofia.integrations.nws import NwsAdapter
 
 from .home_assistant import HomeAssistantEnvironmentProvider
 from .nws import NwsEnvironmentProvider
@@ -67,7 +68,10 @@ def create_environment_service(
                 f"capability {NWS_ENVIRONMENT_CAPABILITY!r}"
             )
         providers.append(
-            NwsEnvironmentProvider(environment)
+            NwsEnvironmentProvider(
+                NwsAdapter(environment.nws_user_agent),
+                environment,
+            )
         )
 
     return EnvironmentService(
