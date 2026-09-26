@@ -344,10 +344,17 @@ class HomeAssistantEnvironmentProvider:
             else None
         )
         subject = (
-            configured.subject
-            if configured is not None
-            else LocationSubject.USER
+            self._configuration.home_assistant_current_location_subject
+            or (
+                configured.subject
+                if configured is not None
+                else None
+            )
         )
+        if subject is None:
+            raise RuntimeError(
+                "Home Assistant current-location subject is unavailable"
+            )
         return LocationObservation(
             label=label,
             source_id=f"home_assistant:{entity_id}",
