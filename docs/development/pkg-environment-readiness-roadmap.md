@@ -183,7 +183,7 @@ A trusted local Home Assistant environment source may be used before general web
 - [ ] Sync project dependencies in the active venv (`python -m pip install -e .`) before Windows acceptance. PKG-ENVIRONMENT adds the declared `tzdata` dependency because Windows does not normally ship an IANA ZoneInfo database.
 - [x] Focused ENVIRONMENT gate passed on Windows 2026-09-26: **79 passed in 216.44s** after dependency sync and the import/provider/location/relevance fixes.
 - [x] Touched regression gate passed on Windows 2026-09-26: **61 passed in 13.91s** (`runtime_clock`, configuration, cognitive context/assembler, emotional conversation integration, default provider boundary).
-- [ ] Execute current-branch full pytest suite and record exact pass/skip/fail counts.
+- [x] Current-branch full pytest suite passed on Windows 2026-09-26. Exact aggregate count was not captured in chat evidence, so no synthetic count is recorded.
 - [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
 - [ ] Direct internet weather/geocoding remains a later separately authorized NET/web stage.
