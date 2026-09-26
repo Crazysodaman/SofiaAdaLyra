@@ -88,7 +88,10 @@ def test_runtime_injects_environment_into_same_cognitive_request(tmp_path):
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="Explain your current environment context sources.",
+                    content=(
+                        "Explain how the current season and daylight relate "
+                        "to your configured location."
+                    ),
                 ),
             ),
         )
@@ -103,6 +106,37 @@ def test_runtime_injects_environment_into_same_cognitive_request(tmp_path):
     assert "Derived season:" in system
     assert "32.5" not in system
     assert "-97.1" not in system
+    app.shutdown()
+
+
+def test_runtime_answers_environment_context_sources_without_llm(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Explain your current environment context sources.",
+                ),
+            ),
+        )
+    )
+
+    assert "Environment context sources:" in response.content
+    assert "Configured area" in response.content
+    assert "config.environment" in response.content
+    assert "Current physical location evidence: unavailable." in response.content
+    assert "32.5" not in response.content
+    assert "-97.1" not in response.content
+    assert provider.requests == []
     app.shutdown()
 
 
