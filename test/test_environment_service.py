@@ -64,6 +64,7 @@ def test_current_provider_location_takes_precedence_over_configured_location():
         latitude=39.7,
         longitude=-104.9,
         observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=13),
     )
     provider = FakeProvider(
         EnvironmentProviderObservation(current_location=current)
@@ -75,6 +76,34 @@ def test_current_provider_location_takes_precedence_over_configured_location():
     assert snapshot.current_location is current
     assert snapshot.effective_location is current
     assert snapshot.timezone == "America/Denver"
+
+
+def test_stale_current_location_falls_back_to_configured_location():
+    stale = LocationObservation(
+        label="Old place",
+        source_id="test.current",
+        subject=LocationSubject.USER,
+        kind=LocationEvidenceKind.CURRENT,
+        timezone="America/Denver",
+        latitude=39.7,
+        longitude=-104.9,
+        observed_at=NOW - timedelta(hours=2),
+        expires_at=NOW - timedelta(hours=1),
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(
+                EnvironmentProviderObservation(
+                    current_location=stale
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.current_location is stale
+    assert snapshot.current_location_freshness is EnvironmentFreshness.STALE
+    assert snapshot.effective_location is snapshot.configured_location
+    assert snapshot.timezone == "America/Chicago"
 
 
 def test_current_weather_is_projected_with_explicit_freshness():
