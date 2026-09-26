@@ -1,7 +1,7 @@
 # PKG-RUN heartbeat and independent watchdog candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows focused acceptance passed **62/62**, surrounding RUN/ACT/Discord regression passed **172/172**, expanded production-RUN regression passed **183/183**, and Sparks reported the full repository pytest suite green on 2026-09-26. Final service-installability hardening requires a fresh focused + full regression before live canary.
+**Status:** candidate; Windows focused acceptance passed **62/62**, surrounding RUN/ACT/Discord regression passed **172/172**, expanded production-RUN regression passed **183/183**, and Sparks reported the full repository pytest suite green on 2026-09-26. Final service-installability hardening passed a fresh **45/45** focused Windows regression. A fresh full repository regression on that final tip remains required before live canary.
 
 This slice separates **process existence**, **readiness**, and **health**.
 
