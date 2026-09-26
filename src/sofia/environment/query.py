@@ -258,7 +258,13 @@ class EnvironmentQueryResolver:
                         "Current location evidence says you're at "
                         f"{current.label}. It was observed at "
                         f"{current.observed_at.isoformat()} from "
-                        f"{current.source_id}."
+                        f"{current.source_id}"
+                        + (
+                            f" with reported precision about "
+                            f"{current.precision_meters:.0f} m."
+                            if current.precision_meters is not None
+                            else "."
+                        )
                     ),
                 )
             configured = snapshot.configured_location
