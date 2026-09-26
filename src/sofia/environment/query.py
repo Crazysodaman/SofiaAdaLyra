@@ -222,8 +222,9 @@ class EnvironmentQueryResolver:
             else:
                 sources.append(
                     "- Configured runtime host location: "
-                    f"{host.label} from {host.source_id}; configuration is "
-                    "not current physical-location proof."
+                    f"{host.label}; timezone={host.timezone}; "
+                    f"source={host.source_id}; configuration is not "
+                    "current physical-location proof."
                 )
 
             current = snapshot.current_location
