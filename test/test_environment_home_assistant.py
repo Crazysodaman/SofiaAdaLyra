@@ -5,6 +5,7 @@ from sofia.environment.config import (
     EnvironmentConfiguration,
 )
 from sofia.environment.home_assistant import HomeAssistantEnvironmentProvider
+from sofia.environment.model import LocationSubject
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 
 
@@ -165,7 +166,33 @@ def test_home_assistant_missing_timestamp_does_not_become_current_location():
         adapter,
         EnvironmentConfiguration(
             home_assistant_current_location_entity="person.sparks",
+            home_assistant_current_location_subject=LocationSubject.USER,
         ),
     )
     assert provider.observe(now=NOW).current_location is None
+
+def test_home_assistant_current_location_preserves_explicit_host_subject():
+    adapter = FakeHomeAssistantAdapter(
+        {
+            "device_tracker.host": {
+                "state": "server-room",
+                "last_updated": "2026-09-25T17:57:00+00:00",
+                "attributes": {
+                    "latitude": 32.5,
+                    "longitude": -97.1,
+                    "time_zone": "America/Chicago",
+                },
+            }
+        }
+    )
+    provider = HomeAssistantEnvironmentProvider(
+        adapter,
+        EnvironmentConfiguration(
+            home_assistant_current_location_entity="device_tracker.host",
+            home_assistant_current_location_subject=LocationSubject.HOST,
+        ),
+    )
+    location = provider.observe(now=NOW).current_location
+    assert location is not None
+    assert location.subject is LocationSubject.HOST
 
