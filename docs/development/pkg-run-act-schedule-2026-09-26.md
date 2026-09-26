@@ -1,7 +1,7 @@
 # RUN → ACT scheduled delivery candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows focused acceptance passed **60/60** and the combined OPS/RUN/ACT/EVOLVE regression gate passed **155/155** on 2026-09-26. Full repository pytest remains required before acceptance.
+**Status:** accepted on the current candidate branch on 2026-09-26. Windows focused acceptance passed **60/60**, the combined OPS/RUN/ACT/EVOLVE regression gate passed **155/155**, and Sparks reported the full repository pytest suite passing. Merge and live-channel activation remain separate gates.
 
 This slice adds a host-invoked `ScheduledActRunner` that scans only the
 canonical INTERACT queued-message table, ignores unbound messages, and hands
