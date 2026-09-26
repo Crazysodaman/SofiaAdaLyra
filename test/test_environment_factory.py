@@ -189,3 +189,16 @@ def test_factory_can_compose_home_assistant_and_nws_together(monkeypatch):
         NwsEnvironmentProvider,
     )
 
+def test_factory_rejects_nws_when_selected_location_is_still_unresolved():
+    environment = EnvironmentConfiguration(
+        nws_enabled=True,
+        nws_location_subject=LocationSubject.HOST,
+    )
+    with pytest.raises(ValueError, match="NWS requires configured coordinates"):
+        create_environment_service(
+            configuration(
+                environment,
+                capabilities=(NWS_ENVIRONMENT_CAPABILITY,),
+            )
+        )
+
