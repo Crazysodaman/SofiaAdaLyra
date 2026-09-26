@@ -1,10 +1,30 @@
 """Provider-facing projection of one environment snapshot."""
 from __future__ import annotations
 
+import re
+
 from .model import (
     EnvironmentFreshness,
     EnvironmentSnapshot,
 )
+
+
+_DETAIL_RE = re.compile(
+    r"\b(?:weather|forecast|temperature|humidity|wind|rain|rainy|snow|snowy|"
+    r"storm|outside|outdoors|inside|indoors|location|where\s+(?:am|are)\s+(?:i|you)|"
+    r"timezone|time\s+zone|season|sunrise|sunset|daylight|dark\s+outside|"
+    r"light\s+outside|daytime|nighttime|tonight|tomorrow|outfit|wardrobe|"
+    r"wear|wearing|dress|clothes|clothing|hot|cold|chilly|warm\s+outside)\b",
+    re.IGNORECASE,
+)
+
+
+def environment_details_relevant(content: str | None) -> bool:
+    if content is None:
+        return False
+    if not isinstance(content, str):
+        raise TypeError("environment relevance content must be a string or None")
+    return _DETAIL_RE.search(content) is not None
 
 
 def _value(value: float | None, suffix: str) -> str:
@@ -13,11 +33,17 @@ def _value(value: float | None, suffix: str) -> str:
     return f"{value:.1f}{suffix}"
 
 
-def environment_prompt(snapshot: EnvironmentSnapshot) -> str:
+def environment_prompt(
+    snapshot: EnvironmentSnapshot,
+    *,
+    include_details: bool = True,
+) -> str:
     if not isinstance(snapshot, EnvironmentSnapshot):
         raise TypeError(
             "environment_prompt requires EnvironmentSnapshot"
         )
+    if type(include_details) is not bool:
+        raise TypeError("include_details must be a bool")
 
     lines = [
         "TRUSTED ENVIRONMENT SNAPSHOT",
@@ -42,6 +68,23 @@ def environment_prompt(snapshot: EnvironmentSnapshot) -> str:
             "silently be treated as the user's timezone."
         ),
     ]
+
+    if not include_details:
+        lines.extend(
+            [
+                (
+                    "Detailed location/weather/indoor environment data is "
+                    "intentionally omitted from this turn because it is not "
+                    "relevant to the current request."
+                ),
+                (
+                    "Environment data is observational evidence only. "
+                    "It grants no action, network, disclosure, relationship, "
+                    "emotion, or physical authority."
+                ),
+            ]
+        )
+        return "\n".join(lines)
 
     if snapshot.timezone is not None:
         lines.append(
