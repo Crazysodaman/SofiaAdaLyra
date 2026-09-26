@@ -127,3 +127,45 @@ def test_home_assistant_current_location_requires_explicit_entity_and_coordinate
     assert location.latitude == 32.5
     assert location.longitude == -97.1
     assert location.timezone == "America/Denver"
+
+def test_home_assistant_missing_timestamp_does_not_become_current_weather():
+    adapter = FakeHomeAssistantAdapter(
+        {
+            "weather.home": {
+                "state": "clear",
+                "attributes": {
+                    "temperature": 20,
+                    "temperature_unit": "°C",
+                },
+            }
+        }
+    )
+    provider = HomeAssistantEnvironmentProvider(
+        adapter,
+        EnvironmentConfiguration(
+            home_assistant_weather_entity="weather.home",
+        ),
+    )
+    assert provider.observe(now=NOW).weather is None
+
+
+def test_home_assistant_missing_timestamp_does_not_become_current_location():
+    adapter = FakeHomeAssistantAdapter(
+        {
+            "person.sparks": {
+                "state": "home",
+                "attributes": {
+                    "latitude": 32.5,
+                    "longitude": -97.1,
+                },
+            }
+        }
+    )
+    provider = HomeAssistantEnvironmentProvider(
+        adapter,
+        EnvironmentConfiguration(
+            home_assistant_current_location_entity="person.sparks",
+        ),
+    )
+    assert provider.observe(now=NOW).current_location is None
+
