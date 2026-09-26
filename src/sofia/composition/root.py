@@ -164,8 +164,13 @@ def compose(
         configuration.state_path
     )
 
+    memory_candidate_store = DurableMemoryCandidateStore(
+        configuration.state_path
+    )
+
     memory_system = MemorySystem(
-        memory_store
+        memory_store,
+        candidate_store=memory_candidate_store,
     )
 
     operational_store = OperationalStore(
