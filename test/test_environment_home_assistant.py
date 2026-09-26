@@ -107,6 +107,7 @@ def test_home_assistant_current_location_requires_explicit_entity_and_coordinate
                 "attributes": {
                     "latitude": 32.5,
                     "longitude": -97.1,
+                    "gps_accuracy": 18,
                     "time_zone": "America/Denver",
                 },
             }
@@ -127,6 +128,7 @@ def test_home_assistant_current_location_requires_explicit_entity_and_coordinate
     assert location.label == "home"
     assert location.latitude == 32.5
     assert location.longitude == -97.1
+    assert location.precision_meters == 18.0
     assert location.timezone == "America/Denver"
 
 def test_home_assistant_missing_timestamp_does_not_become_current_weather():
