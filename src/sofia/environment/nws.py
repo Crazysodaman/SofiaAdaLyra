@@ -436,9 +436,12 @@ class NwsEnvironmentProvider:
         forecast: tuple[ForecastPeriod, ...] = ()
         forecast_url = point_properties.get("forecast")
         if isinstance(forecast_url, str) and forecast_url.strip():
-            forecast = self._forecast_periods(
-                self._client.get(forecast_url)
-            )
+            try:
+                forecast = self._forecast_periods(
+                    self._client.get(forecast_url)
+                )
+            except ServiceHTTPError:
+                forecast = ()
 
         stations_url = point_properties.get(
             "observationStations"
@@ -447,6 +450,7 @@ class NwsEnvironmentProvider:
             return EnvironmentProviderObservation()
 
         stations = self._client.get(stations_url)
+        candidates: list[WeatherObservation] = []
         for station_url in self._station_urls(stations):
             latest_url = (
                 station_url.rstrip("/")
@@ -462,8 +466,21 @@ class NwsEnvironmentProvider:
                 forecast=forecast,
             )
             if weather is not None:
-                return EnvironmentProviderObservation(
-                    weather=weather
-                )
+                candidates.append(weather)
 
-        return EnvironmentProviderObservation()
+        if not candidates:
+            return EnvironmentProviderObservation()
+
+        current = tuple(
+            weather
+            for weather in candidates
+            if weather.freshness(now=now)
+            .value == "current"
+        )
+        selected = max(
+            current or tuple(candidates),
+            key=lambda weather: weather.observed_at,
+        )
+        return EnvironmentProviderObservation(
+            weather=selected
+        )
