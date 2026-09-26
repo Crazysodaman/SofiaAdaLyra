@@ -80,6 +80,7 @@ class LocationObservation:
     latitude: float | None = None
     longitude: float | None = None
     observed_at: datetime | None = None
+    expires_at: datetime | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "label", _text(self.label, "location label"))
@@ -103,8 +104,37 @@ class LocationObservation:
             object.__setattr__(self, "longitude", lon)
         if self.observed_at is not None:
             _aware(self.observed_at, "location observed_at")
-        if self.kind is LocationEvidenceKind.CURRENT and self.observed_at is None:
-            raise ValueError("current location evidence requires observed_at")
+        if self.expires_at is not None:
+            _aware(self.expires_at, "location expires_at")
+        if self.kind is LocationEvidenceKind.CURRENT:
+            if self.observed_at is None or self.expires_at is None:
+                raise ValueError(
+                    "current location evidence requires observed_at and expires_at"
+                )
+            if self.expires_at < self.observed_at:
+                raise ValueError(
+                    "location expires_at precedes observed_at"
+                )
+        elif self.expires_at is not None:
+            raise ValueError(
+                "configured location evidence must not have expires_at"
+            )
+
+    def freshness(
+        self,
+        *,
+        now: datetime,
+    ) -> EnvironmentFreshness:
+        _aware(now, "location freshness time")
+        if self.kind is LocationEvidenceKind.CONFIGURED:
+            return EnvironmentFreshness.UNKNOWN
+        assert self.observed_at is not None
+        assert self.expires_at is not None
+        if self.observed_at > now + timedelta(minutes=5):
+            return EnvironmentFreshness.FUTURE
+        if now <= self.expires_at:
+            return EnvironmentFreshness.CURRENT
+        return EnvironmentFreshness.STALE
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,6 +289,9 @@ class EnvironmentSnapshot:
     timezone: str | None = None
     configured_location: LocationObservation | None = None
     current_location: LocationObservation | None = None
+    current_location_freshness: EnvironmentFreshness = (
+        EnvironmentFreshness.UNKNOWN
+    )
     season: Season | None = None
     daylight: DaylightObservation | None = None
     weather: WeatherObservation | None = None
@@ -293,6 +326,13 @@ class EnvironmentSnapshot:
             and self.current_location.kind is not LocationEvidenceKind.CURRENT
         ):
             raise ValueError("current_location must be current evidence")
+        if not isinstance(
+            self.current_location_freshness,
+            EnvironmentFreshness,
+        ):
+            raise TypeError(
+                "current_location_freshness must be EnvironmentFreshness"
+            )
         if self.season is not None and not isinstance(self.season, Season):
             raise TypeError("season must be Season or None")
         if self.daylight is not None and not isinstance(self.daylight, DaylightObservation):
@@ -312,4 +352,10 @@ class EnvironmentSnapshot:
 
     @property
     def effective_location(self) -> LocationObservation | None:
-        return self.current_location or self.configured_location
+        if (
+            self.current_location is not None
+            and self.current_location_freshness
+            is EnvironmentFreshness.CURRENT
+        ):
+            return self.current_location
+        return self.configured_location
