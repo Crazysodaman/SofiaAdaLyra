@@ -455,14 +455,17 @@ class NwsEnvironmentProvider:
 
         stations = self._client.get(stations_url)
         candidates: list[WeatherObservation] = []
-        for station_url in self._station_urls(stations):
+        last_station_error: ServiceHTTPError | None = None
+        station_urls = self._station_urls(stations)
+        for station_url in station_urls:
             latest_url = (
                 station_url.rstrip("/")
                 + "/observations/latest"
             )
             try:
                 observation = self._client.get(latest_url)
-            except ServiceHTTPError:
+            except ServiceHTTPError as exc:
+                last_station_error = exc
                 continue
             weather = self._weather_from_observation(
                 observation,
@@ -473,6 +476,8 @@ class NwsEnvironmentProvider:
                 candidates.append(weather)
 
         if not candidates:
+            if station_urls and last_station_error is not None:
+                raise last_station_error
             return EnvironmentProviderObservation()
 
         current = tuple(
