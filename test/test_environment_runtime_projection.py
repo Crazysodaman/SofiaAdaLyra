@@ -106,6 +106,59 @@ def test_runtime_injects_environment_into_same_cognitive_request(tmp_path):
     app.shutdown()
 
 
+def test_runtime_answers_direct_location_without_asking_llm(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Where am I?",
+                ),
+            ),
+        )
+    )
+
+    assert "configured location is Configured area" in response.content
+    assert "won't claim you're there right now" in response.content
+    assert provider.requests == []
+    app.shutdown()
+
+
+def test_runtime_answers_direct_weather_unknown_without_inventing_it(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="What's the weather?",
+                ),
+            ),
+        )
+    )
+
+    assert response.content == "I don't have current weather evidence."
+    assert provider.requests == []
+    app.shutdown()
+
+
 def test_runtime_environment_service_is_shared_and_invalidated_across_lifecycle(
     tmp_path,
 ):
