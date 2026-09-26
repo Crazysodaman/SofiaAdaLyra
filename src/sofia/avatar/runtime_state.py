@@ -35,6 +35,8 @@ def _migrate_legacy_bootstrap_colors(
     authority: PresentationAuthority,
     embodiment: Embodiment,
     store: PresentationStore,
+    wardrobe,
+    outfits: dict[str, tuple[str, ...]],
 ) -> PresentationAuthority:
     """Normalize only the original headless bootstrap color encoding.
 
@@ -73,9 +75,9 @@ def _migrate_legacy_bootstrap_colors(
         return authority
 
     migrated = PresentationAuthority(
-        authority._wardrobe,
-        outfits=dict(authority._outfits),
-        canonical_daily_outfit_id=authority._canonical_daily_outfit_id,
+        wardrobe,
+        outfits=outfits,
+        canonical_daily_outfit_id="engineer.signature",
         initial_appearance=AppearanceState(
             hairstyle=current.appearance.hairstyle,
             hair_color=hair_name,
@@ -106,6 +108,8 @@ def load_or_bootstrap_presentation(
             authority=authority,
             embodiment=embodiment,
             store=store,
+            wardrobe=catalog.wardrobe,
+            outfits=outfits,
         )
     else:
         authority = PresentationAuthority(
