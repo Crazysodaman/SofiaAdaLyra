@@ -2,22 +2,25 @@
 
 > **Audit reconciliation — 2026-09-25:** ACT #105, EVOLVE #106 and RUN #107 are merged and passed their Windows package gates plus the reported post-merge full suite. Repository review distinguishes merged package primitives from application wiring/live deployment. Immediate gaps are CORE/INTERACT natural-quality repair, SOCIAL authenticated-principal projection, MEM privacy/recovery, SAFE/CLEAN/VERIFY foundations, ACT/RUN/EVOLVE runtime wiring, and stale legacy draft branches. See [ROADMAP.md](ROADMAP.md) for the authoritative package states and [the full package roadmap](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md) for the reconciled execution order.
 
+> **Architecture update — 2026-09-25:** PKG-ENVIRONMENT is now package #20. Existing live code already supplies tested runtime-clock evidence, but authoritative geographic location, season/daylight, weather/forecast and a shared environment snapshot remain unimplemented.
+
 # Sofía Ada Lyra | master readiness index
 
-**Updated:** 2026-09-25 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster remains **19 packages**; no package #20 is created for the watchdog or replicated databases.
+**Updated:** 2026-09-25 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster is now **20 packages** after adding PKG-ENVIRONMENT; watchdog and replicated-database reliability remain cross-package architecture rather than extra packages.
 
 ## Authoritative planning and acceptance documents
 
-1. [ROADMAP.md](ROADMAP.md): canonical 19-package roster, invariant release order, package ownership and fleet/removal constraints.
-2. [Full roadmap and individual package contracts](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md): expanded 19-package scope, dependencies, current status, proposed deliverables, acceptance criteria, milestones and next engineering order.
+1. [ROADMAP.md](ROADMAP.md): canonical 20-package roster, invariant release order, package ownership and fleet/removal constraints.
+2. [Full roadmap and individual package contracts](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md): expanded 20-package scope, dependencies, current status, proposed deliverables, acceptance criteria, milestones and next engineering order.
 3. [Six reliability gates and state replication](docs/development/pkg-reliability-control-plane-contract.md): recovery, operation ledger, operator stop/approval, resource fairness, failure lab, capability truth, replication/fencing/backup.
 4. [Reliability implementation stages](docs/development/pkg-reliability-implementation-plan.md): recoverable SQLite baseline before any candidate database migration; staged proofs.
 5. [RUN independent watchdog and standby recovery](docs/development/pkg-run-watchdog-failover-contract.md): local supervisor, independent monitor, fenced leader promotion, standby startup, rejoin and failure acceptance.
-6. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
+6. [PKG-ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md): shared time/location/season/daylight/weather state, provenance/freshness, consumer boundaries and staged provider activation.
+7. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
 
 **Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum Sparks-only principal/audience → Discord D0-D4 through NET + UI + SAFE → OPS trusted host telemetry/enrollment → RUN verified supervised 24/7 and applicable recovery/failover → later separately authorized general web/search.
 
-**SAFE + VERIFY are continuous gates.** KNOW/INTEGRATE/REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN can proceed in parallel without bypassing release, privacy or authority gates. Reading local authorized documentation does not grant web browsing. Discord connectivity is not a general web grant.
+**SAFE + VERIFY are continuous gates.** KNOW/INTEGRATE/REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN/ENVIRONMENT can proceed in parallel without bypassing release, privacy or authority gates. ENVIRONMENT's clock/location/timezone/season/daylight foundation is offline-capable; trusted local Home Assistant observations may enter through INTEGRATE. Direct internet weather/geocoding remains behind separate NET/web authorization. Reading local authorized documentation does not grant web browsing. Discord connectivity is not a general web grant.
 
 ## Status definitions
 
@@ -52,6 +55,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 | 15 | CLEAN | Inventory/protected-path preflight draft PR #14 | Recovery-first state preservation, safe cleanup migration and rollback. |
 | 16 | KNOW | **Waves 1–5 plus PDF/manual ingestion, cognition-wired provenance search/document inspection, version-aware identities and bounded document writing merged via PR #104.** | Richer semantic retrieval/citation ranges, audience/privacy integration and live documentation-authoring/upkeep acceptance. |
 | 17 | INTEGRATE | **Waves 1–5 plus concrete runtime adapters merged via PR #104:** Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, storage/NAS, notifications and Discord operator controls. Cloudflare is deferred until Sparks explicitly requests it. | Canary real configured services, prove destination/account scope, health/version behavior and rollback; then complete KNOW→DEV→SAFE/VERIFY→activation proof. |
+| 20 | ENVIRONMENT | **New readiness package.** Tested runtime clock evidence exists and is injected into live conversation; authoritative geographic location, season/daylight, weather/forecast and a shared environment snapshot are not implemented. | Consolidate clock into a provider-neutral environment snapshot; add explicit/configured location + timezone, season/daylight, freshness/provenance and trusted local HA provider support. Direct internet weather waits for separate NET/web authorization. |
 | Gate | SAFE | Authority/integrity foundations; disclosure preflight draft PR #18 | Real identity, secrets, revocation, independent stop, backups/restore, fencing and protected exact-device approvals. |
 | Gate | VERIFY | Active candidate draft PR #8; PR #10 superseded | Current-revision live negative/security and failure tests, integrated suite, restore, latency, RPO/RTO and soak evidence. |
 
@@ -61,7 +65,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 - **Two data locations:** proposed single writer plus synchronous data-bearing standby on independently verified failure domains, a separate quorum/fencing witness and third isolated/versioned backup. SQLite first gets state inventory, safe consistent backups and independent restore; PostgreSQL is only one future candidate after benchmark, migration, and separate activation approval. Synchronous replication does not protect against replicated deletion/corruption.
 - **Watchdog and standby:** local supervisor restarts local process; independent fleet monitor detects host failure; compatible standby supervisor starts a replacement only after exclusive leader fencing and durable-state validation. If exclusivity, quorum or data is uncertain, fail closed rather than boot two leaders. A witness is not a data copy. Two VMs on Artemis are not independent physical failure domains.
 - **Operator authority:** Sparks can independently stop automation, pin hosts/workloads and prohibit reboots. Sofía may quarantine/drain/prepare a machine, but **only Sparks explicitly approves final removal of that exact device and proposal revision**.
-- **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance.
+- **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance. Direct internet weather/geocoding is part of that separately authorized path; trusted local Home Assistant environment observations may be consumed earlier through INTEGRATE/ENVIRONMENT without granting browser/search access.
 
 ## Reconciliation notes
 
@@ -71,7 +75,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 - PR #2 merged on 2026-09-23 after Windows closure evidence: 97 focused, disposable real-Qwen four-turn pass, qualified repository 1665 passed / 2 skipped / 1 unrelated local test deselected, and final 60/60 closure audit.
 - REL PRs #12/#13 overlap; reconcile them before merging both paths.
 - VERIFY PR #8 is active; #10 is superseded/closed.
-- Discord and watchdog/replication are cross-package workstreams, **not twentieth/twenty-first packages**.
+- PKG-ENVIRONMENT is package #20. Discord and watchdog/replication remain cross-package workstreams, **not packages #21/#22**.
 - Runtime SQLite files and logs tracked by Git must be preserved and deliberately migrated under SAFE/CLEAN; never delete state just to tidy Git.
 
 **A roadmap, unit test, mock transport, model statement or documentation-only merge is not proof of 24/7 operation, standby promotion, acknowledged-write RPO 0, or deployed high availability.**

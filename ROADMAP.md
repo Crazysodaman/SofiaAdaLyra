@@ -2,9 +2,11 @@
 
 > **Project status update — 2026-09-25 (late):** PRs #105 (ACT), #106 (EVOLVE), and #107 (RUN local lifecycle) are merged. Their Windows package gates passed **90**, **62**, and **78 passed / 1 skipped** respectively, and Sparks reported the post-merge current-`main` full pytest suite passing. Repository audit at `13046c2` found **299 Python source files**, **246 Python test files**, and **59 Git branches**. The new ACT/RUN/EVOLVE primitives are not yet wired into the normal application/composition path. SOCIAL principal projection remains absent from `CognitiveContext`. Eleven legacy draft PRs were initially open and all were roughly 330 commits behind `main`; obsolete Discord preflight PR #5 has now been closed as superseded by merged/live-accepted PR #64.
 
-# Sofía Ada Lyra: 19-package delivery roadmap
+> **Architecture update — 2026-09-25:** current-code review confirmed tested runtime-clock evidence is already injected into the live conversation path, while authoritative geographic location, season/daylight, weather/forecast and a shared environment snapshot are absent. **PKG-ENVIRONMENT is added as package #20** without renumbering packages 1–19.
 
-**Planning revision:** 2026-09-25 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 (CORE), roadmap reconciliation PR #4, PR #2 (INTERACT), and PR #29 (INTERACT post-merge hardening) are merged. PKG-DISCORD v1 passed supervised live owner-DM transport acceptance and merged to `main` via PR #64 (`ba2111b`). INTERACT remains accepted as the semantic/safety foundation, with a new narrow INTERACT/CORE quality-repair gate opened for generic/canned live dialogue. The roadmap remains **19 packages**; Discord is a cross-package workstream, not package #20.
+# Sofía Ada Lyra: 20-package delivery roadmap
+
+**Planning revision:** 2026-09-25 (America/Chicago). **Status:** roadmap documentation on `main`; package implementation and deployment remain separately gated. PR #1 (CORE), roadmap reconciliation PR #4, PR #2 (INTERACT), and PR #29 (INTERACT post-merge hardening) are merged. PKG-DISCORD v1 passed supervised live owner-DM transport acceptance and merged to `main` via PR #64 (`ba2111b`). INTERACT remains accepted as the semantic/safety foundation, with a new narrow INTERACT/CORE quality-repair gate opened for generic/canned live dialogue. The roadmap now contains **20 packages**. PKG-ENVIRONMENT is package #20; Discord remains a cross-package workstream rather than a separate package.
 
 > **Core invariant:** Sofía's canonical identity, Constitution, represented embodiment, evidence, memory, authority, and capabilities remain independent of replaceable models, hosts, processes, clients, Discord, voices, avatars, and robots. Model output is never proof of authorization, sensing, execution, delivery, or subjective experience.
 
@@ -14,7 +16,7 @@ The primary dependency path is:
 
 **CORE → INTERACT → MEM → SOCIAL minimum identity/audience boundary → Discord D0–D4 using NET + UI + SAFE → OPS minimum fleet telemetry/enrollment → RUN verified 24/7 operation → later separately authorized general web/search.**
 
-After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated.
+After MEM, package work that does not bypass those release gates may proceed in parallel. In particular, OPS may mature fleet diagnostics and trusted enrollment; KNOW may mature local/document knowledge; INTEGRATE may mature typed adapters; REL and ACT may mature absence, initiative, and outreach; AVATAR may continue offline asset work; DEV, BODY, EVOLVE, and CLEAN remain separately gated. **ENVIRONMENT may begin offline clock/location/timezone/season/daylight work now; trusted local Home Assistant observations may feed it through INTEGRATE, while direct internet weather remains behind separate NET/web authorization.**
 
 **SAFE and VERIFY are continuous gates across every stage rather than late sequential packages.**
 
@@ -41,6 +43,7 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 | 15 | **PKG-CLEAN · Maintenance and technical debt** | Evidence-backed cleanup without losing behavior, data, permissions, or recovery | **Needs attention.** Draft PR #14 is stale and not integrated. Current `main` still tracks both root `sofia.db` and `state/sofia.db`; `.gitignore` only excludes lab DBs, which explains recurring local `state/sofia.db` modifications. Root apply/repair scripts and `regression-failure.log` also need evidence-based disposition. First CLEAN delivery should inventory/backup/migrate runtime state, then untrack/ignore live DB artifacts without deleting history or user data. |
 | 16 | **PKG-KNOW · Documents, reference knowledge, and provenance** | Read trusted manuals, PDFs, code/docs, project notes and later approved web material; preserve source/version/provenance, freshness, citations and correction state | **Waves 1–5 plus PDF/manual ingestion, provenance search/document inspection, version-aware document identities and bounded document writing are on `main` via PR #104.** Richer semantic retrieval/citation ranges, privacy/audience integration and live authoring/upkeep acceptance remain. No general web grant. |
 | 17 | **PKG-INTEGRATE · Applications, services, and tool adapters** | Typed integrations to Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, databases/storage, Ollama, notifications and future services; includes governed self-tooling from documentation. **Cloudflare is deferred until Sparks explicitly requests it.** | **Waves 1–5 plus concrete cognition-wired adapters are on `main` via PR #104.** Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, NAS/storage, notifications and Discord operator tooling are repository accepted. Real service canary/health/version/rollback proof and the full KNOW→DEV→SAFE/VERIFY→activation loop remain. |
+| 20 | **PKG-ENVIRONMENT · Time, location, season, weather, and ambient context** | One provenance-aware shared environment snapshot for cognition and package consumers | **New readiness package.** Tested runtime-clock evidence already exists and is projected into live conversation; authoritative geographic location, season/daylight, weather/forecast and a shared environment model are not implemented. Build offline location/timezone/season/daylight first; trusted Home Assistant evidence may enter through INTEGRATE; direct internet weather stays behind separate NET/web authorization. See [ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md). |
 | Gate | **PKG-SAFE · Security, privacy, and recovery** | Authentication/authorization, secrets, privacy, revocation, backup/restore, external stops | Cross-cutting auth/mTLS/replay foundations exist, but there is no integrated `src/sofia/safe` package on `main`; draft PR #18 is stale. Secrets lifecycle, retention/erasure/encryption policy, independently enforced operator stop, consistent backup/restore, anti-rollback/revocation recovery and deployed failure drills remain major work. |
 | Gate | **PKG-VERIFY · Evidence and real acceptance** | Revision-pinned offline/integration/live evidence, negative tests, deployment/latency/long-horizon validation | The repository has extensive pytest coverage, but no integrated `src/sofia/verify` package on `main`, draft PR #8 is stale, and there is currently **no `.github/workflows` CI workflow**. Build a current-main evidence manifest/runner, automate full-suite/static gates in CI, then add restore, resource/latency, authenticated host, outage/failure and soak evidence. |
 
@@ -52,11 +55,20 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 - **Identity/audience:** Discord transport authentication is real, but shared cognition still lacks an authenticated principal/audience projection. This is the immediate SOCIAL blocker for correct person-specific memory, REL, ACT, AVATAR privacy and future multi-user behavior.
 - **Interaction direction:** there is **no discrete “sexual mode.”** Intimacy/attraction/desire/arousal, when modeled, are ordinary contextual emotional/relationship dimensions with independent consent/boundary checks; anatomy or wording never auto-enables them. Whole-body mapping remains useful for semantics, boundaries, avatar fitting and neutral/private-region handling.
 - **Presentation direction:** avatar style, outfit, hairstyle, hair color and tail color are mutable presentation, separate from identity. Current project direction is that emotion may influence presentation but must not control it or override established preferences, privacy, renderer capability or authority.
+- **Environment ownership:** live clock evidence exists; current geographic location and weather do not. PKG-ENVIRONMENT owns the source/freshness-aware environment projection. AVATAR, INTERACT, ACT, RUN, OPS and optional REL/emotion consumers use that shared projection rather than creating competing current-state logic; precise/current location remains SOCIAL/SAFE scoped.
 - **Release ordering preserved:** Discord v1 is complete; general web/search still waits for genuinely verified 24/7 RUN operation. Cloudflare remains deferred until Sparks explicitly requests it.
+
+## PKG-ENVIRONMENT shared context
+
+PKG-ENVIRONMENT is a shared evidence service, not a replacement for NET, INTEGRATE, AVATAR, REL/emotion, ACT or RUN. It owns one provider-neutral, freshness-aware environment snapshot and the rules for calling a field current. The initial implementation can be offline: existing runtime clock, explicit/configured location, timezone, season and daylight. Trusted Home Assistant entities may later enter through INTEGRATE. Direct remote weather/geocoding requires separate NET/web authorization.
+
+Primary consumers are CORE cognition, AVATAR wardrobe/presentation, INTERACT context, RUN refresh/expiry, OPS site/timezone metadata and ACT opt-in environment notices. MEM may preserve approved stable configuration/provenance but may not replay stale weather as current; SOCIAL/SAFE protect precise/current location; VERIFY owns freshness, DST, provider outage, privacy and wrong-source tests. Weather/time/location are context, not authority and not deterministic emotion rules.
+
+See [the PKG-ENVIRONMENT readiness contract](docs/development/pkg-environment-readiness-roadmap.md).
 
 ## Discord channel workstream: D0–D4
 
-Discord is **not a twentieth package**. It spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
+Discord is **not an additional package**. PKG-ENVIRONMENT is package #20; Discord spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
 
 1. **D0 · identity/host design:** exact authenticated Sparks account, bot/application, minimal permissions, secure token handling.
 2. **D1 · receive:** trusted gateway origin, private-DM classification, replay/idempotency, reconnect/backpressure, deny wrong user/server/group traffic.
@@ -257,12 +269,12 @@ General web/search remains a later separately scoped adapter. It may be designed
 2. OPS has real fleet telemetry/enrollment enforcement for the deployment hosts, and
 3. RUN has real supervised 24/7 lifecycle/recovery acceptance.
 
-The search adapter must receive its own destination/tool permissions, privacy rules, provenance, rate limits, and VERIFY evidence. Discord-only NET routes remain narrow.
+The search adapter must receive its own destination/tool permissions, privacy rules, provenance, rate limits, and VERIFY evidence. Discord-only NET routes remain narrow. A direct internet weather/geocoding provider follows the same rule: ENVIRONMENT may define the interface earlier, but gets no implicit browser/search/network grant. Trusted local Home Assistant environment entities remain an INTEGRATE source, not a general-web grant.
 
 ## Repository and documentation cleanup rules
 
 - **PR #1 is merged.** Any document saying it is still open is stale.
-- The authoritative roadmap package count is **19** after adding PKG-KNOW and PKG-INTEGRATE. Historical 13/14/15/16/17-package roadmaps remain in Git history.
+- The authoritative roadmap package count is **20** after adding PKG-ENVIRONMENT as package #20. Existing package numbers 1–19 remain stable; historical 13/14/15/16/17/19-package roadmaps remain in Git history.
 - **PR #2 INTERACT is merged.** Preserve its pinned evidence and limitations; other package branches keep their own test evidence and must not borrow INTERACT counts as if they validate another SHA.
 - REL PRs #12/#13 must be reconciled before integration. VERIFY PR #8 is active; #10 is superseded.
 - Runtime SQLite files/logs currently tracked by the repository require an explicit SAFE/CLEAN preservation and migration decision before removal from version control. Do not delete production state as “cleanup.”
@@ -276,6 +288,7 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 4. **PKG-DISCORD v1 transport is live accepted and merged.** Preserve its fail-closed single-user/private-DM scope; do not hide SOCIAL or personality gaps inside the adapter.
 5. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
 6. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
-7. Only then introduce separately authorized general web/search.
+7. Build PKG-ENVIRONMENT's offline foundation in parallel: consolidate the existing clock, add explicit/configured location + timezone, hemisphere-aware season/daylight and provider-neutral freshness/provenance. Wire AVATAR and other consumers only through the shared snapshot; Home Assistant may be a trusted local source through INTEGRATE.
+8. Only after the existing web gate, activate any separately authorized direct internet weather/geocoding provider and general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.

@@ -4,7 +4,7 @@
 
 # PKG-SOCIAL | deferred scope and readiness roadmap
 
-**2026-09-21 | proposed package in draft PR #4, documentation-only; no SOCIAL implementation branch or active general multi-user release.** The original 13-package roadmap remains on main, while draft PR #4 now contains the reconciled ordered **16-package** proposal including SOCIAL, RUN, and AVATAR. No additional user is enabled by this document.
+**Reconciled 2026-09-25 | SOCIAL remains a minimum-principal implementation gap; no active general multi-user release.** The authoritative roadmap now contains **20 packages**, with PKG-ENVIRONMENT added as package #20. No additional user is enabled by this document.
 
 ## Current one-on-one contract
 
@@ -13,6 +13,7 @@ Sofía is **one canonical identity for Sparks** for the initial rollout. Only th
 ## What may be coded offline now
 
 - Stable typed `principal_id`, channel/session, owner and audience IDs independent of usernames or model prose; conservative default-deny and source-linked provenance for eventual memory, AVATAR props, UI thumbnails, logs and notifications.
+- Treat configured/current location and environment observations from PKG-ENVIRONMENT as audience-scoped data. Precise/current person location defaults private; a machine/site location is not automatically a person's location, and coarse/public projections should disclose no more precision than needed.
 - Fixtures that deny unknown/wrong actor, stale/revoked session, unverified gateway, different room and unauthorized presentation. No fake second-user relationship or public message visibility to satisfy a fixture.
 - Use merged INTERACT as the shared conversation/interaction foundation; review the handoff between trusted adapter/SAFE, MEM, UI/AVATAR and ACT without creating an additional conversation store, emotional identity or authorization gateway.
 
@@ -22,6 +23,6 @@ Enrolling a second principal, relationships and relationship-specific memories, 
 
 ## Testing and decisions
 
-Now: validate *Sparks-only* identity and private audience at the actual Discord D0–D4 and MEM/UI gates; unknown principal stays denied. Later: separate approved scope, architecture, negative isolation and live two-person testing. Do not infer user preference or consent from prior conversations to authorize another person's access.
+Now: validate *Sparks-only* identity and private audience at the actual Discord D0–D4 and MEM/UI gates; unknown principal stays denied. Add negative tests proving ENVIRONMENT cannot leak precise location, home/site metadata or private sensor/weather context across principals/audiences. Later: separate approved scope, architecture, negative isolation and live two-person testing. Do not infer user preference or consent from prior conversations to authorize another person's access.
 
 **Status:** design-only; general multi-user code and tests NOT RUN, no enabled second user, merge or deployment. Search remains after Discord and verified 24/7 RUN.
