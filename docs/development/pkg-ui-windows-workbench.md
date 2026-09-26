@@ -1,8 +1,8 @@
 # PKG-UI Windows workbench slice
 
-**Date:** 2026-09-26. **Branch:** `feature/pkg-ui-windows-workbench`.
-**Baseline:** current `main` at `381ac9a`.
-**Status:** implementation prepared; Windows acceptance not yet run.
+**Date:** 2026-09-26. **Historical branch:** `feature/pkg-ui-windows-workbench`.
+**Baseline:** PR #115 foundation at `381ac9a`.
+**Status:** **accepted and merged to `main` via PR #116 at `7f072861`.** The feature branch is retired/safe to delete after local cleanup because the accepted content is on `main`.
 
 ## Desktop shell
 
@@ -107,7 +107,6 @@ Emotion/environment/avatar regression:
 pytest -q test/test_current_emotional_state.py test/test_emotional_conversation_integration.py test/test_avatar_presentation_routine.py test/test_avatar_wardrobe_routine.py test/test_environment_service.py
 ```
 
-Then run the full repository suite. After automated gates are green, perform one
-supervised Windows launch with `python -m sofia.ui`: verify startup, a normal
-message, Shift+Enter, draft restart recovery, adaptive-theme toggle, shallow chamfered history/composer/Send rendering,
-Quick Tools prompt loading without auto-send, and clean window close.
+Acceptance completed on Windows. Evidence included focused desktop/theme/Quick Tools and AVATAR checks, a **90/90** integration repair gate, supervised live launch/use, and a final full repository `pytest -q` reported passing before PR #116 merged.
+
+The accepted live checks covered startup, normal send, composer clear, current outfit self-fact grounding, adaptive-theme presentation, shallow chamfered history/composer/Send rendering, Quick Tools prompt loading without auto-send, and clean shutdown.
