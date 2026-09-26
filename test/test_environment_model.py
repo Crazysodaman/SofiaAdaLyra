@@ -97,3 +97,24 @@ def test_location_coordinates_are_paired_and_bounded():
             latitude=91.0,
             longitude=0.0,
         )
+
+def test_location_precision_requires_coordinates_and_is_bounded():
+    with pytest.raises(ValueError, match="requires coordinates"):
+        LocationObservation(
+            label="Bad",
+            source_id="test.location",
+            subject=LocationSubject.USER,
+            kind=LocationEvidenceKind.CONFIGURED,
+            precision_meters=25.0,
+        )
+    location = LocationObservation(
+        label="Approximate place",
+        source_id="test.location",
+        subject=LocationSubject.USER,
+        kind=LocationEvidenceKind.CONFIGURED,
+        latitude=32.5,
+        longitude=-97.1,
+        precision_meters=25.0,
+    )
+    assert location.precision_meters == 25.0
+
