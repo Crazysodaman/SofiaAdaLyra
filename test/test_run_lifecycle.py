@@ -117,3 +117,22 @@ def test_unrelated_database_state_is_preserved(state):
     RunLifecycleStore(state).begin_start(at=T0)
     with sqlite3.connect(state) as db:
         assert db.execute("SELECT value FROM preserved").fetchone() == ("yes",)
+
+
+
+def test_unclean_restart_special_case_does_not_weaken_normal_transition_graph(state):
+    store = RunLifecycleStore(state)
+    store.begin_start(at=T0)
+    store.mark_ready(at=T0 + timedelta(seconds=1))
+
+    with pytest.raises(RuntimeError, match="illegal"):
+        store.transition(
+            expected=RunLifecycleState.READY,
+            target=RunLifecycleState.RECOVERING,
+            at=T0 + timedelta(seconds=2),
+            detail="ordinary transition must remain illegal",
+        )
+
+    restarted = store.begin_start(at=T0 + timedelta(seconds=3))
+    assert restarted.state is RunLifecycleState.RECOVERING
+    assert restarted.detail == "unclean restart from ready"
