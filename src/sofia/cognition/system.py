@@ -138,7 +138,10 @@ class CognitiveSystem:
 
         tools = ()
 
-        if self.tool_dispatcher is not None:
+        if (
+            operation.context.request.allow_tools
+            and self.tool_dispatcher is not None
+        ):
             tools = self.tool_dispatcher.definitions_for_authority(
                 operation.authority
             )
@@ -199,6 +202,7 @@ class CognitiveSystem:
             request = CognitiveRequest(
                 messages=tuple(messages),
                 tools=request.tools,
+                allow_tools=request.allow_tools,
             )
 
             response = self._respond_with_engine(request)
