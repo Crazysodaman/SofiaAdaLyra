@@ -5,6 +5,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.environment.config import environment_configuration_from_environ
 
 
 def create_default_configuration() -> SofiaConfiguration:
@@ -119,4 +120,5 @@ def create_default_configuration() -> SofiaConfiguration:
         ),
         filesystem_root=repository_root,
         standing_allowed_capabilities=standing_capabilities,
+        environment=environment_configuration_from_environ(os.environ),
     )
