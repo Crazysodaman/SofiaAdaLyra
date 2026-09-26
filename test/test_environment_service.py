@@ -312,3 +312,17 @@ def test_current_location_for_different_subject_does_not_override_user_config():
     assert snapshot.effective_location is snapshot.configured_location
     assert snapshot.timezone == "America/Chicago"
 
+def test_user_local_time_tracks_dst_transition():
+    service = EnvironmentService(config())
+    before = service.snapshot(
+        now=datetime(2026, 11, 1, 5, 30, tzinfo=timezone.utc),
+    )
+    after = service.snapshot(
+        now=datetime(2026, 11, 1, 7, 30, tzinfo=timezone.utc),
+    )
+    assert before.user_local_time is not None
+    assert after.user_local_time is not None
+    assert before.user_local_time.utcoffset() == timedelta(hours=-5)
+    assert after.user_local_time.utcoffset() == timedelta(hours=-6)
+    assert before.timezone == after.timezone == "America/Chicago"
+
