@@ -21,7 +21,11 @@ from urllib.request import (
 from sofia.integrations.http import ServiceHTTPError
 
 from .config import EnvironmentConfiguration
-from .model import ForecastPeriod, WeatherObservation
+from .model import (
+    EnvironmentFreshness,
+    ForecastPeriod,
+    WeatherObservation,
+)
 from .provider import EnvironmentProviderObservation
 
 
@@ -475,7 +479,7 @@ class NwsEnvironmentProvider:
             weather
             for weather in candidates
             if weather.freshness(now=now)
-            .value == "current"
+            is EnvironmentFreshness.CURRENT
         )
         selected = max(
             current or tuple(candidates),
