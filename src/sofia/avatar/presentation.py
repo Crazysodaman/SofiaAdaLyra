@@ -245,6 +245,10 @@ class PresentationAuthority:
     def pending(self) -> PresentationChange | None:
         return self._pending
 
+    @property
+    def available_outfit_ids(self) -> tuple[str, ...]:
+        return tuple(self._outfits)
+
     def propose_outfit(
         self,
         *,
