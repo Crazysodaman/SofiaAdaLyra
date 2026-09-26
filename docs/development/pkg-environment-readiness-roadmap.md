@@ -184,7 +184,8 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] Focused ENVIRONMENT gate passed on Windows 2026-09-26: **79 passed in 216.44s** after dependency sync and the import/provider/location/relevance fixes.
 - [x] Touched regression gate passed on Windows 2026-09-26: **61 passed in 13.91s** (`runtime_clock`, configuration, cognitive context/assembler, emotional conversation integration, default provider boundary).
 - [x] Current-branch full pytest suite passed on Windows 2026-09-26. Exact aggregate count was not captured in chat evidence, so no synthetic count is recorded.
-- [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior. Initial 2026-09-26 run passed time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, and unrelated database behavior; environment-source provenance was misrouted to workspace context and is being repaired with a deterministic provenance query before final rerun.
+- [x] Targeted provenance regression gate passed on Windows 2026-09-26: **27 passed in 242.18s** across environment query/runtime projection/prompt tests after deterministic provenance routing repair.
+- [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior. Initial 2026-09-26 run passed time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, and unrelated database behavior; environment-source provenance was misrouted to workspace context and has been repaired deterministically. Final live provenance rerun still required.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
 - [ ] Direct internet weather/geocoding remains a later separately authorized NET/web stage.
 
