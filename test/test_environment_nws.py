@@ -52,7 +52,7 @@ def test_nws_url_is_pinned_to_official_api_host():
         == "https://api.weather.gov/points/32.5,-97.1"
     )
     with pytest.raises(ValueError, match="only https://api.weather.gov"):
-        _validated_nws_url("https://example.com/weather")
+        validate_nws_url("https://example.com/weather")
     with pytest.raises(ValueError, match="only https://api.weather.gov"):
         _validated_nws_url("http://api.weather.gov/points/32.5,-97.1")
 
@@ -158,7 +158,7 @@ def test_nws_provider_normalizes_station_weather_and_forecast():
 
 
 def test_nws_provider_can_target_configured_runtime_host_location():
-    client = FakeNwsClient(
+    client = FakeNwsAdapter(
         {
             "/points/32.6000,-97.2000": {
                 "properties": {
