@@ -39,3 +39,7 @@ batch-f-results.json
 # Headless AVATAR presentation state (runtime-generated, private local state)
 /state/avatar-presentation.json
 /state/avatar-presentation.json.tmp
+
+# Persistent machine location state (private local coordinates)
+/state/machine-locations.json
+/state/machine-locations.json.tmp
