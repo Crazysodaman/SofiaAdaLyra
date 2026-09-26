@@ -86,7 +86,13 @@ class SofiaApplication:
         """
         try:
             enabled = _idle_reflections_enabled()
-            self._ui_draft_store.open()
+            ui_draft_store = getattr(
+                self,
+                "_ui_draft_store",
+                None,
+            )
+            if ui_draft_store is not None:
+                ui_draft_store.open()
             self._runtime.start()
             if self._runtime.embodiment is None:
                 raise SofiaApplicationError(
@@ -144,4 +150,10 @@ class SofiaApplication:
         finally:
             self._presentation_bundle = None
             self._conversation_service.close()
-            self._ui_draft_store.close()
+            ui_draft_store = getattr(
+                self,
+                "_ui_draft_store",
+                None,
+            )
+            if ui_draft_store is not None:
+                ui_draft_store.close()
