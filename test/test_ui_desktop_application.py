@@ -41,7 +41,7 @@ def _configuration(tmp_path: Path) -> SofiaConfiguration:
             provider="test",
             model="desktop-test",
         ),
-        filesystem_root=PROJECT_ROOT,
+        filesystem_root=tmp_path,
     )
 
 
