@@ -34,6 +34,10 @@ def _normalize(query: str) -> str:
     return " ".join(query.strip().casefold().split()).rstrip(" ?!.")
 
 
+def _fahrenheit(celsius: float) -> float:
+    return (celsius * 9.0 / 5.0) + 32.0
+
+
 class EnvironmentQueryResolver:
     _TIME_FORMS = frozenset(
         {
@@ -416,11 +420,11 @@ class EnvironmentQueryResolver:
             parts = [weather.condition]
             if weather.temperature_c is not None:
                 parts.append(
-                    f"{weather.temperature_c:.1f} °C"
+                    f"{_fahrenheit(weather.temperature_c):.1f} °F"
                 )
             if weather.feels_like_c is not None:
                 parts.append(
-                    f"feels like {weather.feels_like_c:.1f} °C"
+                    f"feels like {_fahrenheit(weather.feels_like_c):.1f} °F"
                 )
             if weather.humidity_percent is not None:
                 parts.append(
@@ -542,9 +546,9 @@ class EnvironmentQueryResolver:
             for period in weather.forecast[:4]:
                 parts = [period.condition]
                 if period.high_c is not None:
-                    parts.append(f"high {period.high_c:.1f} °C")
+                    parts.append(f"high {_fahrenheit(period.high_c):.1f} °F")
                 if period.low_c is not None:
-                    parts.append(f"low {period.low_c:.1f} °C")
+                    parts.append(f"low {_fahrenheit(period.low_c):.1f} °F")
                 if period.precipitation_probability is not None:
                     parts.append(
                         "precipitation "
@@ -603,7 +607,7 @@ class EnvironmentQueryResolver:
             parts = []
             if indoor.temperature_c is not None:
                 parts.append(
-                    f"temperature {indoor.temperature_c:.1f} °C"
+                    f"temperature {_fahrenheit(indoor.temperature_c):.1f} °F"
                 )
             if indoor.humidity_percent is not None:
                 parts.append(
