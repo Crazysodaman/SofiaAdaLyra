@@ -173,6 +173,63 @@ class ActOutbox:
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
+    def recover_interrupted(self) -> int:
+        """Quarantine attempts that were claimed when the prior process stopped.
+
+        A process loss can happen after transport handoff but before ACT records
+        the sender result. Treat every surviving claimed attempt as uncertain
+        and quarantine its queued message rather than retrying blindly.
+        """
+        when = datetime.now(timezone.utc).isoformat()
+        db = self._connect()
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(
+                """
+                SELECT attempt_id, message_id
+                FROM act_delivery_attempts
+                WHERE status='claimed'
+                ORDER BY claimed_at, attempt_id
+                """
+            ).fetchall()
+            if not rows:
+                db.rollback()
+                return 0
+
+            attempt_ids = [row[0] for row in rows]
+            message_ids = [row[1] for row in rows]
+            attempt_marks = ",".join("?" for _ in attempt_ids)
+            message_marks = ",".join("?" for _ in message_ids)
+
+            db.execute(
+                f"""
+                UPDATE act_delivery_attempts
+                SET status='outcome_unknown',
+                    finished_at=?,
+                    error_type='ProcessRestartDuringSend',
+                    next_retry_at=NULL
+                WHERE attempt_id IN ({attempt_marks})
+                  AND status='claimed'
+                """,
+                (when, *attempt_ids),
+            )
+            db.execute(
+                f"""
+                UPDATE interact_queued_messages
+                SET status='outcome_unknown'
+                WHERE id IN ({message_marks})
+                  AND status='queued'
+                """,
+                message_ids,
+            )
+            db.commit()
+            return len(rows)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     @staticmethod
     def _message_from_row(row: tuple) -> BoundMessage:
         return BoundMessage(

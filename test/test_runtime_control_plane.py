@@ -157,3 +157,63 @@ def test_control_plane_builds_disabled_run_act_scheduler(tmp_path: Path):
 
     assert result.status == "disabled"
     assert sent == []
+
+
+
+def test_open_quarantines_interrupted_act_claims(tmp_path: Path):
+    state = _state(tmp_path)
+    control = RuntimeControlPlane(state_path=state)
+    control.open()
+    journal = control.goal_journal
+    journal.create_goal(
+        goal_id="goal-recovery",
+        source_id="source-recovery",
+        title="Recovery",
+        kind="question",
+        priority=1,
+        at=NOW,
+    )
+    journal.transition(
+        goal_id="goal-recovery",
+        transition_id="transition-recovery",
+        source_id="source-recovery",
+        expected_status="proposed",
+        next_status="active",
+        at=NOW,
+    )
+    queued = journal.queue_message(
+        message_id="message-recovery",
+        goal_id="goal-recovery",
+        evidence_id="source-recovery",
+        content="recovery message",
+        at=NOW,
+        opted_in=True,
+        presence="away",
+        mode="queue_only",
+    )
+    assert queued is not None
+    control.act_outbox.bind(
+        message_id="message-recovery",
+        recipient_id="sparks",
+        channel="test",
+        destination="private",
+        expires_at=NOW.replace(hour=23),
+        at=NOW,
+    )
+    from sofia.act import DeliveryLimits, Policy
+    claim = control.act_outbox.claim(
+        message_id="message-recovery",
+        attempt_id="attempt-recovery",
+        policy=Policy(recipient_id="sparks", enabled=True, quiet_start_utc=23, quiet_end_utc=7),
+        limits=DeliveryLimits(),
+        now=NOW,
+    )
+    assert claim.status == "claimed"
+    control.close()
+
+    reopened = RuntimeControlPlane(state_path=state)
+    reopened.open()
+
+    assert reopened.recovered_act_delivery_claims == 1
+    with pytest.raises(ValueError):
+        reopened.act_outbox.payload(claim.claim)

@@ -68,6 +68,7 @@ class RuntimeControlPlane:
         self._act_outbox: ActOutbox | None = None
         self._run_lease_store: LocalRunLeaseStore | None = None
         self._run_periodic_gate: PeriodicThoughtGate | None = None
+        self._recovered_act_delivery_claims = 0
 
     @property
     def opened(self) -> bool:
@@ -83,6 +84,7 @@ class RuntimeControlPlane:
         # GoalJournal owns the INTERACT queue schema that ACT binds to.
         goal_journal = GoalJournal(self.state_path)
         act_outbox = ActOutbox(self.state_path)
+        recovered_act_delivery_claims = act_outbox.recover_interrupted()
         run_lease_store = LocalRunLeaseStore(self.state_path)
         run_periodic_gate = PeriodicThoughtGate(
             self.state_path,
@@ -91,6 +93,7 @@ class RuntimeControlPlane:
 
         self._goal_journal = goal_journal
         self._act_outbox = act_outbox
+        self._recovered_act_delivery_claims = recovered_act_delivery_claims
         self._run_lease_store = run_lease_store
         self._run_periodic_gate = run_periodic_gate
         self._opened = True
@@ -106,6 +109,11 @@ class RuntimeControlPlane:
     def _require_open(self) -> None:
         if not self._opened:
             raise RuntimeError("runtime control plane is not open")
+
+    @property
+    def recovered_act_delivery_claims(self) -> int:
+        """Number of uncertain ACT claims quarantined during this open."""
+        return self._recovered_act_delivery_claims
 
     @property
     def goal_journal(self) -> GoalJournal:

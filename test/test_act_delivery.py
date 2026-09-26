@@ -369,3 +369,46 @@ def test_delivery_result_validation():
         SendResult(DeliveryOutcome.FAILED, receipt_id="receipt")
     with pytest.raises(ValueError):
         DeliveryLimits(max_attempts_per_message=0)
+
+
+
+def test_recover_interrupted_claim_quarantines_attempt_and_queue(state):
+    outbox = ActOutbox(state)
+    bind(outbox)
+    first = outbox.claim(
+        message_id="m1",
+        attempt_id="a1",
+        policy=enabled_policy(),
+        limits=DeliveryLimits(),
+        now=T0,
+    )
+    assert first.status == "claimed"
+
+    recovered = outbox.recover_interrupted()
+
+    assert recovered == 1
+    assert queue_status(state, "m1") == "outcome_unknown"
+    with sqlite3.connect(state) as db:
+        row = db.execute(
+            """
+            SELECT status, error_type, next_retry_at
+            FROM act_delivery_attempts
+            WHERE attempt_id='a1'
+            """
+        ).fetchone()
+    assert row == ("outcome_unknown", "ProcessRestartDuringSend", None)
+
+
+def test_recover_interrupted_is_idempotent(state):
+    outbox = ActOutbox(state)
+    bind(outbox)
+    outbox.claim(
+        message_id="m1",
+        attempt_id="a1",
+        policy=enabled_policy(),
+        limits=DeliveryLimits(),
+        now=T0,
+    )
+
+    assert outbox.recover_interrupted() == 1
+    assert outbox.recover_interrupted() == 0
