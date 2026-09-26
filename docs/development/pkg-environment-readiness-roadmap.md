@@ -1,6 +1,6 @@
 # PKG-ENVIRONMENT | shared time, location and environmental context
 
-**Added 2026-09-25. Status:** architecture/readiness contract only. A current-code audit confirms that `src/sofia/runtime/clock.py` already provides tested read-only UTC/host-local/timezone evidence and that the live emotional conversation path injects that clock projection into model context. There is **no authoritative geographic-location model, season/daylight service, weather provider, forecast capability, or shared environment snapshot on `main` yet**.
+**Implementation candidate update 2026-09-25. Status:** `feature/pkg-environment` now contains the offline ENV-0/ENV-1 core, provider-neutral snapshot/freshness model, deterministic direct queries, Home Assistant provider bridge, bounded cognition projection, runtime composition, and AVATAR environment adapter. The implementation also requires an explicit standing `environment.home_assistant.read` grant before HA environment reads, does not refresh remote providers on unrelated turns, preserves location subjects/precision, and fails closed on missing provider timestamps. Tests are authored on the branch; this document does **not** claim they have executed or passed until Windows/package/full-suite evidence is recorded. Direct internet weather/geocoding remains intentionally unimplemented behind the later NET/web gate.
 
 PKG-ENVIRONMENT is package **20** in the canonical roadmap. Existing package numbers 1–19 remain unchanged.
 
@@ -165,4 +165,25 @@ ENVIRONMENT may begin **now** with ENV-0/ENV-1 and local provider contracts. It 
 
 A trusted local Home Assistant environment source may be used before general web because it is an INTEGRATE capability, not a browser/search grant. Direct internet weather remains separately authorized.
 
-**This document changes planning ownership only. It does not enable geolocation, weather APIs, background polling, Home Assistant access, network access, or proactive alerts.**
+## Implementation acceptance checklist
+
+- [x] Existing runtime clock consolidated through ENVIRONMENT cognition projection.
+- [x] Typed configured/current location with explicit subject, source, coordinates kept out of model context, optional precision, and freshness.
+- [x] ZoneInfo user/site time and deterministic hemisphere-aware season/daylight.
+- [x] Provider-neutral weather, forecast and indoor observations with TTL/freshness and degraded provider status.
+- [x] Explicit Home Assistant entity mapping and unit normalization.
+- [x] HA current-location subject is explicit/inherited, never guessed as USER.
+- [x] HA observation timestamps are source-backed; missing timestamps never become "now".
+- [x] HA environment reads require explicit standing capability plus credentials.
+- [x] Provider arbitration prefers fresher/newer evidence instead of registration order.
+- [x] Unrelated turns keep the trusted clock but omit detailed environment data and avoid provider refresh.
+- [x] Deterministic direct answers cover time/date, user vs runtime location, timezone, weather, forecast, season, daylight/sunrise/sunset and indoor state.
+- [x] AVATAR can consume the shared season/current-weather snapshot without fetching weather itself.
+- [x] DST, hemisphere/polar daylight, stale/future evidence, provider outage, subject isolation, precision and import-boundary tests are represented in the branch test suite.
+- [ ] Execute focused ENVIRONMENT + touched regression tests on the intended Windows environment.
+- [ ] Execute current-branch full pytest suite and record exact pass/skip/fail counts.
+- [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior.
+- [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
+- [ ] Direct internet weather/geocoding remains a later separately authorized NET/web stage.
+
+**This implementation candidate does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. Home Assistant data is available only when explicitly configured and separately granted.**
