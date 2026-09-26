@@ -70,7 +70,15 @@ def environment_prompt(snapshot: EnvironmentSnapshot) -> str:
         lines.append("Configured user/site location: unknown.")
 
     current = snapshot.current_location
-    if current is not None:
+    lines.append(
+        "Current physical location freshness: "
+        f"{snapshot.current_location_freshness.value}."
+    )
+    if (
+        current is not None
+        and snapshot.current_location_freshness
+        is EnvironmentFreshness.CURRENT
+    ):
         lines.append(
             (
                 f"Current {current.subject.value} location evidence: "
@@ -82,9 +90,16 @@ def environment_prompt(snapshot: EnvironmentSnapshot) -> str:
         lines.append(
             "Coordinates are intentionally withheld from model context."
         )
-    else:
+    elif current is None:
         lines.append(
             "Current physical location evidence: unavailable."
+        )
+    else:
+        lines.append(
+            "Current physical location evidence: unavailable because "
+            f"the available observation is "
+            f"{snapshot.current_location_freshness.value}; do not "
+            "present it as current."
         )
 
     if snapshot.season is not None:
