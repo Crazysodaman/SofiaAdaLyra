@@ -1,7 +1,7 @@
 # PKG-RUN native Windows service host candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows offline acceptance required, followed by supervised SCM canary.
+**Status:** offline accepted on the current candidate branch on 2026-09-26. The combined lifecycle/Windows-service/application/control-plane/supervisor gate passed **49/49** on Windows. Supervised SCM install/reboot/kill/recovery canary remains required before production acceptance.
 
 This slice adds a real Windows Service Control Manager boundary using pywin32.
 It does **not** register or start a service on import.
