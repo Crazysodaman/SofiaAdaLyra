@@ -372,6 +372,11 @@ class EnvironmentSnapshot:
             self.current_location is not None
             and self.current_location_freshness
             is EnvironmentFreshness.CURRENT
+            and (
+                self.configured_location is None
+                or self.current_location.subject
+                is self.configured_location.subject
+            )
         ):
             return self.current_location
         return self.configured_location
