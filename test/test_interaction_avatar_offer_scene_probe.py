@@ -68,6 +68,13 @@ def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_p
     assert 'TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION' in system
     assert '"modality": "offered"' in system
     assert '"actions_executed": false' in system
-    assert 'CONSTITUTION (bounded conversational projection)' in system
-    assert request.tools == ()
+    # Current main exposes authorized cognitive tools to Ollama. Tool exposure
+    # intentionally selects the full verified Constitution rather than the
+    # compact ordinary-conversation projection.
+    assert '\nCONSTITUTION\n' in system
+    assert 'Constitution content:' in system
+    assert request.tools
+    assert 'tool_catalog' in {tool.name for tool in request.tools}
+    assert 'CURRENT AVATAR PRESENTATION' in system
+    assert '"outfit_id": "engineer.signature"' in system
     assert not list(tmp_path.iterdir())  # TemporaryDirectory cleanup succeeded.

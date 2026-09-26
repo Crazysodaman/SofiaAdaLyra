@@ -4,6 +4,12 @@ from importlib.metadata import metadata
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from sofia.avatar.presentation import (
+    AudienceScope,
+    PresentationAuthority,
+    PresentationProjection,
+)
+from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.authority.model import Authority
 from sofia.authorization.model import (
     AuthorizationDecision,
@@ -13,7 +19,7 @@ from sofia.authorization.model import (
 )
 from sofia.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
-from sofia.cognition.model import CognitiveRequest
+from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.model import SofiaConfiguration
@@ -195,7 +201,9 @@ class SofiaRuntime:
         self._personality: PersonalityProfile | None = None
         self._embodiment: Embodiment | None = None
         self._core_state: SofiaCoreState | None = None
+        self._avatar_presentation: PresentationAuthority | None = None
         self._measurement_query_resolver = MeasurementQueryResolver()
+        self._avatar_self_fact_resolver = AvatarSelfFactResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -259,6 +267,26 @@ class SofiaRuntime:
     @property
     def core_state(self) -> SofiaCoreState | None:
         return self._core_state
+
+    @property
+    def avatar_presentation(self) -> PresentationAuthority | None:
+        return self._avatar_presentation
+
+    @property
+    def avatar_presentation_projection(self) -> PresentationProjection | None:
+        """Return only the public-safe projection until SOCIAL supplies audience."""
+        if self._avatar_presentation is None:
+            return None
+        return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+
+    def set_avatar_presentation(self, authority: PresentationAuthority) -> None:
+        if self._state is not RuntimeState.READY:
+            raise SofiaRuntimeError(
+                "Sofía runtime must be READY before attaching AVATAR presentation."
+            )
+        if not isinstance(authority, PresentationAuthority):
+            raise TypeError("avatar presentation must be PresentationAuthority")
+        self._avatar_presentation = authority
 
     @property
     def memory_system(self) -> MemorySystem:
@@ -501,6 +529,22 @@ class SofiaRuntime:
 
         user_content = self._latest_user_content(request)
 
+        presentation = self.avatar_presentation_projection
+        if (
+            user_content
+            and self._embodiment is not None
+            and presentation is not None
+            and self._avatar_presentation is not None
+        ):
+            self_fact = self._avatar_self_fact_resolver.resolve(
+                user_content,
+                embodiment=self._embodiment,
+                presentation=presentation,
+                available_outfit_ids=self._avatar_presentation.available_outfit_ids,
+            )
+            if self_fact.recognized:
+                return CognitiveResponse(content=self_fact.content)
+
         memories = self._memory_system.recall_relevant(
             user_content
         )
@@ -528,6 +572,7 @@ class SofiaRuntime:
                 filesystem_results=filesystem_results,
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
+                avatar_presentation=self.avatar_presentation_projection,
             ),
             authority=Authority(
                 can_inspect_filesystem=(
@@ -683,6 +728,7 @@ class SofiaRuntime:
         self._personality = None
         self._embodiment = None
         self._core_state = None
+        self._avatar_presentation = None
         self._runtime_id = None
         self._started_at = None
         self._runtime_continuity = None

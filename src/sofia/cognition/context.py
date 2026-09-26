@@ -1,5 +1,6 @@
 ﻿from dataclasses import dataclass
 
+from sofia.avatar.presentation import PresentationProjection
 from sofia.cognition.grounding import (
     CognitiveGroundingContract,
     DEFAULT_COGNITIVE_GROUNDING_CONTRACT,
@@ -55,6 +56,7 @@ class CognitiveContext:
     operational_self_model: SofiaOperationalSelfModel | None = None
     system_capability_knowledge: SystemCapabilityKnowledge | None = None
     system_capability_machine_id: str | None = None
+    avatar_presentation: PresentationProjection | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -205,6 +207,15 @@ class CognitiveContext:
             raise TypeError(
                 "CognitiveContext system_capability_knowledge must be "
                 "a SystemCapabilityKnowledge or None."
+            )
+
+        if (
+            self.avatar_presentation is not None
+            and not isinstance(self.avatar_presentation, PresentationProjection)
+        ):
+            raise TypeError(
+                "CognitiveContext avatar_presentation must be a "
+                "PresentationProjection or None."
             )
 
         if self.system_capability_machine_id is not None:

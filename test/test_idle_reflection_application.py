@@ -24,8 +24,11 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     events = []
     runtime = SimpleNamespace(
         personality=object() if personality else None,
+        embodiment=object(),
+        workspace_changes=None,
         start=lambda: events.append("runtime:start"),
         shutdown=lambda: events.append("runtime:shutdown"),
+        set_avatar_presentation=lambda authority: None,
     )
     conversation = SimpleNamespace(
         events=events,
@@ -33,6 +36,15 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         start=lambda *, session_id: events.append("conversation:start"),
         deliver_pending_awareness=lambda: events.append("awareness") or None,
         close=lambda: events.append("conversation:close"),
+    )
+    presentation_bundle = SimpleNamespace(
+        authority=object(),
+        store=SimpleNamespace(save=lambda authority: None),
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "load_or_bootstrap_presentation",
+        lambda *, embodiment, state_path: presentation_bundle,
     )
     app = object.__new__(bootstrap.SofiaApplication)
     app._runtime = runtime

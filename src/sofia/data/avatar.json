@@ -33,10 +33,13 @@
       }
     },
     "appearance": {
+      "hairstyle": "long layered",
       "hair_color": "deep crimson",
       "hair_hex": "#8B1E3F",
       "hair_shadows": "dark wine",
       "hair_undertones": "violet",
+      "tail_color": "dark violet",
+      "tail_hex": "#3A245C",
       "skin_color": "warm ivory",
       "skin_hex": "#F1E9D8",
       "accent_color": "electric teal",
