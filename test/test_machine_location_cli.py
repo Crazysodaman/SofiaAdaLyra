@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import sys
 
 from sofia.machine import location_cli
 from sofia.machine.discovery import MachineDiscoveryResult
@@ -39,7 +40,7 @@ def test_location_cli_set_local_persists_machine_identity(
         lambda: FakeDiscovery(),
     )
     monkeypatch.setattr(
-        location_cli.argparse._sys,
+        sys,
         "argv",
         [
             "location_cli",
