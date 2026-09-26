@@ -1,9 +1,11 @@
 ﻿from pathlib import Path
+import sqlite3
 
 import pytest
 
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.run.lifecycle import RunLifecycleState, RunLifecycleStore
 from sofia.runtime.model import RuntimeState
 
 
@@ -230,3 +232,41 @@ def test_shutdown_closes_runtime_control_plane(
     assert control.opened is False
     with pytest.raises(RuntimeError):
         _ = control.act_outbox
+
+
+
+def test_start_records_ready_run_lifecycle(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    state = tmp_path / "sofia.db"
+    application = SofiaApplication(
+        create_configuration(personality_path, state)
+    )
+
+    application.start()
+
+    assert application.runtime.control_plane.run_lifecycle_store.current().state is RunLifecycleState.READY
+    application.shutdown()
+    assert RunLifecycleStore(state).current().state is RunLifecycleState.STOPPED
+
+
+def test_start_failure_rolls_back_control_plane_and_records_failed(tmp_path: Path):
+    state = tmp_path / "sofia.db"
+    configuration = SofiaConfiguration(
+        constitution_path=str(tmp_path / "missing.md"),
+        constitution_hash_path=str(tmp_path / "missing.sha256"),
+        identity_path=str(tmp_path / "missing.json"),
+        personality_path=str(tmp_path / "missing-personality.json"),
+        avatar_path=str(tmp_path / "missing-avatar.json"),
+        state_path=str(state),
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+    )
+    application = SofiaApplication(configuration)
+
+    with pytest.raises(SofiaApplicationError):
+        application.start()
+
+    assert application.runtime.control_plane.opened is False
+    assert RunLifecycleStore(state).current().state is RunLifecycleState.FAILED

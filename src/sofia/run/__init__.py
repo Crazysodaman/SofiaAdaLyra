@@ -5,6 +5,11 @@ from .act_schedule import (
     ActScheduleTick,
     ScheduledActRunner,
 )
+from .lifecycle import (
+    RunLifecycleSnapshot,
+    RunLifecycleState,
+    RunLifecycleStore,
+)
 from .lease import (
     LeaseResult,
     LocalRunLeaseStore,
@@ -30,6 +35,9 @@ __all__ = [
     "ActSchedulePolicy",
     "ActScheduleTick",
     "ScheduledActRunner",
+    "RunLifecycleSnapshot",
+    "RunLifecycleState",
+    "RunLifecycleStore",
     "LeaseResult",
     "LocalRunLeaseStore",
     "LocalRuntimeSupervisor",

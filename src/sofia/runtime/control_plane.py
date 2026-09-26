@@ -30,6 +30,7 @@ from sofia.interaction.goal_journal import GoalJournal
 from sofia.ops.capability import OpsToolService
 from sofia.run.act_schedule import ActSchedulePolicy, ScheduledActRunner
 from sofia.run.lease import LocalRunLeaseStore
+from sofia.run.lifecycle import RunLifecycleStore
 from sofia.run.periodic import (
     OpportunityPolicy,
     PeriodicThoughtGate,
@@ -67,6 +68,7 @@ class RuntimeControlPlane:
         self._goal_journal: GoalJournal | None = None
         self._act_outbox: ActOutbox | None = None
         self._run_lease_store: LocalRunLeaseStore | None = None
+        self._run_lifecycle_store: RunLifecycleStore | None = None
         self._run_periodic_gate: PeriodicThoughtGate | None = None
         self._recovered_act_delivery_claims = 0
 
@@ -86,6 +88,7 @@ class RuntimeControlPlane:
         act_outbox = ActOutbox(self.state_path)
         recovered_act_delivery_claims = act_outbox.recover_interrupted()
         run_lease_store = LocalRunLeaseStore(self.state_path)
+        run_lifecycle_store = RunLifecycleStore(self.state_path)
         run_periodic_gate = PeriodicThoughtGate(
             self.state_path,
             OpportunityPolicy(),
@@ -95,6 +98,7 @@ class RuntimeControlPlane:
         self._act_outbox = act_outbox
         self._recovered_act_delivery_claims = recovered_act_delivery_claims
         self._run_lease_store = run_lease_store
+        self._run_lifecycle_store = run_lifecycle_store
         self._run_periodic_gate = run_periodic_gate
         self._opened = True
 
@@ -103,6 +107,7 @@ class RuntimeControlPlane:
         self._goal_journal = None
         self._act_outbox = None
         self._run_lease_store = None
+        self._run_lifecycle_store = None
         self._run_periodic_gate = None
         self._opened = False
 
@@ -132,6 +137,12 @@ class RuntimeControlPlane:
         self._require_open()
         assert self._run_lease_store is not None
         return self._run_lease_store
+
+    @property
+    def run_lifecycle_store(self) -> RunLifecycleStore:
+        self._require_open()
+        assert self._run_lifecycle_store is not None
+        return self._run_lifecycle_store
 
     @property
     def run_periodic_gate(self) -> PeriodicThoughtGate:

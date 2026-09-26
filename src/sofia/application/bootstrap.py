@@ -1,6 +1,7 @@
 """Application bootstrap and controlled lifecycle for Sofía."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import os
 
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -17,6 +18,7 @@ from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
+from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
@@ -84,6 +86,15 @@ class SofiaApplication:
         before any optional idle model inference; no background work is claimed
         for periods when this process was not running.
         """
+        if self._runtime.state not in (RuntimeState.CREATED, RuntimeState.STOPPED):
+            raise SofiaApplicationError(
+                "Sofía application can only start from CREATED or STOPPED."
+            )
+
+        control = self._runtime.control_plane
+        lifecycle = None
+        conversation_opened = False
+        ui_opened = False
         try:
             enabled = _idle_reflections_enabled()
             ui_draft_store = getattr(
@@ -93,7 +104,19 @@ class SofiaApplication:
             )
             if ui_draft_store is not None:
                 ui_draft_store.open()
+                ui_opened = True
+
+            # ConversationStore creates the canonical message schema during
+            # application construction, so RUN can open before runtime startup.
+            control.open()
+            lifecycle = control.run_lifecycle_store
+            lifecycle.begin_start(at=datetime.now(timezone.utc))
+
             self._runtime.start()
+            lifecycle.mark_recovering(
+                at=datetime.now(timezone.utc),
+                detail="runtime core started; reconciling application state",
+            )
             if self._runtime.embodiment is None:
                 raise SofiaApplicationError(
                     "AVATAR presentation requires canonical embodiment."
@@ -109,7 +132,7 @@ class SofiaApplication:
             # The unfiltered snapshot stays preserved in the observation store.
             normalize_runtime_workspace_awareness(self._runtime)
             self._conversation_service.open()
-            self._runtime.control_plane.open()
+            conversation_opened = True
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
             if enabled and self._runtime.personality is not None:
@@ -121,6 +144,8 @@ class SofiaApplication:
                 )
                 worker.start()
                 self._idle_worker = worker
+
+            lifecycle.mark_ready(at=datetime.now(timezone.utc))
             return response
         except (
             SofiaRuntimeError,
@@ -129,27 +154,81 @@ class SofiaApplication:
             TypeError,
             ValueError,
         ) as exc:
+            if lifecycle is not None:
+                try:
+                    lifecycle.mark_failed(
+                        at=datetime.now(timezone.utc),
+                        detail=f"startup failed: {type(exc).__name__}",
+                    )
+                except Exception:
+                    pass
+            if control.opened:
+                control.close()
+            if conversation_opened:
+                try:
+                    self._conversation_service.close()
+                except Exception:
+                    pass
+            if ui_opened:
+                ui_draft_store = getattr(self, "_ui_draft_store", None)
+                if ui_draft_store is not None:
+                    try:
+                        ui_draft_store.close()
+                    except Exception:
+                        pass
             raise SofiaApplicationError("Sofía application failed to start.") from exc
 
     def shutdown(self) -> None:
-        """Stop idle inference *before* closing the shared cognitive runtime."""
+        """Drain background work, stop the runtime, and persist RUN lifecycle."""
+        if self._runtime.state is not RuntimeState.READY:
+            raise SofiaApplicationError(
+                "Sofía application can only shut down from READY."
+            )
+
+        control = self._runtime.control_plane
+        lifecycle = (
+            control.run_lifecycle_store
+            if control.opened
+            else None
+        )
+        if lifecycle is not None:
+            lifecycle.begin_drain(at=datetime.now(timezone.utc))
+
         worker = getattr(self, "_idle_worker", None)
         if worker is not None:
             try:
                 worker.stop()
             except RuntimeError as exc:
-                # Do not shut down a runtime while its model request may be live.
+                if lifecycle is not None:
+                    lifecycle.mark_failed(
+                        at=datetime.now(timezone.utc),
+                        detail="idle reflection did not stop safely",
+                    )
                 raise SofiaApplicationError("Idle reflection has not stopped safely.") from exc
             self._idle_worker = None
+
         try:
+            if lifecycle is not None:
+                lifecycle.begin_stop(at=datetime.now(timezone.utc))
             bundle = getattr(self, "_presentation_bundle", None)
             if bundle is not None:
                 bundle.store.save(bundle.authority)
-            self._runtime.control_plane.close()
             self._runtime.shutdown()
+            if lifecycle is not None:
+                lifecycle.mark_stopped(at=datetime.now(timezone.utc))
         except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
+            if lifecycle is not None:
+                try:
+                    lifecycle.mark_failed(
+                        at=datetime.now(timezone.utc),
+                        detail=f"shutdown failed: {type(exc).__name__}",
+                    )
+                except Exception:
+                    pass
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
+            if control.opened:
+                control.close()
             self._presentation_bundle = None
             self._conversation_service.close()
             ui_draft_store = getattr(
