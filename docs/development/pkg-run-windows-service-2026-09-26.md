@@ -86,3 +86,18 @@ Measured evidence:
 This proves live external crash recovery through the independent watchdog. Stale-heartbeat/hang recovery, fenced-stop behavior, reboot recovery and longer soak remain open.
 
 
+## Live canary evidence — stale-heartbeat recovery
+
+A controlled canary kept the Sofía service present while forcing the durable heartbeat for the active session stale. The independent watchdog detected `health_state=stale` and recorded a live `service_restart` action at `2026-09-26T22:57:17.797087+00:00`. The runtime transitioned through `STOPPED → STARTING → RECOVERING → READY`, returned on a new process ID and a new heartbeat session, and the watchdog process remained independently running throughout.
+
+Measured evidence:
+
+- old runtime PID: `24672`,
+- replacement runtime PID: `13388`,
+- watchdog PID remained `10608`,
+- stale-evidence detection/restart path recorded by the watchdog ledger,
+- stale-heartbeat injection to durable READY RTO: approximately **37.1 seconds**.
+
+This proves live independent watchdog recovery for a stale-heartbeat/hang-style failure. FENCED-stop behavior, reboot recovery and longer soak remain open.
+
+
