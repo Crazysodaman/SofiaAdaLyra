@@ -58,6 +58,14 @@ General internet/search is deliberately **not** part of the initial Discord NET 
 - **Environment ownership:** live clock evidence exists; current geographic location and weather do not. PKG-ENVIRONMENT owns the source/freshness-aware environment projection. AVATAR, INTERACT, ACT, RUN, OPS and optional REL/emotion consumers use that shared projection rather than creating competing current-state logic; precise/current location remains SOCIAL/SAFE scoped.
 - **Release ordering preserved:** Discord v1 is complete; general web/search still waits for genuinely verified 24/7 RUN operation. Cloudflare remains deferred until Sparks explicitly requests it.
 
+## PKG-ENVIRONMENT shared context
+
+PKG-ENVIRONMENT is a shared evidence service, not a replacement for NET, INTEGRATE, AVATAR, REL/emotion, ACT or RUN. It owns one provider-neutral, freshness-aware environment snapshot and the rules for calling a field current. The initial implementation can be offline: existing runtime clock, explicit/configured location, timezone, season and daylight. Trusted Home Assistant entities may later enter through INTEGRATE. Direct remote weather/geocoding requires separate NET/web authorization.
+
+Primary consumers are CORE cognition, AVATAR wardrobe/presentation, INTERACT context, RUN refresh/expiry, OPS site/timezone metadata and ACT opt-in environment notices. MEM may preserve approved stable configuration/provenance but may not replay stale weather as current; SOCIAL/SAFE protect precise/current location; VERIFY owns freshness, DST, provider outage, privacy and wrong-source tests. Weather/time/location are context, not authority and not deterministic emotion rules.
+
+See [the PKG-ENVIRONMENT readiness contract](docs/development/pkg-environment-readiness-roadmap.md).
+
 ## Discord channel workstream: D0–D4
 
 Discord is **not an additional package**. PKG-ENVIRONMENT is package #20; Discord spans INTERACT, SOCIAL-minimum, NET, UI, SAFE, MEM, ACT, RUN, and VERIFY.
@@ -261,12 +269,12 @@ General web/search remains a later separately scoped adapter. It may be designed
 2. OPS has real fleet telemetry/enrollment enforcement for the deployment hosts, and
 3. RUN has real supervised 24/7 lifecycle/recovery acceptance.
 
-The search adapter must receive its own destination/tool permissions, privacy rules, provenance, rate limits, and VERIFY evidence. Discord-only NET routes remain narrow.
+The search adapter must receive its own destination/tool permissions, privacy rules, provenance, rate limits, and VERIFY evidence. Discord-only NET routes remain narrow. A direct internet weather/geocoding provider follows the same rule: ENVIRONMENT may define the interface earlier, but gets no implicit browser/search/network grant. Trusted local Home Assistant environment entities remain an INTEGRATE source, not a general-web grant.
 
 ## Repository and documentation cleanup rules
 
 - **PR #1 is merged.** Any document saying it is still open is stale.
-- The authoritative roadmap package count is **19** after adding PKG-KNOW and PKG-INTEGRATE. Historical 13/14/15/16/17-package roadmaps remain in Git history.
+- The authoritative roadmap package count is **20** after adding PKG-ENVIRONMENT as package #20. Existing package numbers 1–19 remain stable; historical 13/14/15/16/17/19-package roadmaps remain in Git history.
 - **PR #2 INTERACT is merged.** Preserve its pinned evidence and limitations; other package branches keep their own test evidence and must not borrow INTERACT counts as if they validate another SHA.
 - REL PRs #12/#13 must be reconciled before integration. VERIFY PR #8 is active; #10 is superseded.
 - Runtime SQLite files/logs currently tracked by the repository require an explicit SAFE/CLEAN preservation and migration decision before removal from version control. Do not delete production state as “cleanup.”
@@ -280,6 +288,7 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 4. **PKG-DISCORD v1 transport is live accepted and merged.** Preserve its fail-closed single-user/private-DM scope; do not hide SOCIAL or personality gaps inside the adapter.
 5. Establish OPS fleet telemetry, trusted autonomous enrollment, lifecycle upkeep, and workload orchestration for deployment hosts.
 6. Deploy and verify RUN 24/7 lifecycle/recovery and failover using OPS placement/migration evidence.
-7. Only then introduce separately authorized general web/search.
+7. Build PKG-ENVIRONMENT's offline foundation in parallel: consolidate the existing clock, add explicit/configured location + timezone, hemisphere-aware season/daylight and provider-neutral freshness/provenance. Wire AVATAR and other consumers only through the shared snapshot; Home Assistant may be a trusted local source through INTEGRATE.
+8. Only after the existing web gate, activate any separately authorized direct internet weather/geocoding provider and general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.
