@@ -127,7 +127,8 @@ def test_current_weather_includes_source_and_observation_time():
     prompt = environment_prompt(snapshot)
     assert "Weather freshness: current." in prompt
     assert "Current weather condition: clear." in prompt
-    assert "Outdoor temperature: 25.0 C." in prompt
+    assert "Outdoor temperature: 77.0 F." in prompt
+    assert "Outdoor temperature: 25.0 C." not in prompt
     assert "Weather source: test.weather" in prompt
 
 def test_prompt_can_emit_clock_only_for_unrelated_turns():
