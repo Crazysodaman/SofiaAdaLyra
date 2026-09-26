@@ -50,7 +50,10 @@ def test_factory_requires_ha_credentials_when_ha_entities_are_enabled(
             configuration(
                 EnvironmentConfiguration(
                     home_assistant_weather_entity="weather.home",
-                )
+                ),
+                capabilities=(
+                    HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
+                ),
             )
         )
 
@@ -81,6 +84,7 @@ def test_factory_attaches_ha_provider_without_contacting_network(
         service.providers[0],
         HomeAssistantEnvironmentProvider,
     )
+
 
 def test_factory_rejects_ha_environment_without_explicit_standing_grant(
     monkeypatch,
