@@ -285,3 +285,30 @@ def test_snapshot_without_refresh_does_not_contact_unobserved_provider():
     assert provider.calls == 0
     assert snapshot.weather is None
 
+def test_current_location_for_different_subject_does_not_override_user_config():
+    host = LocationObservation(
+        label="Runtime host",
+        source_id="test.host",
+        subject=LocationSubject.HOST,
+        kind=LocationEvidenceKind.CURRENT,
+        timezone="America/Denver",
+        latitude=39.7,
+        longitude=-104.9,
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=13),
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(
+                EnvironmentProviderObservation(
+                    current_location=host,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.current_location is host
+    assert snapshot.current_location_freshness is EnvironmentFreshness.CURRENT
+    assert snapshot.effective_location is snapshot.configured_location
+    assert snapshot.timezone == "America/Chicago"
+
