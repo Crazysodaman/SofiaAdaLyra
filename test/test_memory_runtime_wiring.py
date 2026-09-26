@@ -1,7 +1,15 @@
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from sofia.cognition.engine import CognitiveEngine
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.composition.root import compose
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.memory.model import MemoryRecord
@@ -168,3 +176,115 @@ def test_composition_enables_reviewed_memory_for_runtime(
         runtime.memory_system.candidate_store,
         DurableMemoryCandidateStore,
     )
+
+
+class _RecordingEngine(CognitiveEngine):
+    def __init__(self) -> None:
+        self.last_request: CognitiveRequest | None = None
+
+    def respond(
+        self,
+        request: CognitiveRequest,
+    ) -> CognitiveResponse:
+        self.last_request = request
+        return CognitiveResponse(content="recorded")
+
+
+def _write_runtime_files(
+    configuration: SofiaConfiguration,
+) -> None:
+    configuration.constitution_path.write_text(
+        "# Constitution\n",
+        encoding="utf-8",
+    )
+    digest = hashlib.sha256(
+        configuration.constitution_path.read_bytes()
+    ).hexdigest().upper()
+    configuration.constitution_hash_path.write_text(
+        digest,
+        encoding="utf-8",
+    )
+    configuration.identity_path.write_text(
+        '{"name": "Sofía Ada Lyra"}',
+        encoding="utf-8",
+    )
+    configuration.personality_path.write_text(
+        (
+            '{"name": "Sofía Ada Lyra", '
+            '"traits": ["rigorous"], '
+            '"communication_style": "direct"}'
+        ),
+        encoding="utf-8",
+    )
+    configuration.avatar_path.write_text(
+        (
+            '{"subject": "Sofía Ada Lyra", '
+            '"physical_self": {'
+            '"form": "human", '
+            '"additional_features": [], '
+            '"measurements": {}, '
+            '"appearance": {}, '
+            '"anatomy": {}'
+            '}, '
+            '"available": {'
+            '"computers": [], '
+            '"robots": [], '
+            '"avatars": []'
+            '}, '
+            '"current": {'
+            '"computer": null, '
+            '"robot": null, '
+            '"avatar": null'
+            '}}'
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_runtime_respond_projects_promoted_not_legacy_memory(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    runtime.memory_system.remember(
+        MemoryRecord(
+            id="legacy-memory",
+            content="Legacy model trains memory must not enter cognition.",
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+    candidate = _candidate(
+        "Promoted model trains memory reaches cognition."
+    )
+    candidate_store = runtime.memory_system.candidate_store
+    assert candidate_store is not None
+    candidate_store.propose(candidate)
+    candidate_store.promote(candidate.candidate_id)
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+
+    runtime.start()
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Tell me about model trains.",
+                ),
+            )
+        )
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert candidate.content in assembled
+    assert "Legacy model trains memory" not in assembled
+
+    runtime.shutdown()
