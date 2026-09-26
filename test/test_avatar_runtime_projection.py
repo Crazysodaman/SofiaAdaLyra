@@ -130,7 +130,7 @@ def test_private_nude_state_restores_but_public_cognition_gets_daily_fallback(tm
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="What are you wearing?",
+                    content="Explain how your presentation state reaches cognition.",
                 ),
             ),
         )
@@ -168,7 +168,7 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="What outfit do you have on?",
+                    content="Discuss your current presentation grounding.",
                 ),
             ),
         )
@@ -178,4 +178,30 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
     assert "CURRENT AVATAR PRESENTATION" in system
     assert "overrides static canonical clothing design as a CURRENT-WEAR fact" in system
     assert '"outfit_id": "lounge.relaxed"' in system
+    app.shutdown()
+
+
+def test_direct_current_self_fact_bypasses_provider_and_uses_typed_state(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="What color is your hair?",
+                ),
+            ),
+        )
+    )
+
+    assert response.content == "My hair is deep crimson, currently styled long layered."
+    assert provider.requests == ()
     app.shutdown()
