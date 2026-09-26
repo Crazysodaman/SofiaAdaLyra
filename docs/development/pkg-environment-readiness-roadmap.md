@@ -196,7 +196,7 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] Post-NWS full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
 - [x] Initial supervised live NWS canary passed on Windows 2026-09-26 using an explicit temporary HOST override: runtime location answered as configured-not-current, current weather came from `nws:KGKY`, bounded forecast returned NWS periods, and provenance withheld coordinates/credentials.
 - [x] Final persistence-focused Windows gate passed 2026-09-26: **96 passed in 257.76s** across durable machine-location registry/CLI/inventory projection, persistent HOST injection, ENV config/NWS/factory/model/service/Home Assistant/query/prompt/runtime projection, and import-boundary tests.
-- [ ] Final remaining merge gate: rerun full repository `pytest -q` at the current persistence-enabled branch head.
+- [x] Final persistence-enabled full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
 - [ ] General web/search and arbitrary geocoding remain a later separately authorized NET/web stage.
 
 **The accepted PR #110 offline implementation does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. The NWS extension branch adds only the separately authorized narrow `api.weather.gov` route when `SOFIA_ENVIRONMENT_NWS_ENABLED` and `environment.nws.read` are both present. Home Assistant remains separately configured/granted.**
