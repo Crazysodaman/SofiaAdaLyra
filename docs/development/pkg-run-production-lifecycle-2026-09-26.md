@@ -1,7 +1,7 @@
 # PKG-RUN production lifecycle state candidate
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows acceptance required.
+**Status:** offline accepted on the current candidate branch on 2026-09-26. The combined lifecycle/Windows-service/application/control-plane/supervisor gate passed **49/49** on Windows. Broader integration, full-suite, SCM canary, watchdog and soak remain separate gates.
 
 This slice introduces one durable local RUN lifecycle truth:
 
