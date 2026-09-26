@@ -41,6 +41,14 @@ The snapshot preserves current state and last daily public fallback separately. 
 
 Application startup loads or bootstraps this state and attaches it to the runtime. Shutdown saves the settled state.
 
+### Deterministic direct self-facts
+
+Direct questions about current outfit, hair color, tail color, current look, representational form/avatar, and the reviewed tonight-outfit candidate are resolved from typed AVATAR/embodiment state **before LLM inference**.
+
+This exists because supervised Qwen testing showed that provider-visible grounding alone was not sufficient: the model repeatedly denied the canonical representational body and clothing despite receiving the correct state.
+
+The deterministic route is intentionally narrow. Unrelated style discussion and open-ended conversation still go through cognition. This prevents the model from overruling authoritative self-facts without turning AVATAR into a general canned-response engine.
+
 ### Current cognition grounding
 
 The runtime projects a trusted `CURRENT AVATAR PRESENTATION` section into cognition.
