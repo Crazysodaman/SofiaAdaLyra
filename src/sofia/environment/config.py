@@ -183,19 +183,6 @@ class EnvironmentConfiguration:
             "nws_user_agent",
             self.nws_user_agent.strip(),
         )
-        if self.nws_enabled:
-            location = self.configured_location_for(
-                self.nws_location_subject
-            )
-            if (
-                location is None
-                or location.latitude is None
-                or location.longitude is None
-            ):
-                raise ValueError(
-                    "NWS requires configured coordinates for its selected "
-                    "location subject"
-                )
 
     def configured_location_for(
         self,
