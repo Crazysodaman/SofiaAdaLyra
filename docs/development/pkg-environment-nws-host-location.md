@@ -1,6 +1,6 @@
 # PKG-ENVIRONMENT | NWS weather and runtime-host location
 
-**Status:** implementation candidate on `feature/pkg-environment-nws-host-location`. Do not treat this document as acceptance evidence until the Windows focused/full-suite and supervised live canary gates pass.
+**Status:** accepted on `main` via PR #111 (`2b753fdb`) on 2026-09-26. Acceptance evidence: **85 focused tests**, a reported green full suite, supervised live NWS/HOST canary against `nws:KGKY`, **96 persistence-focused tests**, and a final reported green full suite.
 
 ## Purpose
 
@@ -59,7 +59,7 @@ Environment configuration is loaded when Sofía starts, so restart the Sofía pr
 
 For testing/emergency override only, process-local `SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL/TIMEZONE/LATITUDE/LONGITUDE` variables still work and take precedence over the persistent machine record.
 
-This candidate does not infer location from hostname, IP address, network range, or account metadata. A later OPS/RUN fleet layer may replicate/manage this same machine configuration across hosts.
+The accepted implementation does not infer location from hostname, IP address, network range, or account metadata. A later OPS/RUN fleet layer may replicate/manage this same machine configuration across hosts.
 
 ## NWS weather
 
