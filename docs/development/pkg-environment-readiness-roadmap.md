@@ -115,13 +115,16 @@ Each optional field must preserve its own source and observation time. Missing/s
 
 ### ENV-3 | direct weather/forecast provider
 
-This stage waits for the separately authorized general-web/network gate unless an already-approved narrow provider route is explicitly granted earlier.
+A narrow NWS provider route was explicitly authorized by Sparks on 2026-09-26 without opening the general web/search gate. The implementation candidate is scoped to HTTPS `api.weather.gov` and the explicit standing capability `environment.nws.read`.
 
-- Current conditions, feels-like, precipitation, wind, humidity and bounded forecast.
-- Exact destination allowlist, credentials handling, timeout/retry/rate limits, cache TTL and provider attribution.
+- Current station conditions, feels-like, precipitation, wind, humidity and bounded forecast.
+- Exact destination/redirect pinning to `api.weather.gov`, required NWS User-Agent, timeout, existing ENVIRONMENT cache TTL and provider attribution.
+- Configurable weather target subject: USER, SITE, or HOST, using only explicitly configured coordinates.
+- Independent configured HOST/server location so runtime location never overwrites Sparks' USER/home location.
 - No arbitrary browsing/search capability bundled with the weather client.
+- NWS alerts remain a later ACT/ENVIRONMENT extension; this slice does not send proactive alerts.
 
-**Exit:** live provider test at a pinned revision plus wrong-destination, expired/stale, outage, credential and revocation negatives.
+**Exit:** focused provider/config/query/import tests, full-suite pass, and supervised live NWS canary at a pinned revision; wrong-destination, stale/outage, capability-denial and USER-vs-HOST isolation must fail safely.
 
 ### ENV-4 | shared cognition and package consumers
 
@@ -188,6 +191,7 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] Targeted provenance regression gate passed on Windows 2026-09-26: **27 passed in 242.18s** across environment query/runtime projection/prompt tests after deterministic provenance routing repair.
 - [x] Supervised live Ollama gate passed on Windows 2026-09-26: time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, unrelated-prompt behavior, and deterministic environment-source provenance all behaved as intended. Provenance remained bounded and did not expose coordinates or provider credentials.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
-- [ ] Direct internet weather/geocoding remains a later separately authorized NET/web stage.
+- [ ] Narrow NWS weather/forecast extension candidate: host/user location separation, `environment.nws.read`, HTTPS `api.weather.gov` pinning, station weather and bounded forecast are implemented on `feature/pkg-environment-nws-host-location`; Windows focused/full-suite and supervised live canary evidence remain required before merge.
+- [ ] General web/search and arbitrary geocoding remain a later separately authorized NET/web stage.
 
-**This accepted offline implementation does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. Home Assistant data is available only when explicitly configured and separately granted.**
+**The accepted PR #110 offline implementation does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. The NWS extension branch adds only the separately authorized narrow `api.weather.gov` route when `SOFIA_ENVIRONMENT_NWS_ENABLED` and `environment.nws.read` are both present. Home Assistant remains separately configured/granted.**
