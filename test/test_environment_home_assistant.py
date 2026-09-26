@@ -106,6 +106,7 @@ def test_home_assistant_current_location_requires_explicit_entity_and_coordinate
                 "attributes": {
                     "latitude": 32.5,
                     "longitude": -97.1,
+                    "time_zone": "America/Denver",
                 },
             }
         }
@@ -125,4 +126,4 @@ def test_home_assistant_current_location_requires_explicit_entity_and_coordinate
     assert location.label == "home"
     assert location.latitude == 32.5
     assert location.longitude == -97.1
-    assert location.timezone == "America/Chicago"
+    assert location.timezone == "America/Denver"
