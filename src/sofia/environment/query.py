@@ -207,13 +207,23 @@ class EnvironmentQueryResolver:
             ]
             configured = snapshot.configured_location
             if configured is None:
-                sources.append("- Configured location: unavailable.")
+                sources.append("- Configured user/site location: unavailable.")
             else:
                 sources.append(
-                    "- Configured location: "
+                    "- Configured user/site location: "
                     f"{configured.label} ({configured.subject.value}) "
                     f"from {configured.source_id}; configuration is not "
                     "current physical-location proof."
+                )
+
+            host = snapshot.host_location
+            if host is None:
+                sources.append("- Configured runtime host location: unavailable.")
+            else:
+                sources.append(
+                    "- Configured runtime host location: "
+                    f"{host.label} from {host.source_id}; configuration is "
+                    "not current physical-location proof."
                 )
 
             current = snapshot.current_location
@@ -450,12 +460,16 @@ class EnvironmentQueryResolver:
                         f"{current.source_id}."
                     ),
                 )
-            configured = snapshot.configured_location
-            if (
-                configured is not None
-                and configured.subject
-                in {LocationSubject.HOST, LocationSubject.SITE}
-            ):
+            configured = snapshot.host_location
+            if configured is None:
+                candidate = snapshot.configured_location
+                if (
+                    candidate is not None
+                    and candidate.subject
+                    in {LocationSubject.HOST, LocationSubject.SITE}
+                ):
+                    configured = candidate
+            if configured is not None:
                 return EnvironmentQueryAnswer(
                     True,
                     (
