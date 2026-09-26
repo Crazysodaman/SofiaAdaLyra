@@ -54,12 +54,19 @@ class UIDraftStore:
             raise TypeError("database_path must be a path")
         self._path = Path(database_path)
         self._lock = RLock()
-        self._connection: sqlite3.Connection | None = sqlite3.connect(
-            str(self._path),
-            timeout=5.0,
-            check_same_thread=False,
-        )
-        self._initialize()
+        self._connection: sqlite3.Connection | None = None
+        self.open()
+
+    def open(self) -> None:
+        with self._lock:
+            if self._connection is not None:
+                return
+            self._connection = sqlite3.connect(
+                str(self._path),
+                timeout=5.0,
+                check_same_thread=False,
+            )
+            self._initialize()
 
     def _initialize(self) -> None:
         connection = self._require_connection()
