@@ -34,3 +34,8 @@ batch-f-results.json
 # Generated virtual lab world state (do not silently commit private runtime state)
 /state/*-lab.db
 /state/*-lab.db-*
+
+
+# Headless AVATAR presentation state (runtime-generated, private local state)
+/state/avatar-presentation.json
+/state/avatar-presentation.json.tmp
