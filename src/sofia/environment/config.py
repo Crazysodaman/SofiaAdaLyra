@@ -69,6 +69,7 @@ class EnvironmentConfiguration:
     refresh_seconds: int = 300
     weather_max_age_seconds: int = 1800
     indoor_max_age_seconds: int = 900
+    current_location_max_age_seconds: int = 900
     home_assistant_weather_entity: str | None = None
     home_assistant_indoor_temperature_entity: str | None = None
     home_assistant_indoor_humidity_entity: str | None = None
@@ -86,6 +87,7 @@ class EnvironmentConfiguration:
             "refresh_seconds",
             "weather_max_age_seconds",
             "indoor_max_age_seconds",
+            "current_location_max_age_seconds",
         ):
             value = getattr(self, name)
             if (
@@ -198,6 +200,11 @@ def environment_configuration_from_environ(
         indoor_max_age_seconds=_positive_int(
             env,
             "SOFIA_ENVIRONMENT_INDOOR_MAX_AGE_SECONDS",
+            900,
+        ),
+        current_location_max_age_seconds=_positive_int(
+            env,
+            "SOFIA_ENVIRONMENT_CURRENT_LOCATION_MAX_AGE_SECONDS",
             900,
         ),
         home_assistant_weather_entity=optional(
