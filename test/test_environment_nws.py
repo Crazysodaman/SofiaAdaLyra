@@ -4,16 +4,14 @@ import pytest
 
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
 from sofia.environment.model import LocationSubject
-from sofia.environment.nws import (
-    NwsEnvironmentProvider,
-    _validated_nws_url,
-)
+from sofia.environment.nws import NwsEnvironmentProvider
+from sofia.integrations.nws import NwsAdapter, validate_nws_url
 
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)
 
 
-class FakeNwsClient:
+class FakeNwsAdapter(NwsAdapter):
     def __init__(self, documents):
         self.documents = documents
         self.requests = []
@@ -50,7 +48,7 @@ def configuration(*, subject=LocationSubject.USER):
 
 def test_nws_url_is_pinned_to_official_api_host():
     assert (
-        _validated_nws_url("/points/32.5,-97.1")
+        validate_nws_url("/points/32.5,-97.1")
         == "https://api.weather.gov/points/32.5,-97.1"
     )
     with pytest.raises(ValueError, match="only https://api.weather.gov"):
@@ -60,7 +58,7 @@ def test_nws_url_is_pinned_to_official_api_host():
 
 
 def test_nws_provider_normalizes_station_weather_and_forecast():
-    client = FakeNwsClient(
+    client = FakeNwsAdapter(
         {
             "/points/32.5000,-97.1000": {
                 "properties": {
@@ -135,8 +133,8 @@ def test_nws_provider_normalizes_station_weather_and_forecast():
     )
 
     provider = NwsEnvironmentProvider(
+        client,
         configuration(),
-        client=client,
     )
     observation = provider.observe(now=NOW)
     weather = observation.weather
@@ -190,8 +188,8 @@ def test_nws_provider_can_target_configured_runtime_host_location():
     )
 
     provider = NwsEnvironmentProvider(
+        client,
         configuration(subject=LocationSubject.HOST),
-        client=client,
     )
     weather = provider.observe(now=NOW).weather
 
@@ -248,8 +246,8 @@ def test_nws_provider_prefers_current_station_over_stale_nearest_station():
     )
 
     weather = NwsEnvironmentProvider(
+        client,
         configuration(),
-        client=client,
     ).observe(now=NOW).weather
 
     assert weather is not None
