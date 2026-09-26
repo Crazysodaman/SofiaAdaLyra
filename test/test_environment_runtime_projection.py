@@ -88,7 +88,7 @@ def test_runtime_injects_environment_into_same_cognitive_request(tmp_path):
             messages=(
                 CognitiveMessage(
                     role=CognitiveRole.USER,
-                    content="Explain your current context sources.",
+                    content="Explain your current environment context sources.",
                 ),
             ),
         )
@@ -168,3 +168,31 @@ def test_runtime_environment_service_is_shared_and_invalidated_across_lifecycle(
     assert app.runtime.environment_service is service
     app.shutdown()
     assert app.runtime.environment_service is service
+
+def test_runtime_omits_detailed_environment_from_unrelated_llm_turn(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+    app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Explain a database transaction.",
+                ),
+            ),
+        )
+    )
+
+    system = provider.requests[0].messages[0].content
+    assert "TRUSTED RUNTIME CLOCK" in system
+    assert "Detailed location/weather/indoor environment data is intentionally omitted" in system
+    assert "Configured area" not in system
+    app.shutdown()
+
