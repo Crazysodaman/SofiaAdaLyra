@@ -122,7 +122,8 @@ def environment_prompt(
         lines.append(
             (
                 "Configured runtime host location: "
-                f"{host.label} (source={host.source_id})."
+                f"{host.label}; timezone={host.timezone}; "
+                f"source={host.source_id}."
             )
         )
         lines.append(
