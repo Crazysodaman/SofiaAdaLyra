@@ -1,4 +1,5 @@
-﻿import hashlib
+﻿from dataclasses import replace
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,9 @@ def create_configuration(
             model="test-model",
         ),
         filesystem_root=tmp_path,
+        standing_allowed_capabilities=(
+            "codebase.inspect",
+        ),
     )
 
     constitution_content = "# Constitution\n"
