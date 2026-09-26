@@ -1,5 +1,12 @@
 """Discord channel boundaries. Importing this package starts no live client."""
 
+from sofia.discord.act_sender import (
+    DiscordActAttempt,
+    DiscordActChunk,
+    DiscordActChunkState,
+    DiscordActDeliveryStore,
+    DiscordActSafeSender,
+)
 from sofia.discord.access import (
     AccessDecision,
     Denial,
@@ -63,6 +70,11 @@ from sofia.discord.store import (
 )
 
 __all__ = (
+    "DiscordActAttempt",
+    "DiscordActChunk",
+    "DiscordActChunkState",
+    "DiscordActDeliveryStore",
+    "DiscordActSafeSender",
     "AccessDecision",
     "Denial",
     "DiscordInboundFacts",
