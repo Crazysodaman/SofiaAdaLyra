@@ -1,7 +1,7 @@
 # ACT → live Discord event-loop handoff
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate; Windows acceptance required.
+**Status:** candidate; Windows focused acceptance passed **40/40** and the broader OPS/RUN/ACT/EVOLVE + Discord integration gate passed **188/188** on 2026-09-26. Full repository pytest remains required before acceptance.
 
 This slice attaches the already accepted proactive ACT Discord sender to the
 verified `discord.py` event loop without giving ACT ownership of the async
