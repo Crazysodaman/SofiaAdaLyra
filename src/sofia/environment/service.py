@@ -149,7 +149,20 @@ class EnvironmentService:
             if indoor is None and observation.indoor is not None:
                 indoor = observation.indoor
 
-        effective_location = current_location or configured_location
+        current_location_freshness = (
+            current_location.freshness(now=current_utc)
+            if current_location is not None
+            else EnvironmentFreshness.UNKNOWN
+        )
+        effective_location = (
+            current_location
+            if (
+                current_location is not None
+                and current_location_freshness
+                is EnvironmentFreshness.CURRENT
+            )
+            else configured_location
+        )
         timezone_name = (
             effective_location.timezone
             if effective_location is not None
@@ -211,6 +224,7 @@ class EnvironmentService:
             timezone=timezone_name,
             configured_location=configured_location,
             current_location=current_location,
+            current_location_freshness=current_location_freshness,
             season=season,
             daylight=daylight,
             weather=weather,
