@@ -75,6 +75,26 @@ class EnvironmentQueryResolver:
             "do you know where i am",
         }
     )
+    _SOFIA_LOCATION_FORMS = frozenset(
+        {
+            "where are you",
+            "what is your location",
+            "what's your location",
+            "what is your current location",
+            "what's your current location",
+            "do you know where you are",
+        }
+    )
+    _TIMEZONE_FORMS = frozenset(
+        {
+            "what is my timezone",
+            "what's my timezone",
+            "what timezone am i in",
+            "what time zone am i in",
+            "what timezone are you using",
+            "what time zone are you using",
+        }
+    )
     _SEASON_FORMS = frozenset(
         {
             "what season is it",
@@ -104,6 +124,8 @@ class EnvironmentQueryResolver:
             | cls._DATE_FORMS
             | cls._WEATHER_FORMS
             | cls._LOCATION_FORMS
+            | cls._SOFIA_LOCATION_FORMS
+            | cls._TIMEZONE_FORMS
             | cls._SEASON_FORMS
             | cls._DAYLIGHT_FORMS
         )
@@ -243,6 +265,60 @@ class EnvironmentQueryResolver:
                     + ", ".join(parts)
                     + f". Observed at {weather.observed_at.isoformat()} "
                     f"from {weather.source_id}."
+                ),
+            )
+
+        if normalized in self._SOFIA_LOCATION_FORMS:
+            current = snapshot.current_location
+            if (
+                current is not None
+                and snapshot.current_location_freshness
+                is EnvironmentFreshness.CURRENT
+                and current.subject
+                in {LocationSubject.HOST, LocationSubject.SITE}
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    (
+                        "Current runtime/site location evidence says "
+                        f"{current.label}. It was observed at "
+                        f"{current.observed_at.isoformat()} from "
+                        f"{current.source_id}."
+                    ),
+                )
+            configured = snapshot.configured_location
+            if (
+                configured is not None
+                and configured.subject
+                in {LocationSubject.HOST, LocationSubject.SITE}
+            ):
+                return EnvironmentQueryAnswer(
+                    True,
+                    (
+                        "The configured runtime/site location is "
+                        f"{configured.label}. That configuration is not "
+                        "proof the running host is physically there now."
+                    ),
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                (
+                    "I don't have current geographic-location evidence "
+                    "for the runtime host/site."
+                ),
+            )
+
+        if normalized in self._TIMEZONE_FORMS:
+            if snapshot.timezone is None:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I don't have an evidenced user/site timezone.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                (
+                    "The configured/evidenced user-site timezone is "
+                    f"{snapshot.timezone}."
                 ),
             )
 
