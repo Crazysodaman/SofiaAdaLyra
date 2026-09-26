@@ -10,6 +10,7 @@ from sofia.ui.delivery import (
     PresentationChannel,
     PresentationStatus,
 )
+from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.drafts import UIDraft, UIDraftStore
 from sofia.ui.text import UITextClient, UITextMessage
 from sofia.ui.workbench import (
@@ -27,6 +28,7 @@ from sofia.ui.workbench import (
 __all__ = [
     "AccessDenied",
     "ConflictError",
+    "DesktopWorkbenchController",
     "Entry",
     "EntryKind",
     "EntryStatus",
