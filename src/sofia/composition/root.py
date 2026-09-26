@@ -260,8 +260,34 @@ def compose(
         if runtime is None:
             return False
 
+        if request.capability.name == "codebase.inspect":
+            if (
+                request.capability.name
+                not in configuration.standing_allowed_capabilities
+            ):
+                return False
+
+            requested_scope = request.requested_scope
+
+            if requested_scope is None:
+                return True
+
+            if not isinstance(requested_scope, Path):
+                return False
+
+            try:
+                return (
+                    requested_scope.resolve()
+                    == filesystem_root.resolve()
+                )
+            except (OSError, RuntimeError):
+                return False
+
         if request.capability.name != "filesystem.inspect":
-            return request.capability.name in configuration.standing_allowed_capabilities
+            return (
+                request.capability.name
+                in configuration.standing_allowed_capabilities
+            )
 
         authorization = runtime.filesystem_authorization
 
