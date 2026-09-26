@@ -57,10 +57,10 @@ class EnvironmentService:
                 )
         self._providers = providers
         self._provider_observations: dict[
-            str,
+            int,
             EnvironmentProviderObservation,
         ] = {}
-        self._provider_refreshed_at: dict[str, datetime] = {}
+        self._provider_refreshed_at: dict[int, datetime] = {}
         self._provider_errors: dict[str, str] = {}
 
     @property
@@ -96,33 +96,34 @@ class EnvironmentService:
         now: datetime,
     ) -> EnvironmentProviderObservation | None:
         name = provider.name
-        refreshed = self._provider_refreshed_at.get(name)
+        cache_key = id(provider)
+        refreshed = self._provider_refreshed_at.get(cache_key)
         if (
             refreshed is not None
-            and name in self._provider_observations
+            and cache_key in self._provider_observations
             and now
             < refreshed
             + timedelta(
                 seconds=self.configuration.refresh_seconds
             )
         ):
-            return self._provider_observations[name]
+            return self._provider_observations[cache_key]
 
         try:
             observation = provider.observe(now=now)
         except Exception as exc:
             self._provider_errors[name] = type(exc).__name__
-            return self._provider_observations.get(name)
+            return self._provider_observations.get(cache_key)
 
         if not isinstance(
             observation,
             EnvironmentProviderObservation,
         ):
             self._provider_errors[name] = "InvalidObservation"
-            return self._provider_observations.get(name)
+            return self._provider_observations.get(cache_key)
 
-        self._provider_observations[name] = observation
-        self._provider_refreshed_at[name] = now
+        self._provider_observations[cache_key] = observation
+        self._provider_refreshed_at[cache_key] = now
         self._provider_errors.pop(name, None)
         return observation
 
