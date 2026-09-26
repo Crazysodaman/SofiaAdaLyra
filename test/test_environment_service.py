@@ -78,6 +78,36 @@ def test_current_provider_location_takes_precedence_over_configured_location():
     assert snapshot.timezone == "America/Denver"
 
 
+def test_fresh_mobile_location_without_timezone_does_not_reuse_home_timezone():
+    current = LocationObservation(
+        label="Current mobile place",
+        source_id="test.current",
+        subject=LocationSubject.USER,
+        kind=LocationEvidenceKind.CURRENT,
+        timezone=None,
+        latitude=39.7,
+        longitude=-104.9,
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=13),
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(
+                EnvironmentProviderObservation(
+                    current_location=current
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.current_location_freshness is EnvironmentFreshness.CURRENT
+    assert snapshot.effective_location is current
+    assert snapshot.timezone is None
+    assert snapshot.user_local_time is None
+    assert snapshot.season is None
+    assert snapshot.daylight is None
+
+
 def test_stale_current_location_falls_back_to_configured_location():
     stale = LocationObservation(
         label="Old place",
