@@ -27,7 +27,7 @@ permission grant is created by this module.
 ## Targeted gate
 
 ```powershell
-pytest -q test/test_discord_act_sender.py test/test_run_act_schedule.py test/test_act_delivery.py test/test_discord_delivery.py test/test_discord_outbound.py
+pytest -q test/test_discord_act_sender.py test/test_run_act_schedule.py test/test_act_delivery.py test/test_discord_delivery.py test/test_discord_outbound_gate.py
 ```
 
 Then rerun the combined OPS/RUN/ACT/EVOLVE package gate and the full repository
