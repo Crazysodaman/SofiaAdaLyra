@@ -182,7 +182,7 @@ A trusted local Home Assistant environment source may be used before general web
 - [x] DST, hemisphere/polar daylight, stale/future evidence, provider outage, subject isolation, precision and import-boundary tests are represented in the branch test suite.
 - [ ] Sync project dependencies in the active venv (`python -m pip install -e .`) before Windows acceptance. PKG-ENVIRONMENT adds the declared `tzdata` dependency because Windows does not normally ship an IANA ZoneInfo database.
 - [x] Focused ENVIRONMENT gate passed on Windows 2026-09-26: **79 passed in 216.44s** after dependency sync and the import/provider/location/relevance fixes.
-- [ ] Execute touched regression tests on the intended Windows environment.
+- [x] Touched regression gate passed on Windows 2026-09-26: **61 passed in 13.91s** (`runtime_clock`, configuration, cognitive context/assembler, emotional conversation integration, default provider boundary).
 - [ ] Execute current-branch full pytest suite and record exact pass/skip/fail counts.
 - [ ] Supervised live Ollama checks for direct environment answers and relevant/unrelated prompt behavior.
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
