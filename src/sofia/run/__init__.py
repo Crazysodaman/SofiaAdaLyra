@@ -1,5 +1,10 @@
 """PKG-RUN: local lifecycle, singleton fencing, and bounded background opportunities."""
 
+from .act_schedule import (
+    ActSchedulePolicy,
+    ActScheduleTick,
+    ScheduledActRunner,
+)
 from .lease import (
     LeaseResult,
     LocalRunLeaseStore,
@@ -22,6 +27,9 @@ from .supervisor import (
 )
 
 __all__ = [
+    "ActSchedulePolicy",
+    "ActScheduleTick",
+    "ScheduledActRunner",
     "LeaseResult",
     "LocalRunLeaseStore",
     "LocalRuntimeSupervisor",

@@ -13,10 +13,12 @@ from typing import Callable
 from sofia.act.delivery import (
     ActDeliveryRunner,
     ActOutbox,
+    BoundMessage,
     DeliveryLimits,
     DeliveryPayload,
     SendResult,
 )
+from sofia.act.outreach import Policy
 from sofia.evolve.approval import ApprovalVerifier
 from sofia.evolve.executor import ProtectedAmendmentExecutor, ProtectedPaths
 from sofia.evolve.revision import (
@@ -26,6 +28,7 @@ from sofia.evolve.revision import (
 )
 from sofia.interaction.goal_journal import GoalJournal
 from sofia.ops.capability import OpsToolService
+from sofia.run.act_schedule import ActSchedulePolicy, ScheduledActRunner
 from sofia.run.lease import LocalRunLeaseStore
 from sofia.run.periodic import (
     OpportunityPolicy,
@@ -142,6 +145,27 @@ class RuntimeControlPlane:
             else PeriodicThoughtGate(self.state_path, policy)
         )
         return PeriodicThoughtRunner(gate, reflect_one)
+
+    def create_scheduled_delivery_runner(
+        self,
+        sender: Callable[[DeliveryPayload], SendResult],
+        *,
+        policy_for: Callable[[BoundMessage], Policy | None],
+        attempt_id_for: Callable[[BoundMessage], str],
+        schedule: ActSchedulePolicy = ActSchedulePolicy(),
+        limits: DeliveryLimits = DeliveryLimits(),
+    ) -> ScheduledActRunner:
+        """Create the host-invoked RUN→ACT scheduler; disabled by default."""
+        self._require_open()
+        return ScheduledActRunner(
+            journal=self.goal_journal,
+            outbox=self.act_outbox,
+            sender=sender,
+            policy_for=policy_for,
+            attempt_id_for=attempt_id_for,
+            schedule=schedule,
+            limits=limits,
+        )
 
     def create_delivery_runner(
         self,
