@@ -81,6 +81,7 @@ class CognitiveContextAssembler:
         return CognitiveRequest(
             messages=messages,
             tools=tools,
+            allow_tools=context.request.allow_tools,
         )
 
     def _build_system_context(
