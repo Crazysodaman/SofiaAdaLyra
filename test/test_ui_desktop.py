@@ -1,7 +1,12 @@
 import importlib
 import sys
 
-from sofia.ui.desktop import _chamfer_points, _format_exception_chain, main
+from sofia.ui.desktop import (
+    _TkDesktopWorkbench,
+    _chamfer_points,
+    _format_exception_chain,
+    main,
+)
 
 
 def test_desktop_module_import_does_not_eagerly_import_tkinter():
@@ -58,3 +63,43 @@ def test_chamfer_points_clamp_for_small_controls():
     assert min(points) >= 0
     assert max(points[0::2]) <= 12
     assert max(points[1::2]) <= 8
+
+
+class _FakeText:
+    def __init__(self):
+        self.state = "disabled"
+        self.content = "old text"
+        self.modified = True
+
+    def cget(self, key):
+        assert key == "state"
+        return self.state
+
+    def configure(self, **kwargs):
+        if "state" in kwargs:
+            self.state = kwargs["state"]
+
+    def edit_modified(self, value):
+        self.modified = value
+
+    def delete(self, start, end):
+        assert start == "1.0"
+        assert end == "end"
+        if self.state != "disabled":
+            self.content = ""
+
+    def insert(self, start, content):
+        assert start == "1.0"
+        if self.state != "disabled":
+            self.content = content
+
+
+def test_replace_input_clears_disabled_composer_and_restores_state():
+    fake = type("WorkbenchStub", (), {})()
+    fake._input = _FakeText()
+
+    _TkDesktopWorkbench._replace_input(fake, "")
+
+    assert fake._input.content == ""
+    assert fake._input.state == "disabled"
+    assert fake._input.modified is False
