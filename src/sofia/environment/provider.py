@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 
 from .model import (
     IndoorEnvironmentObservation,
+    LocationEvidenceKind,
     LocationObservation,
     WeatherObservation,
 )
@@ -37,6 +38,14 @@ class EnvironmentProviderObservation:
         ):
             raise TypeError(
                 "current_location must be LocationObservation or None"
+            )
+        if (
+            self.current_location is not None
+            and self.current_location.kind
+            is not LocationEvidenceKind.CURRENT
+        ):
+            raise ValueError(
+                "provider current_location must be current evidence"
             )
 
 
