@@ -2,7 +2,7 @@
 
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
-**Revision:** 2026-09-22 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication or automatic failover. This document expands the authoritative [ROADMAP.md](../../ROADMAP.md), the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
+**Revision:** 2026-09-25 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative [ROADMAP.md](../../ROADMAP.md), the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
 
 ## Project promise and nonnegotiable boundaries
 
@@ -26,11 +26,11 @@ Only Sparks can explicitly authorize the **final irreversible removal/decommissi
 | M5 | Durable work, fairness, capability truth | Durable operation/outbox ledger and outcome-unknown reconciliation, operator pins/no-reboot/approval, verified capability registry, measured background backoff and host-resource reservations. |
 | M6 | Replicated state and runtime failover, if approved | Two independent data-bearing locations with one writer and selected measured durability policy; independent election/fencing, standby supervisor, isolated third backup, partition/stale-primary tests, measured RPO/RTO and actual real-host recovery. Do not claim HA before this. |
 | M7 | Verified 24/7 and autonomous operations | Soak test at a pinned revision; crash/restart/UPS/maintenance/reconnect results; bounded actions, safe rollback and proactive non-spam notifications. General web/search gate may be considered **only after** Discord, OPS and RUN acceptance. |
-| M8 | Parallel enhancements and later web | ACT, REL, AVATAR, DEV, KNOW, INTEGRATE, BODY, EVOLVE, CLEAN and UI maturity gated individually; later web/search has separate privacy, destination, provenance and grant controls. |
+| M8 | Parallel enhancements and later web | ACT, REL, AVATAR, DEV, KNOW, INTEGRATE, BODY, EVOLVE, CLEAN, ENVIRONMENT and UI maturity gated individually; ENVIRONMENT's offline clock/location/timezone/season/daylight work may precede later web, while direct internet weather/search keeps separate privacy, destination, provenance and grant controls. |
 
 M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediately: first verify existing SQLite backups and cross-store consistency; compare migration costs and only adopt a replication-capable backend after test evidence and separate activation approval. Local 24/7 uptime and true multi-host HA are **different claims**. A watchdog is a detector; only an authorized supervisor/executor can start an instance, and only a fenced exclusive leader can become authoritative.
 
-## Per-package roadmap: 19 packages
+## Per-package roadmap: 20 packages
 
 ### 01. PKG-CORE | cognition, identity, continuity
 
@@ -50,7 +50,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 - **Current:** SQLite memory foundations on `main`; read-only original-retrieval candidate draft PR #9. Full provenance/privacy/restart acceptance remains.
 - **Build:** immutable originals, derived memories, correction/retraction, retrieval provenance and expiry, relationship/audience isolation, migration/archive import and consistent storage/restore across all authoritative stores. Inventory SQLite, journals, flat files, grants, outbox and audit before replication; avoid assuming `sofia.db` holds everything. Use supported consistent backup, never live-file mirroring.
-- **Depends on:** CORE, SOCIAL/SAFE; RUN/OPS for durability and failure-domain placement; VERIFY for restore and leak tests.
+- **Depends on:** CORE, SOCIAL/SAFE; RUN/OPS for durability and failure-domain placement; ENVIRONMENT only for approved stable location/environment preferences and provenance, never stale-current observations; VERIFY for restore and leak tests.
 - **Exit:** exact originals survive restart and independent restore; corrections and revoked/private records do not leak through cached summaries; cross-store backup/restore parity verified.
 
 ### 04. PKG-SOCIAL | authenticated principals and audience boundaries
@@ -78,35 +78,35 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 - **Current:** **local lifecycle source implementation is merged via PR #107.** `main` now includes the disabled-by-default periodic opportunity gate, local singleton lease with monotonic fencing epochs, stale-owner rejection, host-neutral supervisor, readiness timeout, bounded exponential restart/backoff-window control and durable supervisor events. Windows offline acceptance passed **78 tests with 1 skip**. Post-merge current-`main` full repository pytest was reported passing by Sparks; aggregate count was not supplied. No verified OS service, independently running watchdog, standby promotion, cross-host consensus/fencing, multi-day soak or production automatic failover is claimed.
 - **Build:** external OS/service supervisor per host, bounded restart/backoff, singleton role, health/readiness checks, startup reconciliation, scheduled cognition with budget/stop; independent fleet watchdog, standby already powered/running a supervisor, fenced lease/epoch, verified state and compatible host before promotion; reconcile messages/actions and reconnect UI after failover. A dead host cannot run its own rescue. Optional WOL/IPMI only if hardware/authority actually supports it.
-- **Depends on:** OPS enrolled hosts/capacity; MEM durable state; SAFE leadership/stop/credentials; NET transport; ACT ledger/outbox; VERIFY failure lab. See [RUN watchdog contract](pkg-run-watchdog-failover-contract.md).
+- **Depends on:** OPS enrolled hosts/capacity; MEM durable state; SAFE leadership/stop/credentials; NET transport; ACT ledger/outbox; ENVIRONMENT for refresh/expiry schedules and time-zone-aware environmental events; VERIFY failure lab. See [RUN watchdog contract](pkg-run-watchdog-failover-contract.md).
 - **Exit:** process crash restarts locally; host crash promotes **only one** verified standby where possible; split brain/stale leader denied, uncertain effects not replayed, no-safe-target state fails closed; actual RTO/RPO and multi-day soak recorded. Never claim uninterrupted generation or universal zero loss.
 
 ### 08. PKG-OPS | fleet telemetry, placement and maintenance
 
 - **Current:** Waves 1–5 plus toolbox/fleet-transport source completion are merged via PRs #99/#103/#104. Fleet lifecycle/placement, machine/system telemetry, machine inventory cognition, fleet status/telemetry, placement/drift/migration planning, typed local/remote maintenance and the pinned mTLS remote agent/transport are repository accepted. Real heterogeneous-host deployment, workload execution, RUN integration and soak/failover proof remain open.
 - **Build:** scoped Windows/Linux/Pi discovery, attested enrollment and signed agent, truthful CPU/GPU/VRAM/RAM/disk/network/thermal/service/VM/container history; capacity and failure-domain graph, workload contracts, reservations, bounded upkeep, patch windows, UPS/power, maintenance/drain/quarantine, eligible workload placement/move/recovery, backup/replication and primary/standby placement observation. Preserve gaming priority and unknown metrics as unknown.
-- **Depends on:** NET/SAFE/VERIFY, RUN for managed processes/failover, MEM for state lineage, ACT for meaningful notices.
+- **Depends on:** NET/SAFE/VERIFY, RUN for managed processes/failover, MEM for state lineage, ACT for meaningful notices, ENVIRONMENT for site/timezone context without conflating machine location with user location.
 - **Exit:** real heterogeneous hosts enrolled under policy, spoofed/revoked devices denied, measured load-driven workload move and service recovery verified, dependency-safe drain/failover/rollback proven; final machine decommission remains blocked pending **Sparks' explicit exact-device approval**. No arbitrary process teleportation.
 
 ### 09. PKG-ACT | goals, initiative and delivery
 
 - **Current:** **durable ACT outreach/delivery source implementation is merged via PR #105.** `main` now includes source-linked outreach eligibility, immutable recipient/channel binding to INTERACT queued messages, durable send attempts, bounded retry/dedupe, acknowledged delivery history and fail-closed `outcome_unknown` handling. Windows offline acceptance passed **90 tests**. Post-merge current-`main` full repository pytest was reported passing by Sparks; aggregate count was not supplied. No real sender/channel activation or RUN-triggered outreach is claimed.
 - **Build:** event-driven/periodic opportunity evaluation while actually running, evidence-backed candidate thoughts and goals, scheduled eligible outreach, quiet/busy/mute/stop, dedupe, bounded notices, durable outbox/receipt/retry semantics, resource fairness and operator control.
-- **Depends on:** CORE/MEM/SOCIAL/REL; RUN supervisor; UI sender; SAFE/VERIFY; shared durable operation ledger.
+- **Depends on:** CORE/MEM/SOCIAL/REL; RUN supervisor; UI sender; SAFE/VERIFY; shared durable operation ledger; optional ENVIRONMENT events for explicitly enabled, deduplicated contextual/severe-weather outreach.
 - **Exit:** demonstrated meaningful opt-in outreach with real receipt and no cross-user disclosure, repeat spam, fabricated shutdown-time activity or blind duplicate sends.
 
 ### 10. PKG-REL | relationship continuity and nuanced affect
 
 - **Current:** overlapping absence/reunion candidates draft PRs #12/#13; reconcile rather than layering duplicates.
 - **Build:** one canonical personality with per-person familiarity/relationship and consent, evidence-based warmth/absence/reunion without clinginess, guilt or invented feelings; nuanced disagreement and context-sensitive non-canned wording.
-- **Depends on:** authenticated SOCIAL/MEM originals, ACT, CORE/INTERACT, SAFE/VERIFY.
+- **Depends on:** authenticated SOCIAL/MEM originals, ACT, CORE/INTERACT, SAFE/VERIFY; optional ENVIRONMENT context may influence wording but never deterministically creates emotion, attachment or relationship state.
 - **Exit:** time gap based on authenticated observed last contact, natural varied reunion; correct separation across accounts and no ungrounded memories, obligations or fabricated internal experience.
 
 ### 11. PKG-AVATAR | canonical virtual body and wardrobe
 
 - **Current:** substantial offline candidate in draft PR #7; no accepted final renderer/rig/animation receipts.
-- **Build:** canonical adult avatar assets, configurable wardrobe, rig/body-region and ear/tail mapping, scene/prop data, stable renderer contracts and accessibility fallback; no implied physical perception from an image or text action.
-- **Depends on:** INTERACT/CORE, UI renderer, SAFE/VERIFY; BODY separately.
+- **Build:** canonical adult avatar assets, configurable wardrobe, rig/body-region and ear/tail mapping, scene/prop data, stable renderer contracts and accessibility fallback; optionally consume PKG-ENVIRONMENT time/season/temperature/conditions for presentation choices without fetching weather itself; no implied physical perception from an image or text action.
+- **Depends on:** INTERACT/CORE, UI renderer, SAFE/VERIFY, ENVIRONMENT for environment-aware presentation; BODY separately.
 - **Exit:** versioned renderer displays expected state and returns genuine hit-test/animation receipts; absent renderer still yields coherent text interaction.
 
 ### 12. PKG-DEV | engineering, code changes and candidate tools
@@ -119,7 +119,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 ### 13. PKG-BODY | Gaia physical robotics
 
 - **Current:** simulation-only candidate draft PR #16; no live SSC-32/servo/power integration accepted.
-- **Build:** SSC-32/servo mapping, calibration, bounded gait, optional IMU/sonar/touch/distance sensors, safety envelope, power telemetry, independent hardware watchdog and physical emergency stop; simulation-first and explicit physical-motion authority.
+- **Build:** SSC-32/servo mapping, calibration, bounded gait, optional IMU/sonar/touch/distance/environment sensors, safety envelope, power telemetry, independent hardware watchdog and physical emergency stop; simulation-first and explicit physical-motion authority. Independently verified ambient sensor observations may be normalized into ENVIRONMENT, but ENVIRONMENT never grants motor authority.
 - **Depends on:** SAFE/VERIFY, CORE/INTERACT/AVATAR for semantics, INTEGRATE typed hardware adapters.
 - **Exit:** hardware-in-the-loop bench tests with power-off/malfunction/stop behavior, calibration and no motion without exact authorization; simulation success never claimed as physical acceptance.
 
@@ -147,27 +147,35 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 ### 17. PKG-INTEGRATE | typed app/service adapters and self-tooling
 
 - **Current:** Waves 1–5 plus concrete cognition-wired adapters are on `main` via PR #104: Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, storage/NAS, notifications and Discord operator controls. Real service canary/health/version/rollback and full self-tooling activation acceptance remain.
-- **Build:** least-privilege typed adapters for approved Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Ollama, databases/NAS and notifications; schema, service/version, side effects, host/account/audience, exact grants, timeouts/idempotency, receipts, canary/rollback and health. **Cloudflare is deferred until Sparks explicitly requests it.** Tool factory: identify gap → KNOW docs → DEV candidate → SAFE review → VERIFY tests → scoped activation → observed maintenance.
+- **Build:** least-privilege typed adapters for approved Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Ollama, databases/NAS and notifications; schema, service/version, side effects, host/account/audience, exact grants, timeouts/idempotency, receipts, canary/rollback and health. Home Assistant may provide trusted indoor/weather/site observations to ENVIRONMENT through a typed adapter without creating a general browser/search grant. **Cloudflare is deferred until Sparks explicitly requests it.** Tool factory: identify gap → KNOW docs → DEV candidate → SAFE review → VERIFY tests → scoped activation → observed maintenance.
 - **Depends on:** NET/SAFE, KNOW/DEV, OPS/RUN for hosts, VERIFY, SOCIAL/MEM privacy.
 - **Exit:** register and use one real authorized read-only adapter, deny wrong host/account, generate and canary a doc-grounded candidate, refuse self-authorization, rollback incompatible tool and show truthful availability. Do not expose all backend capabilities to LLM simply because code exists.
 
 ### 18. PKG-SAFE | continuous security, privacy and recovery gate
 
 - **Current:** merged Constitution/authority/integrity foundations plus disclosure screening draft PR #18; real deployed secret, privacy, backup, stop and revocation enforcement remains open.
-- **Build:** trusted identity and least privilege, exact-action grants, private/audience protection, secrets hygiene, encryption/keys, signed agents, credential rotation, host quarantine, audit, independent out-of-band emergency stop, operator control and exact-machine decommission approval; off-host isolated backup/restore; fenced leases and failure-safe policy. Protect user conversations and shared/derived indexes.
+- **Build:** trusted identity and least privilege, exact-action grants, private/audience protection, secrets hygiene, encryption/keys, signed agents, credential rotation, host quarantine, audit, independent out-of-band emergency stop, operator control and exact-machine decommission approval; off-host isolated backup/restore; fenced leases and failure-safe policy. Protect user conversations, precise/current location, provider credentials and shared/derived indexes.
 - **Depends on:** every package; no later release may bypass it.
 - **Exit:** independent stop works without LLM/Discord, revoked capabilities stay revoked after restart/restore, wrong actor/host/network denied; protected actions need correct approval; secrets/privacy/backup recovery verified under real faults.
 
 ### 19. PKG-VERIFY | continuous evidence, acceptance and failure lab
 
 - **Current:** active draft PR #8; superseded PR #10 closed; individual past test counts are not certification of one integrated head.
-- **Build:** pinned offline/unit/integration/live test layers, provider/personality/latency benchmarks, real tool receipts, authorization/negative tests, multi-day soak, state/backup restoration, crash-at-every-transition ledger tests, partition/witness/old-primary fencing, UPS/full-disk/corrupt-backup/cert/failover drills, resource fairness and rollback evidence.
+- **Build:** pinned offline/unit/integration/live test layers, provider/personality/latency benchmarks, real tool receipts, authorization/negative tests, multi-day soak, state/backup restoration, crash-at-every-transition ledger tests, partition/witness/old-primary fencing, UPS/full-disk/corrupt-backup/cert/failover drills, resource fairness and rollback evidence. ENVIRONMENT tests cover timezone/DST, hemisphere/season, configured-vs-current location, stale TTL, provider outage, wrong-source data and audience/privacy leakage.
 - **Depends on:** every package, particularly NET/SOCIAL/SAFE/RUN/OPS/MEM.
 - **Exit:** current integrated revision and supervised real hardware/clients pass the exact claimed scope; report measured downtime/RTO/RPO and failures, not simulated claims or combined unrelated SHAs.
 
+### 20. PKG-ENVIRONMENT | time, location and ambient context
+
+- **Current:** tested `src/sofia/runtime/clock.py` provides UTC/host-local/timezone-label evidence and the live emotional-conversation path injects that clock prompt on normal user turns. No authoritative geographic-location model, season/daylight service, weather provider/forecast capability or shared environment snapshot is implemented.
+- **Build:** one immutable provider-neutral environment snapshot with observation time, source, precision/freshness and optional fields for user/site timezone, configured/current location, hemisphere-aware season, daylight, outdoor weather/forecast and trusted indoor observations. Offline clock/location/timezone/season/daylight comes first. Home Assistant may feed trusted local evidence through INTEGRATE. Direct remote weather/geocoding waits for explicit NET/web authorization and must remain narrower than general browsing/search.
+- **Depends on:** CORE clock/cognition; SOCIAL/SAFE for location privacy; INTEGRATE for Home Assistant/provider adapters; NET only for approved remote providers; RUN for refresh scheduling; MEM for approved stable configuration/provenance; VERIFY for freshness/privacy/provider negatives.
+- **Consumers:** CORE, INTERACT, AVATAR, RUN, OPS, ACT and optional REL/emotion context. Weather/time/location are evidence, not authority, physical sensing or deterministic emotion rules.
+- **Exit:** supervised current-revision tests answer time/location/weather truthfully, distinguish unknown/stale/configured/current states, survive DST/provider outage/restart, prevent cross-audience location leakage, and drive AVATAR/context consumers only through the shared snapshot. See [ENVIRONMENT readiness contract](pkg-environment-readiness-roadmap.md).
+
 ## Cross-package delivery workstreams
 
-### Discord D0-D4 (channel, not a twentieth package)
+### Discord D0-D4 (channel workstream, not an additional package)
 
 **2026-09-25 status:** v1 Sparks-only private-DM transport is live accepted and merged via PR #64. The supervised run verified bot authentication, Gateway connection, exact DM verification before enrollment, durable ingress/outbox, shared-runtime response, visible delivery, fail-closed outcome-unknown handling, and the worker-thread persistence repair. The transport remains intentionally narrow: no public guild, general second user, proactive DM initiative, or general web/search grant.
 
@@ -197,6 +205,7 @@ Local authorized docs may be read before general web. KNOW preserves provenance;
 10. **INTEGRATE/DEV/KNOW live activation:** canary Home Assistant, JMRI, GitHub, Portainer/Hyper-V/Ollama/storage and OpenCode/document workflows with real receipts, rollback and scoped authority. Cloudflare remains deferred.
 11. **Reliability/data redundancy:** implement and test the chosen two-data-copy + witness/fencing + independent backup design; measure RPO/RTO rather than promising zero loss.
 12. **BODY later hardware phase:** rebuild BODY on current `main`, then real Gaia SSC-32/servo calibration, sensors/power, bounded gait and independent physical E-stop.
-13. **General web/search last:** only after real 24/7 RUN/OPS acceptance, with separate authorization, provenance and revocation.
+13. **ENVIRONMENT offline foundation:** consolidate the existing clock, add explicit/configured location + timezone, hemisphere-aware season/daylight and provider-neutral freshness/provenance; wire Home Assistant only through INTEGRATE and consumers only through the shared snapshot.
+14. **General web/search last:** only after real 24/7 RUN/OPS acceptance, with separate authorization, provenance and revocation. Direct internet weather/geocoding follows this gate unless a narrower provider route is separately authorized.
 
 **No implementation, deployment, new data stores, full-suite rerun or live hardware failover test is performed by this roadmap update.**
