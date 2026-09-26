@@ -87,6 +87,20 @@ The live runtime heartbeat was observed advancing while `SofiaAdaLyra` remained 
 
 Crash recovery, hang/stale-heartbeat recovery, fenced-stop behavior, reboot recovery and measured RTO remain open.
 
+
+## Live canary evidence — destructive crash recovery
+
+A supervised destructive canary force-killed the live `SofiaAdaLyra` process while the independent watchdog remained running. The watchdog recorded `service_start` at `2026-09-26T22:52:56.857802+00:00` after observing the runtime service stopped. The replacement runtime reached durable `READY` generation 5 at `2026-09-26T22:53:21.566387+00:00` with a new heartbeat session and a new process ID, while the watchdog process remained independently running.
+
+Measured evidence:
+
+- watchdog reaction from kill to service-start action: approximately **1.9 seconds**,
+- kill to durable READY recovery RTO: approximately **26.6 seconds**,
+- replacement heartbeat session and process ID differ from the killed runtime,
+- watchdog remained alive throughout recovery.
+
+This proves live external crash recovery through the independent watchdog. Stale-heartbeat/hang recovery, fenced-stop behavior, reboot recovery and longer soak remain open.
+
 ## Live Windows canary
 
 After full-suite acceptance:
