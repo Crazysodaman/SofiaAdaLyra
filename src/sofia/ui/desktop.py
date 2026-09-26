@@ -9,12 +9,40 @@ from __future__ import annotations
 
 from queue import Empty, Queue
 from threading import Thread
+import traceback
 from typing import Any
 
 from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration, create_default_configuration
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.theme import ThemePalette, canonical_theme
+
+
+def _format_exception_chain(
+    error: BaseException,
+) -> str:
+    """Return concise nested failure detail without discarding root cause."""
+    if not isinstance(error, BaseException):
+        raise TypeError("error must be an exception")
+
+    lines: list[str] = []
+    current: BaseException | None = error
+    seen: set[int] = set()
+
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        message = str(current).strip()
+        line = type(current).__name__
+        if message:
+            line += f": {message}"
+        lines.append(line)
+        current = (
+            current.__cause__
+            if current.__cause__ is not None
+            else current.__context__
+        )
+
+    return "\nCaused by: ".join(lines)
 
 
 class _TkDesktopWorkbench:
@@ -306,9 +334,15 @@ class _TkDesktopWorkbench:
                 self._status.set(
                     f"Startup failed: {type(payload).__name__}"
                 )
+                detail = _format_exception_chain(payload)
+                traceback.print_exception(
+                    type(payload),
+                    payload,
+                    payload.__traceback__,
+                )
                 self._show_error(
                     "Sofía could not start",
-                    str(payload),
+                    detail,
                 )
                 self._finish_close()
                 return
@@ -318,9 +352,15 @@ class _TkDesktopWorkbench:
                 self._status.set(
                     f"Response failed: {type(payload).__name__}"
                 )
+                detail = _format_exception_chain(payload)
+                traceback.print_exception(
+                    type(payload),
+                    payload,
+                    payload.__traceback__,
+                )
                 self._show_error(
                     "Response failed",
-                    str(payload),
+                    detail,
                 )
                 self._input.focus_set()
                 if self._close_requested:
