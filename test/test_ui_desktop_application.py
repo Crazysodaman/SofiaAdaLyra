@@ -95,3 +95,24 @@ def test_desktop_controller_recovers_draft_after_application_restart(
     assert second.draft_text() == "recover after restart"
 
     second.shutdown()
+
+
+def test_desktop_controller_projects_current_adaptive_theme(
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        _configuration(tmp_path)
+    )
+    controller = DesktopWorkbenchController(
+        application
+    )
+    controller.start()
+
+    palette = controller.theme_palette()
+
+    assert palette.background.startswith("#")
+    assert palette.panel.startswith("#")
+    assert palette.primary.startswith("#")
+    assert palette.drivers
+
+    controller.shutdown()
