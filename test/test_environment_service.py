@@ -108,6 +108,34 @@ def test_fresh_mobile_location_without_timezone_does_not_reuse_home_timezone():
     assert snapshot.daylight is None
 
 
+def test_invalid_current_location_timezone_degrades_without_crashing():
+    current = LocationObservation(
+        label="Current place",
+        source_id="test.current",
+        subject=LocationSubject.USER,
+        kind=LocationEvidenceKind.CURRENT,
+        timezone="Mars/Olympus_Mons",
+        latitude=39.7,
+        longitude=-104.9,
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=13),
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            FakeProvider(
+                EnvironmentProviderObservation(
+                    current_location=current
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    assert snapshot.current_location_freshness is EnvironmentFreshness.CURRENT
+    assert snapshot.timezone is None
+    assert snapshot.user_local_time is None
+    assert "timezone:ZoneInfoNotFoundError" in snapshot.provider_errors
+
+
 def test_stale_current_location_falls_back_to_configured_location():
     stale = LocationObservation(
         label="Old place",
