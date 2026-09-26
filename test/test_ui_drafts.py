@@ -122,3 +122,25 @@ def test_draft_rejects_invalid_identifiers(
         )
 
     store.close()
+
+
+def test_draft_store_can_reopen_after_close(
+    tmp_path: Path,
+):
+    store = UIDraftStore(tmp_path / "sofia.db")
+    store.save(
+        client_id="desktop",
+        session_id="session",
+        content="survives restart",
+    )
+    store.close()
+
+    store.open()
+
+    loaded = store.load(
+        client_id="desktop",
+        session_id="session",
+    )
+    assert loaded is not None
+    assert loaded.content == "survives restart"
+    store.close()
