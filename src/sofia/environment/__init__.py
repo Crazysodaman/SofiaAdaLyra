@@ -24,6 +24,7 @@ from .model import (
     Season,
     WeatherObservation,
 )
+from .nws import NwsApiClient, NwsEnvironmentProvider
 from .query import EnvironmentQueryAnswer, EnvironmentQueryResolver
 
 __all__ = [
@@ -41,6 +42,8 @@ __all__ = [
     "LocationEvidenceKind",
     "LocationObservation",
     "LocationSubject",
+    "NwsApiClient",
+    "NwsEnvironmentProvider",
     "Season",
     "WeatherObservation",
     "environment_configuration_from_environ",
