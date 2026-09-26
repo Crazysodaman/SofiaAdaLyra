@@ -1,7 +1,7 @@
 # OPS / RUN / ACT / EVOLVE runtime control-plane integration
 
 **Branch:** `feature/pkg-ops-run-act-evolve-control-plane`  
-**Status:** candidate implementation; targeted and full-suite Windows acceptance still required.
+**Status:** Windows acceptance passed on 2026-09-26. The focused application/control-plane gate passed **13/13**, the combined OPS/RUN/ACT/EVOLVE regression gate passed **144/144**, and Sparks reported the full repository pytest suite passing. Merge and live/deployment gates remain separate.
 
 ## Purpose
 
