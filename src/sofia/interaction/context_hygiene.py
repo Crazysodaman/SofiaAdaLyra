@@ -59,4 +59,8 @@ def without_legacy_auto_affection(request: CognitiveRequest) -> CognitiveRequest
             cleaned.append(message)
     if not changed:
         return request
-    return CognitiveRequest(messages=tuple(cleaned), tools=request.tools)
+    return CognitiveRequest(
+        messages=tuple(cleaned),
+        tools=request.tools,
+        allow_tools=request.allow_tools,
+    )
