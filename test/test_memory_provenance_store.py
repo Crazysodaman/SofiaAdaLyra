@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -85,3 +86,20 @@ def test_missing_candidate_transition_fails(tmp_path):
 def test_in_memory_database_is_rejected():
     with pytest.raises(ValueError):
         DurableMemoryCandidateStore(":memory:")
+
+
+def test_reviewed_store_can_be_read_from_worker_thread(tmp_path):
+    path = tmp_path / "memory.db"
+    item = candidate()
+    store = DurableMemoryCandidateStore(path)
+    store.propose(item)
+    store.promote(item.candidate_id)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        ids = executor.submit(
+            store.list_ids,
+            status=CandidateStatus.PROMOTED,
+        ).result(timeout=5)
+
+    assert ids == (item.candidate_id,)
+    store.close()
