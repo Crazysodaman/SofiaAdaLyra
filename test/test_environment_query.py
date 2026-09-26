@@ -71,6 +71,7 @@ def test_direct_location_uses_only_fresh_user_current_evidence():
         timezone="America/Chicago",
         latitude=32.6,
         longitude=-97.2,
+        precision_meters=12.0,
         observed_at=NOW - timedelta(minutes=2),
         expires_at=NOW + timedelta(minutes=10),
     )
@@ -89,6 +90,7 @@ def test_direct_location_uses_only_fresh_user_current_evidence():
         snapshot=snapshot,
     )
     assert "Current location evidence says you're at Current place" in answer.content
+    assert "precision about 12 m" in answer.content
 
 
 def test_where_are_you_does_not_reuse_user_location_as_host_location():
