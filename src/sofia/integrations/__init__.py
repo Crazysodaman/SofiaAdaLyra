@@ -7,6 +7,7 @@ from .jmri import JmriAdapter
 from .local_maintenance import LocalMaintenanceAdapter
 from .portainer import PortainerAdapter
 from .ollama import OllamaAdapter
+from .nws import NwsAdapter
 from .sqlite import SQLiteReadAdapter
 from .storage import StorageAdapter
-__all__=["DiscordOperatorAdapter","GitHubAdapter","HomeAssistantAdapter","HyperVAdapter","JmriAdapter","LocalMaintenanceAdapter","PortainerAdapter","OllamaAdapter","SQLiteReadAdapter","StorageAdapter"]
+__all__=["DiscordOperatorAdapter","GitHubAdapter","HomeAssistantAdapter","HyperVAdapter","JmriAdapter","LocalMaintenanceAdapter","PortainerAdapter","OllamaAdapter","NwsAdapter","SQLiteReadAdapter","StorageAdapter"]
