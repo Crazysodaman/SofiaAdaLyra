@@ -3,6 +3,8 @@ import sqlite3
 
 import pytest
 
+import sofia.application.bootstrap as bootstrap
+
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.run.lifecycle import RunLifecycleState, RunLifecycleStore
@@ -268,5 +270,33 @@ def test_start_failure_rolls_back_control_plane_and_records_failed(tmp_path: Pat
     with pytest.raises(SofiaApplicationError):
         application.start()
 
+    assert application.runtime.control_plane.opened is False
+    assert RunLifecycleStore(state).current().state is RunLifecycleState.FAILED
+
+
+
+def test_failure_after_runtime_ready_rolls_runtime_back_to_stopped(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    state = tmp_path / "sofia.db"
+    application = SofiaApplication(
+        create_configuration(personality_path, state)
+    )
+
+    def fail_presentation(**_kwargs):
+        raise RuntimeError("presentation failed after runtime start")
+
+    monkeypatch.setattr(
+        bootstrap,
+        "load_or_bootstrap_presentation",
+        fail_presentation,
+    )
+
+    with pytest.raises(SofiaApplicationError):
+        application.start()
+
+    assert application.runtime.state is RuntimeState.STOPPED
     assert application.runtime.control_plane.opened is False
     assert RunLifecycleStore(state).current().state is RunLifecycleState.FAILED
