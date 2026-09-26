@@ -8,6 +8,8 @@ from sofia.environment.model import (
     LocationEvidenceKind,
     LocationObservation,
     LocationSubject,
+    ForecastPeriod,
+    IndoorEnvironmentObservation,
     WeatherObservation,
 )
 from sofia.environment.provider import EnvironmentProviderObservation
@@ -174,3 +176,106 @@ def test_unknown_direct_environment_question_is_not_hijacked():
     )
     assert not answer.recognized
     assert answer.content == ""
+
+def test_my_timezone_does_not_relabel_host_timezone_as_user_timezone():
+    host_config = EnvironmentConfiguration(
+        location=ConfiguredLocation(
+            label="Runtime host",
+            timezone="America/Chicago",
+            subject=LocationSubject.HOST,
+            latitude=32.5,
+            longitude=-97.1,
+        )
+    )
+    snapshot = EnvironmentService(host_config).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "what's my timezone?",
+        snapshot=snapshot,
+    )
+    assert answer.content == "I don't have an evidenced user timezone."
+
+    context_answer = EnvironmentQueryResolver().resolve(
+        "what timezone are you using?",
+        snapshot=snapshot,
+    )
+    assert "host timezone" in context_answer.content
+    assert "America/Chicago" in context_answer.content
+
+
+def test_direct_forecast_returns_bounded_current_forecast():
+    weather = WeatherObservation(
+        condition="clear",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="test.weather",
+        forecast=(
+            ForecastPeriod(
+                starts_at=NOW + timedelta(hours=1),
+                condition="cloudy",
+                high_c=24.0,
+                low_c=16.0,
+                precipitation_probability=20.0,
+            ),
+        ),
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "what's the forecast?",
+        snapshot=snapshot,
+    )
+    assert "Current bounded forecast:" in answer.content
+    assert "cloudy" in answer.content
+    assert "precipitation 20%" in answer.content
+
+
+def test_sunrise_and_sunset_are_directly_queryable():
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    sunrise = EnvironmentQueryResolver().resolve(
+        "when is sunrise?",
+        snapshot=snapshot,
+    )
+    sunset = EnvironmentQueryResolver().resolve(
+        "when is sunset?",
+        snapshot=snapshot,
+    )
+    assert sunrise.recognized
+    assert "Approximate sunrise is" in sunrise.content
+    assert sunset.recognized
+    assert "Approximate sunset is" in sunset.content
+
+
+def test_current_indoor_environment_is_directly_queryable():
+    indoor = IndoorEnvironmentObservation(
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=10),
+        source_id="test.indoor",
+        temperature_c=22.0,
+        humidity_percent=45.0,
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    indoor=indoor,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "what's the temperature inside?",
+        snapshot=snapshot,
+    )
+    assert "temperature 22.0 °C" in answer.content
+    assert "humidity 45%" in answer.content
+    assert "test.indoor" in answer.content
+
