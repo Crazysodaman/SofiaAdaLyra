@@ -79,6 +79,7 @@ class LocationObservation:
     timezone: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    precision_meters: float | None = None
     observed_at: datetime | None = None
     expires_at: datetime | None = None
 
@@ -102,6 +103,21 @@ class LocationObservation:
         if lat is not None:
             object.__setattr__(self, "latitude", lat)
             object.__setattr__(self, "longitude", lon)
+        precision = _finite(self.precision_meters, "precision_meters")
+        if precision is not None:
+            if not 0.0 <= precision <= 40_100_000.0:
+                raise ValueError(
+                    "precision_meters outside supported bounds"
+                )
+            if lat is None:
+                raise ValueError(
+                    "precision_meters requires coordinates"
+                )
+            object.__setattr__(
+                self,
+                "precision_meters",
+                precision,
+            )
         if self.observed_at is not None:
             _aware(self.observed_at, "location observed_at")
         if self.expires_at is not None:
