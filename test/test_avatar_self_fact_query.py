@@ -46,10 +46,7 @@ def test_current_outfit_is_deterministic_authoritative_fact():
     result = answer("What outfit are you wearing right now?")
     assert result.recognized
     assert "signature engineer outfit" in result.content
-    assert result.content == (
-        "I'm in my signature engineer outfit right now "
-        "(outfit ID: engineer.signature)."
-    )
+    assert result.content == "I'm in my signature engineer outfit right now."
 
 
 def test_hair_and_tail_color_use_current_presentation():
@@ -100,3 +97,6 @@ def test_public_safe_outfit_quick_tool_wording_is_authoritative():
     assert result.recognized
     assert "signature engineer outfit" in result.content
     assert "outfit ID: engineer.signature" in result.content
+    assert "deep crimson hair" in result.content
+    assert "dark violet tail" in result.content
+    assert "style tags: canonical, engineer" in result.content
