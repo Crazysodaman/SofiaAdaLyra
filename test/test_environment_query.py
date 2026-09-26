@@ -166,7 +166,8 @@ def test_direct_weather_reports_current_source_and_observation():
         snapshot=snapshot,
     )
     assert "Current weather for Configured area: clear" in answer.content
-    assert "24.5 °C" in answer.content
+    assert "76.1 °F" in answer.content
+    assert "°C" not in answer.content
     assert "test.weather" in answer.content
 
 
@@ -236,6 +237,9 @@ def test_direct_forecast_returns_bounded_current_forecast():
     )
     assert "Current bounded forecast:" in answer.content
     assert "cloudy" in answer.content
+    assert "high 75.2 °F" in answer.content
+    assert "low 60.8 °F" in answer.content
+    assert "°C" not in answer.content
     assert "precipitation 20%" in answer.content
 
 
@@ -277,7 +281,8 @@ def test_current_indoor_environment_is_directly_queryable():
         "what's the temperature inside?",
         snapshot=snapshot,
     )
-    assert "temperature 22.0 °C" in answer.content
+    assert "temperature 71.6 °F" in answer.content
+    assert "°C" not in answer.content
     assert "humidity 45%" in answer.content
     assert "test.indoor" in answer.content
 
