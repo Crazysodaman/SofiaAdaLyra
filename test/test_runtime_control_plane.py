@@ -139,3 +139,21 @@ def test_close_revokes_runtime_control_plane_access(tmp_path: Path):
         _ = control.act_outbox
     with pytest.raises(RuntimeError):
         _ = control.run_lease_store
+
+
+
+def test_control_plane_builds_disabled_run_act_scheduler(tmp_path: Path):
+    state = _state(tmp_path)
+    control = RuntimeControlPlane(state_path=state)
+    control.open()
+    sent = []
+
+    runner = control.create_scheduled_delivery_runner(
+        lambda payload: sent.append(payload),
+        policy_for=lambda bound: None,
+        attempt_id_for=lambda bound: "attempt-1",
+    )
+    result = runner.tick(now=NOW)
+
+    assert result.status == "disabled"
+    assert sent == []
