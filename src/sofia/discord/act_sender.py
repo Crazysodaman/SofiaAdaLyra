@@ -508,10 +508,15 @@ class DiscordActDeliveryStore:
                 row["attempt_id"]
                 for row in db.execute(
                     """
-                    SELECT DISTINCT attempt_id
-                    FROM discord_act_chunks
-                    WHERE (state='prepared' AND send_token IS NOT NULL)
-                       OR state='sent'
+                    SELECT DISTINCT c.attempt_id
+                    FROM discord_act_chunks AS c
+                    JOIN discord_act_attempts AS a
+                      ON a.attempt_id=c.attempt_id
+                    WHERE a.state='prepared'
+                      AND (
+                          (c.state='prepared' AND c.send_token IS NOT NULL)
+                          OR c.state='sent'
+                      )
                     """
                 ).fetchall()
             ]
