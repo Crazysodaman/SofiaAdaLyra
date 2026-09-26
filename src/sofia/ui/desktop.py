@@ -694,6 +694,15 @@ class _TkDesktopWorkbench:
             background=palette.background,
             foreground=palette.text,
         )
+        self._style.configure(
+            "Sofia.TCombobox",
+            fieldbackground=palette.panel,
+            background=palette.panel,
+            foreground=palette.text,
+            arrowcolor=palette.secondary,
+            selectbackground=palette.primary,
+            selectforeground=palette.text,
+        )
 
     def _apply_theme(
         self,
@@ -730,6 +739,17 @@ class _TkDesktopWorkbench:
             insertbackground=palette.secondary,
             selectbackground=palette.primary,
         )
+        self._history_shell.configure(
+            bg=palette.background
+        )
+        self._input_shell.configure(
+            bg=palette.background
+        )
+        self._send.apply_palette(
+            palette
+        )
+        self._layout_history_shell()
+        self._layout_input_shell()
         label = (
             " · ".join(palette.drivers[:3])
             if palette.drivers
@@ -790,6 +810,9 @@ class _TkDesktopWorkbench:
         state = "normal" if enabled else "disabled"
         self._input.configure(state=state)
         self._send.configure(state=state)
+        self._quick_tools.configure(
+            state="readonly" if enabled else "disabled"
+        )
 
     def _request_close(self) -> None:
         self._close_requested = True
