@@ -196,3 +196,38 @@ def test_runtime_omits_detailed_environment_from_unrelated_llm_turn(tmp_path):
     assert "Configured area" not in system
     app.shutdown()
 
+def test_unrelated_runtime_turn_does_not_refresh_environment_provider(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+
+    class CountingProvider:
+        name = "counting"
+        def __init__(self):
+            self.calls = 0
+        def observe(self, *, now):
+            from sofia.environment.provider import EnvironmentProviderObservation
+            self.calls += 1
+            return EnvironmentProviderObservation()
+
+    counting = CountingProvider()
+    app.runtime.environment_service._providers = (counting,)
+    app.start()
+
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+    app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Explain a database transaction.",
+                ),
+            ),
+        )
+    )
+    assert counting.calls == 0
+    app.shutdown()
+
