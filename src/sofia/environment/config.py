@@ -150,14 +150,20 @@ class EnvironmentConfiguration:
                 "home_assistant_current_location_subject must be "
                 "LocationSubject or None"
             )
+        configured_subjects = {
+            candidate.subject
+            for candidate in (self.location, self.host_location)
+            if candidate is not None
+        }
         if (
             self.home_assistant_current_location_entity is not None
             and self.home_assistant_current_location_subject is None
-            and self.location is None
+            and len(configured_subjects) != 1
         ):
             raise ValueError(
                 "Home Assistant current-location entity requires an "
-                "explicit location subject when no configured location exists"
+                "explicit location subject unless exactly one configured "
+                "location subject exists"
             )
 
         if type(self.nws_enabled) is not bool:
