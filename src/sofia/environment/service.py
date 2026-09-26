@@ -171,7 +171,11 @@ class EnvironmentService:
         self,
         *,
         now: datetime | None = None,
+        refresh_providers: bool = True,
     ) -> EnvironmentSnapshot:
+        if type(refresh_providers) is not bool:
+            raise TypeError("refresh_providers must be a bool")
+
         clock = runtime_clock_snapshot(now=now)
         current_utc = clock.utc
 
@@ -180,13 +184,21 @@ class EnvironmentService:
         weather = None
         indoor = None
 
-        for provider in self._providers:
-            observation = self._observe_provider(
-                provider,
-                now=current_utc,
+        observations: list[EnvironmentProviderObservation] = []
+        if refresh_providers:
+            for provider in self._providers:
+                observation = self._observe_provider(
+                    provider,
+                    now=current_utc,
+                )
+                if observation is not None:
+                    observations.append(observation)
+        else:
+            observations.extend(
+                self._provider_observations.values()
             )
-            if observation is None:
-                continue
+
+        for observation in observations:
             current_location = self._prefer_observation(
                 current_location,
                 observation.current_location,
