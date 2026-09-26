@@ -143,5 +143,8 @@ def test_environment_detail_relevance_is_bounded():
     assert environment_details_relevant("What should you wear tonight?")
     assert environment_details_relevant("What's the forecast tomorrow?")
     assert environment_details_relevant("Is it dark outside?")
+    assert environment_details_relevant(
+        "Explain your current environment context sources."
+    )
     assert not environment_details_relevant("Explain your database architecture.")
 
