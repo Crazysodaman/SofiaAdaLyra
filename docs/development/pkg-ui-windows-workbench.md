@@ -27,7 +27,11 @@ Implemented behavior:
 - window remains text-first with no AVATAR renderer dependency;
 - closing during an in-flight operation waits for the current operation rather
   than claiming unsupported model cancellation;
-- launch imports Tk lazily so headless package/tests remain usable.
+- launch imports Tk lazily so headless package/tests remain usable;
+- history and composer surfaces use shallow 45-degree chamfered HUD frames;
+- Send uses a matching chamfered Canvas control rather than a square ttk button;
+- a curated Quick Tools dropdown loads reviewed read-only-first prompts into the
+  composer without auto-executing them.
 
 ## Adaptive theme
 
@@ -56,7 +60,20 @@ Examples of bounded adaptation:
 
 An **Adaptive theme** toggle immediately returns to the canonical violet/cyan/
 green palette when disabled. Layout, text contrast, and interaction semantics do
-not change with emotion.
+not change with emotion. Chamfer outlines and the Send control follow the active
+palette.
+
+## Quick Tools
+
+The desktop header includes a curated dropdown for frequently useful checks:
+Tool Catalog, System, Hardware, Processes, Network, Services, Storage, Fleet,
+Environment, and Current Outfit.
+
+Selecting an item only loads its reviewed prompt into the composer. It does not
+execute a capability, bypass authority, or silently send a message. The user
+still presses Send, after which the canonical conversation/cognitive tool path
+decides what authorized capability is available. A quick-tool prompt is saved as
+the current unsent draft so it can survive a normal restart.
 
 ## Boundaries
 
@@ -75,7 +92,7 @@ not change with emotion.
 Focused:
 
 ```powershell
-pytest -q test/test_ui_desktop.py test/test_ui_desktop_controller.py test/test_ui_desktop_application.py test/test_ui_theme.py
+pytest -q test/test_ui_desktop.py test/test_ui_desktop_worker.py test/test_ui_desktop_controller.py test/test_ui_desktop_application.py test/test_ui_theme.py test/test_ui_quick_tools.py
 ```
 
 UI regression:
@@ -92,5 +109,5 @@ pytest -q test/test_current_emotional_state.py test/test_emotional_conversation_
 
 Then run the full repository suite. After automated gates are green, perform one
 supervised Windows launch with `python -m sofia.ui`: verify startup, a normal
-message, Shift+Enter, draft restart recovery, adaptive-theme toggle, and clean
-window close.
+message, Shift+Enter, draft restart recovery, adaptive-theme toggle, shallow chamfered history/composer/Send rendering,
+Quick Tools prompt loading without auto-send, and clean window close.
