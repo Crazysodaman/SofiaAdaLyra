@@ -16,6 +16,7 @@ from sofia.continuity.model import (
     ContinuityEventKind,
 )
 from sofia.filesystem.changes import FilesystemChangeEvent
+from sofia.environment.prompt import environment_prompt
 from sofia.system.knowledge import SystemCapabilityKnowledgeRecord
 from sofia.personality.expression import personality_expression_guidance
 
@@ -178,6 +179,14 @@ class CognitiveContextAssembler:
                 [
                     "",
                     presentation_prompt(context.avatar_presentation),
+                ]
+            )
+
+        if context.environment_snapshot is not None:
+            sections.extend(
+                [
+                    "",
+                    environment_prompt(context.environment_snapshot),
                 ]
             )
 
