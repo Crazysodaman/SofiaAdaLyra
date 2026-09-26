@@ -59,6 +59,7 @@ class DiscordActAttempt:
     channel_id: int
     session_id: str
     binding_generation: int
+    content_digest: str
     state: str
     receipt_id: str | None
     last_error: str | None
@@ -127,6 +128,7 @@ class DiscordActDeliveryStore:
             channel_id=int(row["channel_id"]),
             session_id=row["session_id"],
             binding_generation=int(row["binding_generation"]),
+            content_digest=row["content_digest"],
             state=row["state"],
             receipt_id=row["receipt_id"],
             last_error=row["last_error"],
@@ -138,7 +140,8 @@ class DiscordActDeliveryStore:
                 """
                 SELECT attempt_id, message_id, recipient_id, bot_user_id,
                        owner_user_id, channel_id, session_id,
-                       binding_generation, state, receipt_id, last_error
+                       binding_generation, content_digest, state,
+                       receipt_id, last_error
                 FROM discord_act_attempts
                 WHERE attempt_id = ?
                 """,
@@ -627,6 +630,19 @@ class DiscordActSafeSender:
 
         existing = self.deliveries.attempt(payload.attempt_id)
         if existing is not None:
+            expected_digest = sha256(payload.content.encode("utf-8")).hexdigest()
+            if (
+                existing.message_id != payload.message_id
+                or existing.recipient_id != payload.recipient_id
+                or existing.content_digest != expected_digest
+                or existing.bot_user_id != self.config.bot_user_id
+                or existing.owner_user_id != self.config.owner_user_id
+                or existing.channel_id != self.config.dm_channel_id
+                or existing.session_id != self.session_id
+            ):
+                raise ValueError(
+                    "ACT attempt ID already belongs to different Discord content or authority"
+                )
             if existing.state == "delivered":
                 assert existing.receipt_id is not None
                 return SendResult(
@@ -642,7 +658,11 @@ class DiscordActSafeSender:
         if binding is None:
             return self._failed(denial or "discord_denied")
 
-        attempt = self.deliveries.prepare(payload, binding=binding)
+        attempt = (
+            existing
+            if existing is not None
+            else self.deliveries.prepare(payload, binding=binding)
+        )
         if attempt.state == "delivered":
             assert attempt.receipt_id is not None
             return SendResult(
