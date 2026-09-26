@@ -184,7 +184,12 @@ class ExpandedConversationService(InteractiveConversationService):
         if not instructions:
             return request
         return CognitiveRequest(
-            messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                       content='\n\n'.join(instructions)),
-                      *request.messages), tools=request.tools,
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content='\n\n'.join(instructions),
+                ),
+                *request.messages,
+            ),
+            tools=(),
         )
