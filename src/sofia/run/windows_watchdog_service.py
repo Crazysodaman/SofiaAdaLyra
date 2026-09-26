@@ -199,11 +199,31 @@ def create_windows_watchdog_service_class(
     return SofiaWindowsWatchdogService
 
 
+try:
+    _PRODUCTION_PYWIN32 = load_pywin32()
+except RuntimeError:
+    SofiaWindowsWatchdogService = None
+else:
+    SofiaWindowsWatchdogService = create_windows_watchdog_service_class(
+        modules=_PRODUCTION_PYWIN32,
+    )
+
+WINDOWS_WATCHDOG_SERVICE_CLASS_STRING = (
+    "sofia.run.windows_watchdog_service.SofiaWindowsWatchdogService"
+)
+
+
 def main() -> int:
     """Dispatch pywin32's explicit watchdog service CLI."""
     modules = load_pywin32()
-    service_class = create_windows_watchdog_service_class(modules=modules)
-    modules.win32serviceutil.HandleCommandLine(service_class)
+    service_class = SofiaWindowsWatchdogService
+    if service_class is None:
+        service_class = create_windows_watchdog_service_class(modules=modules)
+        globals()["SofiaWindowsWatchdogService"] = service_class
+    modules.win32serviceutil.HandleCommandLine(
+        service_class,
+        serviceClassString=WINDOWS_WATCHDOG_SERVICE_CLASS_STRING,
+    )
     return 0
 
 

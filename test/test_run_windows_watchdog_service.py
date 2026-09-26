@@ -11,8 +11,10 @@ from sofia.run.watchdog import (
     WatchdogResult,
 )
 from sofia.run.windows_service import PyWin32Modules
+import sofia.run.windows_watchdog_service as windows_watchdog_service
 from sofia.run.windows_watchdog_service import (
     WATCHDOG_SERVICE_NAME,
+    WINDOWS_WATCHDOG_SERVICE_CLASS_STRING,
     WindowsScmServiceController,
     create_windows_watchdog_service_class,
 )
@@ -261,3 +263,36 @@ def test_watchdog_service_identity_is_separate_from_runtime_service(tmp_path):
 
     assert Service._svc_name_ == WATCHDOG_SERVICE_NAME
     assert Service._svc_name_ != TARGET
+
+
+
+def test_watchdog_cli_pins_importable_production_class_string(monkeypatch):
+    loaded, _event, _util, _manager = modules()
+    calls = []
+
+    def handle(cls, **kwargs):
+        calls.append((cls, kwargs))
+
+    loaded.win32serviceutil.HandleCommandLine = handle
+    sentinel = object()
+    monkeypatch.setattr(
+        windows_watchdog_service,
+        "load_pywin32",
+        lambda: loaded,
+    )
+    monkeypatch.setattr(
+        windows_watchdog_service,
+        "SofiaWindowsWatchdogService",
+        sentinel,
+    )
+
+    assert windows_watchdog_service.main() == 0
+    assert calls == [
+        (
+            sentinel,
+            {
+                "serviceClassString":
+                WINDOWS_WATCHDOG_SERVICE_CLASS_STRING
+            },
+        )
+    ]

@@ -8,6 +8,7 @@ import sofia.run.windows_service as windows_service
 from sofia.run.windows_service import (
     PyWin32Modules,
     SERVICE_NAME,
+    WINDOWS_SERVICE_CLASS_STRING,
     configure_windows_service_recovery,
     create_windows_service_class,
 )
@@ -201,3 +202,25 @@ def test_import_boundary_reports_missing_pywin32(monkeypatch):
 
     with pytest.raises(RuntimeError, match="pywin32"):
         windows_service.load_pywin32()
+
+
+
+def test_service_cli_pins_importable_production_class_string(monkeypatch):
+    loaded, _event, _manager = modules()
+    calls = []
+
+    def handle(cls, **kwargs):
+        calls.append((cls, kwargs))
+
+    loaded.win32serviceutil.HandleCommandLine = handle
+    sentinel = object()
+    monkeypatch.setattr(windows_service, "load_pywin32", lambda: loaded)
+    monkeypatch.setattr(windows_service, "SofiaWindowsService", sentinel)
+
+    assert windows_service.main() == 0
+    assert calls == [
+        (
+            sentinel,
+            {"serviceClassString": WINDOWS_SERVICE_CLASS_STRING},
+        )
+    ]
