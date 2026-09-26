@@ -126,6 +126,47 @@ class EnvironmentService:
         self._provider_errors.pop(name, None)
         return observation
 
+    @staticmethod
+    def _freshness_rank(value: EnvironmentFreshness) -> int:
+        return {
+            EnvironmentFreshness.CURRENT: 3,
+            EnvironmentFreshness.STALE: 2,
+            EnvironmentFreshness.FUTURE: 1,
+            EnvironmentFreshness.UNKNOWN: 0,
+        }[value]
+
+    @classmethod
+    def _prefer_observation(
+        cls,
+        current,
+        candidate,
+        *,
+        now: datetime,
+    ):
+        """Prefer fresher evidence instead of provider-registration order."""
+        if candidate is None:
+            return current
+        if current is None:
+            return candidate
+
+        current_freshness = current.freshness(now=now)
+        candidate_freshness = candidate.freshness(now=now)
+        current_rank = cls._freshness_rank(current_freshness)
+        candidate_rank = cls._freshness_rank(candidate_freshness)
+
+        if candidate_rank != current_rank:
+            return candidate if candidate_rank > current_rank else current
+
+        current_observed = getattr(current, "observed_at", None)
+        candidate_observed = getattr(candidate, "observed_at", None)
+        if (
+            isinstance(current_observed, datetime)
+            and isinstance(candidate_observed, datetime)
+            and candidate_observed > current_observed
+        ):
+            return candidate
+        return current
+
     def snapshot(
         self,
         *,
@@ -146,15 +187,21 @@ class EnvironmentService:
             )
             if observation is None:
                 continue
-            if (
-                current_location is None
-                and observation.current_location is not None
-            ):
-                current_location = observation.current_location
-            if weather is None and observation.weather is not None:
-                weather = observation.weather
-            if indoor is None and observation.indoor is not None:
-                indoor = observation.indoor
+            current_location = self._prefer_observation(
+                current_location,
+                observation.current_location,
+                now=current_utc,
+            )
+            weather = self._prefer_observation(
+                weather,
+                observation.weather,
+                now=current_utc,
+            )
+            indoor = self._prefer_observation(
+                indoor,
+                observation.indoor,
+                now=current_utc,
+            )
 
         current_location_freshness = (
             current_location.freshness(now=current_utc)
