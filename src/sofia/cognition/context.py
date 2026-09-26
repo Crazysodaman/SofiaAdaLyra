@@ -13,6 +13,7 @@ from sofia.continuity.model import (
     create_continuity_event,
 )
 from sofia.embodiment.model import Embodiment
+from sofia.environment.model import EnvironmentSnapshot
 from sofia.embodiment.measurement_query import MeasurementQueryResult
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.filesystem.model import FilesystemResult
@@ -57,6 +58,7 @@ class CognitiveContext:
     system_capability_knowledge: SystemCapabilityKnowledge | None = None
     system_capability_machine_id: str | None = None
     avatar_presentation: PresentationProjection | None = None
+    environment_snapshot: EnvironmentSnapshot | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -216,6 +218,18 @@ class CognitiveContext:
             raise TypeError(
                 "CognitiveContext avatar_presentation must be a "
                 "PresentationProjection or None."
+            )
+
+        if (
+            self.environment_snapshot is not None
+            and not isinstance(
+                self.environment_snapshot,
+                EnvironmentSnapshot,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext environment_snapshot must be an "
+                "EnvironmentSnapshot or None."
             )
 
         if self.system_capability_machine_id is not None:
