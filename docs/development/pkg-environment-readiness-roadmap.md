@@ -121,6 +121,7 @@ A narrow NWS provider route was explicitly authorized by Sparks on 2026-09-26 wi
 - Exact destination/redirect pinning to `api.weather.gov`, required NWS User-Agent, timeout, existing ENVIRONMENT cache TTL and provider attribution.
 - Configurable weather target subject: USER, SITE, or HOST, using only explicitly configured coordinates.
 - Independent configured HOST/server location so runtime location never overwrites Sparks' USER/home location.
+- Preferred persistent HOST configuration is stored in Sofía's machine-location registry keyed by stable machine identity; process-local HOST environment variables remain an explicit override.
 - No arbitrary browsing/search capability bundled with the weather client.
 - NWS alerts remain a later ACT/ENVIRONMENT extension; this slice does not send proactive alerts.
 
@@ -193,7 +194,8 @@ A trusted local Home Assistant environment source may be used before general web
 - [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
 - [x] Narrow NWS focused Windows gate passed 2026-09-26: **85 passed in 249.58s** across environment config, NWS provider, factory, model, service, Home Assistant, query, prompt, runtime projection and import-boundary tests.
 - [x] Post-NWS full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
-- [ ] NWS extension remaining gate: supervised live canary for HOST identity, NWS weather/forecast provenance, and environment-source reporting.
+- [x] Initial supervised live NWS canary passed on Windows 2026-09-26 using an explicit temporary HOST override: runtime location answered as configured-not-current, current weather came from `nws:KGKY`, bounded forecast returned NWS periods, and provenance withheld coordinates/credentials.
+- [ ] Final persistence slice gate: durable machine-location registry + startup injection + inventory projection changed code after the prior 85-test/full-suite runs, so focused regression and full `pytest -q` must be rerun before merge.
 - [ ] General web/search and arbitrary geocoding remain a later separately authorized NET/web stage.
 
 **The accepted PR #110 offline implementation does not itself grant general geolocation, browser/search access, background polling, proactive alerts, or direct internet weather. The NWS extension branch adds only the separately authorized narrow `api.weather.gov` route when `SOFIA_ENVIRONMENT_NWS_ENABLED` and `environment.nws.read` are both present. Home Assistant remains separately configured/granted.**
