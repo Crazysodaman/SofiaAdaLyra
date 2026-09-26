@@ -171,6 +171,10 @@ class ConversationalContextAssembler(CognitiveContextAssembler):
         # guards retain their own typed decision and boundary projection.
         grounded = canonical.content.replace(_HISTORY_SECTION, summary + _HISTORY_SECTION, 1)
         return CognitiveRequest(
-            messages=(replace(canonical, content=grounded), *assembled.messages[1:]),
+            messages=(
+                replace(canonical, content=grounded),
+                *assembled.messages[1:],
+            ),
             tools=assembled.tools,
+            allow_tools=assembled.allow_tools,
         )
