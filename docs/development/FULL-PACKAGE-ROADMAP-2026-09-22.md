@@ -1,5 +1,7 @@
 > **Project status update — 2026-09-26:** PKG-ENVIRONMENT foundation PR #110 (`766bf21e`) and NWS/persistent-HOST extension PR #111 (`2b753fdb`) are merged to `main`. PR #111 adds a narrowly authorized NWS route pinned to HTTPS `api.weather.gov` under `environment.nws.read`, durable per-machine HOST location keyed by stable machine identity, startup injection, bounded machine-inventory projection and USER/HOST separation. Extension evidence: **85 focused**, reported green full suite, supervised live `nws:KGKY` canary, **96 persistence-focused**, and final reported green full suite. Optional live Home Assistant canary remains separately gated; general browsing/search and arbitrary geocoding remain closed. Earlier DEV/KNOW/INTEGRATE/OPS source acceptance remains unchanged; none of this is proof of production remote fleet orchestration, RUN 24/7 supervision, live failover or soak.
 
+> **Project status update — 2026-09-26 (UI):** PR #115 (`381ac9a`) merged the rebuilt canonical text/workbench foundation and PR #116 (`7f072861`) merged the accepted Windows desktop workbench. Current `main` now has durable unsent drafts, private workbench state, one canonical `SofiaApplication`/conversation path, a single-owner application worker, adaptive ENVIRONMENT/AVATAR/emotion theme projection, shallow chamfered HUD surfaces and reviewed Quick Tools that never auto-send. Acceptance included **58 UI + 24 application/Discord**, later focused UI/AVATAR passes, **90/90 integration repair**, supervised Windows use and a final reported green full repository suite. The same repair gate hardened reviewed-memory SQLite threading/cleanup and explicit request-level tool suppression for trusted interaction turns. Voice, renderer/avatar viewport, mobile/web and provider cancellation remain separately gated.
+
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
 **Revision:** 2026-09-26 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative [ROADMAP.md](../../ROADMAP.md), the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
@@ -48,7 +50,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 03. PKG-MEM | durable originals, provenance and restoration
 
-- **Current:** SQLite memory foundations on `main`; read-only original-retrieval candidate draft PR #9. Full provenance/privacy/restart acceptance remains.
+- **Current:** **original/provenance foundation and reviewed-memory runtime cognition are accepted on `main`.** PR #9 merged exact persisted originals, provenance-backed candidates, explicit promotion/rejection/revocation, promoted retrieval, source invalidation and reviewed workflow. Commit `65a59ba` routed normal cognition through promoted reviewed memory while preserving legacy explicit APIs. PR #116 hardened the reviewed candidate SQLite store for serialized cross-thread access and closed lifecycle ownership. Archive import, privacy/retention/encryption, SOCIAL principal binding and consistent backup/restore remain open.
 - **Build:** immutable originals, derived memories, correction/retraction, retrieval provenance and expiry, relationship/audience isolation, migration/archive import and consistent storage/restore across all authoritative stores. Inventory SQLite, journals, flat files, grants, outbox and audit before replication; avoid assuming `sofia.db` holds everything. Use supported consistent backup, never live-file mirroring.
 - **Depends on:** CORE, SOCIAL/SAFE; RUN/OPS for durability and failure-domain placement; ENVIRONMENT only for approved stable location/environment preferences and provenance, never stale-current observations; VERIFY for restore and leak tests.
 - **Exit:** exact originals survive restart and independent restore; corrections and revoked/private records do not leak through cached summaries; cross-store backup/restore parity verified.
@@ -69,10 +71,10 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 06. PKG-UI | channels, clients, voice, renderer
 
-- **Current:** workbench prototype draft PR #6; the Sparks-only Discord DM adapter is now live accepted for v1 transport. Desktop/web/mobile/voice, renderer and proactive outbound UI remain unaccepted.
-- **Build:** Sparks-only Discord D0-D4 adapter; canonical conversation routing across clients; send receipts/dedupe, accessibility-friendly text fallback, eventually voice, desktop/web/mobile and avatar renderer with actual animation acknowledgments.
-- **Depends on:** CORE/INTERACT, SOCIAL/MEM, NET/SAFE, RUN/VERIFY.
-- **Exit:** actual authenticated DM received and replied to once across reconnect/restart, stop/revoke works, real delivery is distinguished from queued/simulated delivery; later clients separately tested.
+- **Current:** **Windows text workbench is accepted on `main` via PRs #115/#116, and Sparks-only Discord DM remains live accepted for v1 transport.** The desktop uses the canonical application/conversation path with durable drafts, private review/workbench state, a single-owner application worker, adaptive theme projection from trusted current state, shallow chamfered HUD controls and reviewed Quick Tools that load prompts without auto-execution. Old draft PR #6 is superseded source material, not a merge target.
+- **Build:** preserve one canonical Sofía across Discord and desktop; next separately gated slices are authenticated renderer/avatar viewport, voice with real mic/speaker consent and receipts, mobile/web clients, proactive outbound presentation, authorized history/evidence views and real generation cancellation only when provider/runtime cancellation exists.
+- **Depends on:** CORE/INTERACT, SOCIAL/MEM, NET/SAFE, AVATAR for renderer state, RUN/VERIFY.
+- **Exit:** accepted text clients continue to share one runtime and truthful delivery state; later renderer/voice/mobile/web slices must each prove authenticated audience, real receipts, stop/revoke behavior, accessibility fallback and no fabricated completion.
 
 ### 07. PKG-RUN | supervision, watchdog and 24/7/failover
 
@@ -104,10 +106,10 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 11. PKG-AVATAR | canonical virtual body and wardrobe
 
-- **Current:** substantial offline candidate in draft PR #7; no accepted final renderer/rig/animation receipts.
-- **Build:** canonical adult avatar assets, configurable wardrobe, rig/body-region and ear/tail mapping, scene/prop data, stable renderer contracts and accessibility fallback; optionally consume PKG-ENVIRONMENT time/season/temperature/conditions for presentation choices without fetching weather itself; no implied physical perception from an image or text action.
-- **Depends on:** INTERACT/CORE, UI renderer, SAFE/VERIFY, ENVIRONMENT for environment-aware presentation; BODY separately.
-- **Exit:** versioned renderer displays expected state and returns genuine hit-test/animation receipts; absent renderer still yields coherent text interaction.
+- **Current:** **headless AVATAR presentation foundation is accepted on `main` via `9b81ba5`.** It includes durable current presentation and public daily fallback, starter wardrobe/catalog and layering metadata, context-driven daily selection, mutable hairstyle/hair/tail presentation, snapshots/restore, deterministic current self-facts and public-safe cognition projection. ENVIRONMENT supplies shared time/weather context. No final renderer/rig/animation receipts are claimed.
+- **Build:** retain the accepted headless state while adding canonical mesh/art, fitted clothing assets, rig/body-region and ear/tail mapping, renderer contracts, hit testing, animation receipts and accessibility fallback. Presentation may be emotion-influenced but not emotion-controlled, and private presentation requires authenticated SOCIAL audience before exposure.
+- **Depends on:** INTERACT/CORE, UI renderer, SOCIAL/SAFE/VERIFY, ENVIRONMENT for environment-aware presentation; BODY separately.
+- **Exit:** versioned renderer displays the exact authorized presentation state and returns genuine hit-test/animation receipts; absent renderer still yields coherent text interaction and public-safe self-description.
 
 ### 12. PKG-DEV | engineering, code changes and candidate tools
 
@@ -132,7 +134,7 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 ### 15. PKG-CLEAN | technical debt and preservation
 
-- **Current:** read-only inventory/protected-path preflight draft PR #14; no destructive cleanup authority.
+- **Current:** **current-main cleanup candidate PR #113 is open to stop tracking live runtime SQLite state safely; old PR #14 is historical preflight material.** Private recovery database snapshots and machine-location state are already ignored on `main`. No destructive cleanup authority is implied.
 - **Build:** evidence-backed duplicates/stale artifacts, migration and retention plan, safe versioned cleanup, tracked runtime SQLite/log preservation, backups and rollback. Avoid deleting state or history to achieve a clean Git status.
 - **Depends on:** SAFE/VERIFY and MEM/RUN recovery baseline; DEV for reviewed changes.
 - **Exit:** cleanup restores expected behavior/data/privacy and preserves recovery; protected/durable files cannot be silently deleted.
