@@ -211,6 +211,12 @@ class MemorySystem:
             for _, _, memory in scored[:limit]
         )
 
+    def close(self) -> None:
+        """Close all persistent memory stores owned by this system."""
+        self._store.close()
+        if self._candidate_store is not None:
+            self._candidate_store.close()
+
     @staticmethod
     def _tokenize(
         content: str,
