@@ -47,7 +47,7 @@ _OFFER_SCENE = (
 
 def offer_scene_variant(request: CognitiveRequest) -> CognitiveRequest:
     """Add a scoped avatar offer frame, retaining all original typed evidence."""
-    if request.tools or not request.messages or (
+    if request.tools or request.allow_tools or not request.messages or (
         request.messages[-1].role is not CognitiveRole.USER or
         request.messages[-1].content != 'I ask to hug you'
     ):
