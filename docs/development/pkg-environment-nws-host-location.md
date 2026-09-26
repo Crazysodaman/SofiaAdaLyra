@@ -29,10 +29,10 @@ Coordinates are internal evidence and are withheld from model-facing environment
 The preferred persistent path stores host location inside Sofía's machine state, keyed by the machine's stable discovered ID:
 
 ```powershell
-python -m sofia.machine.location_cli set-local \
-  --label "Home Lab" \
-  --timezone "America/Chicago" \
-  --latitude <LAT> \
+python -m sofia.machine.location_cli set-local `
+  --label "Home Lab" `
+  --timezone "America/Chicago" `
+  --latitude <LAT> `
   --longitude <LON>
 ```
 
@@ -41,11 +41,11 @@ This writes `state/machine-locations.json`. On the next Sofía start, compositio
 A known remote machine can be configured from an inventory-bearing installation:
 
 ```powershell
-python -m sofia.machine.location_cli set-known \
-  --hostname "Artemis" \
-  --label "Home Lab" \
-  --timezone "America/Chicago" \
-  --latitude <LAT> \
+python -m sofia.machine.location_cli set-known `
+  --hostname "Artemis" `
+  --label "Home Lab" `
+  --timezone "America/Chicago" `
+  --latitude <LAT> `
   --longitude <LON>
 ```
 
