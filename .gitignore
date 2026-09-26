@@ -43,3 +43,7 @@ batch-f-results.json
 # Persistent machine location state (private local coordinates)
 /state/machine-locations.json
 /state/machine-locations.json.tmp
+
+# Local Sofía database recovery snapshots (private runtime state)
+/state/sofia.pre-*.db
+/state/sofia.pre-*.db-*
