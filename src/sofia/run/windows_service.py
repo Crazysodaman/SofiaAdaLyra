@@ -18,7 +18,7 @@ from uuid import uuid4
 from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration, create_default_configuration
 from sofia.run.health import RunHeartbeatStore
-from sofia.run.lifecycle import RunLifecycleStore
+from sofia.run.lifecycle import RunLifecycleState, RunLifecycleStore
 
 
 SERVICE_NAME = "SofiaAdaLyra"
@@ -87,6 +87,17 @@ def create_windows_service_class(
 
         def SvcDoRun(self) -> None:
             configuration = configuration_factory()
+
+            state_path = Path(configuration.state_path)
+            if state_path.is_file():
+                existing_lifecycle = RunLifecycleStore(state_path)
+                if existing_lifecycle.current().state is RunLifecycleState.FENCED:
+                    self.ReportServiceStatus(win32service.SERVICE_STOPPED)
+                    servicemanager.LogInfoMsg(
+                        f"{SERVICE_DISPLAY_NAME} start refused because RUN lifecycle is fenced."
+                    )
+                    return
+
             application = application_factory(configuration)
             self._application = application
             heartbeat: RunHeartbeatStore | None = None

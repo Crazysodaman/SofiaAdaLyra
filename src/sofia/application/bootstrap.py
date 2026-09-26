@@ -18,6 +18,7 @@ from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
+from sofia.run.lifecycle import RunLifecycleState
 from sofia.runtime.model import RuntimeState
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.ui.drafts import UIDraftStore
@@ -207,7 +208,11 @@ class SofiaApplication:
             if control.opened
             else None
         )
-        if lifecycle is not None:
+        fenced = (
+            lifecycle is not None
+            and lifecycle.current().state is RunLifecycleState.FENCED
+        )
+        if lifecycle is not None and not fenced:
             lifecycle.begin_drain(at=datetime.now(timezone.utc))
 
         worker = getattr(self, "_idle_worker", None)
@@ -224,13 +229,13 @@ class SofiaApplication:
             self._idle_worker = None
 
         try:
-            if lifecycle is not None:
+            if lifecycle is not None and not fenced:
                 lifecycle.begin_stop(at=datetime.now(timezone.utc))
             bundle = getattr(self, "_presentation_bundle", None)
             if bundle is not None:
                 bundle.store.save(bundle.authority)
             self._runtime.shutdown()
-            if lifecycle is not None:
+            if lifecycle is not None and not fenced:
                 lifecycle.mark_stopped(at=datetime.now(timezone.utc))
         except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
             if lifecycle is not None:

@@ -224,3 +224,36 @@ def test_service_cli_pins_importable_production_class_string(monkeypatch):
             {"serviceClassString": WINDOWS_SERVICE_CLASS_STRING},
         )
     ]
+
+
+
+def test_fenced_lifecycle_refuses_service_start_cleanly(tmp_path):
+    loaded, _event, manager = modules()
+    path = tmp_path / "sofia.db"
+    with sqlite3.connect(path):
+        pass
+    from sofia.run.lifecycle import RunLifecycleStore
+    lifecycle = RunLifecycleStore(path)
+    lifecycle.mark_fenced(
+        at=windows_service.datetime.now(windows_service.timezone.utc),
+        detail="operator fence",
+        owner_id="canary",
+        epoch=1,
+    )
+
+    apps = []
+    config = SimpleNamespace(state_path=path)
+    Service = create_windows_service_class(
+        modules=loaded,
+        configuration_factory=lambda: config,
+        application_factory=lambda config: apps.append(FakeApplication(config)) or apps[-1],
+    )
+    Service.statuses = []
+
+    instance = Service(["service"])
+    instance.SvcDoRun()
+
+    assert apps == []
+    assert Service.statuses[-1] == (1, {})
+    assert manager.errors == []
+    assert any("fenced" in message.lower() for message in manager.info)

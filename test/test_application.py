@@ -300,3 +300,29 @@ def test_failure_after_runtime_ready_rolls_runtime_back_to_stopped(
     assert application.runtime.state is RuntimeState.STOPPED
     assert application.runtime.control_plane.opened is False
     assert RunLifecycleStore(state).current().state is RunLifecycleState.FAILED
+
+
+
+def test_shutdown_preserves_fenced_lifecycle(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    state = tmp_path / "sofia.db"
+    application = SofiaApplication(
+        create_configuration(personality_path, state)
+    )
+    application.start()
+
+    lifecycle = application.runtime.control_plane.run_lifecycle_store
+    lifecycle.mark_fenced(
+        at=bootstrap.datetime.now(bootstrap.timezone.utc),
+        detail="operator fence",
+        owner_id="canary",
+        epoch=1,
+    )
+
+    application.shutdown()
+
+    assert application.runtime.state is RuntimeState.STOPPED
+    assert application.runtime.control_plane.opened is False
+    assert RunLifecycleStore(state).current().state is RunLifecycleState.FENCED
