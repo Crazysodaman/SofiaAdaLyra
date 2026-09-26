@@ -179,27 +179,44 @@ def test_restart_and_resume_preserves_cognitive_history(
 
     request = captured_requests[1]
 
-    assert len(request.messages) == 6
+    system_messages = tuple(
+        message
+        for message in request.messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+    assert system_messages
+    assert any(
+        "CURRENT MODELED EMOTIONAL STATE"
+        in message.content
+        for message in system_messages
+    )
 
-    assert request.messages[0].role is CognitiveRole.USER
-    assert request.messages[0].content == "My name is Sparks."
+    conversation_messages = tuple(
+        message
+        for message in request.messages
+        if message.role is not CognitiveRole.SYSTEM
+    )
+    assert len(conversation_messages) == 6
 
-    assert request.messages[1].role is CognitiveRole.ASSISTANT
-    assert request.messages[1].content == "Test cognitive response."
+    assert conversation_messages[0].role is CognitiveRole.USER
+    assert conversation_messages[0].content == "My name is Sparks."
 
-    assert request.messages[2].role is CognitiveRole.USER
+    assert conversation_messages[1].role is CognitiveRole.ASSISTANT
+    assert conversation_messages[1].content == "Test cognitive response."
+
+    assert conversation_messages[2].role is CognitiveRole.USER
     assert (
-        request.messages[2].content
+        conversation_messages[2].content
         == "Remember that this conversation is a continuity test."
     )
 
-    assert request.messages[3].role is CognitiveRole.ASSISTANT
-    assert request.messages[3].content == "Test cognitive response."
+    assert conversation_messages[3].role is CognitiveRole.ASSISTANT
+    assert conversation_messages[3].content == "Test cognitive response."
 
-    assert request.messages[4].role is CognitiveRole.ASSISTANT
-    assert request.messages[4].content == "Continuity confirmed."
-    assert request.messages[5].role is CognitiveRole.USER
-    assert request.messages[5].content == "What did I say earlier?"
+    assert conversation_messages[4].role is CognitiveRole.ASSISTANT
+    assert conversation_messages[4].content == "Continuity confirmed."
+    assert conversation_messages[5].role is CognitiveRole.USER
+    assert conversation_messages[5].content == "What did I say earlier?"
 
     second_application.shutdown()
 
