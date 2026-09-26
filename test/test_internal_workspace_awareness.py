@@ -102,9 +102,22 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     db = tmp_path / "state" / "sofia.db"
     runtime = _runtime(tmp_path, _event(modified=(_change(db),)))
     runtime._personality = None
+    runtime._embodiment = object()
     calls = []
     runtime.start = lambda: calls.append("runtime:start")
     runtime.shutdown = lambda: calls.append("runtime:shutdown")
+    runtime.set_avatar_presentation = lambda authority: None
+
+    presentation_bundle = SimpleNamespace(
+        authority=object(),
+        store=SimpleNamespace(
+            save=lambda authority: None,
+        ),
+    )
+    monkeypatch.setattr(
+        "sofia.application.bootstrap.load_or_bootstrap_presentation",
+        lambda *, embodiment, state_path: presentation_bundle,
+    )
 
     def open_conversation():
         assert not runtime.workspace_changes.has_changes

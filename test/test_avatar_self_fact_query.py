@@ -86,3 +86,17 @@ def test_unrelated_question_remains_for_cognition():
     result = answer("What do you think about this design?")
     assert not result.recognized
     assert result.content == ""
+
+
+def test_public_safe_outfit_quick_tool_wording_is_authoritative():
+    result = answer(
+        "Tell me your current public-safe outfit and appearance presentation "
+        "state, including the outfit identifier if available."
+    )
+
+    assert result.recognized
+    assert "signature engineer outfit" in result.content
+    assert "outfit ID: engineer.signature" in result.content
+    assert "deep crimson hair" in result.content
+    assert "dark violet tail" in result.content
+    assert "style tags: canonical, engineer" in result.content

@@ -112,29 +112,64 @@ class NaturalInteractionEngine(InteractionEngine):
         # Explicit character possessives denote the same virtual recipient;
         # normalize BEFORE the legacy regex (which excludes apostrophes).
         text = re.sub(r"\bsof[ií]a['’]s\s+", 'your ', text, flags=re.I)
-        legacy = super().from_text(content=text, message_id=message_id,
-                                   session_id=session_id, occurred_at=occurred_at,
-                                   stopped=stopped)
+        match = _NEW_ACTION.fullmatch(text)
+        if match is not None:
+            gesture = _NEW_VERB_ALIASES[
+                normalize_alias(match.group('verb'))
+            ]
+            region_id = self.resolve_region(
+                match.group('region')
+            )
+            for name, value in (
+                ('message_id', message_id),
+                ('session_id', session_id),
+            ):
+                if (
+                    not isinstance(value, str)
+                    or not value.strip()
+                    or len(value) > 120
+                ):
+                    raise ValueError(
+                        f'{name} needs a bounded identifier.'
+                    )
+            if (
+                not isinstance(occurred_at, datetime)
+                or occurred_at.tzinfo is None
+                or occurred_at.utcoffset() is None
+            ):
+                raise ValueError(
+                    'An aware event timestamp is required.'
+                )
+            event = InteractionEvent(
+                event_id=f'interaction:{message_id}',
+                session_id=session_id,
+                evidence_ref=message_id,
+                source='user_text',
+                actor='user',
+                region_id=region_id,
+                gesture=gesture,
+                phase='end',
+                occurred_at=occurred_at.astimezone(
+                    timezone.utc
+                ),
+                registry_version=CATALOG_VERSION,
+            )
+            return self._decide(
+                event,
+                stopped=stopped,
+            )
+
+        legacy = super().from_text(
+            content=text,
+            message_id=message_id,
+            session_id=session_id,
+            occurred_at=occurred_at,
+            stopped=stopped,
+        )
         if legacy is not None:
             return legacy
-        match = _NEW_ACTION.fullmatch(text)
-        if match is None:
-            return None
-        gesture = _NEW_VERB_ALIASES[normalize_alias(match.group('verb'))]
-        region_id = self.resolve_region(match.group('region'))
-        for name, value in (('message_id', message_id), ('session_id', session_id)):
-            if not isinstance(value, str) or not value.strip() or len(value) > 120:
-                raise ValueError(f'{name} needs a bounded identifier.')
-        if not isinstance(occurred_at, datetime) or occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
-            raise ValueError('An aware event timestamp is required.')
-        event = InteractionEvent(
-            event_id=f'interaction:{message_id}', session_id=session_id,
-            evidence_ref=message_id, source='user_text', actor='user',
-            region_id=region_id, gesture=gesture, phase='end',
-            occurred_at=occurred_at.astimezone(timezone.utc),
-            registry_version=CATALOG_VERSION,
-        )
-        return self._decide(event, stopped=stopped)
+
+        return None
 
     def from_lab_pointer(self, *, fixture_id: str, session_id: str,
                          region_id: str | None, gesture: str,

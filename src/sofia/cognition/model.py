@@ -143,6 +143,7 @@ class CognitiveMessage:
 class CognitiveRequest:
     messages: tuple[CognitiveMessage, ...]
     tools: tuple[CognitiveToolDefinition, ...] = ()
+    allow_tools: bool = True
 
     def __post_init__(self) -> None:
         if not isinstance(self.messages, tuple):
@@ -168,6 +169,11 @@ class CognitiveRequest:
                     "CognitiveRequest tools must contain "
                     "CognitiveToolDefinition instances."
                 )
+
+        if not isinstance(self.allow_tools, bool):
+            raise TypeError(
+                "CognitiveRequest allow_tools must be a bool."
+            )
 
 
 @dataclass(frozen=True)

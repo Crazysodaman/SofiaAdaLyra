@@ -13,7 +13,7 @@ from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.clarification import ClarificationJournal
-from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.emotion import CurrentEmotionalState, EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
@@ -93,6 +93,20 @@ class EmotionalConversationService(ConversationService):
             return None
         return self.emotional_journal.observe_absence(
             subject=self._relationship_subject(), now=now,
+        )
+
+    def current_emotional_state(
+        self,
+        *,
+        now: datetime | None = None,
+    ) -> CurrentEmotionalState:
+        """Return the current modeled state for this active relationship scope."""
+        if self._runtime.personality is None:
+            raise RuntimeError("No personality profile is active.")
+        current = now or datetime.now(timezone.utc)
+        return self.emotional_journal.current_state(
+            now=current,
+            subject=self._relationship_subject(),
         )
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:

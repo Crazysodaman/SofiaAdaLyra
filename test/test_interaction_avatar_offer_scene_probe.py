@@ -14,11 +14,23 @@ from sofia.interaction.expanded_service import action_prompt
 def _reviewed_offer_request():
     offer = parse_user_action('I ask to hug you', message_id='synthetic-offer')
     assert offer is not None and offer.modality == 'offered'
-    return CognitiveRequest(messages=(
-        CognitiveMessage(role=CognitiveRole.SYSTEM, content='Canonical context.'),
-        CognitiveMessage(role=CognitiveRole.SYSTEM, content=action_prompt(offer)),
-        CognitiveMessage(role=CognitiveRole.USER, content='I ask to hug you'),
-    ))
+    return CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content='Canonical context.',
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content=action_prompt(offer),
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content='I ask to hug you',
+            ),
+        ),
+        allow_tools=False,
+    )
 
 
 def test_offer_scene_adds_only_one_system_frame_and_keeps_decision_unchanged():
@@ -28,6 +40,7 @@ def test_offer_scene_adds_only_one_system_frame_and_keeps_decision_unchanged():
     assert candidate.messages[:-2] == original.messages[:-1]
     assert candidate.messages[-1] is original.messages[-1]
     assert candidate.tools == original.tools == ()
+    assert candidate.allow_tools is original.allow_tools is False
     assert candidate.messages[-2].role is CognitiveRole.SYSTEM
     assert 'CURRENT-TURN AVATAR SCENE' in candidate.messages[-2].content
     assert 'accept, decline or clarify' in candidate.messages[-2].content
@@ -68,13 +81,12 @@ def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_p
     assert 'TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION' in system
     assert '"modality": "offered"' in system
     assert '"actions_executed": false' in system
-    # Current main exposes authorized cognitive tools to Ollama. Tool exposure
-    # intentionally selects the full verified Constitution rather than the
-    # compact ordinary-conversation projection.
-    assert '\nCONSTITUTION\n' in system
-    assert 'Constitution content:' in system
-    assert request.tools
-    assert 'tool_catalog' in {tool.name for tool in request.tools}
+    # Reviewed avatar offers are intentionally tool-free. With no tools
+    # exposed, ordinary conversation uses the bounded Constitution projection.
+    assert 'CONSTITUTION (bounded conversational projection)' in system
+    assert 'Constitution content:' not in system
+    assert request.tools == ()
+    assert request.allow_tools is False
     assert 'CURRENT AVATAR PRESENTATION' in system
     assert '"outfit_id": "engineer.signature"' in system
     assert not list(tmp_path.iterdir())  # TemporaryDirectory cleanup succeeded.

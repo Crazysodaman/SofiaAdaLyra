@@ -54,6 +54,13 @@ class AvatarSelfFactResolver:
         "what are you wearing rn",
         "what are you currently wearing",
     })
+    _PUBLIC_PRESENTATION_FORMS = frozenset({
+        "tell me your current public-safe outfit and appearance presentation state, including the outfit identifier if available",
+        "tell me your current public safe outfit and appearance presentation state, including the outfit identifier if available",
+        "what is your current public-safe outfit",
+        "what is your current public safe outfit",
+        "what is your current outfit identifier",
+    })
     _HAIR_COLOR_FORMS = frozenset({
         "what color is your hair",
         "what is your hair color",
@@ -113,6 +120,28 @@ class AvatarSelfFactResolver:
                 True,
                 (
                     f"I'm in my {outfit} right now."
+                ),
+            )
+
+        if normalized in self._PUBLIC_PRESENTATION_FORMS:
+            identifier = (
+                presentation.outfit_id
+                if presentation.outfit_id is not None
+                else "unknown"
+            )
+            tags = ", ".join(
+                presentation.appearance.style_tags
+            ) or "none"
+            return AvatarSelfFactAnswer(
+                True,
+                (
+                    f"I'm in my {outfit} right now "
+                    f"(outfit ID: {identifier}). "
+                    f"My public-safe presentation has "
+                    f"{presentation.appearance.hairstyle} "
+                    f"{presentation.appearance.hair_color} hair, "
+                    f"a {presentation.appearance.tail_color} tail, "
+                    f"and style tags: {tags}."
                 ),
             )
 

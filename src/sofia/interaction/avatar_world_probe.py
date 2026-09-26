@@ -47,7 +47,7 @@ _OFFER_SCENE = (
 
 def offer_scene_variant(request: CognitiveRequest) -> CognitiveRequest:
     """Add a scoped avatar offer frame, retaining all original typed evidence."""
-    if request.tools or not request.messages or (
+    if request.tools or request.allow_tools or not request.messages or (
         request.messages[-1].role is not CognitiveRole.USER or
         request.messages[-1].content != 'I ask to hug you'
     ):
@@ -95,7 +95,7 @@ def _shutdown_disposable_app(app: SofiaApplication) -> None:
     """
     runtime = app.runtime
     with ExitStack() as cleanup:
-        cleanup.callback(runtime._memory_system._store.close)
+        cleanup.callback(runtime._memory_system.close)
         cleanup.callback(runtime._operational_store.close)
         cleanup.callback(runtime._filesystem_observation_store.close)
         app.shutdown()

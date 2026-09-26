@@ -102,7 +102,11 @@ def _without_prescribed_gesture_reactions(request: CognitiveRequest) -> Cognitiv
             projected.append(message)
     if not changed:
         return request
-    return CognitiveRequest(messages=tuple(projected), tools=request.tools)
+    return CognitiveRequest(
+        messages=tuple(projected),
+        tools=request.tools,
+        allow_tools=request.allow_tools,
+    )
 
 
 class ExpandedConversationService(InteractiveConversationService):
@@ -184,7 +188,13 @@ class ExpandedConversationService(InteractiveConversationService):
         if not instructions:
             return request
         return CognitiveRequest(
-            messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
-                                       content='\n\n'.join(instructions)),
-                      *request.messages), tools=request.tools,
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content='\n\n'.join(instructions),
+                ),
+                *request.messages,
+            ),
+            tools=(),
+            allow_tools=False,
         )

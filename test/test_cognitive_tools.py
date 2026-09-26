@@ -9,6 +9,7 @@ from sofia.capability.model import (
     CapabilityResultKind,
 )
 from sofia.capability.system import CapabilitySystem
+from sofia.cognition.context import CognitiveContext
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -491,3 +492,48 @@ def test_tool_call_message_is_preserved_for_followup_provider_request():
     )
 
     assert result.content == "done"
+
+def test_cognitive_system_respects_explicit_tool_suppression():
+    dispatcher = create_dispatcher()
+
+    class RecordingEngine(CognitiveEngine):
+        def __init__(self):
+            self.requests = []
+
+        def respond(
+            self,
+            request: CognitiveRequest,
+        ) -> CognitiveResponse:
+            self.requests.append(request)
+            return CognitiveResponse(
+                content="Tool-free response.",
+            )
+
+    engine = RecordingEngine()
+    system = CognitiveSystem(
+        engine=engine,
+        tool_dispatcher=dispatcher,
+    )
+
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Respond without tools.",
+                        ),
+                    ),
+                    allow_tools=False,
+                ),
+            ),
+            authority=Authority(
+                allowed_capabilities=("test.inspect",),
+            ),
+        )
+    )
+
+    assert response.content == "Tool-free response."
+    assert engine.requests[0].tools == ()
+    assert engine.requests[0].allow_tools is False
