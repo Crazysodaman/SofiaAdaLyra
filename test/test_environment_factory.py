@@ -148,3 +148,44 @@ def test_factory_rejects_nws_without_explicit_standing_grant():
             configuration(environment)
         )
 
+def test_factory_can_compose_home_assistant_and_nws_together(monkeypatch):
+    monkeypatch.setenv(
+        "SOFIA_HOME_ASSISTANT_URL",
+        "http://home-assistant.invalid",
+    )
+    monkeypatch.setenv(
+        "SOFIA_HOME_ASSISTANT_TOKEN",
+        "test-only-token",
+    )
+    environment = EnvironmentConfiguration(
+        location=ConfiguredLocation(
+            label="Home",
+            timezone="America/Chicago",
+            subject=LocationSubject.USER,
+            latitude=32.5,
+            longitude=-97.1,
+        ),
+        home_assistant_indoor_temperature_entity="sensor.room_temperature",
+        nws_enabled=True,
+    )
+
+    service = create_environment_service(
+        configuration(
+            environment,
+            capabilities=(
+                HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
+                NWS_ENVIRONMENT_CAPABILITY,
+            ),
+        )
+    )
+
+    assert len(service.providers) == 2
+    assert isinstance(
+        service.providers[0],
+        HomeAssistantEnvironmentProvider,
+    )
+    assert isinstance(
+        service.providers[1],
+        NwsEnvironmentProvider,
+    )
+
