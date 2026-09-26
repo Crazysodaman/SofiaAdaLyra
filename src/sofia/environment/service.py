@@ -44,9 +44,16 @@ class EnvironmentService:
         if not isinstance(providers, tuple):
             raise TypeError("providers must be a tuple")
         for provider in providers:
-            if not isinstance(provider, EnvironmentProvider):
+            name = getattr(provider, "name", None)
+            observe = getattr(provider, "observe", None)
+            if (
+                not isinstance(name, str)
+                or not name.strip()
+                or not callable(observe)
+            ):
                 raise TypeError(
-                    "providers must implement EnvironmentProvider"
+                    "providers must expose a nonempty name and "
+                    "callable observe(now=...)"
                 )
         self._providers = providers
         self._provider_observations: dict[
