@@ -2,6 +2,8 @@
 
 > **Audit reconciliation — 2026-09-25:** ACT #105, EVOLVE #106 and RUN #107 are merged and passed their Windows package gates plus the reported post-merge full suite. Repository review distinguishes merged package primitives from application wiring/live deployment. Immediate gaps are CORE/INTERACT natural-quality repair, SOCIAL authenticated-principal projection, MEM privacy/recovery, SAFE/CLEAN/VERIFY foundations, ACT/RUN/EVOLVE runtime wiring, and stale legacy draft branches. See [ROADMAP.md](ROADMAP.md) for the authoritative package states and [the full package roadmap](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md) for the reconciled execution order.
 
+> **Architecture update — 2026-09-25:** PKG-ENVIRONMENT is now package #20. Existing live code already supplies tested runtime-clock evidence, but authoritative geographic location, season/daylight, weather/forecast and a shared environment snapshot remain unimplemented.
+
 # Sofía Ada Lyra | master readiness index
 
 **Updated:** 2026-09-25 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster is now **20 packages** after adding PKG-ENVIRONMENT; watchdog and replicated-database reliability remain cross-package architecture rather than extra packages.
@@ -14,7 +16,7 @@
 4. [Reliability implementation stages](docs/development/pkg-reliability-implementation-plan.md): recoverable SQLite baseline before any candidate database migration; staged proofs.
 5. [RUN independent watchdog and standby recovery](docs/development/pkg-run-watchdog-failover-contract.md): local supervisor, independent monitor, fenced leader promotion, standby startup, rejoin and failure acceptance.
 6. [PKG-ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md): shared time/location/season/daylight/weather state, provenance/freshness, consumer boundaries and staged provider activation.
-6. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
+7. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
 
 **Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum Sparks-only principal/audience → Discord D0-D4 through NET + UI + SAFE → OPS trusted host telemetry/enrollment → RUN verified supervised 24/7 and applicable recovery/failover → later separately authorized general web/search.
 
@@ -63,7 +65,7 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 - **Two data locations:** proposed single writer plus synchronous data-bearing standby on independently verified failure domains, a separate quorum/fencing witness and third isolated/versioned backup. SQLite first gets state inventory, safe consistent backups and independent restore; PostgreSQL is only one future candidate after benchmark, migration, and separate activation approval. Synchronous replication does not protect against replicated deletion/corruption.
 - **Watchdog and standby:** local supervisor restarts local process; independent fleet monitor detects host failure; compatible standby supervisor starts a replacement only after exclusive leader fencing and durable-state validation. If exclusivity, quorum or data is uncertain, fail closed rather than boot two leaders. A witness is not a data copy. Two VMs on Artemis are not independent physical failure domains.
 - **Operator authority:** Sparks can independently stop automation, pin hosts/workloads and prohibit reboots. Sofía may quarantine/drain/prepare a machine, but **only Sparks explicitly approves final removal of that exact device and proposal revision**.
-- **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance.
+- **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance. Direct internet weather/geocoding is part of that separately authorized path; trusted local Home Assistant environment observations may be consumed earlier through INTEGRATE/ENVIRONMENT without granting browser/search access.
 
 ## Reconciliation notes
 
