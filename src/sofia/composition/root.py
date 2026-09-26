@@ -39,6 +39,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability,creat
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
@@ -164,8 +165,13 @@ def compose(
         configuration.state_path
     )
 
+    memory_candidate_store = DurableMemoryCandidateStore(
+        configuration.state_path
+    )
+
     memory_system = MemorySystem(
-        memory_store
+        memory_store,
+        candidate_store=memory_candidate_store,
     )
 
     operational_store = OperationalStore(
