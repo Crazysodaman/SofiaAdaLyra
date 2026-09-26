@@ -42,3 +42,12 @@ pytest -q test/test_run_windows_service.py test/test_run_lifecycle.py test/test_
 Installation, automatic-start policy, recovery configuration, reboot/start,
 stop, forced-process-kill and bounded restart must be tested on the selected
 Windows service host before this slice is called production accepted.
+## Live canary finding — service Python scope
+
+The first SCM start canary failed before RUN lifecycle generation advanced and before any heartbeat existed. The installed service host was the canary virtual environment's `pythonservice.exe`, while that venv's base Python was a per-user installation under `%LOCALAPPDATA%`. The service account was `LocalSystem`.
+
+This deployment shape is rejected for production RUN. pywin32 documents that Windows services should use a globally accessible Python installation and notes that `LocalSystem` commonly cannot access user-local Python. A machine-wide dedicated Python runtime is now required for the Windows service host. The repository/state may remain on local `C:\\` storage; only the service Python host must be machine-accessible.
+
+The live canary remains open. Offline RUN acceptance is unchanged because the application lifecycle never received control in this failure.
+
+
