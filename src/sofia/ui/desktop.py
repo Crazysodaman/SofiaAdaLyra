@@ -8,13 +8,11 @@ is introduced here.
 from __future__ import annotations
 
 from queue import Empty, Queue
-from threading import Thread
 import traceback
 from typing import Any
 
-from sofia.application import SofiaApplication
 from sofia.config import SofiaConfiguration, create_default_configuration
-from sofia.ui.desktop_controller import DesktopWorkbenchController
+from sofia.ui.desktop_worker import DesktopApplicationWorker
 from sofia.ui.theme import ThemePalette, canonical_theme
 
 
@@ -52,15 +50,20 @@ class _TkDesktopWorkbench:
         tk: Any,
         ttk: Any,
         root: Any,
-        controller: DesktopWorkbenchController,
+        configuration: SofiaConfiguration,
         session_id: str | None,
     ) -> None:
         self._tk = tk
         self._ttk = ttk
         self._root = root
-        self._controller = controller
         self._session_id = session_id
         self._events: Queue[tuple[str, object]] = Queue()
+        self._worker = DesktopApplicationWorker(
+            configuration=configuration,
+            session_id=session_id,
+            events=self._events,
+        )
+        self._application_ready = False
         self._busy = False
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
@@ -232,23 +235,7 @@ class _TkDesktopWorkbench:
 
     def _start_background(self) -> None:
         self._busy = True
-        Thread(
-            target=self._background_start,
-            name="sofia-ui-start",
-            daemon=True,
-        ).start()
-
-    def _background_start(self) -> None:
-        try:
-            history = self._controller.start(
-                session_id=self._session_id
-            )
-            draft = self._controller.draft_text()
-            self._events.put(
-                ("started", (history, draft))
-            )
-        except Exception as exc:
-            self._events.put(("startup_error", exc))
+        self._worker.start()
 
     def _on_shift_return(self, _event):
         self._input.insert("insert", "\n")
@@ -263,19 +250,19 @@ class _TkDesktopWorkbench:
         if not self._input.edit_modified():
             return
         self._input.edit_modified(False)
-        if not self._controller.started or self._busy:
+        if not self._application_ready or self._busy:
             return
         try:
-            self._controller.save_draft(
+            self._worker.save_draft(
                 self._input.get("1.0", "end-1c")
             )
         except Exception as exc:
             self._status.set(
-                f"Draft save failed: {type(exc).__name__}"
+                f"Draft queue failed: {type(exc).__name__}"
             )
 
     def _send_current(self) -> None:
-        if self._busy or not self._controller.started:
+        if self._busy or not self._application_ready:
             return
         content = self._input.get("1.0", "end-1c")
         if not content.strip():
@@ -284,20 +271,7 @@ class _TkDesktopWorkbench:
         self._busy = True
         self._set_enabled(False)
         self._status.set("Sofía is responding...")
-        Thread(
-            target=self._background_send,
-            args=(content,),
-            name="sofia-ui-send",
-            daemon=True,
-        ).start()
-
-    def _background_send(self, content: str) -> None:
-        try:
-            self._controller.send(content)
-            history = self._controller.history()
-            self._events.put(("sent", history))
-        except Exception as exc:
-            self._events.put(("send_error", exc))
+        self._worker.send(content)
 
     def _poll_events(self) -> None:
         while True:
@@ -307,27 +281,35 @@ class _TkDesktopWorkbench:
                 break
 
             if kind == "started":
-                history, draft = payload
+                history, draft, palette = payload
+                self._application_ready = True
                 self._busy = False
                 self._render_history(history)
                 self._replace_input(draft)
                 self._set_enabled(True)
                 self._status.set("Ready")
-                self._refresh_theme()
+                if self._adaptive_theme.get():
+                    self._apply_theme(palette)
+                else:
+                    self._apply_theme(canonical_theme())
                 self._input.focus_set()
                 if self._close_requested:
-                    self._finish_close()
+                    self._begin_shutdown()
                     return
             elif kind == "sent":
+                history, palette = payload
                 self._busy = False
-                self._render_history(payload)
+                self._render_history(history)
                 self._replace_input("")
                 self._set_enabled(True)
                 self._status.set("Ready")
-                self._refresh_theme()
+                if self._adaptive_theme.get():
+                    self._apply_theme(palette)
+                else:
+                    self._apply_theme(canonical_theme())
                 self._input.focus_set()
                 if self._close_requested:
-                    self._finish_close()
+                    self._begin_shutdown()
                     return
             elif kind == "startup_error":
                 self._busy = False
@@ -364,8 +346,38 @@ class _TkDesktopWorkbench:
                 )
                 self._input.focus_set()
                 if self._close_requested:
-                    self._finish_close()
+                    self._begin_shutdown()
                     return
+            elif kind == "theme":
+                if self._adaptive_theme.get():
+                    self._apply_theme(payload)
+            elif kind == "draft_error":
+                self._status.set(
+                    f"Draft save failed: {type(payload).__name__}"
+                )
+            elif kind == "shutdown_complete":
+                self._application_ready = False
+                self._root.destroy()
+                return
+            elif kind == "shutdown_error":
+                detail = _format_exception_chain(payload)
+                traceback.print_exception(
+                    type(payload),
+                    payload,
+                    payload.__traceback__,
+                )
+                self._show_error(
+                    "Sofía could not shut down cleanly",
+                    detail,
+                )
+                self._application_ready = False
+                self._root.destroy()
+                return
+            elif kind == "worker_error":
+                self._show_error(
+                    "Desktop worker error",
+                    _format_exception_chain(payload),
+                )
 
         self._root.after(80, self._poll_events)
 
@@ -451,15 +463,12 @@ class _TkDesktopWorkbench:
         palette = canonical_theme()
         if (
             self._adaptive_theme.get()
-            and self._controller.started
+            and self._application_ready
         ):
             try:
-                palette = (
-                    self._controller.theme_palette()
-                )
+                self._worker.refresh_theme()
+                return
             except Exception:
-                # Theme projection is optional presentation. A theme-source
-                # failure must never take down conversation.
                 palette = canonical_theme()
         self._apply_theme(palette)
 
@@ -503,25 +512,25 @@ class _TkDesktopWorkbench:
         self._send.configure(state=state)
 
     def _request_close(self) -> None:
+        self._close_requested = True
         if self._busy:
-            self._close_requested = True
             self._status.set(
                 "Finishing current operation before shutdown..."
             )
             return
-        self._finish_close()
+        self._begin_shutdown()
 
-    def _finish_close(self) -> None:
-        draft = ""
-        try:
-            if self._controller.started:
-                if str(self._input.cget("state")) != "disabled":
-                    draft = self._input.get("1.0", "end-1c")
-                self._controller.shutdown(
-                    current_draft=draft,
-                )
-        finally:
+    def _begin_shutdown(self) -> None:
+        if not self._application_ready:
             self._root.destroy()
+            return
+        draft = ""
+        if str(self._input.cget("state")) != "disabled":
+            draft = self._input.get("1.0", "end-1c")
+        self._busy = True
+        self._set_enabled(False)
+        self._status.set("Shutting down Sofía...")
+        self._worker.shutdown(draft)
 
     def _show_error(self, title: str, message: str) -> None:
         try:
@@ -550,14 +559,12 @@ def run_desktop(
         ) from exc
 
     config = configuration or create_default_configuration()
-    application = SofiaApplication(config)
-    controller = DesktopWorkbenchController(application)
     root = tk.Tk()
     _TkDesktopWorkbench(
         tk=tk,
         ttk=ttk,
         root=root,
-        controller=controller,
+        configuration=config,
         session_id=session_id,
     )
     root.mainloop()
