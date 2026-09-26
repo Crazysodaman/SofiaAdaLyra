@@ -12,6 +12,7 @@ from importlib import import_module
 import os
 from pathlib import Path
 import subprocess
+import sys
 from typing import Callable, Protocol, Sequence
 from uuid import uuid4
 
@@ -58,6 +59,16 @@ class _ApplicationLike(Protocol):
     def shutdown(self) -> None: ...
 
 
+def _run_lifecycle_is_fenced(configuration: SofiaConfiguration) -> bool:
+    state_path = Path(configuration.state_path)
+    if not state_path.is_file():
+        return False
+    return (
+        RunLifecycleStore(state_path).current().state
+        is RunLifecycleState.FENCED
+    )
+
+
 def create_windows_service_class(
     *,
     modules: PyWin32Modules | None = None,
@@ -88,15 +99,12 @@ def create_windows_service_class(
         def SvcDoRun(self) -> None:
             configuration = configuration_factory()
 
-            state_path = Path(configuration.state_path)
-            if state_path.is_file():
-                existing_lifecycle = RunLifecycleStore(state_path)
-                if existing_lifecycle.current().state is RunLifecycleState.FENCED:
-                    self.ReportServiceStatus(win32service.SERVICE_STOPPED)
-                    servicemanager.LogInfoMsg(
-                        f"{SERVICE_DISPLAY_NAME} start refused because RUN lifecycle is fenced."
-                    )
-                    return
+            if _run_lifecycle_is_fenced(configuration):
+                self.ReportServiceStatus(win32service.SERVICE_STOPPED)
+                servicemanager.LogInfoMsg(
+                    f"{SERVICE_DISPLAY_NAME} start refused because RUN lifecycle is fenced."
+                )
+                return
 
             application = application_factory(configuration)
             self._application = application
@@ -152,6 +160,16 @@ def create_windows_service_class(
                     f"{SERVICE_DISPLAY_NAME} stopped cleanly."
                 )
             except Exception as exc:
+                # A fence may be asserted while application startup is still
+                # reconciling. That is a controlled authority revocation, not
+                # a service failure, so do not trigger SCM failure recovery.
+                if _run_lifecycle_is_fenced(configuration):
+                    self.ReportServiceStatus(win32service.SERVICE_STOPPED)
+                    servicemanager.LogInfoMsg(
+                        f"{SERVICE_DISPLAY_NAME} stopped because RUN lifecycle became fenced."
+                    )
+                    return
+
                 # The application/RUN lifecycle records the underlying failure.
                 # Report a nonzero service exit so configured SCM failure actions
                 # may restart the service even when the Python host did not crash.
@@ -250,6 +268,14 @@ def configure_windows_service_recovery(
 
 def main() -> int:
     """Dispatch pywin32's explicit install/start/stop/remove service CLI."""
+    if any(arg.lower() == "start" for arg in sys.argv[1:]):
+        configuration = create_default_configuration()
+        if _run_lifecycle_is_fenced(configuration):
+            print(
+                f"{SERVICE_DISPLAY_NAME} start refused: RUN lifecycle is fenced."
+            )
+            return 2
+
     modules = load_pywin32()
     service_class = SofiaWindowsService
     if service_class is None:

@@ -257,3 +257,76 @@ def test_fenced_lifecycle_refuses_service_start_cleanly(tmp_path):
     assert Service.statuses[-1] == (1, {})
     assert manager.errors == []
     assert any("fenced" in message.lower() for message in manager.info)
+
+
+
+def test_fence_asserted_during_start_is_clean_stop(tmp_path):
+    loaded, _event, manager = modules()
+    path = tmp_path / "sofia.db"
+    with sqlite3.connect(path):
+        pass
+    from sofia.run.lifecycle import RunLifecycleStore
+
+    config = SimpleNamespace(state_path=path)
+
+    class FenceDuringStartApplication(FakeApplication):
+        def start(self, session_id=None):
+            self.started += 1
+            RunLifecycleStore(path).mark_fenced(
+                at=windows_service.datetime.now(windows_service.timezone.utc),
+                detail="operator fence during startup",
+                owner_id="canary",
+                epoch=1,
+            )
+            raise RuntimeError("startup interrupted by fence")
+
+    Service = create_windows_service_class(
+        modules=loaded,
+        configuration_factory=lambda: config,
+        application_factory=lambda config: FenceDuringStartApplication(config),
+    )
+    Service.statuses = []
+
+    instance = Service(["service"])
+    instance.SvcDoRun()
+
+    assert Service.statuses[-1] == (1, {})
+    assert manager.errors == []
+    assert any(
+        "became fenced" in message.lower()
+        for message in manager.info
+    )
+
+
+def test_cli_start_refuses_fenced_lifecycle_before_scm(monkeypatch, tmp_path, capsys):
+    path = tmp_path / "sofia.db"
+    with sqlite3.connect(path):
+        pass
+    from sofia.run.lifecycle import RunLifecycleStore
+    lifecycle = RunLifecycleStore(path)
+    lifecycle.mark_fenced(
+        at=windows_service.datetime.now(windows_service.timezone.utc),
+        detail="operator fence",
+        owner_id="canary",
+        epoch=1,
+    )
+    config = SimpleNamespace(state_path=path)
+
+    monkeypatch.setattr(
+        windows_service,
+        "create_default_configuration",
+        lambda: config,
+    )
+    monkeypatch.setattr(
+        windows_service.sys,
+        "argv",
+        ["windows_service.py", "start"],
+    )
+
+    def should_not_load():
+        raise AssertionError("pywin32 should not be loaded for fenced CLI start")
+
+    monkeypatch.setattr(windows_service, "load_pywin32", should_not_load)
+
+    assert windows_service.main() == 2
+    assert "start refused" in capsys.readouterr().out.lower()
