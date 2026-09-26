@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from threading import RLock
 from uuid import UUID
 
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
@@ -32,10 +33,15 @@ class DurableMemoryCandidateStore:
         target = Path(database_path)
         if not target.parent.exists():
             raise FileNotFoundError("memory database parent directory must exist")
-        self._db = sqlite3.connect(target, timeout=3.0)
-        self._db.execute("PRAGMA foreign_keys = ON")
-        self._db.execute("PRAGMA busy_timeout = 3000")
-        self._db.execute("""
+        self._lock = RLock()
+        self._db: sqlite3.Connection | None = sqlite3.connect(
+            target,
+            timeout=3.0,
+            check_same_thread=False,
+        )
+        self._require_db().execute("PRAGMA foreign_keys = ON")
+        self._require_db().execute("PRAGMA busy_timeout = 3000")
+        self._require_db().execute("""
             CREATE TABLE IF NOT EXISTS memory_candidate (
                 candidate_id TEXT PRIMARY KEY,
                 content TEXT NOT NULL,
@@ -43,7 +49,7 @@ class DurableMemoryCandidateStore:
                 status TEXT NOT NULL
             )
         """)
-        self._db.execute("""
+        self._require_db().execute("""
             CREATE TABLE IF NOT EXISTS memory_candidate_source (
                 candidate_id TEXT NOT NULL,
                 ordinal INTEGER NOT NULL,
@@ -63,8 +69,10 @@ class DurableMemoryCandidateStore:
         if not isinstance(candidate, MemoryCandidate):
             raise TypeError("candidate must be a MemoryCandidate")
         try:
-            with self._db:
-                self._db.execute(
+            with self._lock:
+                db = self._require_db()
+                with db:
+                    db.execute(
                     """INSERT INTO memory_candidate
                        (candidate_id, content, created_at, status)
                        VALUES (?, ?, ?, ?)""",
@@ -72,7 +80,7 @@ class DurableMemoryCandidateStore:
                      _utc(candidate.created_at), CandidateStatus.PROPOSED.value),
                 )
                 for ordinal, source in enumerate(candidate.sources):
-                    self._db.execute(
+                    self._require_db().execute(
                         """INSERT INTO memory_candidate_source
                            (candidate_id, ordinal, message_id, session_id, role,
                             content, created_at, position)
@@ -87,13 +95,13 @@ class DurableMemoryCandidateStore:
     def get(self, candidate_id: UUID) -> MemoryCandidate | None:
         if not isinstance(candidate_id, UUID):
             raise TypeError("candidate_id must be a UUID")
-        row = self._db.execute(
+        row = self._require_db().execute(
             "SELECT content, created_at FROM memory_candidate WHERE candidate_id = ?",
             (str(candidate_id),),
         ).fetchone()
         if row is None:
             return None
-        source_rows = self._db.execute(
+        source_rows = self._require_db().execute(
             """SELECT message_id, session_id, role, content, created_at, position
                FROM memory_candidate_source
                WHERE candidate_id = ? ORDER BY ordinal ASC""",
@@ -118,11 +126,11 @@ class DurableMemoryCandidateStore:
         if status is not None and not isinstance(status, CandidateStatus):
             raise TypeError("status must be CandidateStatus or None")
         if status is None:
-            rows = self._db.execute(
+            rows = self._require_db().execute(
                 "SELECT candidate_id FROM memory_candidate ORDER BY created_at ASC, candidate_id ASC"
             ).fetchall()
         else:
-            rows = self._db.execute(
+            rows = self._require_db().execute(
                 """SELECT candidate_id FROM memory_candidate
                    WHERE status = ? ORDER BY created_at ASC, candidate_id ASC""",
                 (status.value,),
@@ -134,7 +142,7 @@ class DurableMemoryCandidateStore:
             raise ValueError("session_id must be nonempty")
         if not isinstance(message_id, str) or not message_id.strip():
             raise ValueError("message_id must be nonempty")
-        rows = self._db.execute(
+        rows = self._require_db().execute(
             """SELECT candidate_id FROM memory_candidate_source
                WHERE session_id = ? AND message_id = ? ORDER BY candidate_id ASC""",
             (session_id, message_id),
@@ -144,7 +152,7 @@ class DurableMemoryCandidateStore:
     def status(self, candidate_id: UUID) -> CandidateStatus | None:
         if not isinstance(candidate_id, UUID):
             raise TypeError("candidate_id must be a UUID")
-        row = self._db.execute(
+        row = self._require_db().execute(
             "SELECT status FROM memory_candidate WHERE candidate_id = ?",
             (str(candidate_id),),
         ).fetchone()
@@ -169,7 +177,7 @@ class DurableMemoryCandidateStore:
         if not isinstance(candidate_id, UUID):
             raise TypeError("candidate_id must be a UUID")
         with self._db:
-            cursor = self._db.execute(
+            cursor = self._require_db().execute(
                 """UPDATE memory_candidate SET status = ?
                    WHERE candidate_id = ? AND status = ?""",
                 (target.value, str(candidate_id), expected.value),
@@ -181,4 +189,13 @@ class DurableMemoryCandidateStore:
         raise ValueError(f"candidate must be {expected.value} before {target.value}")
 
     def close(self) -> None:
-        self._db.close()
+        with self._lock:
+            if self._db is None:
+                return
+            self._db.close()
+            self._db = None
+
+    def _require_db(self) -> sqlite3.Connection:
+        if self._db is None:
+            raise RuntimeError("memory candidate store is closed")
+        return self._db
