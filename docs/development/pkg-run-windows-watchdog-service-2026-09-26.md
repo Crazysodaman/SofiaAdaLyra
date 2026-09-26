@@ -80,6 +80,13 @@ On 2026-09-26, `SofiaAdaLyra` successfully started under Windows SCM using the d
 
 This is live proof that the Windows service host reaches canonical application READY state. Heartbeat advancement, independent watchdog start/PID, kill/hang/fence/reboot recovery and measured recovery RTO remain open.
 
+
+## Live canary evidence — heartbeat and watchdog independence
+
+The live runtime heartbeat was observed advancing while `SofiaAdaLyra` remained READY, confirming periodic heartbeat pulses rather than only startup initialization. The independent `SofiaAdaLyraWatchdog` service then started successfully under SCM. SCM reported both services RUNNING with distinct process IDs, proving the watchdog is hosted independently from the Sofía runtime process.
+
+Crash recovery, hang/stale-heartbeat recovery, fenced-stop behavior, reboot recovery and measured RTO remain open.
+
 ## Live Windows canary
 
 After full-suite acceptance:
