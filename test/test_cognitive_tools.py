@@ -9,6 +9,7 @@ from sofia.capability.model import (
     CapabilityResultKind,
 )
 from sofia.capability.system import CapabilitySystem
+from sofia.cognition.context import CognitiveContext
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import (
     CognitiveMessage,
