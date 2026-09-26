@@ -331,6 +331,7 @@ class InteractiveConversationService(EmotionalConversationService):
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=instruction),
                           *request.messages), tools=(),
+                allow_tools=False,
             )
         embodiment = self._runtime.embodiment
         if self._runtime.personality is None or embodiment is None:
@@ -354,12 +355,14 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=(),
+                allow_tools=False,
             )
         discussion = body_discussion_prompt(content=user.content, engine=engine)
         if discussion is not None:
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
                           *request.messages), tools=(),
+                allow_tools=False,
             )
         followup = interaction_followup_prompt(
             content=user.content, messages=messages, engine=engine,
@@ -368,6 +371,7 @@ class InteractiveConversationService(EmotionalConversationService):
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=followup),
                           *request.messages), tools=(),
+                allow_tools=False,
             )
         if state_path is not None:
             observation = lab_observation_prompt(content=user.content, state_path=state_path)
@@ -375,6 +379,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 return CognitiveRequest(
                     messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=observation),
                               *request.messages), tools=(),
+                allow_tools=False,
                 )
         if _LAB_COMMAND.match(user.content.strip()) is None:
             return request
@@ -390,4 +395,5 @@ class InteractiveConversationService(EmotionalConversationService):
             messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
                                        content=world_prompt(result, world=world)),
                       *request.messages), tools=(),
+                allow_tools=False,
         )
