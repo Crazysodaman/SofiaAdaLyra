@@ -20,6 +20,11 @@ from sofia.machine.hardware import (
     create_hardware_discovery,
 )
 from sofia.machine.inventory import MachineInventory
+from sofia.machine.location import (
+    MachineLocationRecord,
+    MachineLocationRegistry,
+    new_machine_location,
+)
 from sofia.machine.model import (
     HardwareProfile,
     MachineIdentity,
@@ -54,6 +59,8 @@ __all__ = [
     "MachineIdentity",
     "MachineInventory",
     "MachineInventoryRefresher",
+    "MachineLocationRecord",
+    "MachineLocationRegistry",
     "MachineObservation",
     "MachineProfile",
     "MachineRefreshResult",
@@ -75,4 +82,5 @@ __all__ = [
     "compare_machine_observations",
     "create_hardware_discovery",
     "create_machine_discovery",
+    "new_machine_location",
 ]

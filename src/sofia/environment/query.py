@@ -216,6 +216,17 @@ class EnvironmentQueryResolver:
                     "current physical-location proof."
                 )
 
+            host = snapshot.host_location
+            if host is None:
+                sources.append("- Configured runtime host location: unavailable.")
+            else:
+                sources.append(
+                    "- Configured runtime host location: "
+                    f"{host.label}; timezone={host.timezone}; "
+                    f"source={host.source_id}; configuration is not "
+                    "current physical-location proof."
+                )
+
             current = snapshot.current_location
             if current is None:
                 sources.append(
@@ -450,12 +461,16 @@ class EnvironmentQueryResolver:
                         f"{current.source_id}."
                     ),
                 )
-            configured = snapshot.configured_location
-            if (
-                configured is not None
-                and configured.subject
-                in {LocationSubject.HOST, LocationSubject.SITE}
-            ):
+            configured = snapshot.host_location
+            if configured is None:
+                candidate = snapshot.configured_location
+                if (
+                    candidate is not None
+                    and candidate.subject
+                    in {LocationSubject.HOST, LocationSubject.SITE}
+                ):
+                    configured = candidate
+            if configured is not None:
                 return EnvironmentQueryAnswer(
                     True,
                     (

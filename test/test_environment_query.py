@@ -304,3 +304,34 @@ def test_environment_context_sources_are_direct_and_privacy_bounded():
     assert "32.5" not in answer.content
     assert "-97.1" not in answer.content
 
+def test_where_are_you_uses_independent_host_location_not_user_location():
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            location=ConfiguredLocation(
+                label="Sparks home",
+                timezone="America/Chicago",
+                subject=LocationSubject.USER,
+                latitude=32.5,
+                longitude=-97.1,
+            ),
+            host_location=ConfiguredLocation(
+                label="Artemis server room",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=32.6,
+                longitude=-97.2,
+                source_id="config.environment.host",
+            ),
+        )
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        "where are you?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "Artemis server room" in answer.content
+    assert "Sparks home" not in answer.content
+    assert "not proof" in answer.content
+

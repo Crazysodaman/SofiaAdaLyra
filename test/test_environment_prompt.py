@@ -148,3 +148,30 @@ def test_environment_detail_relevance_is_bounded():
     )
     assert not environment_details_relevant("Explain your database architecture.")
 
+def test_prompt_projects_host_location_without_coordinates():
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration(
+            location=ConfiguredLocation(
+                label="Sparks home",
+                timezone="America/Chicago",
+                subject=LocationSubject.USER,
+                latitude=32.5,
+                longitude=-97.1,
+            ),
+            host_location=ConfiguredLocation(
+                label="Artemis server room",
+                timezone="America/Chicago",
+                subject=LocationSubject.HOST,
+                latitude=33.6,
+                longitude=-96.2,
+                source_id="config.environment.host",
+            ),
+        )
+    ).snapshot(now=NOW)
+
+    prompt = environment_prompt(snapshot)
+
+    assert "Configured runtime host location: Artemis server room" in prompt
+    assert "33.6" not in prompt
+    assert "-96.2" not in prompt
+

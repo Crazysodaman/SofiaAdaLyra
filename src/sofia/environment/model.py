@@ -304,6 +304,7 @@ class EnvironmentSnapshot:
     user_local_time: datetime | None = None
     timezone: str | None = None
     configured_location: LocationObservation | None = None
+    host_location: LocationObservation | None = None
     current_location: LocationObservation | None = None
     current_location_freshness: EnvironmentFreshness = (
         EnvironmentFreshness.UNKNOWN
@@ -328,7 +329,11 @@ class EnvironmentSnapshot:
             _aware(self.user_local_time, "user_local_time")
         if self.timezone is not None:
             object.__setattr__(self, "timezone", _text(self.timezone, "timezone", limit=80))
-        for name in ("configured_location", "current_location"):
+        for name in (
+            "configured_location",
+            "host_location",
+            "current_location",
+        ):
             value = getattr(self, name)
             if value is not None and not isinstance(value, LocationObservation):
                 raise TypeError(f"{name} must be LocationObservation or None")
@@ -337,6 +342,16 @@ class EnvironmentSnapshot:
             and self.configured_location.kind is not LocationEvidenceKind.CONFIGURED
         ):
             raise ValueError("configured_location must be configured evidence")
+        if (
+            self.host_location is not None
+            and self.host_location.kind is not LocationEvidenceKind.CONFIGURED
+        ):
+            raise ValueError("host_location must be configured evidence")
+        if (
+            self.host_location is not None
+            and self.host_location.subject is not LocationSubject.HOST
+        ):
+            raise ValueError("host_location must have subject=host")
         if (
             self.current_location is not None
             and self.current_location.kind is not LocationEvidenceKind.CURRENT

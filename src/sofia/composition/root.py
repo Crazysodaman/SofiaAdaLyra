@@ -1,4 +1,5 @@
-﻿from pathlib import Path
+﻿from dataclasses import replace
+from pathlib import Path
 
 from sofia.action.executor import TestActionExecutor
 from sofia.action.system import ActionSystem
@@ -28,7 +29,9 @@ from sofia.config.model import SofiaConfiguration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
+from sofia.environment.model import LocationSubject
 from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
@@ -43,11 +46,54 @@ from sofia.knowledge.persistence import JsonKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
+from sofia.machine.discovery import create_machine_discovery
+from sofia.machine.location import MachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.system.capability import create_local_system_capabilities
+
+
+def _configuration_with_persistent_host_location(
+    configuration: SofiaConfiguration,
+) -> SofiaConfiguration:
+    """Use durable machine location unless an explicit process override exists."""
+    if configuration.environment.host_location is not None:
+        return configuration
+
+    state_path = Path(configuration.state_path)
+    registry_path = state_path.parent / "machine-locations.json"
+    if not registry_path.exists():
+        return configuration
+
+    try:
+        identity = create_machine_discovery().discover().identity
+        record = MachineLocationRegistry(registry_path).get(
+            identity.machine_id
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return configuration
+
+    if record is None:
+        return configuration
+
+    host_location = ConfiguredLocation(
+        label=record.label,
+        timezone=record.timezone,
+        subject=LocationSubject.HOST,
+        latitude=record.latitude,
+        longitude=record.longitude,
+        source_id=f"machine.location:{record.machine_id}",
+    )
+    environment = replace(
+        configuration.environment,
+        host_location=host_location,
+    )
+    return replace(
+        configuration,
+        environment=environment,
+    )
 
 
 def _create_cognitive_engine(configuration: SofiaConfiguration):
@@ -88,6 +134,9 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
 def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
+    configuration = _configuration_with_persistent_host_location(
+        configuration
+    )
     state_path = Path(configuration.state_path)
     filesystem_root = Path(configuration.filesystem_root)
 

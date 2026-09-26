@@ -66,6 +66,7 @@ class ConfiguredLocation:
 @dataclass(frozen=True, slots=True)
 class EnvironmentConfiguration:
     location: ConfiguredLocation | None = None
+    host_location: ConfiguredLocation | None = None
     refresh_seconds: int = 300
     weather_max_age_seconds: int = 1800
     indoor_max_age_seconds: int = 900
@@ -75,6 +76,9 @@ class EnvironmentConfiguration:
     home_assistant_indoor_humidity_entity: str | None = None
     home_assistant_current_location_entity: str | None = None
     home_assistant_current_location_subject: LocationSubject | None = None
+    nws_enabled: bool = False
+    nws_location_subject: LocationSubject = LocationSubject.USER
+    nws_user_agent: str = "SofiaAdaLyra/1.0"
 
     def __post_init__(self) -> None:
         if (
@@ -83,6 +87,28 @@ class EnvironmentConfiguration:
         ):
             raise TypeError(
                 "environment location must be ConfiguredLocation or None"
+            )
+        if (
+            self.host_location is not None
+            and not isinstance(self.host_location, ConfiguredLocation)
+        ):
+            raise TypeError(
+                "environment host_location must be ConfiguredLocation or None"
+            )
+        if (
+            self.host_location is not None
+            and self.host_location.subject is not LocationSubject.HOST
+        ):
+            raise ValueError(
+                "environment host_location must have subject=host"
+            )
+        if (
+            self.host_location is not None
+            and self.location is not None
+            and self.location.subject is LocationSubject.HOST
+        ):
+            raise ValueError(
+                "configure host location once, not in both location and host_location"
             )
         for name in (
             "refresh_seconds",
@@ -124,15 +150,50 @@ class EnvironmentConfiguration:
                 "home_assistant_current_location_subject must be "
                 "LocationSubject or None"
             )
+        configured_subjects = {
+            candidate.subject
+            for candidate in (self.location, self.host_location)
+            if candidate is not None
+        }
         if (
             self.home_assistant_current_location_entity is not None
             and self.home_assistant_current_location_subject is None
-            and self.location is None
+            and len(configured_subjects) != 1
         ):
             raise ValueError(
                 "Home Assistant current-location entity requires an "
-                "explicit location subject when no configured location exists"
+                "explicit location subject unless exactly one configured "
+                "location subject exists"
             )
+
+        if type(self.nws_enabled) is not bool:
+            raise TypeError("nws_enabled must be a bool")
+        if not isinstance(self.nws_location_subject, LocationSubject):
+            raise TypeError(
+                "nws_location_subject must be LocationSubject"
+            )
+        if (
+            not isinstance(self.nws_user_agent, str)
+            or not self.nws_user_agent.strip()
+            or len(self.nws_user_agent) > 200
+        ):
+            raise ValueError("nws_user_agent must be a nonempty string")
+        object.__setattr__(
+            self,
+            "nws_user_agent",
+            self.nws_user_agent.strip(),
+        )
+
+    def configured_location_for(
+        self,
+        subject: LocationSubject,
+    ) -> ConfiguredLocation | None:
+        if not isinstance(subject, LocationSubject):
+            raise TypeError("subject must be LocationSubject")
+        for candidate in (self.location, self.host_location):
+            if candidate is not None and candidate.subject is subject:
+                return candidate
+        return None
 
     @property
     def home_assistant_enabled(self) -> bool:
@@ -158,6 +219,23 @@ def _positive_int(
     if value <= 0:
         raise ValueError(f"{name} must be positive")
     return value
+
+
+def _boolean(
+    env: Mapping[str, str],
+    name: str,
+    default: bool = False,
+) -> bool:
+    raw = env.get(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(
+        f"{name} must be one of true/false, yes/no, on/off, or 1/0"
+    )
 
 
 def environment_configuration_from_environ(
@@ -203,6 +281,47 @@ def environment_configuration_from_environ(
             longitude=float(lon_raw) if lon_raw else None,
         )
 
+    host_label = env.get(
+        "SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL",
+        "",
+    ).strip()
+    host_timezone = env.get(
+        "SOFIA_ENVIRONMENT_HOST_TIMEZONE",
+        "",
+    ).strip()
+    host_lat_raw = env.get(
+        "SOFIA_ENVIRONMENT_HOST_LATITUDE",
+        "",
+    ).strip()
+    host_lon_raw = env.get(
+        "SOFIA_ENVIRONMENT_HOST_LONGITUDE",
+        "",
+    ).strip()
+    host_supplied = any(
+        (host_label, host_timezone, host_lat_raw, host_lon_raw)
+    )
+    host_location = None
+    if host_supplied:
+        if not host_label or not host_timezone:
+            raise ValueError(
+                "SOFIA_ENVIRONMENT_HOST_LOCATION_LABEL and "
+                "SOFIA_ENVIRONMENT_HOST_TIMEZONE are required when "
+                "configuring runtime host location"
+            )
+        if bool(host_lat_raw) != bool(host_lon_raw):
+            raise ValueError(
+                "SOFIA_ENVIRONMENT_HOST_LATITUDE and "
+                "SOFIA_ENVIRONMENT_HOST_LONGITUDE must be supplied together"
+            )
+        host_location = ConfiguredLocation(
+            label=host_label,
+            timezone=host_timezone,
+            subject=LocationSubject.HOST,
+            latitude=float(host_lat_raw) if host_lat_raw else None,
+            longitude=float(host_lon_raw) if host_lon_raw else None,
+            source_id="config.environment.host",
+        )
+
     def optional(name: str) -> str | None:
         value = env.get(name, "").strip()
         return value or None
@@ -224,8 +343,30 @@ def environment_configuration_from_environ(
                 "user, site, or host"
             ) from exc
 
+    nws_enabled = _boolean(
+        env,
+        "SOFIA_ENVIRONMENT_NWS_ENABLED",
+        False,
+    )
+    nws_subject_raw = env.get(
+        "SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT",
+        "user",
+    ).strip().lower()
+    try:
+        nws_location_subject = LocationSubject(nws_subject_raw)
+    except ValueError as exc:
+        raise ValueError(
+            "SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT must be "
+            "user, site, or host"
+        ) from exc
+    nws_user_agent = env.get(
+        "SOFIA_ENVIRONMENT_NWS_USER_AGENT",
+        "SofiaAdaLyra/1.0",
+    ).strip()
+
     return EnvironmentConfiguration(
         location=location,
+        host_location=host_location,
         refresh_seconds=_positive_int(
             env,
             "SOFIA_ENVIRONMENT_REFRESH_SECONDS",
@@ -257,4 +398,7 @@ def environment_configuration_from_environ(
         ),
         home_assistant_current_location_entity=ha_location_entity,
         home_assistant_current_location_subject=ha_location_subject,
+        nws_enabled=nws_enabled,
+        nws_location_subject=nws_location_subject,
+        nws_user_agent=nws_user_agent,
     )

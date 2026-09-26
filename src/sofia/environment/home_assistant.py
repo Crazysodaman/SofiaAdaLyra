@@ -339,7 +339,14 @@ class HomeAssistantEnvironmentProvider:
         )
         if observed is None:
             return None
-        configured = self._configuration.location
+        configured_locations = tuple(
+            candidate
+            for candidate in (
+                self._configuration.location,
+                self._configuration.host_location,
+            )
+            if candidate is not None
+        )
         timezone_value = (
             attrs.get("time_zone")
             or attrs.get("timezone")
@@ -353,8 +360,8 @@ class HomeAssistantEnvironmentProvider:
         subject = (
             self._configuration.home_assistant_current_location_subject
             or (
-                configured.subject
-                if configured is not None
+                configured_locations[0].subject
+                if len(configured_locations) == 1
                 else None
             )
         )
