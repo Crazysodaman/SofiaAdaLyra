@@ -7,7 +7,10 @@ from sofia.environment.model import (
     LocationSubject,
     WeatherObservation,
 )
-from sofia.environment.prompt import environment_prompt
+from sofia.environment.prompt import (
+    environment_details_relevant,
+    environment_prompt,
+)
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
 
@@ -126,3 +129,19 @@ def test_current_weather_includes_source_and_observation_time():
     assert "Current weather condition: clear." in prompt
     assert "Outdoor temperature: 25.0 C." in prompt
     assert "Weather source: test.weather" in prompt
+
+def test_prompt_can_emit_clock_only_for_unrelated_turns():
+    snapshot = EnvironmentService(configuration()).snapshot(now=NOW)
+    prompt = environment_prompt(snapshot, include_details=False)
+    assert "TRUSTED RUNTIME CLOCK" in prompt
+    assert "Detailed location/weather/indoor environment data is intentionally omitted" in prompt
+    assert "Configured area" not in prompt
+    assert "Weather freshness:" not in prompt
+
+
+def test_environment_detail_relevance_is_bounded():
+    assert environment_details_relevant("What should you wear tonight?")
+    assert environment_details_relevant("What's the forecast tomorrow?")
+    assert environment_details_relevant("Is it dark outside?")
+    assert not environment_details_relevant("Explain your database architecture.")
+
