@@ -54,7 +54,7 @@ def test_nws_url_is_pinned_to_official_api_host():
     with pytest.raises(ValueError, match="only https://api.weather.gov"):
         validate_nws_url("https://example.com/weather")
     with pytest.raises(ValueError, match="only https://api.weather.gov"):
-        _validated_nws_url("http://api.weather.gov/points/32.5,-97.1")
+        validate_nws_url("http://api.weather.gov/points/32.5,-97.1")
 
 
 def test_nws_provider_normalizes_station_weather_and_forecast():
@@ -200,14 +200,14 @@ def test_nws_provider_can_target_configured_runtime_host_location():
 
 def test_nws_provider_rejects_naive_now():
     provider = NwsEnvironmentProvider(
+        FakeNwsAdapter({}),
         configuration(),
-        client=FakeNwsClient({}),
     )
     with pytest.raises(ValueError, match="time must be aware"):
         provider.observe(now=datetime(2026, 9, 26, 12, 0))
 
 def test_nws_provider_prefers_current_station_over_stale_nearest_station():
-    client = FakeNwsClient(
+    client = FakeNwsAdapter(
         {
             "/points/32.5000,-97.1000": {
                 "properties": {
