@@ -66,6 +66,13 @@ This deployment shape is rejected for production RUN. pywin32 documents that Win
 
 The live canary remains open. Offline RUN acceptance is unchanged because the application lifecycle never received control in this failure.
 
+
+## Live canary evidence — machine-wide service runtime
+
+The Windows canary service host has been corrected to a dedicated machine-wide Python 3.13 runtime at `C:\\Program Files\\SofiaAdaLyra\\Python313`. Elevated pywin32 post-install completed successfully, `pythonservice.exe` was copied to the interpreter prefix, and both `SofiaAdaLyra` and `SofiaAdaLyraWatchdog` now register `BINARY_PATH_NAME` against that machine-wide host while running under `LocalSystem`. The focused RUN Windows gate remains **45/45** under the same interpreter.
+
+This closes the per-user/venv service-host deployment defect. Runtime start/READY heartbeat, watchdog independence, kill/hang/fence/reboot recovery and measured RTO remain open.
+
 ## Live Windows canary
 
 After full-suite acceptance:
