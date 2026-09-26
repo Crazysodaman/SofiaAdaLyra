@@ -220,23 +220,28 @@ class EnvironmentService:
             if current_location is not None
             else EnvironmentFreshness.UNKNOWN
         )
-        effective_location = (
-            current_location
-            if (
-                current_location is not None
-                and current_location_freshness
-                is EnvironmentFreshness.CURRENT
-            )
-            else configured_location
-        )
-        if (
+        current_overrides_configured = (
             current_location is not None
             and current_location_freshness
             is EnvironmentFreshness.CURRENT
-        ):
-            # A fresh mobile/current location outranks the configured place.
-            # If the provider cannot prove that current location's timezone,
-            # do not silently reuse the configured/home timezone.
+            and (
+                configured_location is None
+                or current_location.subject
+                is configured_location.subject
+            )
+        )
+        effective_location = (
+            current_location
+            if current_overrides_configured
+            else configured_location
+        )
+        if current_overrides_configured:
+            # A fresh current observation may replace a configured place only
+            # for the same subject. A host/site tracker must never hijack the
+            # user's configured timezone/location (or vice versa).
+            # If the current observation cannot prove its timezone, do not
+            # silently reuse the configured/home timezone.
+            assert current_location is not None
             timezone_name = current_location.timezone
         else:
             timezone_name = (
