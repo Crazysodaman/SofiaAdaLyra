@@ -128,6 +128,22 @@ def _subject(value: str | None) -> str | None:
     return value.strip()
 
 
+def _social_scope(
+    scope: SocialScope | None,
+    *,
+    subject: str | None = None,
+) -> SocialScope:
+    """Resolve explicit scope, preserving legacy subject-scoped callers safely."""
+    if scope is not None:
+        if not isinstance(scope, SocialScope):
+            raise TypeError("scope must be a SocialScope or None")
+        return scope
+    target = _subject(subject)
+    if target is not None:
+        return SocialScope.relationship(target)
+    return SocialScope.global_scope()
+
+
 def _identifier(value: str, label: str) -> str:
     if (not isinstance(value, str) or not 0 < len(value.strip()) <= 160
             or any(c in value for c in "\x00\r\n")):
@@ -299,8 +315,9 @@ class EmotionalJournal:
         self, *, source: str, evidence_ref: str, description: str,
         emotions: tuple[str, ...], occurred_at: datetime,
         event_id: str | None = None, subject: str | None = None,
+        scope: SocialScope | None = None,
     ) -> str:
-        """Record caller-supplied evidence, never classify free text as observed."""
+        """Record caller-supplied evidence with explicit ownership scope."""
         if source not in SOURCES:
             raise ValueError("Unknown evidence source.")
         evidence_ref = _identifier(evidence_ref, "Evidence reference")
@@ -312,20 +329,40 @@ class EmotionalJournal:
         when = _aware_utc(occurred_at)
         identifier = _identifier(event_id or str(uuid4()), "Event ID")
         target = _subject(subject)
-        payload = (identifier, when.isoformat(), source, evidence_ref,
-                   description, json.dumps(labels), target)
+        resolved_scope = _social_scope(scope, subject=target)
+        payload = (
+            identifier,
+            when.isoformat(),
+            source,
+            evidence_ref,
+            description,
+            json.dumps(labels),
+            target,
+            resolved_scope.kind.value,
+            resolved_scope.principal_id,
+            resolved_scope.audience_id,
+            (
+                resolved_scope.audience_kind.value
+                if resolved_scope.audience_kind is not None
+                else None
+            ),
+        )
         with self._connect() as db:
             try:
                 db.execute(
                     "INSERT INTO emotional_events "
                     "(event_id, occurred_at, source, evidence_ref, description, "
-                    "original_emotions, subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "original_emotions, subject, scope_kind, principal_id, "
+                    "audience_id, audience_kind) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     payload,
                 )
             except sqlite3.IntegrityError as exc:
                 current = db.execute(
                     "SELECT event_id, occurred_at, source, evidence_ref, description, "
-                    "original_emotions, subject FROM emotional_events WHERE event_id = ?",
+                    "original_emotions, subject, scope_kind, principal_id, "
+                    "audience_id, audience_kind "
+                    "FROM emotional_events WHERE event_id = ?",
                     (identifier,),
                 ).fetchone()
                 if current != payload:
