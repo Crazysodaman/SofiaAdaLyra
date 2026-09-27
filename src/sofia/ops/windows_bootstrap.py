@@ -343,6 +343,15 @@ except BaseException as exc:
         listen_port = [int]$ListenPort
         python_version = $PythonVersion
     }}
+
+    # The controller only needs the receipt after success. Scrub the staged
+    # server private key and copied payload locally on Artemis so an SMB ACL
+    # quirk cannot leave sensitive bootstrap material behind.
+    Remove-Item (Join-Path $Stage "certs\\artemis-server-key.pem") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $Stage "certs\\artemis-server.pem") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $Stage "certs\\fleet-ca.pem") -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $Stage $WheelName) -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $Stage "agent.json") -Force -ErrorAction SilentlyContinue
 }}
 catch {{
     if ($null -ne $StartedAgent -and -not $StartedAgent.HasExited) {{
