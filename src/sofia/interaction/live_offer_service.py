@@ -60,7 +60,10 @@ def _canonical_offer_request(
         constitution=runtime.constitution,
         embodiment=runtime.embodiment,
         core_state=runtime.core_state,
-        memories=runtime.memory_system.recall_relevant(OFFER),
+        memories=runtime.memory_system.recall_relevant(
+            OFFER,
+            principal=principal,
+        ),
         operational_state=runtime.operational_state,
         runtime_continuity=runtime.runtime_continuity,
         workspace_changes=runtime.workspace_changes,
