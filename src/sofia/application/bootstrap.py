@@ -26,6 +26,7 @@ from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
+from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.social.principals import local_sparks_principal
 from sofia.state.component_schema import verify_production_component_schemas
@@ -35,6 +36,15 @@ from sofia.ui.text import UITextClient
 
 class SofiaApplicationError(RuntimeError):
     """Raised when application bootstrap or lifecycle fails."""
+
+
+def _habit_learning_enabled() -> bool:
+    setting = os.environ.get("SOFIA_HABIT_LEARNING", "1").strip().lower()
+    if setting in ("0", "false", "off"):
+        return False
+    if setting in ("1", "true", "on"):
+        return True
+    raise ValueError("SOFIA_HABIT_LEARNING must be 1 or 0 (also accepts true/false).")
 
 
 def _idle_reflections_enabled() -> bool:
@@ -97,6 +107,9 @@ class SofiaApplication:
             act_service=self._act_service,
         )
         self._background: ApplicationBackgroundCoordinator | None = None
+        self._heartbeat_store = ApplicationHeartbeatStore(
+            configuration.state_path
+        )
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
@@ -160,6 +173,7 @@ class SofiaApplication:
         """
         try:
             enabled = _idle_reflections_enabled()
+            habit_enabled = _habit_learning_enabled()
             ui_draft_store = getattr(
                 self,
                 "_ui_draft_store",
@@ -187,7 +201,11 @@ class SofiaApplication:
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
-            background_needed = enabled or self._act_service.delivery_enabled
+            background_needed = (
+                enabled
+                or habit_enabled
+                or self._act_service.delivery_enabled
+            )
             if enabled and self._runtime.personality is None:
                 raise SofiaApplicationError(
                     "Idle reflection requires a loaded personality."
@@ -206,7 +224,38 @@ class SofiaApplication:
                         busy=False,
                     )
                 )
+                runtime_id = self._runtime.runtime_id
+                if runtime_id is None:
+                    raise SofiaApplicationError(
+                        "RUN heartbeat requires a live runtime ID."
+                    )
+                def publish_heartbeat(now, healthy):
+                    self._heartbeat_store.publish(
+                        ApplicationHeartbeat(
+                            instance_id=str(runtime_id),
+                            recorded_at=now,
+                            ready=bool(
+                                healthy
+                                and self._runtime.state.value == "ready"
+                            ),
+                            runtime_state=self._runtime.state.value,
+                            database_writable=True,
+                            background_running=True,
+                            detail=(
+                                "application background loop healthy"
+                                if healthy
+                                else "application background loop reported an error"
+                            ),
+                        )
+                    )
+                coordinator.set_heartbeat(publish_heartbeat)
                 coordinator.start()
+                publish_heartbeat(
+                    __import__("datetime").datetime.now(
+                        __import__("datetime").timezone.utc
+                    ),
+                    True,
+                )
                 self._background = coordinator
                 self._idle_worker = coordinator.idle
             return response
