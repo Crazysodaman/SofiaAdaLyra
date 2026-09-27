@@ -18,14 +18,14 @@ class ReviewedMemoryWorkflow:
         self,
         originals: ConversationOriginalRetriever,
         candidates: DurableMemoryCandidateStore,
-        social: SocialSessionStore,
+        social: SocialSessionStore | None = None,
     ) -> None:
         if not isinstance(originals, ConversationOriginalRetriever):
             raise TypeError("originals must be ConversationOriginalRetriever")
         if not isinstance(candidates, DurableMemoryCandidateStore):
             raise TypeError("candidates must be DurableMemoryCandidateStore")
-        if not isinstance(social, SocialSessionStore):
-            raise TypeError("social must be SocialSessionStore")
+        if social is not None and not isinstance(social, SocialSessionStore):
+            raise TypeError("social must be SocialSessionStore or None")
         self._originals=originals
         self._candidates=candidates
         self._social=social
@@ -37,8 +37,12 @@ class ReviewedMemoryWorkflow:
             raise ValueError("content must be nonempty")
         if not isinstance(created_at, datetime) or created_at.tzinfo is None or created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
-        principal=self._social.get(session_id)
-        if principal is None:
+        principal=(
+            None
+            if self._social is None
+            else self._social.get(session_id)
+        )
+        if self._social is not None and principal is None:
             raise PermissionError(
                 "reviewed memory requires an authenticated principal-bound session"
             )
@@ -52,8 +56,12 @@ class ReviewedMemoryWorkflow:
             content,
             projection.selected,
             created_at,
-            principal_id=principal.principal_id,
-            audience_id=principal.audience_id,
+            principal_id=(
+                None if principal is None else principal.principal_id
+            ),
+            audience_id=(
+                None if principal is None else principal.audience_id
+            ),
         )
         self._candidates.propose(candidate)
         return candidate
