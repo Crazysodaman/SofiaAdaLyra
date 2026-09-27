@@ -81,3 +81,6 @@ class MemoryReviewService:
 
     def status(self, candidate_id: UUID) -> CandidateStatus | None:
         return self._candidates.status(candidate_id)
+
+    def get(self, candidate_id: UUID) -> MemoryCandidate | None:
+        return self._candidates.get(candidate_id)
