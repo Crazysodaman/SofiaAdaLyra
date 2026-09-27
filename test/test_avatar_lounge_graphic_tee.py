@@ -66,7 +66,7 @@ def test_manifest_exports_explicit_variant_without_false_asset_claim():
     variant = build_graphic_lounge_variation()
     manifest = variant.manifest()
     assert len(manifest["garments"]) == len(variant.catalog.blueprints)
-    assert len(manifest["outfits"]) == 3
+    assert len(manifest["outfits"]) == len(variant.catalog.presets)
     assert manifest["optional_outfits"][0]["selection"] == "explicit_optional_not_automatic"
     assert manifest["optional_outfits"][0]["outfit_id"] == GRAPHIC_OUTFIT_ID
     assert len(manifest["graphic_print_concepts"]) == 3

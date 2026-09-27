@@ -11,13 +11,23 @@ from sofia.avatar.wardrobe_catalog import (
 )
 
 
-def test_covered_presets_validate_against_actual_wardrobe():
+def test_presets_validate_against_actual_wardrobe_and_privacy_contract():
     pack = build_starter_wardrobe()
-    assert {p.outfit_id for p in pack.presets} == {
-        "engineer.signature", "engineer.light",
-        "lounge.relaxed", "fallback.covered",
-    }
-    assert all(pack.wardrobe.selection(p.item_ids).covered_default for p in pack.presets)
+    ids = {p.outfit_id for p in pack.presets}
+    assert {
+        "engineer.signature",
+        "engineer.light",
+        "lounge.relaxed",
+        "fallback.covered",
+    } <= ids
+    assert len([item for item in ids if item.startswith("seasonal.")]) == 300
+    for plan in pack.presets:
+        selection = pack.wardrobe.selection(plan.item_ids)
+        if plan.private_only:
+            assert selection.private_only
+        else:
+            assert selection.covered_default
+            assert not selection.private_only
 
 
 def test_garments_are_blueprints_only_and_never_renderer_ready():
