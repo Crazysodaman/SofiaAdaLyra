@@ -481,11 +481,11 @@ The sections below preserve the complete planning/status/acceptance content from
 #### Authoritative planning and acceptance documents
 
 1. ROADMAP.md: canonical 20-package roster, invariant release order, package ownership and fleet/removal constraints.
-2. [Full roadmap and individual package contracts](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md): expanded 20-package scope, dependencies, current status, proposed deliverables, acceptance criteria, milestones and next engineering order.
+2. [Full roadmap and individual package contracts](ROADMAP.md): expanded 20-package scope, dependencies, current status, proposed deliverables, acceptance criteria, milestones and next engineering order.
 3. [Six reliability gates and state replication](docs/development/pkg-reliability-control-plane-contract.md): recovery, operation ledger, operator stop/approval, resource fairness, failure lab, capability truth, replication/fencing/backup.
 4. [Reliability implementation stages](docs/development/pkg-reliability-implementation-plan.md): recoverable SQLite baseline before any candidate database migration; staged proofs.
 5. [RUN independent watchdog and standby recovery](docs/development/pkg-run-watchdog-failover-contract.md): local supervisor, independent monitor, fenced leader promotion, standby startup, rejoin and failure acceptance.
-6. [PKG-ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md): shared time/location/season/daylight/weather state, provenance/freshness, consumer boundaries and staged provider activation.
+6. [PKG-ENVIRONMENT readiness](ROADMAP.md): shared time/location/season/daylight/weather state, provenance/freshness, consumer boundaries and staged provider activation.
 7. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
 
 **Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum Sparks-only principal/audience → Discord D0-D4 through NET + UI + SAFE → OPS trusted host telemetry/enrollment → RUN verified supervised 24/7 and applicable recovery/failover → later separately authorized general web/search.
@@ -642,7 +642,7 @@ The following reliability requirements are explicit roadmap gates, not optional 
 
 ### Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
-**Revision:** 2026-09-26 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative ROADMAP.md, the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
+**Revision:** 2026-09-26 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative ROADMAP.md, the [master readiness index](../../ROADMAP.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
 
 #### Project promise and nonnegotiable boundaries
 
