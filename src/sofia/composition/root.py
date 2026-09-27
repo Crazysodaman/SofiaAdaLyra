@@ -150,7 +150,8 @@ def compose(
     )
 
     identity_store = IdentityStore(
-        Path(configuration.identity_path)
+        Path(configuration.identity_path),
+        bootstrap_mode=configuration.identity_bootstrap_mode,
     )
 
     personality_store = PersonalityStore(
