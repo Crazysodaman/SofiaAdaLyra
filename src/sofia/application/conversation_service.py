@@ -20,6 +20,7 @@ from sofia.cognition.model import (
 from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
+from sofia.habits.service import HabitLearningService
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
@@ -65,6 +66,11 @@ class ConversationService:
         self._relationship_store = RelationshipStore(
             runtime.configuration.state_path
         )
+        self._habit_learning = HabitLearningService(
+            state_path=runtime.configuration.state_path,
+            environment_service=runtime.environment_service,
+        )
+        self._habit_learning_error: str | None = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -76,6 +82,14 @@ class ConversationService:
             )
         )
         self._session: ConversationSession | None = None
+
+    @property
+    def habit_learning(self) -> HabitLearningService:
+        return self._habit_learning
+
+    @property
+    def habit_learning_error(self) -> str | None:
+        return self._habit_learning_error
 
     @property
     def session(self) -> ConversationSession | None:
@@ -307,6 +321,18 @@ class ConversationService:
                 evidence_ref=user_message.id,
                 occurred_at=user_message.created_at,
             )
+            try:
+                self._habit_learning.record_conversation_contact(
+                    principal=principal,
+                    message_id=user_message.id,
+                    occurred_at=user_message.created_at,
+                )
+                self._habit_learning_error = None
+            except Exception as exc:
+                # Learning is auxiliary to authenticated foreground chat.
+                # Preserve the durable user turn and surface degraded learning
+                # through the inspectable error property instead of losing chat.
+                self._habit_learning_error = type(exc).__name__
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
