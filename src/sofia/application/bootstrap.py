@@ -16,6 +16,7 @@ from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.act_service import SofiaActService
 from sofia.application.act_runtime import configure_act_delivery_from_environment
 from sofia.application.evolution import SofiaEvolutionService
+from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
 from sofia.application.release_runtime import create_release_manager
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
@@ -70,6 +71,10 @@ class SofiaApplication:
         )
         configure_act_delivery_from_environment(
             self._act_service
+        )
+        configure_fleet_enrollment_notices(
+            ops_service=self._runtime.ops_service,
+            act_service=self._act_service,
         )
         self._background: ApplicationBackgroundCoordinator | None = None
         self._idle_worker: IdleReflectionWorker | None = None
