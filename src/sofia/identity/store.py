@@ -1,4 +1,5 @@
-﻿import json
+import json
+from enum import Enum
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -6,20 +7,40 @@ from sofia.identity.model import SofiaIdentity
 
 
 class IdentityStoreError(Exception):
-    """Raised when persisted identity data is invalid."""
+    """Raised when persisted identity data is invalid or unavailable."""
+
+
+class IdentityBootstrapMode(str, Enum):
+    """Controls whether this store may create canonical identity."""
+
+    EXISTING_ONLY = "existing_only"
+    FIRST_BOOTSTRAP = "first_bootstrap"
 
 
 class IdentityStore:
     """
-    Persists and loads Sofía's identity.
+    Persists and loads Sofía's canonical identity.
 
-    The instance_id is generated exactly once for a new identity and
-    persisted thereafter. This provides a stable logical identity across
-    application restarts and processes.
+    Normal runtimes are EXISTING_ONLY. A missing or incomplete identity must
+    therefore fail closed instead of silently minting a second Sofía. Creation
+    is permitted only through explicitly selected FIRST_BOOTSTRAP mode.
     """
 
-    def __init__(self, identity_path: Path):
+    def __init__(
+        self,
+        identity_path: Path,
+        *,
+        bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.EXISTING_ONLY,
+    ):
+        if not isinstance(identity_path, Path):
+            raise TypeError("IdentityStore identity_path must be a Path.")
+        if not isinstance(bootstrap_mode, IdentityBootstrapMode):
+            raise TypeError(
+                "IdentityStore bootstrap_mode must be an "
+                "IdentityBootstrapMode."
+            )
         self.identity_path = identity_path
+        self.bootstrap_mode = bootstrap_mode
 
     def save(self, identity: SofiaIdentity) -> None:
         if not isinstance(identity, SofiaIdentity):
@@ -51,16 +72,39 @@ class IdentityStore:
                 "Identity data could not be saved."
             ) from exc
 
+    def bootstrap(
+        self,
+        *,
+        name: str = "Sofía Ada Lyra",
+        instance_id: UUID | None = None,
+    ) -> SofiaIdentity:
+        """Create canonical identity only in explicit first-bootstrap mode."""
+
+        if self.bootstrap_mode is not IdentityBootstrapMode.FIRST_BOOTSTRAP:
+            raise IdentityStoreError(
+                "Canonical identity bootstrap is not authorized for this "
+                "runtime."
+            )
+        if self.identity_path.exists():
+            raise IdentityStoreError(
+                "Canonical identity already exists; refusing second bootstrap."
+            )
+        identity = SofiaIdentity(
+            name=name,
+            instance_id=instance_id or uuid4(),
+        )
+        self.save(identity)
+        return identity
+
     def load(self) -> SofiaIdentity:
         if not self.identity_path.exists():
-            identity = SofiaIdentity(
-                name="Sofía Ada Lyra",
-                instance_id=uuid4(),
+            if self.bootstrap_mode is IdentityBootstrapMode.FIRST_BOOTSTRAP:
+                return self.bootstrap()
+            raise IdentityStoreError(
+                "Canonical identity is missing. A normal or joining runtime "
+                "must recover/verify the existing identity instead of creating "
+                "a replacement."
             )
-
-            self.save(identity)
-
-            return identity
 
         try:
             data = json.loads(
@@ -79,20 +123,13 @@ class IdentityStore:
             )
 
         name = self._load_name(data)
-
         instance_id = self._load_instance_id(data)
 
         if instance_id is None:
-            instance_id = uuid4()
-
-            identity = SofiaIdentity(
-                name=name,
-                instance_id=instance_id,
+            raise IdentityStoreError(
+                "Canonical identity is missing instance_id. Refusing to mint "
+                "a replacement identity from an incomplete record."
             )
-
-            self.save(identity)
-
-            return identity
 
         return SofiaIdentity(
             name=name,
