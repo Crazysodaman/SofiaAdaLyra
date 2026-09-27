@@ -92,6 +92,7 @@ class SemanticIntegrityVerifier:
             self._memory_findings(db, findings)
             self._social_findings(db, findings)
             self._chatgpt_findings(db, findings)
+            self._fleet_findings(db, findings)
             self._audit_findings(db, findings)
 
         self._release_findings(findings)
@@ -313,6 +314,55 @@ class SemanticIntegrityVerifier:
                     )
                 )
 
+
+    def _fleet_findings(
+        self,
+        db: sqlite3.Connection,
+        findings: list[IntegrityFinding],
+    ) -> None:
+        if not self._table(db, "remote_standing_grant"):
+            return
+        if not self._table(db, "distributed_node_identity"):
+            active_count = db.execute(
+                """
+                SELECT COUNT(*)
+                FROM remote_standing_grant
+                WHERE revoked=0
+                """
+            ).fetchone()[0]
+            if active_count:
+                findings.append(
+                    IntegrityFinding(
+                        "fleet.enrollment_table_missing",
+                        IntegritySeverity.ERROR,
+                        "active Fleet grants exist without durable node identities",
+                    )
+                )
+            return
+
+        rows = db.execute(
+            """
+            SELECT g.grant_id, g.node_id, n.retired
+            FROM remote_standing_grant AS g
+            LEFT JOIN distributed_node_identity AS n
+              ON n.node_id=g.node_id
+            WHERE g.revoked=0
+              AND (n.node_id IS NULL OR n.retired<>0)
+            ORDER BY g.grant_id
+            """
+        ).fetchall()
+        for row in rows:
+            state = "missing" if row["retired"] is None else "retired"
+            findings.append(
+                IntegrityFinding(
+                    "fleet.active_grant_invalid_node",
+                    IntegritySeverity.ERROR,
+                    (
+                        f"active grant {row['grant_id']} references "
+                        f"{state} node {row['node_id']}"
+                    ),
+                )
+            )
 
     def _audit_findings(
         self,
