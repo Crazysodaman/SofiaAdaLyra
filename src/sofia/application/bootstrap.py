@@ -14,7 +14,10 @@ from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.act_service import SofiaActService
-from sofia.application.act_runtime import configure_act_delivery_from_environment
+from sofia.application.act_runtime import (
+    configure_act_delivery_from_environment,
+    local_act_busy,
+)
 from sofia.application.avatar_runtime import AvatarBackgroundPresentation
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
@@ -228,7 +231,15 @@ class SofiaApplication:
                 coordinator.set_act_delivery(
                     lambda now: self._act_service.deliver_one(
                         now=now,
-                        busy=False,
+                        busy=local_act_busy(
+                            self._configuration.state_path
+                        ),
+                        quiet_timezone=(
+                            self._runtime.environment_service.snapshot(
+                                now=now,
+                                refresh_providers=False,
+                            ).timezone
+                        ),
                     )
                 )
                 avatar_background = AvatarBackgroundPresentation(
