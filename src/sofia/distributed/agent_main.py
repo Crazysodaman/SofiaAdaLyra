@@ -75,7 +75,7 @@ def configuration_from_environment() -> RemoteAgentConfig:
 
 def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
     target = Path(path).resolve()
-    payload = json.loads(target.read_text(encoding="utf-8"))
+    payload = json.loads(target.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, dict):
         raise ValueError("Fleet agent config must be a JSON object")
 
