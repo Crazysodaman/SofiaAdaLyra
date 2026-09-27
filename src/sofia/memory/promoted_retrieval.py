@@ -10,8 +10,15 @@ def _tokens(value: str) -> set[str]:
     return {x.lower() for x in re.findall(r"[A-Za-z0-9À-ÿ']+", value) if len(x) > 1}
 
 
-def retrieve_promoted(store: DurableMemoryCandidateStore, query: str, *, limit: int = 5,
-                      budget_characters: int = 4000) -> MemoryProjection:
+def retrieve_promoted(
+    store: DurableMemoryCandidateStore,
+    query: str,
+    *,
+    limit: int = 5,
+    budget_characters: int = 4000,
+    principal_id: str | None = None,
+    audience_id: str | None = None,
+) -> MemoryProjection:
     if not isinstance(query, str):
         raise TypeError("query must be a string")
     if type(limit) is not int or limit < 1:
@@ -20,7 +27,13 @@ def retrieve_promoted(store: DurableMemoryCandidateStore, query: str, *, limit: 
     if not query_tokens:
         return MemoryProjection((),(),())
     ranked=[]
-    for order,candidate_id in enumerate(store.list_ids(status=CandidateStatus.PROMOTED)):
+    for order,candidate_id in enumerate(
+        store.list_ids(
+            status=CandidateStatus.PROMOTED,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        )
+    ):
         memory=store.get(candidate_id)
         if memory is None:
             continue
