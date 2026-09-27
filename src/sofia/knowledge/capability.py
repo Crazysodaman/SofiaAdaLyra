@@ -43,6 +43,7 @@ def create_knowledge_tool_bindings()->tuple[CognitiveToolBinding,...]:
                 parameters={"type":"object","properties":properties,"required":list(required),"additionalProperties":False},
             ),
             capability_name=capability_name,
+            include_principal_metadata=True,
         )
     return (
         binding("search_knowledge","knowledge.search","Search Sofía's durable source-grounded project knowledge. Read-only.",
