@@ -1,4 +1,10 @@
 from sofia.habits.engine import HabitPatternEngine, pattern_signature
+from sofia.habits.expectations import (
+    ExpectationStatus,
+    HabitExpectation,
+    HabitExpectationEngine,
+    HabitExpectationStore,
+)
 from sofia.habits.model import (
     CoverageWindow,
     HabitObservation,
@@ -20,8 +26,12 @@ from sofia.habits.store import HabitObservationStore
 __all__ = [
     "CadenceKind",
     "CoverageWindow",
+    "ExpectationStatus",
     "HabitCategory",
     "HabitConfidence",
+    "HabitExpectation",
+    "HabitExpectationEngine",
+    "HabitExpectationStore",
     "HabitLifecycle",
     "HabitObservation",
     "HabitObservationRecorder",
