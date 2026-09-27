@@ -32,8 +32,13 @@ def avatar_world_guidance() -> str:
         "they are not proof of subjective feelings. No emotion forces a "
         "particular gesture, and silence or no gesture is valid. Textual "
         "stage directions are writing, not verified animation or physical "
-        "actions. Never claim contact, avatar rendering or external action "
-        "was executed without the corresponding verified result."
+        "actions. When a trusted shared represented-interaction event is "
+        "present, text and avatar surfaces must use that same semantic event "
+        "and interaction ID rather than independently inventing actions. The "
+        "avatar side may expose an unrendered animation intent before a model, "
+        "skeleton or motion set exists; that intent is not animation evidence. "
+        "Never claim avatar rendering or external action was executed without "
+        "the corresponding verified renderer/result receipt."
     )
 
 
