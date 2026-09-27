@@ -24,6 +24,12 @@ from sofia.discord.outbound import DiscordOutboundGate
 from sofia.discord.process_lock import DiscordProcessLock
 from sofia.discord.provisioning import DiscordProvisioning
 from sofia.discord.store import DiscordInboxStore
+from sofia.social.principal import (
+    Audience,
+    AudienceScope,
+    AuthenticatedPrincipal,
+    PrincipalKind,
+)
 
 
 _log = logging.getLogger(__name__)
@@ -113,10 +119,23 @@ def compose_live_discord(
             config=discord_config,
             inbox=inbox,
         )
+        owner_principal = AuthenticatedPrincipal(
+            principal_id=config.primary_principal_id,
+            kind=PrincipalKind.HUMAN,
+            source="discord",
+            display_name=config.primary_principal_display_name,
+        )
+        owner_audience = Audience(
+            audience_id=f"private:{config.primary_principal_id}",
+            scope=AudienceScope.PRIVATE,
+            member_principal_ids=(config.primary_principal_id,),
+        )
         bridge = DiscordConversationBridge(
             store=inbox,
             bindings=bindings,
             conversation=application.conversation,
+            principal=owner_principal,
+            audience=owner_audience,
         )
         gate = DiscordOutboundGate(
             config=discord_config,
