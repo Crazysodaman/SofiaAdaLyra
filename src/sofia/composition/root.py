@@ -55,6 +55,7 @@ from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.system.capability import create_local_system_capabilities
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 
 def _configuration_with_persistent_host_location(
@@ -141,6 +142,7 @@ def compose(
     )
     state_path = Path(configuration.state_path)
     filesystem_root = Path(configuration.filesystem_root)
+    state_plane = SQLiteStatePlane(state_path)
 
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
@@ -515,6 +517,7 @@ def compose(
         cognitive_system=cognitive_system,
         capability_system=capability_system,
         configuration=configuration,
+        state_plane=state_plane,
         environment_service=environment_service,
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
