@@ -1,0 +1,81 @@
+import json
+from pathlib import Path
+from uuid import UUID
+
+import pytest
+
+from sofia.distributed.agent_main import configuration_from_file
+
+
+NODE_ID = UUID("11111111-2222-3333-4444-555555555555")
+PIN = "a" * 64
+
+
+def _write_config(tmp_path: Path, **overrides) -> Path:
+    payload = {
+        "node_id": str(NODE_ID),
+        "node_name": "Artemis",
+        "listen_host": "0.0.0.0",
+        "listen_port": 7443,
+        "server_certificate": "certs/artemis-server.pem",
+        "server_private_key": "certs/artemis-server-key.pem",
+        "client_ca_file": "certs/fleet-ca.pem",
+        "expected_client_public_key_sha256": PIN,
+        "ledger_path": "state/agent-ledger.db",
+    }
+    payload.update(overrides)
+    path = tmp_path / "agent.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_file_config_resolves_relative_paths_from_config_directory(tmp_path):
+    path = _write_config(tmp_path)
+
+    config = configuration_from_file(path)
+
+    assert config.node_id == NODE_ID
+    assert config.node_name == "Artemis"
+    assert config.listen_port == 7443
+    assert config.server_certificate == (
+        tmp_path / "certs" / "artemis-server.pem"
+    ).resolve()
+    assert config.server_private_key == (
+        tmp_path / "certs" / "artemis-server-key.pem"
+    ).resolve()
+    assert config.client_ca_file == (
+        tmp_path / "certs" / "fleet-ca.pem"
+    ).resolve()
+    assert config.ledger_path == (
+        tmp_path / "state" / "agent-ledger.db"
+    ).resolve()
+
+
+def test_file_config_rejects_unknown_keys(tmp_path):
+    path = _write_config(tmp_path, surprise="nope")
+
+    with pytest.raises(ValueError, match="Unsupported Fleet agent config keys"):
+        configuration_from_file(path)
+
+
+def test_file_config_rejects_missing_required_key(tmp_path):
+    path = _write_config(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    del payload["server_private_key"]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="server_private_key"):
+        configuration_from_file(path)
+
+
+def test_file_config_defaults_listener_when_omitted(tmp_path):
+    path = _write_config(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    del payload["listen_host"]
+    del payload["listen_port"]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    config = configuration_from_file(path)
+
+    assert config.listen_host == "0.0.0.0"
+    assert config.listen_port == 7443
