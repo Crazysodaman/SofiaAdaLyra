@@ -33,7 +33,11 @@ def candidate(**overrides):
 
 def test_matching_agent_is_ready_without_reinstall():
     plan = FleetBootstrapPlanner().plan(
-        candidate(installed_agent_version=PACKAGE.version),
+        candidate(
+            installed_agent_version=PACKAGE.version,
+            installed_agent_sha256=PACKAGE.sha256,
+            installed_protocol_version=PACKAGE.protocol_version,
+        ),
         PACKAGE,
         authority=InstallAuthority.NONE,
     )
