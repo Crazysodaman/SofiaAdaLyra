@@ -22,6 +22,7 @@ from sofia.filesystem.orchestrator import (
 )
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
+from sofia.social.store import SocialSessionStore
 
 
 class ConversationService:
@@ -57,6 +58,9 @@ class ConversationService:
 
         self._runtime = runtime
         self._conversation_store = conversation_store
+        self._social_store = SocialSessionStore(
+            runtime.configuration.state_path
+        )
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -227,6 +231,27 @@ class ConversationService:
             f"Workspace change count: {event.workspace_change_count}"
         )
 
+    def _bind_principal(
+        self,
+        principal: PrincipalContext | None,
+    ) -> PrincipalContext | None:
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService must be started before binding a principal."
+            )
+        bound = self._social_store.get(self._session.id)
+        if principal is None:
+            if bound is not None:
+                raise PermissionError(
+                    "This conversation session is principal-bound; "
+                    "authenticated principal context is required."
+                )
+            return None
+        return self._social_store.bind(
+            session_id=self._session.id,
+            principal=principal,
+        )
+
     def respond(
         self,
         content: str,
@@ -254,6 +279,7 @@ class ConversationService:
                 "ConversationService principal must be a PrincipalContext or None."
             )
 
+        principal = self._bind_principal(principal)
         content = content.strip()
 
         if not content:
