@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
+import os
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 import socket
 import sqlite3
 import subprocess
@@ -12,7 +13,12 @@ import sys
 
 from sofia.config import create_default_configuration
 from sofia.machine.discovery import create_machine_discovery
-from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.ops.activity import (
+    ActivityMode,
+    HostActivityObservation,
+    HostActivityStore,
+    detect_windows_game,
+)
 from sofia.ops.capability import OpsToolService
 from sofia.system.capability import create_local_system_backend
 from sofia.system.model import (
@@ -65,10 +71,16 @@ class TrayAgentApplication:
             llm_model=self.config.provider.model,
         )
         self._system_backend = create_local_system_backend()
-        self._service_capability = next(
-            cap
+        by_name = {
+            cap.name: cap
             for cap in self._system_backend.supported_capabilities
-            if cap.name is SystemCapabilityName.SERVICE_INSPECT
+        }
+        self._service_capability = by_name[SystemCapabilityName.SERVICE_INSPECT]
+        self._process_capability = by_name[SystemCapabilityName.PROCESS_INSPECT]
+        self._known_games = frozenset(
+            value.strip().casefold()
+            for value in os.environ.get("SOFIA_GAME_EXECUTABLES", "").split(",")
+            if value.strip()
         )
         self.tray = WindowsTrayAgent(
             events=self.events,
@@ -92,6 +104,33 @@ class TrayAgentApplication:
             return str(state).lower() if state else "unknown"
         except Exception:
             return "unknown"
+
+    def _observe_activity(self) -> None:
+        settings = self.settings_store.load()
+        if settings.game_mode is not GameMode.AUTO:
+            return
+        result = self._system_backend.execute(
+            SystemCapabilityRequest(
+                self._process_capability,
+                {"limit": 2048},
+            )
+        )
+        if result.kind is not SystemCapabilityResultKind.SUCCESS:
+            return
+        processes = tuple(result.evidence.get("processes", ()))
+        gaming, game = detect_windows_game(
+            processes,
+            known_game_executables=self._known_games,
+        )
+        self.activity_store.record(
+            HostActivityObservation(
+                host_id=self.host_id,
+                mode=ActivityMode.GAMING if gaming else ActivityMode.NORMAL,
+                observed_at=datetime.now(timezone.utc),
+                source="windows-process-inspection",
+                detail=game,
+            )
+        )
 
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
@@ -157,6 +196,8 @@ class TrayAgentApplication:
             GameMode.OFF: ActivityMode.NORMAL,
         }[value]
         self.activity_store.set_override(self.host_id, override, at=now)
+        if value is GameMode.AUTO:
+            self._observe_activity()
 
     def _service_action(self, kind: ServiceKind, action: ServiceAction) -> None:
         settings = self.settings_store.load()
@@ -206,11 +247,23 @@ class TrayAgentApplication:
         return True
 
     def run(self) -> int:
+        try:
+            self._observe_activity()
+        except Exception as exc:
+            self._last_error = f"{type(exc).__name__}: {exc}"
         self.tray.start()
         try:
             running = True
             while running:
-                running = self.handle(self.events.get())
+                try:
+                    command = self.events.get(timeout=30)
+                except Empty:
+                    try:
+                        self._observe_activity()
+                    except Exception as exc:
+                        self._last_error = f"{type(exc).__name__}: {exc}"
+                    continue
+                running = self.handle(command)
         finally:
             self.tray.stop()
         return 0
