@@ -23,6 +23,9 @@ def habit_context_from_environment(
     if local is not None and snapshot.timezone is not None:
         context["weekday"] = str(local.weekday())
         context["hour_bucket"] = str(local.hour // 2)
+        context["day_of_month"] = str(local.day)
+        context["month"] = str(local.month)
+        context["month_day"] = f"{local.month:02d}-{local.day:02d}"
 
     if snapshot.season is not None:
         context["season"] = snapshot.season.value
