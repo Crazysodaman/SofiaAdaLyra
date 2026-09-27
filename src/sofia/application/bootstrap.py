@@ -330,6 +330,29 @@ class SofiaApplication:
                     )
                     return count or None
 
+                last_coverage_at = datetime.now(timezone.utc)
+
+                def record_habit_coverage(now):
+                    nonlocal last_coverage_at
+                    service = self._conversation_service
+                    principal = (
+                        service._principal_context()
+                        if hasattr(service, "_principal_context")
+                        else None
+                    )
+                    if principal is None:
+                        last_coverage_at = now
+                        return None
+                    self._habit_continuity.record_runtime_coverage(
+                        principal_id=principal.principal_id,
+                        audience_id=principal.audience_id,
+                        started_at=last_coverage_at,
+                        ended_at=now,
+                    )
+                    last_coverage_at = now
+                    return True
+
+                coordinator.set_task("habit_observation", record_habit_coverage)
                 coordinator.set_task("habit_analysis", analyze_habits)
                 coordinator.set_task("habit_decay", decay_habits)
                 coordinator.set_task(
