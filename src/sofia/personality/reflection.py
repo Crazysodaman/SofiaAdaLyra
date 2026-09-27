@@ -115,34 +115,110 @@ class ReflectionJournal:
     def __init__(self, state_path: str | Path) -> None:
         self._path = Path(state_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS reflection_thoughts (
-                    thought_id TEXT PRIMARY KEY,
-                    kind TEXT NOT NULL,
-                    period_key TEXT,
-                    created_at TEXT NOT NULL,
-                    subject TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    evidence_refs TEXT NOT NULL,
-                    emotions TEXT NOT NULL,
-                    UNIQUE(kind, period_key)
-                );
-                CREATE TABLE IF NOT EXISTS reflection_outbox (
-                    message_id TEXT PRIMARY KEY,
-                    thought_id TEXT NOT NULL REFERENCES reflection_thoughts(thought_id),
-                    thread_id TEXT NOT NULL,
-                    evidence_ref TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    urgency TEXT NOT NULL,
-                    queued_at TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'pending',
-                    delivered_at TEXT,
-                    UNIQUE(thread_id, evidence_ref)
-                );
-                CREATE INDEX IF NOT EXISTS reflection_outbox_status
-                    ON reflection_outbox(status, queued_at);
-            """)
+        self._initialize()
+
+    @staticmethod
+    def _schema_sql() -> str:
+        return """
+            CREATE TABLE IF NOT EXISTS reflection_thoughts (
+                thought_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                period_key TEXT,
+                created_at TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                content TEXT NOT NULL,
+                evidence_refs TEXT NOT NULL,
+                emotions TEXT NOT NULL,
+                scope_key TEXT NOT NULL,
+                scope_kind TEXT NOT NULL,
+                principal_id TEXT,
+                audience_id TEXT,
+                audience_kind TEXT,
+                UNIQUE(kind, period_key, scope_key)
+            );
+            CREATE TABLE IF NOT EXISTS reflection_outbox (
+                message_id TEXT PRIMARY KEY,
+                thought_id TEXT NOT NULL REFERENCES reflection_thoughts(thought_id),
+                thread_id TEXT NOT NULL,
+                evidence_ref TEXT NOT NULL,
+                content TEXT NOT NULL,
+                urgency TEXT NOT NULL,
+                queued_at TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                delivered_at TEXT,
+                UNIQUE(thread_id, evidence_ref)
+            );
+            CREATE INDEX IF NOT EXISTS reflection_outbox_status
+                ON reflection_outbox(status, queued_at);
+            CREATE INDEX IF NOT EXISTS reflection_thoughts_scope_time
+                ON reflection_thoughts(scope_key, created_at);
+        """
+
+    def _initialize(self) -> None:
+        """Create the scoped schema and migrate the original global-only table."""
+        db = sqlite3.connect(self._path, timeout=5)
+        try:
+            db.execute("PRAGMA foreign_keys = OFF")
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='reflection_thoughts'"
+            ).fetchone()
+            if exists is None:
+                db.executescript(self._schema_sql())
+                db.commit()
+                return
+
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(reflection_thoughts)"
+                )
+            }
+            if "scope_key" in columns:
+                db.executescript(self._schema_sql())
+                db.commit()
+                return
+
+            db.execute("BEGIN IMMEDIATE")
+            outbox_exists = db.execute(
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='reflection_outbox'"
+            ).fetchone()
+            if outbox_exists is not None:
+                db.execute(
+                    "ALTER TABLE reflection_outbox "
+                    "RENAME TO reflection_outbox_legacy"
+                )
+            db.execute(
+                "ALTER TABLE reflection_thoughts "
+                "RENAME TO reflection_thoughts_legacy"
+            )
+            db.executescript(self._schema_sql())
+            db.execute(
+                "INSERT INTO reflection_thoughts ("
+                "thought_id, kind, period_key, created_at, subject, content, "
+                "evidence_refs, emotions, scope_key, scope_kind, principal_id, "
+                "audience_id, audience_kind"
+                ") SELECT thought_id, kind, period_key, created_at, subject, "
+                "content, evidence_refs, emotions, 'global', 'global', "
+                "NULL, NULL, NULL FROM reflection_thoughts_legacy"
+            )
+            if outbox_exists is not None:
+                db.execute(
+                    "INSERT INTO reflection_outbox ("
+                    "message_id, thought_id, thread_id, evidence_ref, content, "
+                    "urgency, queued_at, status, delivered_at"
+                    ") SELECT message_id, thought_id, thread_id, evidence_ref, "
+                    "content, urgency, queued_at, status, delivered_at "
+                    "FROM reflection_outbox_legacy"
+                )
+                db.execute("DROP TABLE reflection_outbox_legacy")
+            db.execute("DROP TABLE reflection_thoughts_legacy")
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     @contextmanager
     def _connect(self):
