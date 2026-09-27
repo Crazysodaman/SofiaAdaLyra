@@ -30,6 +30,7 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.state.component_schema import verify_production_component_schemas
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -48,6 +49,7 @@ from .control_center import (
 from .process_lock import TrayProcessAlreadyRunning, TrayProcessLock
 from .fleet_service_control import FleetRemoteServiceController
 from .service_control import DesktopServiceController
+from .runtime_authority import RuntimeAuthorityState, RuntimeChatAuthorityStore
 from .windows_tray import WindowsTrayAgent
 
 
@@ -73,6 +75,9 @@ class TrayAgentApplication:
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
         self.activity_store = HostActivityStore(self.config.state_path)
         self.ops = OpsToolService(self.config.state_path)
+        self._runtime_authority = RuntimeChatAuthorityStore(
+            SQLiteStatePlane(self.config.state_path)
+        )
         self.host_id = _local_host_id()
         self.events: Queue[TrayCommand] = Queue()
         self._chat_process: subprocess.Popen | None = None
@@ -165,7 +170,22 @@ class TrayAgentApplication:
 
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
-        runtime_state = self._service_state(settings.runtime_service_name)
+        authority = self._runtime_authority.current()
+        remote_runtime = (
+            authority is not None
+            and authority.state is RuntimeAuthorityState.READY
+            and authority.host_id != self.host_id
+        )
+        runtime_state = (
+            "remote_authoritative"
+            if remote_runtime
+            else self._service_state(settings.runtime_service_name)
+        )
+        runtime_host = (
+            authority.host_id
+            if remote_runtime
+            else (self.host_id if runtime_state == "running" else None)
+        )
         llm_state = self._service_state(settings.llm_service_name)
         hosts = self.ops.fleet()
         healthy = sum(1 for host in hosts if host["lifecycle"] == "healthy")
@@ -177,7 +197,7 @@ class TrayAgentApplication:
         if self._last_error is not None:
             attention += 1
         return TrayStatus(
-            runtime_host=self.host_id if runtime_state == "running" else None,
+            runtime_host=runtime_host,
             runtime_state=runtime_state,
             llm_host=self.host_id if llm_state == "running" else None,
             llm_state=llm_state,
@@ -239,7 +259,20 @@ class TrayAgentApplication:
             if kind is ServiceKind.LLM_ENGINE
             else settings.runtime_service_name
         )
-        target = ServiceTarget(kind, self.host_id, service_name)
+        authority = self._runtime_authority.current()
+        target_host_id = self.host_id
+        if (
+            kind is ServiceKind.SOFIA_RUNTIME
+            and authority is not None
+            and authority.state is RuntimeAuthorityState.READY
+        ):
+            target_host_id = authority.host_id
+        target = ServiceTarget(kind, target_host_id, service_name)
+
+        if target.host_id != self.host_id:
+            self._service.execute(target, action)
+            return
+
         capability, parameters = self._service.approval_spec(
             target,
             action,
