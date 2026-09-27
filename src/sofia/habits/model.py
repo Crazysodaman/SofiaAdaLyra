@@ -23,6 +23,14 @@ class CoverageState(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
+class HabitCadence(str, Enum):
+    IRREGULAR = "irregular"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
 class HabitStatus(str, Enum):
     TENTATIVE = "tentative"
     ESTABLISHED = "established"
@@ -42,13 +50,19 @@ class ExpectationStatus(str, Enum):
 _ALLOWED_CONTEXT = frozenset({
     "weekday",
     "hour_bucket",
+    "day_of_month",
+    "month",
+    "month_day",
     "season",
     "daylight",
     "weather",
     "location_label",
     "host_id",
     "activity_mode",
-    "weekday_hour",
+    "daily_window",
+    "weekly_window",
+    "monthly_window",
+    "yearly_window",
 })
 
 
@@ -111,8 +125,7 @@ class HabitObservation:
             raise TypeError("source must be ObservationSource")
         if not isinstance(self.context, tuple):
             raise TypeError("context must be a tuple")
-        normalized = _context(dict(self.context))
-        object.__setattr__(self, "context", normalized)
+        object.__setattr__(self, "context", _context(dict(self.context)))
 
     @classmethod
     def create(
@@ -177,6 +190,7 @@ class HabitPattern:
     audience_id: str | None
     kind: str
     value: str
+    cadence: HabitCadence
     context_key: str | None
     context_value: str | None
     first_observed_at: datetime
@@ -191,6 +205,8 @@ class HabitPattern:
             object.__setattr__(self, name, _text(getattr(self, name), name, 240))
         if self.audience_id is not None:
             object.__setattr__(self, "audience_id", _text(self.audience_id, "audience_id"))
+        if not isinstance(self.cadence, HabitCadence):
+            raise TypeError("cadence must be HabitCadence")
         if (self.context_key is None) != (self.context_value is None):
             raise ValueError("context key/value must both be present or both be absent")
         if self.context_key is not None:
