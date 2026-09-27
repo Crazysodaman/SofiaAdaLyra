@@ -11,6 +11,7 @@ retired by this command.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -110,7 +111,7 @@ def _enroll_fresh_controller(
             NodeEnrollment(
                 DistributedNode(node_id, node_name),
                 server_pin,
-                __import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+                datetime.now(timezone.utc),
                 approved_by,
             )
         )
