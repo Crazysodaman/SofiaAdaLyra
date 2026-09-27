@@ -171,7 +171,9 @@ class ExpandedConversationService(InteractiveConversationService):
                         return self._guarded_reply(
                             content, _BOUNDARY_ACTION, principal=principal
                         )
-        return super().respond(content, principal=principal)
+        return super().respond(content) if principal is None else super().respond(
+            content, principal=principal
+        )
 
     def _build_request(self) -> CognitiveRequest:
         # Check source-backed boundaries BEFORE the parent writes an accepted
