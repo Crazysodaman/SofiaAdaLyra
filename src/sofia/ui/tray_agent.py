@@ -29,6 +29,7 @@ from sofia.safe.execution_approval import (
     ExecutionApprovalVerifier,
     execution_fingerprint,
 )
+from sofia.state.component_schema import verify_production_component_schemas
 from sofia.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -68,6 +69,7 @@ class TrayAgentApplication:
     def __init__(self) -> None:
         self.config = create_default_configuration()
         _ensure_state(self.config.state_path)
+        verify_production_component_schemas(self.config.state_path)
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
         self.activity_store = HostActivityStore(self.config.state_path)
         self.ops = OpsToolService(self.config.state_path)
