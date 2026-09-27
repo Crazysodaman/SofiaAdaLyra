@@ -48,6 +48,8 @@ class HabitObservationRecorder:
         evidence_ref: str,
         source_quality: SourceQuality,
         coverage: ObservationCoverage = ObservationCoverage.OBSERVED,
+        sensitive: bool = False,
+        explicit_user_evidence: bool = False,
     ) -> HabitObservation:
         occurred = self._aware(occurred_at, "occurred_at").astimezone(timezone.utc)
         local = self._aware(local_timestamp, "local_timestamp")
@@ -69,6 +71,8 @@ class HabitObservationRecorder:
             evidence_ref=evidence_ref,
             source_quality=source_quality,
             coverage=coverage,
+            sensitive=sensitive,
+            explicit_user_evidence=explicit_user_evidence,
         )
         return self._store.append_observation(item)
 
