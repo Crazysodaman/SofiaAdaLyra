@@ -10,7 +10,7 @@ from types import MappingProxyType
 from typing import Iterable, Mapping
 import re
 
-CATALOG_VERSION = "human-fox-interaction-catalog-v2"
+CATALOG_VERSION = "human-fox-interaction-catalog-v3"
 
 
 def normalize_alias(value: str) -> str:
@@ -38,7 +38,7 @@ class Resolution:
 class SemanticDefinition:
     id: str
     aliases: tuple[str, ...]
-    category: str  # gesture, action, expression
+    category: str  # gesture, action, expression, pose, presentation
     channel: str = "text"  # hint only, not an execution claim
 
 
@@ -133,6 +133,46 @@ ACTION_DEFINITIONS = _definitions("action", {
     "sensual-pose": ("sensual pose", "seductive pose"),
     "flash-chest": ("flash chest", "flash breasts", "reveal breasts"),
     "breast-press-pose": ("press breasts together", "breast press pose"),
+    "pull-closer": ("pull closer", "draw closer"),
+    "rest-head-on": ("rest head on", "rest my head on"),
+    "kiss-neck": ("kiss neck",),
+    "kiss-cheek": ("kiss cheek",),
+    "kiss-forehead": ("kiss forehead",),
+})
+
+POSE_DEFINITIONS = _definitions("pose", {
+    "stand-relaxed": ("stand relaxed", "relaxed standing pose"),
+    "lean-forward": ("lean forward",),
+    "bend-over": ("bend over", "bend forward"),
+    "look-back": ("look back", "look over shoulder"),
+    "arch-back": ("arch back", "arched back"),
+    "kneel": ("kneel", "kneeling pose"),
+    "recline": ("recline", "reclining pose"),
+    "sit-cross-legged": ("sit cross legged",),
+    "sit-legs-apart": ("sit with legs apart",),
+    "hands-behind-back": ("hands behind back",),
+    "hands-overhead": ("hands overhead", "arms overhead"),
+    "cover-chest": ("cover chest",),
+    "present-chest": ("present chest", "chest forward"),
+    "breast-press": ("press breasts together", "breasts pressed together"),
+    "hip-pop": ("hip pop", "cock hip"),
+    "spread-legs": ("spread legs", "legs spread"),
+    "all-fours": ("all fours", "on all fours"),
+    "lying-back": ("lie on back", "lying on back"),
+    "lying-front": ("lie on front", "lying face down"),
+    "sensual-stretch": ("sensual stretch",),
+})
+
+PRESENTATION_DEFINITIONS = _definitions("presentation", {
+    "adjust-clothing": ("adjust clothing",),
+    "tease-clothing": ("tease clothing",),
+    "partially-undress": ("partially undress",),
+    "reveal-chest": ("reveal chest", "flash chest", "flash breasts"),
+    "cover-up": ("cover up", "cover myself"),
+    "change-private-outfit": ("change into private outfit",),
+    "change-lingerie": ("change lingerie", "put on lingerie"),
+    "remove-top": ("remove top", "take off top"),
+    "remove-bottom": ("remove bottom", "take off bottom"),
 })
 
 PRIVATE_SEMANTICS = frozenset({
@@ -140,6 +180,21 @@ PRIVATE_SEMANTICS = frozenset({
     ("action", "sensual-pose"),
     ("action", "flash-chest"),
     ("action", "breast-press-pose"),
+    ("pose", "bend-over"),
+    ("pose", "arch-back"),
+    ("pose", "sit-legs-apart"),
+    ("pose", "present-chest"),
+    ("pose", "breast-press"),
+    ("pose", "spread-legs"),
+    ("pose", "all-fours"),
+    ("pose", "sensual-stretch"),
+    ("presentation", "tease-clothing"),
+    ("presentation", "partially-undress"),
+    ("presentation", "reveal-chest"),
+    ("presentation", "change-private-outfit"),
+    ("presentation", "change-lingerie"),
+    ("presentation", "remove-top"),
+    ("presentation", "remove-bottom"),
 })
 
 EXPRESSION_DEFINITIONS = _definitions("expression", {
@@ -210,6 +265,8 @@ class InteractionCatalog:
             ("gesture", GESTURE_DEFINITIONS),
             ("action", ACTION_DEFINITIONS),
             ("expression", EXPRESSION_DEFINITIONS),
+            ("pose", POSE_DEFINITIONS),
+            ("presentation", PRESENTATION_DEFINITIONS),
         ):
             aliases: dict[str, str] = {}
             for definition in definitions:
