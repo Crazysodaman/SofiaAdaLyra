@@ -18,6 +18,7 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
+from sofia.social.principals import local_sparks_principal
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
 
@@ -57,6 +58,7 @@ class SofiaApplication:
             conversation=self._conversation_service,
             drafts=self._ui_draft_store,
             client_id="local-text",
+            principal=local_sparks_principal(),
         )
 
     @property
