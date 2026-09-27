@@ -28,6 +28,36 @@ class ActionExecutor(ABC):
         raise NotImplementedError
 
 
+class FailClosedActionExecutor(ActionExecutor):
+    """
+    Production-safe executor used until a concrete side-effect adapter is
+    explicitly composed.
+
+    This boundary never reports EXECUTED. Even an approved proposal with
+    execution authority is denied unless a real production executor replaces
+    this object through an intentional composition change.
+    """
+
+    def execute(
+        self,
+        proposal: ActionProposal,
+    ) -> ActionExecutionResult:
+        if not isinstance(proposal, ActionProposal):
+            raise TypeError(
+                "FailClosedActionExecutor proposal must be an ActionProposal."
+            )
+
+        if proposal.status is not ActionStatus.APPROVED:
+            raise ActionExecutorError(
+                "Only approved action proposals may reach the production "
+                "execution boundary."
+            )
+
+        raise ActionExecutorError(
+            "Production action execution is not configured; execution denied."
+        )
+
+
 class TestActionExecutor(ActionExecutor):
     """
     Deterministic executor used by tests.
