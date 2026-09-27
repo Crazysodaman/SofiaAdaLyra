@@ -12,10 +12,9 @@ import argparse
 from pathlib import Path
 
 from .discovery import create_machine_discovery
-from .location import (
-    MachineLocationRegistry,
-    new_machine_location,
-)
+from .location import new_machine_location
+from .location_state import StatePlaneMachineLocationRegistry
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from .persistence import MachineInventoryPersistence
 
 
@@ -23,9 +22,13 @@ def _state_directory() -> Path:
     return Path(__file__).resolve().parents[3] / "state"
 
 
-def _registry(state_directory: Path) -> MachineLocationRegistry:
-    return MachineLocationRegistry(
-        state_directory / "machine-locations.json"
+def _registry(
+    state_directory: Path,
+) -> StatePlaneMachineLocationRegistry:
+    state_path = state_directory / "sofia.db"
+    return StatePlaneMachineLocationRegistry(
+        SQLiteStatePlane(state_path),
+        legacy_path=state_directory / "machine-locations.json",
     )
 
 
@@ -91,7 +94,7 @@ def _known_identity(
 
 
 def _configure(
-    registry: MachineLocationRegistry,
+    registry: StatePlaneMachineLocationRegistry,
     *,
     machine_id: str,
     hostname: str,
