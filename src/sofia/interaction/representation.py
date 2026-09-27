@@ -10,7 +10,7 @@ audience requirements, not a global mode and never a consent grant.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 import json
@@ -216,6 +216,22 @@ class AvatarInteractionIntent:
             self.render_status == "rendered"
             and isinstance(self.renderer_receipt_id, str)
             and bool(self.renderer_receipt_id)
+        )
+
+    def with_renderer_receipt(
+        self,
+        *,
+        receipt_id: str,
+    ) -> "AvatarInteractionIntent":
+        _identifier(receipt_id, "renderer_receipt_id")
+        if self.render_status == "rendered":
+            if self.renderer_receipt_id != receipt_id:
+                raise ValueError("avatar intent already has a different renderer receipt")
+            return self
+        return replace(
+            self,
+            render_status="rendered",
+            renderer_receipt_id=receipt_id,
         )
 
 
