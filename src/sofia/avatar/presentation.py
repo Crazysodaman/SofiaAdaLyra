@@ -125,6 +125,7 @@ class PresentationState:
     attire: AttireMode
     outfit_id: str | None
     item_ids: tuple[str, ...]
+    item_names: tuple[str, ...]
     appearance: AppearanceState
     private_only: bool
     reason: str
@@ -410,6 +411,10 @@ class PresentationAuthority:
             attire=state.attire,
             outfit_id=state.outfit_id,
             item_ids=state.item_ids,
+            item_names=tuple(
+                garment.name
+                for garment in self._wardrobe.garments(state.item_ids)
+            ),
             appearance=state.appearance,
             private_fallback_used=fallback,
             reason=state.reason,

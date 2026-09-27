@@ -178,6 +178,7 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
     assert "CURRENT AVATAR PRESENTATION" in system
     assert "overrides static canonical clothing design as a CURRENT-WEAR fact" in system
     assert '"outfit_id": "lounge.relaxed"' in system
+    assert '"item_names": ["Breathable underlayer", "Base undergarment", "Oversized lounge T-shirt", "Relaxed lounge sweatpants"]' in system
     app.shutdown()
 
 
