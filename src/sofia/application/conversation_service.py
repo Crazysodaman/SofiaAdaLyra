@@ -23,6 +23,7 @@ from sofia.filesystem.orchestrator import (
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
+from sofia.rel.store import RelationshipStore
 
 
 class ConversationService:
@@ -59,6 +60,9 @@ class ConversationService:
         self._runtime = runtime
         self._conversation_store = conversation_store
         self._social_store = SocialSessionStore(
+            runtime.configuration.state_path
+        )
+        self._relationship_store = RelationshipStore(
             runtime.configuration.state_path
         )
         self._filesystem_orchestrator = (
@@ -296,6 +300,13 @@ class ConversationService:
         )
 
         self._conversation_store.save(user_message)
+
+        if principal is not None:
+            self._relationship_store.observe(
+                principal=principal,
+                evidence_ref=user_message.id,
+                occurred_at=user_message.created_at,
+            )
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
