@@ -221,7 +221,7 @@ class InteractiveConversationService(EmotionalConversationService):
         """
         if self._session is None:
             raise RuntimeError('ConversationService must be started before responding.')
-        self._bind_principal(principal)
+        principal = self._bind_principal(principal)
         clean = content.strip()
         if not clean:
             raise ValueError('ConversationService content must not be empty.')
@@ -234,6 +234,10 @@ class InteractiveConversationService(EmotionalConversationService):
                     content=clean, created_at=datetime.now(timezone.utc),
                 )
                 self._conversation_store.save(user)
+                self._after_user_message_saved(
+                    message=user,
+                    principal=principal,
+                )
                 if command is not None or stopped_gesture:
                     configuration = getattr(self._runtime, 'configuration', None)
                     if configuration is None:
