@@ -15,6 +15,7 @@ from sofia.cognition.model import (
 from sofia.codebase.evidence import format_codebase_evidence
 from sofia.codebase.model import CodebaseInspectionEvidence
 from sofia.filesystem.model import FilesystemResult
+from sofia.social.model import PrincipalContext
 
 
 class CognitiveToolError(Exception):
@@ -165,6 +166,8 @@ class CognitiveToolDispatcher:
     def dispatch(
         self,
         tool_call: CognitiveToolCall,
+        *,
+        principal: PrincipalContext | None = None,
     ) -> CapabilityResult:
         if not isinstance(
             tool_call,
@@ -183,6 +186,18 @@ class CognitiveToolDispatcher:
             ) from exc
 
         parameters = dict(tool_call.arguments)
+
+        reserved = ("__principal_id", "__audience_id", "__audience_kind")
+        if any(key in parameters for key in reserved):
+            raise CognitiveToolError(
+                "Cognitive tool attempted to supply host-controlled identity metadata."
+            )
+        if principal is not None:
+            if not isinstance(principal, PrincipalContext):
+                raise TypeError("principal must be a PrincipalContext or None")
+            parameters["__principal_id"] = principal.principal_id
+            parameters["__audience_id"] = principal.audience_id
+            parameters["__audience_kind"] = principal.audience_kind.value
 
         for key, value in binding.fixed_parameters:
             if key in parameters and parameters[key] != value:
