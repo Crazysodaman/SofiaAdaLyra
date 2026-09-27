@@ -47,6 +47,26 @@ class SofiaActService:
     def delivery_enabled(self) -> bool:
         return self._sender is not None and self._policy is not None
 
+    def bind_message(
+        self,
+        *,
+        message_id: str,
+        recipient_id: str,
+        channel: str,
+        destination: str,
+        expires_at: datetime,
+        at: datetime,
+    ):
+        outbox = ActOutbox(self.state_path)
+        return outbox.bind(
+            message_id=message_id,
+            recipient_id=recipient_id,
+            channel=channel,
+            destination=destination,
+            expires_at=expires_at,
+            at=at,
+        )
+
     def deliver_one(
         self,
         *,
