@@ -239,3 +239,26 @@ MASTER_SETTINGS_SECTIONS = (
     "Safety & Authority",
     "Advanced",
 )
+
+
+def tray_command_requires_confirmation(command: TrayCommand) -> bool:
+    if not isinstance(command, TrayCommand):
+        raise TypeError("TrayCommand required")
+    return command in {
+        TrayCommand.RUNTIME_STOP,
+        TrayCommand.RUNTIME_RESTART,
+    }
+
+
+def tray_command_enabled(command: TrayCommand, status: TrayStatus) -> bool:
+    if not isinstance(command, TrayCommand):
+        raise TypeError("TrayCommand required")
+    if not isinstance(status, TrayStatus):
+        raise TypeError("TrayStatus required")
+    if command in {
+        TrayCommand.LLM_START,
+        TrayCommand.LLM_STOP,
+        TrayCommand.LLM_RESTART,
+    }:
+        return status.llm_state != "not_found"
+    return True
