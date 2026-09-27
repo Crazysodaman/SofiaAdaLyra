@@ -24,6 +24,8 @@ from uuid import UUID, uuid4
 from sofia.cognition.model import CognitiveResponse
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
+from sofia.social.model import PrincipalContext
+from sofia.social.principals import remote_sparks_principal
 
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -49,7 +51,12 @@ class RemoteConversation(Protocol):
     @property
     def session_id(self) -> str | None: ...
     def messages(self) -> tuple[ConversationMessage, ...]: ...
-    def respond(self, content: str): ...
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ): ...
 
 
 @dataclass(frozen=True)
@@ -313,7 +320,12 @@ class RemoteChatServer:
                             )
                         return
                     try:
-                        response = owner.conversation.respond(content)
+                        response = owner.conversation.respond(
+                            content,
+                            principal=remote_sparks_principal(
+                                owner.config.expected_client_public_key_sha256
+                            ),
+                        )
                         response_content = getattr(response, "content", None)
                         if not isinstance(response_content, str) or not response_content.strip():
                             raise ValueError("conversation returned empty response")
