@@ -151,13 +151,21 @@ class SystemNoticeQueue:
     ) -> History:
         rows = db.execute(
             """
-            SELECT notice_id,finished_at
+            SELECT notice_id AS candidate_id,finished_at
             FROM act_system_notice
             WHERE recipient_id=? AND channel=? AND destination=?
               AND status='delivered'
-            ORDER BY finished_at,notice_id
+            UNION ALL
+            SELECT message_id AS candidate_id,finished_at
+            FROM act_delivery_attempts
+            WHERE recipient_id=? AND channel=? AND destination=?
+              AND status='delivered'
+            ORDER BY finished_at,candidate_id
             """,
-            (recipient_id, channel, destination),
+            (
+                recipient_id, channel, destination,
+                recipient_id, channel, destination,
+            ),
         ).fetchall()
         times = [
             datetime.fromisoformat(row["finished_at"]).astimezone(timezone.utc)
@@ -167,7 +175,9 @@ class SystemNoticeQueue:
         day = now.date().isoformat()
         today = sum(1 for value in times if value.date().isoformat() == day)
         return History(
-            delivered_candidate_ids=frozenset(row["notice_id"] for row in rows),
+            delivered_candidate_ids=frozenset(
+                row["candidate_id"] for row in rows
+            ),
             last_delivered_at=times[-1] if times else None,
             delivered_today=today,
             delivered_day_utc=day if today else None,
@@ -208,6 +218,16 @@ class SystemNoticeQueue:
                     return None
                 created = datetime.fromisoformat(row["created_at"]).astimezone(timezone.utc)
                 expires = datetime.fromisoformat(row["expires_at"]).astimezone(timezone.utc)
+                if moment >= expires:
+                    db.execute(
+                        """
+                        UPDATE act_system_notice
+                        SET status='failed',error_type='Expired',finished_at=?
+                        WHERE notice_id=? AND status='queued'
+                        """,
+                        (moment.isoformat(), row["notice_id"]),
+                    )
+                    return None
                 candidate = Candidate(
                     candidate_id=row["notice_id"],
                     recipient_id=row["recipient_id"],
