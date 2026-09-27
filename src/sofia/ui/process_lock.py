@@ -42,8 +42,7 @@ class TrayProcessLock:
 
             handle = self.path.open("a+b")
             try:
-                handle.seek(0)
-                if handle.read(1) == b"":
+                if os.fstat(handle.fileno()).st_size == 0:
                     handle.seek(0)
                     handle.write(b"0")
                     handle.flush()
