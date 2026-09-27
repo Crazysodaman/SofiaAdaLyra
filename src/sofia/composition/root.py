@@ -596,6 +596,7 @@ def compose(
         avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+        ops_service=ops_service,
         capability_system=capability_system,
         configuration=configuration,
         state_plane=state_plane,
