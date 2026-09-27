@@ -93,6 +93,8 @@ class SofiaConfiguration:
     provider: ProviderConfiguration
     filesystem_root: Path
     standing_allowed_capabilities: tuple[str, ...] = ()
+    primary_principal_id: str = "owner"
+    primary_principal_display_name: str = "Sparks"
     canonical_identity_bootstrap_authorized: bool = False
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
@@ -118,6 +120,19 @@ class SofiaConfiguration:
         if not self.avatar_path:
             raise ValueError(
                 "SofiaConfiguration avatar_path must not be empty."
+            )
+
+        if (
+            not isinstance(self.primary_principal_id, str)
+            or not self.primary_principal_id.strip()
+        ):
+            raise ValueError("primary_principal_id must be nonempty.")
+        if (
+            not isinstance(self.primary_principal_display_name, str)
+            or not self.primary_principal_display_name.strip()
+        ):
+            raise ValueError(
+                "primary_principal_display_name must be nonempty."
             )
 
         if not isinstance(
