@@ -8,6 +8,7 @@ from sofia.avatar.presentation import (
     AudienceScope,
     PresentationAuthority,
     PresentationProjection,
+    PrivatePresentationGrant,
 )
 from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.authority.model import Authority
@@ -23,6 +24,7 @@ from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.model import SofiaConfiguration
+from sofia.config.state_store import StatePlaneConfigurationStore
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -53,6 +55,8 @@ from sofia.filesystem.observation import (
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
+from sofia.ops.capability import OpsToolService
+from sofia.dev.release_store import ReleaseStateStore
 from sofia.operational.model import (
     OperationalState,
     RuntimeContinuity,
@@ -68,6 +72,9 @@ from sofia.self_model.model import (
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
+from sofia.social.model import PrincipalContext
+from sofia.state.plane import StatePlane
+from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
 _PACKAGE_NAME = "sofia-ada-lyra"
@@ -127,14 +134,21 @@ class SofiaRuntime:
         avatar_store: AvatarStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
+        ops_service: OpsToolService,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
+        state_plane: StatePlane,
         environment_service: EnvironmentService | None = None,
         operational_store: OperationalStore | None = None,
         filesystem_observation_store: (
             FilesystemObservationStore | None
         ) = None,
     ) -> None:
+        if not isinstance(state_plane, StatePlane):
+            raise TypeError(
+                "SofiaRuntime state_plane must be a StatePlane."
+            )
+
         if not isinstance(
             capability_system,
             CapabilitySystem,
@@ -149,10 +163,22 @@ class SofiaRuntime:
         self._identity_store = identity_store
         self._personality_store = personality_store
         self._avatar_store = avatar_store
+        if not isinstance(ops_service, OpsToolService):
+            raise TypeError(
+                "SofiaRuntime ops_service must be an OpsToolService."
+            )
         self._memory_system = memory_system
+        self._ops_service = ops_service
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._state_plane = state_plane
+        self._configuration_store = StatePlaneConfigurationStore(state_plane)
+        self._release_state_store = ReleaseStateStore(state_plane)
+        self._semantic_integrity = SemanticIntegrityVerifier(
+            configuration.state_path,
+            state_plane=state_plane,
+        )
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -292,9 +318,42 @@ class SofiaRuntime:
 
     @property
     def avatar_presentation_projection(self) -> PresentationProjection | None:
-        """Return only the public-safe projection until SOCIAL supplies audience."""
+        """Public-safe projection retained for compatibility and UI themes."""
         if self._avatar_presentation is None:
             return None
+        return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+
+    def avatar_projection_for(
+        self,
+        *,
+        principal: PrincipalContext | None,
+        private_grant: PrivatePresentationGrant | None = None,
+    ) -> PresentationProjection | None:
+        """
+        Resolve AVATAR state for one authenticated audience.
+
+        Private presentation requires both an authenticated private principal
+        and a separate current host grant. Principal identity alone never
+        unlocks private presentation.
+        """
+        if self._avatar_presentation is None:
+            return None
+        if principal is None:
+            return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext or None")
+        if (
+            principal.audience_kind.value == "private"
+            and private_grant is not None
+        ):
+            if not isinstance(private_grant, PrivatePresentationGrant):
+                raise TypeError(
+                    "private_grant must be a PrivatePresentationGrant or None"
+                )
+            return self._avatar_presentation.projection(
+                AudienceScope.PRIVATE,
+                grant=private_grant,
+            )
         return self._avatar_presentation.projection(AudienceScope.PUBLIC)
 
     def set_avatar_presentation(self, authority: PresentationAuthority) -> None:
@@ -305,6 +364,10 @@ class SofiaRuntime:
         if not isinstance(authority, PresentationAuthority):
             raise TypeError("avatar presentation must be PresentationAuthority")
         self._avatar_presentation = authority
+
+    @property
+    def ops_service(self) -> OpsToolService:
+        return self._ops_service
 
     @property
     def memory_system(self) -> MemorySystem:
@@ -321,6 +384,22 @@ class SofiaRuntime:
     @property
     def configuration(self) -> SofiaConfiguration:
         return self._configuration
+
+    @property
+    def state_plane(self) -> StatePlane:
+        return self._state_plane
+
+    @property
+    def configuration_store(self) -> StatePlaneConfigurationStore:
+        return self._configuration_store
+
+    @property
+    def release_state_store(self) -> ReleaseStateStore:
+        return self._release_state_store
+
+    @property
+    def semantic_integrity(self) -> SemanticIntegrityVerifier:
+        return self._semantic_integrity
 
     @property
     def environment_service(self) -> EnvironmentService:
@@ -527,6 +606,8 @@ class SofiaRuntime:
         self,
         request: CognitiveRequest,
         filesystem_results: tuple[FilesystemResult, ...] = (),
+        *,
+        principal: PrincipalContext | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -536,6 +617,11 @@ class SofiaRuntime:
         if not isinstance(request, CognitiveRequest):
             raise TypeError(
                 "SofiaRuntime request must be a CognitiveRequest."
+            )
+
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError(
+                "SofiaRuntime principal must be a PrincipalContext or None."
             )
 
         if not isinstance(filesystem_results, tuple):
@@ -552,7 +638,9 @@ class SofiaRuntime:
 
         user_content = self._latest_user_content(request)
 
-        presentation = self.avatar_presentation_projection
+        presentation = self.avatar_projection_for(
+            principal=principal,
+        )
         if (
             user_content
             and self._embodiment is not None
@@ -595,7 +683,8 @@ class SofiaRuntime:
                 )
 
         memories = self._memory_system.recall_relevant(
-            user_content
+            user_content,
+            principal=principal,
         )
 
         measurement_query = None
@@ -628,8 +717,11 @@ class SofiaRuntime:
                 filesystem_results=filesystem_results,
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
-                avatar_presentation=self.avatar_presentation_projection,
+                avatar_presentation=self.avatar_projection_for(
+                    principal=principal,
+                ),
                 environment_snapshot=environment_snapshot,
+                principal=principal,
             ),
             authority=Authority(
                 can_inspect_filesystem=(

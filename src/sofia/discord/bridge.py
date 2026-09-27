@@ -13,6 +13,8 @@ from typing import Protocol
 from uuid import uuid4
 
 from sofia.discord.binding import BindingState, DiscordBindingStore
+from sofia.social.model import PrincipalContext
+from sofia.social.principals import discord_sparks_principal
 from sofia.discord.store import (
     DiscordInboxStore,
     DiscordOutboxRecord,
@@ -24,7 +26,12 @@ class ConversationResponder(Protocol):
     @property
     def session_id(self) -> str | None: ...
 
-    def respond(self, content: str): ...
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ): ...
 
 
 class BridgeDisposition(str, Enum):
@@ -139,7 +146,10 @@ class DiscordConversationBridge:
             return BridgeResult(disposition)
 
         try:
-            response = self._conversation.respond(inbound.content)
+            response = self._conversation.respond(
+                inbound.content,
+                principal=discord_sparks_principal(channel_id),
+            )
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("conversation response content is empty")

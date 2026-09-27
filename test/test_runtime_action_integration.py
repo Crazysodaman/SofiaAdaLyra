@@ -1,4 +1,4 @@
-﻿from sofia.action.executor import TestActionExecutor
+﻿from sofia.action.executor import FailClosedActionExecutor
 from sofia.action.system import ActionSystem
 from sofia.config.model import (
     ProviderConfiguration,
@@ -71,7 +71,7 @@ def test_composed_runtime_contains_action_system(tmp_path):
         )
         assert isinstance(
             cognitive_system.action_system.executor,
-            TestActionExecutor,
+            FailClosedActionExecutor,
         )
     finally:
         runtime.shutdown = lambda: None

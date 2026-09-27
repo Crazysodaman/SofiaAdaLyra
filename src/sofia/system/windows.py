@@ -901,20 +901,41 @@ class WindowsSystemCapabilityBackend(SystemCapabilityBackend):
 
         if not isinstance(value, str):
             raise TypeError(
-                "WMI datetime must be a string or None."
+                "Windows datetime must be a string or None."
             )
 
+        # Classic WMI/CIM text, for example 20260919080000.000000-300.
         normalized = value[:14]
+        if len(normalized) == 14 and normalized.isdigit():
+            return datetime.strptime(
+                normalized,
+                "%Y%m%d%H%M%S",
+            ).replace(tzinfo=timezone.utc)
 
-        if len(normalized) != 14 or not normalized.isdigit():
-            raise ValueError(
-                "Invalid WMI datetime."
-            )
+        # Windows PowerShell 5.1 ConvertTo-Json can emit /Date(<ms>[+/-offset])/.
+        if value.startswith("/Date(") and value.endswith(")/"):
+            payload = value[6:-2]
+            milliseconds = payload
+            for index in range(1, len(payload)):
+                if payload[index] in "+-":
+                    milliseconds = payload[:index]
+                    break
+            try:
+                return datetime.fromtimestamp(
+                    int(milliseconds) / 1000,
+                    tz=timezone.utc,
+                )
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError("Invalid Windows JSON datetime.") from exc
 
-        return datetime.strptime(
-            normalized,
-            "%Y%m%d%H%M%S",
-        ).replace(tzinfo=timezone.utc)
+        # PowerShell 7+ and some CIM projections emit ISO-8601 strings.
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("Invalid Windows datetime.") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     @staticmethod
     def _optional_string(

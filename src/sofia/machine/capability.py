@@ -11,9 +11,11 @@ from sofia.cognition.tools import CognitiveToolBinding
 from .discovery import create_machine_discovery
 from .hardware import HardwareDiscovery,create_hardware_discovery
 from .inventory import MachineInventory
-from .location import MachineLocationRegistry
+from .location_state import StatePlaneMachineLocationRegistry
 from .persistence import MachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
+from sofia.state.plane import StatePlane
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 HARDWARE_INSPECT_CAPABILITY=Capability(
     name="hardware.inspect",
@@ -32,10 +34,17 @@ class HardwareInspectionCapability:
         return self.discovery.discover()
 
 class MachineToolService:
-    def __init__(self,state_path:Path)->None:
+    def __init__(
+        self,
+        state_path:Path,
+        *,
+        state_plane:StatePlane|None=None,
+    )->None:
         self.persistence=MachineInventoryPersistence(state_path.parent/"machine-inventory.json")
-        self.location_registry=MachineLocationRegistry(
-            state_path.parent/"machine-locations.json"
+        plane=state_plane or SQLiteStatePlane(state_path)
+        self.location_registry=StatePlaneMachineLocationRegistry(
+            plane,
+            legacy_path=state_path.parent/"machine-locations.json",
         )
         try:
             self.inventory=self.persistence.load()

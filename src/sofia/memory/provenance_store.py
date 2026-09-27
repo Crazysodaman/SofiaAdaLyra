@@ -54,10 +54,26 @@ class DurableMemoryCandidateStore:
                     candidate_id TEXT PRIMARY KEY,
                     content TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    status TEXT NOT NULL
+                    status TEXT NOT NULL,
+                    principal_id TEXT,
+                    audience_id TEXT
                 )
                 """
             )
+            existing_columns = {
+                row[1]
+                for row in db.execute(
+                    "PRAGMA table_info(memory_candidate)"
+                ).fetchall()
+            }
+            if "principal_id" not in existing_columns:
+                db.execute(
+                    "ALTER TABLE memory_candidate ADD COLUMN principal_id TEXT"
+                )
+            if "audience_id" not in existing_columns:
+                db.execute(
+                    "ALTER TABLE memory_candidate ADD COLUMN audience_id TEXT"
+                )
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS memory_candidate_source (
@@ -88,14 +104,19 @@ class DurableMemoryCandidateStore:
                     db.execute(
                         """
                         INSERT INTO memory_candidate
-                        (candidate_id, content, created_at, status)
-                        VALUES (?, ?, ?, ?)
+                        (
+                            candidate_id, content, created_at, status,
+                            principal_id, audience_id
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?)
                         """,
                         (
                             str(candidate.candidate_id),
                             candidate.content,
                             _utc(candidate.created_at),
                             CandidateStatus.PROPOSED.value,
+                            candidate.principal_id,
+                            candidate.audience_id,
                         ),
                     )
                     for ordinal, source in enumerate(candidate.sources):
@@ -136,7 +157,7 @@ class DurableMemoryCandidateStore:
             db = self._require_db()
             row = db.execute(
                 """
-                SELECT content, created_at
+                SELECT content, created_at, principal_id, audience_id
                 FROM memory_candidate
                 WHERE candidate_id = ?
                 """,
@@ -179,37 +200,59 @@ class DurableMemoryCandidateStore:
             content=row[0],
             sources=sources,
             created_at=datetime.fromisoformat(row[1]),
+            principal_id=row[2],
+            audience_id=row[3],
         )
 
     def list_ids(
         self,
         *,
         status: CandidateStatus | None = None,
+        principal_id: str | None = None,
+        audience_id: str | None = None,
     ) -> tuple[UUID, ...]:
         if status is not None and not isinstance(status, CandidateStatus):
             raise TypeError("status must be CandidateStatus or None")
+        if principal_id is not None and (
+            not isinstance(principal_id, str) or not principal_id.strip()
+        ):
+            raise ValueError("principal_id must be None or nonempty")
+        if audience_id is not None and (
+            not isinstance(audience_id, str) or not audience_id.strip()
+        ):
+            raise ValueError("audience_id must be None or nonempty")
+        if audience_id is not None and principal_id is None:
+            raise ValueError("audience_id requires principal_id")
 
-        with self._lock:
-            db = self._require_db()
-            if status is None:
-                rows = db.execute(
-                    """
-                    SELECT candidate_id
-                    FROM memory_candidate
-                    ORDER BY created_at ASC, candidate_id ASC
-                    """
-                ).fetchall()
+        clauses: list[str] = []
+        parameters: list[str] = []
+        if status is not None:
+            clauses.append("status = ?")
+            parameters.append(status.value)
+        if principal_id is not None:
+            clauses.append("principal_id = ?")
+            parameters.append(principal_id)
+            if audience_id is None:
+                clauses.append("audience_id IS NULL")
             else:
-                rows = db.execute(
-                    """
-                    SELECT candidate_id
-                    FROM memory_candidate
-                    WHERE status = ?
-                    ORDER BY created_at ASC, candidate_id ASC
-                    """,
-                    (status.value,),
-                ).fetchall()
+                clauses.append("(audience_id IS NULL OR audience_id = ?)")
+                parameters.append(audience_id)
 
+        where = (
+            ""
+            if not clauses
+            else "WHERE " + " AND ".join(clauses)
+        )
+        with self._lock:
+            rows = self._require_db().execute(
+                f"""
+                SELECT candidate_id
+                FROM memory_candidate
+                {where}
+                ORDER BY created_at ASC, candidate_id ASC
+                """,
+                tuple(parameters),
+            ).fetchall()
         return tuple(UUID(row[0]) for row in rows)
 
     def candidate_ids_for_source(

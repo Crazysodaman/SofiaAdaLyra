@@ -10,6 +10,7 @@ from uuid import UUID,uuid4
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.safe.operator_stop import OperatorStopStore
 
 from .endpoint_policy_durable import DurableEndpointPolicy
 from .https_transport import PinnedHttpsRemoteTransport
@@ -40,6 +41,7 @@ class RemoteFleetToolService:
             client_certificate=client_certificate,
             client_private_key=client_private_key,
         )
+        self._operator_stop=OperatorStopStore(state_path)
         self.control=DurableRemoteControl(
             transport=transport,
             identity_path=base/"remote-identities.db",
@@ -69,6 +71,10 @@ class RemoteFleetToolService:
         return tuple(out)
 
     def invoke(self,node_id_text:str,capability:str,operation:str,parameters:dict[str,Any])->dict[str,Any]:
+        if capability not in {
+            "system.inspect","vm.inspect","container.inspect"
+        } and self._operator_stop.current().active:
+            raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
         now=datetime.now(timezone.utc)
         enrollment=self.control.identities.get(node_id)
@@ -120,20 +126,35 @@ def _registration(
     )
     return RemoteToolRegistration(cap,handler,binding)
 
-def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegistration,...]:
+def create_configured_remote_fleet_service(
+    state_path:Path,
+)->RemoteFleetToolService|None:
     values={
         "ca":os.environ.get("SOFIA_REMOTE_CA","").strip(),
         "cert":os.environ.get("SOFIA_REMOTE_CLIENT_CERT","").strip(),
         "key":os.environ.get("SOFIA_REMOTE_CLIENT_KEY","").strip(),
     }
-    if not any(values.values()): return ()
-    if not all(values.values()): raise ValueError("SOFIA_REMOTE_CA, SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY must be configured together")
+    if not any(values.values()):
+        return None
+    if not all(values.values()):
+        raise ValueError(
+            "SOFIA_REMOTE_CA, SOFIA_REMOTE_CLIENT_CERT and "
+            "SOFIA_REMOTE_CLIENT_KEY must be configured together"
+        )
     age=int(os.environ.get("SOFIA_REMOTE_MAX_INVENTORY_AGE_SECONDS","300"))
-    service=RemoteFleetToolService(
+    return RemoteFleetToolService(
         state_path,
-        ca_file=Path(values["ca"]),client_certificate=Path(values["cert"]),
-        client_private_key=Path(values["key"]),max_inventory_age=timedelta(seconds=age),
+        ca_file=Path(values["ca"]),
+        client_certificate=Path(values["cert"]),
+        client_private_key=Path(values["key"]),
+        max_inventory_age=timedelta(seconds=age),
     )
+
+
+def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegistration,...]:
+    service=create_configured_remote_fleet_service(state_path)
+    if service is None:
+        return ()
     node={"node_id":{"type":"string"}}
     exact=lambda keys:(lambda p:{k:p[k] for k in keys if k in p})
     return (

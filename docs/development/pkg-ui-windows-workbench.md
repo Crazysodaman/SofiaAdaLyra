@@ -110,3 +110,33 @@ pytest -q test/test_current_emotional_state.py test/test_emotional_conversation_
 Acceptance completed on Windows. Evidence included focused desktop/theme/Quick Tools and AVATAR checks, a **90/90** integration repair gate, supervised live launch/use, and a final full repository `pytest -q` reported passing before PR #116 merged.
 
 The accepted live checks covered startup, normal send, composer clear, current outfit self-fact grounding, adaptive-theme presentation, shallow chamfered history/composer/Send rendering, Quick Tools prompt loading without auto-send, and clean shutdown.
+
+## 2026-09-26 tray, settings, and remote-client candidate
+
+Branch `feature/fleet-tray-remote-controls` extends the accepted Windows workbench without changing its current-main acceptance claim.
+
+Candidate source adds:
+
+- a standalone native Windows notification-area agent that remains separate from the Sofía cognitive runtime;
+- double-click Open Sofía plus right-click Fleet/status controls;
+- Game Mode `Auto` / `On` / `Off`, with manual modes stored durably and projected into OPS activity evidence;
+- separate Sofía runtime and LLM service start/stop/restart controls;
+- Ollama model unload without stopping the Ollama service;
+- a Master Settings window covering General, Sofía, Chat, ACT, Fleet, Workloads, Models, Integrations, Environment, Avatar, Memory, EVOLVE, Safety & Authority, and Advanced;
+- per-user Windows startup registration for the tray agent;
+- a single-instance OS-backed tray lock;
+- a local-or-remote desktop application selector;
+- pinned mutual-TLS remote chat over an already-running canonical conversation service, with durable request dedupe and fail-closed `outcome_unknown` behavior.
+
+The thin-client path does **not** create a second Sofía runtime. Local mode remains the fallback when no verified remote runtime endpoint is published.
+
+Still open after this candidate:
+
+- focused Windows test acceptance and supervised notification-area canary;
+- RUN/OPS publication of the current authoritative runtime endpoint instead of the temporary environment handoff;
+- authenticated remote service-target resolution for tray LLM/runtime controls;
+- integration of the remote-chat server into the supervised authoritative runtime host;
+- native Sofía tray icon/state artwork rather than the temporary application icon;
+- voice, renderer/avatar viewport, mobile/web clients, and real generation cancellation.
+
+Do not treat this branch as accepted until the focused Windows gate and supervised canaries are recorded.

@@ -5,6 +5,7 @@ from sofia.memory.promoted_retrieval import retrieve_promoted
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
+from sofia.social.model import PrincipalContext
 
 
 class MemorySystem:
@@ -70,6 +71,8 @@ class MemorySystem:
         self,
         query: str,
         limit: int = 5,
+        *,
+        principal: PrincipalContext | None = None,
     ) -> tuple[MemoryRecord, ...]:
         """
         Retrieve memories relevant to a textual query.
@@ -83,6 +86,14 @@ class MemorySystem:
         if not isinstance(query, str):
             raise TypeError(
                 "MemorySystem query must be a string."
+            )
+
+        if principal is not None and not isinstance(
+            principal,
+            PrincipalContext,
+        ):
+            raise TypeError(
+                "MemorySystem principal must be a PrincipalContext or None."
             )
 
         if not isinstance(limit, int):
@@ -99,6 +110,7 @@ class MemorySystem:
             return self._recall_promoted(
                 query,
                 limit=limit,
+                principal=principal,
             )
 
         return self._recall_legacy(
@@ -111,10 +123,11 @@ class MemorySystem:
         query: str,
         *,
         limit: int,
+        principal: PrincipalContext | None,
     ) -> tuple[MemoryRecord, ...]:
         candidate_store = self._candidate_store
 
-        if candidate_store is None:
+        if candidate_store is None or principal is None:
             return ()
 
         projection = retrieve_promoted(
@@ -123,6 +136,12 @@ class MemorySystem:
             limit=limit,
             budget_characters=(
                 self.DEFAULT_RETRIEVAL_BUDGET_CHARACTERS
+            ),
+            principal_id=(
+                None if principal is None else principal.principal_id
+            ),
+            audience_id=(
+                None if principal is None else principal.audience_id
             ),
         )
 

@@ -6,6 +6,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.environment.config import environment_configuration_from_environ
+from sofia.config.layout import RuntimeStorageLayout
 
 
 def create_default_configuration() -> SofiaConfiguration:
@@ -18,17 +19,11 @@ def create_default_configuration() -> SofiaConfiguration:
 
     repository_root = Path(__file__).resolve().parents[3]
 
-    state_directory = repository_root / "state"
-    state_directory.mkdir(
-        parents=True,
-        exist_ok=True,
+    layout = RuntimeStorageLayout.from_environment(
+        repository_root
     )
+    layout.provision_from_source()
 
-    extra_capabilities=tuple(
-        part.strip()
-        for part in os.environ.get("SOFIA_ALLOWED_CAPABILITIES","").split(",")
-        if part.strip()
-    )
     standing_capabilities=tuple(dict.fromkeys((
         "tool.catalog",
         "codebase.inspect",
@@ -68,49 +63,15 @@ def create_default_configuration() -> SofiaConfiguration:
         "sqlite.state.tables",
         "sqlite.state.query",
         "sqlite.state.integrity",
-        *extra_capabilities,
     )))
 
     return SofiaConfiguration(
-        constitution_path=(
-            repository_root
-            / "src"
-            / "sofia"
-            / "constitution"
-            / "constitution.md"
-        ),
-        constitution_hash_path=(
-            repository_root
-            / "src"
-            / "sofia"
-            / "constitution"
-            / "constitution.sha256"
-        ),
-        identity_path=(
-            repository_root
-            / "src"
-            / "sofia"
-            / "identity"
-            / "identity.json"
-        ),
-        personality_path=(
-            repository_root
-            / "src"
-            / "sofia"
-            / "personality"
-            / "personality.json"
-        ),
-        avatar_path=(
-            repository_root
-            / "src"
-            / "sofia"
-            / "data"
-            / "avatar.json"
-        ),
-        state_path=(
-            state_directory
-            / "sofia.db"
-        ),
+        constitution_path=layout.constitution_path,
+        constitution_hash_path=layout.constitution_hash_path,
+        identity_path=layout.identity_path,
+        personality_path=layout.personality_path,
+        avatar_path=layout.avatar_path,
+        state_path=layout.state_path,
         provider=ProviderConfiguration(
             provider="ollama",
             model="qwen3:14b",
@@ -119,6 +80,7 @@ def create_default_configuration() -> SofiaConfiguration:
             thinking=False,
         ),
         filesystem_root=repository_root,
+        identity_bootstrap_mode=layout.identity_bootstrap_mode,
         standing_allowed_capabilities=standing_capabilities,
         environment=environment_configuration_from_environ(os.environ),
     )

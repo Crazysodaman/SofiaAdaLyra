@@ -1,7 +1,7 @@
 ﻿from dataclasses import replace
 from pathlib import Path
 
-from sofia.action.executor import TestActionExecutor
+from sofia.action.executor import FailClosedActionExecutor
 from sofia.action.system import ActionSystem
 from sofia.authorization.model import (
     AuthorizationDecision,
@@ -26,6 +26,7 @@ from sofia.cognition.tools import (
     create_system_tool_bindings,
 )
 from sofia.config.model import SofiaConfiguration
+from sofia.config.reviewed_projection import apply_reviewed_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
@@ -41,6 +42,7 @@ from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
+from sofia.knowledge.access import KnowledgeAccessStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
@@ -48,16 +50,22 @@ from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
 from sofia.machine.discovery import create_machine_discovery
-from sofia.machine.location import MachineLocationRegistry
+from sofia.machine.location_state import StatePlaneMachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
+from sofia.safe.capability_policy import protected_capability_extras
+from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.system.capability import create_local_system_capabilities
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 
 def _configuration_with_persistent_host_location(
     configuration: SofiaConfiguration,
+    state_plane: SQLiteStatePlane,
 ) -> SofiaConfiguration:
     """Use durable machine location unless an explicit process override exists."""
     if configuration.environment.host_location is not None:
@@ -65,14 +73,13 @@ def _configuration_with_persistent_host_location(
 
     state_path = Path(configuration.state_path)
     registry_path = state_path.parent / "machine-locations.json"
-    if not registry_path.exists():
-        return configuration
 
     try:
         identity = create_machine_discovery().discover().identity
-        record = MachineLocationRegistry(registry_path).get(
-            identity.machine_id
-        )
+        record = StatePlaneMachineLocationRegistry(
+            state_plane,
+            legacy_path=registry_path,
+        ).get(identity.machine_id)
     except (OSError, RuntimeError, TypeError, ValueError):
         return configuration
 
@@ -135,10 +142,27 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
 def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
-    configuration = _configuration_with_persistent_host_location(
-        configuration
-    )
     state_path = Path(configuration.state_path)
+    state_plane = SQLiteStatePlane(state_path)
+    configuration = apply_reviewed_configuration(
+        configuration,
+        state_plane,
+    )
+    protected_extras = protected_capability_extras(state_plane)
+    if protected_extras:
+        configuration = replace(
+            configuration,
+            standing_allowed_capabilities=tuple(
+                dict.fromkeys(
+                    configuration.standing_allowed_capabilities
+                    + protected_extras
+                )
+            ),
+        )
+    configuration = _configuration_with_persistent_host_location(
+        configuration,
+        state_plane,
+    )
     filesystem_root = Path(configuration.filesystem_root)
 
     constitution_store = ConstitutionStore(
@@ -150,7 +174,8 @@ def compose(
     )
 
     identity_store = IdentityStore(
-        Path(configuration.identity_path)
+        Path(configuration.identity_path),
+        bootstrap_mode=configuration.identity_bootstrap_mode,
     )
 
     personality_store = PersonalityStore(
@@ -196,28 +221,36 @@ def compose(
         filesystem_root,
         knowledge_store,
         knowledge_lifecycle,
+        KnowledgeAccessStore(state_path),
     )
+    execution_approval_verifier = ExecutionApprovalVerifier(state_path)
     knowledge_capabilities = KnowledgeCapabilitySet(
-        knowledge_service
+        knowledge_service,
+        approval_verifier=execution_approval_verifier,
     )
 
+    dev_approval_verifier = DevApprovalVerifier(state_path)
     dev_service = DevToolService(
         filesystem_root,
         state_path,
+        approval_verifier=dev_approval_verifier,
+        state_plane=state_plane,
     )
     dev_capabilities = DevCapabilitySet(
         dev_service
     )
 
     machine_service = MachineToolService(
-        state_path
+        state_path,
+        state_plane=state_plane,
     )
     machine_capabilities = MachineCapabilitySet(
         machine_service
     )
 
     ops_service = OpsToolService(
-        state_path
+        state_path,
+        state_plane=state_plane,
     )
     ops_capabilities = OpsCapabilitySet(
         ops_service
@@ -252,12 +285,81 @@ def compose(
         filesystem_observation_store,
     )
 
+    operator_stop = OperatorStopStore(state_path)
+    stop_safe_capabilities = frozenset({
+        "tool.catalog",
+        "codebase.inspect",
+        "filesystem.changes",
+        "filesystem.inspect",
+        "process.inspect",
+        "system.inspect",
+        "network.inspect",
+        "service.inspect",
+        "hardware.inspect",
+        "storage.roots",
+        "storage.usage",
+        "storage.list",
+        "storage.read_text",
+        "knowledge.search",
+        "knowledge.document",
+        "dev.status",
+        "machine.list",
+        "machine.get",
+        "machine.discover.local",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "ops.telemetry.latest",
+        "ops.placement.choose",
+        "ops.drift.detect",
+        "ops.migration.plan",
+        "remote.nodes",
+        "remote.process.inspect",
+        "remote.system.inspect",
+        "remote.network.inspect",
+        "remote.service.inspect",
+        "remote.hardware.inspect",
+        "remote.vm.list",
+        "remote.vm.get",
+        "remote.container.list",
+        "remote.container.get",
+        "ollama.models",
+        "ollama.running",
+        "ollama.model.show",
+        "sqlite.state.tables",
+        "sqlite.state.query",
+        "sqlite.state.integrity",
+        "home_assistant.services",
+        "home_assistant.states",
+        "home_assistant.state",
+        "portainer.endpoints",
+        "portainer.containers",
+        "portainer.container",
+        "jmri.power",
+        "jmri.roster",
+        "jmri.object",
+        "github.repository",
+        "github.issues",
+        "github.file",
+        "github.pull_requests",
+        "discord.status",
+        "storage.roots",
+        "storage.usage",
+        "storage.list",
+        "storage.read_text",
+    })
+
     def capability_authorized(
         request,
     ) -> bool:
         runtime = runtime_holder.get("runtime")
 
         if runtime is None:
+            return False
+
+        if (
+            operator_stop.current().active
+            and request.capability.name not in stop_safe_capabilities
+        ):
             return False
 
         if request.capability.name == "codebase.inspect":
@@ -488,7 +590,7 @@ def compose(
         else CognitiveContextAssembler()
     )
 
-    action_executor = TestActionExecutor()
+    action_executor = FailClosedActionExecutor()
 
     action_system = ActionSystem(
         executor=action_executor,
@@ -509,8 +611,10 @@ def compose(
         avatar_store=avatar_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
+        ops_service=ops_service,
         capability_system=capability_system,
         configuration=configuration,
+        state_plane=state_plane,
         environment_service=environment_service,
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,

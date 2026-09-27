@@ -23,7 +23,6 @@ class EngineeringWorkflow:
         self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=(); self._applied_hashes:dict[str,str|None]={}; self._applied_existed:dict[str,bool]={}
 
     def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
-        if not request.authorized: raise PermissionError("build requires independent authorization")
         self.git.require_head(request.base_sha)
         self.git.require_clean_scope(request.allowed_paths)
         with TemporaryDirectory(prefix="sofia-dev-") as td:
@@ -55,8 +54,7 @@ class EngineeringWorkflow:
             if len(parts)>=3: paths.append(parts[-1])
         return tuple(sorted(set(paths)))
 
-    def apply(self,candidate:EngineeringCandidate,*,authorized:bool)->tuple[str,...]:
-        if not authorized: raise PermissionError("applying engineering candidate requires separate authorization")
+    def apply(self,candidate:EngineeringCandidate)->tuple[str,...]:
         self.git.require_head(candidate.base_sha)
         self.git.require_clean_scope(candidate.allowed_paths)
         patch_paths=self._patch_paths(self.workspace,candidate.patch)
@@ -80,8 +78,7 @@ class EngineeringWorkflow:
             self._applied_hashes[path]=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
         return self.git.changed_paths()
 
-    def rollback_applied(self,*,authorized:bool)->None:
-        if not authorized: raise PermissionError("rollback requires separate authorization")
+    def rollback_applied(self)->None:
         if not self._applied_paths: return
         for path,expected in self._applied_hashes.items():
             target=self.workspace/path
@@ -96,8 +93,7 @@ class EngineeringWorkflow:
             elif target.exists(): raise GitWorkspaceError(f"refusing rollback of non-file candidate path: {path}")
         self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
 
-    def commit(self,message:str,*,authorized:bool)->str:
-        if not authorized: raise PermissionError("commit requires separate authorization")
+    def commit(self,message:str)->str:
         if not message.strip(): raise ValueError("commit message required")
         if not self._applied_paths: raise GitWorkspaceError("no reviewed candidate paths are pending commit")
         self.git.run("add","--",*self._applied_paths)
@@ -105,7 +101,6 @@ class EngineeringWorkflow:
         self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
         return self.git.head_sha()
 
-    def push(self,branch:str,*,authorized:bool,remote:str="origin")->None:
-        if not authorized: raise PermissionError("push requires separate authorization")
+    def push(self,branch:str,*,remote:str="origin")->None:
         if not branch.strip() or branch.startswith("-"): raise ValueError("exact branch name required")
         self.git.run("push",remote,f"HEAD:refs/heads/{branch}")

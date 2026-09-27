@@ -26,17 +26,17 @@ def main(
     if configuration is None:
         configuration = create_default_configuration()
 
-    application = SofiaApplication(
-        configuration
-    )
-
-    loop = ConversationLoop(
-        application=application,
-        input_function=input_function,
-        output_function=output_function,
-    )
-
     try:
+        application = SofiaApplication(
+            configuration
+        )
+
+        loop = ConversationLoop(
+            application=application,
+            input_function=input_function,
+            output_function=output_function,
+        )
+
         loop.run()
 
     except SofiaApplicationError as exc:

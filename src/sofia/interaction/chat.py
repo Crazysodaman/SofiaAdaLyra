@@ -29,6 +29,7 @@ from sofia.interaction.world import LabWorld
 from sofia.interaction.world_observation import lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
 from sofia.interaction.world_text import handle_lab_command, world_prompt
+from sofia.social.model import PrincipalContext
 
 _LAB_COMMAND = re.compile(
     r"^sof[ií]a\s*,?\s+(?:enter|go to|leave|pick up|put down|work on|finish work on)\b",
@@ -203,8 +204,15 @@ def control_prompt(*, status: str, reason: str, stopped: bool) -> str:
 class InteractiveConversationService(EmotionalConversationService):
     """One conversation/emotion system with durable, virtual interaction rules."""
 
-    def _guarded_reply(self, content: str, reply: str, *, command: str | None = None,
-                       stopped_gesture: bool = False) -> CognitiveResponse:
+    def _guarded_reply(
+        self,
+        content: str,
+        reply: str,
+        *,
+        command: str | None = None,
+        stopped_gesture: bool = False,
+        principal: PrincipalContext | None = None,
+    ) -> CognitiveResponse:
         """Persist saved-user evidence and authoritative outcomes without an LLM.
 
         Compound turns only save conversation; an exact control or stopped
@@ -213,6 +221,7 @@ class InteractiveConversationService(EmotionalConversationService):
         """
         if self._session is None:
             raise RuntimeError('ConversationService must be started before responding.')
+        principal = self._bind_principal(principal)
         clean = content.strip()
         if not clean:
             raise ValueError('ConversationService content must not be empty.')
@@ -225,6 +234,10 @@ class InteractiveConversationService(EmotionalConversationService):
                     content=clean, created_at=datetime.now(timezone.utc),
                 )
                 self._conversation_store.save(user)
+                self._after_user_message_saved(
+                    message=user,
+                    principal=principal,
+                )
                 if command is not None or stopped_gesture:
                     configuration = getattr(self._runtime, 'configuration', None)
                     if configuration is None:
@@ -262,17 +275,28 @@ class InteractiveConversationService(EmotionalConversationService):
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
 
-    def respond(self, content: str) -> CognitiveResponse:
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
         if not isinstance(content, str):
-            return super().respond(content)
+            return super().respond(content, principal=principal)
         if mixed_interaction_control(content):
-            return self._guarded_reply(content, MIXED_CONTROL_REPLY)
+            return self._guarded_reply(
+                content, MIXED_CONTROL_REPLY, principal=principal
+            )
         if unsupported_composite_gesture(content):
-            return self._guarded_reply(content, COMPOSITE_GESTURE_REPLY)
+            return self._guarded_reply(
+                content, COMPOSITE_GESTURE_REPLY, principal=principal
+            )
         command = control_command(content)
         if command is not None:
-            return self._guarded_reply(content, '', command=command)
+            return self._guarded_reply(
+                content, '', command=command, principal=principal
+            )
         configuration = getattr(self._runtime, 'configuration', None)
         embodiment = getattr(self._runtime, 'embodiment', None)
         if configuration is not None and embodiment is not None and self._session is not None:
@@ -283,8 +307,13 @@ class InteractiveConversationService(EmotionalConversationService):
                 occurred_at=datetime.now(timezone.utc),
             )
             if candidate is not None and InteractionLedger(configuration.state_path).stopped(self._session.id):
-                return self._guarded_reply(content, STOPPED_GESTURE_REPLY, stopped_gesture=True)
-        return super().respond(content)
+                return self._guarded_reply(
+                    content,
+                    STOPPED_GESTURE_REPLY,
+                    stopped_gesture=True,
+                    principal=principal,
+                )
+        return super().respond(content, principal=principal)
 
     def _should_record_legacy_affection(self, user) -> bool:
         # Old emotional cues must not turn a hypothetical, compound sentence,

@@ -52,6 +52,38 @@ class LocalMaintenanceAdapter:
             return self._runner(("systemctl",action,name))
         raise LocalMaintenanceError(f"local service control is unsupported on {self.system}")
 
+    def service_status(self,name:str)->str:
+        name=_identifier(name,"service name")
+        if self.system=="Windows":
+            result=self._runner(("sc.exe","query",name))
+            text=(result.stdout+"\n"+result.stderr).upper()
+            if "STATE" not in text:
+                return "unknown"
+            if "RUNNING" in text:
+                return "running"
+            if "START_PENDING" in text or "STOP_PENDING" in text:
+                return "starting"
+            if "STOPPED" in text:
+                return "stopped"
+            return "unknown"
+        if self.system=="Linux":
+            result=self._runner((
+                "systemctl","show",name,
+                "--property=ActiveState",
+                "--value",
+            ))
+            state=result.stdout.strip().lower()
+            if state=="active":
+                return "running"
+            if state in ("activating","deactivating","reloading"):
+                return "starting"
+            if state in ("inactive","failed"):
+                return "failed" if state=="failed" else "stopped"
+            return "unknown"
+        raise LocalMaintenanceError(
+            f"local service status is unsupported on {self.system}"
+        )
+
     def reboot(self)->LocalCommandResult:
         if self.system=="Windows":
             return self._runner(("shutdown.exe","/r","/t","0"))

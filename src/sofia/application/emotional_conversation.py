@@ -14,10 +14,12 @@ from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.clarification import ClarificationJournal
 from sofia.personality.emotion import CurrentEmotionalState, EmotionalJournal
+from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.social.model import PrincipalContext, SocialScope
 
 
 class EmotionalConversationService(ConversationService):
@@ -77,15 +79,36 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Clarification journal is not open.")
         return self._clarification_journal
 
+    def _principal_context(self) -> PrincipalContext | None:
+        session = getattr(self, "_session", None)
+        social_store = getattr(self, "_social_store", None)
+        if session is None or social_store is None:
+            return None
+        return social_store.get(session.id)
+
     def _relationship_subject(self) -> str:
-        """Use the canonical relationship subject for this single-user surface."""
+        """Use authenticated session identity when relationship context exists."""
+        principal = self._principal_context()
+        if principal is not None:
+            return principal.principal_id
         core_state = getattr(self._runtime, "core_state", None)
-        relationships = getattr(core_state, "relationships", ()) if core_state is not None else ()
+        relationships = (
+            getattr(core_state, "relationships", ())
+            if core_state is not None
+            else ()
+        )
         if relationships:
             subject = getattr(relationships[0], "subject", None)
             if isinstance(subject, str) and subject.strip():
                 return subject.strip()
-        return "current user"
+        return "unbound"
+
+    @property
+    def relationship_scope(self) -> SocialScope:
+        principal = self._principal_context()
+        if principal is not None:
+            return principal.relationship_scope
+        return SocialScope.relationship(self._relationship_subject())
 
     def observe_background_absence(self, *, now: datetime) -> str | None:
         """Let the running idle worker appraise a real contact gap at this instant."""
@@ -107,6 +130,7 @@ class EmotionalConversationService(ConversationService):
         return self.emotional_journal.current_state(
             now=current,
             subject=self._relationship_subject(),
+            scope=self.relationship_scope,
         )
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
@@ -114,7 +138,12 @@ class EmotionalConversationService(ConversationService):
         return (self._active_user_requests == 0
                 and monotonic() - self._last_user_activity >= idle_seconds)
 
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
         self._active_user_requests += 1
@@ -122,7 +151,10 @@ class EmotionalConversationService(ConversationService):
             with self._model_lock:
                 acquired = monotonic()
                 try:
-                    return super().respond(content)
+                    return super().respond(
+                        content,
+                        principal=principal,
+                    )
                 finally:
                     # Includes request construction/persistence as well as the
                     # model call; Ollama's own timer isolates inference below.
@@ -180,7 +212,10 @@ class EmotionalConversationService(ConversationService):
         now = datetime.now(timezone.utc)
         matching = tuple(
             event for event in self.emotional_journal.recent(
-                now=now, days=366, limit=50,
+                now=now,
+                days=366,
+                limit=50,
+                scope=self.relationship_scope,
             ) if event.event_id == event_id
         )
         if len(matching) != 1:
@@ -190,10 +225,30 @@ class EmotionalConversationService(ConversationService):
             generate=self._runtime.respond,
             reflections=self.reflection_journal,
         )
-        outcome = agent.reflect(event=event, now=now)
+        current_state = self.emotional_journal.current_state(
+            now=now,
+            subject=self._relationship_subject(),
+            scope=self.relationship_scope,
+        )
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        influence = ContinuityInfluence.from_state(
+            emotion=current_state,
+            environment=environment,
+        )
+        outcome = agent.reflect(
+            event=event,
+            now=now,
+            influence=influence,
+        )
         if outcome.thought_id is not None:
             thoughts = tuple(
-                thought for thought in self.reflection_journal.recent_thoughts(limit=50)
+                thought for thought in self.reflection_journal.recent_thoughts(
+                    limit=50,
+                    scope=event.scope,
+                )
                 if thought.thought_id == outcome.thought_id
             )
             if len(thoughts) != 1:
@@ -211,6 +266,7 @@ class EmotionalConversationService(ConversationService):
                     emotions=thought.emotions,
                     occurred_at=thought.created_at,
                     subject=event.subject,
+                    scope=event.scope,
                 )
         return outcome
 
@@ -245,21 +301,41 @@ class EmotionalConversationService(ConversationService):
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
         now = datetime.now(timezone.utc)
+        scope = self.relationship_scope
+        current_state = self.emotional_journal.current_state(
+            now=now,
+            subject=subject,
+            scope=scope,
+        )
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        influence = ContinuityInfluence.from_state(
+            emotion=current_state,
+            environment=environment,
+        )
         projections = [
             self.emotional_journal.current_state_prompt(
                 now=now,
                 subject=subject,
+                scope=scope,
             ),
+            influence.prompt(),
         ]
-        emotional_context = self.emotional_journal.prompt_context(now=now)
+        emotional_context = self.emotional_journal.prompt_context(
+            now=now,
+            subject=subject,
+            scope=scope,
+        )
         if emotional_context is not None:
             projections.append(emotional_context)
         # The optional guard preserves compatibility with a test-only
         # uninitialized service; a normally opened service always has this.
         reflections = getattr(self, "_reflection_journal", None)
         if reflections is not None:
-            reflections.reflect_due(now=now)
-            reflection_context = reflections.prompt_context()
+            reflections.reflect_due(now=now, scope=scope)
+            reflection_context = reflections.prompt_context(scope=scope)
             if reflection_context is not None:
                 projections.append(reflection_context)
         clarifications = getattr(self, "_clarification_journal", None)

@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
+from sofia.distributed.version import FleetProtocolVersion
+
 
 def _aware(value: datetime, label: str) -> None:
     if not isinstance(value, datetime):
@@ -49,6 +51,7 @@ class CapabilityInventory:
     observed_at: datetime
     capabilities: tuple[RemoteCapability, ...]
     source: str
+    protocol_version: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.node_id, UUID):
@@ -62,17 +65,27 @@ class CapabilityInventory:
             raise TypeError("Inventory entries must be RemoteCapability instances.")
         if len({item.name for item in self.capabilities}) != len(self.capabilities):
             raise ValueError("Duplicate capability names are forbidden.")
+        if self.protocol_version is not None:
+            FleetProtocolVersion.parse(self.protocol_version)
 
     def advertises(self, capability: str, operation: str) -> bool:
         return any(item.name == capability and operation in item.operations
                    for item in self.capabilities)
 
 
-def inventory_is_current(inventory: CapabilityInventory, *, now: datetime,
-                         max_age: timedelta) -> bool:
+def inventory_is_current(
+    inventory: CapabilityInventory,
+    *,
+    now: datetime,
+    max_age: timedelta,
+    max_future_skew: timedelta = timedelta(0),
+) -> bool:
     if not isinstance(inventory, CapabilityInventory):
         raise TypeError("inventory must be a CapabilityInventory.")
     _aware(now, "now")
     if not isinstance(max_age, timedelta) or max_age <= timedelta(0):
         raise ValueError("max_age must be a positive timedelta.")
-    return timedelta(0) <= now - inventory.observed_at <= max_age
+    if not isinstance(max_future_skew, timedelta) or max_future_skew < timedelta(0):
+        raise ValueError("max_future_skew must be a nonnegative timedelta.")
+    age = now - inventory.observed_at
+    return -max_future_skew <= age <= max_age

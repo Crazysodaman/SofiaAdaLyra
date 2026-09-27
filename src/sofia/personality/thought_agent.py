@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 
@@ -17,6 +17,7 @@ from sofia.cognition.model import (
 )
 from sofia.personality.emotion import EmotionalEvent
 from sofia.personality.reflection import ReflectionJournal
+from sofia.personality.influence import ContinuityInfluence, outreach_salience
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class ThoughtAgent:
     def reflect(
         self, *, event: EmotionalEvent, now: datetime,
         verified_worsening: bool = False,
+        influence: ContinuityInfluence | None = None,
     ) -> ReflectionOutcome:
         if not isinstance(event, EmotionalEvent):
             raise TypeError("An existing EmotionalEvent is required.")
@@ -59,6 +61,8 @@ class ThoughtAgent:
             raise ValueError("A timezone-aware reflection time is required.")
         if type(verified_worsening) is not bool:
             raise TypeError("Verified worsening must be an explicit bool from trusted application evidence.")
+        if influence is not None and not isinstance(influence, ContinuityInfluence):
+            raise TypeError("influence must be ContinuityInfluence or None")
         if verified_worsening and event.source != "observed":
             raise ValueError("Unverified reports cannot establish observed worsening.")
         current = now.astimezone(timezone.utc)
@@ -68,7 +72,13 @@ class ThoughtAgent:
         # when a model produces different wording on a later attempt.
         stable = sha256(event.event_id.encode("utf-8")).hexdigest()[:32]
         thought_id = f"model-reflection:{stable}"
-        if any(t.thought_id == thought_id for t in self._reflections.recent_thoughts(limit=50)):
+        if any(
+            t.thought_id == thought_id
+            for t in self._reflections.recent_thoughts(
+                limit=50,
+                scope=event.scope,
+            )
+        ):
             return ReflectionOutcome(thought_id=thought_id, queued_message_id=None)
 
         payload = {
@@ -82,6 +92,17 @@ class ThoughtAgent:
             "reappraisals": event.revision_count,
             # Never infer escalation from an emotion label or model phrasing.
             "verified_worsening": verified_worsening,
+            "continuity_influence": (
+                None if influence is None else {
+                    "daypart": influence.daypart,
+                    "season": influence.season,
+                    "daylight": influence.daylight,
+                    "emotional_tone": influence.emotional_tone,
+                    "primary_emotion": influence.primary_emotion,
+                    "primary_intensity": influence.primary_intensity,
+                    "active_emotions": influence.active_emotions,
+                }
+            ),
         }
         instruction = (
             "Compose one optional private reflection for Sofía from the JSON event below. "
@@ -97,7 +118,12 @@ class ThoughtAgent:
             "Use 'none' when the evidence supports no useful reflection. "
             "message must be empty unless share='now'. urgency is routine, excited or urgent; "
             "urgent requires application-verified worsening AND observed provenance. "
-            "If verified_worsening is false, do not use urgent. No invented facts or action claims.\n"
+            "If verified_worsening is false, do not use urgent. "
+            "Continuity influence may shape salience, tone, reflection themes, "
+            "what feels worth remembering, and whether sharing now/later/none feels "
+            "appropriate. It is context, not evidence, and must never manufacture "
+            "facts, causes, permissions, memories, habits, or expectations. "
+            "No invented facts or action claims.\n"
             "RECORDED EVENT DATA:\n" + json.dumps(payload, ensure_ascii=False)
         )
         request = CognitiveRequest(messages=(
@@ -145,7 +171,22 @@ class ThoughtAgent:
             evidence_refs=(event.event_id,),
             emotions=event.current_emotions,
             created_at=current,
+            scope=event.scope,
         )
+        base_importance = {
+            "routine": 0.35,
+            "excited": 0.60,
+            "urgent": 0.90,
+        }[result["urgency"]]
+        salience = (
+            base_importance
+            if influence is None
+            else outreach_salience(
+                base_importance=base_importance,
+                influence=influence,
+            )
+        )
+
         queued_id = None
         if result["share"] == "now":
             queued_id = self._reflections.enqueue(
@@ -155,5 +196,18 @@ class ThoughtAgent:
                 content=message,
                 urgency=result["urgency"],
                 queued_at=current,
+            )
+        elif result["share"] == "later":
+            if salience >= 0.75:
+                delay = timedelta(hours=2)
+            elif salience >= 0.50:
+                delay = timedelta(hours=8)
+            else:
+                delay = timedelta(days=1)
+            self._reflections.defer_followup(
+                thought_id=thought_id,
+                created_at=current,
+                reconsider_after=current + delay,
+                salience=salience,
             )
         return ReflectionOutcome(thought_id=thought_id, queued_message_id=queued_id)

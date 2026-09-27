@@ -176,7 +176,8 @@ class CognitiveSystem:
             for tool_call in response.tool_calls:
                 try:
                     result = self.tool_dispatcher.dispatch(
-                        tool_call
+                        tool_call,
+                        principal=operation.context.principal,
                     )
                 except Exception as exc:
                     raise CognitiveSystemError(

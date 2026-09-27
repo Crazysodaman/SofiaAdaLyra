@@ -10,7 +10,7 @@ class MaintenanceOperation(str,Enum):
 
 @dataclass(frozen=True)
 class MaintenanceRequest:
-    request_id:str; host_id:str; operation:MaintenanceOperation; target:str|None=None; authorized:bool=False
+    request_id:str; host_id:str; operation:MaintenanceOperation; target:str|None=None
     def __post_init__(self):
         if not self.request_id.strip() or not self.host_id.strip(): raise ValueError("maintenance request identity required")
         if self.target is not None and not self.target.strip(): raise ValueError("maintenance target cannot be blank")
@@ -19,7 +19,6 @@ class MaintenancePolicy:
     def __init__(self,registry:FleetRegistry,*,no_reboot_hosts:frozenset[str]=frozenset())->None:
         self.registry=registry; self.no_reboot_hosts=no_reboot_hosts
     def require(self,request:MaintenanceRequest)->None:
-        if not request.authorized: raise PermissionError("maintenance action requires independent authorization")
         host=self.registry.host(request.host_id)
         if host is None or not host.trusted: raise PermissionError("maintenance target is not a trusted fleet host")
         if host.lifecycle in (HostLifecycle.CANDIDATE,HostLifecycle.QUARANTINED,HostLifecycle.DECOMMISSIONED):

@@ -21,6 +21,9 @@ from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.social.model import PrincipalContext
+from sofia.social.store import SocialSessionStore
+from sofia.rel.store import RelationshipStore
 
 
 class ConversationService:
@@ -56,6 +59,15 @@ class ConversationService:
 
         self._runtime = runtime
         self._conversation_store = conversation_store
+        self._social_store = SocialSessionStore(
+            runtime.configuration.state_path
+        )
+        self._relationship_store = RelationshipStore(
+            runtime.configuration.state_path,
+            state_plane=runtime.state_plane,
+        )
+        self._learning_coordinator = None
+        self._habit_continuity = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -71,6 +83,28 @@ class ConversationService:
     @property
     def session(self) -> ConversationSession | None:
         return self._session
+
+    def set_learning_coordinator(self, coordinator) -> None:
+        """Install the application-owned post-persistence learning hook."""
+        if coordinator is not None:
+            from sofia.application.conversation_learning import (
+                ConversationLearningCoordinator,
+            )
+            if not isinstance(coordinator, ConversationLearningCoordinator):
+                raise TypeError(
+                    "coordinator must be ConversationLearningCoordinator or None"
+                )
+        self._learning_coordinator = coordinator
+
+    def set_habit_continuity(self, coordinator) -> None:
+        """Install the application-owned HABIT observation coordinator."""
+        if coordinator is not None:
+            from sofia.habits.continuity import HabitContinuityCoordinator
+            if not isinstance(coordinator, HabitContinuityCoordinator):
+                raise TypeError(
+                    "coordinator must be HabitContinuityCoordinator or None"
+                )
+        self._habit_continuity = coordinator
 
     @property
     def session_id(self) -> str | None:
@@ -226,9 +260,65 @@ class ConversationService:
             f"Workspace change count: {event.workspace_change_count}"
         )
 
+    def _bind_principal(
+        self,
+        principal: PrincipalContext | None,
+    ) -> PrincipalContext | None:
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService must be started before binding a principal."
+            )
+        bound = self._social_store.get(self._session.id)
+        if principal is None:
+            if bound is not None:
+                raise PermissionError(
+                    "This conversation session is principal-bound; "
+                    "authenticated principal context is required."
+                )
+            return None
+        return self._social_store.bind(
+            session_id=self._session.id,
+            principal=principal,
+        )
+
+    def _after_user_message_saved(
+        self,
+        *,
+        message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> None:
+        """Run all continuity hooks only after the user turn is durable."""
+        learning = getattr(self, "_learning_coordinator", None)
+        if learning is not None:
+            learning.observe_user_message(
+                message=message,
+                principal=principal,
+            )
+
+        habit = getattr(self, "_habit_continuity", None)
+        if habit is not None and principal is not None:
+            environment = self._runtime.environment_service.snapshot(
+                now=message.created_at,
+                refresh_providers=False,
+            )
+            habit.observe_conversation(
+                message=message,
+                principal=principal,
+                environment=environment,
+            )
+
+        if principal is not None:
+            self._relationship_store.observe(
+                principal=principal,
+                evidence_ref=message.id,
+                occurred_at=message.created_at,
+            )
+
     def respond(
         self,
         content: str,
+        *,
+        principal: PrincipalContext | None = None,
     ) -> CognitiveResponse:
         """
         Persist a user message, process authorization or any
@@ -246,6 +336,12 @@ class ConversationService:
                 "ConversationService content must be a string."
             )
 
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError(
+                "ConversationService principal must be a PrincipalContext or None."
+            )
+
+        principal = self._bind_principal(principal)
         content = content.strip()
 
         if not content:
@@ -262,6 +358,10 @@ class ConversationService:
         )
 
         self._conversation_store.save(user_message)
+        self._after_user_message_saved(
+            message=user_message,
+            principal=principal,
+        )
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
@@ -286,6 +386,7 @@ class ConversationService:
         response = self._runtime.respond(
             request,
             filesystem_results=filesystem_results,
+            principal=principal,
         )
 
         assistant_message = ConversationMessage(

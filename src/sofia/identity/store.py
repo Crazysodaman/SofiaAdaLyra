@@ -2,7 +2,7 @@
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from sofia.identity.model import SofiaIdentity
+from sofia.identity.model import IdentityBootstrapMode, SofiaIdentity
 
 
 class IdentityStoreError(Exception):
@@ -18,8 +18,16 @@ class IdentityStore:
     application restarts and processes.
     """
 
-    def __init__(self, identity_path: Path):
+    def __init__(
+        self,
+        identity_path: Path,
+        *,
+        bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.FIRST_BOOTSTRAP,
+    ):
+        if not isinstance(bootstrap_mode, IdentityBootstrapMode):
+            raise TypeError("bootstrap_mode must be an IdentityBootstrapMode")
         self.identity_path = identity_path
+        self.bootstrap_mode = bootstrap_mode
 
     def save(self, identity: SofiaIdentity) -> None:
         if not isinstance(identity, SofiaIdentity):
@@ -53,6 +61,11 @@ class IdentityStore:
 
     def load(self) -> SofiaIdentity:
         if not self.identity_path.exists():
+            if self.bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
+                raise IdentityStoreError(
+                    "Canonical identity is missing; joining/rebuilt nodes must "
+                    "recover and verify the existing identity instead of creating one."
+                )
             identity = SofiaIdentity(
                 name="Sofía Ada Lyra",
                 instance_id=uuid4(),
@@ -83,6 +96,11 @@ class IdentityStore:
         instance_id = self._load_instance_id(data)
 
         if instance_id is None:
+            if self.bootstrap_mode is IdentityBootstrapMode.REQUIRE_EXISTING:
+                raise IdentityStoreError(
+                    "Canonical identity instance_id is missing; refusing to mint "
+                    "a replacement identity on a joining/rebuilt node."
+                )
             instance_id = uuid4()
 
             identity = SofiaIdentity(

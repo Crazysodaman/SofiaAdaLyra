@@ -1,5 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Mapping
+
+from .activity import HostActivityState
 from .model import FleetHost, HostLifecycle, WorkloadContract
 
 @dataclass(frozen=True)
@@ -7,14 +10,36 @@ class PlacementDecision:
     workload_id:str; host_id:str|None; eligible_hosts:tuple[str,...]; rejected:tuple[tuple[str,str],...]
 
 class PlacementEngine:
-    def choose(self,workload:WorkloadContract,hosts:tuple[FleetHost,...])->PlacementDecision:
+    def choose(
+        self,
+        workload:WorkloadContract,
+        hosts:tuple[FleetHost,...],
+        *,
+        activities:Mapping[str,HostActivityState]|None=None,
+    )->PlacementDecision:
         eligible=[]; rejected=[]
+        activity_map=activities or {}
         for host in hosts:
             reason=self._reject_reason(workload,host)
             if reason: rejected.append((host.host_id,reason))
             else: eligible.append(host)
-        # Prefer lower observed CPU pressure; unknown telemetry loses to known healthy evidence.
-        eligible.sort(key=lambda h:(h.telemetry is None, 101.0 if h.telemetry is None or h.telemetry.cpu_percent is None else h.telemetry.cpu_percent,h.host_id))
+        # Foreground use outranks momentary CPU idleness. A gaming/busy host is
+        # deprioritized for ordinary movable background work whenever another
+        # eligible host exists. Workloads may explicitly opt into foreground hosts.
+        def key(host:FleetHost):
+            state=activity_map.get(host.host_id)
+            pressure=(
+                state.interactive_pressure
+                if state is not None and not workload.allow_interactive_host
+                else 0
+            )
+            cpu=(
+                101.0
+                if host.telemetry is None or host.telemetry.cpu_percent is None
+                else host.telemetry.cpu_percent
+            )
+            return (pressure,host.telemetry is None,cpu,host.host_id)
+        eligible.sort(key=key)
         return PlacementDecision(workload.workload_id,eligible[0].host_id if eligible else None,tuple(h.host_id for h in eligible),tuple(rejected))
     @staticmethod
     def _reject_reason(w:WorkloadContract,h:FleetHost)->str|None:

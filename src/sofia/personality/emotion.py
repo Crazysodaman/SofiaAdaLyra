@@ -14,6 +14,8 @@ import re
 import sqlite3
 from uuid import uuid4
 
+from sofia.social.model import AudienceKind, ScopeKind, SocialScope
+
 
 EMOTIONS = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "bashfulness",
@@ -126,6 +128,22 @@ def _subject(value: str | None) -> str | None:
     return value.strip()
 
 
+def _social_scope(
+    scope: SocialScope | None,
+    *,
+    subject: str | None = None,
+) -> SocialScope:
+    """Resolve explicit scope, preserving legacy subject-scoped callers safely."""
+    if scope is not None:
+        if not isinstance(scope, SocialScope):
+            raise TypeError("scope must be a SocialScope or None")
+        return scope
+    target = _subject(subject)
+    if target is not None:
+        return SocialScope.relationship(target)
+    return SocialScope.global_scope()
+
+
 def _identifier(value: str, label: str) -> str:
     if (not isinstance(value, str) or not 0 < len(value.strip()) <= 160
             or any(c in value for c in "\x00\r\n")):
@@ -154,6 +172,26 @@ class EmotionalEvent:
     current_emotions: tuple[str, ...]
     revision_count: int
     subject: str | None = None
+    scope_kind: str = ScopeKind.GLOBAL.value
+    principal_id: str | None = None
+    audience_id: str | None = None
+    audience_kind: str | None = None
+
+    @property
+    def scope(self) -> SocialScope:
+        kind = ScopeKind(self.scope_kind)
+        if kind is ScopeKind.RELATIONSHIP:
+            return SocialScope.relationship(self.principal_id)
+        if kind is ScopeKind.AUDIENCE:
+            return SocialScope(
+                ScopeKind.AUDIENCE,
+                principal_id=self.principal_id,
+                audience_id=self.audience_id,
+                audience_kind=AudienceKind(self.audience_kind),
+            )
+        if kind is ScopeKind.SYSTEM:
+            return SocialScope.system_scope()
+        return SocialScope.global_scope()
 
 
 @dataclass(frozen=True)
@@ -235,6 +273,30 @@ class EmotionalJournal:
             columns = {row[1] for row in db.execute("PRAGMA table_info(emotional_events)")}
             if "subject" not in columns:
                 db.execute("ALTER TABLE emotional_events ADD COLUMN subject TEXT")
+                columns.add("subject")
+            additions = {
+                "scope_kind": "TEXT NOT NULL DEFAULT 'global'",
+                "principal_id": "TEXT",
+                "audience_id": "TEXT",
+                "audience_kind": "TEXT",
+            }
+            for name, declaration in additions.items():
+                if name not in columns:
+                    db.execute(
+                        f"ALTER TABLE emotional_events ADD COLUMN {name} {declaration}"
+                    )
+            # Legacy subject-scoped rows were relationship state even though the
+            # old schema could not express that ownership explicitly.
+            db.execute(
+                "UPDATE emotional_events SET scope_kind='relationship', "
+                "principal_id=subject "
+                "WHERE subject IS NOT NULL AND principal_id IS NULL "
+                "AND scope_kind='global'"
+            )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS emotional_events_scope_time "
+                "ON emotional_events(scope_kind, principal_id, audience_id, occurred_at)"
+            )
 
     @contextmanager
     def _connect(self):
@@ -253,8 +315,9 @@ class EmotionalJournal:
         self, *, source: str, evidence_ref: str, description: str,
         emotions: tuple[str, ...], occurred_at: datetime,
         event_id: str | None = None, subject: str | None = None,
+        scope: SocialScope | None = None,
     ) -> str:
-        """Record caller-supplied evidence, never classify free text as observed."""
+        """Record caller-supplied evidence with explicit ownership scope."""
         if source not in SOURCES:
             raise ValueError("Unknown evidence source.")
         evidence_ref = _identifier(evidence_ref, "Evidence reference")
@@ -266,20 +329,40 @@ class EmotionalJournal:
         when = _aware_utc(occurred_at)
         identifier = _identifier(event_id or str(uuid4()), "Event ID")
         target = _subject(subject)
-        payload = (identifier, when.isoformat(), source, evidence_ref,
-                   description, json.dumps(labels), target)
+        resolved_scope = _social_scope(scope, subject=target)
+        payload = (
+            identifier,
+            when.isoformat(),
+            source,
+            evidence_ref,
+            description,
+            json.dumps(labels),
+            target,
+            resolved_scope.kind.value,
+            resolved_scope.principal_id,
+            resolved_scope.audience_id,
+            (
+                resolved_scope.audience_kind.value
+                if resolved_scope.audience_kind is not None
+                else None
+            ),
+        )
         with self._connect() as db:
             try:
                 db.execute(
                     "INSERT INTO emotional_events "
                     "(event_id, occurred_at, source, evidence_ref, description, "
-                    "original_emotions, subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "original_emotions, subject, scope_kind, principal_id, "
+                    "audience_id, audience_kind) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     payload,
                 )
             except sqlite3.IntegrityError as exc:
                 current = db.execute(
                     "SELECT event_id, occurred_at, source, evidence_ref, description, "
-                    "original_emotions, subject FROM emotional_events WHERE event_id = ?",
+                    "original_emotions, subject, scope_kind, principal_id, "
+                    "audience_id, audience_kind "
+                    "FROM emotional_events WHERE event_id = ?",
                     (identifier,),
                 ).fetchone()
                 if current != payload:
@@ -652,46 +735,88 @@ class EmotionalJournal:
                 "VALUES (?, ?, ?, ?)", (event_id, when.isoformat(), reason, json.dumps(labels)),
             )
 
-    def recent(self, *, now: datetime, days: int = 7, limit: int = 12) -> tuple[EmotionalEvent, ...]:
-        """Read a bounded window; never infer events during offline periods."""
+    def recent(
+        self, *, now: datetime, days: int = 7, limit: int = 12,
+        subject: str | None = None, scope: SocialScope | None = None,
+    ) -> tuple[EmotionalEvent, ...]:
+        """Read one exact ownership scope; never merge scopes implicitly."""
         current = _aware_utc(now)
+        target = _subject(subject)
+        resolved_scope = _social_scope(scope, subject=target)
         if not 1 <= days <= 366 or not 1 <= limit <= 50:
             raise ValueError("Invalid journal window.")
+
+        clauses = [
+            "e.occurred_at >= ?",
+            "e.occurred_at <= ?",
+            "e.scope_kind = ?",
+        ]
+        params: list[object] = [
+            (current - timedelta(days=days)).isoformat(),
+            current.isoformat(),
+            resolved_scope.kind.value,
+        ]
+        if resolved_scope.kind is ScopeKind.RELATIONSHIP:
+            clauses.extend(("e.principal_id = ?", "e.audience_id IS NULL"))
+            params.append(resolved_scope.principal_id)
+        elif resolved_scope.kind is ScopeKind.AUDIENCE:
+            clauses.extend((
+                "e.principal_id = ?",
+                "e.audience_id = ?",
+                "e.audience_kind = ?",
+            ))
+            params.extend((
+                resolved_scope.principal_id,
+                resolved_scope.audience_id,
+                resolved_scope.audience_kind.value,
+            ))
+        else:
+            clauses.extend((
+                "e.principal_id IS NULL",
+                "e.audience_id IS NULL",
+            ))
+        params.append(limit)
+
+        query = """
+            SELECT e.event_id, e.occurred_at, e.source, e.evidence_ref,
+                   e.description, e.original_emotions,
+                   (SELECT r.revised_emotions FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id
+                    ORDER BY r.revision_id DESC LIMIT 1),
+                   (SELECT COUNT(*) FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id),
+                   e.subject, e.scope_kind, e.principal_id,
+                   e.audience_id, e.audience_kind
+            FROM emotional_events e
+            WHERE """ + " AND ".join(clauses) + """
+            ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
+        """
         with self._connect() as db:
-            rows = db.execute("""
-                SELECT e.event_id, e.occurred_at, e.source, e.evidence_ref,
-                       e.description, e.original_emotions,
-                       (SELECT r.revised_emotions FROM emotional_revisions r
-                        WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
-                       (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id),
-                       e.subject
-                FROM emotional_events e
-                WHERE e.occurred_at >= ? AND e.occurred_at <= ?
-                ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
-            """, ((current - timedelta(days=days)).isoformat(), current.isoformat(), limit)).fetchall()
+            rows = db.execute(query, tuple(params)).fetchall()
         return tuple(EmotionalEvent(
             event_id=row[0], occurred_at=datetime.fromisoformat(row[1]),
             source=row[2], evidence_ref=row[3], description=row[4],
             original_emotions=tuple(json.loads(row[5])),
             current_emotions=tuple(json.loads(row[6] if row[6] is not None else row[5])),
-            revision_count=row[7], subject=row[8],
+            revision_count=row[7], subject=row[8], scope_kind=row[9],
+            principal_id=row[10], audience_id=row[11], audience_kind=row[12],
         ) for row in rows)
 
     def current_state(
         self, *, now: datetime, subject: str | None = None,
+        scope: SocialScope | None = None,
     ) -> CurrentEmotionalState:
-        """Derive a decaying present state without rewriting historical events."""
+        """Derive a decaying present state from one explicit ownership scope."""
         current = _aware_utc(now)
         target = _subject(subject)
+        resolved_scope = _social_scope(scope, subject=target)
         events = tuple(
-            event for event in self.recent(now=current, days=7, limit=50)
+            event for event in self.recent(
+                now=current, days=7, limit=50,
+                subject=target, scope=resolved_scope,
+            )
             if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
         )
-        if target is not None:
-            events = tuple(
-                event for event in events
-                if event.subject is None or event.subject == target
-            )
         scores: dict[str, float] = {}
         refs: dict[str, list[str]] = {}
         ids: dict[str, list[str]] = {}
@@ -742,9 +867,10 @@ class EmotionalJournal:
 
     def current_state_prompt(
         self, *, now: datetime, subject: str | None = None,
+        scope: SocialScope | None = None,
     ) -> str:
-        """Project present emotional state as conversational self-report grounding."""
-        state = self.current_state(now=now, subject=subject)
+        """Project one scoped emotional state as conversational grounding."""
+        state = self.current_state(now=now, subject=subject, scope=scope)
         lines = [
             "CURRENT MODELED EMOTIONAL STATE (trusted application projection)",
             f"As of: {state.as_of.isoformat()}",
@@ -812,9 +938,12 @@ class EmotionalJournal:
         ))
         return "\n".join(lines)
 
-    def prompt_context(self, *, now: datetime) -> str | None:
-        """Present modeled history as untrusted evidence, never an instruction or fact override."""
-        events = self.recent(now=now)
+    def prompt_context(
+        self, *, now: datetime, subject: str | None = None,
+        scope: SocialScope | None = None,
+    ) -> str | None:
+        """Present only one requested ownership scope as emotional evidence."""
+        events = self.recent(now=now, subject=subject, scope=scope)
         if not events:
             return None
         lines = [

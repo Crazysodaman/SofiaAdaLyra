@@ -8,18 +8,33 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 
+from .activity import HostActivityStore
 from .desired import DesiredHostState,DesiredWorkloadPlacement,detect_drift
+from .enrollment import FleetEnrollmentService
 from .history import TelemetryHistory
 from .migration import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
-from .persistence import JsonFleetRegistry
+from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
+from sofia.state.plane import StatePlane
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 class OpsToolService:
-    def __init__(self,state_path:Path)->None:
-        self.registry=JsonFleetRegistry(state_path.parent/"fleet.json")
+    def __init__(
+        self,
+        state_path:Path,
+        *,
+        state_plane:StatePlane|None=None,
+    )->None:
+        plane=state_plane or SQLiteStatePlane(state_path)
+        self.registry=StatePlaneFleetRegistry(
+            plane,
+            legacy_path=state_path.parent/"fleet.json",
+        )
+        self.enrollment=FleetEnrollmentService(self.registry)
         self.history=TelemetryHistory(state_path.parent/"ops-telemetry.jsonl")
+        self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
 
     @staticmethod
@@ -66,10 +81,17 @@ class OpsToolService:
             singleton=bool(raw.get("singleton",False)),
             allowed_host_ids=tuple(raw.get("allowed_host_ids",())),
             denied_host_ids=tuple(raw.get("denied_host_ids",())),
+            allow_interactive_host=bool(raw.get("allow_interactive_host",False)),
         )
 
     def choose_placement(self,raw:dict[str,Any])->dict[str,Any]:
-        decision=self.placement.choose(self._workload(raw),self.registry.hosts())
+        hosts=self.registry.hosts()
+        activities={host.host_id:self.activity.state(host.host_id) for host in hosts}
+        decision=self.placement.choose(
+            self._workload(raw),
+            hosts,
+            activities=activities,
+        )
         return asdict(decision)
 
     def drift(self,p:dict[str,Any])->tuple[dict[str,Any],...]:
@@ -118,7 +140,7 @@ class OpsCapabilitySet:
             "ops.fleet.list":"List durable OPS fleet hosts and current state. Read-only.",
             "ops.fleet.get":"Inspect one durable OPS fleet host. Read-only.",
             "ops.telemetry.latest":"Read the latest durable telemetry for one fleet host. Read-only.",
-            "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet evidence. Read-only.",
+            "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet and activity evidence. Read-only.",
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
             "ops.migration.plan":"Construct a migration plan without executing it. Read-only planning.",
         }
@@ -147,7 +169,7 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
           {"host_id":{"type":"string"}},("host_id",)),
         b("inspect_fleet_telemetry","ops.telemetry.latest","Read latest durable telemetry for one fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
-        b("choose_workload_placement","ops.placement.choose","Evaluate workload placement against current fleet evidence. Does not move anything.",
+        b("choose_workload_placement","ops.placement.choose","Evaluate workload placement against current fleet and foreground-activity evidence. Does not move anything.",
           {"workload":workload},("workload",)),
         b("detect_fleet_drift","ops.drift.detect","Compare supplied desired host/workload state with durable fleet evidence. Read-only.",
           {"desired_hosts":{"type":"array","items":{"type":"object"}},

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 import sqlite3
+from typing import Callable
 
 from .lease import LocalRunLeaseStore, RunLease
 
@@ -105,6 +106,7 @@ class LocalRuntimeSupervisor:
         lease_store: LocalRunLeaseStore,
         backend: ManagedRuntimeBackend,
         policy: SupervisorPolicy = SupervisorPolicy(),
+        release_recovery: Callable[[datetime, str], str | None] | None = None,
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be a Path")
@@ -118,10 +120,13 @@ class LocalRuntimeSupervisor:
             raise TypeError("ManagedRuntimeBackend required")
         if not isinstance(policy, SupervisorPolicy):
             raise TypeError("SupervisorPolicy required")
+        if release_recovery is not None and not callable(release_recovery):
+            raise TypeError("release_recovery must be callable or None")
         self.state_path = state_path
         self.lease_store = lease_store
         self.backend = backend
         self.policy = policy
+        self.release_recovery = release_recovery
         with closing(self._connect()) as db:
             with db:
                 db.executescript(
@@ -449,6 +454,50 @@ class LocalRuntimeSupervisor:
                         "restart_limit",
                         "restart window limit reached",
                     )
+                    if self.release_recovery is not None:
+                        try:
+                            recovered_release = self.release_recovery(
+                                moment,
+                                "runtime restart window exhausted",
+                            )
+                        except Exception as exc:
+                            self._event(
+                                db,
+                                lease,
+                                moment,
+                                "release_rollback_failed",
+                                type(exc).__name__,
+                            )
+                            return SupervisorResult(
+                                "restart_limit",
+                                observation,
+                                detail=(
+                                    "release rollback failed; "
+                                    "manual/operator review required"
+                                ),
+                            )
+                        if recovered_release is not None:
+                            self._event(
+                                db,
+                                lease,
+                                moment,
+                                "release_rolled_back",
+                                recovered_release,
+                            )
+                            self._write_state(
+                                db,
+                                lease,
+                                moment,
+                                failures=0,
+                                last_start_at=None,
+                                backoff_until=None,
+                                readiness_deadline=None,
+                            )
+                            return SupervisorResult(
+                                "release_rolled_back",
+                                observation,
+                                detail=recovered_release,
+                            )
                     return SupervisorResult(
                         "restart_limit",
                         observation,

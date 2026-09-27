@@ -18,9 +18,12 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"sofia.ui" = ["assets/*.ico"]
+
 [tool.pytest.ini_options]
 python_classes = ["*Test"]
-pythonpath = ["."]
+pythonpath = ["src"]
 markers = [
     "integration: tests requiring external services",
 ]

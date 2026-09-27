@@ -14,6 +14,7 @@ from uuid import UUID
 from sofia.distributed.capabilities import RemoteCapability
 from sofia.distributed.operations import RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
+from sofia.distributed.version import FleetProtocolVersion
 
 AgentHandler=Callable[[Mapping[str,Any]],Any]
 _FORBIDDEN_PARAMETERS=frozenset({"command","commands","cmd","shell","script","executable","argv","arguments","password","token","secret","private_key"})
@@ -44,10 +45,12 @@ class RemoteAgentConfig:
     client_ca_file:Path
     expected_client_public_key_sha256:str
     ledger_path:Path
+    protocol_version:str="1.0"
     def __post_init__(self):
         if not self.node_name.strip(): raise ValueError("node_name required")
         if not 1<=self.listen_port<=65535: raise ValueError("listen_port out of range")
         if fullmatch(r"[0-9a-f]{64}",self.expected_client_public_key_sha256) is None: raise ValueError("client public-key pin must be lowercase SHA-256")
+        FleetProtocolVersion.parse(self.protocol_version)
 
 class RemoteAgentDispatcher:
     def __init__(self)->None:
@@ -148,12 +151,13 @@ class RemoteAgentServer:
             def do_GET(self):
                 if not self._authorized_peer(): self._json(403,{"error":"unauthorized peer"}); return
                 if self.path=="/v1/identity":
-                    self._json(200,{"node_id":str(owner.config.node_id),"name":owner.config.node_name}); return
+                    self._json(200,{"node_id":str(owner.config.node_id),"name":owner.config.node_name,"protocol_version":owner.config.protocol_version}); return
                 if self.path=="/v1/capabilities":
                     self._json(200,{
                         "node_id":str(owner.config.node_id),
                         "observed_at":datetime.now(timezone.utc).isoformat(),
                         "source":"sofia-pinned-mtls-agent",
+                        "protocol_version":owner.config.protocol_version,
                         "capabilities":[{"name":c.name,"operations":list(c.operations)} for c in owner.dispatcher.inventory()],
                     }); return
                 self._json(404,{"error":"not found"})

@@ -10,7 +10,7 @@ class OpenCodeExecutionError(RuntimeError): pass
 @dataclass(frozen=True)
 class EngineeringExecutionRequest:
     proposal_id:str; base_sha:str; prompt:str; allowed_paths:tuple[str,...]
-    authorized:bool=False; timeout_seconds:int=900; tests:tuple[str,...]=()
+    timeout_seconds:int=900; tests:tuple[str,...]=()
     def __post_init__(self):
         if not self.proposal_id.strip() or not self.prompt.strip(): raise ValueError("proposal_id and prompt required")
         if len(self.base_sha)!=40: raise ValueError("base_sha must be a full git SHA")
@@ -47,7 +47,6 @@ class OpenCodeAdapter:
         guard=WorkspaceGuard(self.workspace,request.allowed_paths)
         for path in paths: guard.resolve_allowed(path)
     def command(self,request:EngineeringExecutionRequest)->OpenCodeCommand:
-        if not request.authorized: raise PermissionError("engineering execution requires independent authorization")
         WorkspaceGuard(self.workspace,request.allowed_paths)
         exe=shutil.which(self.executable)
         if exe is None: raise OpenCodeExecutionError(f"OpenCode executable not found: {self.executable}")

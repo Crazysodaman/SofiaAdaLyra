@@ -30,6 +30,18 @@ def test_current_stale_future_and_boundary():
                                     max_age=timedelta(seconds=60))
     assert not inventory_is_current(report, now=NOW - timedelta(seconds=1),
                                     max_age=timedelta(seconds=60))
+    assert inventory_is_current(
+        report,
+        now=NOW - timedelta(seconds=1),
+        max_age=timedelta(seconds=60),
+        max_future_skew=timedelta(seconds=2),
+    )
+    assert not inventory_is_current(
+        report,
+        now=NOW - timedelta(seconds=3),
+        max_age=timedelta(seconds=60),
+        max_future_skew=timedelta(seconds=2),
+    )
 
 
 def test_rejects_duplicate_capabilities_and_operations():
@@ -53,3 +65,10 @@ def test_invalid_clock_or_freshness_rejected():
     with pytest.raises(ValueError):
         inventory_is_current(report, now=datetime(2026, 9, 20),
                              max_age=timedelta(seconds=30))
+    with pytest.raises(ValueError):
+        inventory_is_current(
+            report,
+            now=NOW,
+            max_age=timedelta(seconds=30),
+            max_future_skew=timedelta(seconds=-1),
+        )

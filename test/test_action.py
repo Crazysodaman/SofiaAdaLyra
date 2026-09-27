@@ -4,6 +4,7 @@ import pytest
 
 from sofia.action.executor import (
     ActionExecutorError,
+    FailClosedActionExecutor,
     TestActionExecutor,
 )
 from sofia.action.model import (
@@ -183,6 +184,33 @@ def test_executor_never_receives_unapproved_action():
         executor.execute(proposal)
 
     assert executor.executed == []
+
+
+
+def test_fail_closed_executor_never_reports_execution():
+    executor = FailClosedActionExecutor()
+    action_system = ActionSystem(executor)
+    operation = make_operation(can_execute_actions=True)
+    proposal = make_proposal()
+
+    approved = action_system.approve(operation, proposal)
+
+    with pytest.raises(
+        ActionExecutorError,
+        match="Production action execution is not configured",
+    ):
+        action_system.execute(operation, approved)
+
+
+def test_fail_closed_executor_rejects_unapproved_direct_call():
+    executor = FailClosedActionExecutor()
+    proposal = make_proposal()
+
+    with pytest.raises(
+        ActionExecutorError,
+        match="Only approved action proposals",
+    ):
+        executor.execute(proposal)
 
 
 def test_execution_result_requires_execution_status():

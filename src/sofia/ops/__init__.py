@@ -14,4 +14,25 @@ from .desired import DesiredHostState,DesiredWorkloadPlacement,Drift,detect_drif
 from .maintenance import MaintenanceOperation,MaintenancePolicy,MaintenanceRequest
 from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentService,MachineNodeBinding
 from .recovery import BackupEvidence,HostUpdateAssignment,RecoveryDenied,RecoveryGuard,RestoreVerification,UpdatePlanner,UpdateRing
-__all__=["HostLifecycle","HostTelemetry","FleetHost","WorkloadContract","WorkloadState","FleetRegistry","FleetRemovalApprovalRequired","PlacementDecision","PlacementEngine","FleetRemovalApproval","TelemetryHistory","AuthorityLease","LeaseTable","SplitBrainRisk","ManagedWorkload","StateMode","WorkloadInstance","WorkloadPhase","MigrationCoordinator","MigrationPlan","MigrationStage","FailureDomain","PromotionDenied","PromotionEvidence","PromotionGuard","DesiredHostState","DesiredWorkloadPlacement","Drift","detect_drift","MaintenanceOperation","MaintenancePolicy","MaintenanceRequest","AuthenticatedPeerEvidence","FleetEnrollmentService","MachineNodeBinding","BackupEvidence","HostUpdateAssignment","RecoveryDenied","RecoveryGuard","RestoreVerification","UpdatePlanner","UpdateRing","JsonLeaseTable","MigrationExecutionError","MigrationOutcomeUncertain","MigrationReceipt","WorkloadOrchestrator","FailoverCoordinator"]
+from .activity import ActivityMode,HostActivityObservation,HostActivityState,HostActivityStore,detect_windows_game
+from .bootstrap import (
+    AgentPackage,AgentInstaller,BootstrapCandidate,BootstrapDisposition,BootstrapPlan,
+    FleetBootstrapExecutor,FleetBootstrapPlanner,InstallAuthority,InstallReceipt,
+)
+
+__all__=[
+    "HostLifecycle","HostTelemetry","FleetHost","WorkloadContract","WorkloadState",
+    "FleetRegistry","FleetRemovalApprovalRequired","PlacementDecision","PlacementEngine",
+    "FleetRemovalApproval","TelemetryHistory","AuthorityLease","LeaseTable","SplitBrainRisk",
+    "ManagedWorkload","StateMode","WorkloadInstance","WorkloadPhase","MigrationCoordinator",
+    "MigrationPlan","MigrationStage","FailureDomain","PromotionDenied","PromotionEvidence",
+    "PromotionGuard","DesiredHostState","DesiredWorkloadPlacement","Drift","detect_drift",
+    "MaintenanceOperation","MaintenancePolicy","MaintenanceRequest","AuthenticatedPeerEvidence",
+    "FleetEnrollmentService","MachineNodeBinding","BackupEvidence","HostUpdateAssignment",
+    "RecoveryDenied","RecoveryGuard","RestoreVerification","UpdatePlanner","UpdateRing",
+    "JsonLeaseTable","MigrationExecutionError","MigrationOutcomeUncertain","MigrationReceipt",
+    "WorkloadOrchestrator","FailoverCoordinator","ActivityMode","HostActivityObservation",
+    "HostActivityState","HostActivityStore","detect_windows_game","AgentPackage","AgentInstaller",
+    "BootstrapCandidate","BootstrapDisposition","BootstrapPlan","FleetBootstrapExecutor",
+    "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
+]

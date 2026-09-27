@@ -20,14 +20,21 @@ from sofia.interaction.reviewed_hug_question import (
     CLARIFICATION, is_reviewed_hug_question,
 )
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
+from sofia.social.model import PrincipalContext
 
 
-def respond_reviewed_hug_question(service, content: str) -> CognitiveResponse:
+def respond_reviewed_hug_question(
+    service,
+    content: str,
+    *,
+    principal: PrincipalContext | None = None,
+) -> CognitiveResponse:
     """Save exact reviewed question; never infer or issue a permission grant."""
     if not is_reviewed_hug_question(content):
         raise ValueError('Only a complete reviewed ambiguous hug question is supported.')
     if service._session is None:
         raise RuntimeError('A started conversation session is required.')
+    principal = service._bind_principal(principal)
     service._active_user_requests += 1
     try:
         with service._model_lock:
@@ -38,6 +45,10 @@ def respond_reviewed_hug_question(service, content: str) -> CognitiveResponse:
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
+            service._after_user_message_saved(
+                message=user,
+                principal=principal,
+            )
             blocked = _policy_gate(state_path=path, session_id=session_id)
             result = (GuardedOfferResult(status=blocked) if blocked is not None else
                       GuardedOfferResult(
