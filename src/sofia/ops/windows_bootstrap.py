@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path, PureWindowsPath
+import re
 import shutil
 import subprocess
 import tempfile
@@ -55,7 +56,7 @@ def _safe_host(value: str) -> str:
 def _safe_windows_path(value: str, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} required")
-    if any(ch in value for ch in ('"', "\r", "\n", "\0")):
+    if re.fullmatch(r"[A-Za-z]:\\[A-Za-z0-9 _.\\-]+", value) is None:
         raise ValueError(f"{label} contains unsupported characters")
     path = PureWindowsPath(value)
     if not path.is_absolute() or not path.drive:
@@ -179,6 +180,7 @@ try {{
     if ($null -ne $Command) {{ $Candidates += $Command.Source }}
     $Candidates += Get-ChildItem "$env:LOCALAPPDATA\\Programs\\Python\\Python*\\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | ForEach-Object {{ $_.FullName }}
     $Candidates += Get-ChildItem "$env:ProgramFiles\\Python*\\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | ForEach-Object {{ $_.FullName }}
+    $Candidates += Get-ChildItem "C:\\Users\\*\\AppData\\Local\\Programs\\Python\\Python*\\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | ForEach-Object {{ $_.FullName }}
     $BasePython = $Candidates | Where-Object {{ $_ -and (Test-Path $_ -PathType Leaf) }} | Select-Object -First 1
     if (-not $BasePython) {{ throw "Python executable not found for bootstrap account." }}
 
