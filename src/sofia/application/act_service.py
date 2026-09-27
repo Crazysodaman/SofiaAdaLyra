@@ -13,6 +13,7 @@ from sofia.act.delivery import (
     SendResult,
 )
 from sofia.act.outreach import Policy
+from sofia.act.system_notice import SystemNoticeQueue
 from sofia.interaction.goal_journal import GoalJournal
 
 
@@ -47,6 +48,29 @@ class SofiaActService:
     def delivery_enabled(self) -> bool:
         return self._sender is not None and self._policy is not None
 
+    def queue_system_notice(
+        self,
+        *,
+        notice_id: str,
+        recipient_id: str,
+        channel: str,
+        destination: str,
+        evidence_id: str,
+        content: str,
+        created_at: datetime,
+        expires_at: datetime,
+    ):
+        return SystemNoticeQueue(self.state_path).enqueue(
+            notice_id=notice_id,
+            recipient_id=recipient_id,
+            channel=channel,
+            destination=destination,
+            evidence_id=evidence_id,
+            content=content,
+            created_at=created_at,
+            expires_at=expires_at,
+        )
+
     def bind_message(
         self,
         *,
@@ -75,6 +99,15 @@ class SofiaActService:
     ) -> DeliveryRunResult | None:
         if not self.delivery_enabled:
             return None
+        notice_result = SystemNoticeQueue(self.state_path).deliver_one(
+            sender=self._sender,
+            policy=self._policy,
+            now=now,
+            busy=busy,
+        )
+        if notice_result is not None:
+            return notice_result
+
         journal = GoalJournal(self.state_path)
         outbox = ActOutbox(self.state_path)
         runner = ActDeliveryRunner(
