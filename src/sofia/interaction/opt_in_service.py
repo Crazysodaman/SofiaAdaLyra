@@ -25,7 +25,9 @@ class OptInInteractionConversationService(ExpandedConversationService):
         principal: PrincipalContext | None = None,
     ):
         if not staged_offers_enabled():
-            return super().respond(content, principal=principal)
+            return super().respond(content) if principal is None else super().respond(
+            content, principal=principal
+        )
         if content == OFFER:
             return respond_staged_offer(
                 self, content, principal=principal
@@ -34,4 +36,6 @@ class OptInInteractionConversationService(ExpandedConversationService):
             return respond_reviewed_hug_question(
                 self, content, principal=principal
             )
-        return super().respond(content, principal=principal)
+        return super().respond(content) if principal is None else super().respond(
+            content, principal=principal
+        )
