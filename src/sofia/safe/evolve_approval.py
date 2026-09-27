@@ -9,6 +9,8 @@ from sofia.evolve.approval import (
     AmendmentApproval,
     ApprovalVerifier,
 )
+from sofia.safe.audit import AuditChain
+
 from sofia.evolve.revision import (
     RevisionApproval,
     RevisionApprovalVerifier,
@@ -30,6 +32,7 @@ class DurableEvolutionApprovalVerifier(
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.audit = AuditChain(self.path)
         with sqlite3.connect(self.path, timeout=10) as db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
@@ -125,19 +128,63 @@ class DurableEvolutionApprovalVerifier(
                     authority_reference,
                 ),
             )
+            self.audit.append_in_transaction(
+                db,
+                actor_id=approved_by,
+                event_type="evolve.approval.recorded",
+                payload={
+                    "approval_id": approval_id,
+                    "proposal_id": proposal_id,
+                    "proposal_fingerprint": proposal_fingerprint,
+                    "target_kind": target_kind,
+                    "target_value": target_value,
+                    "action": action,
+                    "authority_reference": authority_reference,
+                    "expires_at": expires_at.astimezone(
+                        timezone.utc
+                    ).isoformat(),
+                },
+                occurred_at=approved_at,
+                event_id=f"evolve-approval-recorded:{approval_id}",
+            )
 
     def revoke(self, approval_id: str) -> None:
         if not isinstance(approval_id, str) or not approval_id.strip():
             raise ValueError("approval_id must be nonempty")
         with sqlite3.connect(self.path, timeout=10) as db:
-            db.execute(
+            db.row_factory = sqlite3.Row
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
                 """
-                UPDATE safe_evolve_approval
-                SET revoked=1
+                SELECT approved_by, proposal_id, action
+                FROM safe_evolve_approval
                 WHERE approval_id=?
                 """,
                 (approval_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError("EVOLVE approval does not exist")
+            changed = db.execute(
+                """
+                UPDATE safe_evolve_approval
+                SET revoked=1
+                WHERE approval_id=? AND revoked=0
+                """,
+                (approval_id,),
             )
+            if changed.rowcount == 1:
+                self.audit.append_in_transaction(
+                    db,
+                    actor_id="Sparks",
+                    event_type="evolve.approval.revoked",
+                    payload={
+                        "approval_id": approval_id,
+                        "proposal_id": row["proposal_id"],
+                        "action": row["action"],
+                    },
+                    occurred_at=datetime.now(timezone.utc),
+                    event_id=f"evolve-approval-revoked:{approval_id}",
+                )
 
     def _matches(
         self,
