@@ -4,6 +4,7 @@ from dataclasses import dataclass,replace
 from datetime import datetime
 from uuid import UUID
 from re import fullmatch
+from typing import Callable
 from sofia.distributed.identity import NodeEnrollment
 from .fleet import FleetRegistry
 from .model import FleetHost,HostLifecycle
@@ -24,7 +25,24 @@ class AuthenticatedPeerEvidence:
         if not self.verifier.strip(): raise ValueError("independent verifier identity required")
 
 class FleetEnrollmentService:
-    def __init__(self,registry:FleetRegistry)->None: self.registry=registry
+    def __init__(
+        self,
+        registry:FleetRegistry,
+        *,
+        enrolled_notifier:Callable[[FleetHost,MachineNodeBinding,NodeEnrollment,AuthenticatedPeerEvidence],None]|None=None,
+    )->None:
+        self.registry=registry
+        if enrolled_notifier is not None and not callable(enrolled_notifier):
+            raise TypeError("enrolled_notifier must be callable or None")
+        self.enrolled_notifier=enrolled_notifier
+
+    def set_enrolled_notifier(
+        self,
+        notifier:Callable[[FleetHost,MachineNodeBinding,NodeEnrollment,AuthenticatedPeerEvidence],None]|None,
+    )->None:
+        if notifier is not None and not callable(notifier):
+            raise TypeError("notifier must be callable or None")
+        self.enrolled_notifier=notifier
     def enroll(self,candidate:FleetHost,*,binding:MachineNodeBinding,enrollment:NodeEnrollment,peer:AuthenticatedPeerEvidence)->FleetHost:
         if candidate.lifecycle is not HostLifecycle.CANDIDATE: raise ValueError("fleet enrollment starts from a candidate")
         if candidate.trusted: raise ValueError("candidate must enter authenticated enrollment untrusted")
@@ -35,4 +53,7 @@ class FleetEnrollmentService:
             raise PermissionError("authenticated peer key does not match enrolled key pin")
         trusted=replace(candidate,trusted=True)
         self.registry.register_candidate(trusted)
-        return self.registry.transition(trusted.host_id,HostLifecycle.ENROLLED)
+        enrolled=self.registry.transition(trusted.host_id,HostLifecycle.ENROLLED)
+        if self.enrolled_notifier is not None:
+            self.enrolled_notifier(enrolled,binding,enrollment,peer)
+        return enrolled
