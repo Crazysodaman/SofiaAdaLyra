@@ -53,6 +53,7 @@ from sofia.machine.discovery import create_machine_discovery
 from sofia.machine.location_state import StatePlaneMachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -269,12 +270,81 @@ def compose(
         filesystem_observation_store,
     )
 
+    operator_stop = OperatorStopStore(state_path)
+    stop_safe_capabilities = frozenset({
+        "tool.catalog",
+        "codebase.inspect",
+        "filesystem.changes",
+        "filesystem.inspect",
+        "process.inspect",
+        "system.inspect",
+        "network.inspect",
+        "service.inspect",
+        "hardware.inspect",
+        "storage.roots",
+        "storage.usage",
+        "storage.list",
+        "storage.read_text",
+        "knowledge.search",
+        "knowledge.document",
+        "dev.status",
+        "machine.list",
+        "machine.get",
+        "machine.discover.local",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "ops.telemetry.latest",
+        "ops.placement.choose",
+        "ops.drift.detect",
+        "ops.migration.plan",
+        "remote.nodes",
+        "remote.process.inspect",
+        "remote.system.inspect",
+        "remote.network.inspect",
+        "remote.service.inspect",
+        "remote.hardware.inspect",
+        "remote.vm.list",
+        "remote.vm.get",
+        "remote.container.list",
+        "remote.container.get",
+        "ollama.models",
+        "ollama.running",
+        "ollama.model.show",
+        "sqlite.state.tables",
+        "sqlite.state.query",
+        "sqlite.state.integrity",
+        "home_assistant.services",
+        "home_assistant.states",
+        "home_assistant.state",
+        "portainer.endpoints",
+        "portainer.containers",
+        "portainer.container",
+        "jmri.power",
+        "jmri.roster",
+        "jmri.object",
+        "github.repository",
+        "github.issues",
+        "github.file",
+        "github.pull_requests",
+        "discord.status",
+        "storage.roots",
+        "storage.usage",
+        "storage.list",
+        "storage.read_text",
+    })
+
     def capability_authorized(
         request,
     ) -> bool:
         runtime = runtime_holder.get("runtime")
 
         if runtime is None:
+            return False
+
+        if (
+            operator_stop.current().active
+            and request.capability.name not in stop_safe_capabilities
+        ):
             return False
 
         if request.capability.name == "codebase.inspect":
