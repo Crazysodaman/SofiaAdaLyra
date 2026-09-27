@@ -1,3 +1,4 @@
+from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.release import (
     ReleaseActivationEvidence,
     ReleaseActivationGuard,
@@ -6,6 +7,7 @@ from sofia.safe.release import (
 )
 
 __all__ = [
+    "DevApprovalVerifier",
     "ReleaseActivationEvidence",
     "ReleaseActivationGuard",
     "ReleaseSignatureVerifier",
