@@ -120,20 +120,35 @@ def _registration(
     )
     return RemoteToolRegistration(cap,handler,binding)
 
-def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegistration,...]:
+def create_configured_remote_fleet_service(
+    state_path:Path,
+)->RemoteFleetToolService|None:
     values={
         "ca":os.environ.get("SOFIA_REMOTE_CA","").strip(),
         "cert":os.environ.get("SOFIA_REMOTE_CLIENT_CERT","").strip(),
         "key":os.environ.get("SOFIA_REMOTE_CLIENT_KEY","").strip(),
     }
-    if not any(values.values()): return ()
-    if not all(values.values()): raise ValueError("SOFIA_REMOTE_CA, SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY must be configured together")
+    if not any(values.values()):
+        return None
+    if not all(values.values()):
+        raise ValueError(
+            "SOFIA_REMOTE_CA, SOFIA_REMOTE_CLIENT_CERT and "
+            "SOFIA_REMOTE_CLIENT_KEY must be configured together"
+        )
     age=int(os.environ.get("SOFIA_REMOTE_MAX_INVENTORY_AGE_SECONDS","300"))
-    service=RemoteFleetToolService(
+    return RemoteFleetToolService(
         state_path,
-        ca_file=Path(values["ca"]),client_certificate=Path(values["cert"]),
-        client_private_key=Path(values["key"]),max_inventory_age=timedelta(seconds=age),
+        ca_file=Path(values["ca"]),
+        client_certificate=Path(values["cert"]),
+        client_private_key=Path(values["key"]),
+        max_inventory_age=timedelta(seconds=age),
     )
+
+
+def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegistration,...]:
+    service=create_configured_remote_fleet_service(state_path)
+    if service is None:
+        return ()
     node={"node_id":{"type":"string"}}
     exact=lambda keys:(lambda p:{k:p[k] for k in keys if k in p})
     return (
