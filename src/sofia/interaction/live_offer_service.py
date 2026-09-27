@@ -60,9 +60,13 @@ def _canonical_offer_request(
         constitution=runtime.constitution,
         embodiment=runtime.embodiment,
         core_state=runtime.core_state,
-        memories=runtime.memory_system.recall_relevant(
-            OFFER,
-            principal=principal,
+        memories=(
+            runtime.memory_system.recall_relevant(OFFER)
+            if principal is None
+            else runtime.memory_system.recall_relevant(
+                OFFER,
+                principal=principal,
+            )
         ),
         operational_state=runtime.operational_state,
         runtime_continuity=runtime.runtime_continuity,
@@ -110,10 +114,16 @@ def respond_staged_offer(
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
-            service._after_user_message_saved(
-                message=user,
-                principal=principal,
+            after_saved = getattr(
+                service,
+                "_after_user_message_saved",
+                None,
             )
+            if after_saved is not None:
+                after_saved(
+                    message=user,
+                    principal=principal,
+                )
             intent = parse_user_action(user.content, message_id=user.id)
             if (intent is None or intent.modality != 'offered'
                     or intent.action_id != 'hug'):
