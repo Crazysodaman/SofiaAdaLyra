@@ -527,6 +527,8 @@ class SofiaRuntime:
         self,
         request: CognitiveRequest,
         filesystem_results: tuple[FilesystemResult, ...] = (),
+        *,
+        principal: PrincipalContext | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -536,6 +538,11 @@ class SofiaRuntime:
         if not isinstance(request, CognitiveRequest):
             raise TypeError(
                 "SofiaRuntime request must be a CognitiveRequest."
+            )
+
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError(
+                "SofiaRuntime principal must be a PrincipalContext or None."
             )
 
         if not isinstance(filesystem_results, tuple):
@@ -630,6 +637,7 @@ class SofiaRuntime:
                 operational_self_model=self.operational_self_model,
                 avatar_presentation=self.avatar_presentation_projection,
                 environment_snapshot=environment_snapshot,
+                principal=principal,
             ),
             authority=Authority(
                 can_inspect_filesystem=(
