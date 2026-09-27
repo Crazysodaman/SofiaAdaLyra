@@ -76,6 +76,8 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert '$_ .CommandLine' not in script
     assert 'sofia.distributed.agent_main' in script
     assert 'agent_canary.py' in script
+    assert '$Owner.CommandLine.Contains($Runner)' in script
+    assert '$_.CommandLine.Contains($Root)' in script
     assert 'creating_dispatcher' in script
     assert 'creating_server' in script
     assert 'status("listening")' in script
