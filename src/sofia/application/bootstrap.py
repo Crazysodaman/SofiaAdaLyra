@@ -18,6 +18,7 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
+from sofia.run.orchestration import GlobalRunBudget, RuntimeOrchestrator
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
 
@@ -51,6 +52,7 @@ class SofiaApplication:
             runtime=self._runtime, conversation_store=conversation_store,
         )
         self._idle_worker: IdleReflectionWorker | None = None
+        self._run_orchestrator = RuntimeOrchestrator(GlobalRunBudget())
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
@@ -70,6 +72,11 @@ class SofiaApplication:
     @property
     def idle_reflection_worker(self) -> IdleReflectionWorker | None:
         return getattr(self, "_idle_worker", None)
+
+    @property
+    def run_orchestrator(self) -> RuntimeOrchestrator:
+        """Return the single application-owned RUN coordination boundary."""
+        return self._run_orchestrator
 
     @property
     def text_ui(self) -> UITextClient:
