@@ -73,6 +73,8 @@ class DiscordConversationBridge:
         store: DiscordInboxStore,
         bindings: DiscordBindingStore,
         conversation: ConversationResponder,
+        principal: AuthenticatedPrincipal,
+        audience: Audience,
     ) -> None:
         if not isinstance(store, DiscordInboxStore):
             raise TypeError("store must be DiscordInboxStore")
@@ -80,9 +82,20 @@ class DiscordConversationBridge:
             raise TypeError("bindings must be DiscordBindingStore")
         if not hasattr(conversation, "respond") or not hasattr(conversation, "session_id"):
             raise TypeError("conversation must expose session_id and respond(content)")
+        if not isinstance(principal, AuthenticatedPrincipal):
+            raise TypeError("principal must be AuthenticatedPrincipal")
+        if not isinstance(audience, Audience):
+            raise TypeError("audience must be Audience")
+        if (
+            audience.member_principal_ids
+            and principal.principal_id not in audience.member_principal_ids
+        ):
+            raise ValueError("principal must belong to audience")
         self._store = store
         self._bindings = bindings
         self._conversation = conversation
+        self._principal = principal
+        self._audience = audience
 
     def process(
         self,
@@ -151,20 +164,10 @@ class DiscordConversationBridge:
             return BridgeResult(disposition)
 
         try:
-            principal = AuthenticatedPrincipal(
-                principal_id=f"discord:{binding.owner_user_id}",
-                kind=PrincipalKind.HUMAN,
-                source="discord",
-            )
-            audience = Audience(
-                audience_id=f"discord-dm:{channel_id}",
-                scope=AudienceScope.PRIVATE,
-                member_principal_ids=(principal.principal_id,),
-            )
             response = self._conversation.respond(
                 inbound.content,
-                principal=principal,
-                audience=audience,
+                principal=self._principal,
+                audience=self._audience,
             )
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():
