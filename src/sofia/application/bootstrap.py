@@ -154,12 +154,14 @@ class SofiaApplication:
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
-            if enabled and self._runtime.personality is not None:
+            background_needed = enabled or self._act_service.delivery_enabled
+            if background_needed and self._runtime.personality is not None:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
                     raise SofiaApplicationError("Idle reflection requires an emotional conversation service.")
                 coordinator = ApplicationBackgroundCoordinator(
                     service=self._conversation_service,
                     state_path=Path(self._configuration.state_path),
+                    reflection_enabled=enabled,
                 )
                 coordinator.set_act_delivery(
                     lambda now: self._act_service.deliver_one(
