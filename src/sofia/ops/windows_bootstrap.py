@@ -291,14 +291,6 @@ except BaseException as exc:
     $Listener = $null
     foreach ($Attempt in 1..15) {{
         Start-Sleep -Seconds 1
-        $StartedAgent.Refresh()
-        if ($StartedAgent.HasExited) {{
-            $Text = Read-TextSafe $Stderr
-            if ($Text) {{
-                throw "Fleet agent exited during startup. stderr: $Text"
-            }}
-            throw "Fleet agent exited during startup with code $($StartedAgent.ExitCode) and produced no stderr."
-        }}
         $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue |
             Where-Object {{
                 $Owner = Get-CimInstance Win32_Process -Filter ("ProcessId=" + $_.OwningProcess) -ErrorAction SilentlyContinue
@@ -306,6 +298,21 @@ except BaseException as exc:
             }} |
             Select-Object -First 1
         if ($null -ne $Listener) {{ break }}
+
+        $RunnerProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {{
+                $_.CommandLine -and
+                $_.CommandLine.Contains($Root) -and
+                $_.CommandLine.Contains("agent_canary.py")
+            }}
+        $StartedAgent.Refresh()
+        if ($StartedAgent.HasExited -and -not $RunnerProcesses) {{
+            $Text = Read-TextSafe $Stderr
+            if ($Text) {{
+                throw "Fleet agent exited during startup. stderr: $Text"
+            }}
+            throw "Fleet agent exited during startup with code $($StartedAgent.ExitCode) and produced no stderr."
+        }}
     }}
     if ($null -eq $Listener) {{
         $Text = Read-TextSafe $Stderr
