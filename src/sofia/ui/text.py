@@ -13,6 +13,7 @@ from typing import Protocol
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.ui.drafts import UIDraft, UIDraftStore
+from sofia.social.model import PrincipalContext
 
 
 class ConversationPort(Protocol):
@@ -21,7 +22,12 @@ class ConversationPort(Protocol):
 
     def messages(self) -> tuple[ConversationMessage, ...]: ...
 
-    def respond(self, content: str): ...
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ): ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +48,7 @@ class UITextClient:
         conversation: ConversationPort,
         drafts: UIDraftStore,
         client_id: str,
+        principal: PrincipalContext | None = None,
     ) -> None:
         try:
             inspect.getattr_static(conversation, "session_id")
@@ -55,9 +62,12 @@ class UITextClient:
             raise TypeError("drafts must be UIDraftStore")
         if not isinstance(client_id, str) or not client_id.strip():
             raise ValueError("client_id must be nonempty")
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext or None")
         self._conversation = conversation
         self._drafts = drafts
         self._client_id = client_id
+        self._principal = principal
 
     @property
     def client_id(self) -> str:
@@ -130,6 +140,12 @@ class UITextClient:
         if not content.strip():
             raise ValueError("content must not be blank")
 
-        response = self._conversation.respond(content)
+        if self._principal is None:
+            response = self._conversation.respond(content)
+        else:
+            response = self._conversation.respond(
+                content,
+                principal=self._principal,
+            )
         self.clear_draft()
         return response
