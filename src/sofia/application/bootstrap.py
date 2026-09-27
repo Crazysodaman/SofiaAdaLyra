@@ -6,7 +6,11 @@ import socket
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sofia.avatar.influence import wardrobe_emotion_influences
+from sofia.avatar.interact_bridge import HostEnvironmentEvidence
+from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
+from sofia.avatar.wardrobe_routine import Activity, OutfitPlanner
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
@@ -123,6 +127,7 @@ class SofiaApplication:
         )
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
+        self._presentation_routine: HeadlessPresentationRoutine | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
@@ -173,6 +178,54 @@ class SofiaApplication:
     def text_ui(self) -> UITextClient:
         """Return the local text-first UI over the canonical conversation."""
         return self._text_ui
+
+    def _evaluate_contextual_presentation(
+        self,
+        *,
+        now: datetime,
+        refresh_environment: bool,
+    ):
+        """Evaluate one bounded ENVIRONMENT/EMOTION -> AVATAR presentation step."""
+        routine = getattr(self, "_presentation_routine", None)
+        if routine is None:
+            return None
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=refresh_environment,
+        )
+        # Season is location-dependent. Never guess it just to force an outfit.
+        if environment.season is None:
+            return None
+
+        host_environment = HostEnvironmentEvidence.from_environment_snapshot(
+            environment,
+            activity=Activity.CONVERSATION,
+        )
+        emotion_influences = ()
+        service = self._conversation_service
+        if (
+            isinstance(service, EmotionalConversationService)
+            and self._runtime.personality is not None
+        ):
+            current_emotion = service.current_emotional_state(now=now)
+            continuity = ContinuityInfluence.from_state(
+                emotion=current_emotion,
+                environment=environment,
+            )
+            emotion_influences = wardrobe_emotion_influences(continuity)
+
+        context = host_environment.planner_context(
+            emotion_influences=emotion_influences,
+        )
+        operation_id = (
+            "contextual-presentation:"
+            + now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            + f":r{routine.authority.current.revision}"
+        )
+        return routine.evaluate(
+            context,
+            operation_id=operation_id,
+        )
 
     def start(self, session_id: str | None = None) -> CognitiveResponse | None:
         """Start the runtime and session, then optionally start idle reflection.
@@ -228,12 +281,24 @@ class SofiaApplication:
             )
             self._runtime.set_avatar_presentation(bundle.authority)
             self._presentation_bundle = bundle
+            self._presentation_routine = HeadlessPresentationRoutine(
+                authority=bundle.authority,
+                store=bundle.store,
+                planner=OutfitPlanner(
+                    bundle.catalog.wardrobe,
+                    bundle.catalog.presets,
+                ),
+            )
             # Filter internal database noise in *both* pending awareness and
             # the runtime's cognitive context before the first model call.
             # The unfiltered snapshot stays preserved in the observation store.
             normalize_runtime_workspace_awareness(self._runtime)
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
+            self._evaluate_contextual_presentation(
+                now=datetime.now(timezone.utc),
+                refresh_environment=False,
+            )
             response = self._conversation_service.deliver_pending_awareness()
             reflection_enabled = bool(
                 enabled and self._runtime.personality is not None
@@ -250,10 +315,14 @@ class SofiaApplication:
                 act_service is not None
                 and act_service.delivery_enabled
             )
+            presentation_runtime_enabled = (
+                self._presentation_routine is not None
+            )
             background_needed = (
                 reflection_enabled
                 or habit_runtime_enabled
                 or act_delivery_enabled
+                or presentation_runtime_enabled
             )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
@@ -310,6 +379,24 @@ class SofiaApplication:
                     "reflection_outreach",
                     bridge_reflection_outreach,
                 )
+
+                if presentation_runtime_enabled:
+                    def evaluate_avatar_presentation(now):
+                        result = self._evaluate_contextual_presentation(
+                            now=now,
+                            refresh_environment=True,
+                        )
+                        return (
+                            result
+                            if result is not None and result.changed
+                            else None
+                        )
+
+                    coordinator.set_task(
+                        "avatar_presentation",
+                        evaluate_avatar_presentation,
+                        interval_seconds=900.0,
+                    )
 
                 def analyze_habits(now):
                     service = self._conversation_service
@@ -469,6 +556,7 @@ class SofiaApplication:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
             self._presentation_bundle = None
+            self._presentation_routine = None
             self._conversation_service.close()
             ui_draft_store = getattr(
                 self,

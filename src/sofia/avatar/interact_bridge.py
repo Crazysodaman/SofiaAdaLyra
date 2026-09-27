@@ -33,7 +33,14 @@ from sofia.environment.model import (
 
 from .shared_wardrobe_state import SharedWardrobeState, WardrobeTextProjection
 from .style_context import StyleContext
-from .wardrobe_routine import Activity, Season, WardrobeContext, Weather, WeatherObservation
+from .wardrobe_routine import (
+    Activity,
+    EmotionStyleInfluence,
+    Season,
+    WardrobeContext,
+    Weather,
+    WeatherObservation,
+)
 
 _SOURCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
 _LEGACY_CLOTHING_RULE = (
@@ -223,12 +230,23 @@ class HostEnvironmentEvidence:
             weather=weather,
         )
 
-    def planner_context(self) -> WardrobeContext:
+    def planner_context(
+        self,
+        *,
+        emotion_influences: tuple[EmotionStyleInfluence, ...] = (),
+    ) -> WardrobeContext:
+        """Project one shared ENVIRONMENT sample into AVATAR wardrobe context.
+
+        Emotion influences are separately grounded modeled state. They may bias
+        style selection, but WardrobeContext/OutfitPlanner still enforce season,
+        activity, privacy and coverage constraints.
+        """
         return WardrobeContext(
             now=self.observed_at,
             season=self.season,
             activity=self.activity,
             weather=self.weather.for_planner() if self.weather else None,
+            emotion_influences=emotion_influences,
         )
 
     def for_chat(self) -> dict[str, object]:
