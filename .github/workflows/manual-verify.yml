@@ -1,6 +1,9 @@
 name: Manual Verification
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       phase:
@@ -32,7 +35,7 @@ jobs:
         shell: pwsh
         run: >
           python -m sofia.verify.gate
-          --phase "${{ inputs.phase }}"
+          --phase "${{ github.event_name == 'workflow_dispatch' && inputs.phase || 'full' }}"
           --evidence-path verify-evidence.json
 
       - name: Upload verification evidence
