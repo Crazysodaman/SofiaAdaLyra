@@ -55,11 +55,6 @@ class KnowledgeService:
                 document_id,
                 KnowledgeVisibility.SHARED,
             ))
-        if self.access.get(document_id) is None:
-            self.access.set(KnowledgeAccess(
-                document_id,
-                KnowledgeVisibility.SHARED,
-            ))
         lines=text.splitlines()
         chunks=[]; start=1
         for index in range(0,len(lines),40):
@@ -97,6 +92,11 @@ class KnowledgeService:
                 "facts":len(self.store.facts_for(existing.document_id)),"pages":None,"already_ingested":True}
         doc=KnowledgeDocument(document_id,SourceKind.MANUAL,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
+        if self.access.get(document_id) is None:
+            self.access.set(KnowledgeAccess(
+                document_id,
+                KnowledgeVisibility.SHARED,
+            ))
         reader=PdfReader(str(path)); fact_count=0
         for page_number,page in enumerate(reader.pages,start=1):
             text=(page.extract_text() or "").strip()
