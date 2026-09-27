@@ -195,7 +195,7 @@ try {{
             }}
         foreach ($ManagedProcess in $ManagedProcesses) {{
             Stop-Process -Id $ManagedProcess.ProcessId -Force -ErrorAction Stop
-            Wait-Process -Id $ManagedProcess.ProcessId -Timeout 10 -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 500
         }}
     }}
 
@@ -209,7 +209,21 @@ try {{
     if (-not $BasePython) {{ throw "Python executable not found for bootstrap account." }}
 
     $Venv = Join-Path $Root ".venv"
-    if (Test-Path $Venv) {{ Remove-Item -Recurse -Force $Venv }}
+    if (Test-Path $Venv) {{
+        $Removed = $false
+        foreach ($Attempt in 1..5) {{
+            try {{
+                Remove-Item -Recurse -Force $Venv -ErrorAction Stop
+                $Removed = $true
+                break
+            }}
+            catch {{
+                if ($Attempt -eq 5) {{ throw }}
+                Start-Sleep -Milliseconds 750
+            }}
+        }}
+        if (-not $Removed -and (Test-Path $Venv)) {{ throw "Fleet venv cleanup failed." }}
+    }}
     & $BasePython -m venv $Venv
     if ($LASTEXITCODE -ne 0) {{ throw "venv creation failed." }}
 
@@ -262,7 +276,7 @@ try {{
 catch {{
     if ($null -ne $StartedAgent -and -not $StartedAgent.HasExited) {{
         Stop-Process -Id $StartedAgent.Id -Force -ErrorAction SilentlyContinue
-        Wait-Process -Id $StartedAgent.Id -Timeout 10 -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
     }}
     Save-Receipt @{{
         status = "failed"
