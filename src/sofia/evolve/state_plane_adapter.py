@@ -153,7 +153,15 @@ class StatePlaneRevisionAdapter(RevisionAdapter):
         if payload.get("scope") != scope.value or payload.get("key") != key:
             raise RuntimeError("rollback material belongs to another revision")
         previous = payload.get("previous")
-        restored = "" if previous is None else previous
+        if previous is None:
+            if existing is None:
+                return
+            self._state_plane.delete(
+                state_key,
+                expected_revision=existing.revision,
+            )
+            return
+
         now = datetime.now(timezone.utc)
         revision = 1 if existing is None else existing.revision + 1
         self._state_plane.write(
@@ -161,7 +169,7 @@ class StatePlaneRevisionAdapter(RevisionAdapter):
                 key=state_key,
                 state_class=StateClass.SHARED_AUTHORITATIVE,
                 revision=revision,
-                value=restored.encode("utf-8"),
+                value=previous.encode("utf-8"),
                 updated_at=now,
                 source=f"evolve:rollback:{rollback_token}",
             ),
