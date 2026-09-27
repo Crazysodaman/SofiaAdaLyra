@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -47,6 +48,21 @@ class SofiaActService:
     @property
     def delivery_enabled(self) -> bool:
         return self._sender is not None and self._policy is not None
+
+    @property
+    def policy(self) -> Policy | None:
+        return self._policy
+
+    def set_local_timezone(self, timezone_name: str) -> None:
+        """Update outreach quiet-hour evaluation from trusted ENVIRONMENT."""
+        if self._policy is None:
+            return
+        if not isinstance(timezone_name, str) or not timezone_name.strip():
+            raise ValueError("timezone_name must be nonempty")
+        self._policy = replace(
+            self._policy,
+            timezone_name=timezone_name.strip(),
+        )
 
     def queue_system_notice(
         self,
