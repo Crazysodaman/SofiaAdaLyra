@@ -17,11 +17,25 @@ from sofia.interaction.reviewed_hug_question import is_reviewed_hug_question
 
 
 class OptInInteractionConversationService(ExpandedConversationService):
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal=None,
+        audience=None,
+    ):
         if not staged_offers_enabled():
-            return super().respond(content)
+            return super().respond(
+                content,
+                principal=principal,
+                audience=audience,
+            )
         if content == OFFER:
             return respond_staged_offer(self, content)
         if is_reviewed_hug_question(content):
             return respond_reviewed_hug_question(self, content)
-        return super().respond(content)
+        return super().respond(
+            content,
+            principal=principal,
+            audience=audience,
+        )
