@@ -35,6 +35,8 @@ class HabitObservation:
     evidence_ref: str
     source_quality: SourceQuality
     coverage: ObservationCoverage
+    sensitive: bool = False
+    explicit_user_evidence: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -54,6 +56,14 @@ class HabitObservation:
             raise TypeError("source_quality must be SourceQuality")
         if not isinstance(self.coverage, ObservationCoverage):
             raise TypeError("coverage must be ObservationCoverage")
+        if type(self.sensitive) is not bool:
+            raise TypeError("sensitive must be boolean")
+        if type(self.explicit_user_evidence) is not bool:
+            raise TypeError("explicit_user_evidence must be boolean")
+        if self.sensitive and not self.explicit_user_evidence:
+            raise ValueError(
+                "sensitive habit observations require explicit user evidence"
+            )
         if not isinstance(self.context, Mapping):
             raise TypeError("context must be a mapping")
         for key, value in self.context.items():
