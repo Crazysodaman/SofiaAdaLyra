@@ -8,6 +8,7 @@ import re
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+_RELEASE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}$")
 
 
 def _digest(value: str, label: str) -> str:
@@ -34,13 +35,20 @@ class ReleaseManifest:
     constitution_sha256: str
     configuration_schema_version: int
     created_at: datetime
+    artifact_sha256: str | None = None
+    parent_release_id: str | None = None
+    parent_manifest_sha256: str | None = None
     model_id: str | None = None
     model_sha256: str | None = None
     asset_sha256: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        if (
+            not isinstance(self.release_id, str)
+            or _RELEASE_ID.fullmatch(self.release_id) is None
+        ):
+            raise ValueError("release_id must be a bounded path-safe identifier")
         for name in (
-            "release_id",
             "application_version",
             "python_version",
             "fleet_protocol_version",
@@ -57,9 +65,27 @@ class ReleaseManifest:
         _digest(self.sbom_sha256, "sbom_sha256")
         _digest(self.provenance_sha256, "provenance_sha256")
         _digest(self.constitution_sha256, "constitution_sha256")
+        if self.artifact_sha256 is not None:
+            _digest(self.artifact_sha256, "artifact_sha256")
+        if (self.parent_release_id is None) != (
+            self.parent_manifest_sha256 is None
+        ):
+            raise ValueError(
+                "parent_release_id and parent_manifest_sha256 must be supplied together"
+            )
+        if self.parent_release_id is not None:
+            if _RELEASE_ID.fullmatch(self.parent_release_id) is None:
+                raise ValueError("parent_release_id must be path-safe")
+            _digest(
+                self.parent_manifest_sha256,
+                "parent_manifest_sha256",
+            )
         if type(self.state_schema_min) is not int or self.state_schema_min < 1:
             raise ValueError("state_schema_min must be a positive integer")
-        if type(self.state_schema_max) is not int or self.state_schema_max < self.state_schema_min:
+        if (
+            type(self.state_schema_max) is not int
+            or self.state_schema_max < self.state_schema_min
+        ):
             raise ValueError("state_schema_max must be >= state_schema_min")
         if (
             type(self.configuration_schema_version) is not int
@@ -107,6 +133,9 @@ class ReleaseManifest:
             "constitution_sha256": self.constitution_sha256,
             "configuration_schema_version": self.configuration_schema_version,
             "created_at": self.created_at.astimezone(timezone.utc).isoformat(),
+            "artifact_sha256": self.artifact_sha256,
+            "parent_release_id": self.parent_release_id,
+            "parent_manifest_sha256": self.parent_manifest_sha256,
             "model_id": self.model_id,
             "model_sha256": self.model_sha256,
             "asset_sha256": sorted(self.asset_sha256),
@@ -117,6 +146,20 @@ class ReleaseManifest:
             separators=(",", ":"),
             ensure_ascii=False,
         ).encode("utf-8")
+
+    @classmethod
+    def from_canonical_bytes(cls, payload: bytes) -> "ReleaseManifest":
+        if not isinstance(payload, bytes):
+            raise TypeError("payload must be bytes")
+        data = json.loads(payload.decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("release manifest must be a JSON object")
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["asset_sha256"] = tuple(
+            (str(name), str(digest))
+            for name, digest in data.get("asset_sha256", ())
+        )
+        return cls(**data)
 
     @property
     def manifest_sha256(self) -> str:
