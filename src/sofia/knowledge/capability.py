@@ -19,8 +19,17 @@ class KnowledgeCapabilitySet:
         )
     def execute(self,request:CapabilityRequest)->Any:
         p=dict(request.parameters); name=request.capability.name
-        if name=="knowledge.search": return self.service.search(p["query"],limit=p.get("limit",10))
-        if name=="knowledge.document": return self.service.document(p["document_id"])
+        principal_id=p.pop("__principal_id",None)
+        audience_id=p.pop("__audience_id",None)
+        p.pop("__audience_kind",None)
+        if name=="knowledge.search": return self.service.search(
+            p["query"],limit=p.get("limit",10),
+            principal_id=principal_id,audience_id=audience_id,
+        )
+        if name=="knowledge.document": return self.service.document(
+            p["document_id"],
+            principal_id=principal_id,audience_id=audience_id,
+        )
         if name=="knowledge.ingest.text": return self.service.ingest_text(p["path"],version=p.get("version","local"))
         if name=="knowledge.ingest.pdf": return self.service.ingest_pdf(p["path"],version=p.get("version","local"))
         if name=="knowledge.document.write": return self.service.write_document(p["path"],p["content"],overwrite=bool(p.get("overwrite",False)))
