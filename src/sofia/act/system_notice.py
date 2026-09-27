@@ -149,24 +149,43 @@ class SystemNoticeQueue:
         destination: str,
         now: datetime,
     ) -> History:
-        rows = db.execute(
+        has_delivery_attempts = db.execute(
             """
-            SELECT notice_id AS candidate_id,finished_at
-            FROM act_system_notice
-            WHERE recipient_id=? AND channel=? AND destination=?
-              AND status='delivered'
-            UNION ALL
-            SELECT message_id AS candidate_id,finished_at
-            FROM act_delivery_attempts
-            WHERE recipient_id=? AND channel=? AND destination=?
-              AND status='delivered'
-            ORDER BY finished_at,candidate_id
-            """,
-            (
-                recipient_id, channel, destination,
-                recipient_id, channel, destination,
-            ),
-        ).fetchall()
+            SELECT 1
+            FROM sqlite_master
+            WHERE type='table' AND name='act_delivery_attempts'
+            """
+        ).fetchone() is not None
+        if has_delivery_attempts:
+            rows = db.execute(
+                """
+                SELECT notice_id AS candidate_id,finished_at
+                FROM act_system_notice
+                WHERE recipient_id=? AND channel=? AND destination=?
+                  AND status='delivered'
+                UNION ALL
+                SELECT message_id AS candidate_id,finished_at
+                FROM act_delivery_attempts
+                WHERE recipient_id=? AND channel=? AND destination=?
+                  AND status='delivered'
+                ORDER BY finished_at,candidate_id
+                """,
+                (
+                    recipient_id, channel, destination,
+                    recipient_id, channel, destination,
+                ),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                """
+                SELECT notice_id AS candidate_id,finished_at
+                FROM act_system_notice
+                WHERE recipient_id=? AND channel=? AND destination=?
+                  AND status='delivered'
+                ORDER BY finished_at,candidate_id
+                """,
+                (recipient_id, channel, destination),
+            ).fetchall()
         times = [
             datetime.fromisoformat(row["finished_at"]).astimezone(timezone.utc)
             for row in rows
