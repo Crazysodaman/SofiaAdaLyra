@@ -275,24 +275,43 @@ class HabitStore:
         end: datetime,
     ) -> CoverageState:
         """Return the weakest overlapping coverage; absence without coverage is unknown."""
+        start_iso = _utc(start)
+        end_iso = _utc(end)
         with closing(self._connect()) as db:
             rows = db.execute(
                 """
-                SELECT state FROM habit_coverage
+                SELECT started_at,ended_at,state FROM habit_coverage
                 WHERE principal_id=? AND kind=?
-                  AND started_at<=? AND ended_at>=?
-                ORDER BY ended_at DESC
+                  AND ended_at>? AND started_at<?
+                ORDER BY started_at,ended_at
                 """,
-                (principal_id, kind, _utc(start), _utc(end)),
+                (principal_id, kind, start_iso, end_iso),
             ).fetchall()
         if not rows:
             return CoverageState.UNAVAILABLE
-        states = {CoverageState(row["state"]) for row in rows}
-        if CoverageState.UNAVAILABLE in states:
-            return CoverageState.UNAVAILABLE
-        if CoverageState.PARTIAL in states:
+
+        requested_start = datetime.fromisoformat(start_iso)
+        requested_end = datetime.fromisoformat(end_iso)
+        covered = []
+        for row in rows:
+            if CoverageState(row["state"]) is not CoverageState.COVERED:
+                continue
+            left = max(requested_start, datetime.fromisoformat(row["started_at"]))
+            right = min(requested_end, datetime.fromisoformat(row["ended_at"]))
+            if right > left:
+                covered.append((left, right))
+        if not covered:
             return CoverageState.PARTIAL
-        return CoverageState.COVERED
+
+        cursor = requested_start
+        for left, right in covered:
+            if left > cursor:
+                return CoverageState.PARTIAL
+            if right > cursor:
+                cursor = right
+            if cursor >= requested_end:
+                return CoverageState.COVERED
+        return CoverageState.PARTIAL
 
     def suppressed(
         self,
