@@ -15,7 +15,8 @@ def test_startup_command_bootstraps_tray_from_package_root():
     assert "sofia.ui.tray_agent import main" in command
     assert "sys.path.insert(0" in command
     assert repr(str(windows_startup._package_root())) in command
-    assert command.startswith('"')
+    assert " -c " in command
+    assert "pythonw.exe" in command.casefold() or "python.exe" in command.casefold()
 
 
 def test_package_root_contains_sofia_package():
