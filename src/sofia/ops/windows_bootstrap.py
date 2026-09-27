@@ -220,7 +220,13 @@ try {{
         throw "Fleet agent exited during startup. $Text"
     }}
     $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue | Where-Object {{ $_.OwningProcess -eq $Process.Id }} | Select-Object -First 1
-    if ($null -eq $Listener) {{ throw "Fleet agent is not listening on the approved port." }}
+    if ($null -eq $Listener) {{
+        $Text = if (Test-Path $Stderr) {{ (Get-Content $Stderr -Raw).Trim() }} else {{ "" }}
+        if ($Text) {{
+            throw "Fleet agent is not listening on the approved port. stderr: $Text"
+        }}
+        throw "Fleet agent is not listening on the approved port and produced no stderr."
+    }}
 
     Set-Content (Join-Path $Root "agent.pid") ([string]$Process.Id) -Encoding ASCII
     Save-Receipt @{{
@@ -301,7 +307,15 @@ class WindowsCimBootstrapInstaller:
         self._active_remote_stage_path = remote_stage
         (stage / "certs").mkdir(parents=True, exist_ok=False)
         (stage / "state").mkdir(parents=True, exist_ok=True)
-        shutil.copy2(self.bundle_directory / "agent.json", stage / "agent.json")
+        agent_source = self.bundle_directory / "agent.json"
+        agent_payload = json.loads(agent_source.read_text(encoding="utf-8-sig"))
+        if not isinstance(agent_payload, dict):
+            raise ValueError("Fleet agent config must be a JSON object")
+        agent_payload["listen_port"] = self.listen_port
+        (stage / "agent.json").write_text(
+            json.dumps(agent_payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         for name in ("fleet-ca.pem", "artemis-server.pem", "artemis-server-key.pem"):
             shutil.copy2(self.bundle_directory / "certs" / name, stage / "certs" / name)
         shutil.copy2(self.wheel_path, stage / self.wheel_path.name)
