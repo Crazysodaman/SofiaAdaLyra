@@ -262,10 +262,20 @@ class InteractiveConversationService(EmotionalConversationService):
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
 
-    def respond(self, content: str) -> CognitiveResponse:
+    def respond(
+        self,
+        content: str,
+        *,
+        principal=None,
+        audience=None,
+    ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
         if not isinstance(content, str):
-            return super().respond(content)
+            return super().respond(
+                content,
+                principal=principal,
+                audience=audience,
+            )
         if mixed_interaction_control(content):
             return self._guarded_reply(content, MIXED_CONTROL_REPLY)
         if unsupported_composite_gesture(content):
@@ -284,7 +294,11 @@ class InteractiveConversationService(EmotionalConversationService):
             )
             if candidate is not None and InteractionLedger(configuration.state_path).stopped(self._session.id):
                 return self._guarded_reply(content, STOPPED_GESTURE_REPLY, stopped_gesture=True)
-        return super().respond(content)
+        return super().respond(
+            content,
+            principal=principal,
+            audience=audience,
+        )
 
     def _should_record_legacy_affection(self, user) -> bool:
         # Old emotional cues must not turn a hypothetical, compound sentence,
