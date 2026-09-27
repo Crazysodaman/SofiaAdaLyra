@@ -103,3 +103,16 @@ __all__ += ["HeadlessPresentationRoutine", "PresentationRoutineResult"]
 from .self_fact_query import AvatarSelfFactAnswer, AvatarSelfFactResolver
 
 __all__ += ["AvatarSelfFactAnswer", "AvatarSelfFactResolver"]
+
+
+from .influence import (
+    AvatarInfluenceProposal,
+    propose_avatar_influence,
+    wardrobe_emotion_influences,
+)
+
+__all__ += [
+    "AvatarInfluenceProposal",
+    "propose_avatar_influence",
+    "wardrobe_emotion_influences",
+]
