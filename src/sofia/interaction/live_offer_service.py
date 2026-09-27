@@ -22,6 +22,7 @@ from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.architecture_compare import OFFER
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
 from sofia.interaction.decision_expression import from_reviewed_action
+from sofia.social.model import PrincipalContext
 from sofia.interaction.trusted_offer_gate import (
     GuardedOfferResult, _policy_gate, run_guarded_offer,
 )
@@ -40,7 +41,12 @@ def staged_offers_enabled() -> bool:
     raise ValueError(_ENV + ' must be 1 or 0 (also accepts true/false).')
 
 
-def _canonical_offer_request(runtime, conversation_request):
+def _canonical_offer_request(
+    runtime,
+    conversation_request,
+    *,
+    principal: PrincipalContext | None,
+):
     """Use the existing runtime's verified state and configured assembler.
 
     Keep the model setting, canonical self-state, bounded memories, emotional
@@ -59,6 +65,7 @@ def _canonical_offer_request(runtime, conversation_request):
         runtime_continuity=runtime.runtime_continuity,
         workspace_changes=runtime.workspace_changes,
         operational_self_model=runtime.operational_self_model,
+        principal=principal,
     )
     assembled = runtime.cognitive_system.context_assembler.assemble(
         context, tools=(),
@@ -68,7 +75,12 @@ def _canonical_offer_request(runtime, conversation_request):
     return assembled
 
 
-def respond_staged_offer(service, content: str) -> CognitiveResponse:
+def respond_staged_offer(
+    service,
+    content: str,
+    *,
+    principal: PrincipalContext | None = None,
+) -> CognitiveResponse:
     """Persist one exact USER offer, then only an atomically releasable reply.
 
     A blocked offer is checked BEFORE ordinary context assembly, which may
@@ -79,6 +91,7 @@ def respond_staged_offer(service, content: str) -> CognitiveResponse:
         raise ValueError('Only the exact grammar-reviewed hug offer is supported.')
     if service._session is None:
         raise RuntimeError('A started conversation session is required.')
+    principal = service._bind_principal(principal)
     runtime = service._runtime
     config = runtime.configuration
     if (config.provider.provider != 'ollama'
@@ -107,7 +120,11 @@ def respond_staged_offer(service, content: str) -> CognitiveResponse:
                 result = GuardedOfferResult(status=blocked)
             else:
                 conversation_request = service._build_request()
-                base = _canonical_offer_request(runtime, conversation_request)
+                base = _canonical_offer_request(
+                    runtime,
+                    conversation_request,
+                    principal=principal,
+                )
                 result = run_guarded_offer(
                     provider=runtime.cognitive_system.engine,
                     base=base, frame=frame, state_path=config.state_path,
