@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from pathlib import Path
 import os
 from uuid import uuid4
 
@@ -8,6 +9,8 @@ from sofia.act.delivery import DeliveryOutcome, DeliveryPayload, SendResult
 from sofia.act.outreach import Policy
 from sofia.application.act_service import SofiaActService
 from sofia.integrations.home_assistant import HomeAssistantAdapter
+from sofia.machine.discovery import create_machine_discovery
+from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
@@ -20,6 +23,20 @@ def _enabled(name: str) -> bool:
     raise ValueError(
         f"{name} must be 1 or 0 (also accepts true/false)"
     )
+
+
+def local_act_busy(state_path: str | Path) -> bool:
+    """Respect current local host gaming/busy/DND evidence when available."""
+    try:
+        machine_id = create_machine_discovery().discover().identity.machine_id
+        state = HostActivityStore(state_path).state(machine_id)
+    except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError):
+        return False
+    return state.effective in {
+        ActivityMode.GAMING,
+        ActivityMode.BUSY,
+        ActivityMode.DO_NOT_DISTURB,
+    }
 
 
 def configure_act_delivery_from_environment(
@@ -95,6 +112,10 @@ def configure_act_delivery_from_environment(
             quiet_end_utc=int(
                 os.environ.get("SOFIA_ACT_QUIET_END_UTC", "8")
             ),
+            quiet_timezone=os.environ.get(
+                "SOFIA_ACT_QUIET_TIMEZONE",
+                "UTC",
+            ).strip() or "UTC",
             min_interval=timedelta(
                 minutes=int(
                     os.environ.get(
