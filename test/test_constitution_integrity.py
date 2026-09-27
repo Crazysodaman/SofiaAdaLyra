@@ -1,4 +1,5 @@
 ﻿import pytest
+from hashlib import sha256
 from pathlib import Path
 
 from sofia.constitution.integrity import (
@@ -90,3 +91,29 @@ def test_hash_mismatch_is_rejected(tmp_path):
 
     with pytest.raises(ConstitutionIntegrityError):
         verifier.verify(constitution)
+
+
+def test_constitution_hash_is_stable_across_lf_and_crlf_checkouts(tmp_path):
+    lf = "# Test Constitution\n\nOne rule.\n"
+    crlf = lf.replace("\n", "\r\n")
+    lf_path = tmp_path / "lf.md"
+    crlf_path = tmp_path / "crlf.md"
+    lf_path.write_bytes(lf.encode("utf-8"))
+    crlf_path.write_bytes(crlf.encode("utf-8"))
+
+    expected = sha256(lf.encode("utf-8")).hexdigest()
+    assert ConstitutionStore(lf_path).load().content_hash == expected
+    assert ConstitutionStore(crlf_path).load().content_hash == expected
+    assert ConstitutionStore(crlf_path).load().content == lf
+
+
+def test_constitution_hash_still_detects_real_content_changes(tmp_path):
+    original = tmp_path / "original.md"
+    changed = tmp_path / "changed.md"
+    original.write_text("rule one\n", encoding="utf-8", newline="\n")
+    changed.write_text("rule two\n", encoding="utf-8", newline="\n")
+
+    assert (
+        ConstitutionStore(original).load().content_hash
+        != ConstitutionStore(changed).load().content_hash
+    )
