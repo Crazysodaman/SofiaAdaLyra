@@ -281,6 +281,39 @@ class ConversationService:
             principal=principal,
         )
 
+    def _after_user_message_saved(
+        self,
+        *,
+        message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> None:
+        """Run all continuity hooks only after the user turn is durable."""
+        learning = getattr(self, "_learning_coordinator", None)
+        if learning is not None:
+            learning.observe_user_message(
+                message=message,
+                principal=principal,
+            )
+
+        habit = getattr(self, "_habit_continuity", None)
+        if habit is not None and principal is not None:
+            environment = self._runtime.environment_service.snapshot(
+                now=message.created_at,
+                refresh_providers=False,
+            )
+            habit.observe_conversation(
+                message=message,
+                principal=principal,
+                environment=environment,
+            )
+
+        if principal is not None:
+            self._relationship_store.observe(
+                principal=principal,
+                evidence_ref=message.id,
+                occurred_at=message.created_at,
+            )
+
     def respond(
         self,
         content: str,
@@ -325,32 +358,10 @@ class ConversationService:
         )
 
         self._conversation_store.save(user_message)
-
-        learning = getattr(self, "_learning_coordinator", None)
-        if learning is not None:
-            learning.observe_user_message(
-                message=user_message,
-                principal=principal,
-            )
-
-        habit = getattr(self, "_habit_continuity", None)
-        if habit is not None and principal is not None:
-            environment = self._runtime.environment_service.snapshot(
-                now=user_message.created_at,
-                refresh_providers=False,
-            )
-            habit.observe_conversation(
-                message=user_message,
-                principal=principal,
-                environment=environment,
-            )
-
-        if principal is not None:
-            self._relationship_store.observe(
-                principal=principal,
-                evidence_ref=user_message.id,
-                occurred_at=user_message.created_at,
-            )
+        self._after_user_message_saved(
+            message=user_message,
+            principal=principal,
+        )
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
