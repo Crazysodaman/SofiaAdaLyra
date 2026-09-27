@@ -68,11 +68,19 @@ class CapabilityInventory:
                    for item in self.capabilities)
 
 
-def inventory_is_current(inventory: CapabilityInventory, *, now: datetime,
-                         max_age: timedelta) -> bool:
+def inventory_is_current(
+    inventory: CapabilityInventory,
+    *,
+    now: datetime,
+    max_age: timedelta,
+    max_future_skew: timedelta = timedelta(0),
+) -> bool:
     if not isinstance(inventory, CapabilityInventory):
         raise TypeError("inventory must be a CapabilityInventory.")
     _aware(now, "now")
     if not isinstance(max_age, timedelta) or max_age <= timedelta(0):
         raise ValueError("max_age must be a positive timedelta.")
-    return timedelta(0) <= now - inventory.observed_at <= max_age
+    if not isinstance(max_future_skew, timedelta) or max_future_skew < timedelta(0):
+        raise ValueError("max_future_skew must be a nonnegative timedelta.")
+    age = now - inventory.observed_at
+    return -max_future_skew <= age <= max_age
