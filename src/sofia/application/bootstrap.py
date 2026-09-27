@@ -17,6 +17,7 @@ from sofia.application.act_service import SofiaActService
 from sofia.application.act_runtime import configure_act_delivery_from_environment
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
+from sofia.application.memory_review import MemoryReviewService
 from sofia.application.release_runtime import create_release_manager
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
@@ -66,6 +67,16 @@ class SofiaApplication:
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime, conversation_store=conversation_store,
         )
+        candidate_store = self._runtime.memory_system.candidate_store
+        if candidate_store is None:
+            raise SofiaApplicationError(
+                "production reviewed-memory candidate store is required"
+            )
+        self._memory_review = MemoryReviewService(
+            conversation_store=conversation_store,
+            candidate_store=candidate_store,
+            state_path=configuration.state_path,
+        )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
         )
@@ -102,6 +113,10 @@ class SofiaApplication:
     @property
     def act(self) -> SofiaActService:
         return self._act_service
+
+    @property
+    def memory_review(self) -> MemoryReviewService:
+        return self._memory_review
 
     @property
     def background_coordinator(
