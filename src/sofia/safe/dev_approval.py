@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
+from sofia.safe.audit import AuditChain
 
 
 class DevApprovalVerifier:
@@ -19,6 +20,7 @@ class DevApprovalVerifier:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.audit = AuditChain(self.path)
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -64,6 +66,22 @@ class DevApprovalVerifier:
                         approval.approved_at.astimezone(timezone.utc).isoformat(),
                         approval.expires_at.astimezone(timezone.utc).isoformat(),
                     ),
+                )
+                self.audit.append_in_transaction(
+                    db,
+                    actor_id=approval.approved_by,
+                    event_type="dev.approval.recorded",
+                    payload={
+                        "approval_id": approval.approval_id,
+                        "operation": approval.operation.value,
+                        "proposal_id": approval.proposal_id,
+                        "request_fingerprint": approval.request_fingerprint,
+                        "expires_at": approval.expires_at.astimezone(
+                            timezone.utc
+                        ).isoformat(),
+                    },
+                    occurred_at=approval.approved_at,
+                    event_id=f"dev-approval-recorded:{approval.approval_id}",
                 )
 
     def consume(
@@ -135,4 +153,17 @@ class DevApprovalVerifier:
                 )
                 if changed.rowcount != 1:
                     raise PermissionError("DEV approval could not be consumed")
+                self.audit.append_in_transaction(
+                    db,
+                    actor_id=approval.approved_by,
+                    event_type="dev.approval.consumed",
+                    payload={
+                        "approval_id": approval.approval_id,
+                        "operation": approval.operation.value,
+                        "proposal_id": approval.proposal_id,
+                        "request_fingerprint": approval.request_fingerprint,
+                    },
+                    occurred_at=moment,
+                    event_id=f"dev-approval-consumed:{approval.approval_id}",
+                )
                 return approval
