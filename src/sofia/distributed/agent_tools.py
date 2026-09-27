@@ -10,6 +10,7 @@ from sofia.integrations.hyperv import HyperVAdapter
 from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.machine.hardware import create_hardware_discovery
+from sofia.ops.local_telemetry import collect_local_telemetry
 from sofia.system.capability import create_local_system_backend
 from sofia.system.model import SystemCapabilityName,SystemCapabilityRequest
 
@@ -46,6 +47,11 @@ def create_default_agent_dispatcher()->RemoteAgentDispatcher:
 
     hardware=create_hardware_discovery()
     dispatcher.register("system.inspect","hardware",lambda p:_plain(hardware.discover()))
+    dispatcher.register(
+        "ops.telemetry",
+        "latest",
+        lambda p: _plain(collect_local_telemetry()),
+    )
 
     maintenance=LocalMaintenanceAdapter()
     dispatcher.register("service.manage","start",lambda p:_plain(maintenance.service(str(p["service"]),"start")))
