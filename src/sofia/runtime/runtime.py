@@ -74,6 +74,7 @@ from sofia.self_model.operational import (
 )
 from sofia.social.model import PrincipalContext
 from sofia.state.plane import StatePlane
+from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
 _PACKAGE_NAME = "sofia-ada-lyra"
