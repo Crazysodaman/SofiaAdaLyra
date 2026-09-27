@@ -23,14 +23,14 @@ class BackgroundBudget:
         self,
         state_path: Path,
         *,
-        max_attempts_per_utc_day: int = 48,
+        max_attempts_per_utc_day: int = 768,
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be a Path")
         if type(max_attempts_per_utc_day) is not int or not (
-            1 <= max_attempts_per_utc_day <= 288
+            1 <= max_attempts_per_utc_day <= 1440
         ):
-            raise ValueError("max_attempts_per_utc_day must be in 1..288")
+            raise ValueError("max_attempts_per_utc_day must be in 1..1440")
         self.path = state_path
         self.max_attempts_per_utc_day = max_attempts_per_utc_day
         with closing(self._connect()) as db:
@@ -187,6 +187,8 @@ class ApplicationBackgroundCoordinator:
             ),
         )
         self._act_delivery: Callable[[datetime], object | None] | None = None
+        self._act_last_run: datetime | None = None
+        self._act_interval_seconds = 300.0
         self._tasks: dict[str, Callable[[datetime], object | None]] = {}
         self._task_intervals: dict[str, float] = {}
         self._task_last_run: dict[str, datetime] = {}
@@ -203,6 +205,8 @@ class ApplicationBackgroundCoordinator:
         if callback is not None and not callable(callback):
             raise TypeError("ACT delivery callback must be callable or None")
         self._act_delivery = callback
+        if callback is None:
+            self._act_last_run = None
 
     def set_task(
         self,
@@ -346,11 +350,18 @@ class ApplicationBackgroundCoordinator:
                     raise
 
         if self._act_delivery is not None:
+            if (
+                self._act_last_run is not None
+                and (moment - self._act_last_run).total_seconds()
+                    < self._act_interval_seconds
+            ):
+                return "background_idle"
             claim_id = self.budget.claim("act_delivery", now=moment)
             if claim_id is None:
                 return "budget_busy"
             try:
                 result = self._act_delivery(moment)
+                self._act_last_run = moment
                 self.budget.finish(claim_id, now=moment)
                 return (
                     "act_idle"
@@ -358,6 +369,7 @@ class ApplicationBackgroundCoordinator:
                     else "act_attempted"
                 )
             except Exception as exc:
+                self._act_last_run = moment
                 self.budget.finish(
                     claim_id,
                     now=datetime.now(timezone.utc),
