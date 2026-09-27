@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 import json
+import os
 import re
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
@@ -43,6 +44,20 @@ _BOUNDARY_ACTION = (
     'That represented action conflicts with a recorded interaction boundary, '
     'so I have not accepted or narrated it as completed. We can keep talking.'
 )
+
+
+def _sensitive_habit_learning_enabled() -> bool:
+    value = os.environ.get(
+        "SOFIA_HABIT_SENSITIVE_INTERACTIONS",
+        "0",
+    ).strip().lower()
+    if value in ("0", "false", "off", ""):
+        return False
+    if value in ("1", "true", "on"):
+        return True
+    raise ValueError(
+        "SOFIA_HABIT_SENSITIVE_INTERACTIONS must be 1 or 0"
+    )
 
 
 def action_prompt(intent) -> str:
@@ -201,6 +216,21 @@ class ExpandedConversationService(InteractiveConversationService):
                 semantic_id = context.semantic_id
                 region_id = context.region_id
             if semantic_id is not None:
+                classification = interaction_class(
+                    semantic_id,
+                    region_id=region_id,
+                )
+                principal = self.current_principal
+                if principal is not None:
+                    self.habit_learning.record_interaction_observation(
+                        principal=principal,
+                        message_id=user.id,
+                        semantic_id=semantic_id,
+                        interaction_class_value=classification.value,
+                        occurred_at=user.created_at,
+                        sensitive=classification.value in ("intimate", "sexual"),
+                        allow_sensitive=_sensitive_habit_learning_enabled(),
+                    )
                 record_interaction_appraisal(
                     semantic_id=semantic_id,
                     region_id=region_id,
