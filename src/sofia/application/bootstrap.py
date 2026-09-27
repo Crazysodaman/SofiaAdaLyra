@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -251,9 +252,7 @@ class SofiaApplication:
                 coordinator.set_heartbeat(publish_heartbeat)
                 coordinator.start()
                 publish_heartbeat(
-                    __import__("datetime").datetime.now(
-                        __import__("datetime").timezone.utc
-                    ),
+                    datetime.now(timezone.utc),
                     True,
                 )
                 self._background = coordinator
