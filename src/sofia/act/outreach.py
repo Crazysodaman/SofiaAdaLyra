@@ -10,6 +10,18 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
 
 
+class OutreachCategory(str, Enum):
+    SOCIAL = "social"
+    OPERATIONAL = "operational"
+
+
+class Importance(str, Enum):
+    TRIVIAL = "trivial"
+    ROUTINE = "routine"
+    IMPORTANT = "important"
+    CRITICAL = "critical"
+
+
 class Decision(str, Enum):
     ELIGIBLE_FOR_AUTHORIZATION = "eligible_for_authorization"
     DISABLED = "disabled"
@@ -45,6 +57,9 @@ class Candidate:
     evidence_ids: tuple[str, ...]
     created_at: datetime
     expires_at: datetime
+    category: OutreachCategory = OutreachCategory.SOCIAL
+    importance: Importance = Importance.ROUTINE
+    salience: float = 0.5
 
     def __post_init__(self) -> None:
         _id(self.candidate_id, "candidate_id")
@@ -61,6 +76,12 @@ class Candidate:
             raise ValueError("duplicate evidence IDs")
         if _utc(self.expires_at) <= _utc(self.created_at):
             raise ValueError("candidate must expire after creation")
+        if not isinstance(self.category, OutreachCategory):
+            raise TypeError("category must be OutreachCategory")
+        if not isinstance(self.importance, Importance):
+            raise TypeError("importance must be Importance")
+        if not 0.0 <= self.salience <= 1.0:
+            raise ValueError("salience must be in [0,1]")
 
 
 @dataclass(frozen=True)
@@ -72,8 +93,13 @@ class Policy:
     quiet_start_local: int = 22
     quiet_end_local: int = 8
     timezone_name: str = "UTC"
-    min_interval: timedelta = timedelta(hours=6)
-    max_daily: int = 1
+    min_interval: timedelta = timedelta(hours=2)
+    max_daily: int = 4
+    social_min_interval: timedelta = timedelta(hours=6)
+    operational_min_interval: timedelta = timedelta(minutes=30)
+    social_max_daily: int = 1
+    operational_max_daily: int = 8
+    allow_critical_operational_during_quiet: bool = True
 
     def __post_init__(self) -> None:
         _id(self.recipient_id, "recipient_id")
@@ -90,10 +116,22 @@ class Policy:
             ZoneInfo(self.timezone_name)
         except ZoneInfoNotFoundError as exc:
             raise ValueError("timezone_name must identify an installed timezone") from exc
-        if not isinstance(self.min_interval, timedelta) or self.min_interval < timedelta(0):
-            raise ValueError("min_interval must be nonnegative")
-        if type(self.max_daily) is not int or self.max_daily < 1:
-            raise ValueError("max_daily must be positive")
+        for name in (
+            "min_interval",
+            "social_min_interval",
+            "operational_min_interval",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, timedelta) or value < timedelta(0):
+                raise ValueError(f"{name} must be nonnegative")
+        for name in ("max_daily", "social_max_daily", "operational_max_daily"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 1:
+                raise ValueError(f"{name} must be positive")
+        if type(self.allow_critical_operational_during_quiet) is not bool:
+            raise TypeError(
+                "allow_critical_operational_during_quiet must be boolean"
+            )
 
     def local_time(self, now: datetime) -> datetime:
         return _utc(now).astimezone(ZoneInfo(self.timezone_name))
@@ -117,6 +155,10 @@ class History:
     last_delivered_at: datetime | None = None
     delivered_today: int = 0
     delivered_day_utc: str | None = None
+    social_last_delivered_at: datetime | None = None
+    social_delivered_today: int = 0
+    operational_last_delivered_at: datetime | None = None
+    operational_delivered_today: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.delivered_candidate_ids, frozenset):
@@ -136,6 +178,20 @@ class History:
                 raise ValueError("delivered_day_utc must be canonical ISO date")
         if self.delivered_today and self.delivered_day_utc is None:
             raise ValueError("nonzero daily count requires day")
+        for name in (
+            "social_last_delivered_at",
+            "operational_last_delivered_at",
+        ):
+            value = getattr(self, name)
+            if value is not None:
+                _utc(value)
+        for name in (
+            "social_delivered_today",
+            "operational_delivered_today",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"{name} must be nonnegative")
 
 
 def evaluate(
@@ -173,19 +229,52 @@ def evaluate(
     if moment >= _utc(candidate.expires_at):
         return Decision.STALE
 
-    if policy.is_quiet(moment):
+    critical_operational = (
+        candidate.category is OutreachCategory.OPERATIONAL
+        and candidate.importance is Importance.CRITICAL
+        and policy.allow_critical_operational_during_quiet
+    )
+    if policy.is_quiet(moment) and not critical_operational:
         return Decision.QUIET_HOURS
 
     if history.last_delivered_at is not None:
         elapsed = moment - _utc(history.last_delivered_at)
         if elapsed < timedelta(0):
             return Decision.CLOCK_UNCERTAIN
-        if elapsed < policy.min_interval:
+        if elapsed < policy.min_interval and not critical_operational:
             return Decision.TOO_SOON
 
     if (
         history.delivered_day_utc == moment.date().isoformat()
         and history.delivered_today >= policy.max_daily
+        and not critical_operational
+    ):
+        return Decision.DAILY_LIMIT
+
+    if candidate.category is OutreachCategory.SOCIAL:
+        category_last = history.social_last_delivered_at
+        category_count = history.social_delivered_today
+        category_interval = policy.social_min_interval
+        category_limit = policy.social_max_daily
+        if candidate.importance is Importance.TRIVIAL and candidate.salience < 0.55:
+            return Decision.TOO_SOON
+    else:
+        category_last = history.operational_last_delivered_at
+        category_count = history.operational_delivered_today
+        category_interval = policy.operational_min_interval
+        category_limit = policy.operational_max_daily
+
+    if category_last is not None:
+        elapsed = moment - _utc(category_last)
+        if elapsed < timedelta(0):
+            return Decision.CLOCK_UNCERTAIN
+        if elapsed < category_interval and not critical_operational:
+            return Decision.TOO_SOON
+
+    if (
+        history.delivered_day_utc == moment.date().isoformat()
+        and category_count >= category_limit
+        and not critical_operational
     ):
         return Decision.DAILY_LIMIT
 
