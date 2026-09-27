@@ -40,7 +40,13 @@ def staged_offers_enabled() -> bool:
     raise ValueError(_ENV + ' must be 1 or 0 (also accepts true/false).')
 
 
-def _canonical_offer_request(runtime, conversation_request):
+def _canonical_offer_request(
+    runtime,
+    conversation_request,
+    *,
+    principal=None,
+    audience=None,
+):
     """Use the existing runtime's verified state and configured assembler.
 
     Keep the model setting, canonical self-state, bounded memories, emotional
@@ -49,6 +55,8 @@ def _canonical_offer_request(runtime, conversation_request):
     """
     context = CognitiveContext(
         request=conversation_request,
+        principal=principal,
+        audience=audience,
         identity=runtime.identity,
         personality=runtime.personality,
         constitution=runtime.constitution,
@@ -68,7 +76,13 @@ def _canonical_offer_request(runtime, conversation_request):
     return assembled
 
 
-def respond_staged_offer(service, content: str) -> CognitiveResponse:
+def respond_staged_offer(
+    service,
+    content: str,
+    *,
+    principal=None,
+    audience=None,
+) -> CognitiveResponse:
     """Persist one exact USER offer, then only an atomically releasable reply.
 
     A blocked offer is checked BEFORE ordinary context assembly, which may
@@ -107,7 +121,12 @@ def respond_staged_offer(service, content: str) -> CognitiveResponse:
                 result = GuardedOfferResult(status=blocked)
             else:
                 conversation_request = service._build_request()
-                base = _canonical_offer_request(runtime, conversation_request)
+                base = _canonical_offer_request(
+                    runtime,
+                    conversation_request,
+                    principal=principal,
+                    audience=audience,
+                )
                 result = run_guarded_offer(
                     provider=runtime.cognitive_system.engine,
                     base=base, frame=frame, state_path=config.state_path,
