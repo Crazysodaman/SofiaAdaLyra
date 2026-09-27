@@ -102,6 +102,10 @@ def create_ca(
             x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
             critical=False,
         )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(key.public_key()),
+            critical=False,
+        )
         .sign(key, hashes.SHA256())
     )
     _write_private_key(private_key_path, key)
@@ -199,6 +203,12 @@ def issue_leaf(
         .add_extension(x509.ExtendedKeyUsage([eku]), critical=False)
         .add_extension(
             x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(
+                ca_certificate.public_key()
+            ),
             critical=False,
         )
     )
