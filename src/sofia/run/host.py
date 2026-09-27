@@ -15,6 +15,7 @@ from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.run.lease import LocalRunLeaseStore, RunLease
 from sofia.run.release import ReleaseRecoveryHook
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.component_schema import verify_production_component_schemas
 from sofia.run.supervisor import (
     LocalRuntimeSupervisor,
     ManagedRuntimeBackend,
@@ -113,6 +114,7 @@ class RunSupervisorHost:
             create_default_configuration(),
             state_path=self.state_path,
         )
+        verify_production_component_schemas(self.state_path)
         lease_store = LocalRunLeaseStore(self.state_path)
         manager = create_release_manager(
             configuration=configuration,
