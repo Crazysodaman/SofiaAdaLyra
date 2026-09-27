@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 import sqlite3
 
 from sofia.config import create_default_configuration
+from sofia.machine.discovery import create_machine_discovery
+from sofia.ops.activity import ActivityMode, HostActivityStore
 from .control_center import (
     DesktopControlSettings,
     DesktopControlSettingsStore,
@@ -22,6 +24,18 @@ def _ensure_state_database(path) -> None:
             pass
 
 
+def _local_host_id() -> str:
+    return create_machine_discovery().discover().identity.machine_id
+
+
+def _activity_override(mode: GameMode) -> ActivityMode:
+    return {
+        GameMode.AUTO: ActivityMode.AUTO,
+        GameMode.ON: ActivityMode.GAMING,
+        GameMode.OFF: ActivityMode.NORMAL,
+    }[mode]
+
+
 def run_settings_window() -> int:
     import tkinter as tk
     from tkinter import messagebox, ttk
@@ -29,6 +43,7 @@ def run_settings_window() -> int:
     config = create_default_configuration()
     _ensure_state_database(config.state_path)
     store = DesktopControlSettingsStore(config.state_path)
+    activity = HostActivityStore(config.state_path)
     current = store.load()
 
     root = tk.Tk()
@@ -83,7 +98,7 @@ def run_settings_window() -> int:
     ttk.Entry(chat, textvariable=pinned_endpoint).pack(anchor="w", fill="x", pady=(2, 8))
     ttk.Label(
         chat,
-        text="Fleet-auto follows the currently authoritative ready Sofía runtime. Network transport still requires an authenticated remote-chat adapter.",
+        text="Fleet-auto follows the currently authoritative ready Sofía runtime when OPS/RUN publishes a verified endpoint. Pinned mode uses the configured mTLS endpoint.",
         wraplength=680,
     ).pack(anchor="w")
 
@@ -120,17 +135,24 @@ def run_settings_window() -> int:
 
     def save() -> None:
         try:
+            selected_game_mode = GameMode(game_mode.get())
             updated = DesktopControlSettings(
                 close_to_tray=bool(close_to_tray.get()),
                 start_with_windows=bool(start_windows.get()),
-                game_mode=GameMode(game_mode.get()),
+                game_mode=selected_game_mode,
                 remote_chat_mode=RemoteChatMode(remote_mode.get()),
                 pinned_chat_endpoint=(pinned_endpoint.get().strip() or None),
                 runtime_service_name=runtime_service.get().strip(),
                 llm_service_name=llm_service.get().strip(),
             )
+            now = datetime.now(timezone.utc)
             configure_windows_startup(updated.start_with_windows)
-            store.save(updated, at=datetime.now(timezone.utc))
+            store.save(updated, at=now)
+            activity.set_override(
+                _local_host_id(),
+                _activity_override(selected_game_mode),
+                at=now,
+            )
             status.set("Saved")
         except Exception as exc:
             messagebox.showerror("Settings not saved", f"{type(exc).__name__}: {exc}", parent=root)
