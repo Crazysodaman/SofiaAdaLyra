@@ -1,0 +1,237 @@
+"""Cross-package context behavior matrix for ENVIRONMENT, EMOTION, INTERACT and AVATAR.
+
+These tests intentionally exercise equivalence classes instead of a giant
+Cartesian product. One trusted environment snapshot may influence expression,
+interaction context and presentation, but it never creates consent, durable
+emotion, renderer evidence or action authority.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
+
+from sofia.application.conversation_service import ConversationService
+from sofia.avatar.influence import propose_avatar_influence, wardrobe_emotion_influences
+from sofia.avatar.interact_bridge import HostEnvironmentEvidence
+from sofia.avatar.presentation import AppearanceState, PresentationAuthority
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_routine import Activity, OutfitPlanner
+from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.conversation.model import ConversationRole
+from sofia.embodiment.store import AvatarStore
+from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
+from sofia.environment.model import WeatherObservation
+from sofia.environment.provider import EnvironmentProviderObservation
+from sofia.environment.service import EnvironmentService
+from sofia.interaction.expanded_service import ExpandedConversationService
+from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.influence import ContinuityInfluence
+
+
+ROOT = Path(__file__).resolve().parents[1]
+AVATAR = ROOT / "src" / "sofia" / "data" / "avatar.json"
+# 03:30 UTC is 22:30 local on the previous date in America/Chicago here.
+NOW = datetime(2026, 9, 28, 3, 30, tzinfo=timezone.utc)
+
+
+class Provider:
+    name = "matrix-weather"
+
+    def __init__(self, weather: WeatherObservation | None) -> None:
+        self.weather = weather
+
+    def observe(self, *, now):
+        return EnvironmentProviderObservation(weather=self.weather)
+
+
+class FixedEnvironment:
+    def __init__(self, snapshot) -> None:
+        self.snapshot_value = snapshot
+
+    def snapshot(self, *, now=None, refresh_providers=False):
+        return self.snapshot_value
+
+
+def environment_snapshot(*, stale_weather: bool = False):
+    observed = NOW - (timedelta(hours=3) if stale_weather else timedelta(minutes=5))
+    expires = NOW - timedelta(hours=2) if stale_weather else NOW + timedelta(minutes=25)
+    weather = WeatherObservation(
+        condition="rainy",
+        observed_at=observed,
+        expires_at=expires,
+        source_id="matrix.weather",
+        location_label="Matrix site",
+        temperature_c=12.0,
+    )
+    config = EnvironmentConfiguration(
+        location=ConfiguredLocation(
+            label="Matrix site",
+            timezone="America/Chicago",
+            latitude=32.5,
+            longitude=-97.1,
+        )
+    )
+    return EnvironmentService(
+        config,
+        providers=(Provider(weather),),
+    ).snapshot(now=NOW)
+
+
+def modeled_state(tmp_path):
+    journal = EmotionalJournal(tmp_path / "matrix.db")
+    journal.record(
+        event_id="matrix-affection",
+        source="inferred",
+        evidence_ref="reviewed:matrix-affection",
+        description="Reviewed relationship evidence supports a warm modeled appraisal.",
+        emotions=("fondness",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    return journal, journal.current_state(now=NOW, subject="Sparks")
+
+
+def presentation_authority():
+    catalog = build_starter_wardrobe()
+    return catalog, PresentationAuthority(
+        catalog.wardrobe,
+        outfits={plan.outfit_id: plan.item_ids for plan in catalog.presets},
+        canonical_daily_outfit_id="engineer.signature",
+        initial_appearance=AppearanceState(
+            "long layered",
+            "deep crimson",
+            "dark violet",
+            ("engineer",),
+        ),
+    )
+
+
+def test_one_snapshot_drives_emotion_context_avatar_and_outfit_without_becoming_authority(tmp_path):
+    snapshot = environment_snapshot()
+    journal, state = modeled_state(tmp_path)
+    influence = ContinuityInfluence.from_state(
+        emotion=state,
+        environment=snapshot,
+    )
+
+    assert influence.daypart == "night"
+    assert influence.season == "autumn"
+    assert influence.weather_condition == "rainy"
+    assert influence.weather_freshness == "current"
+    assert influence.primary_emotion == "fondness"
+    assert "create permissions" in influence.prompt()
+
+    # ENVIRONMENT is contextual input, not a durable emotional-event writer.
+    assert {
+        item.name for item in journal.current_state(now=NOW, subject="Sparks").active
+    } == {"fondness"}
+
+    catalog, authority = presentation_authority()
+    avatar = propose_avatar_influence(
+        current=authority.current,
+        influence=influence,
+    )
+    assert {"local_daypart", "season", "weather", "modeled_emotion"} <= set(
+        avatar.reasons
+    )
+    assert {"late-night", "season:autumn", "weather-cozy"} <= set(
+        avatar.appearance.style_tags
+    )
+    assert "soft-smile" in avatar.expression_tags
+
+    host = HostEnvironmentEvidence.from_environment_snapshot(
+        snapshot,
+        activity=Activity.CONVERSATION,
+    )
+    context = host.planner_context(
+        emotion_influences=wardrobe_emotion_influences(influence),
+    )
+    proposal = OutfitPlanner(
+        catalog.wardrobe,
+        catalog.presets,
+    ).suggest(context)
+    assert proposal.outfit_id == "lounge.relaxed"
+
+
+def test_stale_weather_cannot_influence_avatar_or_wardrobe(tmp_path):
+    snapshot = environment_snapshot(stale_weather=True)
+    _, state = modeled_state(tmp_path)
+    influence = ContinuityInfluence.from_state(
+        emotion=state,
+        environment=snapshot,
+    )
+
+    assert influence.weather_condition == "rainy"
+    assert influence.weather_freshness == "stale"
+
+    catalog, authority = presentation_authority()
+    avatar = propose_avatar_influence(
+        current=authority.current,
+        influence=influence,
+    )
+    assert "weather" not in avatar.reasons
+    assert "weather-cozy" not in avatar.appearance.style_tags
+
+    host = HostEnvironmentEvidence.from_environment_snapshot(
+        snapshot,
+        activity=Activity.CONVERSATION,
+    )
+    assert host.weather is None
+
+
+def test_interact_receives_same_context_without_weather_or_emotion_granting_consent(
+    monkeypatch,
+    tmp_path,
+):
+    snapshot = environment_snapshot()
+    content = "I touch your chest"
+    original = CognitiveRequest(
+        messages=(CognitiveMessage(role=CognitiveRole.USER, content=content),)
+    )
+    monkeypatch.setattr(
+        ConversationService,
+        "_build_request",
+        lambda self: original,
+    )
+    user = SimpleNamespace(
+        id="matrix-user-1",
+        session_id="matrix-session-1",
+        role=ConversationRole.USER,
+        content=content,
+        created_at=NOW,
+    )
+    monkeypatch.setattr(
+        ExpandedConversationService,
+        "messages",
+        lambda self: (user,),
+    )
+
+    service = object.__new__(ExpandedConversationService)
+    service._runtime = SimpleNamespace(
+        personality=object(),
+        embodiment=AvatarStore(AVATAR).load(),
+        configuration=SimpleNamespace(state_path=tmp_path / "matrix.db"),
+        environment_service=FixedEnvironment(snapshot),
+    )
+    service._emotional_journal = EmotionalJournal(tmp_path / "matrix.db")
+    service._reflection_journal = None
+    service._clarification_journal = None
+
+    request = service._build_request()
+    system = "\n".join(
+        message.content
+        for message in request.messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+
+    assert "CONTINUITY INFLUENCE CONTEXT" in system
+    assert "Local daypart: night" in system
+    assert "Season: autumn" in system
+    assert "Weather condition: rainy" in system
+    assert "TRUSTED INTERACTION INTERPRETATION" in system
+    assert '"policy_status": "accepted"' in system
+    assert '"region_id": "chest"' in system
+    assert '"willingness_state": "undetermined"' in system
+    assert request.tools == ()
+    assert request.allow_tools is False

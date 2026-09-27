@@ -65,7 +65,10 @@ def propose_avatar_influence(
         tags.append(f"daylight:{influence.daylight}")
         reasons.append("daylight")
 
-    if influence.weather_condition:
+    if (
+        influence.weather_condition
+        and influence.weather_freshness == "current"
+    ):
         weather = influence.weather_condition.casefold()
         if any(token in weather for token in ("rain", "snow", "storm", "fog")):
             tags.append("weather-cozy")
