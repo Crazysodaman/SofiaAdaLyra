@@ -314,8 +314,28 @@ class SofiaApplication:
                     )
                     return count or None
 
+                def evaluate_expectations(now):
+                    service = self._conversation_service
+                    principal = (
+                        service._principal_context()
+                        if hasattr(service, "_principal_context")
+                        else None
+                    )
+                    if principal is None:
+                        return None
+                    count = self._habit_continuity.evaluate_expectations(
+                        principal_id=principal.principal_id,
+                        audience_id=principal.audience_id,
+                        now=now,
+                    )
+                    return count or None
+
                 coordinator.set_task("habit_analysis", analyze_habits)
-                coordinator.set_task("expectation_evaluation", decay_habits)
+                coordinator.set_task("habit_decay", decay_habits)
+                coordinator.set_task(
+                    "expectation_evaluation",
+                    evaluate_expectations,
+                )
                 runtime_id = self._runtime.runtime_id
                 if runtime_id is None:
                     raise SofiaApplicationError(
