@@ -28,6 +28,51 @@ class ActionExecutor(ABC):
         raise NotImplementedError
 
 
+class FailClosedActionExecutor(ActionExecutor):
+    """
+    Production-safe action boundary used until a concrete executor is wired.
+
+    Approval is necessary but never sufficient to prove that a side effect
+    occurred. This executor therefore refuses every approved action and emits
+    a truthful FAILED result instead of manufacturing an EXECUTED receipt.
+    """
+
+    def __init__(
+        self,
+        reason: str = "No production action executor is configured.",
+    ) -> None:
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError(
+                "FailClosedActionExecutor reason must be non-empty."
+            )
+        self._reason = reason.strip()
+
+    @property
+    def reason(self) -> str:
+        return self._reason
+
+    def execute(
+        self,
+        proposal: ActionProposal,
+    ) -> ActionExecutionResult:
+        if not isinstance(proposal, ActionProposal):
+            raise TypeError(
+                "FailClosedActionExecutor proposal must be an "
+                "ActionProposal."
+            )
+
+        if proposal.status is not ActionStatus.APPROVED:
+            raise ActionExecutorError(
+                "Only approved action proposals may reach the "
+                "production execution boundary."
+            )
+
+        return ActionExecutionResult(
+            proposal_id=proposal.id,
+            status=ActionStatus.FAILED,
+            output=self._reason,
+        )
+
 class TestActionExecutor(ActionExecutor):
     """
     Deterministic executor used by tests.
