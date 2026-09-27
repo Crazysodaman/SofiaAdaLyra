@@ -103,3 +103,14 @@ __all__ += ["HeadlessPresentationRoutine", "PresentationRoutineResult"]
 from .self_fact_query import AvatarSelfFactAnswer, AvatarSelfFactResolver
 
 __all__ += ["AvatarSelfFactAnswer", "AvatarSelfFactResolver"]
+
+
+from .appearance_routine import (
+    AppearancePlanner, AppearanceRoutineResult, HeadlessAppearanceRoutine,
+    HairstylePlan, HairstyleProposal, starter_hairstyles,
+)
+
+__all__ += [
+    "AppearancePlanner", "AppearanceRoutineResult", "HeadlessAppearanceRoutine",
+    "HairstylePlan", "HairstyleProposal", "starter_hairstyles",
+]
