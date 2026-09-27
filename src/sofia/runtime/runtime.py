@@ -72,6 +72,7 @@ from sofia.self_model.model import (
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
+from sofia.state.plane import StatePlane
 
 
 _PACKAGE_NAME = "sofia-ada-lyra"
