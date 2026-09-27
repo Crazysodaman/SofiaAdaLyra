@@ -12,6 +12,8 @@ from hashlib import sha256
 from pathlib import Path
 import sqlite3
 
+from sofia.interaction.evolved_preference import read_evolved_preference
+
 
 @dataclass(frozen=True)
 class InteractionContext:
@@ -87,6 +89,25 @@ def read_interaction_context(path: str | Path, *, subject: str,
                     if bool(row[0]):
                         return InteractionContext(subject, semantic_id, region_id,
                                                   True, None, row[1], 'boundary')
+
+        evolved = read_evolved_preference(
+            state,
+            subject=subject,
+            semantic_id=semantic_id,
+            region_id=region_id,
+            context=context,
+        )
+        if evolved is not None:
+            preference, source_id = evolved
+            return InteractionContext(
+                subject,
+                semantic_id,
+                region_id,
+                False,
+                preference,
+                source_id,
+                "reviewed",
+            )
         if _table(db, 'interact_preference_revisions'):
             for ctx in (context, 'general') if context != 'general' else ('general',):
                 for semantic, region in ((semantic_id, region_id), (semantic_id, '*'),
