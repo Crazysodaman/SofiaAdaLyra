@@ -328,9 +328,18 @@ class EmotionalConversationService(ConversationService):
             subject=subject,
             scope=scope,
         )
-        environment = self._runtime.environment_service.snapshot(
-            now=now,
-            refresh_providers=False,
+        environment_service = getattr(
+            self._runtime,
+            "environment_service",
+            None,
+        )
+        environment = (
+            environment_service.snapshot(
+                now=now,
+                refresh_providers=False,
+            )
+            if environment_service is not None
+            else None
         )
         influence = ContinuityInfluence.from_state(
             emotion=current_state,
