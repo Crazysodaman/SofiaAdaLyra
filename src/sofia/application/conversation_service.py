@@ -67,6 +67,7 @@ class ConversationService:
             state_plane=runtime.state_plane,
         )
         self._learning_coordinator = None
+        self._habit_continuity = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -94,6 +95,16 @@ class ConversationService:
                     "coordinator must be ConversationLearningCoordinator or None"
                 )
         self._learning_coordinator = coordinator
+
+    def set_habit_continuity(self, coordinator) -> None:
+        """Install the application-owned HABIT observation coordinator."""
+        if coordinator is not None:
+            from sofia.habits.continuity import HabitContinuityCoordinator
+            if not isinstance(coordinator, HabitContinuityCoordinator):
+                raise TypeError(
+                    "coordinator must be HabitContinuityCoordinator or None"
+                )
+        self._habit_continuity = coordinator
 
     @property
     def session_id(self) -> str | None:
@@ -320,6 +331,18 @@ class ConversationService:
             learning.observe_user_message(
                 message=user_message,
                 principal=principal,
+            )
+
+        habit = getattr(self, "_habit_continuity", None)
+        if habit is not None and principal is not None:
+            environment = self._runtime.environment_service.snapshot(
+                now=user_message.created_at,
+                refresh_providers=False,
+            )
+            habit.observe_conversation(
+                message=user_message,
+                principal=principal,
+                environment=environment,
             )
 
         if principal is not None:
