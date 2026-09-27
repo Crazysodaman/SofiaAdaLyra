@@ -27,6 +27,7 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.social.principals import local_sparks_principal
+from sofia.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
 
@@ -54,6 +55,7 @@ class SofiaApplication:
 
     def __init__(self, configuration: SofiaConfiguration) -> None:
         self._configuration = configuration
+        verify_production_component_schemas(configuration.state_path)
         self._runtime: SofiaRuntime = compose(configuration)
         self._evolution = SofiaEvolutionService(
             configuration=configuration,
