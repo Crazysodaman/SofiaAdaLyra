@@ -13,6 +13,13 @@ import sys
 from sofia.config import create_default_configuration
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.ops.capability import OpsToolService
+from sofia.system.capability import create_local_system_backend
+from sofia.system.model import (
+    SystemCapabilityName,
+    SystemCapabilityRequest,
+    SystemCapabilityResultKind,
+)
 
 from .control_center import (
     DesktopControlSettingsStore,
@@ -47,6 +54,7 @@ class TrayAgentApplication:
         _ensure_state(self.config.state_path)
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
         self.activity_store = HostActivityStore(self.config.state_path)
+        self.ops = OpsToolService(self.config.state_path)
         self.host_id = _local_host_id()
         self.events: Queue[TrayCommand] = Queue()
         self._chat_process: subprocess.Popen | None = None
@@ -56,23 +64,58 @@ class TrayAgentApplication:
             local_host_id=self.host_id,
             llm_model=self.config.provider.model,
         )
+        self._system_backend = create_local_system_backend()
+        self._service_capability = next(
+            cap
+            for cap in self._system_backend.supported_capabilities
+            if cap.name is SystemCapabilityName.SERVICE_INSPECT
+        )
         self.tray = WindowsTrayAgent(
             events=self.events,
             status_provider=self.status,
         )
 
+    def _service_state(self, service_name: str) -> str:
+        try:
+            result = self._system_backend.execute(
+                SystemCapabilityRequest(
+                    self._service_capability,
+                    {"name": service_name, "limit": 1},
+                )
+            )
+            if result.kind is not SystemCapabilityResultKind.SUCCESS:
+                return result.kind.value
+            services = tuple(result.evidence.get("services", ()))
+            if not services:
+                return "not_found"
+            state = getattr(services[0], "state", None)
+            return str(state).lower() if state else "unknown"
+        except Exception:
+            return "unknown"
+
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
+        runtime_state = self._service_state(settings.runtime_service_name)
+        llm_state = self._service_state(settings.llm_service_name)
+        hosts = self.ops.fleet()
+        healthy = sum(1 for host in hosts if host["lifecycle"] == "healthy")
+        attention = sum(
+            1
+            for host in hosts
+            if host["lifecycle"] in {"degraded", "quarantined", "offline"}
+        )
+        if self._last_error is not None:
+            attention += 1
         return TrayStatus(
-            runtime_host=self.host_id,
-            runtime_state="configured",
-            llm_host=self.host_id,
-            llm_state="configured",
+            runtime_host=self.host_id if runtime_state == "running" else None,
+            runtime_state=runtime_state,
+            llm_host=self.host_id if llm_state == "running" else None,
+            llm_state=llm_state,
             llm_model=self.config.provider.model,
             game_mode=settings.game_mode,
-            fleet_total=1,
-            fleet_healthy=1,
-            fleet_attention=0 if self._last_error is None else 1,
+            fleet_total=len(hosts),
+            fleet_healthy=healthy,
+            fleet_attention=attention,
         )
 
     @staticmethod
@@ -154,7 +197,7 @@ class TrayAgentApplication:
             elif command is TrayCommand.RUNTIME_RESTART:
                 self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART)
             elif command is TrayCommand.DIAGNOSTICS:
-                self._last_error = self._last_error or "Diagnostics requested"
+                self._open_settings()
             elif command is TrayCommand.EXIT_UI:
                 return False
             self._last_error = None
