@@ -150,6 +150,7 @@ $ExpectedHash = '{package_sha256}'
 $NodeId = '{node_id}'
 $ListenPort = {listen_port}
 $Receipt = Join-Path $Stage "bootstrap-receipt.json"
+$StartedAgent = $null
 
 function Save-Receipt([hashtable]$Payload) {{
     $Payload | ConvertTo-Json -Depth 5 | Set-Content -Path $Receipt -Encoding UTF8
@@ -178,6 +179,25 @@ try {{
     $ServerKey = Join-Path $Root "certs\\artemis-server-key.pem"
     & icacls.exe $ServerKey /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
     if ($LASTEXITCODE -ne 0) {{ throw "Failed to restrict Fleet server private-key ACL." }}
+
+    $ManagedPython = Join-Path $Root ".venv\\Scripts\\python.exe"
+    if (Test-Path $ManagedPython -PathType Leaf) {{
+        $ExpectedManagedPython = [System.IO.Path]::GetFullPath($ManagedPython)
+        $ManagedProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {{
+                $_.ExecutablePath -and
+                [System.IO.Path]::GetFullPath($_.ExecutablePath).Equals(
+                    $ExpectedManagedPython,
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -and
+                $_.CommandLine -and
+                $_.CommandLine.Contains("sofia.distributed.agent_main")
+            }}
+        foreach ($ManagedProcess in $ManagedProcesses) {{
+            Stop-Process -Id $ManagedProcess.ProcessId -Force -ErrorAction Stop
+            Wait-Process -Id $ManagedProcess.ProcessId -Timeout 10 -ErrorAction SilentlyContinue
+        }}
+    }}
 
     $Candidates = @()
     $Command = Get-Command python.exe -ErrorAction SilentlyContinue
@@ -212,14 +232,14 @@ try {{
     $Stdout = Join-Path $Root "agent.stdout.log"
     $Stderr = Join-Path $Root "agent.stderr.log"
     $Args = @("-m","sofia.distributed.agent_main","--config",(Join-Path $Root "agent.json"))
-    $Process = Start-Process -FilePath $AgentPython -ArgumentList $Args -WindowStyle Hidden -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
+    $StartedAgent = Start-Process -FilePath $AgentPython -ArgumentList $Args -WindowStyle Hidden -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
 
     Start-Sleep -Seconds 3
-    if ($Process.HasExited) {{
+    if ($StartedAgent.HasExited) {{
         $Text = if (Test-Path $Stderr) {{ Get-Content $Stderr -Raw }} else {{ "" }}
         throw "Fleet agent exited during startup. $Text"
     }}
-    $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue | Where-Object {{ $_.OwningProcess -eq $Process.Id }} | Select-Object -First 1
+    $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue | Where-Object {{ $_.OwningProcess -eq $StartedAgent.Id }} | Select-Object -First 1
     if ($null -eq $Listener) {{
         $Text = if (Test-Path $Stderr) {{ (Get-Content $Stderr -Raw).Trim() }} else {{ "" }}
         if ($Text) {{
@@ -228,18 +248,22 @@ try {{
         throw "Fleet agent is not listening on the approved port and produced no stderr."
     }}
 
-    Set-Content (Join-Path $Root "agent.pid") ([string]$Process.Id) -Encoding ASCII
+    Set-Content (Join-Path $Root "agent.pid") ([string]$StartedAgent.Id) -Encoding ASCII
     Save-Receipt @{{
         status = "verified"
         host_id = $env:COMPUTERNAME
         node_id = $NodeId
         package_sha256 = $ActualHash
-        process_id = [int]$Process.Id
+        process_id = [int]$StartedAgent.Id
         listen_port = [int]$ListenPort
         python_version = $PythonVersion
     }}
 }}
 catch {{
+    if ($null -ne $StartedAgent -and -not $StartedAgent.HasExited) {{
+        Stop-Process -Id $StartedAgent.Id -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $StartedAgent.Id -Timeout 10 -ErrorAction SilentlyContinue
+    }}
     Save-Receipt @{{
         status = "failed"
         host_id = $env:COMPUTERNAME
