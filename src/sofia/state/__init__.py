@@ -8,6 +8,7 @@ from sofia.state.migration_lease import (
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.namespaces import (
     HABIT_COVERAGE,
+    HABIT_EVIDENCE_INVALIDATION,
     HABIT_EXPECTATION,
     HABIT_OBSERVATION,
     HABIT_PATTERN,
@@ -29,6 +30,7 @@ from sofia.state.sqlite_plane import SQLiteStatePlane
 
 __all__ = [
     "HABIT_COVERAGE",
+    "HABIT_EVIDENCE_INVALIDATION",
     "HABIT_EXPECTATION",
     "HABIT_OBSERVATION",
     "HABIT_PATTERN",
