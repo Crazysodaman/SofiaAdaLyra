@@ -22,6 +22,7 @@ from sofia.filesystem.orchestrator import (
 )
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.principal import Audience, AuthenticatedPrincipal
+from sofia.social.session import SocialSessionBindingStore
 
 
 class ConversationService:
@@ -68,6 +69,9 @@ class ConversationService:
             )
         )
         self._session: ConversationSession | None = None
+        self._social_session_bindings = SocialSessionBindingStore(
+            runtime.configuration.state_path
+        )
 
     @property
     def session(self) -> ConversationSession | None:
@@ -255,6 +259,18 @@ class ConversationService:
         if not content:
             raise ValueError(
                 "ConversationService content must not be empty."
+            )
+
+        if (principal is None) != (audience is None):
+            raise ValueError(
+                "principal and audience must be supplied together"
+            )
+        if principal is not None and audience is not None:
+            self._social_session_bindings.bind(
+                self._session.id,
+                principal=principal,
+                audience=audience,
+                at=datetime.now(timezone.utc),
             )
 
         user_message = ConversationMessage(
