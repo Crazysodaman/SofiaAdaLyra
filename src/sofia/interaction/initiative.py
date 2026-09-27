@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from sofia.interaction.registry import InteractionCatalog
+from sofia.interaction.semantic_context import requires_contact_permission
 
 
 @dataclass(frozen=True)
@@ -18,7 +19,10 @@ class InitiativeProposal:
     source_id: str
     actor: Literal['sofia']
     target: Literal['user']
-    kind: Literal['offer', 'gesture', 'question', 'lab_suggestion']
+    kind: Literal[
+        'offer', 'gesture', 'action_offer', 'action',
+        'question', 'lab_suggestion'
+    ]
     semantic_id: str | None
     region_id: str | None
     created_at: datetime
@@ -51,17 +55,23 @@ class InitiativeGate:
                 kind: str, semantic_id: str | None = None,
                 region_id: str | None = None, at: datetime,
                 expires_at: datetime | None = None) -> InitiativeProposal:
-        if kind not in ('offer', 'gesture', 'question', 'lab_suggestion'):
+        if kind not in (
+            'offer', 'gesture', 'action_offer', 'action',
+            'question', 'lab_suggestion',
+        ):
             raise ValueError('Unknown initiative kind.')
         if kind in ('offer', 'gesture'):
             if semantic_id not in self.catalog.semantic_aliases['gesture'].values():
                 raise ValueError('Only reviewed gesture IDs can propose body contact.')
-            # Region is a represented scene label, NOT verification of the
-            # user's actual body or an authenticated avatar hitbox.
+            if region_id is not None and region_id not in self.catalog.region_ids:
+                raise ValueError('Unknown represented region.')
+        elif kind in ('action_offer', 'action'):
+            if semantic_id not in self.catalog.semantic_aliases['action'].values():
+                raise ValueError('Only reviewed action IDs can be proposed.')
             if region_id is not None and region_id not in self.catalog.region_ids:
                 raise ValueError('Unknown represented region.')
         elif semantic_id is not None or region_id is not None:
-            raise ValueError('A question/lab suggestion is not an executed body gesture.')
+            raise ValueError('A question/lab suggestion has no body semantic.')
         created = self._time(at)
         expires = self._time(expires_at) if expires_at is not None else None
         if expires is not None and expires <= created:
@@ -91,17 +101,33 @@ class InitiativeGate:
             return replace(proposal, state='expired')
         if action not in ('permit', 'describe'):
             raise ValueError('Unknown transition.')
-        contact = proposal.kind in ('offer', 'gesture')
+        contact = (
+            proposal.kind == 'gesture'
+            or (
+                proposal.kind == 'action'
+                and proposal.semantic_id is not None
+                and requires_contact_permission(proposal.semantic_id)
+            )
+        )
         if contact and (stopped or user_boundary_active):
             return replace(proposal, state='cancelled')
         if action == 'permit':
-            if proposal.kind != 'gesture' or proposal.state != 'proposed':
-                raise ValueError('Only proposed contact gestures need a per-event permission.')
-            return replace(proposal, state='permitted',
-                           permission_source_id=self._id(permission_source_id))
-        if proposal.kind == 'gesture' and (proposal.state != 'permitted' or
-                                            not proposal.permission_source_id):
-            raise ValueError('Do not describe a new contact as completed without permission.')
-        if proposal.kind != 'gesture' and proposal.state != 'proposed':
+            if not contact or proposal.state != 'proposed':
+                raise ValueError('Only proposed contact needs a per-event permission.')
+            if permission_source_id is None:
+                raise ValueError('Permission requires an explicit source ID.')
+            return replace(
+                proposal,
+                state='permitted',
+                permission_source_id=self._id(permission_source_id),
+            )
+        if contact and (
+            proposal.state != 'permitted'
+            or not proposal.permission_source_id
+        ):
+            raise ValueError(
+                'Do not describe new contact as completed without fresh permission.'
+            )
+        if not contact and proposal.state != 'proposed':
             raise ValueError('Invalid transition for non-contact initiative.')
         return replace(proposal, state='described')
