@@ -93,6 +93,7 @@ class SofiaConfiguration:
     provider: ProviderConfiguration
     filesystem_root: Path
     standing_allowed_capabilities: tuple[str, ...] = ()
+    canonical_identity_bootstrap_authorized: bool = False
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
     )
@@ -117,6 +118,14 @@ class SofiaConfiguration:
         if not self.avatar_path:
             raise ValueError(
                 "SofiaConfiguration avatar_path must not be empty."
+            )
+
+        if not isinstance(
+            self.canonical_identity_bootstrap_authorized,
+            bool,
+        ):
+            raise TypeError(
+                "canonical_identity_bootstrap_authorized must be a bool."
             )
 
         if not isinstance(self.standing_allowed_capabilities, tuple):
