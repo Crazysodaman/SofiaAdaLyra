@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
@@ -41,6 +42,14 @@ def _refs(values: tuple[str, ...]) -> tuple[str, ...]:
             or len(set(values)) != len(values)):
         raise ValueError("Evidence references must be 1-16 distinct nonempty identifiers.")
     return values
+
+
+def _scope(value: SocialScope | None) -> SocialScope:
+    if value is None:
+        return SocialScope.global_scope()
+    if not isinstance(value, SocialScope):
+        raise TypeError("scope must be a SocialScope or None")
+    return value
 
 
 def _period(when: datetime, kind: str) -> tuple[str, datetime, datetime]:
@@ -146,7 +155,8 @@ class ReflectionJournal:
                 queued_at TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
                 delivered_at TEXT,
-                UNIQUE(thread_id, evidence_ref)
+                scope_key TEXT NOT NULL,
+                UNIQUE(scope_key, thread_id, evidence_ref)
             );
             CREATE INDEX IF NOT EXISTS reflection_outbox_status
                 ON reflection_outbox(status, queued_at);
@@ -206,9 +216,9 @@ class ReflectionJournal:
                 db.execute(
                     "INSERT INTO reflection_outbox ("
                     "message_id, thought_id, thread_id, evidence_ref, content, "
-                    "urgency, queued_at, status, delivered_at"
+                    "urgency, queued_at, status, delivered_at, scope_key"
                     ") SELECT message_id, thought_id, thread_id, evidence_ref, "
-                    "content, urgency, queued_at, status, delivered_at "
+                    "content, urgency, queued_at, status, delivered_at, 'global' "
                     "FROM reflection_outbox_legacy"
                 )
                 db.execute("DROP TABLE reflection_outbox_legacy")
