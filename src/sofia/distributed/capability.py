@@ -10,6 +10,7 @@ from uuid import UUID,uuid4
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.safe.operator_stop import OperatorStopStore
 
 from .endpoint_policy_durable import DurableEndpointPolicy
 from .https_transport import PinnedHttpsRemoteTransport
@@ -40,6 +41,7 @@ class RemoteFleetToolService:
             client_certificate=client_certificate,
             client_private_key=client_private_key,
         )
+        self._operator_stop=OperatorStopStore(state_path)
         self.control=DurableRemoteControl(
             transport=transport,
             identity_path=base/"remote-identities.db",
@@ -69,6 +71,10 @@ class RemoteFleetToolService:
         return tuple(out)
 
     def invoke(self,node_id_text:str,capability:str,operation:str,parameters:dict[str,Any])->dict[str,Any]:
+        if capability not in {
+            "system.inspect","vm.inspect","container.inspect"
+        } and self._operator_stop.current().active:
+            raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
         now=datetime.now(timezone.utc)
         enrollment=self.control.identities.get(node_id)
