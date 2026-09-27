@@ -75,6 +75,10 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "Get-CimInstance Win32_Process" in script
     assert '$_ .CommandLine' not in script
     assert 'sofia.distributed.agent_main' in script
+    assert 'agent_canary.py' in script
+    assert 'creating_dispatcher' in script
+    assert 'creating_server' in script
+    assert 'status("listening")' in script
     assert "Stop-Process -Id $ManagedProcess.ProcessId" in script
     assert "Stop-Process -Id $StartedAgent.Id" in script
     assert "foreach ($Attempt in 1..5)" in script
