@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
@@ -172,22 +173,51 @@ class ReflectionJournal:
                     raise ValueError("Thought identity or period is already in use.") from exc
         return identifier
 
-    def recent_thoughts(self, *, limit: int = 12) -> tuple[RecordedThought, ...]:
+    def recent_thoughts(
+        self,
+        *,
+        limit: int = 12,
+        subject: str | None = None,
+    ) -> tuple[RecordedThought, ...]:
         if not isinstance(limit, int) or not 1 <= limit <= 50:
             raise ValueError("Thought limit must be 1-50.")
+        target = None if subject is None else _short(subject, "Reflection subject", 120)
+        fetch_limit = 50 if target is not None else limit
+        selected: list[RecordedThought] = []
         with self._connect() as db:
             rows = db.execute(
                 "SELECT thought_id, kind, created_at, subject, content, "
                 "evidence_refs, emotions, period_key FROM reflection_thoughts "
-                "ORDER BY created_at DESC, thought_id DESC LIMIT ?", (limit,),
+                "ORDER BY created_at DESC, thought_id DESC LIMIT ?", (fetch_limit,),
             ).fetchall()
-        return tuple(RecordedThought(
-            thought_id=r[0], kind=r[1], created_at=datetime.fromisoformat(r[2]),
-            subject=r[3], content=r[4], evidence_refs=tuple(json.loads(r[5])),
-            emotions=tuple(json.loads(r[6])), period_key=r[7],
-        ) for r in rows)
+            for r in rows:
+                refs = tuple(json.loads(r[5]))
+                if target is not None and refs:
+                    placeholders = ",".join("?" for _ in refs)
+                    event_rows = db.execute(
+                        f"SELECT subject FROM emotional_events "
+                        f"WHERE event_id IN ({placeholders})",
+                        refs,
+                    ).fetchall()
+                    event_subjects = {row[0] for row in event_rows}
+                    if any(value is not None and value != target for value in event_subjects):
+                        continue
+                selected.append(RecordedThought(
+                    thought_id=r[0], kind=r[1],
+                    created_at=datetime.fromisoformat(r[2]),
+                    subject=r[3], content=r[4], evidence_refs=refs,
+                    emotions=tuple(json.loads(r[6])), period_key=r[7],
+                ))
+                if len(selected) >= limit:
+                    break
+        return tuple(selected)
 
-    def reflect_due(self, *, now: datetime) -> tuple[str, ...]:
+    def reflect_due(
+        self,
+        *,
+        now: datetime,
+        subject: str | None = None,
+    ) -> tuple[str, ...]:
         """Reflect on recorded events in completed UTC calendar periods only.
 
         This is a caller-triggered, deterministic retrospective, not an LLM
@@ -195,6 +225,7 @@ class ReflectionJournal:
         after restart. Empty periods are skipped, never invented.
         """
         current = _utc(now)
+        target = None if subject is None else _short(subject, "Reflection subject", 120)
         with self._connect() as db:
             table = db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='emotional_events'"
@@ -202,12 +233,17 @@ class ReflectionJournal:
             if table is None:
                 return ()
             events = db.execute(
-                "SELECT event_id, occurred_at, description, original_emotions "
+                "SELECT event_id, occurred_at, description, original_emotions, subject "
                 "FROM emotional_events WHERE occurred_at < ? ORDER BY occurred_at, event_id",
                 (current.isoformat(),),
             ).fetchall()
+            if target is not None:
+                events = [
+                    event for event in events
+                    if event[4] is None or event[4] == target
+                ]
         buckets: dict[tuple[str, str], list[tuple[str, str, tuple[str, ...]]]] = {}
-        for event_id, timestamp, description, labels_json in events:
+        for event_id, timestamp, description, labels_json, _event_subject in events:
             occurred = datetime.fromisoformat(timestamp)
             for kind in _PERIODS:
                 key, _, end = _period(occurred, kind)
@@ -218,7 +254,9 @@ class ReflectionJournal:
                 )
         created: list[str] = []
         for (kind, key), group in sorted(buckets.items(), key=lambda item: item[0][1:]+item[0][:1]):
-            identifier = f"reflection:{kind}:{key}"
+            scope = "" if target is None else ":" + sha256(target.encode("utf-8")).hexdigest()[:8]
+            scoped_key = key if target is None else f"{key}@{scope[1:]}"
+            identifier = f"reflection:{kind}:{scoped_key}"
             refs = tuple(event[0] for event in group[:16])
             emotions = tuple(dict.fromkeys(label for event in group for label in event[2]))[:8]
             excerpt = "; ".join(event[1][:110] for event in group[:3])
@@ -237,8 +275,12 @@ class ReflectionJournal:
             # never backdated to imply thinking during an offline interval.
             try:
                 self.record_thought(
-                    kind=kind, period_key=key, thought_id=identifier,
-                    subject=f"{kind.capitalize()} reflection for {key}",
+                    kind=kind, period_key=scoped_key, thought_id=identifier,
+                    subject=(
+                        f"{kind.capitalize()} reflection for {key}"
+                        if target is None
+                        else f"{kind.capitalize()} relationship reflection for {key}"
+                    ),
                     content=content[:1000], evidence_refs=refs, emotions=emotions,
                     created_at=current,
                 )
@@ -321,8 +363,13 @@ class ReflectionJournal:
             if result.rowcount != 1:
                 raise ValueError("No pending message with that ID; delivery not confirmed.")
 
-    def prompt_context(self, *, limit: int = 5) -> str | None:
-        thoughts = self.recent_thoughts(limit=limit)
+    def prompt_context(
+        self,
+        *,
+        limit: int = 5,
+        subject: str | None = None,
+    ) -> str | None:
+        thoughts = self.recent_thoughts(limit=limit, subject=subject)
         if not thoughts:
             return None
         lines = [
