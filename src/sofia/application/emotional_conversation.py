@@ -79,14 +79,24 @@ class EmotionalConversationService(ConversationService):
         return self._clarification_journal
 
     def _relationship_subject(self) -> str:
-        """Use the canonical relationship subject for this single-user surface."""
+        """Use authenticated session identity when relationship context exists."""
+        session = getattr(self, "_session", None)
+        social_store = getattr(self, "_social_store", None)
+        if session is not None and social_store is not None:
+            principal = social_store.get(session.id)
+            if principal is not None:
+                return principal.principal_id
         core_state = getattr(self._runtime, "core_state", None)
-        relationships = getattr(core_state, "relationships", ()) if core_state is not None else ()
+        relationships = (
+            getattr(core_state, "relationships", ())
+            if core_state is not None
+            else ()
+        )
         if relationships:
             subject = getattr(relationships[0], "subject", None)
             if isinstance(subject, str) and subject.strip():
                 return subject.strip()
-        return "current user"
+        return "unbound"
 
     def observe_background_absence(self, *, now: datetime) -> str | None:
         """Let the running idle worker appraise a real contact gap at this instant."""
