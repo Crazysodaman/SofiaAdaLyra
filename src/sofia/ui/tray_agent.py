@@ -117,7 +117,10 @@ class TrayAgentApplication:
             )
         )
         if result.kind is not SystemCapabilityResultKind.SUCCESS:
-            return
+            detail = result.error or "no diagnostic detail"
+            raise RuntimeError(
+                f"process.inspect {result.kind.value}: {detail}"
+            )
         processes = tuple(result.evidence.get("processes", ()))
         gaming, game = detect_windows_game(
             processes,
