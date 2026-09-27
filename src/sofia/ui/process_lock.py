@@ -12,6 +12,10 @@ _PROCESS_GUARD = RLock()
 _PROCESS_OWNED: set[str] = set()
 
 
+class TrayProcessAlreadyRunning(RuntimeError):
+    pass
+
+
 class TrayProcessLock:
     """OS-backed non-blocking lock released automatically on process death.
 
@@ -32,7 +36,7 @@ class TrayProcessLock:
 
         with _PROCESS_GUARD:
             if self._key in _PROCESS_OWNED:
-                raise RuntimeError(
+                raise TrayProcessAlreadyRunning(
                     "another live Sofía tray agent already owns this state"
                 )
 
@@ -51,7 +55,7 @@ class TrayProcessLock:
                     try:
                         msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
                     except OSError as exc:
-                        raise RuntimeError(
+                        raise TrayProcessAlreadyRunning(
                             "another live Sofía tray agent already owns this state"
                         ) from exc
                 else:
@@ -63,7 +67,7 @@ class TrayProcessLock:
                             fcntl.LOCK_EX | fcntl.LOCK_NB,
                         )
                     except OSError as exc:
-                        raise RuntimeError(
+                        raise TrayProcessAlreadyRunning(
                             "another live Sofía tray agent already owns this state"
                         ) from exc
             except Exception:
