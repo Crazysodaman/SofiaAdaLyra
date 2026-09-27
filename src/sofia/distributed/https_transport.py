@@ -12,6 +12,7 @@ from sofia.distributed.identity import NodeEnrollment
 from sofia.distributed.model import NodeEndpoint,NodeTransport
 from sofia.distributed.operations import RemoteOperationRequest,RemoteOperationResult,RemoteOutcome,RemoteTransport
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
+from sofia.distributed.version import FleetProtocolVersion
 
 class HttpsTransportError(RuntimeError): pass
 
@@ -26,6 +27,7 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         client_certificate:Path|str,
         client_private_key:Path|str,
         timeout_seconds:float=10.0,
+        required_protocol_version:str="1.0",
     )->None:
         self._endpoint_resolver=endpoint_resolver
         self._ca_file=Path(ca_file)
@@ -33,6 +35,7 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         self._client_private_key=Path(client_private_key)
         if timeout_seconds<=0: raise ValueError("timeout_seconds must be positive")
         self._timeout=timeout_seconds
+        self._required_protocol=FleetProtocolVersion.parse(required_protocol_version)
 
     def _context(self)->ssl.SSLContext:
         context=ssl.create_default_context(ssl.Purpose.SERVER_AUTH,cafile=str(self._ca_file))
@@ -80,7 +83,13 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
             data=self._request(enrollment,"GET","/v1/identity")
         except HttpsTransportError:
             return False
-        return isinstance(data,dict) and data.get("node_id")==str(enrollment.node.node_id)
+        if not isinstance(data,dict) or data.get("node_id")!=str(enrollment.node.node_id):
+            return False
+        try:
+            observed=FleetProtocolVersion.parse(str(data["protocol_version"]))
+        except (KeyError,TypeError,ValueError):
+            return False
+        return observed.compatible_with(self._required_protocol)
 
     def discover(self,enrollment:NodeEnrollment)->CapabilityInventory:
         data=self._request(enrollment,"GET","/v1/capabilities")
@@ -88,13 +97,22 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
         if data.get("node_id")!=str(enrollment.node.node_id):
             raise HttpsTransportError("capability inventory node identity mismatch")
         try:
+            observed_protocol=FleetProtocolVersion.parse(
+                str(data["protocol_version"])
+            )
+            if not observed_protocol.compatible_with(self._required_protocol):
+                raise HttpsTransportError("Fleet protocol is incompatible")
             observed_at=datetime.fromisoformat(data["observed_at"])
             capabilities=tuple(
                 RemoteCapability(str(item["name"]),tuple(str(op) for op in item["operations"]))
                 for item in data["capabilities"]
             )
             return CapabilityInventory(
-                enrollment.node.node_id,observed_at,capabilities,str(data.get("source") or "https-agent"),
+                enrollment.node.node_id,
+                observed_at,
+                capabilities,
+                str(data.get("source") or "https-agent"),
+                str(observed_protocol),
             )
         except (KeyError,TypeError,ValueError) as exc:
             raise HttpsTransportError("invalid capability inventory payload") from exc
