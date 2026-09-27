@@ -72,6 +72,11 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "-RemoteAddress LocalSubnet" in script
     assert "sofia.distributed.agent_main" in script
     assert "bootstrap-receipt.json" in script
+    assert "Get-CimInstance Win32_Process" in script
+    assert '$_ .CommandLine' not in script
+    assert 'sofia.distributed.agent_main' in script
+    assert "Stop-Process -Id $ManagedProcess.ProcessId" in script
+    assert "Stop-Process -Id $StartedAgent.Id" in script
     assert "icacls.exe" in script
     assert "*S-1-5-18:F" in script
     assert "*S-1-5-32-544:F" in script
