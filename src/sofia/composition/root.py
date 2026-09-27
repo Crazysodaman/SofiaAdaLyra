@@ -221,14 +221,16 @@ def compose(
     )
 
     machine_service = MachineToolService(
-        state_path
+        state_path,
+        state_plane=state_plane,
     )
     machine_capabilities = MachineCapabilitySet(
         machine_service
     )
 
     ops_service = OpsToolService(
-        state_path
+        state_path,
+        state_plane=state_plane,
     )
     ops_capabilities = OpsCapabilitySet(
         ops_service
