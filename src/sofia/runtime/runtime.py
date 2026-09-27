@@ -625,7 +625,8 @@ class SofiaRuntime:
                 )
 
         memories = self._memory_system.recall_relevant(
-            user_content
+            user_content,
+            principal=principal,
         )
 
         measurement_query = None
