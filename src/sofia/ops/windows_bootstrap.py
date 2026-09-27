@@ -333,13 +333,14 @@ except BaseException as exc:
         throw "Fleet agent is alive but is not listening on the approved port and produced no startup evidence."
     }}
 
-    Set-Content (Join-Path $Root "agent.pid") ([string]$StartedAgent.Id) -Encoding ASCII
+    $AgentPid = [int]$Listener.OwningProcess
+    Set-Content (Join-Path $Root "agent.pid") ([string]$AgentPid) -Encoding ASCII
     Save-Receipt @{{
         status = "verified"
         host_id = $env:COMPUTERNAME
         node_id = $NodeId
         package_sha256 = $ActualHash
-        process_id = [int]$StartedAgent.Id
+        process_id = $AgentPid
         listen_port = [int]$ListenPort
         python_version = $PythonVersion
     }}
