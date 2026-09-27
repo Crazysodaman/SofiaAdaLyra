@@ -5,6 +5,7 @@ from hashlib import sha256
 import json
 from uuid import uuid4
 
+from sofia.config.reviewed_projection import validate_reviewed_configuration_content
 from sofia.evolve.revision import RevisionAdapter, RevisionScope
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane
@@ -61,12 +62,10 @@ class StatePlaneRevisionAdapter(RevisionAdapter):
         if len(proposed_content.encode("utf-8")) > 262_144:
             raise ValueError("reviewed revision content exceeds 256 KiB")
         if scope is RevisionScope.CONFIG:
-            try:
-                decoded = json.loads(proposed_content)
-            except json.JSONDecodeError as exc:
-                raise ValueError("config revision must be valid JSON") from exc
-            if not isinstance(decoded, dict):
-                raise ValueError("config revision must be a JSON object")
+            validate_reviewed_configuration_content(
+                key,
+                proposed_content,
+            )
         elif not proposed_content.strip():
             raise ValueError("preference revision cannot be blank")
 
