@@ -4,6 +4,8 @@
 
 > **Project status update — 2026-09-26 (UI):** PR #115 (`381ac9a`) merged the rebuilt canonical text/workbench foundation and PR #116 (`7f072861`) merged the accepted Windows desktop workbench. Current `main` now has durable unsent drafts, private workbench state, one canonical `SofiaApplication`/conversation path, a single-owner application worker, adaptive ENVIRONMENT/AVATAR/emotion theme projection, shallow chamfered HUD surfaces and reviewed Quick Tools that never auto-send. Acceptance included **58 UI + 24 application/Discord**, later focused UI/AVATAR passes, **90/90 integration repair**, supervised Windows use and a final reported green full repository suite. The same repair gate hardened reviewed-memory SQLite threading/cleanup and explicit request-level tool suppression for trusted interaction turns. Voice, renderer/avatar viewport, mobile/web and provider cancellation remain separately gated.
 
+> **Architecture audit update — 2026-09-27:** chat history plus current code/PR review found a missing boundary between **shared state continuity** and **self-update/release continuity**. They are now explicit cross-package workstreams called the **Sofía State Plane** and **Release/Integrity Plane**, not extra packages. The audit also surfaced concrete P0/P1 gaps: production composition still instantiates `TestActionExecutor`; authoritative state is split between SQLite and multiple JSON/source files; schema creation is decentralized without a central migration/compatibility coordinator; a missing local identity file can create a new `instance_id`; Fleet candidate source can treat an installed matching agent version as enrollment-ready without independently proving the installed artifact digest; dependency/model identity is not fully immutable; PKI bootstrap private keys are file-protected development material rather than final production key custody; and no whole-Sofía signed immutable release manifest/canary/convergence path exists yet. These are assigned to the existing packages below.
+
 # Sofía Ada Lyra | full roadmap and per-package delivery contracts
 
 **Revision:** 2026-09-26 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative [ROADMAP.md](../../ROADMAP.md), the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
@@ -33,6 +35,102 @@ Only Sparks can explicitly authorize the **final irreversible removal/decommissi
 | M8 | Parallel enhancements and later web | ACT, REL, AVATAR, DEV, KNOW, INTEGRATE, BODY, EVOLVE, CLEAN, ENVIRONMENT and UI maturity gated individually; ENVIRONMENT's offline clock/location/timezone/season/daylight work may precede later web, while direct internet weather/search keeps separate privacy, destination, provenance and grant controls. |
 
 M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediately: first verify existing SQLite backups and cross-store consistency; compare migration costs and only adopt a replication-capable backend after test evidence and separate activation approval. Local 24/7 uptime and true multi-host HA are **different claims**. A watchdog is a detector; only an authorized supervisor/executor can start an instance, and only a fenced exclusive leader can become authoritative.
+
+## Architecture audit package assignment | State Plane + Release/Integrity Plane
+
+No package #21/#22 is created. The new requirements are deliberately split among existing owners so no one subsystem can both rewrite Sofía and redefine why that rewrite should be trusted.
+
+| Package | State Plane responsibility | Release/Integrity responsibility |
+| --- | --- | --- |
+| **CORE** | Canonical identity bootstrap; configuration precedence/provenance; never mint a second Sofía on a normal joining/rebuilt node. | Bind runtime/model compatibility to a verified release; cognition/model replacement never defines identity or authority. |
+| **INTERACT** | Emit/consume stable event, causation, correlation and priority metadata for globally ordered user interaction. | Preserve interaction contracts across releases; no release may claim rendered/audio/physical completion without receipts. |
+| **MEM** | Primary State Plane owner: storage abstraction, authoritative-state inventory, schema versions, shared-state semantics, semantic integrity and consistent restore. | Define data compatibility windows for release upgrade/rollback; expand→migrate→contract rather than irreversible one-step schema mutation. |
+| **SOCIAL** | Bind every person-scoped row/object/cache to authenticated principal and audience; enforce isolation in shared storage. | Release tests must prove no privacy regression across migration/rollback. |
+| **NET** | Authenticated transport to State Plane/services without implicitly granting DB/write authority. | Protocol/version negotiation and pinned peer identity; network reachability never proves compatible or approved software. |
+| **UI** | Shared settings/history use authoritative state; clearly separate roaming values from machine-local overrides and offline queues. | Client compatibility and later VOICE/renderer assets are release-declared; UI cannot silently target an incompatible runtime. |
+| **RUN** | Single authoritative runtime/writer, monotonic fencing, clock uncertainty handling, global event ordering, degraded-mode rules and fleet-wide background budgets. | Activate exact releases, detect crash loops/readiness failures, revert/forward-fix safely, publish authoritative endpoint only after health/data compatibility. |
+| **OPS** | Data-bearing node placement/health, replica/failure-domain evidence, asset locality and host state. | Canary/wave rollout, artifact distribution, installed-agent independent attestation, Fleet convergence, quarantine of corrupt/outdated/incompatible nodes. |
+| **ACT** | Durable shared outbox/jobs with global rather than per-worker quotas; stable idempotency/causation IDs. | Delivery workers must be release/protocol compatible before consuming shared work. |
+| **REL** | Principal-bound relationship/absence state roams through State Plane rather than machine-local singleton assumptions. | Migration tests preserve relationship provenance without inventing or duplicating events. |
+| **AVATAR** | Roaming presentation metadata may live in State Plane; large assets remain content-addressed immutable artifacts. | Renderer/wardrobe/model assets are digest/version bound and rollback-compatible. |
+| **DEV** | Does not directly mutate authoritative running state except through approved typed migrations/tools. | Primary build owner: isolated candidate, locked dependencies/runtime, provenance/SBOM, immutable artifacts, exact digests and reproducible build evidence. |
+| **BODY** | Calibration/state ownership is explicit; current hardware observations stay local/derived unless deliberately persisted. | Firmware/controller/calibration compatibility is separately verified before physical motion under a new release. |
+| **EVOLVE** | Reviewed configuration/preference changes use shared revisioned state; protected identity/Constitution remains higher trust. | Self-improvement ends in a governed exact release proposal. EVOLVE cannot self-authorize changes to signer, verifier, approval, fencing, emergency-stop or recovery trust roots. |
+| **CLEAN** | Separate source, shared runtime state, protected state, secrets, immutable assets, caches and logs; migrate without deleting history. | Retention/GC for old releases/assets/evidence while preserving rollback and forensic history. |
+| **KNOW** | Shared provenance/document metadata may roam; rebuildable indexes and large artifacts need not occupy transactional DB rows. | Build/release docs and migration runbooks remain source-grounded and revision-specific. |
+| **INTEGRATE** | Typed database/State Plane adapters and least-privilege per-service roles; no universal Fleet DB credential. | Integration/version compatibility and side-effect semantics become part of release acceptance. |
+| **SAFE** | Secrets custody, per-service DB roles, protected-state trust anchors, revocations, tamper-evident audit and bare-metal/operator recovery. | Primary trust owner: signature verification, anti-rollback, signing-key custody, protected execution base. Also replace production `TestActionExecutor` with a fail-closed production boundary before action authority can ever be opened. |
+| **VERIFY** | Corruption, semantic-integrity, backup/restore, stale replica, partition, bare-metal and privacy/isolation tests. | Exact-revision CI/live evidence, upgrade/downgrade/schema compatibility, bad signature/artifact/dependency/model/protocol tests, canary/rollback/convergence proof. |
+| **ENVIRONMENT** | Shared configured USER/SITE/HOST metadata with provenance; current readings/caches remain freshness-bound and may be local/derived. | Provider/config schema compatibility is release-tested; local environment overrides cannot silently become global state. |
+
+### State Plane classification contract
+
+Before migrating to any shared backend, classify every persistent object into exactly one primary category:
+
+1. **Shared authoritative state:** conversations, reviewed memories, principals/relationships, fleet inventory, durable jobs/outbox, runtime leadership/leases, approvals, deployment records and intentionally roaming configuration/presentation.
+2. **Protected state/trust anchors:** Constitution/identity authority roots, release verifier trust, approval authority, fencing/recovery policy, revocations and emergency controls. These may be replicated/backed up, but not exposed as ordinary mutable application rows.
+3. **Secrets:** Discord/GitHub/Home Assistant/provider tokens, private keys, database credentials, signing keys and recovery credentials. Shared state stores references/scope/status, not broad plaintext access.
+4. **Immutable/content-addressed artifacts:** Sofía releases, dependency bundles, model files, avatar/voice assets, migration bundles and evidence. Store digest/version/location metadata in State Plane; distribute artifacts separately.
+5. **Local ephemeral/rebuildable state:** PID/device handles, caches, temp downloads, current GPU/process samples, local sockets and other host observations that should not become authoritative merely because they exist.
+
+**One logical database does not mean universal database authority.** Each runtime/service/agent receives the minimum role it needs. A telemetry agent must not gain write access to memories, approvals, identity or release state.
+
+### Schema and rollback contract
+
+State Plane schema evolution must be centrally versioned. Releases declare minimum/maximum compatible schema and migration revision. Use **expand → migrate → verify → contract** so the previous accepted release remains usable during the rollback window. If the live database is newer/older than a runtime's declared compatibility, startup fails closed rather than improvising migration.
+
+Migrations require an exclusive migration lease, pre-migration recovery point, deterministic migration ID/checksum, resumable/idempotent semantics where feasible, post-migration semantic validation and an explicit rollback/forward-fix decision. A healthy SQL file is not sufficient proof of healthy Sofía state; VERIFY must check domain invariants such as provenance links, principal ownership, grant/revocation consistency, deployment lineage and outbox/action states.
+
+### Canonical identity bootstrap contract
+
+The current single-host behavior may create a new `instance_id` when the identity file is missing. That is acceptable only during an explicitly authorized **first canonical bootstrap**. A normal new/rebuilt Fleet node must authenticate, obtain the canonical identity/trust material through the approved State Plane/recovery path, verify it, and join as an execution node. If canonical identity cannot be proven, enter recovery/quarantine mode and **do not create a second Sofía**.
+
+### Release/Integrity Plane contract
+
+Self-improvement uses:
+
+**evidence → proposal → isolated DEV implementation → focused/full VERIFY → SAFE classification/approval → immutable build → signed release manifest → canary → readiness/data compatibility → staged Fleet rollout → convergence proof → rollback or forward-fix.**
+
+A release manifest binds at minimum:
+
+- release ID and exact Git revision;
+- application/package version and supported OS/architecture;
+- Python/runtime/build-tool version;
+- dependency lock/SBOM digest and artifact hashes;
+- State Plane schema compatibility and migration bundle digest;
+- Fleet protocol and minimum/maximum compatible agent versions;
+- provider/model identity plus immutable model artifact digest when the provider exposes one;
+- Constitution/protected-state compatibility;
+- configuration schema/capability schema versions;
+- avatar/voice/other immutable asset digests as applicable;
+- signing identity, signature and approved release lineage.
+
+A mutable model tag such as `qwen3:14b` is not by itself sufficient immutable release identity.
+
+### Protected execution base
+
+Normal autonomous self-update may not replace or relax the mechanisms that decide whether the update is trustworthy. At minimum the following are higher-trust SAFE surfaces: release signature verifier, trusted root public keys, approval verifier, emergency stop, cross-host fencing/leadership enforcement, anti-rollback policy, recovery boot path and protected-state verifier. Sofía may diagnose/propose changes to them, but activation requires the independently defined higher approval tier.
+
+### Independent Fleet-agent verification
+
+A matching version string is not enough to mark an existing Fleet agent trusted. Enrollment/update acceptance must independently verify the installed artifact/package identity, digest/signature, expected service identity/configuration and protocol compatibility. An installer returning `verified=true` is a receipt, not the sole proof; the controller or a separate verifier must establish the installed state.
+
+### Configuration source-of-truth contract
+
+Define and expose precedence as:
+
+**protected policy → shared authoritative configuration → approved machine-specific override → process/bootstrap override**.
+
+Every durable setting records scope, source, revision, actor/authority, timestamp, restart requirement and optional expiry. Master Settings must show whether a value is shared, host-local, inherited, read-only or unavailable. No setting may silently alter Venus while leaving Artemis with an unknown conflicting policy.
+
+### Global event/concurrency contract
+
+Desktop, Discord, future voice/mobile, ACT and background reflection may all produce work concurrently. Shared events/jobs therefore require stable `event_id`, principal/audience, conversation/workflow ID, causation ID, correlation ID, priority, accepted timestamp and idempotency identity where applicable. RUN owns scheduling/preemption so foreground authenticated interaction outranks optional background work and distributed workers cannot each multiply an autonomy quota independently.
+
+### Bare-metal recovery contract
+
+Recovery must work from clean hardware with the normal runtime unavailable: obtain independently held recovery credentials, verify signed release and trust roots, restore/verify State Plane and protected state, re-establish fencing/leader epoch, reconcile uncertain external effects, prove canonical identity and only then resume authoritative execution. Recovery must not depend solely on Discord, the failed database primary or credentials stored only inside the failed Sofía installation.
+
 
 ## Per-package roadmap: 20 packages
 
@@ -187,11 +285,22 @@ M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediate
 
 The live acceptance also produced two downstream findings that are not Discord adapter responsibilities: SOCIAL must project the authenticated principal into cognition, and INTERACT/CORE must repair generic/canned ordinary dialogue.
 
-### Two data locations and an independent watchdog (architecture, not a package)
+### State Plane replication, two data locations and independent watchdog (architecture, not a package)
 
 A **data-bearing primary and synchronous data-bearing standby** in separate measured failure domains are a candidate strict durability topology, with **one authoritative writer**, an independent witness/equivalent proven fencing authority, an already-running standby supervisor, and **a third isolated versioned backup**. Distinguish role: watchdog detects; supervisor starts; witness/consensus/fencing establishes authority; replica holds committed data; backup recovers corruption/deletion. Two VMs on Artemis or two copies on the same NAS are not physical redundancy. Two independent active SQLite writers or live SQLite file mirroring are prohibited. PostgreSQL is a candidate for an isolated comparison, not a present deployment decision.
 
 With a strict two-copy commit policy, pause authoritative writes when the required synchronous standby is unavailable; reads/degraded chat may continue only where safe. A witness does not replace a data copy. Never promote on heartbeat loss alone or promise zero loss of unfinished responses/external actions. Restore every durable store, preserve privacy and revoked grants, and measure the conditional acknowledged-write RPO and actual recovery time in real failure tests before asserting HA. Keep out-of-band Sparks stop and recovery functioning when Sofía/Discord/primary are down. See [detailed reliability](pkg-reliability-control-plane-contract.md) and [watchdog sequence](pkg-run-watchdog-failover-contract.md).
+
+### Release/Integrity Plane and fleet self-update (architecture, not a package)
+
+A running host is never the source of truth for “the newest Sofía.” Git/source evidence feeds DEV, but the deployable source of truth is an **approved immutable signed release**. Nodes download/stage the exact artifact, independently verify manifest/signature/digests and compatibility, run preflight/readiness checks, then atomically activate. Keep at least the current accepted and previous known-compatible releases until rollback windows close.
+
+Rollout is canary-first and wave-based. OPS records each node as current, outdated, corrupt, incompatible, quarantined or unknown; RUN publishes/uses an authoritative runtime endpoint only after the selected release is healthy and State Plane compatible. Repeated post-update crash/readiness failure must trip a release-level rollback/forward-fix policy rather than restart the same broken release forever.
+
+Do not copy mutable Python working directories from host to host as fleet update. Do not trust a package/version string without digest/signature verification. Do not let the updater replace its own signing/approval/fencing/recovery trust roots under ordinary autonomous authority.
+
+Dependencies/build tools and model artifacts are part of reproducibility. Pin/lock them and verify artifact identity. Large models/avatar/voice assets may be distributed content-addressed and referenced from State Plane rather than stored as database blobs.
+
 
 ### Source/document/tool lifecycle
 
@@ -199,19 +308,25 @@ Local authorized docs may be read before general web. KNOW preserves provenance;
 
 ## Immediate engineering order from the current baseline
 
-1. **CORE/INTERACT quality repair:** replace the stale doc-only PR #68 with a current-`main` implementation branch for natural greetings, varied closings, personality persistence in technical mode, and matched CLI/Discord behavior without reopening accepted safety semantics.
-2. **SOCIAL minimum:** add authenticated `principal_id` / audience projection into shared cognition so the enrolled Discord owner is actually represented as Sparks; bind person-scoped MEM/REL/ACT behavior to it. General second-user rollout remains deferred.
-3. **MEM + SAFE + CLEAN recovery baseline:** inventory every durable store, define retention/erasure/encryption, create verified backup/restore, then migrate live runtime databases out of tracked Git state. Do not delete or untrack `sofia.db` / `state/sofia.db` until recovery is proved.
-4. **Wire accepted primitives:** connect RUN's local lease/supervisor/periodic gate, ACT's queue/delivery ledger, and EVOLVE's approval/execution boundaries into one application-owned orchestration path with no duplicate schedulers or self-approval.
-5. **VERIFY foundation:** rebuild VERIFY from current `main`, add revision-pinned evidence manifests and GitHub Actions CI for full/static gates, then add resource/latency, restore, outage, denial and crash-matrix evidence.
-6. **REL consolidation:** rebuild stale PRs #12/#13 as one authenticated, non-clingy relationship pipeline using MEM originals and SOCIAL principal evidence. Keep absence/reunion present-tense and source-grounded.
-7. **CLEAN branch/doc hygiene:** rebuild stale PR #14; classify tracked DB/log/migration artifacts and old branches/PRs. Retain provenance, but stop treating 300+ commit-behind drafts as merge candidates.
-8. **AVATAR/UI next offline lane:** rebuild AVATAR #7 and UI #6 on current `main`; preserve one presentation state across wardrobe, hairstyle, hair/tail color and renderer receipts. Emotion may influence presentation but does not control it. No discrete sexual mode; intimate/emotional dimensions remain context/consent-bound.
-9. **OPS/RUN/NET live fleet lane:** deploy the signed agent on Windows/Linux/Pi, prove attestation/enrollment, standing-policy upkeep, workload movement, local service restart, independent watchdog, cross-host fencing, restore and multi-day soak. Only Sparks approves final machine removal.
-10. **INTEGRATE/DEV/KNOW live activation:** canary Home Assistant, JMRI, GitHub, Portainer/Hyper-V/Ollama/storage and OpenCode/document workflows with real receipts, rollback and scoped authority. Cloudflare remains deferred.
-11. **Reliability/data redundancy:** implement and test the chosen two-data-copy + witness/fencing + independent backup design; measure RPO/RTO rather than promising zero loss.
-12. **BODY later hardware phase:** rebuild BODY on current `main`, then real Gaia SSC-32/servo calibration, sensors/power, bounded gait and independent physical E-stop.
-13. **ENVIRONMENT operational follow-through:** the shared foundation, narrow NWS provider and persistent HOST location are accepted on `main`; next, optionally canary Home Assistant through INTEGRATE with explicit `environment.home_assistant.read`, then wire machine-location administration into OPS/RUN fleet state. General browsing/search and arbitrary geocoding remain for the later separately authorized NET/web gate.
-14. **General web/search last:** only after real 24/7 RUN/OPS acceptance, with separate authorization, provenance and revocation. PR #111 is the already accepted narrow NWS-only exception; it does not broaden into general browsing/search or arbitrary geocoding.
+1. **P0 execution truth:** replace production `TestActionExecutor` with a fail-closed production executor/boundary so accidental future action authority cannot create fake `EXECUTED` receipts.
+2. **State inventory + storage boundary:** inventory every SQLite table, JSON/file store, in-memory durable assumption, protected file, secret reference, cache and log; introduce a backend-neutral State Plane interface before choosing/migrating to PostgreSQL.
+3. **Source/state/protected separation:** move mutable runtime truth out of source-controlled installation paths through a recovery-first CLEAN/MEM/SAFE migration. Preserve originals/backups; do not delete history to clean Git.
+4. **Canonical identity + configuration authority:** define first-bootstrap vs joining-node identity semantics, prevent accidental second identity creation, and implement explicit protected/shared/host/process configuration precedence with provenance.
+5. **Central schema/migration framework:** add schema revision registry, compatibility windows, exclusive migration lease, expand→migrate→contract rules, semantic integrity checks and rollback/forward-fix evidence.
+6. **CORE/INTERACT quality repair:** rebuild the stale quality branch on current code for natural greetings/closings/personality persistence while preserving accepted safety semantics; add stable global interaction event/priority metadata.
+7. **SOCIAL minimum:** project authenticated `principal_id` / audience into cognition and bind person-scoped MEM/REL/ACT/state rows to it; add negative shared-State-Plane leakage tests.
+8. **Wire accepted primitives:** connect RUN local supervision/periodic opportunities, ACT queue/delivery and EVOLVE approval/execution into one application-owned orchestration path with one scheduler/leader and global budgets.
+9. **Release/Integrity Plane foundation:** DEV produces reproducible immutable candidates with dependency/runtime locks, hashes/SBOM/provenance; SAFE verifies signed manifests/anti-rollback; VERIFY proves exact revision, schema and model/agent compatibility.
+10. **Fleet rollout hardening:** strengthen PR #117/bootstrap so installed agents are independently digest/signature-attested, not trusted from version or self-reported receipt alone; add protocol compatibility, canary/wave deployment and fleet convergence state.
+11. **VERIFY failure/recovery foundation:** rebuild VERIFY on current code with current-revision CI/evidence manifests, corrupt artifact/signature, migration upgrade/downgrade, crash-loop rollback, stale replica, partition/fencing, semantic corruption, bare-metal restore and supply-chain negatives.
+12. **REL consolidation:** rebuild stale REL candidates as one authenticated, non-clingy relationship pipeline using MEM originals and SOCIAL principal evidence.
+13. **AVATAR/UI/VOICE lane:** keep one roaming presentation/settings state, content-address large renderer/voice assets, expose shared-vs-local setting provenance, then implement the separately gated VOICE workstream without creating another canonical Sofía.
+14. **OPS/RUN/NET live fleet lane:** deploy signed/attested agents on Windows/Linux/Pi; prove real service supervision, independent watchdog, cross-host writer/runtime fencing, clock uncertainty, workload movement, endpoint handoff, restore and multi-day soak.
+15. **State Plane replication/data redundancy:** after SQLite recovery baseline and backend comparison, implement the selected one-logical-DB topology with separate data-bearing failure domains, safe synchronous durability policy, witness/equivalent fencing and isolated versioned backup; measure RPO/RTO.
+16. **INTEGRATE/DEV/KNOW live activation:** canary Home Assistant, JMRI, GitHub, Portainer/Hyper-V/Ollama/storage and OpenCode/document workflows through least-privilege service roles with real receipts/rollback. Cloudflare remains deferred.
+17. **SAFE secrets/trust-root hardening:** move production signing/CA/recovery key custody beyond ordinary unencrypted development PEM files where appropriate; rotate/revoke/test independently and keep ordinary Sofía self-update unable to rewrite trust roots.
+18. **BODY later hardware phase:** rebuild BODY on current code, bind firmware/calibration compatibility into verified release evidence, then real Gaia SSC-32/servo/sensor/power/E-stop acceptance.
+19. **ENVIRONMENT operational follow-through:** canary Home Assistant only under explicit authority, move intentionally roaming configuration into State Plane with provenance and keep freshness-bound readings derived/local where appropriate.
+20. **General web/search last:** only after genuine Discord + OPS/RUN 24/7/fleet/recovery acceptance, with separate authorization/provenance/revocation. The accepted NWS-only route remains a narrow exception, not a general browser grant.
 
 **No implementation, deployment, new data stores, full-suite rerun or live hardware failover test is performed by this roadmap update.**
