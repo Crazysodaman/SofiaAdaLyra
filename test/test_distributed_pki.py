@@ -4,7 +4,7 @@ import pytest
 from cryptography import x509
 from cryptography.x509.oid import ExtendedKeyUsageOID
 
-from sofia.distributed.pki import bootstrap_pair
+from sofia.distributed.pki import _refuse_network_secret_root, bootstrap_pair
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
 
 
@@ -108,3 +108,8 @@ def test_bootstrap_pair_can_include_server_ip_san(tmp_path: Path):
         x509.SubjectAlternativeName
     ).value
     assert str(sans.get_values_for_type(x509.IPAddress)[0]) == "192.0.2.44"
+
+
+def test_refuse_network_secret_root():
+    with pytest.raises(ValueError, match="local storage"):
+        _refuse_network_secret_root(Path(r"\\\\Artemis\\Hestia\\fleet-pki"))
