@@ -2,6 +2,8 @@
 
 > **Fleet/tray/remote-client candidate — 2026-09-26:** branch `feature/fleet-tray-remote-controls` adds durable host activity/Game Mode evidence, Steam/local-process game detection, activity-aware placement, authorized Fleet-agent bootstrap planning, a native Windows notification-area control surface, Master Settings, independent LLM/runtime controls, Windows startup registration, and pinned-mTLS remote desktop chat over the canonical conversation service. This is **candidate source only** until Sparks runs the focused Windows gate and supervised tray/remote-client canaries. It does not yet prove automatic LAN discovery, real cross-host service control, runtime migration, or automatic authoritative-endpoint publication.
 
+> **State/Release architecture audit — 2026-09-27:** cross-chat + current-code review found that Fleet mobility and self-improvement need two explicit cross-package control planes, **not new packages**: one logical **Sofía State Plane** and one **Release/Integrity Plane**. Current state is still split across SQLite plus identity/personality/avatar/knowledge/machine-location/Constitution files; production composition still uses `TestActionExecutor`; schema migration is decentralized; installed-agent/version checks and self-update artifacts need stronger independent attestation; and release/model/dependency identity is not yet immutable. The roadmap now assigns these gaps to the existing packages below. No PostgreSQL migration, release signer, or production deployment is claimed by this documentation update.
+
 > **Project status update — 2026-09-25:** PR #104 (`24e3888a`) merged the runtime toolbox and secure fleet-transport completion gate on top of the earlier Waves 1–5 work. Focused tool/mTLS acceptance passed **34/34**, the surrounding DEV/KNOW/INTEGRATE/OPS/system/machine regression gate passed **270/270**, and the full repository pytest suite was reported passing before merge. Source-level pinned mTLS remote transport/agent and concrete runtime adapters are now on `main`; real heterogeneous-host deployment, service canaries, RUN 24/7 supervision, workload execution/failover, restore and soak remain separately gated.
 
 > **Project status update — 2026-09-25 (late):** PRs #105 (ACT), #106 (EVOLVE), and #107 (RUN local lifecycle) are merged. Their Windows package gates passed **90**, **62**, and **78 passed / 1 skipped** respectively, and Sparks reported the post-merge current-`main` full pytest suite passing. Repository audit at `13046c2` found **299 Python source files**, **246 Python test files**, and **59 Git branches**. The new ACT/RUN/EVOLVE primitives are not yet wired into the normal application/composition path. SOCIAL principal projection remains absent from `CognitiveContext`. Eleven legacy draft PRs were initially open and all were roughly 330 commits behind `main`; obsolete Discord preflight PR #5 has now been closed as superseded by merged/live-accepted PR #64.
@@ -29,6 +31,55 @@ After MEM, package work that does not bypass those release gates may proceed in 
 **SAFE and VERIFY are continuous gates across every stage rather than late sequential packages.**
 
 General internet/search is deliberately **not** part of the initial Discord NET scope. Discord connectivity does not grant browser/search access.
+
+## State and release architecture | package ownership
+
+These are **cross-package contracts, not packages #21/#22**.
+
+**Sofía State Plane** means one logical authoritative state across all execution hosts, with one safe writer/leader policy, typed ownership, versioned schema, authenticated principals, backups and restore. It does **not** mean every node receives unrestricted database credentials. Machine-local caches, PIDs, device handles, downloaded models and similar ephemeral data remain local. Secrets/private keys remain outside the general shared state database.
+
+**Release/Integrity Plane** means self-improvement produces an immutable, reviewable release artifact rather than editing whichever host is currently running Sofía. A release binds exact code, dependency/runtime versions, database compatibility, protocol versions, model/artifact digests, protected-state compatibility and signatures; OPS/RUN then canary, verify, converge or roll back the fleet.
+
+| Concern found in audit | Primary package owner | Supporting packages | Required roadmap outcome |
+| --- | --- | --- | --- |
+| Canonical identity on a new/rebuilt host | **CORE** | SAFE, MEM, RUN | A joining node retrieves/verifies the existing canonical identity; loss of a local identity file must never create a second Sofía. |
+| One logical shared authoritative state | **MEM** | SOCIAL, RUN, OPS, SAFE | Introduce a backend-neutral State Plane/storage boundary and inventory/migrate every authoritative SQLite/JSON/file store deliberately. |
+| Principal/audience ownership inside shared state | **SOCIAL** | MEM, SAFE | Every person-scoped record is bound to an authenticated principal/audience; no cross-user leakage through shared storage or caches. |
+| Schema/version migrations and backward-compatible rollback | **MEM** | VERIFY, CLEAN, RUN | Central schema versioning plus expand→migrate→contract compatibility; old releases may not start against unsupported schemas. |
+| Runtime/protected/source/cache/log separation | **CLEAN** | MEM, SAFE, DEV | Stop mixing mutable runtime truth with source-controlled installation files; document retention and ownership for every class. |
+| Secrets, DB roles and trust roots | **SAFE** | NET, OPS, INTEGRATE | Least-privilege per-service credentials; signing keys/CA private keys/operator approval roots stay outside ordinary self-modification and shared DB access. |
+| Cross-host leadership, time/fencing and event ordering | **RUN** | OPS, SAFE, MEM | One authoritative runtime/write leader, monotonic fencing, clock/lease uncertainty handling, global foreground-before-background ordering and no split brain. |
+| Fleet deployment, convergence and agent attestation | **OPS** | RUN, NET, SAFE, VERIFY | Verify installed agent/artifact identity independently; roll out exact releases by canary/waves and report current/outdated/corrupt/incompatible/quarantined nodes. |
+| Reproducible candidate build | **DEV** | KNOW, VERIFY, SAFE | Lock dependencies/build runtime, capture hashes/SBOM/provenance and build immutable candidates instead of copying mutable working trees. |
+| Governed self-change | **EVOLVE** | DEV, SAFE, VERIFY | Sofía may propose/test changes, but protected verifier/signing/approval/fencing/recovery roots require a higher independently authorized tier. |
+| Release signature, anti-rollback and supply-chain policy | **SAFE** | DEV, VERIFY, OPS | Verify signatures and allowed release lineage before activation; compromised or unsigned artifacts fail closed. |
+| Release/migration/failure evidence | **VERIFY** | every package | Test upgrade/downgrade compatibility, corrupt artifacts, bad migrations, stale replicas, protocol mismatch, rollback, bare-metal restore and current-revision fleet convergence. |
+| Global autonomy/resource budgets | **RUN** | ACT, OPS, CORE | Budgets are fleet-wide, not multiplied independently per worker; live Sparks interaction outranks optional background work. |
+| Large model/avatar/voice/assets | **OPS** | UI, AVATAR, CORE, VERIFY | Keep large immutable assets content-addressed outside transactional rows where appropriate; State Plane stores identity/digest/location/availability. |
+| Configuration source of truth | **CORE** | SAFE, OPS, UI, ENVIRONMENT | Define precedence and provenance for protected policy → shared config → approved host override → process/bootstrap override; settings must not silently diverge by host. |
+| Tamper-evident work/deployment audit | **SAFE** | ACT, RUN, OPS, DEV, EVOLVE | Protected approvals/releases/actions get durable immutable IDs, causation/correlation, exact revision/grant and receipts; uncertain effects remain uncertain. |
+| Bare-metal/operator recovery | **SAFE** | VERIFY, RUN, OPS, MEM | Rebuild from clean hardware using independently held recovery credentials, verify identity/state/release, then deliberately resume authority. |
+
+### Mandatory State Plane classes
+
+Every persistent datum must be classified before migration:
+
+- **shared authoritative state:** conversations, reviewed memories, principal relationships, fleet inventory, runtime leases, jobs/outbox, approvals, deployment records and roaming presentation/configuration where policy permits;
+- **protected state/trust anchors:** Constitution/identity authority roots, release-signing trust, approval verifier configuration, fencing/recovery policy and revocations;
+- **secrets:** tokens, private keys and credentials referenced by ID/scope but not exposed as ordinary shared records;
+- **immutable/content-addressed artifacts:** application releases, model files, avatar/voice assets, migration bundles and evidence;
+- **local ephemeral state:** PID/device handles, caches, temporary downloads, current GPU/process samples and other rebuildable host-local observations.
+
+A shared database must expose **least-privilege service roles**, not a universal Fleet password. A remote agent that can report CPU load must not thereby gain permission to rewrite memories, approvals or protected identity.
+
+### Mandatory Release/Integrity Plane flow
+
+**proposal → isolated DEV change → VERIFY → SAFE policy/approval → immutable build → signed manifest → canary → health/data compatibility check → staged Fleet rollout → convergence proof → rollback/forward-fix if required.**
+
+The manifest must bind at minimum: release ID, Git revision, package/application version, Python/runtime version, dependency lock digest, database schema compatibility, Fleet protocol/agent compatibility, provider/model identity and digest where available, Constitution/protected-state compatibility, configuration schema, asset digests and release signature.
+
+The updater may not silently modify its own trust root. Release signature verification, root signing keys, independent operator approval, emergency stop, fencing, rollback/recovery boot path and protected-state verification are **higher-trust SAFE surfaces**. Sofía may propose changes to them; normal autonomous self-update may not self-authorize them.
+
 
 ## Ordered package roster
 
