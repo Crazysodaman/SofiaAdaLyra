@@ -268,7 +268,10 @@ class ConversationService:
             raise RuntimeError(
                 "ConversationService must be started before binding a principal."
             )
-        bound = self._social_store.get(self._session.id)
+        social_store = getattr(self, "_social_store", None)
+        if social_store is None:
+            return principal
+        bound = social_store.get(self._session.id)
         if principal is None:
             if bound is not None:
                 raise PermissionError(
@@ -276,7 +279,7 @@ class ConversationService:
                     "authenticated principal context is required."
                 )
             return None
-        return self._social_store.bind(
+        return social_store.bind(
             session_id=self._session.id,
             principal=principal,
         )
@@ -383,11 +386,17 @@ class ConversationService:
 
         request = self._build_request()
 
-        response = self._runtime.respond(
-            request,
-            filesystem_results=filesystem_results,
-            principal=principal,
-        )
+        if principal is None:
+            response = self._runtime.respond(
+                request,
+                filesystem_results=filesystem_results,
+            )
+        else:
+            response = self._runtime.respond(
+                request,
+                filesystem_results=filesystem_results,
+                principal=principal,
+            )
 
         assistant_message = ConversationMessage(
             id=str(uuid4()),
