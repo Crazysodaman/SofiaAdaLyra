@@ -148,4 +148,4 @@ def test_live_grope_wording_routes_through_interaction_engine(
         assert '"region_id": null' in prompt
     else:
         assert f'"region_id": "{region}"' in prompt
-        assert '"gesture": "touch"' in prompt
+        assert '"gesture": "intimate-touch"' in prompt

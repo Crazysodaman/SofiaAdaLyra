@@ -38,7 +38,7 @@ def avatar_world_guidance() -> str:
         "avatar side may expose an unrendered animation intent before a model, "
         "skeleton or motion set exists; that intent is not animation evidence. "
         "Never claim avatar rendering or external action was executed without "
-        "the corresponding verified renderer/result receipt."
+        "the corresponding verified result, such as a renderer receipt."
     )
 
 

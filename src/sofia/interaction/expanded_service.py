@@ -168,12 +168,20 @@ class ExpandedConversationService(InteractiveConversationService):
                         content, message_id='preflight', session_id=self._session.id,
                         occurred_at=datetime.now(timezone.utc))
                     if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
-                        return self._guarded_reply(
-                            content, _STOPPED_ACTION, principal=principal
+                        return (
+                            self._guarded_reply(content, _STOPPED_ACTION)
+                            if principal is None
+                            else self._guarded_reply(
+                                content, _STOPPED_ACTION, principal=principal
+                            )
                         )
                     if context is not None and context.blocked:
-                        return self._guarded_reply(
-                            content, _BOUNDARY_ACTION, principal=principal
+                        return (
+                            self._guarded_reply(content, _BOUNDARY_ACTION)
+                            if principal is None
+                            else self._guarded_reply(
+                                content, _BOUNDARY_ACTION, principal=principal
+                            )
                         )
         return super().respond(content) if principal is None else super().respond(
             content, principal=principal

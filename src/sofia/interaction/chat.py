@@ -42,7 +42,7 @@ _INTERACTION_FOLLOWUP = re.compile(
     r"what\s+if\s+you\s+(?:did\s+not|didn't|do\s+not|don't)\s+want\s+it\b.*|"
     r"what\s+if\s+you\s+normally\s+like\s+it\b.*|"
     r"(?:can|could|would)\s+you\s+change\s+your\s+mind\b.*|"
-    r"(?:tell\s+me\s+)?how\s+(?:can|could|would)\s+i\s+(?:get|help)\s+(?:you|u)\s+(?:there|comfortable|ready)\b.*|"
+    r"(?:tell\s+me\s+)?how\s+(?:(?:can|could|would)\s+i|i\s+(?:can|could|would))\s+(?:get|help)\s+(?:you|u)\s+(?:there|comfortable|ready)\b.*|"
     r"what\s+would\s+(?:make|help)\s+(?:you|u)\s+(?:comfortable|ready|want(?:\s+it)?)\b.*|"
     r"what\s+(?:would|do)\s+(?:you|u)\s+(?:want|prefer|need)\b.*|"
     r"how\s+(?:would|can|could)\s+i\s+(?:know|tell)\s+if\s+(?:you|u)(?:'re|\s+are)?\s+(?:comfortable|ready|willing|want(?:ed)?\s+it)\b.*|"

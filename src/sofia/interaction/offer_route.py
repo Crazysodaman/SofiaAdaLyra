@@ -14,7 +14,7 @@ def routed_choice_request(base: CognitiveRequest, frame: ReviewedFrame) -> Cogni
         or frame.user_text != OFFER
         or frame.choices != ("accept", "decline", "clarify", "boundary")
     ):
-        raise ValueError("The reviewed hug offer is required.")
+        raise ValueError("The reviewed synthetic hug offer is required.")
 
     original = choice_request(base, frame)
     route_instruction = (

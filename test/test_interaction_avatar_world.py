@@ -110,12 +110,10 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
         assert application.conversation.respond(text).content == 'Isolated response.'
         assert len(captured) == 1
         request = captured[0]
-        # Current main exposes the authorized cognitive tool surface to Ollama.
-        # Presence of tools does not mean any tool was called or action executed.
-        assert request.tools
-        tool_names = {tool.name for tool in request.tools}
-        assert 'tool_catalog' in tool_names
-        assert len(tool_names) == len(request.tools)
+        # Reviewed INTERACT turns are deliberately tool-free. Conversation can
+        # describe represented interaction without gaining execution authority.
+        assert request.tools == ()
+        assert request.allow_tools is False
         assert request.messages[-1].role is CognitiveRole.USER
         assert request.messages[-1].content == text
         system = '\n'.join(message.content for message in request.messages
