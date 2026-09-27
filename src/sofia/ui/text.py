@@ -7,6 +7,7 @@ unsent draft state separate from cognition.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 from datetime import datetime
 from typing import Protocol
 
@@ -42,8 +43,10 @@ class UITextClient:
         drafts: UIDraftStore,
         client_id: str,
     ) -> None:
-        if not hasattr(conversation, "session_id"):
-            raise TypeError("conversation must expose session_id")
+        try:
+            inspect.getattr_static(conversation, "session_id")
+        except AttributeError as exc:
+            raise TypeError("conversation must expose session_id") from exc
         if not callable(getattr(conversation, "messages", None)):
             raise TypeError("conversation must expose messages()")
         if not callable(getattr(conversation, "respond", None)):
