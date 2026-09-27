@@ -93,6 +93,8 @@ class Policy:
     quiet_start_local: int = 22
     quiet_end_local: int = 8
     timezone_name: str = "UTC"
+    quiet_start_utc: int | None = None
+    quiet_end_utc: int | None = None
     min_interval: timedelta = timedelta(hours=2)
     max_daily: int = 4
     social_min_interval: timedelta = timedelta(hours=6)
@@ -103,6 +105,16 @@ class Policy:
 
     def __post_init__(self) -> None:
         _id(self.recipient_id, "recipient_id")
+        if self.quiet_start_utc is not None:
+            if type(self.quiet_start_utc) is not int or not 0 <= self.quiet_start_utc <= 23:
+                raise ValueError("quiet_start_utc must be an integer in 0..23")
+            object.__setattr__(self, "quiet_start_local", self.quiet_start_utc)
+            object.__setattr__(self, "timezone_name", "UTC")
+        if self.quiet_end_utc is not None:
+            if type(self.quiet_end_utc) is not int or not 0 <= self.quiet_end_utc <= 23:
+                raise ValueError("quiet_end_utc must be an integer in 0..23")
+            object.__setattr__(self, "quiet_end_local", self.quiet_end_utc)
+            object.__setattr__(self, "timezone_name", "UTC")
         if not all(isinstance(value, bool) for value in (self.enabled, self.mute, self.stop)):
             raise TypeError("enabled/mute/stop must be booleans")
         if any(
@@ -252,10 +264,30 @@ def evaluate(
         return Decision.DAILY_LIMIT
 
     if candidate.category is OutreachCategory.SOCIAL:
-        category_last = history.social_last_delivered_at
-        category_count = history.social_delivered_today
-        category_interval = policy.social_min_interval
-        category_limit = policy.social_max_daily
+        legacy_social_history = (
+            history.social_last_delivered_at is None
+            and history.social_delivered_today == 0
+        )
+        category_last = (
+            history.last_delivered_at
+            if legacy_social_history
+            else history.social_last_delivered_at
+        )
+        category_count = (
+            history.delivered_today
+            if legacy_social_history
+            else history.social_delivered_today
+        )
+        category_interval = (
+            policy.min_interval
+            if legacy_social_history
+            else policy.social_min_interval
+        )
+        category_limit = (
+            policy.max_daily
+            if legacy_social_history
+            else policy.social_max_daily
+        )
         if candidate.importance is Importance.TRIVIAL and candidate.salience < 0.55:
             return Decision.TOO_SOON
     else:
