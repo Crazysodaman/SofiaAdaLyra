@@ -40,7 +40,7 @@ from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
 from sofia.filesystem.observation import FilesystemObservationStore
-from sofia.identity.store import IdentityStore
+from sofia.identity.store import IdentityBootstrapMode, IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
@@ -175,7 +175,12 @@ def compose(
     )
 
     identity_store = IdentityStore(
-        Path(configuration.identity_path)
+        Path(configuration.identity_path),
+        bootstrap_mode=(
+            IdentityBootstrapMode.FIRST_BOOTSTRAP
+            if configuration.canonical_identity_bootstrap_authorized
+            else IdentityBootstrapMode.EXISTING_ONLY
+        ),
     )
 
     personality_store = PersonalityStore(
