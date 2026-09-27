@@ -56,6 +56,22 @@ def _habit_learning_enabled() -> bool:
     raise ValueError("SOFIA_HABIT_LEARNING must be 1 or 0 (also accepts true/false).")
 
 
+def _sensitive_memory_learning_enabled() -> bool:
+    """Sensitive personal memory retention is explicit opt-in only."""
+    setting = os.environ.get(
+        "SOFIA_MEMORY_SENSITIVE_PERSONAL",
+        "0",
+    ).strip().lower()
+    if setting in ("0", "false", "off", ""):
+        return False
+    if setting in ("1", "true", "on"):
+        return True
+    raise ValueError(
+        "SOFIA_MEMORY_SENSITIVE_PERSONAL must be 1 or 0 "
+        "(also accepts true/false)."
+    )
+
+
 class SofiaApplication:
     """Canonical application boundary for Sofía.
 
@@ -77,7 +93,9 @@ class SofiaApplication:
         )
         conversation_store = ConversationStore(configuration.state_path)
         self._conversation_service: ConversationService = OptInInteractionConversationService(
-            runtime=self._runtime, conversation_store=conversation_store,
+            runtime=self._runtime,
+            conversation_store=conversation_store,
+            allow_sensitive_memory=_sensitive_memory_learning_enabled(),
         )
         candidate_store = self._runtime.memory_system.candidate_store
         if candidate_store is None:
