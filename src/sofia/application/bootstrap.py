@@ -201,7 +201,7 @@ class SofiaApplication:
             environment_snapshot = (
                 environment_service.snapshot(
                     now=datetime.now(timezone.utc),
-                    refresh_providers=True,
+                    refresh_providers=False,
                 )
                 if environment_service is not None
                 else None
