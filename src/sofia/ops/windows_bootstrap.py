@@ -18,7 +18,7 @@ import subprocess
 import tempfile
 import time
 from typing import Callable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from .bootstrap import (
     AgentPackage,
@@ -269,6 +269,17 @@ class WindowsCimBootstrapInstaller:
         self.listen_port = listen_port
         self.timeout_seconds = timeout_seconds
         self.launcher = launcher
+        self._active_controller_stage_directory: Path | None = None
+        self._active_remote_stage_path: str | None = None
+
+    def _new_stage_paths(self) -> tuple[Path, str]:
+        suffix = uuid4().hex[:12]
+        controller = self.controller_stage_directory.with_name(
+            f"{self.controller_stage_directory.name}-{suffix}"
+        )
+        remote_base = PureWindowsPath(self.remote_stage_path)
+        remote = str(remote_base.with_name(f"{remote_base.name}-{suffix}"))
+        return controller, remote
 
     def prepare_stage(self, package: AgentPackage) -> Path:
         if not self.bundle_directory.is_dir():
@@ -281,10 +292,10 @@ class WindowsCimBootstrapInstaller:
             if not (self.bundle_directory / Path(relative)).is_file():
                 raise FileNotFoundError(f"Fleet bundle missing {relative}")
 
-        stage = self.controller_stage_directory
-        if stage.exists():
-            shutil.rmtree(stage)
-        (stage / "certs").mkdir(parents=True, exist_ok=True)
+        stage, remote_stage = self._new_stage_paths()
+        self._active_controller_stage_directory = stage
+        self._active_remote_stage_path = remote_stage
+        (stage / "certs").mkdir(parents=True, exist_ok=False)
         (stage / "state").mkdir(parents=True, exist_ok=True)
         shutil.copy2(self.bundle_directory / "agent.json", stage / "agent.json")
         for name in ("fleet-ca.pem", "artemis-server.pem", "artemis-server-key.pem"):
@@ -294,7 +305,7 @@ class WindowsCimBootstrapInstaller:
         installer = stage / "install.ps1"
         installer.write_text(
             render_installer(
-                stage_path=self.remote_stage_path,
+                stage_path=remote_stage,
                 install_root=self.install_root,
                 wheel_name=self.wheel_path.name,
                 package_sha256=package.sha256,
@@ -306,7 +317,9 @@ class WindowsCimBootstrapInstaller:
         return installer
 
     def wait_for_receipt(self) -> WindowsBootstrapEvidence:
-        target = self.controller_stage_directory / "bootstrap-receipt.json"
+        if self._active_controller_stage_directory is None:
+            raise RuntimeError("bootstrap stage has not been prepared")
+        target = self._active_controller_stage_directory / "bootstrap-receipt.json"
         deadline = time.monotonic() + self.timeout_seconds
         while time.monotonic() < deadline:
             if target.is_file():
@@ -336,8 +349,10 @@ class WindowsCimBootstrapInstaller:
             raise ValueError("bootstrap candidate does not match approved host")
 
         installer = self.prepare_stage(package)
-        (self.controller_stage_directory / "bootstrap-receipt.json").unlink(missing_ok=True)
-        remote_installer = str(PureWindowsPath(self.remote_stage_path) / installer.name)
+        if self._active_controller_stage_directory is None or self._active_remote_stage_path is None:
+            raise RuntimeError("bootstrap stage was not initialized")
+        (self._active_controller_stage_directory / "bootstrap-receipt.json").unlink(missing_ok=True)
+        remote_installer = str(PureWindowsPath(self._active_remote_stage_path) / installer.name)
         self.launcher(self.host, self.credential_user, remote_installer)
         evidence = self.wait_for_receipt()
 
