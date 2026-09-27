@@ -30,8 +30,14 @@ class KnowledgeCapabilitySet:
             p["document_id"],
             principal_id=principal_id,audience_id=audience_id,
         )
-        if name=="knowledge.ingest.text": return self.service.ingest_text(p["path"],version=p.get("version","local"))
-        if name=="knowledge.ingest.pdf": return self.service.ingest_pdf(p["path"],version=p.get("version","local"))
+        if name=="knowledge.ingest.text": return self.service.ingest_text(
+            p["path"],version=p.get("version","local"),
+            principal_id=principal_id,audience_id=audience_id,
+        )
+        if name=="knowledge.ingest.pdf": return self.service.ingest_pdf(
+            p["path"],version=p.get("version","local"),
+            principal_id=principal_id,audience_id=audience_id,
+        )
         if name=="knowledge.document.write": return self.service.write_document(p["path"],p["content"],overwrite=bool(p.get("overwrite",False)))
         raise ValueError("unsupported KNOW capability")
 
