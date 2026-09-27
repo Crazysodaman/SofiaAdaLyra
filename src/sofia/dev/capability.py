@@ -186,6 +186,7 @@ class DevToolService:
             base_sha=parameters["base_sha"],
             prompt=parameters["prompt"],
             allowed_paths=tuple(parameters["allowed_paths"]),
+            authorized=True,
             timeout_seconds=int(parameters.get("timeout_seconds", 900)),
             tests=tuple(parameters.get("tests", ())),
         )
@@ -203,7 +204,7 @@ class DevToolService:
     def apply(self, parameters: dict[str, Any]) -> dict[str, Any]:
         self._authorize(DevOperation.APPLY, parameters)
         candidate = self.store.get(parameters["proposal_id"])
-        changed = self.workflow.apply(candidate)
+        changed = self.workflow.apply(candidate, authorized=True)
         self._applied_proposal_id = candidate.proposal_id
         return {
             "proposal_id": candidate.proposal_id,
@@ -219,7 +220,7 @@ class DevToolService:
             raise ValueError(
                 "rollback proposal does not match currently applied candidate"
             )
-        self.workflow.rollback_applied()
+        self.workflow.rollback_applied(authorized=True)
         proposal_id = parameters["proposal_id"]
         self._applied_proposal_id = None
         return {
@@ -236,7 +237,10 @@ class DevToolService:
             raise ValueError(
                 "commit proposal does not match currently applied candidate"
             )
-        sha = self.workflow.commit(parameters["message"])
+        sha = self.workflow.commit(
+            parameters["message"],
+            authorized=True,
+        )
         proposal_id = parameters["proposal_id"]
         self.store.remove(proposal_id)
         self._applied_proposal_id = None
@@ -250,6 +254,7 @@ class DevToolService:
         self.workflow.push(
             parameters["branch"],
             remote=parameters.get("remote", "origin"),
+            authorized=True,
         )
         return {
             "proposal_id": parameters["proposal_id"],
