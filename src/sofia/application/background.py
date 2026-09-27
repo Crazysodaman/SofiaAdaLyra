@@ -153,16 +153,20 @@ class ApplicationBackgroundCoordinator:
         poll_seconds: float = 90.0,
         idle_seconds: float = 45.0,
         opportunity_policy: OpportunityPolicy | None = None,
+        reflection_enabled: bool = True,
     ) -> None:
         if not isinstance(service, EmotionalConversationService):
             raise TypeError("service must be an EmotionalConversationService")
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be a Path")
+        if not isinstance(reflection_enabled, bool):
+            raise TypeError("reflection_enabled must be boolean")
         if not isinstance(poll_seconds, (int, float)) or poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
         if not isinstance(idle_seconds, (int, float)) or idle_seconds <= 0:
             raise ValueError("idle_seconds must be positive")
         self.service = service
+        self.reflection_enabled = reflection_enabled
         self.state_path = state_path
         self.poll_seconds = float(poll_seconds)
         self.idle_seconds = float(idle_seconds)
@@ -214,13 +218,17 @@ class ApplicationBackgroundCoordinator:
         ):
             return "foreground_busy"
 
-        refs = self._source_refs(moment)
-        opportunity = self.periodic.claim(
-            now=moment,
-            source_refs=refs,
-            user_active=False,
+        refs = self._source_refs(moment) if self.reflection_enabled else ()
+        opportunity = (
+            self.periodic.claim(
+                now=moment,
+                source_refs=refs,
+                user_active=False,
+            )
+            if self.reflection_enabled
+            else None
         )
-        if opportunity.status == "claimed":
+        if opportunity is not None and opportunity.status == "claimed":
             claim_id = self.budget.claim("reflection", now=moment)
             if claim_id is None:
                 self.periodic.finish(
@@ -282,7 +290,7 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
-        return opportunity.status
+        return "reflection_disabled" if opportunity is None else opportunity.status
 
     def _loop(self) -> None:
         while not self._stop_event.wait(self.poll_seconds):
