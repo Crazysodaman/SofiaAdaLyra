@@ -187,6 +187,8 @@ class ApplicationBackgroundCoordinator:
             ),
         )
         self._act_delivery: Callable[[datetime], object | None] | None = None
+        self._tasks: dict[str, Callable[[datetime], object | None]] = {}
+        self._heartbeat: Callable[[datetime, bool], None] | None = None
         self._stop_event = Event()
         self._thread: Thread | None = None
         self.last_error: str | None = None
@@ -198,6 +200,30 @@ class ApplicationBackgroundCoordinator:
         if callback is not None and not callable(callback):
             raise TypeError("ACT delivery callback must be callable or None")
         self._act_delivery = callback
+
+    def set_task(
+        self,
+        task_kind: str,
+        callback: Callable[[datetime], object | None] | None,
+    ) -> None:
+        """Install one typed background unit under the shared global budget."""
+        if not isinstance(task_kind, str) or not task_kind.strip():
+            raise ValueError("task_kind must be nonempty")
+        key = task_kind.strip()
+        if callback is None:
+            self._tasks.pop(key, None)
+            return
+        if not callable(callback):
+            raise TypeError("background task callback must be callable or None")
+        self._tasks[key] = callback
+
+    def set_heartbeat(
+        self,
+        callback: Callable[[datetime, bool], None] | None,
+    ) -> None:
+        if callback is not None and not callable(callback):
+            raise TypeError("heartbeat callback must be callable or None")
+        self._heartbeat = callback
 
     def _source_refs(self, now: datetime) -> tuple[str, ...]:
         absence = self.service.observe_background_absence(now=now)
@@ -269,6 +295,24 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
+        for task_kind in sorted(self._tasks):
+            claim_id = self.budget.claim(task_kind, now=moment)
+            if claim_id is None:
+                return "budget_busy"
+            try:
+                result = self._tasks[task_kind](moment)
+                self.budget.finish(claim_id, now=moment)
+                if result is not None:
+                    return f"{task_kind}:attempted"
+            except Exception as exc:
+                self.budget.finish(
+                    claim_id,
+                    now=datetime.now(timezone.utc),
+                    error=exc,
+                )
+                self.last_error = type(exc).__name__
+                raise
+
         if self._act_delivery is not None:
             claim_id = self.budget.claim("act_delivery", now=moment)
             if claim_id is None:
@@ -290,15 +334,22 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
-        return "reflection_disabled" if opportunity is None else opportunity.status
+        return "background_idle" if self._tasks else (
+            "reflection_disabled" if opportunity is None else opportunity.status
+        )
 
     def _loop(self) -> None:
         while not self._stop_event.wait(self.poll_seconds):
+            now = datetime.now(timezone.utc)
             try:
-                self.run_once()
+                self.run_once(now=now)
                 self.last_error = None
+                if self._heartbeat is not None:
+                    self._heartbeat(now, True)
             except Exception as exc:
                 self.last_error = type(exc).__name__
+                if self._heartbeat is not None:
+                    self._heartbeat(now, False)
 
     def start(self) -> None:
         if self._thread is not None:
