@@ -128,6 +128,18 @@ ACTION_DEFINITIONS = _definitions("action", {
     "help-in-lab": ("help in the lab", "work together"),
     "ask-permission": ("ask permission", "ask first"),
     "decline": ("decline", "say no"),
+    # Private/adult represented actions. These are vocabulary only: they do not
+    # grant consent, create a renderer action, or bypass audience policy.
+    "sensual-pose": ("sensual pose", "seductive pose"),
+    "flash-chest": ("flash chest", "flash breasts", "reveal breasts"),
+    "breast-press-pose": ("press breasts together", "breast press pose"),
+})
+
+PRIVATE_SEMANTICS = frozenset({
+    ("gesture", "intimate-touch"),
+    ("action", "sensual-pose"),
+    ("action", "flash-chest"),
+    ("action", "breast-press-pose"),
 })
 
 EXPRESSION_DEFINITIONS = _definitions("expression", {
