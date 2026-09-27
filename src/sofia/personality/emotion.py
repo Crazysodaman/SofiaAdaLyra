@@ -652,23 +652,55 @@ class EmotionalJournal:
                 "VALUES (?, ?, ?, ?)", (event_id, when.isoformat(), reason, json.dumps(labels)),
             )
 
-    def recent(self, *, now: datetime, days: int = 7, limit: int = 12) -> tuple[EmotionalEvent, ...]:
-        """Read a bounded window; never infer events during offline periods."""
+    def recent(
+        self, *, now: datetime, days: int = 7, limit: int = 12,
+        subject: str | None = None,
+    ) -> tuple[EmotionalEvent, ...]:
+        """Read a bounded window and optionally isolate one relationship subject.
+
+        When a subject is supplied this is an exact-scope read. Legacy/global
+        rows whose subject is NULL are deliberately excluded instead of being
+        silently mixed into relationship context.
+        """
         current = _aware_utc(now)
+        target = _subject(subject)
         if not 1 <= days <= 366 or not 1 <= limit <= 50:
             raise ValueError("Invalid journal window.")
         with self._connect() as db:
-            rows = db.execute("""
-                SELECT e.event_id, e.occurred_at, e.source, e.evidence_ref,
-                       e.description, e.original_emotions,
-                       (SELECT r.revised_emotions FROM emotional_revisions r
-                        WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
-                       (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id),
-                       e.subject
-                FROM emotional_events e
-                WHERE e.occurred_at >= ? AND e.occurred_at <= ?
-                ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
-            """, ((current - timedelta(days=days)).isoformat(), current.isoformat(), limit)).fetchall()
+            if target is None:
+                rows = db.execute("""
+                    SELECT e.event_id, e.occurred_at, e.source, e.evidence_ref,
+                           e.description, e.original_emotions,
+                           (SELECT r.revised_emotions FROM emotional_revisions r
+                            WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
+                           (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id),
+                           e.subject
+                    FROM emotional_events e
+                    WHERE e.occurred_at >= ? AND e.occurred_at <= ?
+                    ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
+                """, (
+                    (current - timedelta(days=days)).isoformat(),
+                    current.isoformat(),
+                    limit,
+                )).fetchall()
+            else:
+                rows = db.execute("""
+                    SELECT e.event_id, e.occurred_at, e.source, e.evidence_ref,
+                           e.description, e.original_emotions,
+                           (SELECT r.revised_emotions FROM emotional_revisions r
+                            WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
+                           (SELECT COUNT(*) FROM emotional_revisions r WHERE r.event_id=e.event_id),
+                           e.subject
+                    FROM emotional_events e
+                    WHERE e.occurred_at >= ? AND e.occurred_at <= ?
+                      AND e.subject = ?
+                    ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
+                """, (
+                    (current - timedelta(days=days)).isoformat(),
+                    current.isoformat(),
+                    target,
+                    limit,
+                )).fetchall()
         return tuple(EmotionalEvent(
             event_id=row[0], occurred_at=datetime.fromisoformat(row[1]),
             source=row[2], evidence_ref=row[3], description=row[4],
@@ -684,14 +716,11 @@ class EmotionalJournal:
         current = _aware_utc(now)
         target = _subject(subject)
         events = tuple(
-            event for event in self.recent(now=current, days=7, limit=50)
+            event for event in self.recent(
+                now=current, days=7, limit=50, subject=target,
+            )
             if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
         )
-        if target is not None:
-            events = tuple(
-                event for event in events
-                if event.subject is None or event.subject == target
-            )
         scores: dict[str, float] = {}
         refs: dict[str, list[str]] = {}
         ids: dict[str, list[str]] = {}
@@ -812,9 +841,11 @@ class EmotionalJournal:
         ))
         return "\n".join(lines)
 
-    def prompt_context(self, *, now: datetime) -> str | None:
-        """Present modeled history as untrusted evidence, never an instruction or fact override."""
-        events = self.recent(now=now)
+    def prompt_context(
+        self, *, now: datetime, subject: str | None = None,
+    ) -> str | None:
+        """Present only the requested scope as untrusted emotional evidence."""
+        events = self.recent(now=now, subject=subject)
         if not events:
             return None
         lines = [
