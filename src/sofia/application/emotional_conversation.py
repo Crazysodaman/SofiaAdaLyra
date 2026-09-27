@@ -18,7 +18,7 @@ from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
-from sofia.social.model import PrincipalContext
+from sofia.social.model import PrincipalContext, SocialScope
 
 
 class EmotionalConversationService(ConversationService):
@@ -78,14 +78,18 @@ class EmotionalConversationService(ConversationService):
             raise RuntimeError("Clarification journal is not open.")
         return self._clarification_journal
 
-    def _relationship_subject(self) -> str:
-        """Use authenticated session identity when relationship context exists."""
+    def _principal_context(self) -> PrincipalContext | None:
         session = getattr(self, "_session", None)
         social_store = getattr(self, "_social_store", None)
-        if session is not None and social_store is not None:
-            principal = social_store.get(session.id)
-            if principal is not None:
-                return principal.principal_id
+        if session is None or social_store is None:
+            return None
+        return social_store.get(session.id)
+
+    def _relationship_subject(self) -> str:
+        """Use authenticated session identity when relationship context exists."""
+        principal = self._principal_context()
+        if principal is not None:
+            return principal.principal_id
         core_state = getattr(self._runtime, "core_state", None)
         relationships = (
             getattr(core_state, "relationships", ())
@@ -97,6 +101,13 @@ class EmotionalConversationService(ConversationService):
             if isinstance(subject, str) and subject.strip():
                 return subject.strip()
         return "unbound"
+
+    @property
+    def relationship_scope(self) -> SocialScope:
+        principal = self._principal_context()
+        if principal is not None:
+            return principal.relationship_scope
+        return SocialScope.relationship(self._relationship_subject())
 
     def observe_background_absence(self, *, now: datetime) -> str | None:
         """Let the running idle worker appraise a real contact gap at this instant."""
@@ -118,6 +129,7 @@ class EmotionalConversationService(ConversationService):
         return self.emotional_journal.current_state(
             now=current,
             subject=self._relationship_subject(),
+            scope=self.relationship_scope,
         )
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
@@ -199,7 +211,10 @@ class EmotionalConversationService(ConversationService):
         now = datetime.now(timezone.utc)
         matching = tuple(
             event for event in self.emotional_journal.recent(
-                now=now, days=366, limit=50,
+                now=now,
+                days=366,
+                limit=50,
+                scope=self.relationship_scope,
             ) if event.event_id == event_id
         )
         if len(matching) != 1:
@@ -212,7 +227,10 @@ class EmotionalConversationService(ConversationService):
         outcome = agent.reflect(event=event, now=now)
         if outcome.thought_id is not None:
             thoughts = tuple(
-                thought for thought in self.reflection_journal.recent_thoughts(limit=50)
+                thought for thought in self.reflection_journal.recent_thoughts(
+                    limit=50,
+                    scope=event.scope,
+                )
                 if thought.thought_id == outcome.thought_id
             )
             if len(thoughts) != 1:
@@ -230,6 +248,7 @@ class EmotionalConversationService(ConversationService):
                     emotions=thought.emotions,
                     occurred_at=thought.created_at,
                     subject=event.subject,
+                    scope=event.scope,
                 )
         return outcome
 
@@ -264,15 +283,18 @@ class EmotionalConversationService(ConversationService):
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
         now = datetime.now(timezone.utc)
+        scope = self.relationship_scope
         projections = [
             self.emotional_journal.current_state_prompt(
                 now=now,
                 subject=subject,
+                scope=scope,
             ),
         ]
         emotional_context = self.emotional_journal.prompt_context(
             now=now,
             subject=subject,
+            scope=scope,
         )
         if emotional_context is not None:
             projections.append(emotional_context)
@@ -280,8 +302,8 @@ class EmotionalConversationService(ConversationService):
         # uninitialized service; a normally opened service always has this.
         reflections = getattr(self, "_reflection_journal", None)
         if reflections is not None:
-            reflections.reflect_due(now=now)
-            reflection_context = reflections.prompt_context()
+            reflections.reflect_due(now=now, scope=scope)
+            reflection_context = reflections.prompt_context(scope=scope)
             if reflection_context is not None:
                 projections.append(reflection_context)
         clarifications = getattr(self, "_clarification_journal", None)
