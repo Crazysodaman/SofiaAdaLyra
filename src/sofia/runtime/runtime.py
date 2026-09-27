@@ -8,6 +8,7 @@ from sofia.avatar.presentation import (
     AudienceScope,
     PresentationAuthority,
     PresentationProjection,
+    PrivatePresentationGrant,
 )
 from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.authority.model import Authority
@@ -307,9 +308,42 @@ class SofiaRuntime:
 
     @property
     def avatar_presentation_projection(self) -> PresentationProjection | None:
-        """Return only the public-safe projection until SOCIAL supplies audience."""
+        """Public-safe projection retained for compatibility and UI themes."""
         if self._avatar_presentation is None:
             return None
+        return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+
+    def avatar_projection_for(
+        self,
+        *,
+        principal: PrincipalContext | None,
+        private_grant: PrivatePresentationGrant | None = None,
+    ) -> PresentationProjection | None:
+        """
+        Resolve AVATAR state for one authenticated audience.
+
+        Private presentation requires both an authenticated private principal
+        and a separate current host grant. Principal identity alone never
+        unlocks private presentation.
+        """
+        if self._avatar_presentation is None:
+            return None
+        if principal is None:
+            return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext or None")
+        if (
+            principal.audience_kind.value == "private"
+            and private_grant is not None
+        ):
+            if not isinstance(private_grant, PrivatePresentationGrant):
+                raise TypeError(
+                    "private_grant must be a PrivatePresentationGrant or None"
+                )
+            return self._avatar_presentation.projection(
+                AudienceScope.PRIVATE,
+                grant=private_grant,
+            )
         return self._avatar_presentation.projection(AudienceScope.PUBLIC)
 
     def set_avatar_presentation(self, authority: PresentationAuthority) -> None:
@@ -590,7 +624,9 @@ class SofiaRuntime:
 
         user_content = self._latest_user_content(request)
 
-        presentation = self.avatar_presentation_projection
+        presentation = self.avatar_projection_for(
+            principal=principal,
+        )
         if (
             user_content
             and self._embodiment is not None
@@ -667,7 +703,9 @@ class SofiaRuntime:
                 filesystem_results=filesystem_results,
                 workspace_changes=self._workspace_changes,
                 operational_self_model=self.operational_self_model,
-                avatar_presentation=self.avatar_presentation_projection,
+                avatar_presentation=self.avatar_projection_for(
+                    principal=principal,
+                ),
                 environment_snapshot=environment_snapshot,
                 principal=principal,
             ),
