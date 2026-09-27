@@ -106,6 +106,9 @@ GESTURE_DEFINITIONS = _definitions("gesture", {
     "caress": ("caress", "caressing", "caressed"),
     "grab": ("grab", "grabbing", "grabbed"),
     "massage": ("massage", "massaging", "massaged"),
+    "pet": ("pet", "petting", "petted"),
+    "ruffle": ("ruffle", "ruffling", "ruffled"),
+    "rest": ("rest", "resting", "rested"),
     "intimate-touch": ("intimate touch",),  # Explicit only; never an unknown-verb fallback.
 })
 
@@ -128,6 +131,14 @@ ACTION_DEFINITIONS = _definitions("action", {
     "help-in-lab": ("help in the lab", "work together"),
     "ask-permission": ("ask permission", "ask first"),
     "decline": ("decline", "say no"),
+    "kiss": ("kiss",),
+    "hold-close": ("hold close", "hold you close"),
+    "arm-around": ("put an arm around", "arm around"),
+    "rest-head-on-shoulder": ("rest head on shoulder",),
+    "dance-with": ("dance with", "dance together"),
+    "flirt": ("flirt", "flirt with"),
+    "intimate-contact": ("intimate contact",),
+    "sexual-contact": ("sexual contact",),
 })
 
 EXPRESSION_DEFINITIONS = _definitions("expression", {
@@ -149,6 +160,19 @@ EXPRESSION_DEFINITIONS = _definitions("expression", {
     "tail-swish": ("tail swish", "swish tail"),
     "tail-curl": ("tail curl", "curl tail"),
     "tail-still": ("tail still", "still tail"),
+    "tail-wag": ("tail wag", "wag tail"),
+    "tail-wrap": ("tail wrap", "wrap tail"),
+    "ear-droop": ("ears droop", "droop ears"),
+    "ear-twitch": ("ear twitch", "twitch ears"),
+    "wink": ("wink", "winking"),
+    "smirk": ("smirk", "smirking"),
+    "nod": ("nod", "nodding"),
+    "shake-head": ("shake head", "shaking head"),
+    "lean-in": ("lean in", "leaning in"),
+    "lean-away": ("lean away", "leaning away"),
+    "cross-arms": ("cross arms", "arms crossed"),
+    "relax-posture": ("relax posture", "relax shoulders"),
+    "cover-face": ("cover face", "hide face"),
     "shift-posture": ("shift posture", "shift weight"),
 })
 
