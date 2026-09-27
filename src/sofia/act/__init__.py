@@ -13,10 +13,12 @@ from .delivery import (
     SendResult,
 )
 from .outreach import Candidate, Decision, History, Policy, evaluate
+from .recipient import ActRecipient, bind_for_principal
 
 __all__ = [
     "ActDeliveryRunner",
     "ActOutbox",
+    "ActRecipient",
     "BoundMessage",
     "Candidate",
     "ClaimResult",
@@ -29,5 +31,6 @@ __all__ = [
     "History",
     "Policy",
     "SendResult",
+    "bind_for_principal",
     "evaluate",
 ]
