@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
 
@@ -70,6 +71,7 @@ class Policy:
     stop: bool = False
     quiet_start_utc: int = 22
     quiet_end_utc: int = 8
+    quiet_timezone: str = "UTC"
     min_interval: timedelta = timedelta(hours=6)
     max_daily: int = 1
 
@@ -82,6 +84,15 @@ class Policy:
             for value in (self.quiet_start_utc, self.quiet_end_utc)
         ):
             raise ValueError("quiet hour must be an integer in 0..23")
+        if (
+            not isinstance(self.quiet_timezone, str)
+            or not self.quiet_timezone.strip()
+        ):
+            raise ValueError("quiet_timezone must be a nonempty IANA timezone")
+        try:
+            ZoneInfo(self.quiet_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("quiet_timezone must be a valid IANA timezone") from exc
         if not isinstance(self.min_interval, timedelta) or self.min_interval < timedelta(0):
             raise ValueError("min_interval must be nonnegative")
         if type(self.max_daily) is not int or self.max_daily < 1:
@@ -152,7 +163,8 @@ def evaluate(
     if moment >= _utc(candidate.expires_at):
         return Decision.STALE
 
-    hour = moment.hour
+    local_moment = moment.astimezone(ZoneInfo(policy.quiet_timezone))
+    hour = local_moment.hour
     if policy.quiet_start_utc == policy.quiet_end_utc:
         quiet = True
     elif policy.quiet_start_utc < policy.quiet_end_utc:
