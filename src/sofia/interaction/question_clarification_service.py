@@ -34,7 +34,7 @@ def respond_reviewed_hug_question(
         raise ValueError('Only a complete reviewed ambiguous hug question is supported.')
     if service._session is None:
         raise RuntimeError('A started conversation session is required.')
-    service._bind_principal(principal)
+    principal = service._bind_principal(principal)
     service._active_user_requests += 1
     try:
         with service._model_lock:
@@ -45,6 +45,10 @@ def respond_reviewed_hug_question(
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
+            service._after_user_message_saved(
+                message=user,
+                principal=principal,
+            )
             blocked = _policy_gate(state_path=path, session_id=session_id)
             result = (GuardedOfferResult(status=blocked) if blocked is not None else
                       GuardedOfferResult(
