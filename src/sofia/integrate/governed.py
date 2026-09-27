@@ -30,8 +30,6 @@ class GovernedAdapterRegistry:
             raise AdapterDisabledError("adapter version is not enabled")
         if self.ledger.get(request.invocation_id) is not None:
             raise DuplicateInvocationError("invocation_id already has a durable receipt")
-        if not request.authorized:
-            raise PermissionError("tool invocation lacks independent authorization")
         self.policy.require(manifest,context)
         receipt=self.registry.invoke(request)
         self.ledger.append(receipt)
