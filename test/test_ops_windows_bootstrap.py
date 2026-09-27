@@ -72,6 +72,9 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "-RemoteAddress LocalSubnet" in script
     assert "sofia.distributed.agent_main" in script
     assert "bootstrap-receipt.json" in script
+    assert "icacls.exe" in script
+    assert "*S-1-5-18:F" in script
+    assert "*S-1-5-32-544:F" in script
 
 
 def test_prepare_stage_copies_only_reviewed_bundle_and_generated_installer(tmp_path: Path):
@@ -158,6 +161,8 @@ def test_install_requires_matching_verified_remote_receipt(tmp_path: Path):
     receipt = installer.install(_candidate(), _package(wheel))
     assert receipt.verified is True
     assert receipt.sha256 == sha256_file(wheel)
+    assert installer._active_controller_stage_directory is not None
+    assert not installer._active_controller_stage_directory.exists()
 
 
 def test_install_rejects_wrong_node_receipt(tmp_path: Path):
