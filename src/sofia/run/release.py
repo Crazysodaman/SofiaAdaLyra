@@ -10,6 +10,7 @@ import tempfile
 
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_store import ReleaseStateStore
+from sofia.safe.audit import AuditChain
 from sofia.safe.release import ReleaseActivationGuard
 
 
@@ -55,6 +56,7 @@ class ReleaseManager:
         release_root: Path,
         store: ReleaseStateStore,
         guard: ReleaseActivationGuard,
+        audit: AuditChain,
     ) -> None:
         if not isinstance(release_root, Path):
             raise TypeError("release_root must be a Path")
@@ -62,11 +64,14 @@ class ReleaseManager:
             raise TypeError("store must be a ReleaseStateStore")
         if not isinstance(guard, ReleaseActivationGuard):
             raise TypeError("guard must be a ReleaseActivationGuard")
+        if not isinstance(audit, AuditChain):
+            raise TypeError("audit must be an AuditChain")
         self.release_root = release_root
         self.releases_dir = release_root / "releases"
         self.pointer_path = release_root / "active-release.json"
         self.store = store
         self.guard = guard
+        self.audit = audit
         self.releases_dir.mkdir(parents=True, exist_ok=True)
 
     def candidate_path(self, release_id: str) -> Path:
@@ -157,6 +162,20 @@ class ReleaseManager:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
         active_manifest = self._active_manifest()
+        self.audit.append(
+            actor_id=signer_key_id,
+            event_type="release.activation.intent",
+            payload={
+                "release_id": manifest.release_id,
+                "manifest_sha256": manifest.manifest_sha256,
+                "parent_release_id": manifest.parent_release_id,
+            },
+            occurred_at=now,
+            event_id=(
+                "release-activation-intent:"
+                + manifest.manifest_sha256
+            ),
+        )
         evidence = self.guard.verify(
             manifest=manifest,
             signature=signature,
@@ -167,6 +186,20 @@ class ReleaseManager:
         target = self.stage(manifest, source_dir)
         self.store.activate(manifest, evidence)
         self.reconcile_pointer()
+        self.audit.append(
+            actor_id=signer_key_id,
+            event_type="release.activation.completed",
+            payload={
+                "release_id": manifest.release_id,
+                "manifest_sha256": manifest.manifest_sha256,
+                "artifact_sha256": manifest.artifact_sha256,
+            },
+            occurred_at=now,
+            event_id=(
+                "release-activation-completed:"
+                + manifest.manifest_sha256
+            ),
+        )
         return target
 
     def rollback_failed_release(
@@ -203,12 +236,45 @@ class ReleaseManager:
                 "previous release artifact failed integrity verification"
             )
 
+        moment = now.astimezone(timezone.utc)
+        self.audit.append(
+            actor_id="run:release-recovery",
+            event_type="release.rollback.intent",
+            payload={
+                "failed_release_id": failed_release_id,
+                "target_release_id": previous_id,
+                "reason": reason,
+            },
+            occurred_at=moment,
+            event_id=(
+                "release-rollback-intent:"
+                + failed_release_id
+                + ":"
+                + previous_id
+            ),
+        )
         self.store.rollback_to_previous(
             failed_release_id=failed_release_id,
-            at=now.astimezone(timezone.utc),
+            at=moment,
             reason=reason,
         )
         self.reconcile_pointer()
+        self.audit.append(
+            actor_id="run:release-recovery",
+            event_type="release.rollback.completed",
+            payload={
+                "failed_release_id": failed_release_id,
+                "active_release_id": previous_id,
+                "reason": reason,
+            },
+            occurred_at=moment,
+            event_id=(
+                "release-rollback-completed:"
+                + failed_release_id
+                + ":"
+                + previous_id
+            ),
+        )
         return previous_path
 
     def reconcile_pointer(self) -> dict | None:
