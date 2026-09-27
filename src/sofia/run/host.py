@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
@@ -14,6 +14,7 @@ from sofia.config import create_default_configuration
 from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.run.lease import LocalRunLeaseStore, RunLease
 from sofia.run.release import ReleaseRecoveryHook
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.run.supervisor import (
     LocalRuntimeSupervisor,
     ManagedRuntimeBackend,
@@ -108,14 +109,14 @@ class RunSupervisorHost:
             raise ValueError("poll interval must be shorter than lease TTL")
 
     def _supervisor(self) -> tuple[LocalRunLeaseStore, LocalRuntimeSupervisor]:
-        configuration = create_default_configuration()
+        configuration = replace(
+            create_default_configuration(),
+            state_path=self.state_path,
+        )
         lease_store = LocalRunLeaseStore(self.state_path)
         manager = create_release_manager(
             configuration=configuration,
-            state_plane=__import__(
-                "sofia.state.sqlite_plane",
-                fromlist=["SQLiteStatePlane"],
-            ).SQLiteStatePlane(self.state_path),
+            state_plane=SQLiteStatePlane(self.state_path),
         )
         recovery = None if manager is None else ReleaseRecoveryHook(manager)
         supervisor = LocalRuntimeSupervisor(
