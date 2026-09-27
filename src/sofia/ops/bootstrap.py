@@ -11,6 +11,8 @@ from enum import Enum
 from re import fullmatch
 from typing import Protocol
 
+from sofia.distributed.version import FleetProtocolVersion
+
 
 class InstallAuthority(str, Enum):
     NONE = "none"
@@ -31,12 +33,20 @@ class AgentPackage:
     version: str
     sha256: str
     source: str
+    protocol_version: str = "1.0"
+    signer_key_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.package_id.strip() or not self.version.strip() or not self.source.strip():
             raise ValueError("agent package identity, version and source required")
         if fullmatch(r"[0-9a-f]{64}", self.sha256) is None:
             raise ValueError("agent package requires lowercase SHA-256")
+        FleetProtocolVersion.parse(self.protocol_version)
+        if self.signer_key_id is not None and (
+            not isinstance(self.signer_key_id, str)
+            or not self.signer_key_id.strip()
+        ):
+            raise ValueError("signer_key_id must be None or nonempty")
 
 
 @dataclass(frozen=True)
@@ -48,6 +58,10 @@ class BootstrapCandidate:
     inside_approved_scope: bool
     trusted_bootstrap_available: bool
     installed_agent_version: str | None = None
+    installed_agent_sha256: str | None = None
+    installed_protocol_version: str | None = None
+    installed_signer_key_id: str | None = None
+    installed_signature_verified: bool = False
 
     def __post_init__(self) -> None:
         if not all(
@@ -59,6 +73,19 @@ class BootstrapCandidate:
             raise TypeError("inside_approved_scope must be boolean")
         if not isinstance(self.trusted_bootstrap_available, bool):
             raise TypeError("trusted_bootstrap_available must be boolean")
+        if self.installed_agent_sha256 is not None and fullmatch(
+            r"[0-9a-f]{64}", self.installed_agent_sha256
+        ) is None:
+            raise ValueError("installed_agent_sha256 must be lowercase SHA-256")
+        if self.installed_protocol_version is not None:
+            FleetProtocolVersion.parse(self.installed_protocol_version)
+        if self.installed_signer_key_id is not None and (
+            not isinstance(self.installed_signer_key_id, str)
+            or not self.installed_signer_key_id.strip()
+        ):
+            raise ValueError("installed_signer_key_id must be None or nonempty")
+        if not isinstance(self.installed_signature_verified, bool):
+            raise TypeError("installed_signature_verified must be boolean")
 
 
 @dataclass(frozen=True)
@@ -77,6 +104,9 @@ class InstallReceipt:
     version: str
     sha256: str
     verified: bool
+    protocol_version: str = "1.0"
+    signer_key_id: str | None = None
+    signature_verified: bool = False
 
 
 class AgentInstaller(Protocol):
@@ -106,12 +136,33 @@ class FleetBootstrapPlanner:
                 "candidate is outside approved discovery/bootstrap scope",
             )
 
-        if candidate.installed_agent_version == package.version:
+        installed_protocol_ok = False
+        if candidate.installed_protocol_version is not None:
+            installed_protocol_ok = FleetProtocolVersion.parse(
+                candidate.installed_protocol_version
+            ).compatible_with(
+                FleetProtocolVersion.parse(package.protocol_version)
+            )
+
+        signer_ok = (
+            package.signer_key_id is None
+            or (
+                candidate.installed_signature_verified
+                and candidate.installed_signer_key_id == package.signer_key_id
+            )
+        )
+
+        if (
+            candidate.installed_agent_version == package.version
+            and candidate.installed_agent_sha256 == package.sha256
+            and installed_protocol_ok
+            and signer_ok
+        ):
             return BootstrapPlan(
                 candidate,
                 package,
                 BootstrapDisposition.READY_FOR_ENROLLMENT,
-                "required Fleet agent version already present",
+                "installed Fleet agent independently matches artifact and protocol",
             )
 
         if (
@@ -160,6 +211,18 @@ class FleetBootstrapExecutor:
             or receipt.version != plan.package.version
             or receipt.sha256 != plan.package.sha256
             or receipt.verified is not True
+            or not FleetProtocolVersion.parse(
+                receipt.protocol_version
+            ).compatible_with(
+                FleetProtocolVersion.parse(plan.package.protocol_version)
+            )
+            or (
+                plan.package.signer_key_id is not None
+                and (
+                    receipt.signature_verified is not True
+                    or receipt.signer_key_id != plan.package.signer_key_id
+                )
+            )
         ):
             raise RuntimeError("installed Fleet agent did not verify against the approved package")
         return receipt
