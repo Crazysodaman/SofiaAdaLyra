@@ -6,6 +6,7 @@ the tray thread never mutates Sofía runtime state itself.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from queue import Queue
 import sys
 from threading import Event, Thread
@@ -26,6 +27,7 @@ class WindowsTrayAgent:
         *,
         events: Queue[TrayCommand],
         status_provider: Callable[[], TrayStatus],
+        icon_path: str | Path | None = None,
     ) -> None:
         if not isinstance(events, Queue):
             raise TypeError("events must be a Queue")
@@ -33,6 +35,11 @@ class WindowsTrayAgent:
             raise TypeError("status_provider must be callable")
         self._events = events
         self._status_provider = status_provider
+        self._icon_path = (
+            Path(icon_path)
+            if icon_path is not None
+            else Path(__file__).with_name("assets") / "sofia_fox.ico"
+        )
         self._thread: Thread | None = None
         self._ready = Event()
         self._stopped = Event()
@@ -43,6 +50,10 @@ class WindowsTrayAgent:
     @property
     def running(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
+
+    @property
+    def icon_path(self) -> Path:
+        return self._icon_path
 
     def start(self) -> None:
         if sys.platform != "win32":
@@ -103,6 +114,9 @@ class WindowsTrayAgent:
         NIF_ICON = 0x00000002
         NIF_TIP = 0x00000004
         IDI_APPLICATION = 32512
+        IMAGE_ICON = 1
+        LR_LOADFROMFILE = 0x0010
+        LR_DEFAULTSIZE = 0x0040
         MF_STRING = 0x0000
         MF_GRAYED = 0x0001
         MF_CHECKED = 0x0008
@@ -232,6 +246,17 @@ class WindowsTrayAgent:
         user32.SetForegroundWindow.restype = wintypes.BOOL
         user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
         user32.LoadIconW.restype = wintypes.HICON
+        user32.LoadImageW.argtypes = [
+            wintypes.HINSTANCE,
+            wintypes.LPCWSTR,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        ]
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.DestroyIcon.argtypes = [wintypes.HICON]
+        user32.DestroyIcon.restype = wintypes.BOOL
         user32.GetMessageW.argtypes = [
             ctypes.POINTER(wintypes.MSG),
             wintypes.HWND,
@@ -342,6 +367,7 @@ class WindowsTrayAgent:
                 user32.DestroyMenu(root)
 
         nid = NOTIFYICONDATAW()
+        loaded_icon = None
 
         @WNDPROC
         def wndproc(hwnd, message, wparam, lparam):
@@ -361,6 +387,8 @@ class WindowsTrayAgent:
                 return 0
             if message == WM_DESTROY:
                 shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(nid))
+                if loaded_icon:
+                    user32.DestroyIcon(loaded_icon)
                 user32.PostQuitMessage(0)
                 return 0
             return user32.DefWindowProcW(hwnd, message, wparam, lparam)
@@ -391,11 +419,22 @@ class WindowsTrayAgent:
         nid.uID = 1
         nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
         nid.uCallbackMessage = self._CALLBACK_MESSAGE
-        icon_resource = ctypes.cast(
-            ctypes.c_void_p(IDI_APPLICATION),
-            wintypes.LPCWSTR,
+        loaded_icon = user32.LoadImageW(
+            None,
+            str(self._icon_path),
+            IMAGE_ICON,
+            0,
+            0,
+            LR_LOADFROMFILE | LR_DEFAULTSIZE,
         )
-        nid.hIcon = user32.LoadIconW(None, icon_resource)
+        if loaded_icon:
+            nid.hIcon = loaded_icon
+        else:
+            icon_resource = ctypes.cast(
+                ctypes.c_void_p(IDI_APPLICATION),
+                wintypes.LPCWSTR,
+            )
+            nid.hIcon = user32.LoadIconW(None, icon_resource)
         nid.szTip = "Sofía Ada Lyra"
         if not shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid)):
             user32.DestroyWindow(hwnd)
