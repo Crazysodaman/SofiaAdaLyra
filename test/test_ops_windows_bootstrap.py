@@ -78,6 +78,7 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert 'agent_canary.py' in script
     assert '$Owner.CommandLine.Contains($Runner)' in script
     assert '$_.CommandLine.Contains($Root)' in script
+    assert '$StartedAgent.HasExited -and -not $RunnerProcesses' in script
     assert 'creating_dispatcher' in script
     assert 'creating_server' in script
     assert 'status("listening")' in script
