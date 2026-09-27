@@ -746,6 +746,34 @@ class EmotionalJournal:
         if not 1 <= days <= 366 or not 1 <= limit <= 50:
             raise ValueError("Invalid journal window.")
 
+        # Backward-compatible single-user read: older callers omitted subject.
+        # Only adopt the sole relationship scope when doing so is unambiguous.
+        # Never widen across principals or expose audience-private state.
+        if scope is None and target is None:
+            with self._connect() as db:
+                global_exists = db.execute(
+                    "SELECT 1 FROM emotional_events "
+                    "WHERE scope_kind IN ('global','system') LIMIT 1"
+                ).fetchone()
+                audience_exists = db.execute(
+                    "SELECT 1 FROM emotional_events "
+                    "WHERE scope_kind='audience' LIMIT 1"
+                ).fetchone()
+                principals = tuple(
+                    row[0]
+                    for row in db.execute(
+                        "SELECT DISTINCT principal_id FROM emotional_events "
+                        "WHERE scope_kind='relationship' "
+                        "AND principal_id IS NOT NULL"
+                    ).fetchall()
+                )
+            if (
+                global_exists is None
+                and audience_exists is None
+                and len(principals) == 1
+            ):
+                resolved_scope = SocialScope.relationship(principals[0])
+
         clauses = [
             "e.occurred_at >= ?",
             "e.occurred_at <= ?",
