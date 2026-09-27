@@ -219,6 +219,9 @@ PRODUCTION_COMPONENT_SCHEMAS = tuple(
         "knowledge-access",
         "ui-control",
         "release-state",
+        "personality-reflection",
+        "habit-continuity",
+        "run-heartbeat",
     )
 )
 
