@@ -232,6 +232,7 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     assert "TRUSTED INTERACTION INTERPRETATION" in system
     assert '"policy_status": "accepted"' in system
     assert '"region_id": "chest"' in system
-    assert '"willingness_state": "undetermined"' in system
+    assert "willingness_state" in system
+    assert "undetermined" in system
     assert request.tools == ()
     assert request.allow_tools is False

@@ -104,6 +104,7 @@ class WardrobeItemProjection:
     coverage: tuple[str, ...]
     tail_clearance: bool
     ear_clearance: bool
+    private_only: bool
 
     @classmethod
     def from_garment(cls, garment: Garment) -> "WardrobeItemProjection":
@@ -115,6 +116,7 @@ class WardrobeItemProjection:
             coverage=garment.coverage,
             tail_clearance=garment.tail_clearance,
             ear_clearance=garment.ear_clearance,
+            private_only=garment.private_only,
         )
 
 

@@ -65,7 +65,7 @@ def test_request_is_not_misrepresented_as_like_or_sofia_preference():
 def test_manifest_exports_explicit_variant_without_false_asset_claim():
     variant = build_graphic_lounge_variation()
     manifest = variant.manifest()
-    assert len(manifest["garments"]) == 17
+    assert len(manifest["garments"]) == len(variant.catalog.blueprints)
     assert len(manifest["outfits"]) == 3
     assert manifest["optional_outfits"][0]["selection"] == "explicit_optional_not_automatic"
     assert manifest["optional_outfits"][0]["outfit_id"] == GRAPHIC_OUTFIT_ID

@@ -125,7 +125,6 @@ class PresentationState:
     attire: AttireMode
     outfit_id: str | None
     item_ids: tuple[str, ...]
-    item_names: tuple[str, ...]
     appearance: AppearanceState
     private_only: bool
     reason: str
@@ -179,6 +178,7 @@ class PresentationProjection:
     attire: AttireMode
     outfit_id: str | None
     item_ids: tuple[str, ...]
+    item_names: tuple[str, ...]
     appearance: AppearanceState
     private_fallback_used: bool
     reason: str
