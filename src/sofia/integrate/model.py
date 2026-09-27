@@ -15,7 +15,7 @@ class AdapterManifest:
 
 @dataclass(frozen=True)
 class ToolInvocation:
-    invocation_id:str; tool_id:str; arguments:Mapping[str,Any]; authorized:bool=False
+    invocation_id:str; tool_id:str; arguments:Mapping[str,Any]
     def __post_init__(self):
         if not self.invocation_id.strip() or not self.tool_id.strip(): raise ValueError("invocation_id and tool_id required")
 
