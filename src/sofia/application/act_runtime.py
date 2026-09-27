@@ -84,6 +84,8 @@ def configure_act_delivery_from_environment(
 
     service.configure_delivery(
         sender=sender,
+        channel="home_assistant",
+        destination=notify_service,
         policy=Policy(
             recipient_id=SPARKS_PRINCIPAL_ID,
             enabled=True,
