@@ -206,3 +206,16 @@ def test_direct_current_self_fact_bypasses_provider_and_uses_typed_state(tmp_pat
     assert response.content == "My hair is deep crimson, worn long layered."
     assert provider.requests == []
     app.shutdown()
+
+
+def test_application_exposes_live_wardrobe_studio(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    assert app.wardrobe_studio is None
+    app.start()
+    studio = app.wardrobe_studio
+    assert studio is not None
+    assert studio.catalog.preset("seasonal.spring.normal.01").display_name == "Spring Everyday 01"
+    assert len(studio.catalog.pieces(category="closet.bra", private_only=True)) == 25
+    app.shutdown()
+    assert app.wardrobe_studio is None

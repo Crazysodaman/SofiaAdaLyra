@@ -11,6 +11,7 @@ from sofia.avatar.interact_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
 from sofia.avatar.wardrobe_routine import Activity, OutfitPlanner
+from sofia.avatar.wardrobe_studio import WardrobeStudio
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
@@ -128,6 +129,7 @@ class SofiaApplication:
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._presentation_routine: HeadlessPresentationRoutine | None = None
+        self._wardrobe_studio: WardrobeStudio | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
@@ -178,6 +180,11 @@ class SofiaApplication:
     def text_ui(self) -> UITextClient:
         """Return the local text-first UI over the canonical conversation."""
         return self._text_ui
+
+    @property
+    def wardrobe_studio(self) -> WardrobeStudio | None:
+        """Return the live AVATAR design/composition studio after startup."""
+        return self._wardrobe_studio
 
     def _evaluate_contextual_presentation(
         self,
@@ -281,6 +288,7 @@ class SofiaApplication:
             )
             self._runtime.set_avatar_presentation(bundle.authority)
             self._presentation_bundle = bundle
+            self._wardrobe_studio = WardrobeStudio(bundle.catalog)
             self._presentation_routine = HeadlessPresentationRoutine(
                 authority=bundle.authority,
                 store=bundle.store,
@@ -557,6 +565,7 @@ class SofiaApplication:
         finally:
             self._presentation_bundle = None
             self._presentation_routine = None
+            self._wardrobe_studio = None
             self._conversation_service.close()
             ui_draft_store = getattr(
                 self,
