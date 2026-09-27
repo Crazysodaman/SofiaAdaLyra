@@ -14,6 +14,8 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
+from sofia.social.model import AudienceKind, ScopeKind, SocialScope
+
 
 _PERIODS = ("daily", "weekly", "monthly", "yearly")
 _URGENCIES = frozenset({"routine", "excited", "urgent"})
@@ -73,6 +75,26 @@ class RecordedThought:
     evidence_refs: tuple[str, ...]
     emotions: tuple[str, ...]
     period_key: str | None
+    scope_kind: str = ScopeKind.GLOBAL.value
+    principal_id: str | None = None
+    audience_id: str | None = None
+    audience_kind: str | None = None
+
+    @property
+    def scope(self) -> SocialScope:
+        kind = ScopeKind(self.scope_kind)
+        if kind is ScopeKind.RELATIONSHIP:
+            return SocialScope.relationship(self.principal_id)
+        if kind is ScopeKind.AUDIENCE:
+            return SocialScope(
+                ScopeKind.AUDIENCE,
+                principal_id=self.principal_id,
+                audience_id=self.audience_id,
+                audience_kind=AudienceKind(self.audience_kind),
+            )
+        if kind is ScopeKind.SYSTEM:
+            return SocialScope.system_scope()
+        return SocialScope.global_scope()
 
 
 @dataclass(frozen=True)
