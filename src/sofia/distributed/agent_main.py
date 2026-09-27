@@ -34,6 +34,7 @@ _CONFIG_KEYS = frozenset(
         "client_ca_file",
         "expected_client_public_key_sha256",
         "ledger_path",
+        "protocol_version",
     }
 )
 
@@ -70,6 +71,9 @@ def configuration_from_environment() -> RemoteAgentConfig:
             "SOFIA_AGENT_CLIENT_PUBLIC_KEY_SHA256"
         ),
         ledger_path=Path(_required("SOFIA_AGENT_LEDGER")),
+        protocol_version=os.environ.get(
+            "SOFIA_AGENT_PROTOCOL_VERSION", "1.0"
+        ).strip() or "1.0",
     )
 
 
@@ -122,6 +126,8 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
         client_ca_file=client_ca_file,
         expected_client_public_key_sha256=expected_client_pin,
         ledger_path=ledger_path,
+        protocol_version=str(payload.get("protocol_version", "1.0")).strip()
+        or "1.0",
     )
 
 
