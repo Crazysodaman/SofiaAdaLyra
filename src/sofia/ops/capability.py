@@ -10,6 +10,7 @@ from sofia.cognition.tools import CognitiveToolBinding
 
 from .activity import HostActivityStore
 from .desired import DesiredHostState,DesiredWorkloadPlacement,detect_drift
+from .enrollment import FleetEnrollmentService
 from .history import TelemetryHistory
 from .migration import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
@@ -31,6 +32,7 @@ class OpsToolService:
             plane,
             legacy_path=state_path.parent/"fleet.json",
         )
+        self.enrollment=FleetEnrollmentService(self.registry)
         self.history=TelemetryHistory(state_path.parent/"ops-telemetry.jsonl")
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
