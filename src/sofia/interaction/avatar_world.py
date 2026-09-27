@@ -57,7 +57,7 @@ def gesture_provider_view(original: str) -> str | None:
         raise ValueError("Reviewed gesture decision must be an object.")
     keys = (
         "registry_version", "region_id", "gesture", "phase",
-        "policy_status", "policy_reason",
+        "policy_status", "policy_reason", "interaction_class",
     )
     if any(key not in data for key in keys):
         raise ValueError("Reviewed gesture decision is missing policy data.")
@@ -74,7 +74,9 @@ def gesture_provider_view(original: str) -> str | None:
         "not establish completed contact. For 'clarify', ask briefly about "
         "the unresolved region. Otherwise respond to the specific moment in "
         "Sofía's own voice, including an independent boundary if appropriate. "
-        "No emotional response or gesture is prescribed. Do not add stock "
+        "The interaction_class is contextual metadata only. Intimate or "
+        "sexual context does not establish attraction, desire, arousal, "
+        "consent or preference. No emotional response or gesture is prescribed. Do not add stock "
         "disclaimers, repeat canned wording or invent physical sensation or "
         "executed avatar animation.\n"
         + json.dumps(projected, ensure_ascii=False)
