@@ -225,7 +225,24 @@ class EmotionalConversationService(ConversationService):
             generate=self._runtime.respond,
             reflections=self.reflection_journal,
         )
-        outcome = agent.reflect(event=event, now=now)
+        current_state = self.emotional_journal.current_state(
+            now=now,
+            subject=self._relationship_subject(),
+            scope=self.relationship_scope,
+        )
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        influence = ContinuityInfluence.from_state(
+            emotion=current_state,
+            environment=environment,
+        )
+        outcome = agent.reflect(
+            event=event,
+            now=now,
+            influence=influence,
+        )
         if outcome.thought_id is not None:
             thoughts = tuple(
                 thought for thought in self.reflection_journal.recent_thoughts(
