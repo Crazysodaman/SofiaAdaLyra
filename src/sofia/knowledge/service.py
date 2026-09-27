@@ -26,12 +26,24 @@ class KnowledgeService:
         if not isinstance(access,KnowledgeAccessStore):
             raise TypeError("access must be KnowledgeAccessStore")
         self.access=access
-        for document in self.store.documents():
-            if self.access.get(document.document_id) is None:
-                self.access.set(KnowledgeAccess(
-                    document.document_id,
-                    KnowledgeVisibility.SHARED,
-                ))
+    def _classify_private(
+        self,
+        document_id:str,
+        *,
+        principal_id:str|None,
+        audience_id:str|None,
+    )->None:
+        if self.access.get(document_id) is not None:
+            return
+        if principal_id is None or audience_id is None:
+            return
+        self.access.set(KnowledgeAccess(
+            document_id,
+            KnowledgeVisibility.PRIVATE,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        ))
+
     def _path(self,relative_path:str)->Path:
         if not isinstance(relative_path,str) or not relative_path.strip(): raise ValueError("relative_path required")
         candidate=(self.root/relative_path).resolve()
@@ -43,18 +55,23 @@ class KnowledgeService:
         if not isinstance(version,str) or not version.strip(): raise ValueError("knowledge source version required")
         key=sha256((path.as_posix()+"\0"+version+"\0"+digest).encode("utf-8")).hexdigest()[:20]
         return f"doc-{key}"
-    def _record_text(self,path:Path,text:str,raw:bytes,source_kind:SourceKind,version:str,*,page:int|None=None)->KnowledgeDocument:
+    def _record_text(
+        self,path:Path,text:str,raw:bytes,source_kind:SourceKind,version:str,*,
+        page:int|None=None,
+        principal_id:str|None=None,
+        audience_id:str|None=None,
+    )->KnowledgeDocument:
         digest=sha256(raw).hexdigest(); document_id=self._document_id(path,digest,version)
         existing=self.store.document(document_id)
         if existing is not None:
             return existing
         doc=KnowledgeDocument(document_id,source_kind,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
-        if self.access.get(document_id) is None:
-            self.access.set(KnowledgeAccess(
-                document_id,
-                KnowledgeVisibility.SHARED,
-            ))
+        self._classify_private(
+            document_id,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        )
         lines=text.splitlines()
         chunks=[]; start=1
         for index in range(0,len(lines),40):
@@ -70,16 +87,26 @@ class KnowledgeService:
             chunks=[KnowledgeFact(f"{document_id}:{page or 0}:1",document_id,text.strip(),f"page {page}" if page else "document",datetime.now(timezone.utc))]
         for fact in chunks: self.store.record_fact(fact)
         return doc
-    def ingest_text(self,relative_path:str,*,version:str="local")->dict[str,Any]:
+    def ingest_text(
+        self,relative_path:str,*,version:str="local",
+        principal_id:str|None=None,audience_id:str|None=None,
+    )->dict[str,Any]:
         path=self._path(relative_path)
         if not path.is_file(): raise KnowledgeServiceError("knowledge source must be a file")
         raw=path.read_bytes()
         try: text=raw.decode("utf-8")
         except UnicodeDecodeError as exc: raise KnowledgeServiceError("text source must be UTF-8") from exc
         kind=SourceKind.REPOSITORY if (self.root/".git").exists() else SourceKind.PROJECT_FILE
-        doc=self._record_text(path,text,raw,kind,version)
+        doc=self._record_text(
+            path,text,raw,kind,version,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        )
         return {"document_id":doc.document_id,"source_uri":doc.source_uri,"version":doc.version,"facts":len(self.store.facts_for(doc.document_id))}
-    def ingest_pdf(self,relative_path:str,*,version:str="local")->dict[str,Any]:
+    def ingest_pdf(
+        self,relative_path:str,*,version:str="local",
+        principal_id:str|None=None,audience_id:str|None=None,
+    )->dict[str,Any]:
         path=self._path(relative_path)
         if path.suffix.lower()!=".pdf" or not path.is_file(): raise KnowledgeServiceError("PDF source must be an existing .pdf file")
         try:
@@ -92,11 +119,11 @@ class KnowledgeService:
                 "facts":len(self.store.facts_for(existing.document_id)),"pages":None,"already_ingested":True}
         doc=KnowledgeDocument(document_id,SourceKind.MANUAL,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
-        if self.access.get(document_id) is None:
-            self.access.set(KnowledgeAccess(
-                document_id,
-                KnowledgeVisibility.SHARED,
-            ))
+        self._classify_private(
+            document_id,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        )
         reader=PdfReader(str(path)); fact_count=0
         for page_number,page in enumerate(reader.pages,start=1):
             text=(page.extract_text() or "").strip()
