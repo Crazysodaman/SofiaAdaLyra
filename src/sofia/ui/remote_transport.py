@@ -25,6 +25,15 @@ from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
 
 
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _require_sha256(value: str, label: str) -> str:
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a lowercase SHA-256 digest")
+    return value
+
+
 class RemoteChatError(RuntimeError):
     pass
 
@@ -57,8 +66,10 @@ class RemoteChatServerConfig:
             raise ValueError("listen_host required")
         if type(self.listen_port) is not int or not 1 <= self.listen_port <= 65535:
             raise ValueError("listen_port out of range")
-        if len(self.expected_client_public_key_sha256) != 64:
-            raise ValueError("expected client public-key SHA-256 required")
+        _require_sha256(
+            self.expected_client_public_key_sha256,
+            "expected client public-key SHA-256",
+        )
 
 
 @dataclass(frozen=True)
@@ -76,8 +87,10 @@ class RemoteChatClientConfig:
             raise ValueError("hostname required")
         if type(self.port) is not int or not 1 <= self.port <= 65535:
             raise ValueError("port out of range")
-        if len(self.expected_server_public_key_sha256) != 64:
-            raise ValueError("expected server public-key SHA-256 required")
+        _require_sha256(
+            self.expected_server_public_key_sha256,
+            "expected server public-key SHA-256",
+        )
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
 
