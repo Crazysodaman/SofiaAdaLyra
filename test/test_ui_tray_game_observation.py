@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from sofia.ops.activity import ActivityMode
 from sofia.system.model import (
     ProcessInspection,
@@ -59,3 +61,27 @@ def test_manual_game_mode_skips_auto_process_sampling():
     )
 
     app._observe_activity()
+
+
+def test_auto_mode_surfaces_process_inspection_failure():
+    app = object.__new__(TrayAgentApplication)
+    app.settings_store = SimpleNamespace(
+        load=lambda: SimpleNamespace(game_mode=GameMode.AUTO)
+    )
+    app._process_capability = SystemCapability(
+        SystemCapabilityName.PROCESS_INSPECT,
+        "test process inspection",
+    )
+    app._system_backend = SimpleNamespace(
+        execute=lambda request: SimpleNamespace(
+            kind=SystemCapabilityResultKind.FAILED,
+            error="simulated live Windows inspection failure",
+            evidence=None,
+        )
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="process.inspect failed: simulated live Windows inspection failure",
+    ):
+        app._observe_activity()
