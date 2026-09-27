@@ -18,6 +18,7 @@ from sofia.application.act_runtime import configure_act_delivery_from_environmen
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
 from sofia.application.memory_review import MemoryReviewService
+from sofia.application.conversation_learning import ConversationLearningCoordinator
 from sofia.application.release_runtime import create_release_manager
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
@@ -79,6 +80,12 @@ class SofiaApplication:
             candidate_store=candidate_store,
             state_path=configuration.state_path,
         )
+        self._conversation_learning = ConversationLearningCoordinator(
+            self._memory_review
+        )
+        self._conversation_service.set_learning_coordinator(
+            self._conversation_learning
+        )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
         )
@@ -119,6 +126,10 @@ class SofiaApplication:
     @property
     def memory_review(self) -> MemoryReviewService:
         return self._memory_review
+
+    @property
+    def conversation_learning(self) -> ConversationLearningCoordinator:
+        return self._conversation_learning
 
     @property
     def background_coordinator(
