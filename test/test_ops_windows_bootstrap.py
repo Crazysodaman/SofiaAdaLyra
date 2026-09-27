@@ -90,6 +90,8 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "foreach ($Attempt in 1..15)" in script
     assert "Wait-Process -Id" not in script
     assert "icacls.exe" in script
+    assert 'Remove-Item (Join-Path $Stage "certs\\artemis-server-key.pem")' in script
+    assert 'Remove-Item (Join-Path $Stage $WheelName)' in script
     assert "*S-1-5-18:F" in script
     assert "*S-1-5-32-544:F" in script
 
