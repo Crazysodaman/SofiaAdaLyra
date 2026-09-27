@@ -59,6 +59,7 @@ _ALLOWED_CONTEXT = frozenset({
     "location_label",
     "host_id",
     "activity_mode",
+    "interaction_class",
     "daily_window",
     "weekly_window",
     "monthly_window",
