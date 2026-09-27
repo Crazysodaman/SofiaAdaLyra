@@ -5,7 +5,7 @@ import json
 
 from sofia.social.model import PrincipalContext
 
-from .model import HabitStatus
+from .model import HabitCadence, HabitStatus
 from .store import HabitStore
 
 
@@ -49,22 +49,37 @@ def habit_prompt(
         "current conversation always outrank historical patterns.",
     ]
     for item in patterns:
-        matches_now = (
-            item.context_key is not None
-            and item.context_key != "weekday_hour"
-            and context.get(item.context_key) == item.context_value
-        )
-        if item.context_key == "weekday_hour":
+        matches_now = False
+        if item.context_key == "daily_window":
+            matches_now = context.get("hour_bucket") == item.context_value
+        elif item.context_key == "weekly_window":
             expected = (item.context_value or "").split("|", 1)
             matches_now = (
                 len(expected) == 2
                 and context.get("weekday") == expected[0]
                 and context.get("hour_bucket") == expected[1]
             )
+        elif item.context_key == "monthly_window":
+            expected = (item.context_value or "").split("|", 1)
+            matches_now = (
+                len(expected) == 2
+                and context.get("day_of_month") == expected[0]
+                and context.get("hour_bucket") == expected[1]
+            )
+        elif item.context_key == "yearly_window":
+            expected = (item.context_value or "").split("|", 1)
+            matches_now = (
+                len(expected) == 2
+                and context.get("month_day") == expected[0]
+                and context.get("hour_bucket") == expected[1]
+            )
+        elif item.context_key is not None:
+            matches_now = context.get(item.context_key) == item.context_value
         lines.append(json.dumps({
             "kind": item.kind,
             "value": item.value,
             "status": item.status.value,
+            "cadence": item.cadence.value,
             "support_count": item.support_count,
             "context_key": item.context_key,
             "context_value": item.context_value,
