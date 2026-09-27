@@ -96,7 +96,7 @@ class SofiaActService:
         *,
         now: datetime,
         busy: bool = False,
-    ) -> DeliveryRunResult | None:
+    ) -> DeliveryRunResult | SendResult | None:
         if not self.delivery_enabled:
             return None
         notice_result = SystemNoticeQueue(self.state_path).deliver_one(
