@@ -100,3 +100,25 @@ def test_public_safe_outfit_quick_tool_wording_is_authoritative():
     assert "deep crimson hair" in result.content
     assert "dark violet tail" in result.content
     assert "style tags: canonical, engineer" in result.content
+
+
+def test_direct_current_outfit_uses_human_readable_piece_names():
+    resolver = AvatarSelfFactResolver()
+    answer = resolver.resolve(
+        "what are you wearing",
+        embodiment=embodiment(),
+        presentation=presentation(
+            outfit_id="seasonal.spring.normal.01",
+            item_names=(
+                "Breathable underlayer",
+                "Base undergarment",
+                "Classic Top",
+                "Utility Bottom",
+            ),
+        ),
+        available_outfit_ids=("seasonal.spring.normal.01",),
+    )
+    assert answer.recognized
+    assert "Spring Everyday 01" in answer.content
+    assert "Classic Top" in answer.content
+    assert "Utility Bottom" in answer.content

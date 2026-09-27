@@ -34,11 +34,22 @@ def _normalize(query: str) -> str:
 def _friendly_outfit(outfit_id: str | None) -> str:
     names = {
         "engineer.signature": "signature engineer outfit",
+        "engineer.light": "light engineer outfit",
         "lounge.relaxed": "relaxed lounge outfit",
         "fallback.covered": "covered fallback outfit",
     }
     if outfit_id is None:
         return "current outfit"
+    if outfit_id.startswith("seasonal."):
+        parts = outfit_id.split(".")
+        if len(parts) == 4 and parts[3].isdigit():
+            season, kind, number = parts[1], parts[2], parts[3]
+            kind_name = {
+                "normal": "Everyday",
+                "lounge": "Lounge",
+                "private": "Private",
+            }.get(kind, kind.replace("_", " ").title())
+            return f"{season.title()} {kind_name} {number}"
     return names.get(outfit_id, outfit_id.replace(".", " ").replace("_", " "))
 
 
@@ -116,11 +127,11 @@ class AvatarSelfFactResolver:
         outfit = _friendly_outfit(presentation.outfit_id)
 
         if normalized in self._CURRENT_OUTFIT_FORMS:
+            pieces = ", ".join(presentation.item_names)
+            piece_text = f" The pieces are: {pieces}." if pieces else ""
             return AvatarSelfFactAnswer(
                 True,
-                (
-                    f"I'm in my {outfit} right now."
-                ),
+                f"I'm in my {outfit} right now.{piece_text}",
             )
 
         if normalized in self._PUBLIC_PRESENTATION_FORMS:
