@@ -127,8 +127,8 @@ class ReflectionJournal:
         self._initialize()
 
     @staticmethod
-    def _schema_sql() -> str:
-        return """
+    def _create_schema(db: sqlite3.Connection) -> None:
+        db.execute("""
             CREATE TABLE IF NOT EXISTS reflection_thoughts (
                 thought_id TEXT PRIMARY KEY,
                 kind TEXT NOT NULL,
@@ -144,7 +144,9 @@ class ReflectionJournal:
                 audience_id TEXT,
                 audience_kind TEXT,
                 UNIQUE(kind, period_key, scope_key)
-            );
+            )
+        """)
+        db.execute("""
             CREATE TABLE IF NOT EXISTS reflection_outbox (
                 message_id TEXT PRIMARY KEY,
                 thought_id TEXT NOT NULL REFERENCES reflection_thoughts(thought_id),
@@ -157,12 +159,16 @@ class ReflectionJournal:
                 delivered_at TEXT,
                 scope_key TEXT NOT NULL,
                 UNIQUE(scope_key, thread_id, evidence_ref)
-            );
-            CREATE INDEX IF NOT EXISTS reflection_outbox_status
-                ON reflection_outbox(status, queued_at);
-            CREATE INDEX IF NOT EXISTS reflection_thoughts_scope_time
-                ON reflection_thoughts(scope_key, created_at);
-        """
+            )
+        """)
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS reflection_outbox_status "
+            "ON reflection_outbox(status, queued_at)"
+        )
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS reflection_thoughts_scope_time "
+            "ON reflection_thoughts(scope_key, created_at)"
+        )
 
     def _initialize(self) -> None:
         """Create the scoped schema and migrate the original global-only table."""
@@ -174,7 +180,7 @@ class ReflectionJournal:
                 "WHERE type='table' AND name='reflection_thoughts'"
             ).fetchone()
             if exists is None:
-                db.executescript(self._schema_sql())
+                self._create_schema(db)
                 db.commit()
                 return
 
@@ -184,7 +190,7 @@ class ReflectionJournal:
                 )
             }
             if "scope_key" in columns:
-                db.executescript(self._schema_sql())
+                self._create_schema(db)
                 db.commit()
                 return
 
@@ -202,7 +208,7 @@ class ReflectionJournal:
                 "ALTER TABLE reflection_thoughts "
                 "RENAME TO reflection_thoughts_legacy"
             )
-            db.executescript(self._schema_sql())
+            self._create_schema(db)
             db.execute(
                 "INSERT INTO reflection_thoughts ("
                 "thought_id, kind, period_key, created_at, subject, content, "
