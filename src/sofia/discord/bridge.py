@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from inspect import Parameter, signature
 from typing import Protocol
 from uuid import uuid4
 
@@ -146,9 +147,22 @@ class DiscordConversationBridge:
             return BridgeResult(disposition)
 
         try:
-            response = self._conversation.respond(
-                inbound.content,
-                principal=discord_sparks_principal(channel_id),
+            responder = self._conversation.respond
+            parameters = signature(responder).parameters
+            supports_principal = (
+                "principal" in parameters
+                or any(
+                    item.kind is Parameter.VAR_KEYWORD
+                    for item in parameters.values()
+                )
+            )
+            response = (
+                responder(
+                    inbound.content,
+                    principal=discord_sparks_principal(channel_id),
+                )
+                if supports_principal
+                else responder(inbound.content)
             )
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():
