@@ -1,3 +1,5 @@
+> **Canonical roadmap consolidation — 2026-09-27:** this file is now the **only project roadmap**. Former master/full/package-readiness roadmap documents are merged below and removed as standalone planning files. Technical contracts that are not roadmaps may remain separate. When status conflicts with older merged historical text, the newest dated status in this file wins.
+
 > **Fleet Live Node 1 candidate — 2026-09-26:** branch `feature/fleet-tray-remote-controls` now includes file-configured pinned-mTLS Fleet-agent startup, an operator-facing durable authenticated Fleet probe, and normalized read-only `ops.telemetry/latest` collection. Artemis is the first planned real remote node. Local source tests and supervised Artemis mTLS/inspection/telemetry acceptance remain required before calling Fleet deployment live.
 
 > **Fleet/tray/remote-client candidate — 2026-09-26:** branch `feature/fleet-tray-remote-controls` adds durable host activity/Game Mode evidence, Steam/local-process game detection, activity-aware placement, authorized Fleet-agent bootstrap planning, a native Windows notification-area control surface, Master Settings, independent LLM/runtime controls, Windows startup registration, and pinned-mTLS remote desktop chat over the canonical conversation service. This is **candidate source only** until Sparks runs the focused Windows gate and supervised tray/remote-client canaries. It does not yet prove automatic LAN discovery, real cross-host service control, runtime migration, or automatic authoritative-endpoint publication.
@@ -120,7 +122,7 @@ The following reliability requirements are explicit roadmap gates, not optional 
 | 15 | **PKG-CLEAN · Maintenance and technical debt** | Evidence-backed cleanup without losing behavior, data, permissions, or recovery | **Active current-main cleanup candidate: PR #113, “CLEAN: stop tracking live runtime SQLite state.”** Older PR #14 is historical preflight material. Private recovery snapshots and machine-location state are already ignored on `main`, but live runtime SQLite tracking/state migration still requires recovery-first handling, verified backups/restore and no deletion of user history merely to obtain a clean Git tree. |
 | 16 | **PKG-KNOW · Documents, reference knowledge, and provenance** | Read trusted manuals, PDFs, code/docs, project notes and later approved web material; preserve source/version/provenance, freshness, citations and correction state | **Waves 1–5 plus PDF/manual ingestion, provenance search/document inspection, version-aware document identities and bounded document writing are on `main` via PR #104.** Richer semantic retrieval/citation ranges, privacy/audience integration and live authoring/upkeep acceptance remain. No general web grant. |
 | 17 | **PKG-INTEGRATE · Applications, services, and tool adapters** | Typed integrations to Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, databases/storage, Ollama, notifications and future services; includes governed self-tooling from documentation. **Cloudflare is deferred until Sparks explicitly requests it.** | **Waves 1–5 plus concrete cognition-wired adapters are on `main` via PR #104.** Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, NAS/storage, notifications and Discord operator tooling are repository accepted. Real service canary/health/version/rollback proof and the full KNOW→DEV→SAFE/VERIFY→activation loop remain. |
-| 20 | **PKG-ENVIRONMENT · Time, location, season, weather, and ambient context** | One provenance-aware shared environment snapshot for cognition and package consumers | **Accepted foundation via PR #110 + NWS/persistent-HOST extension via PR #111.** `main` owns shared clock/environment projection, configured/current USER/SITE/HOST location evidence, timezone/DST, season/daylight, provider-neutral weather/forecast/indoor observations, freshness/provenance, deterministic queries, HA bridge, AVATAR consumption, a narrow NWS route pinned to `api.weather.gov` under `environment.nws.read`, and durable per-machine HOST location in `state/machine-locations.json`. Final extension evidence: **85 focused**, live `nws:KGKY` canary, **96 persistence-focused**, and reported green full suites. Optional HA live canary remains; general browsing/search and arbitrary geocoding remain closed. See [ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md). |
+| 20 | **PKG-ENVIRONMENT · Time, location, season, weather, and ambient context** | One provenance-aware shared environment snapshot for cognition and package consumers | **Accepted foundation via PR #110 + NWS/persistent-HOST extension via PR #111.** `main` owns shared clock/environment projection, configured/current USER/SITE/HOST location evidence, timezone/DST, season/daylight, provider-neutral weather/forecast/indoor observations, freshness/provenance, deterministic queries, HA bridge, AVATAR consumption, a narrow NWS route pinned to `api.weather.gov` under `environment.nws.read`, and durable per-machine HOST location in `state/machine-locations.json`. Final extension evidence: **85 focused**, live `nws:KGKY` canary, **96 persistence-focused**, and reported green full suites. Optional HA live canary remains; general browsing/search and arbitrary geocoding remain closed. See the PKG-ENVIRONMENT detailed section in this file. |
 | Gate | **PKG-SAFE · Security, privacy, and recovery** | Authentication/authorization, secrets, privacy, revocation, backup/restore, external stops | Cross-cutting auth/mTLS/replay foundations exist, but there is no integrated `src/sofia/safe` package on `main`; draft PR #18 is stale. Secrets lifecycle, retention/erasure/encryption policy, independently enforced operator stop, consistent backup/restore, anti-rollback/revocation recovery and deployed failure drills remain major work. |
 | Gate | **PKG-VERIFY · Evidence and real acceptance** | Revision-pinned offline/integration/live evidence, negative tests, deployment/latency/long-horizon validation | The repository has extensive pytest coverage, but no integrated `src/sofia/verify` package on `main`, draft PR #8 is stale, and there is currently **no `.github/workflows` CI workflow**. Build a current-main evidence manifest/runner, automate full-suite/static gates in CI, then add restore, resource/latency, authenticated host, outage/failure and soak evidence. |
 
@@ -141,7 +143,7 @@ PKG-ENVIRONMENT is a shared evidence service, not a replacement for NET, INTEGRA
 
 Primary consumers are CORE cognition, AVATAR wardrobe/presentation, INTERACT context, RUN refresh/expiry, OPS site/timezone metadata and ACT opt-in environment notices. MEM may preserve approved stable configuration/provenance but may not replay stale weather as current; SOCIAL/SAFE protect precise/current location; VERIFY owns freshness, DST, provider outage, privacy and wrong-source tests. Weather/time/location are context, not authority and not deterministic emotion rules.
 
-See [the PKG-ENVIRONMENT readiness contract](docs/development/pkg-environment-readiness-roadmap.md).
+See the PKG-ENVIRONMENT detailed section in this file.
 
 ## Discord channel workstream: D0–D4
 
@@ -369,3 +371,1402 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 8. Only after the existing web gate, activate any separately authorized direct internet weather/geocoding provider and general web/search.
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.
+
+
+## Machine-role cleanup and filesystem convergence
+
+PKG-CLEAN owns host cleanup policy with DEV, OPS, RUN, SAFE and VERIFY support. Cleanup is role-aware rather than a generic delete-old-files pass.
+
+### Host roles
+
+Every managed Fleet node declares one or more approved roles:
+
+- `development`
+- `production-runtime`
+- `control-plane`
+- `database`
+- `worker`
+- `test/canary`
+- `mixed`
+
+The role controls what files are expected, what may be garbage-collected, and which paths are protected.
+
+### Venus | development host
+
+Venus may legitimately contain Git working trees, detached/feature worktrees, OpenCode sandboxes, editable installs, virtual environments, build/dist output, test databases, candidate release artifacts, test logs and temporary developer caches.
+
+CLEAN + DEV may remove stale development material only after proving it is not the sole copy of useful work. Before removing a repository/worktree/candidate directory, verify:
+
+1. Git working-tree status and untracked files;
+2. branch/commit identity and upstream/PR state;
+3. whether unique commits are pushed or otherwise preserved;
+4. whether the path is still registered as an active worktree/sandbox;
+5. whether tests/release evidence still references the artifact;
+6. whether rollback/reproduction requires retaining it.
+
+Eligible cleanup includes stale `__pycache__`, `.pytest_cache`, build/dist output, obsolete editable-install metadata, abandoned virtual environments, merged disposable worktrees, expired candidate artifacts, temporary test databases, rotated ordinary logs and documented OpenCode scratch state.
+
+**Never automatically delete uncommitted/unpushed unique work, an active worktree, protected credentials, authoritative state, release evidence under retention, or an unknown path merely because it looks old.**
+
+### Artemis | deployment/control host
+
+Artemis should converge away from ad-hoc development/source checkouts. Production/runtime operation should eventually use verified immutable release artifacts plus the independently versioned Fleet control agent.
+
+Target layout is conceptually:
+
+```text
+C:\ProgramData\SofiaAdaLyra\
+    control-agent\
+    releases\
+        <current>\
+        <rollback-compatible-previous>\
+    state\
+    logs\
+    cache\
+    recovery\
+```
+
+A production Fleet node must not require a Git checkout to run Sofía.
+
+Artemis retains:
+
+- the independent control/supervisor agent;
+- the current verified release;
+- at least one previous rollback-compatible verified release while its rollback window remains open;
+- authoritative/local state assigned to that host;
+- protected trust/recovery material;
+- required audit/evidence and backups under retention;
+- active caches/logs according to policy.
+
+Eligible cleanup includes superseded release artifacts outside the rollback window, failed/stale staging directories, expired installers, temporary extraction directories, documented caches and rotated ordinary logs.
+
+Unknown or out-of-manifest files on a production/control node are **drift evidence**, not automatic deletion targets. OPS reports or quarantines them until classification proves whether they are operator files, state, secrets, forensic evidence, an unauthorized modification or safe garbage.
+
+### Cleanup safety invariants
+
+- RUN protects the active release and every still-valid rollback target from cleanup.
+- SAFE protects secrets, trust roots, protected state, audit evidence, recovery credentials and decommission evidence.
+- OPS supplies host role, desired-state manifest, active workload/lease information and deployment drift evidence.
+- DEV proves development work is preserved before deleting worktrees/sandboxes/candidates.
+- VERIFY exercises cleanup against uncommitted work, interrupted deployment, active rollback, corrupt staging, unknown files and bare-metal recovery.
+- CLEAN performs only typed, evidence-backed retention/garbage-collection actions.
+- No cleanup routine may use age alone as proof that a file is disposable.
+- Final removal of an enrolled machine remains a separate Sparks-only approval gate; filesystem cleanup is not decommission authorization.
+
+
+
+## Consolidated legacy roadmap material
+
+The sections below preserve the complete planning/status/acceptance content from the former standalone roadmap files. They are retained here so no roadmap information is lost during consolidation. Newer dated statements elsewhere in this file take precedence over older historical status text.
+
+
+### Merged master readiness index
+
+> **Fleet control-plane candidate — 2026-09-26:** branch `feature/fleet-tray-remote-controls` adds Game Mode/foreground-activity evidence, gaming-aware OPS placement, typed Fleet bootstrap planning, a native Windows tray agent, Master Settings, independent LLM/runtime controls, Windows startup registration and pinned-mTLS remote desktop chat. Status remains **branch candidate**, not current-main acceptance, until Sparks runs the focused Windows gate and supervised canaries.
+
+> **Project status update — 2026-09-25:** PR #104 (`24e3888a`) merged the runtime toolbox and secure fleet-transport completion gate on top of the earlier Waves 1–5 work. Focused tool/mTLS acceptance passed **34/34**, the surrounding DEV/KNOW/INTEGRATE/OPS/system/machine regression gate passed **270/270**, and the full repository pytest suite was reported passing before merge. Source-level pinned mTLS remote transport/agent and concrete runtime adapters are now on `main`; real heterogeneous-host deployment, service canaries, RUN 24/7 supervision, workload execution/failover, restore and soak remain separately gated.
+
+> **Audit reconciliation — 2026-09-25:** ACT #105, EVOLVE #106 and RUN #107 are merged and passed their Windows package gates plus the reported post-merge full suite. Repository review distinguishes merged package primitives from application wiring/live deployment. Immediate gaps are CORE/INTERACT natural-quality repair, SOCIAL authenticated-principal projection, MEM privacy/recovery, SAFE/CLEAN/VERIFY foundations, ACT/RUN/EVOLVE runtime wiring, and stale legacy draft branches. See ROADMAP.md for the authoritative package states and the consolidated package roadmap in this file for the reconciled execution order.
+
+> **PKG-ENVIRONMENT acceptance — 2026-09-26:** PR #110 (`766bf21e`) merged the shared environment foundation, and PR #111 (`2b753fdb`) merged the narrow NWS weather/forecast route plus persistent per-machine HOST location. NWS is pinned to HTTPS `api.weather.gov` and requires `environment.nws.read`; HOST location is durable in `state/machine-locations.json`, keyed by stable machine identity, auto-loaded at composition, and kept separate from USER/home location. Evidence includes the original **79 focused / 61 touched / 27 provenance** gates, later **85 NWS-focused**, supervised live `nws:KGKY` canary, **96 persistence-focused**, and reported green full-suite runs. Live Home Assistant canary remains optional; general browsing/search and arbitrary geocoding remain open.
+
+> **PKG-UI acceptance — 2026-09-26:** PR #115 (`381ac9a`) merged the canonical current-main text/workbench foundation and PR #116 (`7f072861`) merged the Windows desktop workbench. The accepted UI includes canonical conversation routing, durable drafts, private workbench state, single-owner application threading, adaptive ENVIRONMENT/AVATAR/emotion theme projection, shallow chamfered HUD controls and reviewed Quick Tools. The closing Windows repair gate passed **90/90** and Sparks reported the final full repository suite passing before merge. Renderer, voice, mobile/web and real cancellation remain separate gates.
+
+> **State/Release architecture reconciliation — 2026-09-27:** Fleet mobility, one logical shared database, and governed self-improvement are now tracked as two cross-package contracts rather than new packages. **State Plane** ownership is centered on MEM with SOCIAL/RUN/OPS/SAFE support; **Release/Integrity Plane** ownership is centered on DEV/EVOLVE with SAFE/VERIFY/OPS/RUN enforcement. Immediate gaps found by the audit include fragmented SQLite+JSON/file state, no central schema migration coordinator, source/runtime/protected-state mixing, production `TestActionExecutor`, no immutable signed whole-Sofía release manifest, no model/dependency digest pinning, insufficient independent installed-agent attestation, and no safe new-node rule preventing accidental creation of a second canonical identity.
+
+### Sofía Ada Lyra | master readiness index
+
+**Updated:** 2026-09-26 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster is now **20 packages** after adding PKG-ENVIRONMENT; watchdog and replicated-database reliability remain cross-package architecture rather than extra packages.
+
+#### Authoritative planning and acceptance documents
+
+1. ROADMAP.md: canonical 20-package roster, invariant release order, package ownership and fleet/removal constraints.
+2. [Full roadmap and individual package contracts](docs/development/FULL-PACKAGE-ROADMAP-2026-09-22.md): expanded 20-package scope, dependencies, current status, proposed deliverables, acceptance criteria, milestones and next engineering order.
+3. [Six reliability gates and state replication](docs/development/pkg-reliability-control-plane-contract.md): recovery, operation ledger, operator stop/approval, resource fairness, failure lab, capability truth, replication/fencing/backup.
+4. [Reliability implementation stages](docs/development/pkg-reliability-implementation-plan.md): recoverable SQLite baseline before any candidate database migration; staged proofs.
+5. [RUN independent watchdog and standby recovery](docs/development/pkg-run-watchdog-failover-contract.md): local supervisor, independent monitor, fenced leader promotion, standby startup, rejoin and failure acceptance.
+6. [PKG-ENVIRONMENT readiness](docs/development/pkg-environment-readiness-roadmap.md): shared time/location/season/daylight/weather state, provenance/freshness, consumer boundaries and staged provider activation.
+7. Package-specific branch docs, PRs and revision-pinned tests: implementation evidence, not an excuse to combine unrelated test runs.
+
+**Primary release path:** CORE → INTERACT → MEM → SOCIAL minimum Sparks-only principal/audience → Discord D0-D4 through NET + UI + SAFE → OPS trusted host telemetry/enrollment → RUN verified supervised 24/7 and applicable recovery/failover → later separately authorized general web/search.
+
+**SAFE + VERIFY are continuous gates.** KNOW/INTEGRATE/REL/ACT/AVATAR/DEV/BODY/EVOLVE/CLEAN/ENVIRONMENT can proceed in parallel without bypassing release, privacy or authority gates. ENVIRONMENT's shared foundation and the separately authorized narrow NWS route are accepted; trusted local Home Assistant observations may enter through INTEGRATE. General browsing/search and arbitrary geocoding remain behind separate NET/web authorization. Reading local authorized documentation does not grant web browsing. Discord connectivity is not a general web grant.
+
+#### Status definitions
+
+- **Merged foundation:** code is on `main`, but real-host or integrated acceptance may remain.
+- **Draft candidate:** code is on a feature branch/PR, not merged to `main`.
+- **Design-only:** a documented outcome/contract, with no certified corresponding deployed behavior.
+- **Offline tested:** a particular isolated revision passed; not proof of current Windows/full-suite/live behavior.
+- **Integrated:** tested against the actual intended repository revision and dependencies.
+- **Live accepted:** witnessed real component/system behavior at a pinned revision with appropriate receipts.
+- **Released/deployed:** separately approved activation/deployment, distinct from merged docs or source.
+
+Never combine test counts from unrelated revisions into a fictional mega-pass. Reconfirm actual PR heads, CI and live evidence before changing these states.
+
+#### State Plane + Release/Integrity Plane readiness
+
+These are **architecture workstreams across the existing 20 packages**, not new package numbers.
+
+##### State Plane
+
+**Goal:** one logical authoritative Sofía state shared by eligible runtimes, with strict ownership and least privilege.
+
+- **CORE:** canonical identity bootstrap and configuration precedence. A new/rebuilt node must verify/join the existing Sofía identity, never silently mint a replacement identity because a local file is missing.
+- **MEM:** backend-neutral storage boundary, authoritative-state inventory, shared database semantics, schema/version migration and cross-store consistency.
+- **SOCIAL:** principal/audience ownership on all person-scoped state.
+- **RUN:** single writer/runtime leadership, global event ordering, monotonic fencing, safe degraded/offline behavior and fleet-wide background budgets.
+- **OPS:** placement of data-bearing nodes, replica health, convergence, machine state and workload locality.
+- **SAFE:** per-service database roles, secrets isolation, trust roots, revocations, protected state and out-of-band recovery.
+- **CLEAN:** separate source-controlled installation files from mutable runtime/protected/cache/log state and preserve migration/rollback.
+- **VERIFY:** restore, corruption, stale-replica, partition, migration compatibility and bare-metal recovery evidence.
+- **UI/ENVIRONMENT/AVATAR/KNOW/ACT/REL:** migrate only their authoritative roaming state; keep caches, device handles and large immutable assets out of transactional state where appropriate.
+
+**State classes:** shared authoritative state; protected trust state; secrets; immutable/content-addressed artifacts; local ephemeral/rebuildable observations.
+
+##### Release/Integrity Plane
+
+**Goal:** Sofía improves herself by producing and deploying an exact verified release, never by propagating whichever mutable working tree happens to be on a host.
+
+- **DEV:** isolated candidate build, dependency/runtime lock, hashes, provenance/SBOM and reproducibility.
+- **EVOLVE:** governed proposal/revision lineage and separately protected amendments.
+- **SAFE:** release-signing trust, anti-rollback policy, protected verifier/emergency-stop/fencing/recovery roots and approval tiers.
+- **VERIFY:** exact-revision tests, migration/rollback compatibility, corrupt-artifact/supply-chain negatives and release evidence.
+- **OPS:** canary/wave rollout, installed-agent independent attestation, fleet release convergence and corrupt/outdated/incompatible quarantine.
+- **RUN:** activation, health/readiness, crash-loop detection, release rollback/forward-fix and authoritative endpoint handoff.
+- **NET:** compatible authenticated transport/protocol negotiation; transport trust never becomes release or database authority.
+- **CORE/UI/AVATAR:** model/client/asset compatibility is bound into the release manifest rather than inferred from a friendly version string.
+
+**Minimum release manifest:** release ID, Git revision, application/package version, runtime version, dependency lock digest, database schema compatibility, Fleet protocol/agent compatibility, model/provider identity and artifact digest where available, Constitution/protected-state compatibility, config schema, asset digests and signature.
+
+
+#### Fleet/self-update hardening checklist
+
+The following reliability requirements are explicit roadmap gates, not optional implementation details:
+
+- **Automatic bad-release rollback:** repeated post-update crash/readiness failure escalates from process restart to release rollback or controlled forward-fix.
+- **Fleet protocol compatibility:** CORE/runtime, Fleet agent and remote control protocol versions must be checked before either side is activated.
+- **Control-agent independence:** the small Fleet supervisor/control agent is separately versioned and independently updateable/rollbackable so a bad Sofía release cannot disable its own recovery path.
+- **Semantic corruption checks:** verify domain invariants, not just SQLite/SQL structural integrity. Examples include valid memory provenance, principal ownership, grant/revocation consistency, conversation/session references and deployment lineage.
+- **Append-only audit evidence:** approvals, protected changes, releases, migrations, fencing transitions, emergency stops and decommission decisions use tamper-evident append-only history; corrections append rather than overwrite.
+- **Large-asset separation:** LLM weights, avatar/voice/render assets, generated artifacts and backups are content-addressed objects/files with verified hashes referenced by State Plane metadata rather than bloating transactional database rows.
+- **Bare-metal recovery:** documented clean-host recovery must work with every normal Sofía runtime unavailable.
+- **Offline/degraded behavior:** State Plane loss may allow clearly marked local drafts/read-only degraded behavior, but must not create competing authoritative memories, grants, actions, deployments or protected revisions.
+- **Global autonomy budget:** quotas and background-work budgets are Fleet-wide so adding workers does not multiply autonomous activity.
+- **Supply-chain verification:** dependency/runtime locks, artifact hashes, provenance, vulnerability/security checks and SBOM evidence are part of release acceptance.
+- **Garbage collection/retention:** old releases, models/assets, backups, logs, snapshots and evidence have explicit retention/GC policy that preserves rollback, legal/privacy requirements and forensic history.
+- **Database constraints:** the future authoritative relational schema uses foreign keys, uniqueness/idempotency, ownership/audience constraints, guarded append-only records, valid state transitions and transactional boundaries where the domain requires them.
+
+
+#### Per-package readiness and immediate next gate
+
+| Order | Package | Current evidence-based location/status | Next gate |
+| ---: | --- | --- | --- |
+| 1 | CORE | Foundations merged via PR #1 | Joint INTERACT/CORE live-quality repair for generic assistant fallback, then fresh integrated identity/personality/restart/latency evidence. |
+| 2 | INTERACT | **Accepted foundation merged via PR #2 plus accepted hardening via PR #29** | New narrow live-quality repair gate with CORE for natural/non-canned dialogue; accepted interaction safety/ledger semantics remain closed. |
+| 3 | MEM | **Accepted original/provenance foundation plus promoted-memory runtime cognition wiring on `main`**; reviewed candidate store is thread-safe and lifecycle-clean after PR #116 | ChatGPT/archive import, privacy/retention/encryption, SOCIAL principal binding, consistent cross-store backup and independent restore. |
+| 4 | SOCIAL | Minimum principal/audience boundary designed; live Discord proved transport auth but missing cognition projection | Project the authenticated owner as Sparks in shared cognition and add negative cross-user/audience leakage tests. |
+| 5 | NET | Durable admission foundations plus pinned mutual-TLS remote transport/agent source merged via PR #104; narrow Discord DM transport remains live accepted | Deploy the remote agent to real Windows/Linux/Pi hosts and prove endpoint/key/revocation/outage behavior; no general web. |
+| 6 | UI | **Windows text workbench accepted via PRs #115/#116; Sparks-only Discord DM adapter live accepted for v1 transport** | Extend only through separately gated renderer/avatar viewport, voice, mobile/web, proactive outbound and real cancellation; preserve canonical shared runtime. |
+| 7 | RUN | **Local lifecycle implementation merged via PR #107:** periodic opportunity gate, local singleton lease/fencing epochs, stale-owner rejection, host-neutral supervisor, readiness timeout and bounded restart policy; Windows offline gate **78 passed, 1 skipped**. Post-merge current-`main` full repository pytest was reported passing by Sparks. | Install/prove real OS supervision and independent watchdog; safe standby startup, cross-host exclusive leadership/fencing, ledger reconciliation, multi-day soak and measured host-failover/RTO/RPO proof. |
+| 8 | OPS | **Waves 1–5 plus toolbox/fleet-transport source completion merged via PRs #99/#103/#104.** Branch `feature/fleet-tray-remote-controls` adds candidate durable activity/Game Mode evidence, gaming-aware placement and typed authorized Fleet-agent bootstrap planning. | Run focused Windows acceptance, then deploy discovery/bootstrap across real Windows/Linux/Pi hosts; verify maintenance, workload movement, RUN integration, failover/rollback, restore and soak. |
+| 9 | ACT | **Durable outreach/delivery source merged via PR #105:** source-linked policy, exact envelope binding, attempt ledger, bounded retry/dedupe, acknowledged receipts and `outcome_unknown` handling; Windows offline gate **90 passed**. Post-merge current-`main` full repository pytest was reported passing by Sparks. | Activate a real authorized sender/channel and RUN scheduling; prove recipient isolation, receipt reconciliation and no duplicate/unsolicited spam under live faults. |
+| 10 | REL | Overlapping absence/reunion candidates draft PRs #12/#13 | Reconcile one evidence-grounded, scoped and non-clingy relationship pipeline. |
+| 11 | AVATAR | **Headless presentation/wardrobe foundation accepted on `main` via `9b81ba5`**, with durable public-safe presentation and deterministic current self-facts | Final mesh/art, rig/renderer/hit-test/animation receipts, authenticated private audience via SOCIAL and visual acceptance. |
+| 12 | DEV | **Waves 1–5 plus cognition-wired DEV status/build/apply/rollback/commit/push tooling merged via PR #104.** Repository acceptance is green; mutating verbs remain separately authorized. | Live OpenCode execution on the intended host plus end-to-end KNOW→DEV→VERIFY candidate-tool acceptance; consequential publish/deploy/restart remains separately gated. |
+| 13 | BODY | Simulation-only candidate draft PR #16 | Real Gaia SSC-32/calibration and independently verified hardware emergency stop. |
+| 14 | EVOLVE | **Governed revision implementation merged via PR #106:** reversible preference/config changes plus independently approved protected identity/Constitution apply/rollback; Windows disposable/offline gate **62 passed**. Post-merge current-`main` full repository pytest was reported passing by Sparks. | Integrate with final SAFE approval/authentication mechanisms and VERIFY evidence; preserve no-self-approval and exact-revision rollback guarantees. |
+| 15 | CLEAN | **Current-main cleanup candidate PR #113 is open for live SQLite tracking/state hygiene; old PR #14 is historical preflight** | Recovery-first state migration, verified backup/restore, safe untracking/ignore rules and rollback without deleting durable history. |
+| 16 | KNOW | **Waves 1–5 plus PDF/manual ingestion, cognition-wired provenance search/document inspection, version-aware identities and bounded document writing merged via PR #104.** | Richer semantic retrieval/citation ranges, audience/privacy integration and live documentation-authoring/upkeep acceptance. |
+| 17 | INTEGRATE | **Waves 1–5 plus concrete runtime adapters merged via PR #104:** Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, storage/NAS, notifications and Discord operator controls. Cloudflare is deferred until Sparks explicitly requests it. | Canary real configured services, prove destination/account scope, health/version behavior and rollback; then complete KNOW→DEV→SAFE/VERIFY→activation proof. |
+| 20 | ENVIRONMENT | **Accepted foundation via PR #110 + PR #111.** Shared clock/environment projection, configured/current USER/SITE/HOST evidence, persistent per-machine HOST location, timezone/DST, season/daylight, provider-neutral weather/forecast/indoor observations, deterministic queries, HA bridge, AVATAR consumption and the narrow NWS route pinned to `api.weather.gov` under `environment.nws.read` are on `main`; supervised live NWS acceptance passed. | Optional live Home Assistant canary after explicit `environment.home_assistant.read`; later general browsing/search, arbitrary geocoding, NWS alert→ACT delivery, and fleet-managed location replication remain separate gates. |
+| Gate | SAFE | Authority/integrity foundations; disclosure preflight draft PR #18 | Real identity, secrets, revocation, independent stop, backups/restore, fencing and protected exact-device approvals. |
+| Gate | VERIFY | Active candidate draft PR #8; PR #10 superseded | Current-revision live negative/security and failure tests, integrated suite, restore, latency, RPO/RTO and soak evidence. |
+
+#### 2026-09-27 package assignment additions
+
+| Package | Newly assigned/strengthened responsibility from audit |
+| --- | --- |
+| **CORE** | Canonical Fleet identity bootstrap; configuration precedence/provenance; adaptive cognition remains separate from host identity. |
+| **INTERACT** | Global interaction causation/correlation metadata and foreground priority semantics consumed by RUN. |
+| **MEM** | State Plane abstraction, schema migration, semantic integrity, one logical shared state and recovery consistency. |
+| **SOCIAL** | Principal/audience ownership for shared rows, caches, memories and relationship state. |
+| **NET** | Protocol compatibility and authenticated transport only; no implicit database or release authority. |
+| **UI** | Shared settings backed by authoritative configuration, explicit local overrides, offline queue/degraded behavior, voice remains a later UI workstream. |
+| **RUN** | Cross-host leader/writer fencing, clock uncertainty, global event ordering, crash-loop release rollback and fleet-wide autonomy budgets. |
+| **OPS** | Canary rollout, fleet convergence, independently verified installed-agent identity, artifact distribution and content-addressed asset availability. |
+| **ACT** | Fleet-wide rather than per-worker outreach budgets; durable causation/idempotency against shared state. |
+| **REL** | Relationship state is principal-bound and migrates through the State Plane, not machine-local files. |
+| **AVATAR** | Roaming presentation metadata in State Plane; large renderer/assets content-addressed and digest-verified. |
+| **DEV** | Reproducible candidate releases, dependency locks, build/runtime provenance and immutable artifact generation. |
+| **BODY** | Physical controller firmware/calibration compatibility becomes a separately verified release/asset dependency before motion. |
+| **EVOLVE** | Self-improvement terminates in a governed release proposal; higher-trust verification/signing/fencing roots remain independently controlled. |
+| **CLEAN** | Separate source, runtime state, protected state, secrets, cache and logs; retire direct source-tree mutation assumptions. |
+| **KNOW** | Knowledge metadata/provenance may roam in State Plane; large/rebuildable indexes can remain derived/content-addressed. |
+| **INTEGRATE** | Typed State Plane/database adapters and least-privilege service roles; no generic shared DB credential. |
+| **SAFE** | Trust anchors, signing keys, secrets custody, anti-rollback, tamper-evident audit, protected execution base and bare-metal recovery. |
+| **VERIFY** | Upgrade/downgrade/migration tests, signature/supply-chain negatives, semantic DB integrity, corruption/failover/restore and convergence proof. |
+| **ENVIRONMENT** | Shared configured environment state with provenance; current observations/caches stay freshness-bound and may remain local/derived. |
+
+
+#### Named workstreams, not extra packages
+
+- **Discord D0-D4:** initial scope is authenticated Sparks-only private DM; no public guild/multi-user access implied. See the consolidated package roadmap in this file.
+- **Two data locations:** proposed single writer plus synchronous data-bearing standby on independently verified failure domains, a separate quorum/fencing witness and third isolated/versioned backup. SQLite first gets state inventory, safe consistent backups and independent restore; PostgreSQL is only one future candidate after benchmark, migration, and separate activation approval. Synchronous replication does not protect against replicated deletion/corruption.
+- **Watchdog and standby:** local supervisor restarts local process; independent fleet monitor detects host failure; compatible standby supervisor starts a replacement only after exclusive leader fencing and durable-state validation. If exclusivity, quorum or data is uncertain, fail closed rather than boot two leaders. A witness is not a data copy. Two VMs on Artemis are not independent physical failure domains.
+- **Operator authority:** Sparks can independently stop automation, pin hosts/workloads and prohibit reboots. Sofía may quarantine/drain/prepare a machine, but **only Sparks explicitly approves final removal of that exact device and proposal revision**.
+- **General web/search:** only after genuine Discord, OPS deployment-host and RUN 24/7 acceptance, with distinct authorization and provenance. PR #111 is an explicitly authorized narrow exception for NWS weather/forecast only, pinned to `api.weather.gov` and `environment.nws.read`; it is not general browsing/search or arbitrary geocoding. Trusted local Home Assistant environment observations remain separately consumable through INTEGRATE/ENVIRONMENT.
+
+#### Reconciliation notes
+
+- PR #103 merged on 2026-09-25 at `0cc067a`, integrating DEV/KNOW/INTEGRATE/OPS Waves 2–5 after 60/60 focused acceptance and a reported passing full repository suite. Source implementation is accepted; live NET/RUN deployment/failover claims remain open.
+
+- PR #1 merged on 2026-09-20; older documents still describing it as open are historical.
+- PR #2 merged on 2026-09-23 after Windows closure evidence: 97 focused, disposable real-Qwen four-turn pass, qualified repository 1665 passed / 2 skipped / 1 unrelated local test deselected, and final 60/60 closure audit.
+- REL PRs #12/#13 overlap; reconcile them before merging both paths.
+- VERIFY PR #8 is active; #10 is superseded/closed.
+- PKG-ENVIRONMENT is package #20. Discord and watchdog/replication remain cross-package workstreams, **not packages #21/#22**.
+- Runtime SQLite files and logs tracked by Git must be preserved and deliberately migrated under SAFE/CLEAN; never delete state just to tidy Git.
+
+**A roadmap, unit test, mock transport, model statement or documentation-only merge is not proof of 24/7 operation, standby promotion, acknowledged-write RPO 0, or deployed high availability.**
+
+### Merged full package delivery contracts
+
+> **Fleet/tray extension candidate — 2026-09-26:** `feature/fleet-tray-remote-controls` contains the new activity-aware Fleet control plane and Windows tray/remote-client source. It is intentionally recorded as a **candidate** until focused Windows tests and live canaries pass; no production fleet/runtime migration claim is implied.
+
+> **Project status update — 2026-09-26:** PKG-ENVIRONMENT foundation PR #110 (`766bf21e`) and NWS/persistent-HOST extension PR #111 (`2b753fdb`) are merged to `main`. PR #111 adds a narrowly authorized NWS route pinned to HTTPS `api.weather.gov` under `environment.nws.read`, durable per-machine HOST location keyed by stable machine identity, startup injection, bounded machine-inventory projection and USER/HOST separation. Extension evidence: **85 focused**, reported green full suite, supervised live `nws:KGKY` canary, **96 persistence-focused**, and final reported green full suite. Optional live Home Assistant canary remains separately gated; general browsing/search and arbitrary geocoding remain closed. Earlier DEV/KNOW/INTEGRATE/OPS source acceptance remains unchanged; none of this is proof of production remote fleet orchestration, RUN 24/7 supervision, live failover or soak.
+
+> **Project status update — 2026-09-26 (UI):** PR #115 (`381ac9a`) merged the rebuilt canonical text/workbench foundation and PR #116 (`7f072861`) merged the accepted Windows desktop workbench. Current `main` now has durable unsent drafts, private workbench state, one canonical `SofiaApplication`/conversation path, a single-owner application worker, adaptive ENVIRONMENT/AVATAR/emotion theme projection, shallow chamfered HUD surfaces and reviewed Quick Tools that never auto-send. Acceptance included **58 UI + 24 application/Discord**, later focused UI/AVATAR passes, **90/90 integration repair**, supervised Windows use and a final reported green full repository suite. The same repair gate hardened reviewed-memory SQLite threading/cleanup and explicit request-level tool suppression for trusted interaction turns. Voice, renderer/avatar viewport, mobile/web and provider cancellation remain separately gated.
+
+> **Architecture audit update — 2026-09-27:** chat history plus current code/PR review found a missing boundary between **shared state continuity** and **self-update/release continuity**. They are now explicit cross-package workstreams called the **Sofía State Plane** and **Release/Integrity Plane**, not extra packages. The audit also surfaced concrete P0/P1 gaps: production composition still instantiates `TestActionExecutor`; authoritative state is split between SQLite and multiple JSON/source files; schema creation is decentralized without a central migration/compatibility coordinator; a missing local identity file can create a new `instance_id`; Fleet candidate source can treat an installed matching agent version as enrollment-ready without independently proving the installed artifact digest; dependency/model identity is not fully immutable; PKI bootstrap private keys are file-protected development material rather than final production key custody; and no whole-Sofía signed immutable release manifest/canary/convergence path exists yet. These are assigned to the existing packages below.
+
+### Sofía Ada Lyra | full roadmap and per-package delivery contracts
+
+**Revision:** 2026-09-26 (America/Chicago). **Status:** planning and evidence index, **not** proof of implementation, deployment, live uptime, database replication, automatic failover, geolocation or weather access. This document expands the authoritative ROADMAP.md, the [master readiness index](../../MASTER-ROADMAP-READINESS.md), the [reliability contract](pkg-reliability-control-plane-contract.md), the [reliability implementation sequence](pkg-reliability-implementation-plan.md), and the [RUN watchdog/failover contract](pkg-run-watchdog-failover-contract.md). Re-check actual branch/PR and pinned CI/live evidence before changing a package's state.
+
+#### Project promise and nonnegotiable boundaries
+
+Sofía Ada Lyra is one persistent canonical assistant identity, independent of model, host, process, channel, avatar and Gaia hardware. The model supplies cognition, **not** identity or authority. Keep Constitution/integrity, privacy, authenticated audience, source evidence, memory, and physical/external actions independently enforced. Model text and source-document text cannot prove sensing, execution, receipt, authorization, consciousness or uptime.
+
+Only Sparks can explicitly authorize the **final irreversible removal/decommissioning of each exact enrolled machine and proposal revision**. Sofía may discover/enroll within standing policy, quarantine, drain and prepare removal, but may never self-approve or use an expired/implicit approval. Protected-state amendments, destructive actions, external disclosure and physical control keep their separate gates.
+
+**Release order:** CORE → INTERACT → MEM → SOCIAL minimum Sparks-only principal/audience → Discord D0-D4 via NET/UI/SAFE → OPS trusted deployment-host telemetry/enrollment → RUN verified supervised 24/7 and applicable recovery/failover → later separately authorized general web/search. Work on other packages may run in parallel but cannot bypass those gates. SAFE and VERIFY run continuously.
+
+**Definitions:** `on main` = code exists, **not necessarily active or accepted**; `draft candidate` = code on a draft PR/branch; `design-only` = contract/proposal without deployed capability; `offline tested` is not real-host integration; `live accepted` requires current-revision authenticated observation/receipts; `deployed` requires a separately approved activation. Test counts from different SHAs are never added together.
+
+#### Milestones and exit criteria
+
+| Stage | Delivery focus | Exit evidence, not just documentation |
+| --- | --- | --- |
+| M0 | Freeze observed baseline and protection | Clean/source-pinned inventory, all durable SQLite/files/logs/protected state identified, no unsafe cleanup; current focused tests and known limitations recorded. |
+| M1 | CORE + INTERACT quality | Grounded self-description/personality, natural varied interaction and boot awareness, measured responsiveness, supervised real-model tests plus current-revision integration suite. |
+| M2 | MEM + SOCIAL minimum | Original conversations durable across restart; corrections/provenance/privacy verified; only authenticated Sparks principal can access initial DM scope; negative leakage tests pass. |
+| M3 | Discord D0-D4 | Trusted Sparks-only DM receives/responds/reconnects/denies outsiders; verified API delivery, dedupe, stop/revoke, secrets handling and restart acceptance. No general web route. |
+| M4 | OPS baseline + RUN process resilience | Read-only authorized Windows/Linux/Pi telemetry, trusted enrollment, independent local OS supervisor, safe boot scan, bounded restart/backoff, out-of-band stop, durable state inventory/backups and independent restore test. |
+| M5 | Durable work, fairness, capability truth | Durable operation/outbox ledger and outcome-unknown reconciliation, operator pins/no-reboot/approval, verified capability registry, measured background backoff and host-resource reservations. |
+| M6 | Replicated state and runtime failover, if approved | Two independent data-bearing locations with one writer and selected measured durability policy; independent election/fencing, standby supervisor, isolated third backup, partition/stale-primary tests, measured RPO/RTO and actual real-host recovery. Do not claim HA before this. |
+| M7 | Verified 24/7 and autonomous operations | Soak test at a pinned revision; crash/restart/UPS/maintenance/reconnect results; bounded actions, safe rollback and proactive non-spam notifications. General web/search gate may be considered **only after** Discord, OPS and RUN acceptance. |
+| M8 | Parallel enhancements and later web | ACT, REL, AVATAR, DEV, KNOW, INTEGRATE, BODY, EVOLVE, CLEAN, ENVIRONMENT and UI maturity gated individually; ENVIRONMENT's offline clock/location/timezone/season/daylight work may precede later web, while direct internet weather/search keeps separate privacy, destination, provenance and grant controls. |
+
+M4-M7 are engineering gates rather than a mandate to deploy PostgreSQL immediately: first verify existing SQLite backups and cross-store consistency; compare migration costs and only adopt a replication-capable backend after test evidence and separate activation approval. Local 24/7 uptime and true multi-host HA are **different claims**. A watchdog is a detector; only an authorized supervisor/executor can start an instance, and only a fenced exclusive leader can become authoritative.
+
+#### Architecture audit package assignment | State Plane + Release/Integrity Plane
+
+No package #21/#22 is created. The new requirements are deliberately split among existing owners so no one subsystem can both rewrite Sofía and redefine why that rewrite should be trusted.
+
+| Package | State Plane responsibility | Release/Integrity responsibility |
+| --- | --- | --- |
+| **CORE** | Canonical identity bootstrap; configuration precedence/provenance; never mint a second Sofía on a normal joining/rebuilt node. | Bind runtime/model compatibility to a verified release; cognition/model replacement never defines identity or authority. |
+| **INTERACT** | Emit/consume stable event, causation, correlation and priority metadata for globally ordered user interaction. | Preserve interaction contracts across releases; no release may claim rendered/audio/physical completion without receipts. |
+| **MEM** | Primary State Plane owner: storage abstraction, authoritative-state inventory, schema versions, shared-state semantics, semantic integrity and consistent restore. | Define data compatibility windows for release upgrade/rollback; expand→migrate→contract rather than irreversible one-step schema mutation. |
+| **SOCIAL** | Bind every person-scoped row/object/cache to authenticated principal and audience; enforce isolation in shared storage. | Release tests must prove no privacy regression across migration/rollback. |
+| **NET** | Authenticated transport to State Plane/services without implicitly granting DB/write authority. | Protocol/version negotiation and pinned peer identity; network reachability never proves compatible or approved software. |
+| **UI** | Shared settings/history use authoritative state; clearly separate roaming values from machine-local overrides and offline queues. | Client compatibility and later VOICE/renderer assets are release-declared; UI cannot silently target an incompatible runtime. |
+| **RUN** | Single authoritative runtime/writer, monotonic fencing, clock uncertainty handling, global event ordering, degraded-mode rules and fleet-wide background budgets. | Activate exact releases, detect crash loops/readiness failures, revert/forward-fix safely, publish authoritative endpoint only after health/data compatibility. |
+| **OPS** | Data-bearing node placement/health, replica/failure-domain evidence, asset locality and host state. | Canary/wave rollout, artifact distribution, installed-agent independent attestation, Fleet convergence, quarantine of corrupt/outdated/incompatible nodes. |
+| **ACT** | Durable shared outbox/jobs with global rather than per-worker quotas; stable idempotency/causation IDs. | Delivery workers must be release/protocol compatible before consuming shared work. |
+| **REL** | Principal-bound relationship/absence state roams through State Plane rather than machine-local singleton assumptions. | Migration tests preserve relationship provenance without inventing or duplicating events. |
+| **AVATAR** | Roaming presentation metadata may live in State Plane; large assets remain content-addressed immutable artifacts. | Renderer/wardrobe/model assets are digest/version bound and rollback-compatible. |
+| **DEV** | Does not directly mutate authoritative running state except through approved typed migrations/tools. | Primary build owner: isolated candidate, locked dependencies/runtime, provenance/SBOM, immutable artifacts, exact digests and reproducible build evidence. |
+| **BODY** | Calibration/state ownership is explicit; current hardware observations stay local/derived unless deliberately persisted. | Firmware/controller/calibration compatibility is separately verified before physical motion under a new release. |
+| **EVOLVE** | Reviewed configuration/preference changes use shared revisioned state; protected identity/Constitution remains higher trust. | Self-improvement ends in a governed exact release proposal. EVOLVE cannot self-authorize changes to signer, verifier, approval, fencing, emergency-stop or recovery trust roots. |
+| **CLEAN** | Separate source, shared runtime state, protected state, secrets, immutable assets, caches and logs; migrate without deleting history. | Retention/GC for old releases/assets/evidence while preserving rollback and forensic history. |
+| **KNOW** | Shared provenance/document metadata may roam; rebuildable indexes and large artifacts need not occupy transactional DB rows. | Build/release docs and migration runbooks remain source-grounded and revision-specific. |
+| **INTEGRATE** | Typed database/State Plane adapters and least-privilege per-service roles; no universal Fleet DB credential. | Integration/version compatibility and side-effect semantics become part of release acceptance. |
+| **SAFE** | Secrets custody, per-service DB roles, protected-state trust anchors, revocations, tamper-evident audit and bare-metal/operator recovery. | Primary trust owner: signature verification, anti-rollback, signing-key custody, protected execution base. Also replace production `TestActionExecutor` with a fail-closed production boundary before action authority can ever be opened. |
+| **VERIFY** | Corruption, semantic-integrity, backup/restore, stale replica, partition, bare-metal and privacy/isolation tests. | Exact-revision CI/live evidence, upgrade/downgrade/schema compatibility, bad signature/artifact/dependency/model/protocol tests, canary/rollback/convergence proof. |
+| **ENVIRONMENT** | Shared configured USER/SITE/HOST metadata with provenance; current readings/caches remain freshness-bound and may be local/derived. | Provider/config schema compatibility is release-tested; local environment overrides cannot silently become global state. |
+
+##### State Plane classification contract
+
+Before migrating to any shared backend, classify every persistent object into exactly one primary category:
+
+1. **Shared authoritative state:** conversations, reviewed memories, principals/relationships, fleet inventory, durable jobs/outbox, runtime leadership/leases, approvals, deployment records and intentionally roaming configuration/presentation.
+2. **Protected state/trust anchors:** Constitution/identity authority roots, release verifier trust, approval authority, fencing/recovery policy, revocations and emergency controls. These may be replicated/backed up, but not exposed as ordinary mutable application rows.
+3. **Secrets:** Discord/GitHub/Home Assistant/provider tokens, private keys, database credentials, signing keys and recovery credentials. Shared state stores references/scope/status, not broad plaintext access.
+4. **Immutable/content-addressed artifacts:** Sofía releases, dependency bundles, model files, avatar/voice assets, migration bundles and evidence. Store digest/version/location metadata in State Plane; distribute artifacts separately.
+5. **Local ephemeral/rebuildable state:** PID/device handles, caches, temp downloads, current GPU/process samples, local sockets and other host observations that should not become authoritative merely because they exist.
+
+**One logical database does not mean universal database authority.** Each runtime/service/agent receives the minimum role it needs. A telemetry agent must not gain write access to memories, approvals, identity or release state.
+
+##### Schema and rollback contract
+
+State Plane schema evolution must be centrally versioned. Releases declare minimum/maximum compatible schema and migration revision. Use **expand → migrate → verify → contract** so the previous accepted release remains usable during the rollback window. If the live database is newer/older than a runtime's declared compatibility, startup fails closed rather than improvising migration.
+
+Migrations require an exclusive migration lease, pre-migration recovery point, deterministic migration ID/checksum, resumable/idempotent semantics where feasible, post-migration semantic validation and an explicit rollback/forward-fix decision. A healthy SQL file is not sufficient proof of healthy Sofía state; VERIFY must check domain invariants such as provenance links, principal ownership, grant/revocation consistency, deployment lineage and outbox/action states.
+
+##### Canonical identity bootstrap contract
+
+The current single-host behavior may create a new `instance_id` when the identity file is missing. That is acceptable only during an explicitly authorized **first canonical bootstrap**. A normal new/rebuilt Fleet node must authenticate, obtain the canonical identity/trust material through the approved State Plane/recovery path, verify it, and join as an execution node. If canonical identity cannot be proven, enter recovery/quarantine mode and **do not create a second Sofía**.
+
+##### Release/Integrity Plane contract
+
+Self-improvement uses:
+
+**evidence → proposal → isolated DEV implementation → focused/full VERIFY → SAFE classification/approval → immutable build → signed release manifest → canary → readiness/data compatibility → staged Fleet rollout → convergence proof → rollback or forward-fix.**
+
+A release manifest binds at minimum:
+
+- release ID and exact Git revision;
+- application/package version and supported OS/architecture;
+- Python/runtime/build-tool version;
+- dependency lock/SBOM digest and artifact hashes;
+- State Plane schema compatibility and migration bundle digest;
+- Fleet protocol and minimum/maximum compatible agent versions;
+- provider/model identity plus immutable model artifact digest when the provider exposes one;
+- Constitution/protected-state compatibility;
+- configuration schema/capability schema versions;
+- avatar/voice/other immutable asset digests as applicable;
+- signing identity, signature and approved release lineage.
+
+A mutable model tag such as `qwen3:14b` is not by itself sufficient immutable release identity.
+
+##### Protected execution base
+
+Normal autonomous self-update may not replace or relax the mechanisms that decide whether the update is trustworthy. At minimum the following are higher-trust SAFE surfaces: release signature verifier, trusted root public keys, approval verifier, emergency stop, cross-host fencing/leadership enforcement, anti-rollback policy, recovery boot path and protected-state verifier. Sofía may diagnose/propose changes to them, but activation requires the independently defined higher approval tier.
+
+##### Control-agent independence contract
+
+The Fleet control/supervisor agent is a **separately versioned recovery-plane component**, not just another Sofía runtime package. It must be installable, startable, health-checkable, rollbackable and updatable independently from the main Sofía release. A bad Sofía application/model/UI release must not be able to disable the mechanism responsible for stopping, fencing, rolling back or recovering it.
+
+Agent updates use their own compatibility matrix and canary/wave rollout. Do not require the currently broken Sofía runtime to repair or replace its supervisor. The agent may verify/install an approved Sofía release, but ordinary Sofía self-update may not silently replace the agent's recovery/trust behavior.
+
+##### State Plane unavailable / degraded-mode contract
+
+Loss of the authoritative State Plane does **not** grant a local runtime permission to become a competing source of truth.
+
+When authoritative state or writer/leader authority cannot be proven:
+
+- local clients may preserve clearly marked **pending input/drafts** for later reconciliation;
+- safe read-only use of previously verified immutable release/config/assets may continue where privacy/freshness rules permit;
+- cached memories, relationships, approvals, grants and fleet state may be displayed only with explicit stale/degraded provenance where appropriate;
+- no node may create/promote authoritative memories, relationship changes, approvals, grants, deployments, external side-effect jobs or protected revisions as if they were committed;
+- consequential ACT/DEV/EVOLVE/OPS/BODY actions fail closed unless an independently valid offline-safe authority contract explicitly permits that exact operation;
+- queued inputs/actions must receive stable IDs and reconcile against authoritative state after recovery rather than being blindly replayed;
+- once State Plane connectivity returns, RUN reconciles leadership, sequence/order, pending work and uncertain external effects before normal authoritative writes resume.
+
+##### Append-only protected audit contract
+
+Security-critical evidence is **append-only and tamper-evident**, not merely another mutable table. Approvals, denials, grants/revocations, release signatures, deployment decisions, migrations, protected EVOLVE changes, emergency stops, fencing/leader transitions and machine-decommission decisions receive immutable event IDs, actor/principal, exact revision/digest, causation/correlation IDs, timestamp and receipt/evidence references.
+
+Corrections do not overwrite the original event. They append a superseding/reversal event. Use hash chaining, signed checkpoints, write-once/append-only storage controls or an equivalently verified mechanism so deletion/rewrite is detectable. Backup/restore must preserve and verify the audit chain.
+
+##### Database invariant and constraint contract
+
+The future authoritative relational schema must enforce domain invariants in the database where practical rather than relying only on Python call order.
+
+Required examples include:
+
+- foreign keys for conversation→principal/session, memory→provenance/source, deployment→release/node and grant→principal/node relationships;
+- uniqueness/idempotency constraints for immutable event/request/release identifiers;
+- append-only or guarded-write semantics for original conversations, audit evidence, approvals and other records whose history must not be silently rewritten;
+- ownership/audience columns and constraints that prevent person-scoped records from becoming unowned/global by omission;
+- explicit revocation/validity constraints so an active authorization cannot simultaneously be represented as revoked/expired;
+- state-machine constraints for jobs/actions/deployments so impossible transitions are rejected;
+- migration/schema checks that prevent incompatible runtimes from writing newer/older schemas;
+- database-level transaction boundaries for operations that must commit atomically, with documented reconciliation for effects that cannot share the transaction.
+
+Application validation remains useful, but it is not the sole protection against authoritative-state corruption.
+
+
+##### Independent Fleet-agent verification
+
+A matching version string is not enough to mark an existing Fleet agent trusted. Enrollment/update acceptance must independently verify the installed artifact/package identity, digest/signature, expected service identity/configuration and protocol compatibility. An installer returning `verified=true` is a receipt, not the sole proof; the controller or a separate verifier must establish the installed state.
+
+##### Configuration source-of-truth contract
+
+Define and expose precedence as:
+
+**protected policy → shared authoritative configuration → approved machine-specific override → process/bootstrap override**.
+
+Every durable setting records scope, source, revision, actor/authority, timestamp, restart requirement and optional expiry. Master Settings must show whether a value is shared, host-local, inherited, read-only or unavailable. No setting may silently alter Venus while leaving Artemis with an unknown conflicting policy.
+
+##### Global event/concurrency contract
+
+Desktop, Discord, future voice/mobile, ACT and background reflection may all produce work concurrently. Shared events/jobs therefore require stable `event_id`, principal/audience, conversation/workflow ID, causation ID, correlation ID, priority, accepted timestamp and idempotency identity where applicable. RUN owns scheduling/preemption so foreground authenticated interaction outranks optional background work and distributed workers cannot each multiply an autonomy quota independently.
+
+##### Bare-metal recovery contract
+
+Recovery must work from clean hardware with the normal runtime unavailable: obtain independently held recovery credentials, verify signed release and trust roots, restore/verify State Plane and protected state, re-establish fencing/leader epoch, reconcile uncertain external effects, prove canonical identity and only then resume authoritative execution. Recovery must not depend solely on Discord, the failed database primary or credentials stored only inside the failed Sofía installation.
+
+
+#### Fleet/self-update hardening checklist
+
+The following reliability requirements are explicit roadmap gates, not optional implementation details:
+
+- **Automatic bad-release rollback:** repeated post-update crash/readiness failure escalates from process restart to release rollback or controlled forward-fix.
+- **Fleet protocol compatibility:** CORE/runtime, Fleet agent and remote control protocol versions must be checked before either side is activated.
+- **Control-agent independence:** the small Fleet supervisor/control agent is separately versioned and independently updateable/rollbackable so a bad Sofía release cannot disable its own recovery path.
+- **Semantic corruption checks:** verify domain invariants, not just SQLite/SQL structural integrity. Examples include valid memory provenance, principal ownership, grant/revocation consistency, conversation/session references and deployment lineage.
+- **Append-only audit evidence:** approvals, protected changes, releases, migrations, fencing transitions, emergency stops and decommission decisions use tamper-evident append-only history; corrections append rather than overwrite.
+- **Large-asset separation:** LLM weights, avatar/voice/render assets, generated artifacts and backups are content-addressed objects/files with verified hashes referenced by State Plane metadata rather than bloating transactional database rows.
+- **Bare-metal recovery:** documented clean-host recovery must work with every normal Sofía runtime unavailable.
+- **Offline/degraded behavior:** State Plane loss may allow clearly marked local drafts/read-only degraded behavior, but must not create competing authoritative memories, grants, actions, deployments or protected revisions.
+- **Global autonomy budget:** quotas and background-work budgets are Fleet-wide so adding workers does not multiply autonomous activity.
+- **Supply-chain verification:** dependency/runtime locks, artifact hashes, provenance, vulnerability/security checks and SBOM evidence are part of release acceptance.
+- **Garbage collection/retention:** old releases, models/assets, backups, logs, snapshots and evidence have explicit retention/GC policy that preserves rollback, legal/privacy requirements and forensic history.
+- **Database constraints:** the future authoritative relational schema uses foreign keys, uniqueness/idempotency, ownership/audience constraints, guarded append-only records, valid state transitions and transactional boundaries where the domain requires them.
+
+
+#### Per-package roadmap: 20 packages
+
+##### 01. PKG-CORE | cognition, identity, continuity
+
+- **Current:** foundations on `main` after PR #1. A joint INTERACT/CORE live-quality repair gate is open after supervised Discord dialogue exposed generic assistant fallback despite correct self/embodiment grounding.
+- **Build:** canonical identity/Constitution and integrity boot checks; observed restart time/gaps; varied evidence-grounded startup/file-change remarks; model/provider abstraction, deliberation/response budget, graceful unknowns, context budget and cognitive operation audit; no invented offline thoughts or subjective experience.
+- **Depends on:** SAFE/VERIFY at every step; INTERACT for end-to-end quality; MEM for durable grounding.
+- **Exit:** current-revision full suite + supervised real-model startup, identity, conversational naturalness, restart awareness and measured response latency; no repetitive fixed notices or unsupported execution claims.
+
+##### 02. PKG-INTERACT | interaction semantics and virtual lab
+
+- **Current:** **accepted semantic/safety foundation merged via PR #2 and hardened via PR #29.** Supervised Discord use on 2026-09-24 exposed a narrower natural-dialogue regression, so a new INTERACT/CORE quality-repair gate is open. This does not invalidate accepted stop, consent, ledger, source-attestation, virtual-lab or embodiment semantics. Staged offers remain off until separately reviewed production schema provisioning.
+- **Build:** shared typed text/avatar/scene interaction events, contextual gestures/touch/body-region semantics, emotion/reaction coordination, consent/boundaries and accessible text-only output; headless virtual lab and clear distinction between text, rendered animation, measured sensation and actual robot action.
+- **Depends on:** CORE/SAFE/VERIFY; AVATAR/UI for visual acknowledgment; BODY separately for physical effects.
+- **Exit:** current-head focused + integrated + live-model interaction tests, believable varied expression without fabricated sensory receipts, and negative consent/scope tests.
+
+##### 03. PKG-MEM | durable originals, provenance and restoration
+
+- **Current:** **original/provenance foundation and reviewed-memory runtime cognition are accepted on `main`.** PR #9 merged exact persisted originals, provenance-backed candidates, explicit promotion/rejection/revocation, promoted retrieval, source invalidation and reviewed workflow. Commit `65a59ba` routed normal cognition through promoted reviewed memory while preserving legacy explicit APIs. PR #116 hardened the reviewed candidate SQLite store for serialized cross-thread access and closed lifecycle ownership. Archive import, privacy/retention/encryption, SOCIAL principal binding and consistent backup/restore remain open.
+- **Build:** immutable originals, derived memories, correction/retraction, retrieval provenance and expiry, relationship/audience isolation, migration/archive import and consistent storage/restore across all authoritative stores. Inventory SQLite, journals, flat files, grants, outbox and audit before replication; avoid assuming `sofia.db` holds everything. Use supported consistent backup, never live-file mirroring.
+- **Depends on:** CORE, SOCIAL/SAFE; RUN/OPS for durability and failure-domain placement; ENVIRONMENT only for approved stable location/environment preferences and provenance, never stale-current observations; VERIFY for restore and leak tests.
+- **Exit:** exact originals survive restart and independent restore; corrections and revoked/private records do not leak through cached summaries; cross-store backup/restore parity verified.
+
+##### 04. PKG-SOCIAL | authenticated principals and audience boundaries
+
+- **Current:** design on `main`; supervised Discord proved transport-level owner authentication works, but the authenticated owner principal is not yet projected into shared cognition as `Sparks`. Production principal isolation/projection remains unaccepted.
+- **Build:** one Sofía across channels, exact authenticated principal, per-user relationship and conversation scope, private/shared data promotion only by policy, authenticated grants and anti-leakage. First release is **Sparks-only private DM**; no open guild or second-user rollout by implication.
+- **Depends on:** MEM/SAFE, NET/UI for channel identity, VERIFY negative tests.
+- **Exit:** wrong account, replay, forged audience, accidental shared memory and group traffic cannot read/write Sparks' private history; audited revocation works across restart.
+
+##### 05. PKG-NET | authenticated and scoped transport
+
+- **Current:** durable distributed-operation foundations plus a pinned mutual-TLS remote agent/transport are on `main` via PR #104. CA validation, server public-key pinning, durable node enrollment, exact endpoint approval, exact operation grants and replay protection are repository accepted. The narrow private-DM Discord path remains live accepted; real Windows/Linux/Pi agent deployment and outage/revocation acceptance remain.
+- **Build:** Discord-only initial network paths, peer authentication, target allowlists, bounded retries/backpressure, remote host/agent transport and verified network evidence. Separate any later web/search permission from Discord connectivity. Transport access never equals application/action authority.
+- **Depends on:** SAFE/SOCIAL/VERIFY; UI for Discord, OPS for enrolled host operations.
+- **Exit:** real authenticated Discord route and remote-host negative tests for wrong destination, DNS/redirect bypass, stale peers, replay and revoked grants; no general search/browsing grant.
+
+##### 06. PKG-UI | channels, clients, voice, renderer
+
+- **2026-09-26 candidate extension:** `feature/fleet-tray-remote-controls` adds a native Windows notification-area agent, Master Settings, Game Mode Auto/On/Off, independent LLM/runtime typed controls, per-user Windows startup registration, and a pinned-mTLS thin desktop client over an already-running canonical conversation. Local mode remains the safe fallback when no verified remote endpoint is published. Automatic Fleet authority endpoint publication, remote service-target resolution, renderer/voice/mobile/web and live failover reconnection remain open gates.
+
+- **Current:** **Windows text workbench is accepted on `main` via PRs #115/#116, and Sparks-only Discord DM remains live accepted for v1 transport.** The desktop uses the canonical application/conversation path with durable drafts, private review/workbench state, a single-owner application worker, adaptive theme projection from trusted current state, shallow chamfered HUD controls and reviewed Quick Tools that load prompts without auto-execution. Old draft PR #6 is superseded source material, not a merge target.
+- **Build:** preserve one canonical Sofía across Discord and desktop; next separately gated slices are authenticated renderer/avatar viewport, voice with real mic/speaker consent and receipts, mobile/web clients, proactive outbound presentation, authorized history/evidence views and real generation cancellation only when provider/runtime cancellation exists.
+- **Depends on:** CORE/INTERACT, SOCIAL/MEM, NET/SAFE, AVATAR for renderer state, RUN/VERIFY.
+- **Exit:** accepted text clients continue to share one runtime and truthful delivery state; later renderer/voice/mobile/web slices must each prove authenticated audience, real receipts, stop/revoke behavior, accessibility fallback and no fabricated completion.
+
+##### 07. PKG-RUN | supervision, watchdog and 24/7/failover
+
+- **Current:** **local lifecycle source implementation is merged via PR #107.** `main` now includes the disabled-by-default periodic opportunity gate, local singleton lease with monotonic fencing epochs, stale-owner rejection, host-neutral supervisor, readiness timeout, bounded exponential restart/backoff-window control and durable supervisor events. Windows offline acceptance passed **78 tests with 1 skip**. Post-merge current-`main` full repository pytest was reported passing by Sparks; aggregate count was not supplied. No verified OS service, independently running watchdog, standby promotion, cross-host consensus/fencing, multi-day soak or production automatic failover is claimed.
+- **Build:** external OS/service supervisor per host, bounded restart/backoff, singleton role, health/readiness checks, startup reconciliation, scheduled cognition with budget/stop; independent fleet watchdog, standby already powered/running a supervisor, fenced lease/epoch, verified state and compatible host before promotion; reconcile messages/actions and reconnect UI after failover. A dead host cannot run its own rescue. Optional WOL/IPMI only if hardware/authority actually supports it.
+- **Depends on:** OPS enrolled hosts/capacity; MEM durable state; SAFE leadership/stop/credentials; NET transport; ACT ledger/outbox; ENVIRONMENT for refresh/expiry schedules and time-zone-aware environmental events; VERIFY failure lab. See [RUN watchdog contract](pkg-run-watchdog-failover-contract.md).
+- **Exit:** process crash restarts locally; host crash promotes **only one** verified standby where possible; split brain/stale leader denied, uncertain effects not replayed, no-safe-target state fails closed; actual RTO/RPO and multi-day soak recorded. Never claim uninterrupted generation or universal zero loss.
+
+##### 08. PKG-OPS | fleet telemetry, placement and maintenance
+
+- **Current:** Waves 1–5 plus toolbox/fleet-transport source completion are merged via PRs #99/#103/#104. Fleet lifecycle/placement, machine/system telemetry, machine inventory cognition, fleet status/telemetry, placement/drift/migration planning, typed local/remote maintenance and the pinned mTLS remote agent/transport are repository accepted. Branch `feature/fleet-tray-remote-controls` adds candidate durable foreground activity/Game Mode evidence, Steam/local-process game detection, gaming-aware placement and authorized Fleet-agent bootstrap planning. Real heterogeneous-host discovery/bootstrap deployment, workload execution, RUN integration and soak/failover proof remain open.
+- **Build:** scoped Windows/Linux/Pi discovery, attested enrollment and signed agent, truthful CPU/GPU/VRAM/RAM/disk/network/thermal/service/VM/container history; capacity and failure-domain graph, workload contracts, reservations, bounded upkeep, patch windows, UPS/power, maintenance/drain/quarantine, eligible workload placement/move/recovery, backup/replication and primary/standby placement observation. Preserve gaming priority and unknown metrics as unknown.
+- **Depends on:** NET/SAFE/VERIFY, RUN for managed processes/failover, MEM for state lineage, ACT for meaningful notices, ENVIRONMENT for site/timezone context without conflating machine location with user location.
+- **Exit:** real heterogeneous hosts enrolled under policy, spoofed/revoked devices denied, measured load-driven workload move and service recovery verified, dependency-safe drain/failover/rollback proven; final machine decommission remains blocked pending **Sparks' explicit exact-device approval**. No arbitrary process teleportation.
+
+##### 09. PKG-ACT | goals, initiative and delivery
+
+- **Current:** **durable ACT outreach/delivery source implementation is merged via PR #105.** `main` now includes source-linked outreach eligibility, immutable recipient/channel binding to INTERACT queued messages, durable send attempts, bounded retry/dedupe, acknowledged delivery history and fail-closed `outcome_unknown` handling. Windows offline acceptance passed **90 tests**. Post-merge current-`main` full repository pytest was reported passing by Sparks; aggregate count was not supplied. No real sender/channel activation or RUN-triggered outreach is claimed.
+- **Build:** event-driven/periodic opportunity evaluation while actually running, evidence-backed candidate thoughts and goals, scheduled eligible outreach, quiet/busy/mute/stop, dedupe, bounded notices, durable outbox/receipt/retry semantics, resource fairness and operator control.
+- **Depends on:** CORE/MEM/SOCIAL/REL; RUN supervisor; UI sender; SAFE/VERIFY; shared durable operation ledger; optional ENVIRONMENT events for explicitly enabled, deduplicated contextual/severe-weather outreach.
+- **Exit:** demonstrated meaningful opt-in outreach with real receipt and no cross-user disclosure, repeat spam, fabricated shutdown-time activity or blind duplicate sends.
+
+##### 10. PKG-REL | relationship continuity and nuanced affect
+
+- **Current:** overlapping absence/reunion candidates draft PRs #12/#13; reconcile rather than layering duplicates.
+- **Build:** one canonical personality with per-person familiarity/relationship and consent, evidence-based warmth/absence/reunion without clinginess, guilt or invented feelings; nuanced disagreement and context-sensitive non-canned wording.
+- **Depends on:** authenticated SOCIAL/MEM originals, ACT, CORE/INTERACT, SAFE/VERIFY; optional ENVIRONMENT context may influence wording but never deterministically creates emotion, attachment or relationship state.
+- **Exit:** time gap based on authenticated observed last contact, natural varied reunion; correct separation across accounts and no ungrounded memories, obligations or fabricated internal experience.
+
+##### 11. PKG-AVATAR | canonical virtual body and wardrobe
+
+- **Current:** **headless AVATAR presentation foundation is accepted on `main` via `9b81ba5`.** It includes durable current presentation and public daily fallback, starter wardrobe/catalog and layering metadata, context-driven daily selection, mutable hairstyle/hair/tail presentation, snapshots/restore, deterministic current self-facts and public-safe cognition projection. ENVIRONMENT supplies shared time/weather context. No final renderer/rig/animation receipts are claimed.
+- **Build:** retain the accepted headless state while adding canonical mesh/art, fitted clothing assets, rig/body-region and ear/tail mapping, renderer contracts, hit testing, animation receipts and accessibility fallback. Presentation may be emotion-influenced but not emotion-controlled, and private presentation requires authenticated SOCIAL audience before exposure.
+- **Depends on:** INTERACT/CORE, UI renderer, SOCIAL/SAFE/VERIFY, ENVIRONMENT for environment-aware presentation; BODY separately.
+- **Exit:** versioned renderer displays the exact authorized presentation state and returns genuine hit-test/animation receipts; absent renderer still yields coherent text interaction and public-safe self-description.
+
+##### 12. PKG-DEV | engineering, code changes and candidate tools
+
+- **Current:** Waves 1–5 plus cognition-wired DEV status/build/apply/rollback/commit/push tooling are on `main` via PR #104. Exact SHA/scope checks, detached worktrees, test evidence, candidate patch review and separate mutating grants remain intact; live OpenCode host/self-tooling acceptance remains.
+- **Build:** source/revision inspection, diagnosis/proposal, protected-path review, minimum-scope code edits, OpenCode sandbox, generated tests, diff/review, bounded approved execution and rollback; collaborate with KNOW to read versioned API docs and INTEGRATE to produce adapter candidates. Also draft/update source-backed technical documentation under scoped write/publish authority.
+- **Depends on:** KNOW/INTEGRATE, SAFE/VERIFY, CORE; OPS/RUN for approved host execution.
+- **Exit:** real doc→typed tool→sandbox tests→authority classification→policy/approval→canary→receipts→rollback, including denial of unauthorized writes; no tool self-grants authority or modifies protected Constitution autonomously.
+
+##### 13. PKG-BODY | Gaia physical robotics
+
+- **Current:** simulation-only candidate draft PR #16; no live SSC-32/servo/power integration accepted.
+- **Build:** SSC-32/servo mapping, calibration, bounded gait, optional IMU/sonar/touch/distance/environment sensors, safety envelope, power telemetry, independent hardware watchdog and physical emergency stop; simulation-first and explicit physical-motion authority. Independently verified ambient sensor observations may be normalized into ENVIRONMENT, but ENVIRONMENT never grants motor authority.
+- **Depends on:** SAFE/VERIFY, CORE/INTERACT/AVATAR for semantics, INTEGRATE typed hardware adapters.
+- **Exit:** hardware-in-the-loop bench tests with power-off/malfunction/stop behavior, calibration and no motion without exact authorization; simulation success never claimed as physical acceptance.
+
+##### 14. PKG-EVOLVE | governed configuration and protected amendment
+
+- **Current:** **governed EVOLVE revision source implementation is merged via PR #106.** `main` now includes reviewed reversible preference/config revisions plus a stricter independently authorized identity/Constitution amendment executor with exact proposal fingerprints, pre-change backups, atomic protected writes, Constitution hash update/verification, durable audit and separately approved rollback. Windows disposable/offline acceptance passed **62 tests**. Post-merge current-`main` full repository pytest was reported passing by Sparks; aggregate count was not supplied. No self-approval path exists and no production protected state was modified.
+- **Build:** evidence-backed preference/config proposals, revision history, reversible reviewed improvements and separately authorized identity/Constitution amendment workflow; preserve canonical continuity and audited human authority.
+- **Depends on:** CORE/SAFE/VERIFY, MEM/DEV.
+- **Exit:** unapproved protected changes denied, reviewed change tied to exact revision and verified rollback; no silent self-amendment.
+
+##### 15. PKG-CLEAN | technical debt and preservation
+
+- **Current:** **current-main cleanup candidate PR #113 is open to stop tracking live runtime SQLite state safely; old PR #14 is historical preflight material.** Private recovery database snapshots and machine-location state are already ignored on `main`. No destructive cleanup authority is implied.
+- **Build:** evidence-backed duplicates/stale artifacts, migration and retention plan, safe versioned cleanup, tracked runtime SQLite/log preservation, backups and rollback. Avoid deleting state or history to achieve a clean Git status.
+- **Depends on:** SAFE/VERIFY and MEM/RUN recovery baseline; DEV for reviewed changes.
+- **Exit:** cleanup restores expected behavior/data/privacy and preserves recovery; protected/durable files cannot be silently deleted.
+
+##### 16. PKG-KNOW | reading, writing and source-grounded documents
+
+- **Current:** Waves 1–5 plus PDF/manual ingestion, cognition-wired provenance search/document inspection, version-aware source identities and bounded project-document writing are on `main` via PR #104. Richer semantic/citation and audience/privacy acceptance remain.
+- **Build:** authorized Markdown/text/PDF/manual/schema/repo ingestion, original/source/version/date/citation and staleness tracking; exact and semantic retrieval, conflict/correction/privacy handling; source-backed README, API docs, runbooks, architecture diagrams, changelogs and maintenance docs with tested examples and reviewable diffs. Document instructions never confer execution authority.
+- **Depends on:** MEM/SOCIAL/SAFE for scope, DEV for code-aware edits, INTEGRATE for adapter contracts, OPS for observed runbooks, VERIFY for factual/example checks.
+- **Exit:** ingest/cite multiple revisions, reject invented facts, create and update a real doc with verifiable references, deny secret/private publication, flag stale docs and preserve rollback. Local docs work precedes web; web material enters only after general-web gate.
+
+##### 17. PKG-INTEGRATE | typed app/service adapters and self-tooling
+
+- **Current:** Waves 1–5 plus concrete cognition-wired adapters are on `main` via PR #104: Home Assistant, JMRI, GitHub, Portainer/Docker, Hyper-V, Ollama, SQLite, storage/NAS, notifications and Discord operator controls. Real service canary/health/version/rollback and full self-tooling activation acceptance remain.
+- **Build:** least-privilege typed adapters for approved Home Assistant, JMRI, GitHub, Docker/Portainer, Hyper-V, Ollama, databases/NAS and notifications; schema, service/version, side effects, host/account/audience, exact grants, timeouts/idempotency, receipts, canary/rollback and health. Home Assistant may provide trusted indoor/weather/site observations to ENVIRONMENT through a typed adapter without creating a general browser/search grant. **Cloudflare is deferred until Sparks explicitly requests it.** Tool factory: identify gap → KNOW docs → DEV candidate → SAFE review → VERIFY tests → scoped activation → observed maintenance.
+- **Depends on:** NET/SAFE, KNOW/DEV, OPS/RUN for hosts, VERIFY, SOCIAL/MEM privacy.
+- **Exit:** register and use one real authorized read-only adapter, deny wrong host/account, generate and canary a doc-grounded candidate, refuse self-authorization, rollback incompatible tool and show truthful availability. Do not expose all backend capabilities to LLM simply because code exists.
+
+##### 18. PKG-SAFE | continuous security, privacy and recovery gate
+
+- **Current:** merged Constitution/authority/integrity foundations plus disclosure screening draft PR #18; real deployed secret, privacy, backup, stop and revocation enforcement remains open.
+- **Build:** trusted identity and least privilege, exact-action grants, private/audience protection, secrets hygiene, encryption/keys, signed agents, credential rotation, host quarantine, audit, independent out-of-band emergency stop, operator control and exact-machine decommission approval; off-host isolated backup/restore; fenced leases and failure-safe policy. Protect user conversations, precise/current location, provider credentials and shared/derived indexes.
+- **Depends on:** every package; no later release may bypass it.
+- **Exit:** independent stop works without LLM/Discord, revoked capabilities stay revoked after restart/restore, wrong actor/host/network denied; protected actions need correct approval; secrets/privacy/backup recovery verified under real faults.
+
+##### 19. PKG-VERIFY | continuous evidence, acceptance and failure lab
+
+- **Current:** active draft PR #8; superseded PR #10 closed; individual past test counts are not certification of one integrated head.
+- **Build:** pinned offline/unit/integration/live test layers, provider/personality/latency benchmarks, real tool receipts, authorization/negative tests, multi-day soak, state/backup restoration, crash-at-every-transition ledger tests, partition/witness/old-primary fencing, UPS/full-disk/corrupt-backup/cert/failover drills, resource fairness and rollback evidence. ENVIRONMENT tests cover timezone/DST, hemisphere/season, configured-vs-current location, stale TTL, provider outage, wrong-source data and audience/privacy leakage.
+- **Depends on:** every package, particularly NET/SOCIAL/SAFE/RUN/OPS/MEM.
+- **Exit:** current integrated revision and supervised real hardware/clients pass the exact claimed scope; report measured downtime/RTO/RPO and failures, not simulated claims or combined unrelated SHAs.
+
+##### 20. PKG-ENVIRONMENT | time, location and ambient context
+
+- **Current:** **accepted foundation via PR #110 + PR #111.** `main` provides one shared provider-neutral `EnvironmentSnapshot`, trusted runtime-clock projection, configured-vs-current USER/SITE/HOST semantics, durable per-machine HOST configuration in `state/machine-locations.json`, ZoneInfo/DST-safe time, hemisphere-aware season/daylight, bounded weather/forecast/indoor observations with freshness/provenance, deterministic direct queries, Home Assistant bridge, runtime cognition integration, AVATAR consumption, and the narrow NWS provider pinned to `api.weather.gov` under `environment.nws.read`. Extension evidence includes **85 focused**, live `nws:KGKY` canary, **96 persistence-focused**, and reported green full suites.
+- **Build:** next work is operational activation rather than rebuilding the environment foundation: optionally canary explicitly configured Home Assistant weather/indoor/current-location entities under `environment.home_assistant.read`; later connect persistent machine-location management into OPS/RUN fleet administration and, if desired, add NWS alert evidence for ACT under a separate policy. General browsing/search and arbitrary geocoding remain behind the later NET/web gate. Preserve source timestamps, freshness, subject isolation, privacy and no competing consumer-owned current-state logic.
+- **Depends on:** CORE clock/cognition; SOCIAL/SAFE for location privacy; INTEGRATE for Home Assistant/provider adapters; NET only for approved remote providers; RUN for refresh scheduling; MEM for approved stable configuration/provenance; VERIFY for freshness/privacy/provider negatives.
+- **Consumers:** CORE, INTERACT, AVATAR, RUN, OPS, ACT and optional REL/emotion context. Weather/time/location are evidence, not authority, physical sensing or deterministic emotion rules.
+- **Exit:** supervised current-revision tests answer time/location/weather truthfully, distinguish unknown/stale/configured/current states, survive DST/provider outage/restart, prevent cross-audience location leakage, and drive AVATAR/context consumers only through the shared snapshot. See the PKG-ENVIRONMENT detailed section in this file.
+
+#### Cross-package delivery workstreams
+
+##### Discord D0-D4 (channel workstream, not an additional package)
+
+**2026-09-25 status:** v1 Sparks-only private-DM transport is live accepted and merged via PR #64. The supervised run verified bot authentication, Gateway connection, exact DM verification before enrollment, durable ingress/outbox, shared-runtime response, visible delivery, fail-closed outcome-unknown handling, and the worker-thread persistence repair. The transport remains intentionally narrow: no public guild, general second user, proactive DM initiative, or general web/search grant.
+
+The live acceptance also produced two downstream findings that are not Discord adapter responsibilities: SOCIAL must project the authenticated principal into cognition, and INTERACT/CORE must repair generic/canned ordinary dialogue.
+
+##### State Plane replication, two data locations and independent watchdog (architecture, not a package)
+
+A **data-bearing primary and synchronous data-bearing standby** in separate measured failure domains are a candidate strict durability topology, with **one authoritative writer**, an independent witness/equivalent proven fencing authority, an already-running standby supervisor, and **a third isolated versioned backup**. Distinguish role: watchdog detects; supervisor starts; witness/consensus/fencing establishes authority; replica holds committed data; backup recovers corruption/deletion. Two VMs on Artemis or two copies on the same NAS are not physical redundancy. Two independent active SQLite writers or live SQLite file mirroring are prohibited. PostgreSQL is a candidate for an isolated comparison, not a present deployment decision.
+
+With a strict two-copy commit policy, pause authoritative writes when the required synchronous standby is unavailable; reads/degraded chat may continue only where safe. A witness does not replace a data copy. Never promote on heartbeat loss alone or promise zero loss of unfinished responses/external actions. Restore every durable store, preserve privacy and revoked grants, and measure the conditional acknowledged-write RPO and actual recovery time in real failure tests before asserting HA. Keep out-of-band Sparks stop and recovery functioning when Sofía/Discord/primary are down. See [detailed reliability](pkg-reliability-control-plane-contract.md) and [watchdog sequence](pkg-run-watchdog-failover-contract.md).
+
+##### Release/Integrity Plane and fleet self-update (architecture, not a package)
+
+A running host is never the source of truth for “the newest Sofía.” Git/source evidence feeds DEV, but the deployable source of truth is an **approved immutable signed release**. Nodes download/stage the exact artifact, independently verify manifest/signature/digests and compatibility, run preflight/readiness checks, then atomically activate. Keep at least the current accepted and previous known-compatible releases until rollback windows close.
+
+Rollout is canary-first and wave-based. OPS records each node as current, outdated, corrupt, incompatible, quarantined or unknown; RUN publishes/uses an authoritative runtime endpoint only after the selected release is healthy and State Plane compatible. Repeated post-update crash/readiness failure must trip a release-level rollback/forward-fix policy rather than restart the same broken release forever.
+
+Do not copy mutable Python working directories from host to host as fleet update. Do not trust a package/version string without digest/signature verification. Do not let the updater replace its own signing/approval/fencing/recovery trust roots under ordinary autonomous authority.
+
+Dependencies/build tools and model artifacts are part of reproducibility. Pin/lock them and verify artifact identity. Large models/avatar/voice assets may be distributed content-addressed and referenced from State Plane rather than stored as database blobs.
+
+
+##### Source/document/tool lifecycle
+
+Local authorized docs may be read before general web. KNOW preserves provenance; DEV drafts a tool/doc; INTEGRATE supplies typed semantics; SAFE classifies grant; VERIFY tests; an approved policy or exact human approval activates side effects; RUN/OPS observes and can roll back. No self-granted network, machine, filesystem or physical access. General web/search remains **after** real Discord + OPS host enforcement + RUN 24/7 acceptance, with its own permissions and provenance.
+
+#### Immediate engineering order from the current baseline
+
+1. **P0 execution truth:** replace production `TestActionExecutor` with a fail-closed production executor/boundary so accidental future action authority cannot create fake `EXECUTED` receipts.
+2. **State inventory + storage boundary:** inventory every SQLite table, JSON/file store, in-memory durable assumption, protected file, secret reference, cache and log; introduce a backend-neutral State Plane interface before choosing/migrating to PostgreSQL.
+3. **Source/state/protected separation:** move mutable runtime truth out of source-controlled installation paths through a recovery-first CLEAN/MEM/SAFE migration. Preserve originals/backups; do not delete history to clean Git.
+4. **Canonical identity + configuration authority:** define first-bootstrap vs joining-node identity semantics, prevent accidental second identity creation, and implement explicit protected/shared/host/process configuration precedence with provenance.
+5. **Central schema/migration framework:** add schema revision registry, compatibility windows, exclusive migration lease, expand→migrate→contract rules, semantic integrity checks and rollback/forward-fix evidence.
+6. **CORE/INTERACT quality repair:** rebuild the stale quality branch on current code for natural greetings/closings/personality persistence while preserving accepted safety semantics; add stable global interaction event/priority metadata.
+7. **SOCIAL minimum:** project authenticated `principal_id` / audience into cognition and bind person-scoped MEM/REL/ACT/state rows to it; add negative shared-State-Plane leakage tests.
+8. **Wire accepted primitives:** connect RUN local supervision/periodic opportunities, ACT queue/delivery and EVOLVE approval/execution into one application-owned orchestration path with one scheduler/leader and global budgets.
+9. **Release/Integrity Plane foundation:** DEV produces reproducible immutable candidates with dependency/runtime locks, hashes/SBOM/provenance; SAFE verifies signed manifests/anti-rollback; VERIFY proves exact revision, schema and model/agent compatibility.
+10. **Fleet rollout hardening:** strengthen PR #117/bootstrap so installed agents are independently digest/signature-attested, not trusted from version or self-reported receipt alone; add protocol compatibility, canary/wave deployment and fleet convergence state.
+11. **VERIFY failure/recovery foundation:** rebuild VERIFY on current code with current-revision CI/evidence manifests, corrupt artifact/signature, migration upgrade/downgrade, crash-loop rollback, stale replica, partition/fencing, semantic corruption, bare-metal restore and supply-chain negatives.
+12. **REL consolidation:** rebuild stale REL candidates as one authenticated, non-clingy relationship pipeline using MEM originals and SOCIAL principal evidence.
+13. **AVATAR/UI/VOICE lane:** keep one roaming presentation/settings state, content-address large renderer/voice assets, expose shared-vs-local setting provenance, then implement the separately gated VOICE workstream without creating another canonical Sofía.
+14. **OPS/RUN/NET live fleet lane:** deploy signed/attested agents on Windows/Linux/Pi; prove real service supervision, independent watchdog, cross-host writer/runtime fencing, clock uncertainty, workload movement, endpoint handoff, restore and multi-day soak.
+15. **State Plane replication/data redundancy:** after SQLite recovery baseline and backend comparison, implement the selected one-logical-DB topology with separate data-bearing failure domains, safe synchronous durability policy, witness/equivalent fencing and isolated versioned backup; measure RPO/RTO.
+16. **INTEGRATE/DEV/KNOW live activation:** canary Home Assistant, JMRI, GitHub, Portainer/Hyper-V/Ollama/storage and OpenCode/document workflows through least-privilege service roles with real receipts/rollback. Cloudflare remains deferred.
+17. **SAFE secrets/trust-root hardening:** move production signing/CA/recovery key custody beyond ordinary unencrypted development PEM files where appropriate; rotate/revoke/test independently and keep ordinary Sofía self-update unable to rewrite trust roots.
+18. **BODY later hardware phase:** rebuild BODY on current code, bind firmware/calibration compatibility into verified release evidence, then real Gaia SSC-32/servo/sensor/power/E-stop acceptance.
+19. **ENVIRONMENT operational follow-through:** canary Home Assistant only under explicit authority, move intentionally roaming configuration into State Plane with provenance and keep freshness-bound readings derived/local where appropriate.
+20. **General web/search last:** only after genuine Discord + OPS/RUN 24/7/fleet/recovery acceptance, with separate authorization/provenance/revocation. The accepted NWS-only route remains a narrow exception, not a general browser grant.
+
+**No implementation, deployment, new data stores, full-suite rerun or live hardware failover test is performed by this roadmap update.**
+
+### Merged PKG-OPS detailed readiness and orchestration contract
+
+> **Project status update — 2026-09-25:** PR #104 (`24e3888a`) merged the toolbox/fleet-transport completion gate. OPS now has cognition-wired machine inventory, fleet status/telemetry, placement, drift and migration planning, plus a pinned mutual-TLS remote transport/agent with durable enrollment, approved endpoints, exact operation grants and replay protection. Focused tool/mTLS acceptance passed **34/34**, surrounding regression passed **270/270**, and the full repository suite was reported passing. Real heterogeneous-host deployment, maintenance/migration execution, RUN supervision, failover/restore and soak remain live-acceptance work.
+
+### PKG-OPS | fleet operations, diagnostics, performance, and orchestration
+
+**Planning date:** 2026-09-22. **Implementation update:** planned Waves 1–5 source controls are on `main` via PRs #99/#103 and passed the repository gates recorded above. This does **not** certify a production OPS agent, remote NET transport, deployed cross-host maintenance/orchestration, live failover, or soak.
+
+#### Outcome
+
+Give Sofía a source-grounded, permission-scoped IT operations layer across her approved fleet: Windows PCs/servers, Linux hosts/VMs, Raspberry Pi-class systems, and later other explicitly supported machines. OPS measures, diagnoses, trends, enrolls, maintains, drains, **prepares approved decommissioning**, and orchestrates eligible Sofía workloads across the fleet. Final host removal remains an explicit Sparks-approved action. It does not replace NET, SAFE, RUN, DEV, ACT, or VERIFY.
+
+#### Ownership
+
+- **OPS:** normalized host inventory, performance/health telemetry, diagnostics, history/anomaly comparison, trusted discovery/enrollment, decommission preparation, bounded typed maintenance, workload registry, placement, drain, migration/failover evidence.
+- **NET:** authenticated transport and route/channel enforcement between Sofía and remote agents.
+- **SAFE:** trust roots, secrets, least privilege, hardening policy, revocation/quarantine, incident response and independent stop.
+- **RUN:** Sofía's own service lifecycle, scheduling, resource budgets, leadership/singleton semantics and supervisor behavior; uses OPS placement/failover evidence rather than inventing a second scheduler.
+- **ACT:** proactive user notification and approved outreach.
+- **VERIFY:** revision-pinned benchmarks, negative tests and real cross-machine acceptance.
+- **DEV:** Sofía source/code changes and OpenCode execution, not generic host administration.
+
+#### Normalized telemetry contract
+
+A host reports only metrics it can actually observe. Unsupported values remain unknown rather than becoming zero.
+
+##### CPU
+
+- total and per-core utilization when available
+- load/run-queue equivalents
+- frequency/clock state
+- temperature and throttling where supported
+- Sofía/Ollama/process CPU use
+
+##### RAM
+
+- total, available, committed, cache and swap/pagefile
+- per-process RSS/working set/private memory when available
+- long-run growth/leak indicators
+- memory pressure
+
+##### GPU
+
+- vendor/device
+- utilization
+- VRAM used/total and peak
+- clock, temperature, power and throttling where supported
+- process/model attribution where the platform exposes it
+
+No GPU field is synthesized for hosts without a supported GPU/driver telemetry source.
+
+##### Storage
+
+- capacity/free space
+- read/write throughput
+- latency/queue/IOPS when available
+- filesystem health/error signals
+- SMART/NVMe health only where a trusted OS/device interface exposes it
+- database/log/cache growth
+
+##### Network
+
+- interface status/speed
+- throughput/errors/drops
+- active/listening connections under approved inspection scope
+- latency/packet-loss probes only to approved targets
+- DNS/route state
+- per-service connectivity where observable
+
+##### Host/runtime
+
+- uptime/boot evidence
+- service/process state and restart history
+- OS/version/patch and pending-reboot evidence
+- container/VM state where an adapter exists
+- temperatures/power/throttling on Raspberry Pi and similar hardware
+- Ollama/model residency, context, token rate, generation latency and memory use when integrated
+
+#### Raspberry Pi support
+
+Linux/ARM agents must support Raspberry Pi-class telemetry without pretending desktop capabilities exist. Where available, capture SoC temperature, CPU frequency, throttling/undervoltage flags, RAM/swap, storage health/capacity, network, uptime and relevant service/process state. GPU/VRAM semantics must follow the real platform rather than copying NVIDIA assumptions.
+
+#### Performance history and anomaly comparison
+
+OPS should persist bounded, timestamped observations sufficient to answer both:
+
+- "What is this machine doing now?"
+- "Is this unusual for this machine?"
+
+History must identify host, source/agent version and freshness. Trend/anomaly logic compares to evidenced baselines and reports uncertainty instead of emitting a magic health score.
+
+Examples:
+- CPU normally 10–20%, now sustained above 75% for 40 minutes.
+- Ollama VRAM increased after a model/context change.
+- Raspberry Pi reports throttling/undervoltage during load.
+- a service restart rate changed after an update.
+
+Retention/downsampling belongs to explicit configuration so telemetry does not grow without bound.
+
+#### Autonomous discovery and zero-touch enrollment
+
+Sofía may proactively discover and enroll new hosts **without asking Sparks for each machine** when a standing policy explicitly permits it.
+
+##### Discovery scope
+
+Discovery is bounded to approved:
+- local subnets/VLANs,
+- known management planes,
+- preconfigured bootstrap registries,
+- or signed agent advertisements.
+
+No unrestricted internet discovery or arbitrary scanning is implied.
+
+##### Candidate state
+
+A newly observed device starts as **candidate/untrusted**. IP address, hostname, MAC address, OS banner, model output or DNS name does not establish trusted identity.
+
+##### Trust proof
+
+Before enrollment, a candidate must pass an independently verified trust mechanism such as:
+- pre-provisioned device/agent certificate,
+- trusted public key,
+- one-time enrollment token,
+- signed inventory/management record,
+- hardware-backed identity where later supported,
+- or another SAFE-approved challenge/attestation mechanism.
+
+Use fresh nonces/challenges and replay protection. Key conflicts, cloned identity, stale tokens or unexpected trust chains fail closed.
+
+##### Automatic read-only enrollment
+
+When all of the following are true:
+
+1. the device is inside the approved discovery scope,
+2. trust proof succeeds,
+3. the standing enrollment policy permits that host class/network,
+4. required agent/version/security checks pass,
+
+Sofía may automatically:
+- create a durable fleet/device identity,
+- assign the least-privilege read-only monitoring profile,
+- record provenance and trust evidence,
+- begin inventory/health/performance collection,
+- establish bounded historical sampling,
+- and notify Sparks of the enrollment.
+
+No per-device confirmation is required under that standing policy.
+
+##### Agent bootstrap/install
+
+If a new machine does not already run a trusted OPS agent, automatic installation is allowed only through a separately approved bootstrap mechanism with explicit installation authority, for example a trusted management service or pre-authorized remote-administration path.
+
+Sofía may not:
+- guess passwords,
+- scrape/reuse unrelated credentials,
+- exploit vulnerabilities,
+- expand from monitoring to arbitrary shell access,
+- or infer install authority merely because a device is reachable.
+
+The installed package must be signed/hash-verified and tied to an approved version/source.
+
+##### Quarantine and rejection
+
+Do not enroll when:
+- trust proof fails,
+- device identity conflicts with another host,
+- replay is detected,
+- network/host class is outside policy,
+- required hardening/version checks fail,
+- or evidence is contradictory.
+
+Keep the device quarantined/candidate-only, perform no privileged operation, and report the reason.
+
+#### Proactive notification
+
+Successful enrollment is a meaningful event. ACT should notify Sparks automatically on an approved channel without waiting to be asked.
+
+The notice should summarize:
+- canonical device/fleet name,
+- when and where it was discovered at an appropriate privacy level,
+- how trust was verified,
+- assigned enrollment/profile state,
+- OS/platform and useful hardware/capability summary,
+- initial health/performance concerns,
+- and anything unavailable/unknown.
+
+Use durable event IDs and dedupe so reconnects/reboots do not repeatedly announce the same machine.
+
+Unexpected or failed-trust devices may also produce a security-relevant notification, subject to rate limits so network churn does not create alert spam.
+
+#### Typed maintenance operations
+
+Read-only telemetry is the first release. Later OPS may expose narrowly typed operations such as:
+- restart an approved service,
+- stop an approved runaway process,
+- rotate an approved log,
+- run a defined diagnostic,
+- restart Sofía/Ollama under RUN policy,
+- apply an approved package/agent update,
+- or execute a documented recovery operation.
+
+These remain Think/Diagnose → Propose → Authorize → Execute → Verify. Avoid a generic arbitrary-shell capability.
+
+#### Autonomous fleet lifecycle
+
+Enrolled machines have explicit lifecycle state:
+
+- `candidate`
+- `enrolled`
+- `healthy`
+- `degraded`
+- `maintenance`
+- `draining`
+- `quarantined`
+- `offline`
+- `decommissioned`
+
+State changes require evidence and durable audit records. A transient disconnect does not delete a machine.
+
+##### Standing upkeep policy
+
+Sparks may grant OPS a standing maintenance policy so routine fleet care does not require a prompt for every action. Policy is scoped by host/group, action class, risk, maintenance window and rollback requirements.
+
+Eligible autonomous upkeep can include:
+
+- keep the signed OPS agent current;
+- update approved Sofía-managed packages/services;
+- restart failed approved services;
+- rotate or prune approved logs/caches under retention limits;
+- perform approved database/index/checkpoint/vacuum work where backup/recovery requirements are met;
+- run health checks and documented repair procedures;
+- schedule approved OS/package patch work;
+- reboot only when specifically permitted by policy and workload drain/availability checks succeed;
+- remove stale approved package versions after verified replacement;
+- drain and return hosts for maintenance.
+
+The policy must not silently broaden itself. Unsupported or higher-risk operations become proposals.
+
+##### Removal/decommissioning
+
+**Final removal of a fleet machine always requires Sparks' explicit approval for that machine.** Sofía may propose and prepare the action, but she may not self-approve it. A standing policy cannot substitute for Sparks' final approval.
+
+Sofía may automatically move a host into a removal-candidate/draining/quarantined state when evidence supports reasons such as:
+
+- approved replacement;
+- device retirement;
+- revoked or compromised device identity;
+- confirmed permanent removal;
+- repeated unrecoverable failure meeting configured policy.
+
+Before asking for final approval, Sofía should prepare a concise removal packet with the reason, device identity, current workloads, replacement/failover state, backups/retention status, credential/routing changes that will occur, known risks, and rollback/re-enrollment implications.
+
+Before final decommission:
+
+1. stop new workload placement;
+2. drain/move eligible workloads;
+3. verify no protected active lease remains;
+4. prepare device/agent credential revocation, but do not execute final revocation solely because removal was proposed;
+5. prepare removal from active routing/service-discovery membership;
+6. archive required telemetry/audit/history according to retention policy;
+7. preserve necessary backups/recovery artifacts;
+8. request and record **Sparks' explicit approval** for the specific host removal; Sofía cannot satisfy this gate herself;
+9. after approval, revoke credentials, remove routing/service-discovery membership, complete decommissioning, and verify the machine can no longer act as an authorized fleet member.
+
+Emergency security quarantine may immediately block scheduling, actions, and privileged communications without waiting for approval, but quarantine is not deletion/decommissioning.
+
+Unreachable or missing hosts first become offline/degraded. Absence alone is not proof of retirement.
+
+#### Workload orchestration
+
+OPS owns placement/movement mechanics for **managed workload units**, not arbitrary OS processes.
+
+##### Workload contract
+
+A movable workload declares:
+
+- workload ID/version;
+- component/package owner;
+- supported OS/architecture/runtime;
+- CPU/RAM/GPU/VRAM/storage/network requirements;
+- optional versus required GPU acceleration;
+- state type: stateless, externally persisted, replicated, checkpointable, singleton;
+- input/output data location and privacy/audience constraints;
+- required secrets/capabilities;
+- startup/shutdown/checkpoint/restore operations;
+- health/readiness probes;
+- acceptable interruption/downtime;
+- affinity/anti-affinity;
+- host allow/deny rules;
+- leader/singleton semantics;
+- rollback procedure.
+
+A normal process is not automatically movable.
+
+##### Initial eligible workload classes
+
+Potential early candidates:
+
+- Ollama/model inference workers;
+- embedding/index workers;
+- background reflection jobs;
+- telemetry collectors/aggregators;
+- approved batch analysis;
+- Discord helper/adapter workers where durable message semantics allow it;
+- avatar rendering workers;
+- later web/search workers after the web gate.
+
+The canonical identity/memory/authority stores remain protected services with stronger state and leadership requirements.
+
+##### Placement policy
+
+The scheduler considers real host evidence:
+
+- current and recent CPU load;
+- RAM pressure;
+- GPU support/utilization/VRAM;
+- temperature/throttling/power state;
+- disk capacity/latency/health;
+- network latency/reachability;
+- host foreground workload, including gaming or interactive use;
+- maintenance/drain/quarantine status;
+- OS/architecture/runtime compatibility;
+- data locality/privacy/audience policy;
+- resource reservation/headroom;
+- reliability/restart history;
+- expected response latency;
+- power/resource budget.
+
+Placement must reserve resources rather than merely observe a momentary free value.
+
+##### Migration/failover sequence
+
+Preferred movement sequence:
+
+1. mark source workload draining;
+2. stop new work on source;
+3. checkpoint/flush/replicate state if required;
+4. validate target eligibility and reserve resources;
+5. transfer or reacquire only authorized state/secrets;
+6. start target instance;
+7. pass readiness/health/identity/version checks;
+8. acquire the current workload lease/epoch;
+9. redirect new work;
+10. confirm source no longer owns active authority;
+11. retire source instance;
+12. verify final state and release old reservation.
+
+If any verification fails, rollback or remain safely degraded. Do not declare migration complete because a target process merely started.
+
+##### Failover and split-brain prevention
+
+For singleton/authority-bearing components use durable leases, epochs, fencing tokens or equivalent so network partitions cannot produce two active authorities.
+
+A replacement instance cannot become authoritative without proving:
+
+- current configuration/version;
+- required durable state;
+- current lease/epoch;
+- host authorization;
+- readiness.
+
+When source state cannot be confirmed, report uncertainty/loss rather than fabricating seamless continuity.
+
+##### Moving Sofía's runtime
+
+Sofía is not bound to a specific machine. The canonical identity remains the same while execution components move.
+
+RUN + OPS may move/fail over the primary runtime itself only when:
+
+- target host is trusted and eligible;
+- protected identity/Constitution/memory state is available and integrity-verified;
+- singleton leadership is transferred/fenced safely;
+- active conversation/outbox state is reconciled;
+- clients can reconnect to the new active runtime;
+- the change is recorded and announced to Sparks.
+
+If the old host dies abruptly, the standby may take over using the latest verified durable state. Any possibly lost/unconfirmed turn, thought, or action must be reported honestly.
+
+#### Proactive fleet management notifications
+
+ACT should surface **meaningful** fleet events, not telemetry spam:
+
+- new host enrolled;
+- host quarantined/revoked;
+- maintenance started/completed with notable outcome;
+- workload moved because of load, heat, failure, gaming contention or maintenance;
+- primary runtime failover;
+- decommission completed;
+- update/repair failed and needs intervention.
+
+Routine successful samples and repetitive stable-state messages stay silent.
+
+
+#### Fleet control-plane requirements still needed
+
+These are part of OPS/SAFE/RUN rather than new packages.
+
+##### Dependency and service graph
+
+Maintain an evidenced graph of which workloads depend on which databases, storage paths, ports, services, hosts, secrets and upstream/downstream systems. Drain, patch, restart, move and removal planning must consult this graph so Sofía does not "fix" one machine by quietly breaking three others.
+
+##### Desired state and configuration drift
+
+Store approved desired-state facts for managed hosts, such as required agent version, expected services, important firewall/port posture, runtime versions, mounted storage, workload assignments and maintenance policy. Detect drift, distinguish intentional changes from unexpected ones, and propose or perform only policy-authorized reconciliation.
+
+##### Capacity reservations and headroom
+
+Placement must account for reserved capacity, not just current utilization. Keep enough CPU/RAM/GPU/VRAM/storage/network headroom for foreground work, failover targets and host maintenance. Avoid packing every machine to 99% and then acting surprised when reality occurs.
+
+##### Backup, replication and restore placement
+
+Track where authoritative state, backups and replicas live, their freshness, integrity and restore eligibility. Before risky maintenance or stateful workload moves, verify the required recovery point exists on an allowed independent failure domain. Periodically test restores rather than treating "backup completed" as proof of recoverability.
+
+##### Maintenance windows and update rings
+
+Support host/workload groups such as canary, normal and delayed update rings. Apply an update to a small eligible subset first, verify health/performance, then widen rollout. Respect quiet/production windows and workload availability requirements.
+
+##### Credentials, certificates and key rotation
+
+Track agent/device certificate expiry, trust roots and scoped secret versions without exposing secret contents to unnecessary components. Rotate credentials before expiry, verify new credentials, and retire old ones safely. Suspected compromise triggers quarantine and a separately audited rotation/recovery path.
+
+##### Power and UPS awareness
+
+Where hardware exposes it, observe UPS/battery/power source, graceful-shutdown deadlines and power-loss events. RUN + OPS should drain/checkpoint critical workloads before predicted shutdown when possible and avoid scheduling heavy optional work onto a host running on limited backup power.
+
+##### Network/failure-domain awareness
+
+Know enough topology to avoid putting every replica or failover target behind the same switch, host, storage device or power source when alternatives exist. Placement should understand "different machine" is not always "different failure domain."
+
+##### Hardware lifecycle and predictive maintenance
+
+Track storage wear, thermal/throttling history, repeated hardware errors, unexpected resets and other supported signals. Trends may justify maintenance/replacement recommendations, but hardware retirement still follows the explicit-removal-approval rule.
+
+##### Audit and explainability
+
+For every autonomous maintenance, placement or failover decision, keep compact evidence explaining what changed, why, what policy permitted it, what alternatives were rejected, verification result and rollback status. This is operational evidence, not raw hidden reasoning.
+
+
+#### Host hardening observations
+
+OPS supplies evidence to SAFE for:
+- firewall state,
+- unexpected listening ports/services,
+- patch level,
+- Defender/AV/security service state where available,
+- secrets/config file permission posture,
+- startup/scheduled-task drift,
+- dependency/package drift,
+- service-account privilege,
+- agent version/signature,
+- unusual process/network behavior,
+- backup/recovery readiness.
+
+Observation does not itself authorize remediation.
+
+#### Performance optimization loop
+
+Use matched measurements before and after tuning:
+1. baseline,
+2. identify bottleneck,
+3. change one controlled variable,
+4. repeat the same workload,
+5. compare latency, CPU, GPU/VRAM, RAM, disk/network and correctness/personality,
+6. retain only changes whose resource/latency benefit does not regress grounding, reliability or safety.
+
+Key workloads:
+- idle,
+- warm short chat,
+- long technical turn,
+- memory-heavy retrieval,
+- background reflection,
+- Discord traffic,
+- model load/unload,
+- gaming/contention scenario,
+- multi-hour/day soak.
+
+#### Acceptance
+
+Do not claim OPS fleet/orchestration support until real acceptance includes:
+
+1. local host telemetry with honest unsupported fields,
+2. remote Windows telemetry,
+3. remote Linux telemetry,
+4. Raspberry Pi-class telemetry including thermal/throttling where available,
+5. durable history and restart continuity,
+6. detect + challenge + authenticate + auto-enroll a new authorized host without a per-host prompt,
+7. proactive one-time notification to Sparks,
+8. spoofed/replayed/wrong-network/duplicate/revoked host denial,
+9. quarantine/revoke stopping privileged collection/actions,
+10. resource profiling under idle/chat/background load,
+11. at least one measured optimization with before/after evidence,
+12. no arbitrary shell or privilege expansion from read-only enrollment;
+13. standing-policy maintenance completes one approved upkeep cycle with before/after verification;
+14. planned drain moves all eligible workloads before maintenance;
+15. automatic placement chooses a compatible lower-pressure host using measured resources;
+16. move a stateless workload and verify target before source retirement;
+17. move/checkpoint a stateful workload without duplicate or stale authority;
+18. fail an active worker and recover it on an eligible host;
+19. prove singleton split-brain prevention during a simulated/real partition condition;
+20. refuse incompatible, overcommitted, quarantined and privacy-prohibited targets;
+21. evacuate eligible workloads from a quarantined host;
+22. prepare a retired host for removal, present the removal packet, refuse final decommissioning without Sparks' explicit approval, then complete credential/routing removal only after approval;
+23. move/fail over the primary Sofía runtime in a supervised test while preserving canonical identity and reporting any uncertain state;
+24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
+
+A mocked transport or caller-supplied "authenticated=true" flag is not live enrollment or orchestration proof.
+
+#### Fleet control-plane candidate | 2026-09-26
+
+Branch `feature/fleet-tray-remote-controls` makes the Fleet workstream explicit instead of hiding it inside generic OPS status.
+
+Candidate source adds:
+
+- durable per-host foreground-activity state with operator override;
+- Game Mode `Auto`, forced gaming protection, and forced normal mode;
+- local Windows process evidence for Steam-library games without requiring Steam Web API access;
+- an optional explicit game-executable allowlist via `SOFIA_GAME_EXECUTABLES`;
+- activity-aware placement where gaming/busy hosts are deprioritized before momentary CPU load for ordinary movable workloads;
+- an explicit `allow_interactive_host` workload exception for clients/workloads that belong on the interactive machine;
+- the cognition-facing `ops.placement.choose` path using the same durable activity evidence;
+- a typed Fleet-agent bootstrap planner that distinguishes already-correct agent, trusted authorized auto-install, ask-Sparks, and reject-out-of-scope outcomes;
+- exact package/version/hash verification after any authorized installer runs.
+
+This still does **not** claim unrestricted LAN scanning or arbitrary software deployment. Discovery remains bounded to approved scopes, and installation still requires a trusted bootstrap path plus explicit or standing installation authority.
+
+Live gates still required:
+
+1. discover a real Windows candidate inside an approved scope;
+2. discover a real Linux candidate and Raspberry Pi-class candidate;
+3. exercise the trusted bootstrap path on at least one disposable/test host;
+4. prove an unauthorized/untrusted candidate produces an operator request rather than installation;
+5. verify signed/hash-pinned agent material before enrollment;
+6. prove Game Mode changes actual placement/migration behavior under measured contention;
+7. connect activity-aware placement to real workload execution;
+8. connect ACT one-time enrollment/migration/failure notices;
+9. connect RUN authoritative runtime movement/fencing and remote-client reconnection;
+10. preserve Sparks-only explicit approval for final host decommissioning.
+
+
+### Merged PKG-ENVIRONMENT detailed readiness contract
+
+### PKG-ENVIRONMENT | shared time, location and environmental context
+
+**Accepted implementation update 2026-09-26. Status:** PR #110 merged the shared PKG-ENVIRONMENT foundation to `main` at `766bf21e0714c8e6b3a21d3f770f633cb4ff8b15`; PR #111 merged the narrow NWS weather/forecast provider plus durable per-machine HOST location at `2b753fdb0b6bccf3449a923fbd48cb5496d1dece`. The accepted system now includes the provider-neutral `EnvironmentSnapshot`, deterministic time/date/location/timezone/season/daylight/weather/forecast/indoor/provenance queries, explicit configured-vs-current USER/SITE/HOST semantics, persistent HOST configuration in `state/machine-locations.json` keyed by stable machine identity, bounded cognition projection, Home Assistant bridge behind `environment.home_assistant.read`, NWS transport pinned to HTTPS `api.weather.gov` behind `environment.nws.read`, runtime composition, and AVATAR consumption. Evidence includes the original **79 focused / 61 touched-regression / 27 provenance-regression** gates, reported green full suites, supervised live Ollama acceptance, later **85 NWS-focused** tests, a supervised live NWS canary against `nws:KGKY`, **96 persistence-focused** tests, and a final reported green full suite. The optional live Home Assistant canary remains pending; general browsing/search and arbitrary geocoding remain outside this acceptance.
+
+PKG-ENVIRONMENT is package **20** in the canonical roadmap. Existing package numbers 1–19 remain unchanged.
+
+#### Ownership boundary
+
+**ENVIRONMENT owns:** one typed, provenance-aware view of external context that other packages may consume:
+
+- current UTC and authoritative runtime observation time,
+- user/site-local timezone when explicitly configured or independently evidenced,
+- configured/home location and separately modeled current location,
+- hemisphere-aware season,
+- sunrise/sunset and daylight state,
+- current outdoor weather and forecast when a trusted provider is available,
+- optional indoor environmental observations from trusted integrations such as Home Assistant,
+- freshness/TTL, source, precision, confidence/quality and observation timestamp for every environmental field.
+
+**ENVIRONMENT does not own:**
+
+- network transport or arbitrary HTTP access: **NET** owns transport and network grants,
+- Home Assistant/JMRI/service adapters: **INTEGRATE** owns adapters,
+- wardrobe or avatar presentation: **AVATAR** consumes environment evidence,
+- emotion/personality: **CORE/REL/INTERACT** may use environment as context but weather never deterministically creates an emotion,
+- reminders/outreach: **ACT** may consume authorized environment events but ENVIRONMENT does not send messages,
+- host lifecycle or polling schedules: **RUN** owns recurring execution/supervision,
+- physical sensors/actuators: **BODY** owns Gaia hardware and may publish independently verified sensor observations into ENVIRONMENT,
+- privacy/authorization: **SOCIAL/SAFE** scope access to location and environment evidence,
+- truth certification: **VERIFY** owns acceptance evidence.
+
+No consumer may bypass ENVIRONMENT by independently inventing, scraping, geolocating or caching its own competing "current weather/location" truth.
+
+#### Canonical model
+
+The implementation should converge on a provider-neutral immutable projection similar to:
+
+```python
+EnvironmentSnapshot(
+    observed_at=...,
+    utc_time=...,
+    local_time=...,
+    timezone=...,
+    location=...,
+    season=...,
+    daylight=...,
+    outdoor_weather=...,
+    forecast=...,
+    indoor_environment=...,
+    provenance=...,
+    expires_at=...,
+)
+```
+
+Each optional field must preserve its own source and observation time. Missing/stale data stays unknown rather than being guessed from memory, IP address, hostname, season stereotypes or model knowledge.
+
+#### Source and trust rules
+
+1. **Clock:** existing runtime clock is the initial authoritative observation source. Host-local time is machine evidence and must not silently become the user's timezone.
+2. **Configured location:** an explicit user-approved/home/site location can provide a stable coarse location and timezone anchor. It is configuration, not proof that a person/device is physically there now.
+3. **Current location:** only independently evidenced device/GPS/trusted-integration data may be labeled current. IP geolocation is coarse, fallible and never silently upgraded to precise location.
+4. **Season/daylight:** derive only from a known location/timezone and date using deterministic rules. Do not infer hemisphere from language or account metadata.
+5. **Home Assistant:** an authorized local HA adapter may supply indoor sensors, weather entities, presence/site metadata or outdoor observations through INTEGRATE without granting Sofía general browser/search authority.
+6. **Direct weather provider:** remote weather/geocoding APIs require the later separately authorized NET/web capability, explicit destination/tool scope, provider credentials where needed, bounded requests, provenance and revocation.
+7. **Memory:** MEM may retain approved stable preferences/configuration and provenance, but stale weather or old location observations must never be projected as current state.
+
+#### Consumer integration matrix
+
+| Consumer | How ENVIRONMENT helps | Boundary |
+| --- | --- | --- |
+| **CORE** | Current time/location/environment grounding in cognition | Evidence only; no invented current state |
+| **INTERACT** | Contextual virtual-lab and conversational reactions | Environment does not imply physical sensing |
+| **MEM** | Stable location/preferences and provenance | Current observations expire; no stale-current reuse |
+| **SOCIAL** | Person/audience-scoped location/environment access | Precise/private location defaults restricted |
+| **NET** | Transport for approved external providers | Connectivity never equals provider authorization |
+| **UI** | Optional display of current environment/age/source | UI does not create truth |
+| **RUN** | Refresh cadence, expiry and event scheduling | Scheduler does not reinterpret evidence |
+| **OPS** | Site/timezone context for fleet nodes | Machine site is not automatically user location |
+| **ACT** | Opt-in severe-weather/contextual notices | Quiet/stop/dedupe and recipient scope still apply |
+| **REL / emotion** | Time-of-day/season/weather as soft conversational context | No hard-coded “rain = sad” causal rule |
+| **AVATAR** | Outfit/presentation choice from time, season, temperature and conditions | AVATAR consumes snapshot; never fetches weather itself |
+| **BODY** | Optional trusted physical environmental sensors | Hardware authority remains BODY/SAFE |
+| **EVOLVE** | Reviewed environment preferences/config revisions | No self-approved protected location changes |
+| **KNOW** | Provider/schema documentation and provenance support | Documentation is not live observation |
+| **INTEGRATE** | Home Assistant and future provider adapters | Adapter outputs normalize into ENVIRONMENT |
+| **SAFE** | Location privacy, provider secrets, revocation and retention policy | Precise location is sensitive operational data |
+| **VERIFY** | Freshness, timezone, privacy, failover and provider-negative tests | No “current” claim without current evidence |
+
+#### Delivery stages
+
+##### ENV-0 | existing clock consolidation
+
+- Keep `runtime_clock_snapshot()` as read-only machine-clock evidence.
+- Project clock through one ENVIRONMENT interface rather than letting consumers create independent clocks.
+- Preserve the existing rule that host-local time is not automatically the user's timezone.
+
+**Exit:** deterministic tests prove UTC/local instant consistency, timezone awareness and live cognition projection with no guessed user timezone.
+
+##### ENV-1 | location, timezone, season and daylight
+
+- Add typed configured-location and current-location evidence with source/precision metadata.
+- Resolve timezone only from explicit/trusted evidence.
+- Add deterministic hemisphere-aware season and sunrise/sunset/daylight calculation.
+- Keep exact/current location optional and unknown by default.
+
+**Exit:** offline tests cover northern/southern hemispheres, DST transitions, unknown location, stale evidence and configured-home-vs-current-location distinction.
+
+##### ENV-2 | provider abstraction and Home Assistant bridge
+
+- Define provider-neutral weather/environment records.
+- Normalize trusted Home Assistant weather/temperature/humidity/site evidence through INTEGRATE.
+- Add refresh TTL/error states without treating provider failure as clear weather.
+
+**Exit:** fake/local provider tests prove source identity, freshness, stale fallback labeling and no network authority escalation.
+
+##### ENV-3 | direct weather/forecast provider
+
+A narrow NWS provider route was explicitly authorized by Sparks on 2026-09-26 without opening the general web/search gate and was accepted/merged via PR #111. It is scoped to HTTPS `api.weather.gov` and the explicit standing capability `environment.nws.read`.
+
+- Current station conditions, feels-like, precipitation, wind, humidity and bounded forecast.
+- Exact destination/redirect pinning to `api.weather.gov`, required NWS User-Agent, timeout, existing ENVIRONMENT cache TTL and provider attribution.
+- Configurable weather target subject: USER, SITE, or HOST, using only explicitly configured coordinates.
+- Independent configured HOST/server location so runtime location never overwrites Sparks' USER/home location.
+- Preferred persistent HOST configuration is stored in Sofía's machine-location registry keyed by stable machine identity; process-local HOST environment variables remain an explicit override.
+- No arbitrary browsing/search capability bundled with the weather client.
+- NWS alerts remain a later ACT/ENVIRONMENT extension; this slice does not send proactive alerts.
+
+**Exit:** focused provider/config/query/import tests, full-suite pass, and supervised live NWS canary at a pinned revision; wrong-destination, stale/outage, capability-denial and USER-vs-HOST isolation must fail safely.
+
+##### ENV-4 | shared cognition and package consumers
+
+Project one bounded environment snapshot into cognition when relevant. Wire AVATAR, INTERACT, ACT, RUN, OPS and optional REL/emotion consumers through the shared interface. Keep environment out of unrelated turns when context budget/relevance says it is unnecessary.
+
+**Exit:** supervised real-model tests show correct time/location/weather answers and contextual use without hallucinating unavailable fields or turning weather into fixed emotion/personality behavior.
+
+##### ENV-5 | live acceptance
+
+Verify current environment state across restart, provider outage, timezone/DST change, stale cache, changed configured location, Home Assistant disconnection and any eventual runtime/fleet movement. Environment context must remain source-labeled and must not silently follow a process to another host as if machine location equaled user location.
+
+#### AVATAR / wardrobe contract
+
+Wardrobe and mutable presentation may use:
+
+- time of day,
+- season/daylight,
+- outdoor temperature/feels-like,
+- precipitation/wind,
+- indoor environment,
+- current activity/context,
+- Sofía's modeled presentation preferences and emotions.
+
+Environment is **advisory evidence**, not a mandatory outfit table. Established presentation preferences, audience/privacy, renderer capability and explicit context remain higher-level constraints. Emotion may influence style but neither weather nor emotion owns AVATAR state.
+
+#### Safety and privacy
+
+- Treat precise/current location as sensitive person/site data.
+- Keep provider credentials out of model context and logs.
+- Do not infer current location from remembered addresses, network ranges or machine names.
+- A remote fleet host's timezone/location does not become Sparks' location.
+- Public/shared outputs should default to the least precise location needed.
+- Expired/stale weather must be labeled stale or unavailable rather than silently reused.
+- External weather alerts or proactive messages require ACT policy and recipient/audience checks.
+
+#### Roadmap relationship
+
+ENVIRONMENT may begin **now** with ENV-0/ENV-1 and local provider contracts. It does not change the primary release gate:
+
+**Discord accepted → real OPS/RUN 24/7 acceptance → separately authorized general web/search.**
+
+A trusted local Home Assistant environment source may be used before general web because it is an INTEGRATE capability, not a browser/search grant. Direct internet weather remains separately authorized.
+
+#### Implementation acceptance checklist
+
+- [x] Existing runtime clock consolidated through ENVIRONMENT cognition projection.
+- [x] Typed configured/current location with explicit subject, source, coordinates kept out of model context, optional precision, and freshness.
+- [x] ZoneInfo user/site time and deterministic hemisphere-aware season/daylight.
+- [x] Provider-neutral weather, forecast and indoor observations with TTL/freshness and degraded provider status.
+- [x] Explicit Home Assistant entity mapping and unit normalization.
+- [x] HA current-location subject is explicit/inherited, never guessed as USER.
+- [x] HA observation timestamps are source-backed; missing timestamps never become "now".
+- [x] HA environment reads require explicit standing capability plus credentials.
+- [x] Provider arbitration prefers fresher/newer evidence instead of registration order.
+- [x] Unrelated turns keep the trusted clock but omit detailed environment data and avoid provider refresh.
+- [x] Deterministic direct answers cover time/date, user vs runtime location, timezone, weather, forecast, season, daylight/sunrise/sunset, indoor state, and bounded environment-source provenance.
+- [x] AVATAR can consume the shared season/current-weather snapshot without fetching weather itself.
+- [x] DST, hemisphere/polar daylight, stale/future evidence, provider outage, subject isolation, precision and import-boundary tests are represented in the branch test suite.
+- [x] Windows acceptance venv synchronized with `python -m pip install -e .`; `tzdata 2026.4` installed and `ZoneInfo('America/Chicago')` resolved successfully on 2026-09-26.
+- [x] Focused ENVIRONMENT gate passed on Windows 2026-09-26: **79 passed in 216.44s** after dependency sync and the import/provider/location/relevance fixes.
+- [x] Touched regression gate passed on Windows 2026-09-26: **61 passed in 13.91s** (`runtime_clock`, configuration, cognitive context/assembler, emotional conversation integration, default provider boundary).
+- [x] Current-branch full pytest suite passed on Windows 2026-09-26. Exact aggregate count was not captured in chat evidence, so no synthetic count is recorded.
+- [x] Post-provenance-repair full pytest suite passed on Windows 2026-09-26. Exact aggregate count was not captured in chat evidence, so no synthetic count is recorded.
+- [x] Targeted provenance regression gate passed on Windows 2026-09-26: **27 passed in 242.18s** across environment query/runtime projection/prompt tests after deterministic provenance routing repair.
+- [x] Supervised live Ollama gate passed on Windows 2026-09-26: time, configured-vs-current location, season, sunrise, sunset, daylight, unavailable-weather, unrelated-prompt behavior, and deterministic environment-source provenance all behaved as intended. Provenance remained bounded and did not expose coordinates or provider credentials.
+- [ ] Live Home Assistant canary only after explicit `environment.home_assistant.read` grant and configured entity IDs.
+- [x] Narrow NWS focused Windows gate passed 2026-09-26: **85 passed in 249.58s** across environment config, NWS provider, factory, model, service, Home Assistant, query, prompt, runtime projection and import-boundary tests.
+- [x] Post-NWS full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
+- [x] Initial supervised live NWS canary passed on Windows 2026-09-26 using an explicit temporary HOST override: runtime location answered as configured-not-current, current weather came from `nws:KGKY`, bounded forecast returned NWS periods, and provenance withheld coordinates/credentials.
+- [x] Final persistence-focused Windows gate passed 2026-09-26: **96 passed in 257.76s** across durable machine-location registry/CLI/inventory projection, persistent HOST injection, ENV config/NWS/factory/model/service/Home Assistant/query/prompt/runtime projection, and import-boundary tests.
+- [x] Final persistence-enabled full repository `pytest -q` suite passed on Windows 2026-09-26. Exact aggregate count was not supplied in chat, so no synthetic total is recorded.
+- [ ] General web/search and arbitrary geocoding remain a later separately authorized NET/web stage.
+
+**The accepted PR #110 + PR #111 implementation does not grant general geolocation, browser/search access, background polling, proactive alerts, or arbitrary network authority. PR #111 adds only the separately authorized narrow `api.weather.gov` weather/forecast route when `SOFIA_ENVIRONMENT_NWS_ENABLED` and `environment.nws.read` are both present. Home Assistant remains separately configured/granted.**
