@@ -77,6 +77,47 @@ class HabitLearningService:
         )
         return item
 
+    def record_interaction_observation(
+        self,
+        *,
+        principal: PrincipalContext,
+        message_id: str,
+        semantic_id: str,
+        interaction_class_value: str,
+        occurred_at: datetime,
+        sensitive: bool,
+        allow_sensitive: bool = False,
+    ) -> HabitObservation | None:
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be PrincipalContext")
+        if not isinstance(sensitive, bool) or not isinstance(allow_sensitive, bool):
+            raise TypeError("sensitive flags must be boolean")
+        if sensitive and not allow_sensitive:
+            return None
+        snapshot = self.environment.snapshot(
+            now=occurred_at,
+            refresh_providers=True,
+        )
+        context = habit_context_from_environment(snapshot)
+        context["interaction_class"] = interaction_class_value
+        item = HabitObservation.create(
+            observation_id=f"habit:interaction:{message_id}:{semantic_id}",
+            principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
+            kind="interaction.user_described",
+            value=semantic_id,
+            observed_at=occurred_at.astimezone(timezone.utc),
+            source_id=message_id,
+            source=ObservationSource.OBSERVED,
+            context=context,
+        )
+        self.store.record_observation(item)
+        self.detector.analyze(
+            principal_id=principal.principal_id,
+            now=occurred_at,
+        )
+        return item
+
     def record_running_coverage(
         self,
         *,
