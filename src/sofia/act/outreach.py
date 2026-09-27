@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import re
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
 
@@ -68,8 +69,9 @@ class Policy:
     enabled: bool = False
     mute: bool = False
     stop: bool = False
-    quiet_start_utc: int = 22
-    quiet_end_utc: int = 8
+    quiet_start_local: int = 22
+    quiet_end_local: int = 8
+    timezone_name: str = "UTC"
     min_interval: timedelta = timedelta(hours=6)
     max_daily: int = 1
 
@@ -79,13 +81,32 @@ class Policy:
             raise TypeError("enabled/mute/stop must be booleans")
         if any(
             type(value) is not int or not 0 <= value <= 23
-            for value in (self.quiet_start_utc, self.quiet_end_utc)
+            for value in (self.quiet_start_local, self.quiet_end_local)
         ):
             raise ValueError("quiet hour must be an integer in 0..23")
+        if not isinstance(self.timezone_name, str) or not self.timezone_name.strip():
+            raise ValueError("timezone_name must be nonempty")
+        try:
+            ZoneInfo(self.timezone_name)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("timezone_name must identify an installed timezone") from exc
         if not isinstance(self.min_interval, timedelta) or self.min_interval < timedelta(0):
             raise ValueError("min_interval must be nonnegative")
         if type(self.max_daily) is not int or self.max_daily < 1:
             raise ValueError("max_daily must be positive")
+
+    def local_time(self, now: datetime) -> datetime:
+        return _utc(now).astimezone(ZoneInfo(self.timezone_name))
+
+    def is_quiet(self, now: datetime) -> bool:
+        hour = self.local_time(now).hour
+        start = self.quiet_start_local
+        end = self.quiet_end_local
+        if start == end:
+            return True
+        if start < end:
+            return start <= hour < end
+        return hour >= start or hour < end
 
 
 @dataclass(frozen=True)
@@ -152,14 +173,7 @@ def evaluate(
     if moment >= _utc(candidate.expires_at):
         return Decision.STALE
 
-    hour = moment.hour
-    if policy.quiet_start_utc == policy.quiet_end_utc:
-        quiet = True
-    elif policy.quiet_start_utc < policy.quiet_end_utc:
-        quiet = policy.quiet_start_utc <= hour < policy.quiet_end_utc
-    else:
-        quiet = hour >= policy.quiet_start_utc or hour < policy.quiet_end_utc
-    if quiet:
+    if policy.is_quiet(moment):
         return Decision.QUIET_HOURS
 
     if history.last_delivered_at is not None:
