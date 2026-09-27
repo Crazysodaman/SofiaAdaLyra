@@ -1,4 +1,4 @@
-"""Ollama local-service inspection adapter."""
+"""Ollama local-service inspection and model-lifecycle adapter."""
 from __future__ import annotations
 from typing import Any
 from .http import JsonHttpClient
@@ -13,3 +13,11 @@ class OllamaAdapter:
     def show(self,name:str)->Any:
         if not name.strip(): raise ValueError("model name required")
         return self.http.request("POST","/api/show",payload={"name":name})
+    def unload(self,name:str)->Any:
+        """Ask Ollama to unload one exact model without stopping the service."""
+        if not isinstance(name,str) or not name.strip(): raise ValueError("model name required")
+        return self.http.request(
+            "POST",
+            "/api/generate",
+            payload={"model":name,"keep_alive":0,"prompt":"","stream":False},
+        )
