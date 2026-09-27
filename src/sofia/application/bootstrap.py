@@ -46,6 +46,16 @@ def _idle_reflections_enabled() -> bool:
     raise ValueError("SOFIA_IDLE_REFLECTIONS must be 1 or 0 (also accepts true/false).")
 
 
+def _habit_learning_enabled() -> bool:
+    """Personal habit learning is on by default for the canonical private app."""
+    setting = os.environ.get("SOFIA_HABIT_LEARNING", "1").strip().lower()
+    if setting in ("0", "false", "off"):
+        return False
+    if setting in ("1", "true", "on"):
+        return True
+    raise ValueError("SOFIA_HABIT_LEARNING must be 1 or 0 (also accepts true/false).")
+
+
 class SofiaApplication:
     """Canonical application boundary for Sofía.
 
@@ -149,6 +159,7 @@ class SofiaApplication:
         """
         try:
             enabled = _idle_reflections_enabled()
+            habit_enabled = _habit_learning_enabled()
             ui_draft_store = getattr(
                 self,
                 "_ui_draft_store",
@@ -176,7 +187,11 @@ class SofiaApplication:
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
-            background_needed = enabled or self._act_service.delivery_enabled
+            background_needed = (
+                enabled
+                or habit_enabled
+                or self._act_service.delivery_enabled
+            )
             if enabled and self._runtime.personality is None:
                 raise SofiaApplicationError(
                     "Idle reflection requires a loaded personality."
@@ -188,6 +203,7 @@ class SofiaApplication:
                     service=self._conversation_service,
                     state_path=Path(self._configuration.state_path),
                     reflection_enabled=enabled,
+                    habit_enabled=habit_enabled,
                 )
                 coordinator.set_act_delivery(
                     lambda now: self._act_service.deliver_one(
