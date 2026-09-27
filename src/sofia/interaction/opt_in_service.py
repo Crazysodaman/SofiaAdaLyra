@@ -31,9 +31,19 @@ class OptInInteractionConversationService(ExpandedConversationService):
                 audience=audience,
             )
         if content == OFFER:
-            return respond_staged_offer(self, content)
+            return respond_staged_offer(
+                self,
+                content,
+                principal=principal,
+                audience=audience,
+            )
         if is_reviewed_hug_question(content):
-            return respond_reviewed_hug_question(self, content)
+            return respond_reviewed_hug_question(
+                self,
+                content,
+                principal=principal,
+                audience=audience,
+            )
         return super().respond(
             content,
             principal=principal,
