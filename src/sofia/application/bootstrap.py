@@ -193,16 +193,31 @@ class SofiaApplication:
             if ui_draft_store is not None:
                 ui_draft_store.open()
             self._runtime.start()
-            environment_snapshot = self._runtime.environment_service.snapshot(
-                now=datetime.now(timezone.utc),
-                refresh_providers=True,
+            environment_service = getattr(
+                self._runtime,
+                "environment_service",
+                None,
             )
-            if environment_snapshot.timezone is not None:
-                self._act_service.set_local_timezone(
+            environment_snapshot = (
+                environment_service.snapshot(
+                    now=datetime.now(timezone.utc),
+                    refresh_providers=True,
+                )
+                if environment_service is not None
+                else None
+            )
+            act_service = getattr(self, "_act_service", None)
+            if (
+                environment_snapshot is not None
+                and environment_snapshot.timezone is not None
+                and act_service is not None
+            ):
+                act_service.set_local_timezone(
                     environment_snapshot.timezone
                 )
-            if self._release_manager is not None:
-                self._release_manager.reconcile_pointer()
+            release_manager = getattr(self, "_release_manager", None)
+            if release_manager is not None:
+                release_manager.reconcile_pointer()
             if self._runtime.embodiment is None:
                 raise SofiaApplicationError(
                     "AVATAR presentation requires canonical embodiment."
@@ -220,22 +235,33 @@ class SofiaApplication:
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
             response = self._conversation_service.deliver_pending_awareness()
-            background_needed = (
-                enabled
-                or habit_enabled
-                or self._act_service.delivery_enabled
+            reflection_enabled = bool(
+                enabled and self._runtime.personality is not None
             )
-            if enabled and self._runtime.personality is None:
-                raise SofiaApplicationError(
-                    "Idle reflection requires a loaded personality."
-                )
+            habit_continuity = getattr(
+                self,
+                "_habit_continuity",
+                None,
+            )
+            habit_runtime_enabled = bool(
+                habit_enabled and habit_continuity is not None
+            )
+            act_delivery_enabled = bool(
+                act_service is not None
+                and act_service.delivery_enabled
+            )
+            background_needed = (
+                reflection_enabled
+                or habit_runtime_enabled
+                or act_delivery_enabled
+            )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
                     raise SofiaApplicationError("Idle reflection requires an emotional conversation service.")
                 coordinator = ApplicationBackgroundCoordinator(
                     service=self._conversation_service,
                     state_path=Path(self._configuration.state_path),
-                    reflection_enabled=enabled,
+                    reflection_enabled=reflection_enabled,
                 )
                 activity_store = HostActivityStore(
                     self._configuration.state_path
@@ -249,12 +275,13 @@ class SofiaApplication:
                         ActivityMode.BUSY,
                         ActivityMode.DO_NOT_DISTURB,
                     }
-                    return self._act_service.deliver_one(
+                    return act_service.deliver_one(
                         now=now,
                         busy=busy,
                     )
 
-                coordinator.set_act_delivery(deliver_act)
+                if act_service is not None:
+                    coordinator.set_act_delivery(deliver_act)
 
                 def bridge_reflection_outreach(now):
                     service = self._conversation_service
@@ -269,7 +296,9 @@ class SofiaApplication:
                         emotion=emotion,
                         environment=environment,
                     )
-                    count = self._act_service.bridge_reflection_outbox(
+                    if act_service is None:
+                        return None
+                    count = act_service.bridge_reflection_outbox(
                         reflections=service.reflection_journal,
                         scope=service.relationship_scope,
                         now=now,
@@ -352,43 +381,61 @@ class SofiaApplication:
                     last_coverage_at = now
                     return True
 
-                coordinator.set_task("habit_observation", record_habit_coverage)
-                coordinator.set_task("habit_analysis", analyze_habits)
-                coordinator.set_task("habit_decay", decay_habits)
-                coordinator.set_task(
-                    "expectation_evaluation",
-                    evaluate_expectations,
-                )
-                runtime_id = self._runtime.runtime_id
-                if runtime_id is None:
-                    raise SofiaApplicationError(
-                        "RUN heartbeat requires a live runtime ID."
+                if habit_runtime_enabled:
+                    coordinator.set_task(
+                        "habit_observation",
+                        record_habit_coverage,
                     )
-                def publish_heartbeat(now, healthy):
-                    self._heartbeat_store.publish(
-                        ApplicationHeartbeat(
-                            instance_id=str(runtime_id),
-                            recorded_at=now,
-                            ready=bool(
-                                healthy
-                                and self._runtime.state.value == "ready"
-                            ),
-                            runtime_state=self._runtime.state.value,
-                            database_writable=True,
-                            background_running=True,
-                            detail=(
-                                "application background loop healthy"
-                                if healthy
-                                else "application background loop reported an error"
-                            ),
+                    coordinator.set_task(
+                        "habit_analysis",
+                        analyze_habits,
+                    )
+                    coordinator.set_task(
+                        "habit_decay",
+                        decay_habits,
+                    )
+                    coordinator.set_task(
+                        "expectation_evaluation",
+                        evaluate_expectations,
+                    )
+                runtime_id = getattr(self._runtime, "runtime_id", None)
+                heartbeat_store = getattr(
+                    self,
+                    "_heartbeat_store",
+                    None,
+                )
+                if runtime_id is not None and heartbeat_store is not None:
+                    def publish_heartbeat(now, healthy):
+                        runtime_state = getattr(
+                            getattr(self._runtime, "state", None),
+                            "value",
+                            "ready" if healthy else "unknown",
                         )
+                        heartbeat_store.publish(
+                            ApplicationHeartbeat(
+                                instance_id=str(runtime_id),
+                                recorded_at=now,
+                                ready=bool(
+                                    healthy and runtime_state == "ready"
+                                ),
+                                runtime_state=runtime_state,
+                                database_writable=True,
+                                background_running=True,
+                                detail=(
+                                    "application background loop healthy"
+                                    if healthy
+                                    else "application background loop reported an error"
+                                ),
+                            )
+                        )
+                    coordinator.set_heartbeat(publish_heartbeat)
+                    coordinator.start()
+                    publish_heartbeat(
+                        datetime.now(timezone.utc),
+                        True,
                     )
-                coordinator.set_heartbeat(publish_heartbeat)
-                coordinator.start()
-                publish_heartbeat(
-                    datetime.now(timezone.utc),
-                    True,
-                )
+                else:
+                    coordinator.start()
                 self._background = coordinator
                 self._idle_worker = coordinator.idle
             return response
