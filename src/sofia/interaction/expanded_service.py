@@ -20,6 +20,7 @@ from sofia.interaction.context_hygiene import without_legacy_auto_affection
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.preference_context import read_interaction_context
+from sofia.social.model import PrincipalContext
 
 _ACTION_COMPOUND = re.compile(
     r"^\s*(?:sof[ií]a,\s*)?i\s+(?:hug|embrace|cuddle|snuggle)\b.*"
@@ -142,13 +143,20 @@ class ExpandedConversationService(InteractiveConversationService):
             config.state_path, subject='sofia',
             semantic_id=gesture.event.gesture, region_id=gesture.event.region_id)
 
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ):
         if isinstance(content, str):
             text = content.strip()
             if ('?' not in text and '"' not in text and '`' not in text and
                     not re.search(r"\b(?:not|never|don't|if|would|could|should)\b", text, re.I)
                     and _ACTION_COMPOUND.search(text)):
-                return self._guarded_reply(content, _COMPOSITE_ACTION)
+                return self._guarded_reply(
+                    content, _COMPOSITE_ACTION, principal=principal
+                )
             if self._session is not None:
                 config = getattr(self._runtime, 'configuration', None)
                 if config is not None:
@@ -156,10 +164,14 @@ class ExpandedConversationService(InteractiveConversationService):
                         content, message_id='preflight', session_id=self._session.id,
                         occurred_at=datetime.now(timezone.utc))
                     if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
-                        return self._guarded_reply(content, _STOPPED_ACTION)
+                        return self._guarded_reply(
+                            content, _STOPPED_ACTION, principal=principal
+                        )
                     if context is not None and context.blocked:
-                        return self._guarded_reply(content, _BOUNDARY_ACTION)
-        return super().respond(content)
+                        return self._guarded_reply(
+                            content, _BOUNDARY_ACTION, principal=principal
+                        )
+        return super().respond(content, principal=principal)
 
     def _build_request(self) -> CognitiveRequest:
         # Check source-backed boundaries BEFORE the parent writes an accepted
