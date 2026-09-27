@@ -1,13 +1,17 @@
 import json
+import os
 from pathlib import Path
+import shutil
+import tempfile
 from uuid import UUID
 
+import pytest
 from cryptography import x509
 
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.model import NodeTransport
-from sofia.distributed.pki import bootstrap_pair
+from sofia.distributed.pki import _refuse_network_secret_root, bootstrap_pair
 from sofia.ops.windows_rekey_bootstrap import (
     _enroll_fresh_controller,
     _prepare_bundle,
@@ -17,15 +21,31 @@ from sofia.ops.windows_rekey_bootstrap import (
 NODE_ID = UUID("cedf5c64-f3f5-46e0-8c5b-4f85089fcaba")
 
 
-def test_prepare_bundle_rewrites_port_and_client_pin(tmp_path: Path):
+@pytest.fixture
+def local_tmp_path(tmp_path: Path):
+    resolved = tmp_path.resolve()
+    if not str(resolved).startswith("\\\\"):
+        yield resolved
+        return
+
+    base = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir())
+    root = Path(tempfile.mkdtemp(prefix="sofia-rekey-test-", dir=base))
+    try:
+        _refuse_network_secret_root(root.resolve())
+        yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_prepare_bundle_rewrites_port_and_client_pin(local_tmp_path: Path):
     pki = bootstrap_pair(
-        output_directory=tmp_path / "pki",
+        output_directory=local_tmp_path / "pki",
         server_name="Artemis",
         server_dns_names=("Artemis", "Artemis.local"),
         server_ip_addresses=("192.168.1.55",),
         controller_name="Venus",
     )
-    template = tmp_path / "agent.json"
+    template = local_tmp_path / "agent.json"
     template.write_text(
         json.dumps(
             {
@@ -45,7 +65,7 @@ def test_prepare_bundle_rewrites_port_and_client_pin(tmp_path: Path):
 
     bundle, payload = _prepare_bundle(
         template_config=template,
-        output_directory=tmp_path / "bundle",
+        output_directory=local_tmp_path / "bundle",
         pki_result=pki,
         listen_port=9999,
     )
@@ -65,9 +85,9 @@ def test_prepare_bundle_rewrites_port_and_client_pin(tmp_path: Path):
     ).read_bytes()
 
 
-def test_strict_pki_leafs_have_authority_key_identifier(tmp_path: Path):
+def test_strict_pki_leafs_have_authority_key_identifier(local_tmp_path: Path):
     pki = bootstrap_pair(
-        output_directory=tmp_path / "pki",
+        output_directory=local_tmp_path / "pki",
         server_name="Artemis",
         server_dns_names=("Artemis", "Artemis.local"),
         server_ip_addresses=("192.168.1.55",),
@@ -87,15 +107,15 @@ def test_strict_pki_leafs_have_authority_key_identifier(tmp_path: Path):
         assert aki.key_identifier == ca_ski
 
 
-def test_fresh_controller_enrollment_uses_new_server_pin_and_endpoint(tmp_path: Path):
+def test_fresh_controller_enrollment_uses_new_server_pin_and_endpoint(local_tmp_path: Path):
     pki = bootstrap_pair(
-        output_directory=tmp_path / "pki",
+        output_directory=local_tmp_path / "pki",
         server_name="Artemis",
         server_dns_names=("Artemis", "Artemis.local"),
         server_ip_addresses=("192.168.1.55",),
         controller_name="Venus",
     )
-    state_path = tmp_path / "controller" / "state.db"
+    state_path = local_tmp_path / "controller" / "state.db"
 
     _enroll_fresh_controller(
         state_path=state_path,
