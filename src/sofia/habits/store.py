@@ -47,6 +47,8 @@ class HabitObservationStore:
             "evidence_ref": item.evidence_ref,
             "source_quality": item.source_quality.value,
             "coverage": item.coverage.value,
+            "sensitive": item.sensitive,
+            "explicit_user_evidence": item.explicit_user_evidence,
         }
 
     @staticmethod
@@ -77,6 +79,10 @@ class HabitObservationStore:
             evidence_ref=value["evidence_ref"],
             source_quality=SourceQuality(value["source_quality"]),
             coverage=ObservationCoverage(value["coverage"]),
+            sensitive=bool(value.get("sensitive", False)),
+            explicit_user_evidence=bool(
+                value.get("explicit_user_evidence", False)
+            ),
         )
 
     @staticmethod
