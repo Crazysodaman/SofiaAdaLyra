@@ -102,6 +102,12 @@ class ConversationService:
 
         return self._session.id
 
+    @property
+    def current_principal(self) -> PrincipalContext | None:
+        if self._session is None:
+            return None
+        return self._social_store.get(self._session.id)
+
     def open(self) -> None:
         """
         Open the conversation persistence layer.
