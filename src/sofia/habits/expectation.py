@@ -1,13 +1,15 @@
-"""Expectation creation/evaluation for established time-based habits."""
+"""Expectation creation/evaluation for established recurring habits."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import calendar
+from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from zoneinfo import ZoneInfo
 
 from .model import (
     CoverageState,
     ExpectationStatus,
+    HabitCadence,
     HabitExpectation,
     HabitPattern,
     HabitStatus,
@@ -26,50 +28,154 @@ def _expectation_id(habit_id: str, start: datetime) -> str:
     return "habit-exp:" + sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
+def _bucket_hour(raw: str) -> int:
+    bucket = int(raw)
+    if not 0 <= bucket <= 11:
+        raise ValueError("stored hour bucket context is invalid")
+    return bucket * 2
+
+
+def _valid_local_window(
+    *,
+    day: date,
+    hour: int,
+    zone: ZoneInfo,
+) -> tuple[datetime, datetime]:
+    start = datetime(day.year, day.month, day.day, hour, 0, tzinfo=zone)
+    end = start + timedelta(hours=2)
+    return start, end
+
+
+def _next_daily(
+    pattern: HabitPattern,
+    *,
+    local_now: datetime,
+    zone: ZoneInfo,
+) -> tuple[datetime, datetime]:
+    assert pattern.context_value is not None
+    hour = _bucket_hour(pattern.context_value)
+    for offset in range(0, 2):
+        start, end = _valid_local_window(
+            day=(local_now + timedelta(days=offset)).date(),
+            hour=hour,
+            zone=zone,
+        )
+        if end > local_now:
+            return start, end
+    raise RuntimeError("unable to resolve daily expectation window")
+
+
+def _next_weekly(
+    pattern: HabitPattern,
+    *,
+    local_now: datetime,
+    zone: ZoneInfo,
+) -> tuple[datetime, datetime]:
+    assert pattern.context_value is not None
+    weekday_raw, bucket_raw = pattern.context_value.split("|", 1)
+    weekday = int(weekday_raw)
+    if not 0 <= weekday <= 6:
+        raise ValueError("stored weekday context is invalid")
+    hour = _bucket_hour(bucket_raw)
+    for offset in range(0, 8):
+        day = (local_now + timedelta(days=offset)).date()
+        if day.weekday() != weekday:
+            continue
+        start, end = _valid_local_window(day=day, hour=hour, zone=zone)
+        if end > local_now:
+            return start, end
+    raise RuntimeError("unable to resolve weekly expectation window")
+
+
+def _month_sequence(year: int, month: int):
+    for offset in range(0, 15):
+        absolute = year * 12 + (month - 1) + offset
+        yield absolute // 12, (absolute % 12) + 1
+
+
+def _next_monthly(
+    pattern: HabitPattern,
+    *,
+    local_now: datetime,
+    zone: ZoneInfo,
+) -> tuple[datetime, datetime] | None:
+    assert pattern.context_value is not None
+    day_raw, bucket_raw = pattern.context_value.split("|", 1)
+    desired_day = int(day_raw)
+    if not 1 <= desired_day <= 31:
+        raise ValueError("stored day-of-month context is invalid")
+    hour = _bucket_hour(bucket_raw)
+    for year, month in _month_sequence(local_now.year, local_now.month):
+        last_day = calendar.monthrange(year, month)[1]
+        if desired_day > last_day:
+            continue
+        day = date(year, month, desired_day)
+        start, end = _valid_local_window(day=day, hour=hour, zone=zone)
+        if end > local_now:
+            return start, end
+    return None
+
+
+def _next_yearly(
+    pattern: HabitPattern,
+    *,
+    local_now: datetime,
+    zone: ZoneInfo,
+) -> tuple[datetime, datetime] | None:
+    assert pattern.context_value is not None
+    month_day, bucket_raw = pattern.context_value.split("|", 1)
+    month_raw, day_raw = month_day.split("-", 1)
+    month = int(month_raw)
+    day_number = int(day_raw)
+    if not 1 <= month <= 12 or not 1 <= day_number <= 31:
+        raise ValueError("stored month-day context is invalid")
+    hour = _bucket_hour(bucket_raw)
+    for year in range(local_now.year, local_now.year + 9):
+        try:
+            day = date(year, month, day_number)
+        except ValueError:
+            continue
+        start, end = _valid_local_window(day=day, hour=hour, zone=zone)
+        if end > local_now:
+            return start, end
+    return None
+
+
 def _next_window(
     pattern: HabitPattern,
     *,
     now: datetime,
     timezone_name: str,
 ) -> tuple[datetime, datetime] | None:
-    if pattern.context_key not in {"hour_bucket", "weekday_hour"}:
-        return None
     zone = ZoneInfo(timezone_name)
     local_now = _aware(now).astimezone(zone)
-
-    if pattern.context_key == "hour_bucket":
-        weekday: int | None = None
-        bucket_raw = pattern.context_value
+    window: tuple[datetime, datetime] | None
+    if (
+        pattern.cadence is HabitCadence.DAILY
+        and pattern.context_key == "daily_window"
+    ):
+        window = _next_daily(pattern, local_now=local_now, zone=zone)
+    elif (
+        pattern.cadence is HabitCadence.WEEKLY
+        and pattern.context_key == "weekly_window"
+    ):
+        window = _next_weekly(pattern, local_now=local_now, zone=zone)
+    elif (
+        pattern.cadence is HabitCadence.MONTHLY
+        and pattern.context_key == "monthly_window"
+    ):
+        window = _next_monthly(pattern, local_now=local_now, zone=zone)
+    elif (
+        pattern.cadence is HabitCadence.YEARLY
+        and pattern.context_key == "yearly_window"
+    ):
+        window = _next_yearly(pattern, local_now=local_now, zone=zone)
     else:
-        assert pattern.context_value is not None
-        weekday_raw, bucket_raw = pattern.context_value.split("|", 1)
-        weekday = int(weekday_raw)
-        if not 0 <= weekday <= 6:
-            raise ValueError("stored weekday context is invalid")
-
-    assert bucket_raw is not None
-    bucket = int(bucket_raw)
-    if not 0 <= bucket <= 11:
-        raise ValueError("stored hour bucket context is invalid")
-    hour = bucket * 2
-
-    for offset in range(0, 8):
-        day = (local_now + timedelta(days=offset)).date()
-        if weekday is not None and day.weekday() != weekday:
-            continue
-        start = datetime(
-            day.year,
-            day.month,
-            day.day,
-            hour,
-            0,
-            tzinfo=zone,
-        )
-        end = start + timedelta(hours=2)
-        if end <= local_now:
-            continue
-        return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
-    return None
+        return None
+    if window is None:
+        return None
+    start, end = window
+    return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
 
 
 class HabitExpectationEngine:
@@ -101,6 +207,8 @@ class HabitExpectationEngine:
             statuses=(HabitStatus.ESTABLISHED, HabitStatus.TRUSTED),
         )
         for pattern in patterns:
+            if pattern.cadence is HabitCadence.IRREGULAR:
+                continue
             window = _next_window(
                 pattern,
                 now=moment,
@@ -137,7 +245,7 @@ class HabitExpectationEngine:
         }
         observations = self.store.observations(
             principal_id=principal_id,
-            since=moment - timedelta(days=8),
+            since=moment - timedelta(days=370),
             limit=5000,
         )
         for item in self.store.pending_expectations(principal_id=principal_id):
@@ -162,7 +270,9 @@ class HabitExpectationEngine:
                 for obs in observations
                 if obs.kind == pattern.kind
                 and obs.value == pattern.value
-                and item.window_start <= obs.observed_at.astimezone(timezone.utc) < item.window_end
+                and item.window_start
+                <= obs.observed_at.astimezone(timezone.utc)
+                < item.window_end
             )
             if matching:
                 changed.append(
