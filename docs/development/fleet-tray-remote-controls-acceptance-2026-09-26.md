@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-26  
 **Branch:** `feature/fleet-tray-remote-controls`  
-**Status:** source candidate only. No focused or live Windows acceptance has been recorded yet.
+**Status:** partial live acceptance on Venus. Tray icon/exit, single-instance ownership, Game Mode On/Off/Auto, Windows startup, Open Sofía, and service-control safety/cancel behavior have passed supervised canaries. Destructive runtime restart/stop remains deferred by Sparks. Remote chat and real Fleet-node deployment remain open.
 
 ## Scope
 
@@ -164,3 +164,61 @@ Passing this gate supports merge of the source candidate. It does **not** prove:
 - multi-day RUN/Fleet soak.
 
 Those remain live OPS/RUN/NET/SAFE/VERIFY gates.
+
+
+## Fleet Live Node 1 — Artemis
+
+The first real Fleet deployment is intentionally staged before Windows service
+installation. Prove the authenticated foreground agent path first, then wrap
+the same accepted agent in service supervision.
+
+### Source candidate added
+
+- Fleet agent accepts one JSON configuration file via
+  `python -m sofia.distributed.agent_main --config <path>`;
+- relative certificate/key/ledger paths resolve from the configuration file;
+- existing environment-variable configuration remains supported;
+- `--check-config` validates configuration without opening a listener;
+- Venus-side `python -m sofia.distributed.fleet_probe` consumes existing
+  durable node enrollment, exact endpoint approval and exact active grants;
+- identity/capability probes use the existing pinned-mTLS transport;
+- remote operations use `DurableRemoteControl` and the durable request ledger;
+- Fleet agent advertises read-only `ops.telemetry/latest`;
+- Windows telemetry reports CPU load, RAM used/total and aggregate free local
+  disk bytes. Unsupported GPU/temperature values remain unknown.
+
+### Local source gate
+
+Run before touching Artemis:
+
+```powershell
+python -m pytest -q `
+  test/test_distributed_agent_main.py `
+  test/test_distributed_fleet_probe.py `
+  test/test_ops_local_telemetry.py `
+  test/test_distributed_agent_tools_telemetry.py `
+  test/test_distributed_authorization.py `
+  test/test_distributed_durable.py `
+  test/test_distributed_endpoint_policy_durable.py `
+  test/test_distributed_identity_durable.py
+```
+
+### Artemis live acceptance sequence
+
+1. provision a Fleet CA, Artemis server certificate/key and Venus client
+   certificate/key through an operator-controlled path;
+2. choose a durable Artemis node UUID and write the Artemis agent JSON config;
+3. validate with `--check-config`;
+4. start the Artemis Fleet agent in the foreground;
+5. on Venus, durably enroll the exact Artemis server certificate and approve
+   the exact Artemis hostname/port;
+6. authenticate and retrieve advertised capabilities with `fleet_probe`;
+7. create only the read-only grants required for the canary;
+8. invoke `system.inspect/system`, `system.inspect/hardware` and
+   `ops.telemetry/latest`;
+9. verify wrong pin/certificate and missing-grant attempts fail closed;
+10. only after this gate passes, package the same agent as a supervised Windows
+    startup/service unit.
+
+No arbitrary shell, automatic LAN scanning, automatic install, workload
+migration or runtime failover is implied by this milestone.
