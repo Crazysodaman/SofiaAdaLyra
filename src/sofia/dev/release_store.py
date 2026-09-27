@@ -102,9 +102,6 @@ class ReleaseStateStore:
                 "manifest_sha256": manifest.manifest_sha256,
                 "signer_key_id": evidence.signer_key_id,
                 "verified_at": evidence.verified_at.isoformat(),
-                "previous_release_id": (
-                    None if previous is None else previous["release_id"]
-                ),
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -139,6 +136,9 @@ class ReleaseStateStore:
                 "manifest_sha256": manifest.manifest_sha256,
                 "signer_key_id": evidence.signer_key_id,
                 "verified_at": evidence.verified_at.isoformat(),
+                "previous_release_id": (
+                    None if previous is None else previous["release_id"]
+                ),
             },
             sort_keys=True,
             separators=(",", ":"),
