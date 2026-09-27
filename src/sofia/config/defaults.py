@@ -24,6 +24,15 @@ def create_default_configuration() -> SofiaConfiguration:
     )
     layout.provision_from_source()
 
+    configured_capabilities = tuple(
+        value.strip()
+        for value in os.environ.get(
+            "SOFIA_ALLOWED_CAPABILITIES",
+            "",
+        ).split(",")
+        if value.strip()
+    )
+
     standing_capabilities=tuple(dict.fromkeys((
         "tool.catalog",
         "codebase.inspect",
@@ -63,6 +72,7 @@ def create_default_configuration() -> SofiaConfiguration:
         "sqlite.state.tables",
         "sqlite.state.query",
         "sqlite.state.integrity",
+        *configured_capabilities,
     )))
 
     return SofiaConfiguration(
