@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
 
@@ -17,7 +17,7 @@ from sofia.cognition.model import (
 )
 from sofia.personality.emotion import EmotionalEvent
 from sofia.personality.reflection import ReflectionJournal
-from sofia.personality.influence import ContinuityInfluence
+from sofia.personality.influence import ContinuityInfluence, outreach_salience
 
 
 @dataclass(frozen=True)
@@ -173,6 +173,20 @@ class ThoughtAgent:
             created_at=current,
             scope=event.scope,
         )
+        base_importance = {
+            "routine": 0.35,
+            "excited": 0.60,
+            "urgent": 0.90,
+        }[result["urgency"]]
+        salience = (
+            base_importance
+            if influence is None
+            else outreach_salience(
+                base_importance=base_importance,
+                influence=influence,
+            )
+        )
+
         queued_id = None
         if result["share"] == "now":
             queued_id = self._reflections.enqueue(
@@ -182,5 +196,18 @@ class ThoughtAgent:
                 content=message,
                 urgency=result["urgency"],
                 queued_at=current,
+            )
+        elif result["share"] == "later":
+            if salience >= 0.75:
+                delay = timedelta(hours=2)
+            elif salience >= 0.50:
+                delay = timedelta(hours=8)
+            else:
+                delay = timedelta(days=1)
+            self._reflections.defer_followup(
+                thought_id=thought_id,
+                created_at=current,
+                reconsider_after=current + delay,
+                salience=salience,
             )
         return ReflectionOutcome(thought_id=thought_id, queued_message_id=queued_id)
