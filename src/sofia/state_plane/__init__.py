@@ -9,6 +9,19 @@ from sofia.state_plane.model import (
     StateRecord,
     StateScope,
 )
+from sofia.state_plane.inventory import (
+    StateInventory,
+    StateInventoryEntry,
+    StorageKind,
+)
+from sofia.state_plane.schema import (
+    MigrationPhase,
+    SchemaCompatibility,
+    SchemaMigration,
+    SchemaMigrationError,
+    SchemaRegistry,
+)
+from sofia.state_plane.sqlite import SQLiteStatePlane
 from sofia.state_plane.store import (
     StateConflictError,
     StatePlane,
@@ -16,11 +29,20 @@ from sofia.state_plane.store import (
 )
 
 __all__ = [
+    "MigrationPhase",
+    "SchemaCompatibility",
+    "SchemaMigration",
+    "SchemaMigrationError",
+    "SchemaRegistry",
+    "SQLiteStatePlane",
     "StateClass",
     "StateConflictError",
+    "StateInventory",
+    "StateInventoryEntry",
     "StateKey",
     "StatePlane",
     "StatePlaneError",
     "StateRecord",
     "StateScope",
+    "StorageKind",
 ]
