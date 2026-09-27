@@ -480,42 +480,61 @@ class ReflectionJournal:
         thread = _short(thread_id or identifier, "Thread ID", 160)
         with self._connect() as db:
             thought = db.execute(
-                "SELECT evidence_refs FROM reflection_thoughts WHERE thought_id=?",
+                "SELECT evidence_refs, scope_key FROM reflection_thoughts "
+                "WHERE thought_id=?",
                 (identifier,),
             ).fetchone()
             if thought is None:
                 raise KeyError(identifier)
             if evidence not in json.loads(thought[0]):
                 raise ValueError("Message evidence is not linked to the recorded thought.")
+            scope_key = thought[1]
             old = db.execute(
-                "SELECT message_id FROM reflection_outbox WHERE thread_id=? AND evidence_ref=?",
-                (thread, evidence),
+                "SELECT message_id FROM reflection_outbox "
+                "WHERE scope_key=? AND thread_id=? AND evidence_ref=?",
+                (scope_key, thread, evidence),
             ).fetchone()
             if old is not None:
                 return old[0]
             latest = db.execute(
-                "SELECT queued_at FROM reflection_outbox WHERE thread_id=? "
-                "ORDER BY queued_at DESC LIMIT 1", (thread,),
+                "SELECT queued_at FROM reflection_outbox "
+                "WHERE scope_key=? AND thread_id=? "
+                "ORDER BY queued_at DESC LIMIT 1",
+                (scope_key, thread),
             ).fetchone()
             if latest is not None and when - datetime.fromisoformat(latest[0]) < min_followup_gap:
                 raise ValueError("Follow-up requires more spacing; no message was queued.")
             message_id = str(uuid4())
             db.execute(
                 "INSERT INTO reflection_outbox (message_id, thought_id, thread_id, "
-                "evidence_ref, content, urgency, queued_at, status) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')",
-                (message_id, identifier, thread, evidence, text, urgency, when.isoformat()),
+                "evidence_ref, content, urgency, queued_at, status, scope_key) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                (
+                    message_id,
+                    identifier,
+                    thread,
+                    evidence,
+                    text,
+                    urgency,
+                    when.isoformat(),
+                    scope_key,
+                ),
             )
             return message_id
 
-    def pending(self, *, limit: int = 25) -> tuple[OutboxEntry, ...]:
+    def pending(
+        self, *, limit: int = 25, scope: SocialScope | None = None,
+    ) -> tuple[OutboxEntry, ...]:
         if not isinstance(limit, int) or not 1 <= limit <= 100:
             raise ValueError("Outbox limit must be 1-100.")
+        resolved_scope = _scope(scope)
         with self._connect() as db:
             rows = db.execute(
                 "SELECT message_id, thought_id, thread_id, evidence_ref, content, "
                 "urgency, queued_at, status FROM reflection_outbox "
-                "WHERE status='pending' ORDER BY queued_at, message_id LIMIT ?", (limit,),
+                "WHERE status='pending' AND scope_key=? "
+                "ORDER BY queued_at, message_id LIMIT ?",
+                (resolved_scope.key, limit),
             ).fetchall()
         return tuple(OutboxEntry(
             message_id=r[0], thought_id=r[1], thread_id=r[2], evidence_ref=r[3],
@@ -533,8 +552,10 @@ class ReflectionJournal:
             if result.rowcount != 1:
                 raise ValueError("No pending message with that ID; delivery not confirmed.")
 
-    def prompt_context(self, *, limit: int = 5) -> str | None:
-        thoughts = self.recent_thoughts(limit=limit)
+    def prompt_context(
+        self, *, limit: int = 5, scope: SocialScope | None = None,
+    ) -> str | None:
+        thoughts = self.recent_thoughts(limit=limit, scope=scope)
         if not thoughts:
             return None
         lines = [
