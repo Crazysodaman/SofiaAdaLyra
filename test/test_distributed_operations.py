@@ -111,6 +111,32 @@ def test_fails_closed_before_execute(mode):
     assert "execute" not in transport.calls
 
 
+
+def test_small_authenticated_inventory_future_skew_is_allowed():
+    enrollment, request, transport, gateway = fixture()
+    transport.inventory = CapabilityInventory(
+        request.node_id,
+        NOW + timedelta(seconds=2),
+        (RemoteCapability("hardware.inspect", ("summary",)),),
+        "authenticated-test",
+    )
+    result = gateway.invoke(enrollment, request, now=NOW)
+    assert result.outcome is RemoteOutcome.REPORTED_SUCCESS
+    assert transport.calls == ["authenticate", "discover", "execute"]
+
+
+def test_excessive_authenticated_inventory_future_skew_is_denied():
+    enrollment, request, transport, gateway = fixture()
+    transport.inventory = CapabilityInventory(
+        request.node_id,
+        NOW + timedelta(seconds=6),
+        (RemoteCapability("hardware.inspect", ("summary",)),),
+        "authenticated-test",
+    )
+    with pytest.raises(RemoteOperationDenied, match="stale, or future"):
+        gateway.invoke(enrollment, request, now=NOW)
+    assert "execute" not in transport.calls
+
 def test_transport_error_is_uncertain_and_never_retried():
     enrollment, request, transport, gateway = fixture()
     transport.failure = TimeoutError("maybe executed")
