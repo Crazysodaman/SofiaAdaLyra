@@ -270,7 +270,10 @@ class EmotionalConversationService(ConversationService):
                 subject=subject,
             ),
         ]
-        emotional_context = self.emotional_journal.prompt_context(now=now)
+        emotional_context = self.emotional_journal.prompt_context(
+            now=now,
+            subject=subject,
+        )
         if emotional_context is not None:
             projections.append(emotional_context)
         # The optional guard preserves compatibility with a test-only
