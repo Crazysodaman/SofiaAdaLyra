@@ -282,39 +282,58 @@ class InteractiveConversationService(EmotionalConversationService):
         principal: PrincipalContext | None = None,
     ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
+
+        def guarded(reply: str, **kwargs):
+            if principal is None:
+                return self._guarded_reply(content, reply, **kwargs)
+            return self._guarded_reply(
+                content,
+                reply,
+                principal=principal,
+                **kwargs,
+            )
+
         if not isinstance(content, str):
             if principal is None:
-            return super().respond(content)
-        return super().respond(content, principal=principal)
+                return super().respond(content)
+            return super().respond(content, principal=principal)
+
         if mixed_interaction_control(content):
-            return self._guarded_reply(
-                content, MIXED_CONTROL_REPLY, principal=principal
-            )
+            return guarded(MIXED_CONTROL_REPLY)
+
         if unsupported_composite_gesture(content):
-            return self._guarded_reply(
-                content, COMPOSITE_GESTURE_REPLY, principal=principal
-            )
+            return guarded(COMPOSITE_GESTURE_REPLY)
+
         command = control_command(content)
         if command is not None:
-            return self._guarded_reply(
-                content, '', command=command, principal=principal
-            )
-        configuration = getattr(self._runtime, 'configuration', None)
-        embodiment = getattr(self._runtime, 'embodiment', None)
-        if configuration is not None and embodiment is not None and self._session is not None:
-            # Only a recognized gesture needs a ledger lookup. Plain chat
-            # never initializes the interaction database.
+            return guarded("", command=command)
+
+        configuration = getattr(self._runtime, "configuration", None)
+        embodiment = getattr(self._runtime, "embodiment", None)
+        if (
+            configuration is not None
+            and embodiment is not None
+            and self._session is not None
+        ):
             candidate = NaturalInteractionEngine(embodiment).from_text(
-                content=content, message_id='preflight', session_id=self._session.id,
+                content=content,
+                message_id="preflight",
+                session_id=self._session.id,
                 occurred_at=datetime.now(timezone.utc),
             )
-            if candidate is not None and InteractionLedger(configuration.state_path).stopped(self._session.id):
-                return self._guarded_reply(
-                    content,
+            if (
+                candidate is not None
+                and InteractionLedger(
+                    configuration.state_path
+                ).stopped(self._session.id)
+            ):
+                return guarded(
                     STOPPED_GESTURE_REPLY,
                     stopped_gesture=True,
-                    principal=principal,
                 )
+
+        if principal is None:
+            return super().respond(content)
         return super().respond(content, principal=principal)
 
     def _should_record_legacy_affection(self, user) -> bool:
