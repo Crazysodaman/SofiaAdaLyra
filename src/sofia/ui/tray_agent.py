@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 from queue import Empty, Queue
@@ -10,6 +10,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+from uuid import uuid4
 
 from sofia.config import create_default_configuration
 from sofia.machine.discovery import create_machine_discovery
@@ -21,6 +22,11 @@ from sofia.ops.activity import (
 )
 from sofia.ops.capability import OpsToolService
 from sofia.system.capability import create_local_system_backend
+from sofia.safe.execution_approval import (
+    ExecutionApproval,
+    ExecutionApprovalVerifier,
+    execution_fingerprint,
+)
 from sofia.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -67,9 +73,13 @@ class TrayAgentApplication:
         self._chat_process: subprocess.Popen | None = None
         self._settings_process: subprocess.Popen | None = None
         self._last_error: str | None = None
+        self._execution_approvals = ExecutionApprovalVerifier(
+            self.config.state_path
+        )
         self._service = DesktopServiceController(
             local_host_id=self.host_id,
             llm_model=self.config.provider.model,
+            approval_verifier=self._execution_approvals,
         )
         self._system_backend = create_local_system_backend()
         by_name = {
@@ -210,9 +220,29 @@ class TrayAgentApplication:
             if kind is ServiceKind.LLM_ENGINE
             else settings.runtime_service_name
         )
-        self._service.execute(
-            ServiceTarget(kind, self.host_id, service_name),
+        target = ServiceTarget(kind, self.host_id, service_name)
+        capability, parameters = self._service.approval_spec(
+            target,
             action,
+            llm_model=self.config.provider.model,
+        )
+        now = datetime.now(timezone.utc)
+        approval = ExecutionApproval(
+            approval_id=str(uuid4()),
+            capability=capability,
+            request_fingerprint=execution_fingerprint(
+                capability,
+                parameters,
+            ),
+            approved_by="Sparks",
+            approved_at=now,
+            expires_at=now + timedelta(seconds=60),
+        )
+        self._execution_approvals.record(approval)
+        self._service.execute(
+            target,
+            action,
+            approval_id=approval.approval_id,
         )
 
     def handle(self, command: TrayCommand) -> bool:
