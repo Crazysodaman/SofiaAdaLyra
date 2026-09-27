@@ -272,8 +272,11 @@ class TrayAgentApplication:
 
 def main() -> int:
     application = TrayAgentApplication()
-    with TrayProcessLock(application.config.state_path):
-        return application.run()
+    try:
+        with TrayProcessLock(application.config.state_path):
+            return application.run()
+    except KeyboardInterrupt:
+        return 0
 
 
 if __name__ == "__main__":
