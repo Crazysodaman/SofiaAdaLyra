@@ -10,6 +10,7 @@ import tempfile
 
 from sofia.dev.release import ReleaseManifest
 from sofia.dev.release_store import ReleaseStateStore
+from sofia.distributed.version import FleetProtocolVersion
 from sofia.safe.audit import AuditChain
 from sofia.safe.release import ReleaseActivationGuard
 
@@ -57,6 +58,9 @@ class ReleaseManager:
         store: ReleaseStateStore,
         guard: ReleaseActivationGuard,
         audit: AuditChain,
+        state_schema_revision: int,
+        fleet_protocol_version: FleetProtocolVersion,
+        configuration_schema_version: int,
     ) -> None:
         if not isinstance(release_root, Path):
             raise TypeError("release_root must be a Path")
@@ -66,13 +70,39 @@ class ReleaseManager:
             raise TypeError("guard must be a ReleaseActivationGuard")
         if not isinstance(audit, AuditChain):
             raise TypeError("audit must be an AuditChain")
+        if type(state_schema_revision) is not int or state_schema_revision < 1:
+            raise ValueError("state_schema_revision must be positive")
+        if not isinstance(fleet_protocol_version, FleetProtocolVersion):
+            raise TypeError("fleet_protocol_version must be FleetProtocolVersion")
+        if type(configuration_schema_version) is not int or configuration_schema_version < 1:
+            raise ValueError("configuration_schema_version must be positive")
         self.release_root = release_root
         self.releases_dir = release_root / "releases"
         self.pointer_path = release_root / "active-release.json"
         self.store = store
         self.guard = guard
         self.audit = audit
+        self.state_schema_revision = state_schema_revision
+        self.fleet_protocol_version = fleet_protocol_version
+        self.configuration_schema_version = configuration_schema_version
         self.releases_dir.mkdir(parents=True, exist_ok=True)
+
+    def _verify_compatibility(self, manifest: ReleaseManifest) -> None:
+        if not manifest.supports_state_schema(self.state_schema_revision):
+            raise ReleaseManagerError(
+                "release does not support the active State Plane schema revision"
+            )
+        candidate_protocol = FleetProtocolVersion.parse(
+            manifest.fleet_protocol_version
+        )
+        if not self.fleet_protocol_version.compatible_with(candidate_protocol):
+            raise ReleaseManagerError(
+                "release Fleet protocol is incompatible with this runtime"
+            )
+        if manifest.configuration_schema_version != self.configuration_schema_version:
+            raise ReleaseManagerError(
+                "release configuration schema is incompatible with this runtime"
+            )
 
     def candidate_path(self, release_id: str) -> Path:
         manifest = self.store.candidate(release_id)
@@ -161,6 +191,7 @@ class ReleaseManager:
             raise TypeError("now must be a datetime")
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
+        self._verify_compatibility(manifest)
         active_manifest = self._active_manifest()
         self.audit.append(
             actor_id=signer_key_id,
