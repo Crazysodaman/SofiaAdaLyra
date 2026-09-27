@@ -283,7 +283,9 @@ class InteractiveConversationService(EmotionalConversationService):
     ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
         if not isinstance(content, str):
-            return super().respond(content, principal=principal)
+            if principal is None:
+            return super().respond(content)
+        return super().respond(content, principal=principal)
         if mixed_interaction_control(content):
             return self._guarded_reply(
                 content, MIXED_CONTROL_REPLY, principal=principal
