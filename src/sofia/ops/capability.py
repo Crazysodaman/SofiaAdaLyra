@@ -13,13 +13,24 @@ from .desired import DesiredHostState,DesiredWorkloadPlacement,detect_drift
 from .history import TelemetryHistory
 from .migration import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
-from .persistence import JsonFleetRegistry
+from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
+from sofia.state.plane import StatePlane
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 class OpsToolService:
-    def __init__(self,state_path:Path)->None:
-        self.registry=JsonFleetRegistry(state_path.parent/"fleet.json")
+    def __init__(
+        self,
+        state_path:Path,
+        *,
+        state_plane:StatePlane|None=None,
+    )->None:
+        plane=state_plane or SQLiteStatePlane(state_path)
+        self.registry=StatePlaneFleetRegistry(
+            plane,
+            legacy_path=state_path.parent/"fleet.json",
+        )
         self.history=TelemetryHistory(state_path.parent/"ops-telemetry.jsonl")
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
