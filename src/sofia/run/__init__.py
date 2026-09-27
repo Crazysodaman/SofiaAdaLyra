@@ -6,6 +6,10 @@ from .lease import (
     RunLease,
     RunLeaseError,
 )
+from .heartbeat import (
+    ApplicationHeartbeat,
+    ApplicationHeartbeatStore,
+)
 from .periodic import (
     OpportunityPolicy,
     OpportunityResult,
@@ -22,6 +26,8 @@ from .supervisor import (
 )
 
 __all__ = [
+    "ApplicationHeartbeat",
+    "ApplicationHeartbeatStore",
     "LeaseResult",
     "LocalRunLeaseStore",
     "LocalRuntimeSupervisor",
