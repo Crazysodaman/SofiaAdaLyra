@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 from threading import Event, Thread
@@ -192,6 +192,9 @@ class ApplicationBackgroundCoordinator:
             ),
         )
         self._act_delivery: Callable[[datetime], object | None] | None = None
+        self._presentation_update: Callable[[datetime], object | None] | None = None
+        self._presentation_interval = timedelta(hours=3)
+        self._presentation_last_attempt: datetime | None = None
         self._stop_event = Event()
         self._thread: Thread | None = None
         self.last_error: str | None = None
@@ -204,6 +207,27 @@ class ApplicationBackgroundCoordinator:
         if callback is not None and not callable(callback):
             raise TypeError("ACT delivery callback must be callable or None")
         self._act_delivery = callback
+
+    def set_presentation_update(
+        self,
+        callback: Callable[[datetime], object | None] | None,
+        *,
+        interval: timedelta = timedelta(hours=3),
+    ) -> None:
+        if callback is not None and not callable(callback):
+            raise TypeError(
+                "presentation callback must be callable or None"
+            )
+        if (
+            not isinstance(interval, timedelta)
+            or interval < timedelta(minutes=30)
+            or interval > timedelta(days=1)
+        ):
+            raise ValueError(
+                "presentation interval must be between 30 minutes and one day"
+            )
+        self._presentation_update = callback
+        self._presentation_interval = interval
 
     def _source_refs(self, now: datetime) -> tuple[str, ...]:
         absence = self.service.observe_background_absence(now=now)
@@ -255,6 +279,39 @@ class ApplicationBackgroundCoordinator:
             idle_seconds=self.idle_seconds
         ):
             return "foreground_busy"
+
+        presentation_due = (
+            self._presentation_update is not None
+            and (
+                self._presentation_last_attempt is None
+                or moment - self._presentation_last_attempt
+                >= self._presentation_interval
+            )
+        )
+        if presentation_due:
+            claim_id = self.budget.claim(
+                "avatar_presentation",
+                now=moment,
+            )
+            if claim_id is None:
+                return "budget_busy"
+            try:
+                result = self._presentation_update(moment)
+                self._presentation_last_attempt = moment
+                self.budget.finish(claim_id, now=moment)
+                return (
+                    "avatar_idle"
+                    if result is None
+                    else str(result)
+                )
+            except Exception as exc:
+                self.budget.finish(
+                    claim_id,
+                    now=datetime.now(timezone.utc),
+                    error=exc,
+                )
+                self.last_error = type(exc).__name__
+                raise
 
         refs = self._source_refs(moment) if self.reflection_enabled else ()
         opportunity = (
