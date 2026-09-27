@@ -164,7 +164,10 @@ class DistributedGateway:
             if not isinstance(inventory, CapabilityInventory):
                 raise RemoteOperationDenied("Invalid capability inventory.")
             if inventory.node_id != request.node_id or not inventory_is_current(
-                inventory, now=now, max_age=self._max_age
+                inventory,
+                now=now,
+                max_age=self._max_age,
+                max_future_skew=timedelta(seconds=5),
             ):
                 raise RemoteOperationDenied("Wrong-node, stale, or future capability inventory.")
             if not inventory.advertises(request.capability, request.operation):
