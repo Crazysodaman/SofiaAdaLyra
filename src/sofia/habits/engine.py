@@ -87,6 +87,12 @@ class HabitPatternEngine:
     ) -> HabitPattern | None:
         if not isinstance(observation, HabitObservation):
             raise TypeError("observation must be HabitObservation")
+        if self._store.is_evidence_invalidated(
+            principal_id=observation.principal_id,
+            audience_id=observation.audience_id,
+            evidence_ref=observation.evidence_ref,
+        ):
+            return None
         if observation.coverage not in (
             ObservationCoverage.OBSERVED,
             ObservationCoverage.PARTIAL,
@@ -285,3 +291,89 @@ class HabitPatternEngine:
             source=evidence_ref,
         )
         return suppression
+
+
+    def rebuild_from_observations(
+        self,
+        *,
+        pattern: HabitPattern,
+        observations: tuple[HabitObservation, ...],
+        now: datetime,
+    ) -> HabitPattern:
+        """Recompute current pattern truth after provenance invalidation."""
+        if not isinstance(pattern, HabitPattern):
+            raise TypeError("pattern must be HabitPattern")
+        current = self._utc(now)
+        relevant = []
+        expected_kind = pattern.context.get("observation_kind")
+        expected_context = {
+            key: value
+            for key, value in pattern.context.items()
+            if key != "observation_kind"
+        }
+        for observation in observations:
+            if observation.principal_id != pattern.principal_id:
+                continue
+            if observation.audience_id != pattern.audience_id:
+                continue
+            if expected_kind and observation.kind != expected_kind:
+                continue
+            if self._store.is_evidence_invalidated(
+                principal_id=pattern.principal_id,
+                audience_id=pattern.audience_id,
+                evidence_ref=observation.evidence_ref,
+            ):
+                continue
+            if any(
+                observation.context.get(key) != value
+                for key, value in expected_context.items()
+            ):
+                continue
+            if observation.coverage not in (
+                ObservationCoverage.OBSERVED,
+                ObservationCoverage.PARTIAL,
+            ):
+                continue
+            relevant.append(observation)
+
+        support = len(relevant)
+        observable = support
+        last_seen = (
+            max(item.occurred_at_utc for item in relevant)
+            if relevant
+            else pattern.first_seen
+        )
+        confidence = HabitConfidence.score(
+            support_count=support,
+            contradiction_count=0,
+            observable_count=observable,
+            last_seen=last_seen,
+            now=current,
+        )
+        lifecycle = (
+            HabitLifecycle.RETIRED
+            if support == 0
+            else HabitConfidence.lifecycle(
+                confidence=confidence,
+                support_count=support,
+            )
+        )
+        rebuilt = replace(
+            pattern,
+            support_count=support,
+            contradiction_count=0,
+            observable_count=observable,
+            last_seen=last_seen,
+            confidence=confidence,
+            lifecycle=lifecycle,
+            evidence_refs=tuple(
+                dict.fromkeys(
+                    item.evidence_ref
+                    for item in relevant
+                )
+            )[-64:],
+        )
+        return self._store.put(
+            rebuilt,
+            source=f"habit-rebuild:{current.isoformat()}",
+        )
