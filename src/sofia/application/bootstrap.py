@@ -31,6 +31,7 @@ from sofia.runtime.internal_workspace import normalize_runtime_workspace_awarene
 from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.personality.influence import ContinuityInfluence
+from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.social.principals import local_sparks_principal
 from sofia.state.component_schema import verify_production_component_schemas
@@ -99,6 +100,12 @@ class SofiaApplication:
         )
         self._conversation_service.set_learning_coordinator(
             self._conversation_learning
+        )
+        self._habit_continuity = HabitContinuityCoordinator(
+            self._runtime.state_plane
+        )
+        self._conversation_service.set_habit_continuity(
+            self._habit_continuity
         )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
@@ -274,6 +281,41 @@ class SofiaApplication:
                     "reflection_outreach",
                     bridge_reflection_outreach,
                 )
+
+                def analyze_habits(now):
+                    service = self._conversation_service
+                    principal = (
+                        service._principal_context()
+                        if hasattr(service, "_principal_context")
+                        else None
+                    )
+                    if principal is None:
+                        return None
+                    count = self._habit_continuity.analyze_conversation_patterns(
+                        principal_id=principal.principal_id,
+                        audience_id=principal.audience_id,
+                        now=now,
+                    )
+                    return count or None
+
+                def decay_habits(now):
+                    service = self._conversation_service
+                    principal = (
+                        service._principal_context()
+                        if hasattr(service, "_principal_context")
+                        else None
+                    )
+                    if principal is None:
+                        return None
+                    count = self._habit_continuity.decay_patterns(
+                        principal_id=principal.principal_id,
+                        audience_id=principal.audience_id,
+                        now=now,
+                    )
+                    return count or None
+
+                coordinator.set_task("habit_analysis", analyze_habits)
+                coordinator.set_task("expectation_evaluation", decay_habits)
                 runtime_id = self._runtime.runtime_id
                 if runtime_id is None:
                     raise SofiaApplicationError(
