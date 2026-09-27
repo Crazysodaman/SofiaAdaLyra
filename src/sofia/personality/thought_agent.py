@@ -68,7 +68,13 @@ class ThoughtAgent:
         # when a model produces different wording on a later attempt.
         stable = sha256(event.event_id.encode("utf-8")).hexdigest()[:32]
         thought_id = f"model-reflection:{stable}"
-        if any(t.thought_id == thought_id for t in self._reflections.recent_thoughts(limit=50)):
+        if any(
+            t.thought_id == thought_id
+            for t in self._reflections.recent_thoughts(
+                limit=50,
+                scope=event.scope,
+            )
+        ):
             return ReflectionOutcome(thought_id=thought_id, queued_message_id=None)
 
         payload = {
@@ -145,6 +151,7 @@ class ThoughtAgent:
             evidence_refs=(event.event_id,),
             emotions=event.current_emotions,
             created_at=current,
+            scope=event.scope,
         )
         queued_id = None
         if result["share"] == "now":
