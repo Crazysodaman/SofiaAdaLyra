@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from sofia.avatar.presentation import (
     AppearanceState,
     AudienceScope,
@@ -45,8 +47,9 @@ def answer(query: str):
 def test_current_outfit_is_deterministic_authoritative_fact():
     result = answer("What outfit are you wearing right now?")
     assert result.recognized
-    assert "signature engineer outfit" in result.content
-    assert result.content == "I'm in my signature engineer outfit right now."
+    assert result.content.startswith("I'm in my signature engineer outfit right now.")
+    assert "Fitted long-sleeve technical shirt" in result.content
+    assert "Articulated utility trousers" in result.content
 
 
 def test_hair_and_tail_color_use_current_presentation():
@@ -103,22 +106,24 @@ def test_public_safe_outfit_quick_tool_wording_is_authoritative():
 
 
 def test_direct_current_outfit_uses_human_readable_piece_names():
-    resolver = AvatarSelfFactResolver()
-    answer = resolver.resolve(
-        "what are you wearing",
-        embodiment=embodiment(),
-        presentation=presentation(
-            outfit_id="seasonal.spring.normal.01",
-            item_names=(
-                "Breathable underlayer",
-                "Base undergarment",
-                "Classic Top",
-                "Utility Bottom",
-            ),
+    embodiment, current, _ = sources()
+    seasonal = replace(
+        current,
+        outfit_id="seasonal.spring.normal.01",
+        item_names=(
+            "Breathable underlayer",
+            "Base undergarment",
+            "Classic Top",
+            "Utility Bottom",
         ),
+    )
+    result = AvatarSelfFactResolver().resolve(
+        "what are you wearing",
+        embodiment=embodiment,
+        presentation=seasonal,
         available_outfit_ids=("seasonal.spring.normal.01",),
     )
-    assert answer.recognized
-    assert "Spring Everyday 01" in answer.content
-    assert "Classic Top" in answer.content
-    assert "Utility Bottom" in answer.content
+    assert result.recognized
+    assert "Spring Everyday 01" in result.content
+    assert "Classic Top" in result.content
+    assert "Utility Bottom" in result.content
