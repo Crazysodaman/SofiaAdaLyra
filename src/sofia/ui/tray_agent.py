@@ -36,7 +36,7 @@ from .control_center import (
     TrayCommand,
     TrayStatus,
 )
-from .process_lock import TrayProcessLock
+from .process_lock import TrayProcessAlreadyRunning, TrayProcessLock
 from .service_control import DesktopServiceController
 from .windows_tray import WindowsTrayAgent
 
@@ -275,6 +275,9 @@ def main() -> int:
     try:
         with TrayProcessLock(application.config.state_path):
             return application.run()
+    except TrayProcessAlreadyRunning:
+        print("Sofía tray agent is already running.", file=sys.stderr)
+        return 2
     except KeyboardInterrupt:
         return 0
 
