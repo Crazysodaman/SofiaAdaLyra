@@ -8,6 +8,8 @@ from pathlib import Path
 import re
 import sqlite3
 
+from sofia.safe.audit import AuditChain
+
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 
 
@@ -72,6 +74,7 @@ class ExecutionApprovalVerifier:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.audit = AuditChain(self.path)
         with sqlite3.connect(self.path, timeout=10) as db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
@@ -114,6 +117,21 @@ class ExecutionApprovalVerifier:
                     approval.approved_at.astimezone(timezone.utc).isoformat(),
                     approval.expires_at.astimezone(timezone.utc).isoformat(),
                 ),
+            )
+            self.audit.append_in_transaction(
+                db,
+                actor_id=approval.approved_by,
+                event_type="execution.approval.recorded",
+                payload={
+                    "approval_id": approval.approval_id,
+                    "capability": approval.capability,
+                    "request_fingerprint": approval.request_fingerprint,
+                    "expires_at": approval.expires_at.astimezone(
+                        timezone.utc
+                    ).isoformat(),
+                },
+                occurred_at=approval.approved_at,
+                event_id=f"execution-approval-recorded:{approval.approval_id}",
             )
 
     def consume(
@@ -180,5 +198,17 @@ class ExecutionApprovalVerifier:
             )
             if changed.rowcount != 1:
                 raise PermissionError("execution approval could not be consumed")
+            self.audit.append_in_transaction(
+                db,
+                actor_id=approval.approved_by,
+                event_type="execution.approval.consumed",
+                payload={
+                    "approval_id": approval.approval_id,
+                    "capability": approval.capability,
+                    "request_fingerprint": approval.request_fingerprint,
+                },
+                occurred_at=moment,
+                event_id=f"execution-approval-consumed:{approval.approval_id}",
+            )
             db.commit()
             return approval
