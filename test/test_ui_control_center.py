@@ -9,6 +9,8 @@ from sofia.ui import (
     RemoteChatMode,
     TrayCommand,
     TrayStatus,
+    tray_command_enabled,
+    tray_command_requires_confirmation,
     tray_menu_labels,
 )
 
@@ -77,3 +79,45 @@ def test_master_settings_has_expected_command_center_sections():
         "Safety & Authority", "Advanced",
     }
     assert expected.issubset(set(MASTER_SETTINGS_SECTIONS))
+
+
+def _tray_status(*, runtime_state="running", llm_state="running"):
+    return TrayStatus(
+        runtime_host="venus" if runtime_state == "running" else None,
+        runtime_state=runtime_state,
+        llm_host="venus" if llm_state == "running" else None,
+        llm_state=llm_state,
+        llm_model="qwen3:14b",
+        game_mode=GameMode.AUTO,
+        fleet_total=1,
+        fleet_healthy=1,
+        fleet_attention=0,
+    )
+
+
+def test_runtime_stop_and_restart_require_confirmation():
+    assert tray_command_requires_confirmation(TrayCommand.RUNTIME_STOP) is True
+    assert tray_command_requires_confirmation(TrayCommand.RUNTIME_RESTART) is True
+    assert tray_command_requires_confirmation(TrayCommand.RUNTIME_START) is False
+
+
+def test_runtime_controls_follow_observed_service_state():
+    running = _tray_status(runtime_state="running")
+    stopped = _tray_status(runtime_state="stopped")
+
+    assert tray_command_enabled(TrayCommand.RUNTIME_START, running) is False
+    assert tray_command_enabled(TrayCommand.RUNTIME_STOP, running) is True
+    assert tray_command_enabled(TrayCommand.RUNTIME_RESTART, running) is True
+
+    assert tray_command_enabled(TrayCommand.RUNTIME_START, stopped) is True
+    assert tray_command_enabled(TrayCommand.RUNTIME_STOP, stopped) is False
+    assert tray_command_enabled(TrayCommand.RUNTIME_RESTART, stopped) is False
+
+
+def test_missing_ollama_service_disables_service_actions_but_not_unload():
+    missing = _tray_status(llm_state="not_found")
+
+    assert tray_command_enabled(TrayCommand.LLM_START, missing) is False
+    assert tray_command_enabled(TrayCommand.LLM_STOP, missing) is False
+    assert tray_command_enabled(TrayCommand.LLM_RESTART, missing) is False
+    assert tray_command_enabled(TrayCommand.LLM_UNLOAD_MODEL, missing) is True
