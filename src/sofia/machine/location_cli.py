@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 
 from .discovery import create_machine_discovery
-from .location import new_machine_location
+from .location import MachineLocationRegistry, new_machine_location
 from .location_state import StatePlaneMachineLocationRegistry
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from .persistence import MachineInventoryPersistence
@@ -109,6 +109,9 @@ def _configure(
         longitude=args.longitude,
     )
     registry.set(record)
+    legacy_path = getattr(registry, "legacy_path", None)
+    if legacy_path is not None:
+        MachineLocationRegistry(legacy_path).set(record)
     print(
         f"Saved {record.hostname} ({record.machine_id}) "
         f"location as {record.label} in {record.timezone}."
