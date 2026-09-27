@@ -12,51 +12,118 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.dev.approval import DevOperation
 from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.state.model import StateClass, StateKey, StateRecord
+from sofia.state.plane import StatePlane
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 from .opencode import EngineeringExecutionRequest
 from .workflow import EngineeringCandidate, EngineeringWorkflow
 
 
 class DevCandidateStore:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self._items: dict[str, EngineeringCandidate] = {}
-        if path.exists():
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            for item in raw.get("candidates", []):
-                item["changed_paths"] = tuple(item["changed_paths"])
-                item["allowed_paths"] = tuple(item["allowed_paths"])
-                candidate = EngineeringCandidate(**item)
-                self._items[candidate.proposal_id] = candidate
+    NAMESPACE = "dev-candidate"
 
-    def put(self, candidate: EngineeringCandidate) -> None:
-        self._items[candidate.proposal_id] = candidate
-        self.flush()
+    def __init__(
+        self,
+        state_plane: StatePlane,
+        *,
+        legacy_path: Path | None = None,
+    ) -> None:
+        if not isinstance(state_plane, StatePlane):
+            raise TypeError("state_plane must be a StatePlane")
+        self.state_plane = state_plane
+        self.legacy_path = legacy_path
+        self._import_legacy_if_needed()
+
+    @staticmethod
+    def _encode(candidate: EngineeringCandidate) -> bytes:
+        return json.dumps(
+            asdict(candidate),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+
+    @staticmethod
+    def _decode(record: StateRecord) -> EngineeringCandidate:
+        raw = json.loads(record.value.decode("utf-8"))
+        raw["changed_paths"] = tuple(raw["changed_paths"])
+        raw["allowed_paths"] = tuple(raw["allowed_paths"])
+        return EngineeringCandidate(**raw)
+
+    def _import_legacy_if_needed(self) -> None:
+        if self.state_plane.list_namespace(self.NAMESPACE):
+            return
+        if self.legacy_path is None or not self.legacy_path.is_file():
+            return
+        raw = json.loads(self.legacy_path.read_text(encoding="utf-8"))
+        for item in raw.get("candidates", []):
+            item["changed_paths"] = tuple(item["changed_paths"])
+            item["allowed_paths"] = tuple(item["allowed_paths"])
+            self.put(
+                EngineeringCandidate(**item),
+                source="legacy-json:dev-candidates",
+            )
+
+    def put(
+        self,
+        candidate: EngineeringCandidate,
+        *,
+        source: str = "dev:reviewed-candidate",
+    ) -> None:
+        if not isinstance(candidate, EngineeringCandidate):
+            raise TypeError("candidate must be an EngineeringCandidate")
+        key = StateKey(
+            namespace=self.NAMESPACE,
+            key=candidate.proposal_id,
+        )
+        existing = self.state_plane.read(key)
+        payload = self._encode(candidate)
+        if existing is not None:
+            if existing.value != payload:
+                raise ValueError(
+                    "proposal_id already belongs to a different DEV candidate"
+                )
+            return
+        self.state_plane.write(
+            StateRecord(
+                key=key,
+                state_class=StateClass.SHARED_AUTHORITATIVE,
+                revision=1,
+                value=payload,
+                updated_at=datetime.now(timezone.utc),
+                source=source,
+            ),
+            expected_revision=None,
+        )
 
     def get(self, proposal_id: str) -> EngineeringCandidate:
-        try:
-            return self._items[proposal_id]
-        except KeyError as exc:
-            raise KeyError(f"unknown DEV proposal: {proposal_id}") from exc
+        if not isinstance(proposal_id, str) or not proposal_id.strip():
+            raise ValueError("proposal_id must be nonempty")
+        record = self.state_plane.read(
+            StateKey(
+                namespace=self.NAMESPACE,
+                key=proposal_id,
+            )
+        )
+        if record is None:
+            raise KeyError(f"unknown DEV proposal: {proposal_id}")
+        return self._decode(record)
 
     def remove(self, proposal_id: str) -> None:
-        self._items.pop(proposal_id, None)
-        self.flush()
-
-    def flush(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "candidates": [
-                asdict(self._items[key])
-                for key in sorted(self._items)
-            ]
-        }
-        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        tmp.write_text(
-            json.dumps(payload, sort_keys=True, indent=2),
-            encoding="utf-8",
+        if not isinstance(proposal_id, str) or not proposal_id.strip():
+            raise ValueError("proposal_id must be nonempty")
+        key = StateKey(
+            namespace=self.NAMESPACE,
+            key=proposal_id,
         )
-        tmp.replace(self.path)
+        record = self.state_plane.read(key)
+        if record is None:
+            return
+        self.state_plane.delete(
+            key,
+            expected_revision=record.revision,
+        )
 
 
 class DevToolService:
@@ -73,13 +140,16 @@ class DevToolService:
         state_path: Path,
         *,
         approval_verifier: DevApprovalVerifier,
+        state_plane: StatePlane | None = None,
         executable: str = "opencode",
     ) -> None:
         if not isinstance(approval_verifier, DevApprovalVerifier):
             raise TypeError("approval_verifier must be a DevApprovalVerifier")
         self.workflow = EngineeringWorkflow(workspace, executable)
+        plane = state_plane or SQLiteStatePlane(state_path)
         self.store = DevCandidateStore(
-            state_path.parent / "dev-candidates.json"
+            plane,
+            legacy_path=state_path.parent / "dev-candidates.json",
         )
         self.approval_verifier = approval_verifier
         self._applied_proposal_id: str | None = None
