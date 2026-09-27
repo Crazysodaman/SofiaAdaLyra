@@ -60,6 +60,7 @@ class Garment:
     tail_clearance: bool = False
     ear_clearance: bool = False
     asset_ref: str | None = None
+    private_only: bool = False
 
     def __post_init__(self) -> None:
         _identifier(self.item_id, "garment ID")
@@ -76,6 +77,8 @@ class Garment:
             raise WardrobeError("coverage must be unique valid garment slots")
         if type(self.tail_clearance) is not bool or type(self.ear_clearance) is not bool:
             raise WardrobeError("clearance flags must be boolean")
+        if type(self.private_only) is not bool:
+            raise WardrobeError("private_only must be boolean")
         if self.asset_ref is not None:
             _identifier(self.asset_ref, "asset reference")
 
@@ -87,6 +90,7 @@ class Outfit:
     coverage: frozenset[str]
     covered_default: bool
     asset_refs_present: bool
+    private_only: bool
 
 
 @dataclass(frozen=True)
@@ -148,8 +152,13 @@ class Wardrobe:
             raise WardrobeConflict("tail region requires explicit clearance")
         if any("ears" in g.slots and not g.ear_clearance for g in selected):
             raise WardrobeConflict("ear region requires explicit clearance")
-        return Outfit(item_ids, covers, COVERED_DEFAULT.issubset(covers),
-                      bool(selected) and all(g.asset_ref is not None for g in selected))
+        return Outfit(
+            item_ids,
+            covers,
+            COVERED_DEFAULT.issubset(covers),
+            bool(selected) and all(g.asset_ref is not None for g in selected),
+            any(g.private_only for g in selected),
+        )
 
     def garments(self, item_ids: tuple[str, ...]) -> tuple[Garment, ...]:
         """Return validated garment metadata in selection order."""
@@ -161,6 +170,7 @@ class Wardrobe:
     ) -> None:
         """Conservative display gate; only a trusted renderer verifies actual assets."""
         if (not isinstance(outfit, Outfit) or not outfit.covered_default
+                or outfit.private_only
                 or not outfit.asset_refs_present
                 or type(assets_verified_by_renderer) is not bool
                 or not assets_verified_by_renderer):

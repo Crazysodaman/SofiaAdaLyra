@@ -12,6 +12,7 @@ from enum import Enum
 import re
 
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
+from .wardrobe_piece_catalog import PieceSpec, generated_piece_specs
 from .wardrobe_routine import Activity, OutfitPlan, Season, Weather
 
 _HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
@@ -35,6 +36,9 @@ class GarmentBlueprint:
     construction: tuple[str, ...]
     fit_anchors: tuple[str, ...]
     provenance: str = "design_proposal_review_required"
+    category: str = "legacy"
+    style_tags: tuple[str, ...] = ()
+    private_only: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.garment, Garment) or self.garment.asset_ref is not None:
@@ -57,6 +61,19 @@ class GarmentBlueprint:
             raise WardrobeError("fit anchors must be unique stable identifiers")
         if self.provenance not in {"canonical_clothing_design", "design_proposal_review_required"}:
             raise WardrobeError("unknown design provenance")
+        if not isinstance(self.category, str) or _ID.fullmatch(self.category) is None:
+            raise WardrobeError("invalid garment category")
+        if (
+            not isinstance(self.style_tags, tuple)
+            or len(set(self.style_tags)) != len(self.style_tags)
+            or any(not isinstance(tag, str) or not tag.strip() or len(tag) > 64
+                   for tag in self.style_tags)
+        ):
+            raise WardrobeError("invalid garment style tags")
+        if type(self.private_only) is not bool:
+            raise WardrobeError("private_only must be boolean")
+        if self.private_only != self.garment.private_only:
+            raise WardrobeError("blueprint privacy must match garment privacy")
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +136,56 @@ class WardrobePrebuild:
                 return plan
         raise WardrobeError("unknown prebuilt outfit")
 
+    def pieces(
+        self,
+        *,
+        category: str | None = None,
+        private_only: bool | None = None,
+    ) -> tuple[GarmentBlueprint, ...]:
+        """Query individual closet pieces without claiming they are worn."""
+        if category is not None and (
+            not isinstance(category, str) or not category.strip()
+        ):
+            raise WardrobeError("category must be None or nonempty")
+        if private_only is not None and type(private_only) is not bool:
+            raise WardrobeError("private_only must be None or boolean")
+        return tuple(
+            blueprint
+            for blueprint in self.blueprints
+            if (
+                (category is None or blueprint.category == category)
+                and (
+                    private_only is None
+                    or blueprint.private_only is private_only
+                )
+            )
+        )
+
+    def closet_summary(self) -> dict[str, object]:
+        """Compact text/UI inventory summary, not a renderer asset claim."""
+        categories = sorted({
+            blueprint.category
+            for blueprint in self.blueprints
+            if blueprint.category.startswith("closet.")
+        })
+        rows: dict[str, dict[str, int]] = {}
+        for category in categories:
+            normal = len(self.pieces(category=category, private_only=False))
+            private = len(self.pieces(category=category, private_only=True))
+            rows[category] = {
+                "normal": normal,
+                "adult_private": private,
+            }
+        return {
+            "generated_piece_count": sum(
+                values["normal"] + values["adult_private"]
+                for values in rows.values()
+            ),
+            "categories": rows,
+            "adult_private_requires_authorization": True,
+            "assets_verified": False,
+        }
+
     def manifest(self) -> dict[str, object]:
         """Pure JSON-ready authoring handoff, never a renderer-ready asset manifest."""
         return {
@@ -134,6 +201,9 @@ class WardrobePrebuild:
                     "tail_clearance": bp.garment.tail_clearance,
                     "ear_clearance": bp.garment.ear_clearance,
                     "asset_ref": None,
+                    "private_only": bp.private_only,
+                    "category": bp.category,
+                    "style_tags": list(bp.style_tags),
                     "primary_hex": bp.primary_hex,
                     "accent_hexes": list(bp.accent_hexes),
                     "material": bp.material,
@@ -169,24 +239,53 @@ def _bp(
     coverage: tuple[str, ...], color: str, material: str,
     construction: tuple[str, ...], anchors: tuple[str, ...], *,
     accents: tuple[str, ...] = (), tail: bool = False, ears: bool = False,
-    canonical: bool = False,
+    canonical: bool = False, category: str = "legacy",
+    style_tags: tuple[str, ...] = (), private_only: bool = False,
 ) -> GarmentBlueprint:
     return GarmentBlueprint(
-        Garment(item_id, name, layer, slots, coverage, tail_clearance=tail,
-                ear_clearance=ears, asset_ref=None),
+        Garment(
+            item_id, name, layer, slots, coverage,
+            tail_clearance=tail,
+            ear_clearance=ears,
+            asset_ref=None,
+            private_only=private_only,
+        ),
         primary_hex=color, accent_hexes=accents, material=material,
         construction=construction, fit_anchors=anchors,
         provenance="canonical_clothing_design" if canonical
         else "design_proposal_review_required",
+        category=category,
+        style_tags=style_tags,
+        private_only=private_only,
+    )
+
+
+def _generated_blueprint(spec: PieceSpec) -> GarmentBlueprint:
+    return _bp(
+        spec.item_id,
+        spec.name,
+        spec.layer,
+        spec.slots,
+        spec.coverage,
+        spec.primary_hex,
+        spec.material,
+        spec.construction,
+        spec.fit_anchors,
+        accents=spec.accent_hexes,
+        tail=spec.tail_clearance,
+        ears=spec.ear_clearance,
+        category=spec.category,
+        style_tags=spec.style_tags,
+        private_only=spec.private_only,
     )
 
 
 def build_starter_wardrobe() -> WardrobePrebuild:
-    """Three fully covered metadata presets, with no fabricated owned assets/taste."""
+    """Starter presets plus a large mix-and-match individual-piece closet."""
     dark, charcoal, crimson, teal, violet = (
         "#0B0D12", "#171A21", "#8B1E3F", "#19D3C5", "#3A245C"
     )
-    blueprints = (
+    base_blueprints = (
         _bp("underlayer.top", "Breathable underlayer", Layer.UNDERWEAR,
             ("torso",), ("torso",), dark, "soft breathable stretch knit",
             ("Non-rendered draft underlayer; fit beneath base shirt.",),
@@ -284,6 +383,10 @@ def build_starter_wardrobe() -> WardrobePrebuild:
             ("Flexible tail opening; renderer must verify real coverage.",),
             ("pelvis.coverage", "waist.front", "tail.opening.clearance"),
             tail=True),
+    )
+    blueprints = base_blueprints + tuple(
+        _generated_blueprint(spec)
+        for spec in generated_piece_specs()
     )
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
     under = ("underlayer.top", "underlayer.bottom")

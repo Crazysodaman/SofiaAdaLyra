@@ -301,6 +301,7 @@ class InteractionObservation:
                     "coverage": list(item.coverage),
                     "tail_clearance": item.tail_clearance,
                     "ear_clearance": item.ear_clearance,
+                    "private_only": item.private_only,
                 }
                 for item in items
             ]

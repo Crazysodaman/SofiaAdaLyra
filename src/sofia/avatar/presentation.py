@@ -208,8 +208,10 @@ class PresentationAuthority:
             if not isinstance(item_ids, tuple):
                 raise PresentationError("outfit item IDs must be tuples")
             outfit = wardrobe.selection(item_ids)
-            if not outfit.covered_default:
-                raise PresentationDenied("daily/public outfit must be covered")
+            if not outfit.covered_default or outfit.private_only:
+                raise PresentationDenied(
+                    "daily/public outfit must be covered and non-private"
+                )
             normalized[outfit_id] = outfit.item_ids
         _id(canonical_daily_outfit_id, "canonical daily outfit ID")
         if canonical_daily_outfit_id not in normalized:

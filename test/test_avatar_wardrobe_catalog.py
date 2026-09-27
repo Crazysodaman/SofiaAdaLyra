@@ -11,10 +11,11 @@ from sofia.avatar.wardrobe_catalog import (
 )
 
 
-def test_three_distinct_covered_presets_validate_against_actual_wardrobe():
+def test_covered_presets_validate_against_actual_wardrobe():
     pack = build_starter_wardrobe()
     assert {p.outfit_id for p in pack.presets} == {
-        "engineer.signature", "lounge.relaxed", "fallback.covered"
+        "engineer.signature", "engineer.light",
+        "lounge.relaxed", "fallback.covered",
     }
     assert all(pack.wardrobe.selection(p.item_ids).covered_default for p in pack.presets)
 
