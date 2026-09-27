@@ -19,6 +19,7 @@ from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ThoughtAgent
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("SOFIA_LIVE_THOUGHT_MODEL", "").strip(),
     reason="Set SOFIA_LIVE_THOUGHT_MODEL to opt into a real Ollama request.",
