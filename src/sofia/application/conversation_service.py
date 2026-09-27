@@ -63,8 +63,10 @@ class ConversationService:
             runtime.configuration.state_path
         )
         self._relationship_store = RelationshipStore(
-            runtime.configuration.state_path
+            runtime.configuration.state_path,
+            state_plane=runtime.state_plane,
         )
+        self._learning_coordinator = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -80,6 +82,18 @@ class ConversationService:
     @property
     def session(self) -> ConversationSession | None:
         return self._session
+
+    def set_learning_coordinator(self, coordinator) -> None:
+        """Install the application-owned post-persistence learning hook."""
+        if coordinator is not None:
+            from sofia.application.conversation_learning import (
+                ConversationLearningCoordinator,
+            )
+            if not isinstance(coordinator, ConversationLearningCoordinator):
+                raise TypeError(
+                    "coordinator must be ConversationLearningCoordinator or None"
+                )
+        self._learning_coordinator = coordinator
 
     @property
     def session_id(self) -> str | None:
@@ -300,6 +314,13 @@ class ConversationService:
         )
 
         self._conversation_store.save(user_message)
+
+        learning = getattr(self, "_learning_coordinator", None)
+        if learning is not None:
+            learning.observe_user_message(
+                message=user_message,
+                principal=principal,
+            )
 
         if principal is not None:
             self._relationship_store.observe(
