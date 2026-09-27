@@ -1,7 +1,6 @@
 """Tkinter master settings window for the Sofía desktop/tray client."""
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import datetime, timezone
 import sqlite3
 
@@ -13,6 +12,7 @@ from .control_center import (
     MASTER_SETTINGS_SECTIONS,
     RemoteChatMode,
 )
+from .windows_startup import configure_windows_startup
 
 
 def _ensure_state_database(path) -> None:
@@ -92,6 +92,11 @@ def run_settings_window() -> int:
     ttk.Entry(models, textvariable=llm_service).pack(anchor="w", fill="x", pady=(2, 8))
     ttk.Label(models, text="Sofía runtime service name").pack(anchor="w")
     ttk.Entry(models, textvariable=runtime_service).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(
+        models,
+        text="LLM start/stop/restart is independent from the Sofía runtime. Model unload keeps the Ollama service running.",
+        wraplength=680,
+    ).pack(anchor="w")
 
     descriptions = {
         "Sofía": "Identity/personality presentation controls live here without granting protected-state mutation.",
@@ -124,6 +129,7 @@ def run_settings_window() -> int:
                 runtime_service_name=runtime_service.get().strip(),
                 llm_service_name=llm_service.get().strip(),
             )
+            configure_windows_startup(updated.start_with_windows)
             store.save(updated, at=datetime.now(timezone.utc))
             status.set("Saved")
         except Exception as exc:
