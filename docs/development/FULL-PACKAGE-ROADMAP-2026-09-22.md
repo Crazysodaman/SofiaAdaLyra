@@ -176,6 +176,24 @@ Desktop, Discord, future voice/mobile, ACT and background reflection may all pro
 Recovery must work from clean hardware with the normal runtime unavailable: obtain independently held recovery credentials, verify signed release and trust roots, restore/verify State Plane and protected state, re-establish fencing/leader epoch, reconcile uncertain external effects, prove canonical identity and only then resume authoritative execution. Recovery must not depend solely on Discord, the failed database primary or credentials stored only inside the failed Sofía installation.
 
 
+## Fleet/self-update hardening checklist
+
+The following reliability requirements are explicit roadmap gates, not optional implementation details:
+
+- **Automatic bad-release rollback:** repeated post-update crash/readiness failure escalates from process restart to release rollback or controlled forward-fix.
+- **Fleet protocol compatibility:** CORE/runtime, Fleet agent and remote control protocol versions must be checked before either side is activated.
+- **Control-agent independence:** the small Fleet supervisor/control agent is separately versioned and independently updateable/rollbackable so a bad Sofía release cannot disable its own recovery path.
+- **Semantic corruption checks:** verify domain invariants, not just SQLite/SQL structural integrity. Examples include valid memory provenance, principal ownership, grant/revocation consistency, conversation/session references and deployment lineage.
+- **Append-only audit evidence:** approvals, protected changes, releases, migrations, fencing transitions, emergency stops and decommission decisions use tamper-evident append-only history; corrections append rather than overwrite.
+- **Large-asset separation:** LLM weights, avatar/voice/render assets, generated artifacts and backups are content-addressed objects/files with verified hashes referenced by State Plane metadata rather than bloating transactional database rows.
+- **Bare-metal recovery:** documented clean-host recovery must work with every normal Sofía runtime unavailable.
+- **Offline/degraded behavior:** State Plane loss may allow clearly marked local drafts/read-only degraded behavior, but must not create competing authoritative memories, grants, actions, deployments or protected revisions.
+- **Global autonomy budget:** quotas and background-work budgets are Fleet-wide so adding workers does not multiply autonomous activity.
+- **Supply-chain verification:** dependency/runtime locks, artifact hashes, provenance, vulnerability/security checks and SBOM evidence are part of release acceptance.
+- **Garbage collection/retention:** old releases, models/assets, backups, logs, snapshots and evidence have explicit retention/GC policy that preserves rollback, legal/privacy requirements and forensic history.
+- **Database constraints:** the future authoritative relational schema uses foreign keys, uniqueness/idempotency, ownership/audience constraints, guarded append-only records, valid state transitions and transactional boundaries where the domain requires them.
+
+
 ## Per-package roadmap: 20 packages
 
 ### 01. PKG-CORE | cognition, identity, continuity
