@@ -275,3 +275,37 @@ class ReleaseManager:
                 pass
             raise
         return document
+
+
+
+class ReleaseRecoveryHook:
+    """Narrow crash-loop recovery adapter for LocalRuntimeSupervisor."""
+
+    def __init__(self, manager: ReleaseManager) -> None:
+        if not isinstance(manager, ReleaseManager):
+            raise TypeError("manager must be a ReleaseManager")
+        self.manager = manager
+
+    def __call__(self, now: datetime, reason: str) -> str | None:
+        if not isinstance(now, datetime):
+            raise TypeError("now must be a datetime")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        active = self.manager.store.active()
+        if active is None:
+            return None
+        failed_release_id = active.get("release_id")
+        previous_id = active.get("previous_release_id")
+        if (
+            not isinstance(failed_release_id, str)
+            or not failed_release_id
+            or not isinstance(previous_id, str)
+            or not previous_id
+        ):
+            return None
+        self.manager.rollback_failed_release(
+            failed_release_id=failed_release_id,
+            reason=reason,
+            now=now,
+        )
+        return previous_id
