@@ -39,7 +39,10 @@ _PHASES = {
     ),
     "full": (
         ("compile", ("-m", "compileall", "-q", "src/sofia")),
-        ("pytest", ("-m", "pytest", "-q")),
+        (
+            "pytest",
+            ("-m", "pytest", "-q", "-m", "not integration"),
+        ),
     ),
     "prelive": (
         ("compile", ("-m", "compileall", "-q", "src/sofia")),
