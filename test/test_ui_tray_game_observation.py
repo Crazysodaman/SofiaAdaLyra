@@ -2,7 +2,7 @@ from datetime import datetime,timezone
 from types import SimpleNamespace
 
 from sofia.ops.activity import ActivityMode
-from sofia.system.model import ProcessInspection,SystemCapabilityResultKind
+from sofia.system.model import (\n    ProcessInspection,\n    SystemCapability,\n    SystemCapabilityName,\n    SystemCapabilityResultKind,\n)
 from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
 
@@ -16,7 +16,10 @@ def test_auto_mode_records_detected_steam_game_without_web_api():
     )
     recorded=[]
     app.activity_store=SimpleNamespace(record=recorded.append)
-    app._process_capability=object()
+    app._process_capability=SystemCapability(
+        SystemCapabilityName.PROCESS_INSPECT,
+        "test process inspection",
+    )
     app._system_backend=SimpleNamespace(
         execute=lambda request:SimpleNamespace(
             kind=SystemCapabilityResultKind.SUCCESS,
