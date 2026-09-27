@@ -54,6 +54,7 @@ from sofia.machine.location_state import StatePlaneMachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.safe.capability_policy import protected_capability_extras
 from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
@@ -222,8 +223,10 @@ def compose(
         knowledge_lifecycle,
         KnowledgeAccessStore(state_path),
     )
+    execution_approval_verifier = ExecutionApprovalVerifier(state_path)
     knowledge_capabilities = KnowledgeCapabilitySet(
-        knowledge_service
+        knowledge_service,
+        approval_verifier=execution_approval_verifier,
     )
 
     dev_approval_verifier = DevApprovalVerifier(state_path)
