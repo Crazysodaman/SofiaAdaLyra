@@ -165,6 +165,24 @@ class ReflectionJournal:
             "CREATE INDEX IF NOT EXISTS reflection_outbox_status "
             "ON reflection_outbox(status, queued_at)"
         )
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS reflection_followups (
+                followup_id TEXT PRIMARY KEY,
+                thought_id TEXT NOT NULL REFERENCES reflection_thoughts(thought_id),
+                scope_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                reconsider_after TEXT NOT NULL,
+                salience REAL NOT NULL,
+                status TEXT NOT NULL CHECK(
+                    status IN ('deferred','bridged','dismissed')
+                ),
+                UNIQUE(thought_id, scope_key)
+            )
+        """)
+        db.execute(
+            "CREATE INDEX IF NOT EXISTS reflection_followups_due "
+            "ON reflection_followups(status, reconsider_after)"
+        )
         db.execute(
             "CREATE INDEX IF NOT EXISTS reflection_thoughts_scope_time "
             "ON reflection_thoughts(scope_key, created_at)"
@@ -417,14 +435,22 @@ class ReflectionJournal:
                 )
 
         created: list[str] = []
-        scope_token = sha256(
-            resolved_scope.key.encode("utf-8")
-        ).hexdigest()[:12]
+        scope_token = (
+            None
+            if resolved_scope.kind is ScopeKind.GLOBAL
+            else sha256(
+                resolved_scope.key.encode("utf-8")
+            ).hexdigest()[:12]
+        )
         for (kind, key), group in sorted(
             buckets.items(),
             key=lambda item: item[0][1:] + item[0][:1],
         ):
-            identifier = f"reflection:{scope_token}:{kind}:{key}"
+            identifier = (
+                f"reflection:{kind}:{key}"
+                if scope_token is None
+                else f"reflection:{scope_token}:{kind}:{key}"
+            )
             refs = tuple(event[0] for event in group[:16])
             emotions = tuple(
                 dict.fromkeys(
