@@ -48,6 +48,7 @@ _ALLOWED_CONTEXT = frozenset({
     "location_label",
     "host_id",
     "activity_mode",
+    "weekday_hour",
 })
 
 
