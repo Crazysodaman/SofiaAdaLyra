@@ -261,4 +261,11 @@ def tray_command_enabled(command: TrayCommand, status: TrayStatus) -> bool:
         TrayCommand.LLM_RESTART,
     }:
         return status.llm_state != "not_found"
+    if command is TrayCommand.RUNTIME_START:
+        return status.runtime_state != "running"
+    if command in {
+        TrayCommand.RUNTIME_STOP,
+        TrayCommand.RUNTIME_RESTART,
+    }:
+        return status.runtime_state == "running"
     return True
