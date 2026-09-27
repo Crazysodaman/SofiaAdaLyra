@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 from threading import RLock
 
-from sofia.memory.chatgpt_import import ChatGPTMemoryImportBatch
+from sofia.memory.chatgpt_import import ChatGPTMemoryImportBatch, ChatGPTMemoryImportItem
 
 
 class ChatGPTMemoryImportStore:
@@ -134,6 +134,51 @@ class ChatGPTMemoryImportStore:
                         ),
                     )
         return True
+
+
+    def load_batch(
+        self,
+        source_digest: str,
+    ) -> ChatGPTMemoryImportBatch | None:
+        if not isinstance(source_digest, str) or not source_digest.strip():
+            raise ValueError("source_digest must be a nonempty string")
+        with self._lock:
+            db = self._require_connection()
+            batch = db.execute(
+                """
+                SELECT observed_at
+                FROM chatgpt_memory_import_batch
+                WHERE source_digest = ?
+                """,
+                (source_digest,),
+            ).fetchone()
+            if batch is None:
+                return None
+            rows = db.execute(
+                """
+                SELECT source_id, content, source_created_at
+                FROM chatgpt_memory_import_item
+                WHERE source_digest = ?
+                ORDER BY ordinal ASC
+                """,
+                (source_digest,),
+            ).fetchall()
+        return ChatGPTMemoryImportBatch(
+            source_digest=source_digest,
+            observed_at=datetime.fromisoformat(batch[0]),
+            items=tuple(
+                ChatGPTMemoryImportItem(
+                    source_id=row[0],
+                    content=row[1],
+                    source_created_at=(
+                        None
+                        if row[2] is None
+                        else datetime.fromisoformat(row[2])
+                    ),
+                )
+                for row in rows
+            ),
+        )
 
     def has_batch(self, source_digest: str) -> bool:
         if not isinstance(source_digest, str) or not source_digest.strip():
