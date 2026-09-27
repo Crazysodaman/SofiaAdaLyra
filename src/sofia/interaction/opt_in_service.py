@@ -14,14 +14,24 @@ from sofia.interaction.live_offer_service import (
 )
 from sofia.interaction.question_clarification_service import respond_reviewed_hug_question
 from sofia.interaction.reviewed_hug_question import is_reviewed_hug_question
+from sofia.social.model import PrincipalContext
 
 
 class OptInInteractionConversationService(ExpandedConversationService):
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: PrincipalContext | None = None,
+    ):
         if not staged_offers_enabled():
-            return super().respond(content)
+            return super().respond(content, principal=principal)
         if content == OFFER:
-            return respond_staged_offer(self, content)
+            return respond_staged_offer(
+                self, content, principal=principal
+            )
         if is_reviewed_hug_question(content):
-            return respond_reviewed_hug_question(self, content)
-        return super().respond(content)
+            return respond_reviewed_hug_question(
+                self, content, principal=principal
+            )
+        return super().respond(content, principal=principal)
