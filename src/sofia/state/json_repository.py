@@ -156,6 +156,40 @@ class JsonStateRepository:
             expected_revision=None if existing is None else existing.revision,
         )
 
+    def compare_and_put(
+        self,
+        key: str,
+        value: dict[str, Any],
+        *,
+        expected_revision: int,
+        updated_at: datetime,
+        source: str,
+        principal_id: str | None = None,
+        audience: str | None = None,
+    ) -> StateRecord:
+        if self.spec.append_only:
+            raise PermissionError(
+                f"{self.spec.name} is append-only"
+            )
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("expected_revision must be a positive integer")
+        state_key = self._key(
+            key,
+            principal_id=principal_id,
+            audience=audience,
+        )
+        return self.state_plane.write(
+            StateRecord(
+                key=state_key,
+                state_class=self.spec.state_class,
+                revision=expected_revision + 1,
+                value=_encode(value),
+                updated_at=updated_at,
+                source=source,
+            ),
+            expected_revision=expected_revision,
+        )
+
     def list(
         self,
         *,
