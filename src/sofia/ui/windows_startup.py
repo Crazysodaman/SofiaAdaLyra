@@ -27,7 +27,7 @@ def configure_windows_startup(enabled: bool) -> None:
         raise WindowsStartupUnavailable("Windows startup registration requires Windows")
     import winreg
 
-    with winreg.OpenKey(
+    with winreg.CreateKeyEx(
         winreg.HKEY_CURRENT_USER,
         _RUN_KEY,
         0,
