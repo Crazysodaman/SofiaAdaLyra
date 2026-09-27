@@ -45,10 +45,16 @@ def respond_reviewed_hug_question(
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
-            service._after_user_message_saved(
-                message=user,
-                principal=principal,
+            after_saved = getattr(
+                service,
+                "_after_user_message_saved",
+                None,
             )
+            if after_saved is not None:
+                after_saved(
+                    message=user,
+                    principal=principal,
+                )
             blocked = _policy_gate(state_path=path, session_id=session_id)
             result = (GuardedOfferResult(status=blocked) if blocked is not None else
                       GuardedOfferResult(
