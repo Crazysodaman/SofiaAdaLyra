@@ -34,6 +34,7 @@ class CognitiveToolBinding:
     capability_name: str
     requested_scope: Any = None
     fixed_parameters: tuple[tuple[str, Any], ...] = ()
+    include_principal_metadata: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -53,6 +54,11 @@ class CognitiveToolBinding:
         if not self.capability_name.strip():
             raise ValueError(
                 "CognitiveToolBinding capability_name must not be empty."
+            )
+
+        if not isinstance(self.include_principal_metadata, bool):
+            raise TypeError(
+                "CognitiveToolBinding include_principal_metadata must be boolean."
             )
 
         if not isinstance(self.fixed_parameters, tuple):
@@ -192,7 +198,7 @@ class CognitiveToolDispatcher:
             raise CognitiveToolError(
                 "Cognitive tool attempted to supply host-controlled identity metadata."
             )
-        if principal is not None:
+        if binding.include_principal_metadata and principal is not None:
             if not isinstance(principal, PrincipalContext):
                 raise TypeError("principal must be a PrincipalContext or None")
             parameters["__principal_id"] = principal.principal_id
