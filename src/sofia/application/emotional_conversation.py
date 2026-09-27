@@ -114,7 +114,13 @@ class EmotionalConversationService(ConversationService):
         return (self._active_user_requests == 0
                 and monotonic() - self._last_user_activity >= idle_seconds)
 
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal=None,
+        audience=None,
+    ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
         self._active_user_requests += 1
@@ -122,7 +128,11 @@ class EmotionalConversationService(ConversationService):
             with self._model_lock:
                 acquired = monotonic()
                 try:
-                    return super().respond(content)
+                    return super().respond(
+                        content,
+                        principal=principal,
+                        audience=audience,
+                    )
                 finally:
                     # Includes request construction/persistence as well as the
                     # model call; Ollama's own timer isolates inference below.
