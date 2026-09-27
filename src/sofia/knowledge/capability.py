@@ -1,13 +1,45 @@
 """Capability surface for the operational KNOW service."""
 from __future__ import annotations
+from datetime import datetime, timezone
 from typing import Any
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from .service import KnowledgeService
 
 class KnowledgeCapabilitySet:
-    def __init__(self,service:KnowledgeService)->None: self.service=service
+    _MUTATING=frozenset({
+        "knowledge.ingest.text",
+        "knowledge.ingest.pdf",
+        "knowledge.document.write",
+    })
+
+    def __init__(
+        self,
+        service:KnowledgeService,
+        *,
+        approval_verifier:ExecutionApprovalVerifier,
+    )->None:
+        if not isinstance(approval_verifier,ExecutionApprovalVerifier):
+            raise TypeError("approval_verifier must be ExecutionApprovalVerifier")
+        self.service=service
+        self.approval_verifier=approval_verifier
+
+    def _authorize(self,name:str,p:dict[str,Any])->None:
+        if name not in self._MUTATING:
+            return
+        approval_id=p.pop("approval_id",None)
+        approval_parameters=dict(p)
+        approval_parameters.pop("__principal_id",None)
+        approval_parameters.pop("__audience_id",None)
+        approval_parameters.pop("__audience_kind",None)
+        self.approval_verifier.consume(
+            approval_id=approval_id or "",
+            capability=name,
+            parameters=approval_parameters,
+            now=datetime.now(timezone.utc),
+        )
     @staticmethod
     def capabilities()->tuple[Capability,...]:
         return (
@@ -19,6 +51,7 @@ class KnowledgeCapabilitySet:
         )
     def execute(self,request:CapabilityRequest)->Any:
         p=dict(request.parameters); name=request.capability.name
+        self._authorize(name,p)
         principal_id=p.pop("__principal_id",None)
         audience_id=p.pop("__audience_id",None)
         p.pop("__audience_kind",None)
@@ -43,10 +76,19 @@ class KnowledgeCapabilitySet:
 
 def create_knowledge_tool_bindings()->tuple[CognitiveToolBinding,...]:
     def binding(tool_name,capability_name,description,properties,required=()):
+        props=dict(properties)
+        req=list(required)
+        if capability_name in {
+            "knowledge.ingest.text",
+            "knowledge.ingest.pdf",
+            "knowledge.document.write",
+        }:
+            props["approval_id"]={"type":"string"}
+            req.append("approval_id")
         return CognitiveToolBinding(
             definition=CognitiveToolDefinition(
                 name=tool_name,description=description,
-                parameters={"type":"object","properties":properties,"required":list(required),"additionalProperties":False},
+                parameters={"type":"object","properties":props,"required":req,"additionalProperties":False},
             ),
             capability_name=capability_name,
             include_principal_metadata=True,
