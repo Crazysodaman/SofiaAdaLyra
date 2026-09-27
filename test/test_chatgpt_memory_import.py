@@ -73,6 +73,19 @@ def test_parser_preserves_exact_source_identity_and_timestamp():
     assert len(batch.source_digest) == 64
 
 
+def test_parser_accepts_plain_text_memory_summary():
+    batch = parse_chatgpt_memory_dump(
+        "- Sparks prefers clear chunked formatting.\n"
+        "- Sofía's canonical name is Sofía Ada Lyra.\n",
+        observed_at=datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert [item.content for item in batch.items] == [
+        "Sparks prefers clear chunked formatting.",
+        "Sofía's canonical name is Sofía Ada Lyra.",
+    ]
+
+
 def test_exact_import_is_durable_and_idempotent_across_restart(
     tmp_path: Path,
 ):
@@ -112,8 +125,9 @@ def test_import_proposes_sparks_scoped_memory_without_cognitive_visibility(
         )
         assert migration.candidates.status(candidate_id) is CandidateStatus.PROPOSED
 
+    memory_store = MemoryStore(state_path)
     memory = MemorySystem(
-        MemoryStore(state_path),
+        memory_store,
         candidate_store=migration.candidates,
     )
     assert memory.recall_relevant(
@@ -121,7 +135,7 @@ def test_import_proposes_sparks_scoped_memory_without_cognitive_visibility(
         principal=local_sparks_principal(),
     ) == ()
 
-    memory._store.close()
+    memory_store.close()
     migration.close()
     store.close()
 
