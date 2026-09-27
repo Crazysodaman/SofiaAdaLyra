@@ -216,6 +216,7 @@ def compose(
         filesystem_root,
         state_path,
         approval_verifier=dev_approval_verifier,
+        state_plane=state_plane,
     )
     dev_capabilities = DevCapabilitySet(
         dev_service
