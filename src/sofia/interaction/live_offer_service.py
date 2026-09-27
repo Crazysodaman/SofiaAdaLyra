@@ -110,6 +110,10 @@ def respond_staged_offer(
                 content=content, created_at=datetime.now(timezone.utc),
             )
             service._conversation_store.save(user)
+            service._after_user_message_saved(
+                message=user,
+                principal=principal,
+            )
             intent = parse_user_action(user.content, message_id=user.id)
             if (intent is None or intent.modality != 'offered'
                     or intent.action_id != 'hug'):
