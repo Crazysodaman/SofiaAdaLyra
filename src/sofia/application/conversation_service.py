@@ -21,6 +21,7 @@ from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.social.principal import Audience, AuthenticatedPrincipal
 
 
 class ConversationService:
@@ -229,6 +230,9 @@ class ConversationService:
     def respond(
         self,
         content: str,
+        *,
+        principal: AuthenticatedPrincipal | None = None,
+        audience: Audience | None = None,
     ) -> CognitiveResponse:
         """
         Persist a user message, process authorization or any
@@ -286,6 +290,8 @@ class ConversationService:
         response = self._runtime.respond(
             request,
             filesystem_results=filesystem_results,
+            principal=principal,
+            audience=audience,
         )
 
         assistant_message = ConversationMessage(
