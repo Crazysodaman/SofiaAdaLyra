@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from sofia.config.model import SofiaConfiguration
+from sofia.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION, SofiaConfiguration
 from sofia.dev.release_store import ReleaseStateStore
+from sofia.distributed.version import CURRENT_FLEET_PROTOCOL_VERSION
 from sofia.run.release import ReleaseManager
 from sofia.safe.audit import AuditChain
 from sofia.safe.release import ReleaseActivationGuard
@@ -57,4 +58,7 @@ def create_release_manager(
         store=ReleaseStateStore(state_plane),
         guard=ReleaseActivationGuard(verifier),
         audit=AuditChain(configuration.state_path),
+        state_schema_revision=state_plane.schema_revision,
+        fleet_protocol_version=CURRENT_FLEET_PROTOCOL_VERSION,
+        configuration_schema_version=CURRENT_CONFIGURATION_SCHEMA_VERSION,
     )
