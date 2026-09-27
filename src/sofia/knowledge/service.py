@@ -6,6 +6,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
+from .access import KnowledgeAccess, KnowledgeAccessStore, KnowledgeVisibility
 from .lifecycle import KnowledgeLifecycle
 from .model import KnowledgeDocument,KnowledgeFact,SourceKind
 from .persistence import JsonKnowledgeStore
@@ -14,8 +15,23 @@ from .retrieval import KnowledgeRetriever
 class KnowledgeServiceError(RuntimeError): pass
 
 class KnowledgeService:
-    def __init__(self,root:Path,store:JsonKnowledgeStore,lifecycle:KnowledgeLifecycle)->None:
+    def __init__(
+        self,
+        root:Path,
+        store:JsonKnowledgeStore,
+        lifecycle:KnowledgeLifecycle,
+        access:KnowledgeAccessStore,
+    )->None:
         self.root=root.resolve(); self.store=store; self.lifecycle=lifecycle
+        if not isinstance(access,KnowledgeAccessStore):
+            raise TypeError("access must be KnowledgeAccessStore")
+        self.access=access
+        for document in self.store.documents():
+            if self.access.get(document.document_id) is None:
+                self.access.set(KnowledgeAccess(
+                    document.document_id,
+                    KnowledgeVisibility.SHARED,
+                ))
     def _path(self,relative_path:str)->Path:
         if not isinstance(relative_path,str) or not relative_path.strip(): raise ValueError("relative_path required")
         candidate=(self.root/relative_path).resolve()
@@ -34,6 +50,16 @@ class KnowledgeService:
             return existing
         doc=KnowledgeDocument(document_id,source_kind,path.as_uri(),version,datetime.now(timezone.utc),digest,True)
         self.store.register_document(doc); self.lifecycle.register(document_id)
+        if self.access.get(document_id) is None:
+            self.access.set(KnowledgeAccess(
+                document_id,
+                KnowledgeVisibility.SHARED,
+            ))
+        if self.access.get(document_id) is None:
+            self.access.set(KnowledgeAccess(
+                document_id,
+                KnowledgeVisibility.SHARED,
+            ))
         lines=text.splitlines()
         chunks=[]; start=1
         for index in range(0,len(lines),40):
@@ -83,13 +109,33 @@ class KnowledgeService:
                     f"page {page_number}, lines {index+1}-{index+len(lines[index:index+40])}",datetime.now(timezone.utc))
                 self.store.record_fact(fact); fact_count+=1
         return {"document_id":doc.document_id,"source_uri":doc.source_uri,"version":doc.version,"facts":fact_count,"pages":len(reader.pages)}
-    def search(self,query:str,*,limit:int=10)->tuple[dict[str,Any],...]:
+    def search(
+        self,query:str,*,limit:int=10,
+        principal_id:str|None=None,audience_id:str|None=None,
+    )->tuple[dict[str,Any],...]:
         hits=KnowledgeRetriever(self.store,self.lifecycle).search(query,limit=limit)
+        hits=tuple(
+            h for h in hits
+            if self.access.permitted(
+                h.fact.document_id,
+                principal_id=principal_id,
+                audience_id=audience_id,
+            )
+        )
         return tuple({"fact_id":h.fact.fact_id,"document_id":h.fact.document_id,"statement":h.fact.statement,
             "locator":h.fact.locator,"source_uri":h.source_uri,"source_version":h.source_version,"score":h.score} for h in hits)
-    def document(self,document_id:str)->dict[str,Any]|None:
+    def document(
+        self,document_id:str,*,
+        principal_id:str|None=None,audience_id:str|None=None,
+    )->dict[str,Any]|None:
         doc=self.store.document(document_id)
         if doc is None: return None
+        if not self.access.permitted(
+            document_id,
+            principal_id=principal_id,
+            audience_id=audience_id,
+        ):
+            return None
         return {"document_id":doc.document_id,"source_kind":doc.source_kind.value,"source_uri":doc.source_uri,
             "version":doc.version,"retrieved_at":doc.retrieved_at.isoformat(),"content_hash":doc.content_hash,
             "active":self.lifecycle.active(document_id),
