@@ -17,6 +17,11 @@ class EngineeringCandidate:
     allowed_paths:tuple[str,...]
     tests_passed:bool|None
 
+    @property
+    def patch_digest(self) -> str:
+        """Content identity for the exact reviewed candidate patch."""
+        return sha256(self.patch.encode("utf-8")).hexdigest()
+
 class EngineeringWorkflow:
     def __init__(self,workspace:Path,executable:str="opencode")->None:
         self.workspace=workspace.resolve(); self.executable=executable
