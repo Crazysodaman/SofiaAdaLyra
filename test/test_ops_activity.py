@@ -147,12 +147,12 @@ def test_wallpaper_engine_and_steamvr_do_not_trigger_game_mode():
             ProcessInspection(
                 100,
                 "wallpaper32.exe",
-                r"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe",
+                r"C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\wallpaper32.exe",
             ),
             ProcessInspection(
                 101,
                 "vrserver.exe",
-                r"D:\\SteamLibrary\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe",
+                r"D:\SteamLibrary\steamapps\common\SteamVR\bin\win64\vrserver.exe",
             ),
         )
     )
@@ -166,17 +166,17 @@ def test_real_game_wins_when_steam_utilities_are_also_running():
             ProcessInspection(
                 100,
                 "wallpaper32.exe",
-                r"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe",
+                r"C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\wallpaper32.exe",
             ),
             ProcessInspection(
                 200,
                 "Spyro-Win64-Shipping.exe",
-                r"E:\\SteamLibrary\\steamapps\\common\\Spyro Reignited Trilogy\\Falcon\\Binaries\\Win64\\Spyro-Win64-Shipping.exe",
+                r"E:\SteamLibrary\steamapps\common\Spyro Reignited Trilogy\Falcon\Binaries\Win64\Spyro-Win64-Shipping.exe",
             ),
             ProcessInspection(
                 300,
                 "vrserver.exe",
-                r"D:\\SteamLibrary\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe",
+                r"D:\SteamLibrary\steamapps\common\SteamVR\bin\win64\vrserver.exe",
             ),
         )
     )
