@@ -78,6 +78,9 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "Stop-Process -Id $ManagedProcess.ProcessId" in script
     assert "Stop-Process -Id $StartedAgent.Id" in script
     assert "foreach ($Attempt in 1..5)" in script
+    assert "function Read-TextSafe" in script
+    assert "$StartedAgent.Refresh()" in script
+    assert "foreach ($Attempt in 1..15)" in script
     assert "Wait-Process -Id" not in script
     assert "icacls.exe" in script
     assert "*S-1-5-18:F" in script
