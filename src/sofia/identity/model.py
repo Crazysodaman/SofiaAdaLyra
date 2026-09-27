@@ -1,5 +1,11 @@
 ﻿from dataclasses import dataclass, field
+from enum import Enum
 from uuid import UUID, uuid4
+
+
+class IdentityBootstrapMode(str, Enum):
+    FIRST_BOOTSTRAP = "first_bootstrap"
+    REQUIRE_EXISTING = "require_existing"
 
 
 @dataclass(frozen=True)
