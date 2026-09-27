@@ -18,7 +18,9 @@ from .activity import ActivityMode,HostActivityObservation,HostActivityState,Hos
 from .bootstrap import (
     AgentPackage,AgentInstaller,BootstrapCandidate,BootstrapDisposition,BootstrapPlan,
     FleetBootstrapExecutor,FleetBootstrapPlanner,InstallAuthority,InstallReceipt,
+    InstalledAgentEvidence,
 )
+from .protocol import FleetProtocolVersion,FleetProtocolWindow
 
 __all__=[
     "HostLifecycle","HostTelemetry","FleetHost","WorkloadContract","WorkloadState",
@@ -34,5 +36,6 @@ __all__=[
     "WorkloadOrchestrator","FailoverCoordinator","ActivityMode","HostActivityObservation",
     "HostActivityState","HostActivityStore","detect_windows_game","AgentPackage","AgentInstaller",
     "BootstrapCandidate","BootstrapDisposition","BootstrapPlan","FleetBootstrapExecutor",
-    "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
+    "FleetBootstrapPlanner","InstallAuthority","InstallReceipt","InstalledAgentEvidence",
+    "FleetProtocolVersion","FleetProtocolWindow",
 ]
