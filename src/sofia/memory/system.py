@@ -127,7 +127,7 @@ class MemorySystem:
     ) -> tuple[MemoryRecord, ...]:
         candidate_store = self._candidate_store
 
-        if candidate_store is None:
+        if candidate_store is None or principal is None:
             return ()
 
         projection = retrieve_promoted(
