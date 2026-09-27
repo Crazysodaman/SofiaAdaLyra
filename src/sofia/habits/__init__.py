@@ -5,6 +5,7 @@ from .expectation import HabitExpectationEngine
 from .model import (
     CoverageState,
     ExpectationStatus,
+    HabitCadence,
     HabitExpectation,
     HabitObservation,
     HabitPattern,
@@ -19,6 +20,7 @@ from .store import HabitStore
 __all__ = [
     "CoverageState",
     "ExpectationStatus",
+    "HabitCadence",
     "HabitExpectation",
     "HabitLearningService",
     "HabitObservation",
