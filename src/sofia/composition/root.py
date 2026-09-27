@@ -26,6 +26,7 @@ from sofia.cognition.tools import (
     create_system_tool_bindings,
 )
 from sofia.config.model import SofiaConfiguration
+from sofia.config.reviewed_projection import apply_reviewed_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
@@ -137,12 +138,16 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
 def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
+    state_path = Path(configuration.state_path)
+    state_plane = SQLiteStatePlane(state_path)
+    configuration = apply_reviewed_configuration(
+        configuration,
+        state_plane,
+    )
     configuration = _configuration_with_persistent_host_location(
         configuration
     )
-    state_path = Path(configuration.state_path)
     filesystem_root = Path(configuration.filesystem_root)
-    state_plane = SQLiteStatePlane(state_path)
 
     constitution_store = ConstitutionStore(
         Path(configuration.constitution_path)
