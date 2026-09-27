@@ -20,6 +20,7 @@ from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.core import InteractionDecision, _DISCUSSION
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
+from sofia.interaction.semantic_context import interaction_class
 from sofia.interaction.live_guard import (
     COMPOSITE_GESTURE_REPLY, MIXED_CONTROL_REPLY, RESUME_CONTROL_REPLY,
     STOP_CONTROL_REPLY, STOPPED_GESTURE_REPLY, mixed_interaction_control,
@@ -125,6 +126,10 @@ def interaction_prompt(decision: InteractionDecision) -> str:
         "policy_status": decision.status,
         "policy_reason": decision.reason,
         "possible_modeled_emotions_not_actual_feelings": decision.emotion_options,
+        "interaction_class": interaction_class(
+            event.gesture,
+            region_id=event.region_id,
+        ).value,
         "optional_representational_text_cues": decision.text_cues,
         "interaction_preference_evidence": "unspecified",
         "willingness_state": "undetermined",
