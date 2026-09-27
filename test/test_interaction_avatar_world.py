@@ -110,10 +110,18 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
         assert application.conversation.respond(text).content == 'Isolated response.'
         assert len(captured) == 1
         request = captured[0]
-        # Reviewed INTERACT turns are deliberately tool-free. Conversation can
-        # describe represented interaction without gaining execution authority.
-        assert request.tools == ()
-        assert request.allow_tools is False
+        if kind in {"gesture", "offer"}:
+            # Reviewed represented interactions are deliberately tool-free.
+            # Conversation can describe them without gaining execution authority.
+            assert request.tools == ()
+            assert request.allow_tools is False
+        else:
+            # Actual-world capability questions keep the normal authorized tool
+            # surface so verified sensors/hardware can be inspected when needed.
+            assert request.tools
+            tool_names = {tool.name for tool in request.tools}
+            assert "tool_catalog" in tool_names
+            assert len(tool_names) == len(request.tools)
         assert request.messages[-1].role is CognitiveRole.USER
         assert request.messages[-1].content == text
         system = '\n'.join(message.content for message in request.messages
