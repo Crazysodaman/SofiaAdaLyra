@@ -20,9 +20,12 @@ class KnowledgeService:
         root:Path,
         store:JsonKnowledgeStore,
         lifecycle:KnowledgeLifecycle,
-        access:KnowledgeAccessStore,
+        access:KnowledgeAccessStore|None=None,
     )->None:
         self.root=root.resolve(); self.store=store; self.lifecycle=lifecycle
+        self._legacy_shared_access = access is None
+        if access is None:
+            access=KnowledgeAccessStore(self.root/".sofia-knowledge-access.db")
         if not isinstance(access,KnowledgeAccessStore):
             raise TypeError("access must be KnowledgeAccessStore")
         self.access=access
@@ -36,6 +39,11 @@ class KnowledgeService:
         if self.access.get(document_id) is not None:
             return
         if principal_id is None or audience_id is None:
+            if self._legacy_shared_access:
+                self.access.set(KnowledgeAccess(
+                    document_id,
+                    KnowledgeVisibility.SHARED,
+                ))
             return
         self.access.set(KnowledgeAccess(
             document_id,
