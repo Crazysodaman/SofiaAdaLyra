@@ -8,6 +8,8 @@
 
 > **PKG-UI acceptance — 2026-09-26:** PR #115 (`381ac9a`) merged the canonical current-main text/workbench foundation and PR #116 (`7f072861`) merged the Windows desktop workbench. The accepted UI includes canonical conversation routing, durable drafts, private workbench state, single-owner application threading, adaptive ENVIRONMENT/AVATAR/emotion theme projection, shallow chamfered HUD controls and reviewed Quick Tools. The closing Windows repair gate passed **90/90** and Sparks reported the final full repository suite passing before merge. Renderer, voice, mobile/web and real cancellation remain separate gates.
 
+> **State/Release architecture reconciliation — 2026-09-27:** Fleet mobility, one logical shared database, and governed self-improvement are now tracked as two cross-package contracts rather than new packages. **State Plane** ownership is centered on MEM with SOCIAL/RUN/OPS/SAFE support; **Release/Integrity Plane** ownership is centered on DEV/EVOLVE with SAFE/VERIFY/OPS/RUN enforcement. Immediate gaps found by the audit include fragmented SQLite+JSON/file state, no central schema migration coordinator, source/runtime/protected-state mixing, production `TestActionExecutor`, no immutable signed whole-Sofía release manifest, no model/dependency digest pinning, insufficient independent installed-agent attestation, and no safe new-node rule preventing accidental creation of a second canonical identity.
+
 # Sofía Ada Lyra | master readiness index
 
 **Updated:** 2026-09-26 (America/Chicago). **Status:** documentation and implementation-state index, not evidence of deployed capability. PR #1 and the roadmap reconciliation PR #4 are merged. The package roster is now **20 packages** after adding PKG-ENVIRONMENT; watchdog and replicated-database reliability remain cross-package architecture rather than extra packages.
@@ -38,6 +40,42 @@
 
 Never combine test counts from unrelated revisions into a fictional mega-pass. Reconfirm actual PR heads, CI and live evidence before changing these states.
 
+## State Plane + Release/Integrity Plane readiness
+
+These are **architecture workstreams across the existing 20 packages**, not new package numbers.
+
+### State Plane
+
+**Goal:** one logical authoritative Sofía state shared by eligible runtimes, with strict ownership and least privilege.
+
+- **CORE:** canonical identity bootstrap and configuration precedence. A new/rebuilt node must verify/join the existing Sofía identity, never silently mint a replacement identity because a local file is missing.
+- **MEM:** backend-neutral storage boundary, authoritative-state inventory, shared database semantics, schema/version migration and cross-store consistency.
+- **SOCIAL:** principal/audience ownership on all person-scoped state.
+- **RUN:** single writer/runtime leadership, global event ordering, monotonic fencing, safe degraded/offline behavior and fleet-wide background budgets.
+- **OPS:** placement of data-bearing nodes, replica health, convergence, machine state and workload locality.
+- **SAFE:** per-service database roles, secrets isolation, trust roots, revocations, protected state and out-of-band recovery.
+- **CLEAN:** separate source-controlled installation files from mutable runtime/protected/cache/log state and preserve migration/rollback.
+- **VERIFY:** restore, corruption, stale-replica, partition, migration compatibility and bare-metal recovery evidence.
+- **UI/ENVIRONMENT/AVATAR/KNOW/ACT/REL:** migrate only their authoritative roaming state; keep caches, device handles and large immutable assets out of transactional state where appropriate.
+
+**State classes:** shared authoritative state; protected trust state; secrets; immutable/content-addressed artifacts; local ephemeral/rebuildable observations.
+
+### Release/Integrity Plane
+
+**Goal:** Sofía improves herself by producing and deploying an exact verified release, never by propagating whichever mutable working tree happens to be on a host.
+
+- **DEV:** isolated candidate build, dependency/runtime lock, hashes, provenance/SBOM and reproducibility.
+- **EVOLVE:** governed proposal/revision lineage and separately protected amendments.
+- **SAFE:** release-signing trust, anti-rollback policy, protected verifier/emergency-stop/fencing/recovery roots and approval tiers.
+- **VERIFY:** exact-revision tests, migration/rollback compatibility, corrupt-artifact/supply-chain negatives and release evidence.
+- **OPS:** canary/wave rollout, installed-agent independent attestation, fleet release convergence and corrupt/outdated/incompatible quarantine.
+- **RUN:** activation, health/readiness, crash-loop detection, release rollback/forward-fix and authoritative endpoint handoff.
+- **NET:** compatible authenticated transport/protocol negotiation; transport trust never becomes release or database authority.
+- **CORE/UI/AVATAR:** model/client/asset compatibility is bound into the release manifest rather than inferred from a friendly version string.
+
+**Minimum release manifest:** release ID, Git revision, application/package version, runtime version, dependency lock digest, database schema compatibility, Fleet protocol/agent compatibility, model/provider identity and artifact digest where available, Constitution/protected-state compatibility, config schema, asset digests and signature.
+
+
 ## Per-package readiness and immediate next gate
 
 | Order | Package | Current evidence-based location/status | Next gate |
@@ -62,6 +100,32 @@ Never combine test counts from unrelated revisions into a fictional mega-pass. R
 | 20 | ENVIRONMENT | **Accepted foundation via PR #110 + PR #111.** Shared clock/environment projection, configured/current USER/SITE/HOST evidence, persistent per-machine HOST location, timezone/DST, season/daylight, provider-neutral weather/forecast/indoor observations, deterministic queries, HA bridge, AVATAR consumption and the narrow NWS route pinned to `api.weather.gov` under `environment.nws.read` are on `main`; supervised live NWS acceptance passed. | Optional live Home Assistant canary after explicit `environment.home_assistant.read`; later general browsing/search, arbitrary geocoding, NWS alert→ACT delivery, and fleet-managed location replication remain separate gates. |
 | Gate | SAFE | Authority/integrity foundations; disclosure preflight draft PR #18 | Real identity, secrets, revocation, independent stop, backups/restore, fencing and protected exact-device approvals. |
 | Gate | VERIFY | Active candidate draft PR #8; PR #10 superseded | Current-revision live negative/security and failure tests, integrated suite, restore, latency, RPO/RTO and soak evidence. |
+
+## 2026-09-27 package assignment additions
+
+| Package | Newly assigned/strengthened responsibility from audit |
+| --- | --- |
+| **CORE** | Canonical Fleet identity bootstrap; configuration precedence/provenance; adaptive cognition remains separate from host identity. |
+| **INTERACT** | Global interaction causation/correlation metadata and foreground priority semantics consumed by RUN. |
+| **MEM** | State Plane abstraction, schema migration, semantic integrity, one logical shared state and recovery consistency. |
+| **SOCIAL** | Principal/audience ownership for shared rows, caches, memories and relationship state. |
+| **NET** | Protocol compatibility and authenticated transport only; no implicit database or release authority. |
+| **UI** | Shared settings backed by authoritative configuration, explicit local overrides, offline queue/degraded behavior, voice remains a later UI workstream. |
+| **RUN** | Cross-host leader/writer fencing, clock uncertainty, global event ordering, crash-loop release rollback and fleet-wide autonomy budgets. |
+| **OPS** | Canary rollout, fleet convergence, independently verified installed-agent identity, artifact distribution and content-addressed asset availability. |
+| **ACT** | Fleet-wide rather than per-worker outreach budgets; durable causation/idempotency against shared state. |
+| **REL** | Relationship state is principal-bound and migrates through the State Plane, not machine-local files. |
+| **AVATAR** | Roaming presentation metadata in State Plane; large renderer/assets content-addressed and digest-verified. |
+| **DEV** | Reproducible candidate releases, dependency locks, build/runtime provenance and immutable artifact generation. |
+| **BODY** | Physical controller firmware/calibration compatibility becomes a separately verified release/asset dependency before motion. |
+| **EVOLVE** | Self-improvement terminates in a governed release proposal; higher-trust verification/signing/fencing roots remain independently controlled. |
+| **CLEAN** | Separate source, runtime state, protected state, secrets, cache and logs; retire direct source-tree mutation assumptions. |
+| **KNOW** | Knowledge metadata/provenance may roam in State Plane; large/rebuildable indexes can remain derived/content-addressed. |
+| **INTEGRATE** | Typed State Plane/database adapters and least-privilege service roles; no generic shared DB credential. |
+| **SAFE** | Trust anchors, signing keys, secrets custody, anti-rollback, tamper-evident audit, protected execution base and bare-metal recovery. |
+| **VERIFY** | Upgrade/downgrade/migration tests, signature/supply-chain negatives, semantic DB integrity, corruption/failover/restore and convergence proof. |
+| **ENVIRONMENT** | Shared configured environment state with provenance; current observations/caches stay freshness-bound and may remain local/derived. |
+
 
 ## Named workstreams, not extra packages
 
