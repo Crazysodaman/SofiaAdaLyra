@@ -26,6 +26,7 @@ from sofia.operational.model import (
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import SofiaCoreState
 from sofia.self_model.operational import SofiaOperationalSelfModel
+from sofia.social.principal import Audience, AuthenticatedPrincipal
 from sofia.system.knowledge import (
     SystemCapabilityKnowledge,
     SystemCapabilityKnowledgeRecord,
@@ -43,6 +44,8 @@ class CognitiveContext:
     grounding: CognitiveGroundingContract = (
         DEFAULT_COGNITIVE_GROUNDING_CONTRACT
     )
+    principal: AuthenticatedPrincipal | None = None
+    audience: Audience | None = None
     identity: SofiaIdentity | None = None
     personality: PersonalityProfile | None = None
     memories: tuple[MemoryRecord, ...] = ()
@@ -73,6 +76,35 @@ class CognitiveContext:
             raise TypeError(
                 "CognitiveContext grounding must be a "
                 "CognitiveGroundingContract."
+            )
+
+        if (
+            self.principal is not None
+            and not isinstance(self.principal, AuthenticatedPrincipal)
+        ):
+            raise TypeError(
+                "CognitiveContext principal must be an "
+                "AuthenticatedPrincipal or None."
+            )
+
+        if (
+            self.audience is not None
+            and not isinstance(self.audience, Audience)
+        ):
+            raise TypeError(
+                "CognitiveContext audience must be an Audience or None."
+            )
+
+        if (
+            self.principal is not None
+            and self.audience is not None
+            and self.audience.member_principal_ids
+            and self.principal.principal_id
+            not in self.audience.member_principal_ids
+        ):
+            raise ValueError(
+                "CognitiveContext principal is not a member of the "
+                "supplied audience."
             )
 
         if (
