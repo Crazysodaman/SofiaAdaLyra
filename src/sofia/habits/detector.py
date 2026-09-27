@@ -133,6 +133,19 @@ class HabitPatternDetector:
                         context_value,
                     )
                 ].append(item)
+            weekday = item.context_value("weekday")
+            hour_bucket = item.context_value("hour_bucket")
+            if weekday is not None and hour_bucket is not None:
+                groups[
+                    (
+                        item.principal_id,
+                        item.audience_id,
+                        item.kind,
+                        item.value,
+                        "weekday_hour",
+                        f"{weekday}|{hour_bucket}",
+                    )
+                ].append(item)
 
         patterns: list[HabitPattern] = []
         for (
