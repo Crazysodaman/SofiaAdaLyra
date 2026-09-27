@@ -15,7 +15,7 @@ def test_every_test_file_has_package_ownership() -> None:
     assert missing == []
 
 
-def test_representative_cross_package_ownership() -> None:
+def test_representative_cross_package_ownership(tmp_path: Path) -> None:
     root = Path(__file__).parent
     assert {
         "pkg_ops",
@@ -23,7 +23,7 @@ def test_representative_cross_package_ownership() -> None:
         "pkg_safe",
     }.issubset(
         _package_markers(
-            root / "test_dev_know_integrate_ops_cross_package.py"
+            root / "test_waves3_5_cross_package_acceptance.py"
         )
     )
     assert {
@@ -33,6 +33,9 @@ def test_representative_cross_package_ownership() -> None:
     }.issubset(
         _package_markers(root / "test_discord_bridge.py")
     )
-    assert "pkg_habit" in _package_markers(
-        root / "test_habit_package_grouping_fixture.py"
+    habit = tmp_path / "test_habit_package_grouping_fixture.py"
+    habit.write_text(
+        "from sofia.habits import HabitObservationStore\n",
+        encoding="utf-8",
     )
+    assert "pkg_habit" in _package_markers(habit)
