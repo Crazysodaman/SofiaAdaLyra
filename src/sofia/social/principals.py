@@ -25,3 +25,15 @@ def discord_sparks_principal(channel_id: int) -> PrincipalContext:
         audience_kind=AudienceKind.PRIVATE,
         display_name="Sparks",
     )
+
+def remote_sparks_principal(
+    client_public_key_sha256: str,
+) -> PrincipalContext:
+    if not isinstance(client_public_key_sha256, str) or len(client_public_key_sha256) != 64:
+        raise ValueError("client_public_key_sha256 must be a SHA-256 digest")
+    return PrincipalContext(
+        principal_id=SPARKS_PRINCIPAL_ID,
+        audience_id=f"remote-chat:{client_public_key_sha256[:16]}",
+        audience_kind=AudienceKind.PRIVATE,
+        display_name="Sparks",
+    )
