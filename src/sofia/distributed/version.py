@@ -33,3 +33,6 @@ class FleetProtocolVersion:
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}"
+
+
+CURRENT_FLEET_PROTOCOL_VERSION = FleetProtocolVersion(1, 0)
