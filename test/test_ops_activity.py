@@ -139,3 +139,46 @@ def test_explicit_interactive_compatible_workload_can_use_gaming_host():
         },
     )
     assert decision.host_id == "venus"
+
+
+def test_wallpaper_engine_and_steamvr_do_not_trigger_game_mode():
+    gaming, game = detect_windows_game(
+        (
+            ProcessInspection(
+                100,
+                "wallpaper32.exe",
+                r"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe",
+            ),
+            ProcessInspection(
+                101,
+                "vrserver.exe",
+                r"D:\\SteamLibrary\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe",
+            ),
+        )
+    )
+    assert gaming is False
+    assert game is None
+
+
+def test_real_game_wins_when_steam_utilities_are_also_running():
+    gaming, game = detect_windows_game(
+        (
+            ProcessInspection(
+                100,
+                "wallpaper32.exe",
+                r"C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\wallpaper32.exe",
+            ),
+            ProcessInspection(
+                200,
+                "Spyro-Win64-Shipping.exe",
+                r"E:\\SteamLibrary\\steamapps\\common\\Spyro Reignited Trilogy\\Falcon\\Binaries\\Win64\\Spyro-Win64-Shipping.exe",
+            ),
+            ProcessInspection(
+                300,
+                "vrserver.exe",
+                r"D:\\SteamLibrary\\steamapps\\common\\SteamVR\\bin\\win64\\vrserver.exe",
+            ),
+        )
+    )
+    assert gaming is True
+    assert game == "Spyro-Win64-Shipping.exe"
