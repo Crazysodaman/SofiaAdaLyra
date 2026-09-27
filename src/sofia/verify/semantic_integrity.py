@@ -7,6 +7,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.dev.release_store import ReleaseStateStore
+from sofia.safe.audit import AuditChain
 from sofia.state.plane import StatePlane
 
 
@@ -91,6 +92,7 @@ class SemanticIntegrityVerifier:
             self._memory_findings(db, findings)
             self._social_findings(db, findings)
             self._chatgpt_findings(db, findings)
+            self._audit_findings(db, findings)
 
         self._release_findings(findings)
         return SemanticIntegrityReport(
@@ -311,6 +313,24 @@ class SemanticIntegrityVerifier:
                     )
                 )
 
+
+    def _audit_findings(
+        self,
+        db: sqlite3.Connection,
+        findings: list[IntegrityFinding],
+    ) -> None:
+        if not self._table(db, "safe_audit_event"):
+            return
+        valid, detail = AuditChain(self.path).verify()
+        if not valid:
+            findings.append(
+                IntegrityFinding(
+                    "audit.chain_invalid",
+                    IntegritySeverity.ERROR,
+                    detail or "tamper-evident audit chain verification failed",
+                )
+            )
+
     def _release_findings(
         self,
         findings: list[IntegrityFinding],
@@ -353,5 +373,45 @@ class SemanticIntegrityVerifier:
                     "release.acceptance_missing",
                     IntegritySeverity.ERROR,
                     f"active release {release_id} lacks protected acceptance history",
+                )
+            )
+        with self._connect() as db:
+            if not self._table(db, "safe_audit_event"):
+                findings.append(
+                    IntegrityFinding(
+                        "release.audit_missing",
+                        IntegritySeverity.ERROR,
+                        f"active release {release_id} has no tamper-evident audit table",
+                    )
+                )
+                return
+            rows = db.execute(
+                """
+                SELECT payload_json
+                FROM safe_audit_event
+                WHERE event_type='release.activation.completed'
+                ORDER BY sequence DESC
+                """
+            ).fetchall()
+        matched = False
+        for row in rows:
+            try:
+                import json
+                payload = json.loads(row["payload_json"])
+            except (TypeError, ValueError):
+                continue
+            if (
+                payload.get("release_id") == release_id
+                and payload.get("manifest_sha256")
+                == manifest.manifest_sha256
+            ):
+                matched = True
+                break
+        if not matched:
+            findings.append(
+                IntegrityFinding(
+                    "release.audit_completion_missing",
+                    IntegritySeverity.ERROR,
+                    f"active release {release_id} lacks completed activation audit evidence",
                 )
             )
