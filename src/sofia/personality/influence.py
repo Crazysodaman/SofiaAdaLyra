@@ -30,6 +30,9 @@ class ContinuityInfluence:
     daylight: str | None
     weather_condition: str | None
     temperature_c: float | None
+    weather_freshness: str | None
+    location_freshness: str | None
+    primary_emotion_evidence_refs: tuple[str, ...]
     emotional_tone: str
     primary_emotion: str | None
     primary_intensity: float
@@ -65,6 +68,16 @@ class ContinuityInfluence:
             if environment is None or environment.weather is None
             else environment.weather.temperature_c
         )
+        weather_freshness = (
+            None
+            if environment is None
+            else environment.weather_freshness.value
+        )
+        location_freshness = (
+            None
+            if environment is None
+            else environment.current_location_freshness.value
+        )
         primary = emotion.active[0] if emotion.active else None
         return cls(
             daypart=daypart(local),
@@ -72,6 +85,11 @@ class ContinuityInfluence:
             daylight=daylight,
             weather_condition=weather_condition,
             temperature_c=temperature_c,
+            weather_freshness=weather_freshness,
+            location_freshness=location_freshness,
+            primary_emotion_evidence_refs=(
+                () if primary is None else primary.evidence_refs
+            ),
             emotional_tone=emotion.tone,
             primary_emotion=None if primary is None else primary.name,
             primary_intensity=0.0 if primary is None else primary.intensity,
@@ -89,6 +107,8 @@ class ContinuityInfluence:
                 "Outdoor temperature C: "
                 + ("unknown" if self.temperature_c is None else f"{self.temperature_c:.1f}")
             ),
+            f"Weather freshness: {self.weather_freshness or 'unknown'}",
+            f"Location freshness: {self.location_freshness or 'unknown'}",
             f"Modeled emotional tone: {self.emotional_tone}",
             f"Primary modeled emotion: {self.primary_emotion or 'none'}",
             f"Primary intensity: {self.primary_intensity:.3f}",
@@ -130,7 +150,10 @@ def outreach_salience(
         score -= 0.03
     elif influence.daylight in {"day", "polar_day"}:
         score += 0.01
-    if influence.weather_condition:
+    if (
+        influence.weather_condition
+        and influence.weather_freshness == "current"
+    ):
         weather = influence.weather_condition.casefold()
         if any(token in weather for token in ("storm", "tornado", "hurricane", "severe")):
             score += 0.08
