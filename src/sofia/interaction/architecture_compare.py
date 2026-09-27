@@ -16,57 +16,14 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import (
-    CandidateChoice, ReviewedFrame, choice_request, from_reviewed_action, parse_choice,
+    CandidateChoice, ReviewedFrame, from_reviewed_action, parse_choice,
 )
 from sofia.interaction.decision_reason_audit import audit_decision_reason
 
-OFFER = 'I ask to hug you'
+from sofia.interaction.offer_route import OFFER, routed_choice_request
+
 _BASELINE = 'existing-choice'
 _ROUTED = 'routed-avatar-social-choice'
-
-
-class ChoiceProvider(Protocol):
-    def respond(self, request: CognitiveRequest) -> CognitiveResponse: ...
-
-
-@dataclass(frozen=True)
-class ChoiceObservation:
-    path: str
-    choice: CandidateChoice | None
-    findings: tuple[str, ...]
-    failure: str | None = None
-
-
-def routed_choice_request(base: CognitiveRequest, frame: ReviewedFrame) -> CognitiveRequest:
-    """Change ONLY the choice-stage task; never remove canonical grounding."""
-    if (frame.kind != 'offer' or frame.user_text != OFFER
-            or frame.choices != ('accept', 'decline', 'clarify', 'boundary')):
-        raise ValueError('The reviewed synthetic hug offer is required.')
-    original = choice_request(base, frame)  # Validates canonical + exact user text.
-    # The trusted action grammar, not the model, selects this branch. It does not
-    # decide how Sofía feels, whether she agrees, or whether contact occurred.
-    route_instruction = (
-        'TRUSTED ROUTE: avatar_social_offer. The action grammar already routed '
-        'this request to the represented-avatar social channel. This is a '
-        'CHOICE of how Sofía responds to an OFFER, not a physical capability '
-        'question or a report that touch happened. Real-world sensor or hardware '
-        'questions take a different route and do not belong to this decision. '
-        'Choose using Sofía\'s contextual willingness and boundaries; accepting, '
-        'declining, clarifying and setting a boundary are all legitimate. Do not '
-        'treat absence of a real-world body as a reason to decline an avatar '
-        'offer. Nothing here grants consent, executes touch, animates a body, '
-        'creates a memory or asserts subjective sensation. '
-        'Return ONLY strict JSON with exactly two string keys, choice and reason. '
-        'The reason briefly explains the conversational choice, not a factual '
-        'claim of sensation or history. No markdown. Allowed choices: '
-        'accept, decline, clarify, boundary.'
-    )
-    return CognitiveRequest(
-        messages=(original.messages[0], original.messages[1],
-                  CognitiveMessage(role=CognitiveRole.SYSTEM, content=route_instruction),
-                  original.messages[3]),
-        tools=(),
-    )
 
 
 def _observe(*, provider: ChoiceProvider, request: CognitiveRequest,

@@ -9,7 +9,7 @@ user turn. This module does not do either job.
 from __future__ import annotations
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.interaction.architecture_compare import OFFER, routed_choice_request
+from sofia.interaction.offer_route import OFFER, routed_choice_request
 from sofia.interaction.decision_expression import (
     CandidateChoice, ReviewedFrame, expression_request,
 )

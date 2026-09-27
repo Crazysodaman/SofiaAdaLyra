@@ -15,7 +15,7 @@ import re
 import sqlite3
 from uuid import uuid4
 
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.decision_expression import CandidateChoice
 from sofia.interaction.expression_consistency import validate_offer_expression
 from sofia.interaction.reviewed_hug_question import (

@@ -7,7 +7,7 @@ stop/resume and general chat) use the existing live service.
 """
 from __future__ import annotations
 
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.live_offer_service import (
     respond_staged_offer, staged_offers_enabled,

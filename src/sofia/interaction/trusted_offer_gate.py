@@ -14,7 +14,7 @@ import sqlite3
 
 from sofia.cognition.model import CognitiveRequest
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.conversation_offer_context import (
     routed_conversation_choice_request, routed_conversation_expression_request,
 )
