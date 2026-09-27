@@ -18,6 +18,7 @@ on:
         options:
           - static
           - full
+          - prelive
 
 jobs:
   verify:
