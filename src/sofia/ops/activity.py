@@ -201,7 +201,19 @@ _STEAM_NON_GAMES = frozenset({
     "gameoverlayui.exe",
     "crashhandler64.exe",
     "crashhandler.exe",
+    "wallpaper32.exe",
+    "wallpaper64.exe",
+    "vrserver.exe",
+    "vrmonitor.exe",
+    "vrcompositor.exe",
+    "vrwebhelper.exe",
+    "vrdashboard.exe",
 })
+
+_STEAM_NON_GAME_PATHS = (
+    "\\steamapps\\common\\wallpaper_engine\\",
+    "\\steamapps\\common\\steamvr\\",
+)
 
 
 def detect_windows_game(
@@ -226,6 +238,7 @@ def detect_windows_game(
             "\\steamapps\\common\\" in executable
             and name
             and name not in _STEAM_NON_GAMES
+            and not any(path in executable for path in _STEAM_NON_GAME_PATHS)
         ):
             return True, process.name
     return False, None
