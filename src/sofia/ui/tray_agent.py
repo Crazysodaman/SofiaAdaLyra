@@ -177,7 +177,7 @@ class TrayAgentApplication:
             and authority.host_id != self.host_id
         )
         runtime_state = (
-            "remote_authoritative"
+            "running"
             if remote_runtime
             else self._service_state(settings.runtime_service_name)
         )
