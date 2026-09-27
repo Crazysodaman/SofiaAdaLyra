@@ -6,10 +6,16 @@ from sofia.social.principal import (
     AuthenticatedPrincipal,
     PrincipalKind,
 )
+from sofia.social.session import (
+    SocialSessionBinding,
+    SocialSessionBindingStore,
+)
 
 __all__ = [
     "Audience",
     "AudienceScope",
     "AuthenticatedPrincipal",
     "PrincipalKind",
+    "SocialSessionBinding",
+    "SocialSessionBindingStore",
 ]
