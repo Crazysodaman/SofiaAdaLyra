@@ -92,9 +92,9 @@ def create_desktop_application(configuration: SofiaConfiguration):
         return SofiaApplication(configuration)
 
     pin = os.environ.get("SOFIA_REMOTE_CHAT_SERVER_PIN", "").strip()
-    if len(pin) != 64:
+    if re.fullmatch(r"[0-9a-f]{64}", pin) is None:
         raise RuntimeError(
-            "SOFIA_REMOTE_CHAT_SERVER_PIN must be the pinned server public-key SHA-256"
+            "SOFIA_REMOTE_CHAT_SERVER_PIN must be a lowercase SHA-256 digest"
         )
 
     remote = PinnedRemoteConversation(
