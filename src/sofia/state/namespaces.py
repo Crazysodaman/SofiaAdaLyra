@@ -86,6 +86,14 @@ HABIT_SUPPRESSION = StateNamespaceSpec(
     audience_scoped=True,
     append_only=True,
 )
+HABIT_EVIDENCE_INVALIDATION = StateNamespaceSpec(
+    "habit.evidence.invalidation",
+    "HABIT",
+    StateClass.SHARED_AUTHORITATIVE,
+    principal_scoped=True,
+    audience_scoped=True,
+    append_only=True,
+)
 
 NAMESPACE_SPECS = {
     item.name: item
@@ -97,6 +105,7 @@ NAMESPACE_SPECS = {
         HABIT_PATTERN,
         HABIT_EXPECTATION,
         HABIT_SUPPRESSION,
+        HABIT_EVIDENCE_INVALIDATION,
     )
 }
 
