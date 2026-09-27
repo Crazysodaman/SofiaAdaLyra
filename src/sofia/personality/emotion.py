@@ -14,6 +14,8 @@ import re
 import sqlite3
 from uuid import uuid4
 
+from sofia.social.model import AudienceKind, ScopeKind, SocialScope
+
 
 EMOTIONS = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "bashfulness",
@@ -154,6 +156,26 @@ class EmotionalEvent:
     current_emotions: tuple[str, ...]
     revision_count: int
     subject: str | None = None
+    scope_kind: str = ScopeKind.GLOBAL.value
+    principal_id: str | None = None
+    audience_id: str | None = None
+    audience_kind: str | None = None
+
+    @property
+    def scope(self) -> SocialScope:
+        kind = ScopeKind(self.scope_kind)
+        if kind is ScopeKind.RELATIONSHIP:
+            return SocialScope.relationship(self.principal_id)
+        if kind is ScopeKind.AUDIENCE:
+            return SocialScope(
+                ScopeKind.AUDIENCE,
+                principal_id=self.principal_id,
+                audience_id=self.audience_id,
+                audience_kind=AudienceKind(self.audience_kind),
+            )
+        if kind is ScopeKind.SYSTEM:
+            return SocialScope.system_scope()
+        return SocialScope.global_scope()
 
 
 @dataclass(frozen=True)
@@ -235,6 +257,30 @@ class EmotionalJournal:
             columns = {row[1] for row in db.execute("PRAGMA table_info(emotional_events)")}
             if "subject" not in columns:
                 db.execute("ALTER TABLE emotional_events ADD COLUMN subject TEXT")
+                columns.add("subject")
+            additions = {
+                "scope_kind": "TEXT NOT NULL DEFAULT 'global'",
+                "principal_id": "TEXT",
+                "audience_id": "TEXT",
+                "audience_kind": "TEXT",
+            }
+            for name, declaration in additions.items():
+                if name not in columns:
+                    db.execute(
+                        f"ALTER TABLE emotional_events ADD COLUMN {name} {declaration}"
+                    )
+            # Legacy subject-scoped rows were relationship state even though the
+            # old schema could not express that ownership explicitly.
+            db.execute(
+                "UPDATE emotional_events SET scope_kind='relationship', "
+                "principal_id=subject "
+                "WHERE subject IS NOT NULL AND principal_id IS NULL "
+                "AND scope_kind='global'"
+            )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS emotional_events_scope_time "
+                "ON emotional_events(scope_kind, principal_id, audience_id, occurred_at)"
+            )
 
     @contextmanager
     def _connect(self):
