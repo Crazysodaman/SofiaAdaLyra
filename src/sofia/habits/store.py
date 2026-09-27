@@ -10,6 +10,7 @@ import sqlite3
 from .model import (
     CoverageState,
     ExpectationStatus,
+    HabitCadence,
     HabitExpectation,
     HabitObservation,
     HabitPattern,
@@ -68,6 +69,7 @@ class HabitStore:
                         audience_id TEXT,
                         kind TEXT NOT NULL,
                         value TEXT NOT NULL,
+                        cadence TEXT NOT NULL DEFAULT 'irregular',
                         context_key TEXT,
                         context_value TEXT,
                         first_observed_at TEXT NOT NULL,
@@ -85,6 +87,7 @@ class HabitStore:
                         revision_id INTEGER PRIMARY KEY AUTOINCREMENT,
                         habit_id TEXT NOT NULL,
                         recorded_at TEXT NOT NULL,
+                        cadence TEXT NOT NULL DEFAULT 'irregular',
                         support_count INTEGER NOT NULL,
                         confidence REAL NOT NULL,
                         status TEXT NOT NULL,
@@ -126,6 +129,26 @@ class HabitStore:
                     );
                     """
                 )
+                pattern_columns = {
+                    row[1]
+                    for row in db.execute("PRAGMA table_info(habit_pattern)").fetchall()
+                }
+                if "cadence" not in pattern_columns:
+                    db.execute(
+                        "ALTER TABLE habit_pattern "
+                        "ADD COLUMN cadence TEXT NOT NULL DEFAULT 'irregular'"
+                    )
+                revision_columns = {
+                    row[1]
+                    for row in db.execute(
+                        "PRAGMA table_info(habit_pattern_revision)"
+                    ).fetchall()
+                }
+                if "cadence" not in revision_columns:
+                    db.execute(
+                        "ALTER TABLE habit_pattern_revision "
+                        "ADD COLUMN cadence TEXT NOT NULL DEFAULT 'irregular'"
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
@@ -348,11 +371,11 @@ class HabitStore:
                 db.execute(
                     """
                     INSERT INTO habit_pattern(
-                        habit_id,principal_id,audience_id,kind,value,
+                        habit_id,principal_id,audience_id,kind,value,cadence,
                         context_key,context_value,first_observed_at,last_observed_at,
                         support_count,confidence,status,evidence_json,updated_at
                     )
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(habit_id) DO UPDATE SET
                         first_observed_at=excluded.first_observed_at,
                         last_observed_at=excluded.last_observed_at,
@@ -368,6 +391,7 @@ class HabitStore:
                         pattern.audience_id,
                         pattern.kind,
                         pattern.value,
+                        pattern.cadence.value,
                         pattern.context_key,
                         pattern.context_value,
                         _utc(pattern.first_observed_at),
@@ -382,12 +406,13 @@ class HabitStore:
                 db.execute(
                     """
                     INSERT INTO habit_pattern_revision(
-                        habit_id,recorded_at,support_count,confidence,status,evidence_json
-                    ) VALUES(?,?,?,?,?,?)
+                        habit_id,recorded_at,cadence,support_count,confidence,status,evidence_json
+                    ) VALUES(?,?,?,?,?,?,?)
                     """,
                     (
                         pattern.habit_id,
                         now,
+                        pattern.cadence.value,
                         pattern.support_count,
                         float(pattern.confidence),
                         pattern.status.value,
@@ -425,6 +450,7 @@ class HabitStore:
                 audience_id=row["audience_id"],
                 kind=row["kind"],
                 value=row["value"],
+                cadence=HabitCadence(row["cadence"]),
                 context_key=row["context_key"],
                 context_value=row["context_value"],
                 first_observed_at=datetime.fromisoformat(row["first_observed_at"]),
