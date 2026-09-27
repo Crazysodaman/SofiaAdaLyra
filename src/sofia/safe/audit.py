@@ -104,46 +104,93 @@ class AuditChain:
         with closing(self._connect()) as db:
             with db:
                 db.execute("BEGIN IMMEDIATE")
-                row = db.execute(
-                    """
-                    SELECT event_hash
-                    FROM safe_audit_event
-                    ORDER BY sequence DESC
-                    LIMIT 1
-                    """
-                ).fetchone()
-                previous = self.GENESIS if row is None else row["event_hash"]
-                event_hash = self._event_hash(
-                    event_id=identifier,
-                    occurred_at=occurred,
+                return self.append_in_transaction(
+                    db,
                     actor_id=actor_id,
                     event_type=event_type,
-                    payload_json=payload_json,
-                    previous_hash=previous,
+                    payload=payload,
+                    occurred_at=when,
+                    event_id=identifier,
                 )
-                db.execute(
-                    """
-                    INSERT INTO safe_audit_event (
-                        event_id,
-                        occurred_at,
-                        actor_id,
-                        event_type,
-                        payload_json,
-                        previous_hash,
-                        event_hash
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        identifier,
-                        occurred,
-                        actor_id,
-                        event_type,
-                        payload_json,
-                        previous,
-                        event_hash,
-                    ),
-                )
+
+    def append_in_transaction(
+        self,
+        db: sqlite3.Connection,
+        *,
+        actor_id: str,
+        event_type: str,
+        payload: dict,
+        occurred_at: datetime,
+        event_id: str | None = None,
+    ) -> str:
+        """Append using the caller's SQLite transaction.
+
+        This is used when the protected state mutation and its audit evidence
+        live in the same state database and must commit atomically.
+        """
+        if not isinstance(db, sqlite3.Connection):
+            raise TypeError("db must be a sqlite3.Connection")
+        if not isinstance(actor_id, str) or not actor_id.strip():
+            raise ValueError("actor_id must be nonempty")
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ValueError("event_type must be nonempty")
+        if not isinstance(payload, dict):
+            raise TypeError("payload must be a dict")
+        if not isinstance(occurred_at, datetime):
+            raise TypeError("occurred_at must be a datetime")
+        if occurred_at.tzinfo is None or occurred_at.utcoffset() is None:
+            raise ValueError("occurred_at must be timezone-aware")
+        identifier = event_id or str(uuid4())
+        if not isinstance(identifier, str) or not identifier.strip():
+            raise ValueError("event_id must be nonempty")
+
+        payload_json = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        occurred = occurred_at.astimezone(timezone.utc).isoformat()
+        row = db.execute(
+            """
+            SELECT event_hash
+            FROM safe_audit_event
+            ORDER BY sequence DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        previous = self.GENESIS if row is None else row["event_hash"]
+        event_hash = self._event_hash(
+            event_id=identifier,
+            occurred_at=occurred,
+            actor_id=actor_id,
+            event_type=event_type,
+            payload_json=payload_json,
+            previous_hash=previous,
+        )
+        db.execute(
+            """
+            INSERT INTO safe_audit_event (
+                event_id,
+                occurred_at,
+                actor_id,
+                event_type,
+                payload_json,
+                previous_hash,
+                event_hash
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                identifier,
+                occurred,
+                actor_id,
+                event_type,
+                payload_json,
+                previous,
+                event_hash,
+            ),
+        )
         return event_hash
 
     def verify(self) -> tuple[bool, str | None]:
