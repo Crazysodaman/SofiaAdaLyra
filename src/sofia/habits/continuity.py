@@ -92,6 +92,25 @@ class HabitContinuityCoordinator:
             coverage=ObservationCoverage.OBSERVED,
         )
 
+    def record_runtime_coverage(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+        started_at: datetime,
+        ended_at: datetime,
+    ):
+        return self.recorder.record_coverage(
+            principal_id=principal_id,
+            audience_id=audience_id,
+            source_id="sofia-runtime",
+            started_at=started_at,
+            ended_at=ended_at,
+            status=ObservationCoverage.OBSERVED,
+            quality=SourceQuality.VERIFIED,
+            reason="application background loop alive",
+        )
+
     def analyze_conversation_patterns(
         self,
         *,
@@ -209,19 +228,36 @@ class HabitContinuityCoordinator:
                     evidence_ref=matching[-1].evidence_ref,
                 )
             else:
-                coverage = self.observations.coverage_windows(
-                    principal_id=principal_id,
-                    audience_id=audience_id,
-                )
-                covered = any(
-                    window.started_at_utc <= expectation.window_start_utc
-                    and window.ended_at_utc >= expectation.window_end_utc
-                    and window.status in (
+                coverage = tuple(
+                    window
+                    for window in self.observations.coverage_windows(
+                        principal_id=principal_id,
+                        audience_id=audience_id,
+                    )
+                    if window.status in (
                         ObservationCoverage.OBSERVED,
                         ObservationCoverage.PARTIAL,
                     )
-                    for window in coverage
+                    and window.ended_at_utc >= expectation.window_start_utc
+                    and window.started_at_utc <= expectation.window_end_utc
                 )
+                cursor = expectation.window_start_utc
+                coverage_evidence = None
+                for window in sorted(
+                    coverage,
+                    key=lambda item: (
+                        item.started_at_utc,
+                        item.ended_at_utc,
+                    ),
+                ):
+                    if window.started_at_utc > cursor:
+                        break
+                    if window.ended_at_utc > cursor:
+                        cursor = window.ended_at_utc
+                        coverage_evidence = window.coverage_id
+                    if cursor >= expectation.window_end_utc:
+                        break
+                covered = cursor >= expectation.window_end_utc
                 self.expectation_engine.resolve(
                     expectation,
                     status=(
@@ -230,11 +266,7 @@ class HabitContinuityCoordinator:
                         else ExpectationStatus.UNOBSERVABLE
                     ),
                     resolved_at=current,
-                    evidence_ref=(
-                        f"coverage:{expectation.expectation_id}"
-                        if covered
-                        else None
-                    ),
+                    evidence_ref=coverage_evidence if covered else None,
                 )
             changed += 1
 
