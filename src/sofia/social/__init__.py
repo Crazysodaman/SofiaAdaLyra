@@ -1,8 +1,10 @@
-from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext, ScopeKind, SocialScope
 
 __all__ = [
     "AudienceKind",
     "PrincipalContext",
+    "ScopeKind",
+    "SocialScope",
     "SPARKS_PRINCIPAL_ID",
     "SocialSessionStore",
     "discord_sparks_principal",
