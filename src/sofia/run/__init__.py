@@ -12,6 +12,13 @@ from .periodic import (
     PeriodicThoughtGate,
     PeriodicThoughtRunner,
 )
+from .orchestration import (
+    GlobalRunBudget,
+    RuntimeOrchestrator,
+    ScheduledWork,
+    WorkPriority,
+    WorkResult,
+)
 from .supervisor import (
     LocalRuntimeSupervisor,
     ManagedRuntimeBackend,
@@ -22,6 +29,7 @@ from .supervisor import (
 )
 
 __all__ = [
+    "GlobalRunBudget",
     "LeaseResult",
     "LocalRunLeaseStore",
     "LocalRuntimeSupervisor",
@@ -34,6 +42,10 @@ __all__ = [
     "RunLease",
     "RunLeaseError",
     "RuntimeObservation",
+    "RuntimeOrchestrator",
+    "ScheduledWork",
     "SupervisorPolicy",
     "SupervisorResult",
+    "WorkPriority",
+    "WorkResult",
 ]
