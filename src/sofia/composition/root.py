@@ -50,6 +50,7 @@ from sofia.machine.capability import HardwareInspectionCapability,MachineCapabil
 from sofia.machine.discovery import create_machine_discovery
 from sofia.machine.location import MachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
+from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -202,9 +203,11 @@ def compose(
         knowledge_service
     )
 
+    dev_approval_verifier = DevApprovalVerifier(state_path)
     dev_service = DevToolService(
         filesystem_root,
         state_path,
+        approval_verifier=dev_approval_verifier,
     )
     dev_capabilities = DevCapabilitySet(
         dev_service
