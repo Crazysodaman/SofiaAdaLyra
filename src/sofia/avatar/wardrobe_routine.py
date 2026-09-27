@@ -173,6 +173,7 @@ class OutfitPlan:
     lounge: bool = False
     private_only: bool = False
     style_tags: tuple[str, ...] = ()
+    display_name: str | None = None
 
     def __post_init__(self) -> None:
         _id(self.outfit_id)
@@ -195,6 +196,12 @@ class OutfitPlan:
             not isinstance(tag, str) or not tag.strip() or len(tag) > 64 for tag in self.style_tags
         ):
             raise WardrobeError("invalid style tags")
+        if self.display_name is not None and (
+            not isinstance(self.display_name, str)
+            or not self.display_name.strip()
+            or len(self.display_name) > 160
+        ):
+            raise WardrobeError("invalid outfit display name")
 
 
 @dataclass(frozen=True, slots=True)

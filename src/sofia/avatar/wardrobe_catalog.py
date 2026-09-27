@@ -13,6 +13,7 @@ import re
 
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from .wardrobe_piece_catalog import PieceSpec, generated_piece_specs
+from .wardrobe_outfit_catalog import generated_seasonal_outfits
 from .wardrobe_routine import Activity, OutfitPlan, Season, Weather
 
 _HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
@@ -123,8 +124,17 @@ class WardrobePrebuild:
         for plan in self.presets:
             if set(plan.item_ids) - blueprint_ids:
                 raise WardrobeError("outfit references unbuilt/unlisted garment")
-            if not self.wardrobe.selection(plan.item_ids).covered_default:
-                raise WardrobeError("prebuilt normal outfits must remain covered")
+            selected = self.wardrobe.selection(plan.item_ids)
+            if plan.private_only:
+                if not selected.private_only:
+                    raise WardrobeError(
+                        "private outfit must contain private-only garment metadata"
+                    )
+            else:
+                if selected.private_only or not selected.covered_default:
+                    raise WardrobeError(
+                        "prebuilt normal outfits must remain covered and non-private"
+                    )
         if any(x.subject_id not in blueprint_ids and x.subject_id not in {
             p.outfit_id for p in self.presets
         } for x in self.inputs):
@@ -390,7 +400,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
     )
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
     under = ("underlayer.top", "underlayer.bottom")
-    presets = (
+    base_presets = (
         OutfitPlan("engineer.signature", under + (
             "engineer.shirt", "engineer.trousers", "engineer.jacket",
             "engineer.socks", "engineer.boots", "engineer.gloves",
@@ -415,6 +425,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         ), frozenset(Activity), ALL_SEASONS,
             style_tags=("covered", "fallback", "asset_not_yet_verified")),
     )
+    presets = base_presets + generated_seasonal_outfits()
     inputs = (
         StyleInput("engineer.signature", RequestStatus.USER_REQUESTED,
                    "chat.2026-09-22.request.engineer", "Signature engineer wardrobe requested; not a confirmed like."),

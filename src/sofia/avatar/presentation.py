@@ -204,14 +204,17 @@ class PresentationAuthority:
         if not isinstance(initial_appearance, AppearanceState):
             raise PresentationError("initial appearance is required")
         normalized: dict[str, tuple[str, ...]] = {}
+        private_outfits: set[str] = set()
         for outfit_id, item_ids in outfits.items():
             _id(outfit_id, "outfit ID")
             if not isinstance(item_ids, tuple):
                 raise PresentationError("outfit item IDs must be tuples")
             outfit = wardrobe.selection(item_ids)
-            if not outfit.covered_default or outfit.private_only:
+            if outfit.private_only:
+                private_outfits.add(outfit_id)
+            elif not outfit.covered_default:
                 raise PresentationDenied(
-                    "daily/public outfit must be covered and non-private"
+                    "non-private outfit must satisfy covered public/default policy"
                 )
             normalized[outfit_id] = outfit.item_ids
         _id(canonical_daily_outfit_id, "canonical daily outfit ID")
@@ -220,6 +223,9 @@ class PresentationAuthority:
 
         self._wardrobe = wardrobe
         self._outfits = normalized
+        self._private_outfits = frozenset(private_outfits)
+        if canonical_daily_outfit_id in self._private_outfits:
+            raise PresentationDenied("canonical daily outfit cannot be private")
         self._canonical_daily_outfit_id = canonical_daily_outfit_id
         initial_items = normalized[canonical_daily_outfit_id]
         initial = PresentationState(
@@ -269,6 +275,11 @@ class PresentationAuthority:
             raise PresentationError("unknown outfit")
         if type(private_only) is not bool or type(daily) is not bool:
             raise PresentationError("presentation flags must be booleans")
+        catalog_private = outfit_id in self._private_outfits
+        if catalog_private and not private_only:
+            raise PresentationDenied(
+                "private catalog outfit requires explicit private presentation"
+            )
         if private_only and daily:
             raise PresentationDenied("private presentation cannot replace daily public fallback")
         self._pending = PresentationChange(

@@ -66,6 +66,22 @@ CLOSET_CATEGORIES: tuple[ClosetCategory, ...] = (
     ClosetCategory("closet.shoulder_accessory", "Shoulder pieces", "shoulder piece", "private shoulder piece", Layer.ACCESSORY, ("shoulders",), ("shoulders",), ("shoulder.left", "shoulder.right")),
 )
 
+SPECIAL_PRIVATE_CATEGORIES: tuple[ClosetCategory, ...] = (
+    ClosetCategory(
+        "closet.bra", "Bras", "bra", "bra", Layer.UNDERWEAR,
+        ("torso",), (), ("torso.front", "torso.back"),
+    ),
+    ClosetCategory(
+        "closet.panty", "Panties", "panties", "panties", Layer.UNDERWEAR,
+        ("pelvis",), (), ("pelvis.coverage",),
+    ),
+)
+
+
+def all_closet_categories() -> tuple[ClosetCategory, ...]:
+    return CLOSET_CATEGORIES + SPECIAL_PRIVATE_CATEGORIES
+
+
 NORMAL_STYLES: tuple[str, ...] = (
     "classic", "casual", "utility", "technical", "lounge",
     "athletic", "soft-knit", "ribbed", "layered", "minimalist",
@@ -143,13 +159,18 @@ def _piece(
 
 
 def generated_piece_specs() -> tuple[PieceSpec, ...]:
-    """Return 25 normal + 25 adult/private pieces for every closet category."""
+    """Return the generated closet, including explicit bra/panty families."""
     pieces: list[PieceSpec] = []
     for category in CLOSET_CATEGORIES:
         pieces.extend(
             _piece(category, index=index, style=style, private_only=False)
             for index, style in enumerate(NORMAL_STYLES, start=1)
         )
+        pieces.extend(
+            _piece(category, index=index, style=style, private_only=True)
+            for index, style in enumerate(PRIVATE_STYLES, start=1)
+        )
+    for category in SPECIAL_PRIVATE_CATEGORIES:
         pieces.extend(
             _piece(category, index=index, style=style, private_only=True)
             for index, style in enumerate(PRIVATE_STYLES, start=1)

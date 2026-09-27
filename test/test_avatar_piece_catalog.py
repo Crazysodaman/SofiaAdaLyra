@@ -18,7 +18,7 @@ def test_each_human_facing_category_has_25_normal_and_25_adult_private_pieces():
     assert len(CLOSET_CATEGORIES) == 18
     assert len(NORMAL_STYLES) == 25
     assert len(PRIVATE_STYLES) == 25
-    assert len(specs) == 18 * 50
+    assert len(specs) == 18 * 50 + 50
 
     for category in CLOSET_CATEGORIES:
         rows = [item for item in specs if item.category == category.category_id]
@@ -33,14 +33,15 @@ def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert summary["generated_piece_count"] == 900
+    assert summary["generated_piece_count"] == 950
     assert summary["adult_private_requires_authorization"] is True
     assert summary["assets_verified"] is False
-    assert len(summary["categories"]) == 18
-    assert all(
-        counts == {"normal": 25, "adult_private": 25}
-        for counts in summary["categories"].values()
-    )
+    assert len(summary["categories"]) == 20
+    for category, counts in summary["categories"].items():
+        if category in {"closet.bra", "closet.panty"}:
+            assert counts == {"normal": 0, "adult_private": 25}
+        else:
+            assert counts == {"normal": 25, "adult_private": 25}
 
 
 def test_private_pieces_are_first_class_private_metadata_not_name_conventions():
@@ -98,7 +99,7 @@ def test_manifest_exposes_category_style_and_privacy_without_claiming_assets():
         row for row in manifest["garments"]
         if row["category"].startswith("closet.")
     ]
-    assert len(generated) == 900
-    assert sum(row["private_only"] for row in generated) == 450
+    assert len(generated) == 950
+    assert sum(row["private_only"] for row in generated) == 500
     assert all(row["asset_ref"] is None for row in generated)
     assert all(row["style_tags"] for row in generated)
