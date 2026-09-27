@@ -28,6 +28,8 @@ class ContinuityInfluence:
     daypart: str
     season: str | None
     daylight: str | None
+    weather_condition: str | None
+    temperature_c: float | None
     emotional_tone: str
     primary_emotion: str | None
     primary_intensity: float
@@ -53,11 +55,23 @@ class ContinuityInfluence:
             if environment is None or environment.daylight is None
             else environment.daylight.state.value
         )
+        weather_condition = (
+            None
+            if environment is None or environment.weather is None
+            else environment.weather.condition
+        )
+        temperature_c = (
+            None
+            if environment is None or environment.weather is None
+            else environment.weather.temperature_c
+        )
         primary = emotion.active[0] if emotion.active else None
         return cls(
             daypart=daypart(local),
             season=season,
             daylight=daylight,
+            weather_condition=weather_condition,
+            temperature_c=temperature_c,
             emotional_tone=emotion.tone,
             primary_emotion=None if primary is None else primary.name,
             primary_intensity=0.0 if primary is None else primary.intensity,
@@ -70,6 +84,11 @@ class ContinuityInfluence:
             f"Local daypart: {self.daypart}",
             f"Season: {self.season or 'unknown'}",
             f"Daylight: {self.daylight or 'unknown'}",
+            f"Weather condition: {self.weather_condition or 'unknown'}",
+            (
+                "Outdoor temperature C: "
+                + ("unknown" if self.temperature_c is None else f"{self.temperature_c:.1f}")
+            ),
             f"Modeled emotional tone: {self.emotional_tone}",
             f"Primary modeled emotion: {self.primary_emotion or 'none'}",
             f"Primary intensity: {self.primary_intensity:.3f}",
@@ -107,4 +126,14 @@ def outreach_salience(
         score -= 0.08
     elif influence.daypart in {"morning", "afternoon"}:
         score += 0.02
+    if influence.daylight in {"night", "polar_night"}:
+        score -= 0.03
+    elif influence.daylight in {"day", "polar_day"}:
+        score += 0.01
+    if influence.weather_condition:
+        weather = influence.weather_condition.casefold()
+        if any(token in weather for token in ("storm", "tornado", "hurricane", "severe")):
+            score += 0.08
+        elif any(token in weather for token in ("rain", "snow", "fog")):
+            score += 0.01
     return round(max(0.0, min(1.0, score)), 4)
