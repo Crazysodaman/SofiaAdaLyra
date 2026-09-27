@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -96,12 +97,20 @@ class SofiaActService:
         *,
         now: datetime,
         busy: bool = False,
+        quiet_timezone: str | None = None,
     ) -> DeliveryRunResult | SendResult | None:
         if not self.delivery_enabled:
             return None
+        policy = self._policy
+        assert policy is not None
+        if quiet_timezone is not None:
+            policy = replace(
+                policy,
+                quiet_timezone=quiet_timezone,
+            )
         notice_result = SystemNoticeQueue(self.state_path).deliver_one(
             sender=self._sender,
-            policy=self._policy,
+            policy=policy,
             now=now,
             busy=busy,
         )
@@ -120,7 +129,7 @@ class SofiaActService:
             result = runner.deliver(
                 message_id=message.id,
                 attempt_id=str(uuid4()),
-                policy=self._policy,
+                policy=policy,
                 now=now,
                 busy=busy,
             )
