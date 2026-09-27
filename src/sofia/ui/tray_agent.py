@@ -36,6 +36,7 @@ from .control_center import (
     TrayCommand,
     TrayStatus,
 )
+from .process_lock import TrayProcessLock
 from .service_control import DesktopServiceController
 from .windows_tray import WindowsTrayAgent
 
@@ -270,7 +271,9 @@ class TrayAgentApplication:
 
 
 def main() -> int:
-    return TrayAgentApplication().run()
+    application = TrayAgentApplication()
+    with TrayProcessLock(application.config.state_path):
+        return application.run()
 
 
 if __name__ == "__main__":
