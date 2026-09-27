@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 import sys
 
 
-_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_RUN_KEY = r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 _VALUE_NAME = "SofiaAdaLyraTray"
 
 
@@ -13,11 +14,24 @@ class WindowsStartupUnavailable(RuntimeError):
     pass
 
 
+def _package_root() -> Path:
+    """Return the directory that contains the top-level sofia package."""
+
+    return Path(__file__).resolve().parents[2]
+
+
 def tray_startup_command() -> str:
     executable = Path(sys.executable)
     pythonw = executable.with_name("pythonw.exe")
     runner = pythonw if pythonw.is_file() else executable
-    return f'"{runner}" -m sofia.ui.tray_agent'
+    package_root = _package_root()
+    code = (
+        "import sys; "
+        f"sys.path.insert(0, {str(package_root)!r}); "
+        "from sofia.ui.tray_agent import main; "
+        "raise SystemExit(main())"
+    )
+    return subprocess.list2cmdline((str(runner), "-c", code))
 
 
 def configure_windows_startup(enabled: bool) -> None:
