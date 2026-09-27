@@ -332,26 +332,74 @@ class ReflectionJournal:
             audience_kind=r[11],
         ) for r in rows)
 
-    def reflect_due(self, *, now: datetime) -> tuple[str, ...]:
-        """Reflect on recorded events in completed UTC calendar periods only.
+    def reflect_due(
+        self, *, now: datetime, scope: SocialScope | None = None,
+    ) -> tuple[str, ...]:
+        """Reflect on recorded events in completed UTC periods for one scope.
 
-        This is a caller-triggered, deterministic retrospective, not an LLM
-        thinking process. Missed periods with recorded evidence are recovered
-        after restart. Empty periods are skipped, never invented.
+        This remains caller-triggered retrospective processing. It never invents
+        empty periods or claims thinking occurred while the application was down.
         """
         current = _utc(now)
+        resolved_scope = _scope(scope)
         with self._connect() as db:
             table = db.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='emotional_events'"
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='emotional_events'"
             ).fetchone()
             if table is None:
                 return ()
-            events = db.execute(
-                "SELECT event_id, occurred_at, description, original_emotions "
-                "FROM emotional_events WHERE occurred_at < ? ORDER BY occurred_at, event_id",
-                (current.isoformat(),),
-            ).fetchall()
-        buckets: dict[tuple[str, str], list[tuple[str, str, tuple[str, ...]]]] = {}
+            columns = {
+                row[1] for row in db.execute(
+                    "PRAGMA table_info(emotional_events)"
+                )
+            }
+            if "scope_kind" not in columns:
+                if resolved_scope.kind is not ScopeKind.GLOBAL:
+                    return ()
+                events = db.execute(
+                    "SELECT event_id, occurred_at, description, original_emotions "
+                    "FROM emotional_events WHERE occurred_at < ? "
+                    "ORDER BY occurred_at, event_id",
+                    (current.isoformat(),),
+                ).fetchall()
+            else:
+                clauses = ["occurred_at < ?", "scope_kind = ?"]
+                params: list[object] = [
+                    current.isoformat(),
+                    resolved_scope.kind.value,
+                ]
+                if resolved_scope.kind is ScopeKind.RELATIONSHIP:
+                    clauses.extend(("principal_id = ?", "audience_id IS NULL"))
+                    params.append(resolved_scope.principal_id)
+                elif resolved_scope.kind is ScopeKind.AUDIENCE:
+                    clauses.extend((
+                        "principal_id = ?",
+                        "audience_id = ?",
+                        "audience_kind = ?",
+                    ))
+                    params.extend((
+                        resolved_scope.principal_id,
+                        resolved_scope.audience_id,
+                        resolved_scope.audience_kind.value,
+                    ))
+                else:
+                    clauses.extend((
+                        "principal_id IS NULL",
+                        "audience_id IS NULL",
+                    ))
+                events = db.execute(
+                    "SELECT event_id, occurred_at, description, original_emotions "
+                    "FROM emotional_events WHERE "
+                    + " AND ".join(clauses)
+                    + " ORDER BY occurred_at, event_id",
+                    tuple(params),
+                ).fetchall()
+
+        buckets: dict[
+            tuple[str, str],
+            list[tuple[str, str, tuple[str, ...]]],
+        ] = {}
         for event_id, timestamp, description, labels_json in events:
             occurred = datetime.fromisoformat(timestamp)
             for kind in _PERIODS:
@@ -361,36 +409,55 @@ class ReflectionJournal:
                 buckets.setdefault((kind, key), []).append(
                     (event_id, description, tuple(json.loads(labels_json)))
                 )
+
         created: list[str] = []
-        for (kind, key), group in sorted(buckets.items(), key=lambda item: item[0][1:]+item[0][:1]):
-            identifier = f"reflection:{kind}:{key}"
+        scope_token = sha256(
+            resolved_scope.key.encode("utf-8")
+        ).hexdigest()[:12]
+        for (kind, key), group in sorted(
+            buckets.items(),
+            key=lambda item: item[0][1:] + item[0][:1],
+        ):
+            identifier = f"reflection:{scope_token}:{kind}:{key}"
             refs = tuple(event[0] for event in group[:16])
-            emotions = tuple(dict.fromkeys(label for event in group for label in event[2]))[:8]
+            emotions = tuple(
+                dict.fromkeys(
+                    label for event in group for label in event[2]
+                )
+            )[:8]
             excerpt = "; ".join(event[1][:110] for event in group[:3])
             if len(group) > 3:
                 excerpt += f"; and {len(group) - 3} other recorded events"
-            content = f"{len(group)} recorded events in this {kind} period: {excerpt}"
-            # Existing completed reflections are immutable. Corrections to a
-            # source event remain visible in the separate emotional journal.
+            content = (
+                f"{len(group)} recorded events in this {kind} period: {excerpt}"
+            )
             with self._connect() as db:
                 existing = db.execute(
-                    "SELECT 1 FROM reflection_thoughts WHERE thought_id=?", (identifier,)
+                    "SELECT 1 FROM reflection_thoughts "
+                    "WHERE thought_id=? AND scope_key=?",
+                    (identifier, resolved_scope.key),
                 ).fetchone()
             if existing:
                 continue
-            # The reflection is created at the actual caller invocation time,
-            # never backdated to imply thinking during an offline interval.
             try:
                 self.record_thought(
-                    kind=kind, period_key=key, thought_id=identifier,
+                    kind=kind,
+                    period_key=key,
+                    thought_id=identifier,
                     subject=f"{kind.capitalize()} reflection for {key}",
-                    content=content[:1000], evidence_refs=refs, emotions=emotions,
+                    content=content[:1000],
+                    evidence_refs=refs,
+                    emotions=emotions,
                     created_at=current,
+                    scope=resolved_scope,
                 )
             except ValueError:
-                # Concurrent caller may have inserted the same period.
                 with self._connect() as db:
-                    if not db.execute("SELECT 1 FROM reflection_thoughts WHERE thought_id=?", (identifier,)).fetchone():
+                    if not db.execute(
+                        "SELECT 1 FROM reflection_thoughts "
+                        "WHERE thought_id=? AND scope_key=?",
+                        (identifier, resolved_scope.key),
+                    ).fetchone():
                         raise
             else:
                 created.append(identifier)
