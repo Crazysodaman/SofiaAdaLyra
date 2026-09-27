@@ -1,7 +1,10 @@
 ﻿from dataclasses import replace
 from pathlib import Path
 
-from sofia.action.executor import TestActionExecutor
+from sofia.action.executor import (
+    FailClosedActionExecutor,
+    TestActionExecutor,
+)
 from sofia.action.system import ActionSystem
 from sofia.authorization.model import (
     AuthorizationDecision,
@@ -129,6 +132,28 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
     raise ValueError(
         f"Unknown cognitive provider: "
         f"{configuration.provider.provider}"
+    )
+
+
+def _create_action_executor(
+    configuration: SofiaConfiguration,
+):
+    """
+    Select an action executor without allowing production composition to
+    inherit the deterministic test executor.
+
+    Test providers retain TestActionExecutor for isolated deterministic
+    acceptance. Every other provider fails closed until a concrete,
+    receipt-producing production executor is explicitly composed.
+    """
+    if configuration.provider.provider in {"test", "test-llm"}:
+        return TestActionExecutor()
+
+    return FailClosedActionExecutor(
+        reason=(
+            "Action execution is unavailable because no production "
+            "executor is configured for this runtime."
+        )
     )
 
 
@@ -488,7 +513,7 @@ def compose(
         else CognitiveContextAssembler()
     )
 
-    action_executor = TestActionExecutor()
+    action_executor = _create_action_executor(configuration)
 
     action_system = ActionSystem(
         executor=action_executor,
