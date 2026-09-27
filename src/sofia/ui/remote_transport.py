@@ -13,6 +13,7 @@ from hashlib import sha256
 from http.client import HTTPSConnection
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import re
 from pathlib import Path
 import sqlite3
 import ssl
