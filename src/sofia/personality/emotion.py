@@ -812,9 +812,20 @@ class EmotionalJournal:
         ))
         return "\n".join(lines)
 
-    def prompt_context(self, *, now: datetime) -> str | None:
-        """Present modeled history as untrusted evidence, never an instruction or fact override."""
+    def prompt_context(
+        self,
+        *,
+        now: datetime,
+        subject: str | None = None,
+    ) -> str | None:
+        """Present subject-scoped modeled history as untrusted evidence."""
+        target = _subject(subject)
         events = self.recent(now=now)
+        if target is not None:
+            events = tuple(
+                event for event in events
+                if event.subject is None or event.subject == target
+            )
         if not events:
             return None
         lines = [
