@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
+from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.social.principals import local_sparks_principal
 from sofia.state.component_schema import verify_production_component_schemas
@@ -183,6 +185,14 @@ class SofiaApplication:
             if ui_draft_store is not None:
                 ui_draft_store.open()
             self._runtime.start()
+            environment_snapshot = self._runtime.environment_service.snapshot(
+                now=datetime.now(timezone.utc),
+                refresh_providers=True,
+            )
+            if environment_snapshot.timezone is not None:
+                self._act_service.set_local_timezone(
+                    environment_snapshot.timezone
+                )
             if self._release_manager is not None:
                 self._release_manager.reconcile_pointer()
             if self._runtime.embodiment is None:
@@ -219,12 +229,24 @@ class SofiaApplication:
                     state_path=Path(self._configuration.state_path),
                     reflection_enabled=enabled,
                 )
-                coordinator.set_act_delivery(
-                    lambda now: self._act_service.deliver_one(
-                        now=now,
-                        busy=False,
-                    )
+                activity_store = HostActivityStore(
+                    self._configuration.state_path
                 )
+                host_id = socket.gethostname()
+
+                def deliver_act(now):
+                    activity = activity_store.state(host_id).effective
+                    busy = activity in {
+                        ActivityMode.GAMING,
+                        ActivityMode.BUSY,
+                        ActivityMode.DO_NOT_DISTURB,
+                    }
+                    return self._act_service.deliver_one(
+                        now=now,
+                        busy=busy,
+                    )
+
+                coordinator.set_act_delivery(deliver_act)
                 runtime_id = self._runtime.runtime_id
                 if runtime_id is None:
                     raise SofiaApplicationError(
