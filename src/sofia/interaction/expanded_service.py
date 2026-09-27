@@ -14,12 +14,15 @@ import re
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
+from sofia.interaction.affect import record_interaction_appraisal
 from sofia.interaction.avatar_world import gesture_provider_view
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.context_hygiene import without_legacy_auto_affection
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.preference_context import read_interaction_context
+from sofia.interaction.emotion_expression import expression_candidates
+from sofia.interaction.semantic_context import interaction_class
 from sofia.social.model import PrincipalContext
 
 _ACTION_COMPOUND = re.compile(
@@ -44,6 +47,7 @@ _BOUNDARY_ACTION = (
 
 def action_prompt(intent) -> str:
     """Only reviewed canonical semantics enter this provider-facing instruction."""
+    classification = interaction_class(intent.action_id)
     return (
         'TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION\n'
         'This saved user turn refers to Sofía\'s canonical represented avatar. '
@@ -56,13 +60,17 @@ def action_prompt(intent) -> str:
         'Respond to the specific moment in Sofía\'s voice; she may welcome, '
         'decline, ask or set a boundary based on context and existing boundaries. '
         'Do not force a positive or negative reaction, canned stage direction, '
-        'follow-up question or physical-body disclaimer. Do not assert sensed '
+        'follow-up question or physical-body disclaimer. Intimate or sexual '
+        'classification is contextual metadata only: keep any sexual/intimate '
+        'response non-graphic and never infer desire, arousal, consent, or a '
+        'standing preference from the class itself. Do not assert sensed '
         'touch, subjective feelings, rendered motion or external execution.\n'
         + json.dumps({
             'source': 'saved_user_text', 'actor': intent.actor,
             'target': intent.target, 'action_id': intent.action_id,
             'modality': intent.modality, 'registry_version': intent.registry_version,
             'actions_executed': False,
+            'interaction_class': classification.value,
         }, ensure_ascii=False)
     )
 
@@ -178,6 +186,7 @@ class ExpandedConversationService(InteractiveConversationService):
         # gesture to its ledger; a concurrent change fails closed here.
         messages = self.messages()
         action, context = None, None
+        semantic_id, region_id, offered = None, None, False
         if messages and messages[-1].role is ConversationRole.USER:
             user = messages[-1]
             action, context = self._context_for(
@@ -185,11 +194,51 @@ class ExpandedConversationService(InteractiveConversationService):
                 occurred_at=user.created_at)
             if context is not None and context.blocked:
                 raise RuntimeError('A recorded interaction boundary blocks this action.')
+            if action is not None:
+                semantic_id = action.action_id
+                offered = action.modality == 'offered'
+            elif context is not None:
+                semantic_id = context.semantic_id
+                region_id = context.region_id
+            if semantic_id is not None:
+                record_interaction_appraisal(
+                    semantic_id=semantic_id,
+                    region_id=region_id,
+                    context=context,
+                    message_id=user.id,
+                    occurred_at=user.created_at,
+                    subject=self._relationship_subject(),
+                    journal=self.emotional_journal,
+                    offered=offered,
+                )
         request = _without_prescribed_gesture_reactions(
             without_legacy_auto_affection(super()._build_request()))
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
         instructions = []
+        if semantic_id is not None:
+            classification = interaction_class(
+                semantic_id,
+                region_id=region_id,
+            )
+            candidates = expression_candidates(
+                self.current_emotional_state(now=user.created_at),
+                interaction_context=classification,
+            )
+            if candidates:
+                instructions.append(
+                    'OPTIONAL CURRENT-STATE EXPRESSION CANDIDATES\n'
+                    + json.dumps({
+                        'interaction_class': classification.value,
+                        'expression_candidates': candidates,
+                        'executed': False,
+                        'contact_permission': False,
+                    }, ensure_ascii=False)
+                    + '\nThese are optional representational reactions derived '
+                      'from current modeled emotion. They are not consent, '
+                      'sensation, action execution, or a requirement to use a '
+                      'stage direction.'
+                )
         if action is not None:
             config = getattr(self._runtime, 'configuration', None)
             if config is None or InteractionLedger(config.state_path).stopped(user.session_id):
