@@ -17,6 +17,7 @@ from sofia.cognition.model import (
 )
 from sofia.personality.emotion import EmotionalEvent
 from sofia.personality.reflection import ReflectionJournal
+from sofia.personality.influence import ContinuityInfluence
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class ThoughtAgent:
     def reflect(
         self, *, event: EmotionalEvent, now: datetime,
         verified_worsening: bool = False,
+        influence: ContinuityInfluence | None = None,
     ) -> ReflectionOutcome:
         if not isinstance(event, EmotionalEvent):
             raise TypeError("An existing EmotionalEvent is required.")
@@ -59,6 +61,8 @@ class ThoughtAgent:
             raise ValueError("A timezone-aware reflection time is required.")
         if type(verified_worsening) is not bool:
             raise TypeError("Verified worsening must be an explicit bool from trusted application evidence.")
+        if influence is not None and not isinstance(influence, ContinuityInfluence):
+            raise TypeError("influence must be ContinuityInfluence or None")
         if verified_worsening and event.source != "observed":
             raise ValueError("Unverified reports cannot establish observed worsening.")
         current = now.astimezone(timezone.utc)
@@ -88,6 +92,17 @@ class ThoughtAgent:
             "reappraisals": event.revision_count,
             # Never infer escalation from an emotion label or model phrasing.
             "verified_worsening": verified_worsening,
+            "continuity_influence": (
+                None if influence is None else {
+                    "daypart": influence.daypart,
+                    "season": influence.season,
+                    "daylight": influence.daylight,
+                    "emotional_tone": influence.emotional_tone,
+                    "primary_emotion": influence.primary_emotion,
+                    "primary_intensity": influence.primary_intensity,
+                    "active_emotions": influence.active_emotions,
+                }
+            ),
         }
         instruction = (
             "Compose one optional private reflection for Sofía from the JSON event below. "
@@ -103,7 +118,12 @@ class ThoughtAgent:
             "Use 'none' when the evidence supports no useful reflection. "
             "message must be empty unless share='now'. urgency is routine, excited or urgent; "
             "urgent requires application-verified worsening AND observed provenance. "
-            "If verified_worsening is false, do not use urgent. No invented facts or action claims.\n"
+            "If verified_worsening is false, do not use urgent. "
+            "Continuity influence may shape salience, tone, reflection themes, "
+            "what feels worth remembering, and whether sharing now/later/none feels "
+            "appropriate. It is context, not evidence, and must never manufacture "
+            "facts, causes, permissions, memories, habits, or expectations. "
+            "No invented facts or action claims.\n"
             "RECORDED EVENT DATA:\n" + json.dumps(payload, ensure_ascii=False)
         )
         request = CognitiveRequest(messages=(
