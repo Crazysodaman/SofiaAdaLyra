@@ -1,7 +1,8 @@
 """Application-facing habit learning coordinator."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 
 from sofia.environment.service import EnvironmentService
 from sofia.social.model import PrincipalContext
@@ -9,7 +10,12 @@ from sofia.social.model import PrincipalContext
 from .context import habit_context_from_environment
 from .detector import HabitPatternDetector
 from .expectation import HabitExpectationEngine
-from .model import HabitObservation, ObservationSource
+from .model import (
+    CoverageState,
+    HabitObservation,
+    ObservationCoverage,
+    ObservationSource,
+)
 from .store import HabitStore
 
 
@@ -69,6 +75,46 @@ class HabitLearningService:
             timezone_name=timezone_name,
             now=occurred_at,
         )
+        return item
+
+    def record_running_coverage(
+        self,
+        *,
+        principal_id: str,
+        started_at: datetime,
+        ended_at: datetime,
+        source_id: str = "application-background",
+        kind: str = "conversation.contact",
+        max_gap: timedelta = timedelta(minutes=5),
+    ) -> ObservationCoverage | None:
+        if not isinstance(principal_id, str) or not principal_id.strip():
+            raise ValueError("principal_id required")
+        if (
+            started_at.tzinfo is None
+            or started_at.utcoffset() is None
+            or ended_at.tzinfo is None
+            or ended_at.utcoffset() is None
+        ):
+            raise ValueError("coverage timestamps must be timezone-aware")
+        start = started_at.astimezone(timezone.utc)
+        end = ended_at.astimezone(timezone.utc)
+        if end <= start:
+            return None
+        if end - start > max_gap:
+            # A long scheduler/process gap is not evidence of continuous
+            # observation. Leave it uncovered instead of inventing uptime.
+            return None
+        raw = f"{principal_id}\x1f{kind}\x1f{start.isoformat()}\x1f{end.isoformat()}"
+        item = ObservationCoverage(
+            coverage_id="habit-coverage:" + sha256(raw.encode("utf-8")).hexdigest()[:32],
+            principal_id=principal_id,
+            source_id=source_id,
+            kind=kind,
+            started_at=start,
+            ended_at=end,
+            state=CoverageState.COVERED,
+        )
+        self.store.record_coverage(item)
         return item
 
     def record_observation(
