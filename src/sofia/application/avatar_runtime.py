@@ -22,6 +22,13 @@ from sofia.runtime.runtime import SofiaRuntime
 
 _STYLE_TAGS = {
     "contentment": ("relaxed", "soft", "warm"),
+    "comfort": ("relaxed", "soft", "warm", "cozy"),
+    "calmness": ("relaxed", "quiet", "composed"),
+    "nostalgia": ("soft", "quiet", "warm"),
+    "loneliness": ("quiet", "soft"),
+    "hurt": ("quiet", "soft"),
+    "irritation": ("practical", "focused"),
+    "awkwardness": ("quiet", "composed"),
     "warmth": ("relaxed", "soft", "warm"),
     "fondness": ("relaxed", "soft", "warm"),
     "affection": ("soft", "warm"),
