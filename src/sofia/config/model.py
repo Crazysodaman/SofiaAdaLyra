@@ -3,6 +3,7 @@ from typing import Any
 from pathlib import Path
 
 from sofia.environment.config import EnvironmentConfiguration
+from sofia.identity.model import IdentityBootstrapMode
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,7 @@ class SofiaConfiguration:
     state_path: Path
     provider: ProviderConfiguration
     filesystem_root: Path
+    identity_bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.FIRST_BOOTSTRAP
     standing_allowed_capabilities: tuple[str, ...] = ()
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
@@ -107,6 +109,12 @@ class SofiaConfiguration:
         if not isinstance(self.filesystem_root, Path):
             raise TypeError(
                 "SofiaConfiguration filesystem_root must be a Path."
+            )
+
+        if not isinstance(self.identity_bootstrap_mode, IdentityBootstrapMode):
+            raise TypeError(
+                "SofiaConfiguration identity_bootstrap_mode must be an "
+                "IdentityBootstrapMode."
             )
 
         if not self.personality_path:
