@@ -108,7 +108,17 @@ class EmotionalConversationService(ConversationService):
         principal = self._principal_context()
         if principal is not None:
             return principal.relationship_scope
-        return SocialScope.relationship(self._relationship_subject())
+        core_state = getattr(self._runtime, "core_state", None)
+        relationships = (
+            getattr(core_state, "relationships", ())
+            if core_state is not None
+            else ()
+        )
+        if relationships:
+            subject = getattr(relationships[0], "subject", None)
+            if isinstance(subject, str) and subject.strip():
+                return SocialScope.relationship(subject.strip())
+        return SocialScope.global_scope()
 
     def observe_background_absence(self, *, now: datetime) -> str | None:
         """Let the running idle worker appraise a real contact gap at this instant."""
@@ -151,6 +161,8 @@ class EmotionalConversationService(ConversationService):
             with self._model_lock:
                 acquired = monotonic()
                 try:
+                    if principal is None:
+                        return super().respond(content)
                     return super().respond(
                         content,
                         principal=principal,
@@ -230,9 +242,18 @@ class EmotionalConversationService(ConversationService):
             subject=self._relationship_subject(),
             scope=self.relationship_scope,
         )
-        environment = self._runtime.environment_service.snapshot(
-            now=now,
-            refresh_providers=False,
+        environment_service = getattr(
+            self._runtime,
+            "environment_service",
+            None,
+        )
+        environment = (
+            environment_service.snapshot(
+                now=now,
+                refresh_providers=False,
+            )
+            if environment_service is not None
+            else None
         )
         influence = ContinuityInfluence.from_state(
             emotion=current_state,
