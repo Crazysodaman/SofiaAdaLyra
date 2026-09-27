@@ -12,7 +12,13 @@ import sys
 from threading import Event, Thread
 from typing import Callable
 
-from .control_center import GameMode, TrayCommand, TrayStatus
+from .control_center import (
+    GameMode,
+    TrayCommand,
+    TrayStatus,
+    tray_command_enabled,
+    tray_command_requires_confirmation,
+)
 
 
 class WindowsTrayUnavailable(RuntimeError):
@@ -341,20 +347,31 @@ class WindowsTrayAgent:
                 append(root, MF_POPUP, game, "Game Mode")
 
                 llm_label = status.llm_model or "LLM Engine"
-                llm_service_flags = (
-                    MF_STRING
-                    if status.llm_state != "not_found"
-                    else MF_STRING | MF_GRAYED
-                )
-                append(llm, llm_service_flags, 1020, "Start")
-                append(llm, llm_service_flags, 1021, "Stop")
-                append(llm, llm_service_flags, 1022, "Restart")
+                for item_id, label, command in (
+                    (1020, "Start", TrayCommand.LLM_START),
+                    (1021, "Stop", TrayCommand.LLM_STOP),
+                    (1022, "Restart", TrayCommand.LLM_RESTART),
+                ):
+                    flags = (
+                        MF_STRING
+                        if tray_command_enabled(command, status)
+                        else MF_STRING | MF_GRAYED
+                    )
+                    append(llm, flags, item_id, label)
                 append(llm, MF_STRING, 1023, "Unload model")
                 append(root, MF_POPUP, llm, f"{llm_label}: {status.llm_state}")
 
-                append(runtime, MF_STRING, 1030, "Start")
-                append(runtime, MF_STRING, 1031, "Stop")
-                append(runtime, MF_STRING, 1032, "Restart")
+                for item_id, label, command in (
+                    (1030, "Start", TrayCommand.RUNTIME_START),
+                    (1031, "Stop", TrayCommand.RUNTIME_STOP),
+                    (1032, "Restart", TrayCommand.RUNTIME_RESTART),
+                ):
+                    flags = (
+                        MF_STRING
+                        if tray_command_enabled(command, status)
+                        else MF_STRING | MF_GRAYED
+                    )
+                    append(runtime, flags, item_id, label)
                 append(root, MF_POPUP, runtime, "Sofía Runtime")
 
                 append(root, MF_SEPARATOR, 0, None)
@@ -376,9 +393,9 @@ class WindowsTrayAgent:
                     None,
                 )
                 command = action_ids.get(int(selected))
-                if command in (
-                    TrayCommand.RUNTIME_STOP,
-                    TrayCommand.RUNTIME_RESTART,
+                if (
+                    command is not None
+                    and tray_command_requires_confirmation(command)
                 ):
                     action = (
                         "stop"
