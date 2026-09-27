@@ -11,6 +11,7 @@ from sofia.avatar.runtime_state import (
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
+from sofia.application.evolution import SofiaEvolutionService
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
@@ -47,6 +48,10 @@ class SofiaApplication:
     def __init__(self, configuration: SofiaConfiguration) -> None:
         self._configuration = configuration
         self._runtime: SofiaRuntime = compose(configuration)
+        self._evolution = SofiaEvolutionService(
+            configuration=configuration,
+            state_plane=self._runtime.state_plane,
+        )
         conversation_store = ConversationStore(configuration.state_path)
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime, conversation_store=conversation_store,
@@ -64,6 +69,10 @@ class SofiaApplication:
     @property
     def runtime(self) -> SofiaRuntime:
         return self._runtime
+
+    @property
+    def evolution(self) -> SofiaEvolutionService:
+        return self._evolution
 
     @property
     def conversation(self) -> ConversationService:
