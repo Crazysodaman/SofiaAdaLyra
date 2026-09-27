@@ -111,6 +111,50 @@ A mutable model tag such as `qwen3:14b` is not by itself sufficient immutable re
 
 Normal autonomous self-update may not replace or relax the mechanisms that decide whether the update is trustworthy. At minimum the following are higher-trust SAFE surfaces: release signature verifier, trusted root public keys, approval verifier, emergency stop, cross-host fencing/leadership enforcement, anti-rollback policy, recovery boot path and protected-state verifier. Sofía may diagnose/propose changes to them, but activation requires the independently defined higher approval tier.
 
+### Control-agent independence contract
+
+The Fleet control/supervisor agent is a **separately versioned recovery-plane component**, not just another Sofía runtime package. It must be installable, startable, health-checkable, rollbackable and updatable independently from the main Sofía release. A bad Sofía application/model/UI release must not be able to disable the mechanism responsible for stopping, fencing, rolling back or recovering it.
+
+Agent updates use their own compatibility matrix and canary/wave rollout. Do not require the currently broken Sofía runtime to repair or replace its supervisor. The agent may verify/install an approved Sofía release, but ordinary Sofía self-update may not silently replace the agent's recovery/trust behavior.
+
+### State Plane unavailable / degraded-mode contract
+
+Loss of the authoritative State Plane does **not** grant a local runtime permission to become a competing source of truth.
+
+When authoritative state or writer/leader authority cannot be proven:
+
+- local clients may preserve clearly marked **pending input/drafts** for later reconciliation;
+- safe read-only use of previously verified immutable release/config/assets may continue where privacy/freshness rules permit;
+- cached memories, relationships, approvals, grants and fleet state may be displayed only with explicit stale/degraded provenance where appropriate;
+- no node may create/promote authoritative memories, relationship changes, approvals, grants, deployments, external side-effect jobs or protected revisions as if they were committed;
+- consequential ACT/DEV/EVOLVE/OPS/BODY actions fail closed unless an independently valid offline-safe authority contract explicitly permits that exact operation;
+- queued inputs/actions must receive stable IDs and reconcile against authoritative state after recovery rather than being blindly replayed;
+- once State Plane connectivity returns, RUN reconciles leadership, sequence/order, pending work and uncertain external effects before normal authoritative writes resume.
+
+### Append-only protected audit contract
+
+Security-critical evidence is **append-only and tamper-evident**, not merely another mutable table. Approvals, denials, grants/revocations, release signatures, deployment decisions, migrations, protected EVOLVE changes, emergency stops, fencing/leader transitions and machine-decommission decisions receive immutable event IDs, actor/principal, exact revision/digest, causation/correlation IDs, timestamp and receipt/evidence references.
+
+Corrections do not overwrite the original event. They append a superseding/reversal event. Use hash chaining, signed checkpoints, write-once/append-only storage controls or an equivalently verified mechanism so deletion/rewrite is detectable. Backup/restore must preserve and verify the audit chain.
+
+### Database invariant and constraint contract
+
+The future authoritative relational schema must enforce domain invariants in the database where practical rather than relying only on Python call order.
+
+Required examples include:
+
+- foreign keys for conversation→principal/session, memory→provenance/source, deployment→release/node and grant→principal/node relationships;
+- uniqueness/idempotency constraints for immutable event/request/release identifiers;
+- append-only or guarded-write semantics for original conversations, audit evidence, approvals and other records whose history must not be silently rewritten;
+- ownership/audience columns and constraints that prevent person-scoped records from becoming unowned/global by omission;
+- explicit revocation/validity constraints so an active authorization cannot simultaneously be represented as revoked/expired;
+- state-machine constraints for jobs/actions/deployments so impossible transitions are rejected;
+- migration/schema checks that prevent incompatible runtimes from writing newer/older schemas;
+- database-level transaction boundaries for operations that must commit atomically, with documented reconciliation for effects that cannot share the transaction.
+
+Application validation remains useful, but it is not the sole protection against authoritative-state corruption.
+
+
 ### Independent Fleet-agent verification
 
 A matching version string is not enough to mark an existing Fleet agent trusted. Enrollment/update acceptance must independently verify the installed artifact/package identity, digest/signature, expected service identity/configuration and protocol compatibility. An installer returning `verified=true` is a receipt, not the sole proof; the controller or a separate verifier must establish the installed state.
