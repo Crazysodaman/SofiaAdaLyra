@@ -247,7 +247,7 @@ class ReflectionJournal:
         self, *, kind: str, subject: str, content: str,
         evidence_refs: tuple[str, ...], emotions: tuple[str, ...] = (),
         created_at: datetime, thought_id: str | None = None,
-        period_key: str | None = None,
+        period_key: str | None = None, scope: SocialScope | None = None,
     ) -> str:
         if kind not in (*_PERIODS, "reflection", "observation"):
             raise ValueError("Unknown thought kind.")
@@ -265,34 +265,71 @@ class ReflectionJournal:
             _short(period_key, "Period key", 32)
         when = _utc(created_at)
         identifier = _short(thought_id or str(uuid4()), "Thought ID", 160)
-        row = (identifier, kind, period_key, when.isoformat(), subject, content,
-               json.dumps(refs), json.dumps(emotions))
+        resolved_scope = _scope(scope)
+        row = (
+            identifier,
+            kind,
+            period_key,
+            when.isoformat(),
+            subject,
+            content,
+            json.dumps(refs),
+            json.dumps(emotions),
+            resolved_scope.key,
+            resolved_scope.kind.value,
+            resolved_scope.principal_id,
+            resolved_scope.audience_id,
+            (
+                resolved_scope.audience_kind.value
+                if resolved_scope.audience_kind is not None
+                else None
+            ),
+        )
         with self._connect() as db:
             try:
-                db.execute("INSERT INTO reflection_thoughts VALUES (?, ?, ?, ?, ?, ?, ?, ?)", row)
+                db.execute(
+                    "INSERT INTO reflection_thoughts "
+                    "(thought_id, kind, period_key, created_at, subject, content, "
+                    "evidence_refs, emotions, scope_key, scope_kind, principal_id, "
+                    "audience_id, audience_kind) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    row,
+                )
             except sqlite3.IntegrityError as exc:
                 existing = db.execute(
                     "SELECT thought_id, kind, period_key, created_at, subject, content, "
-                    "evidence_refs, emotions FROM reflection_thoughts WHERE thought_id=?",
+                    "evidence_refs, emotions, scope_key, scope_kind, principal_id, "
+                    "audience_id, audience_kind "
+                    "FROM reflection_thoughts WHERE thought_id=?",
                     (identifier,),
                 ).fetchone()
                 if existing != row:
-                    raise ValueError("Thought identity or period is already in use.") from exc
+                    raise ValueError(
+                        "Thought identity, period, or scope is already in use."
+                    ) from exc
         return identifier
 
-    def recent_thoughts(self, *, limit: int = 12) -> tuple[RecordedThought, ...]:
+    def recent_thoughts(
+        self, *, limit: int = 12, scope: SocialScope | None = None,
+    ) -> tuple[RecordedThought, ...]:
         if not isinstance(limit, int) or not 1 <= limit <= 50:
             raise ValueError("Thought limit must be 1-50.")
+        resolved_scope = _scope(scope)
         with self._connect() as db:
             rows = db.execute(
                 "SELECT thought_id, kind, created_at, subject, content, "
-                "evidence_refs, emotions, period_key FROM reflection_thoughts "
-                "ORDER BY created_at DESC, thought_id DESC LIMIT ?", (limit,),
+                "evidence_refs, emotions, period_key, scope_kind, principal_id, "
+                "audience_id, audience_kind FROM reflection_thoughts "
+                "WHERE scope_key=? "
+                "ORDER BY created_at DESC, thought_id DESC LIMIT ?",
+                (resolved_scope.key, limit),
             ).fetchall()
         return tuple(RecordedThought(
             thought_id=r[0], kind=r[1], created_at=datetime.fromisoformat(r[2]),
             subject=r[3], content=r[4], evidence_refs=tuple(json.loads(r[5])),
             emotions=tuple(json.loads(r[6])), period_key=r[7],
+            scope_kind=r[8], principal_id=r[9], audience_id=r[10],
+            audience_kind=r[11],
         ) for r in rows)
 
     def reflect_due(self, *, now: datetime) -> tuple[str, ...]:
