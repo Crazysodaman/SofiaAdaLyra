@@ -89,12 +89,13 @@ def configure_act_delivery_from_environment(
             enabled=True,
             mute=False,
             stop=False,
-            quiet_start_utc=int(
-                os.environ.get("SOFIA_ACT_QUIET_START_UTC", "22")
+            quiet_start_local=int(
+                os.environ.get("SOFIA_ACT_QUIET_START_LOCAL", "22")
             ),
-            quiet_end_utc=int(
-                os.environ.get("SOFIA_ACT_QUIET_END_UTC", "8")
+            quiet_end_local=int(
+                os.environ.get("SOFIA_ACT_QUIET_END_LOCAL", "8")
             ),
+            timezone_name="UTC",
             min_interval=timedelta(
                 minutes=int(
                     os.environ.get(
