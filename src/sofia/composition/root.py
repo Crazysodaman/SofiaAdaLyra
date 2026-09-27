@@ -42,6 +42,7 @@ from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
+from sofia.knowledge.access import KnowledgeAccessStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
 from sofia.knowledge.lifecycle import KnowledgeLifecycle
 from sofia.knowledge.persistence import JsonKnowledgeStore
@@ -206,6 +207,7 @@ def compose(
         filesystem_root,
         knowledge_store,
         knowledge_lifecycle,
+        KnowledgeAccessStore(state_path),
     )
     knowledge_capabilities = KnowledgeCapabilitySet(
         knowledge_service
