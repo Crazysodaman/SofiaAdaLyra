@@ -13,6 +13,7 @@ import sys
 from uuid import uuid4
 
 from sofia.config import create_default_configuration
+from sofia.distributed.capability import create_configured_remote_fleet_service
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
     ActivityMode,
@@ -43,6 +44,7 @@ from .control_center import (
     TrayStatus,
 )
 from .process_lock import TrayProcessAlreadyRunning, TrayProcessLock
+from .fleet_service_control import FleetRemoteServiceController
 from .service_control import DesktopServiceController
 from .windows_tray import WindowsTrayAgent
 
@@ -76,10 +78,19 @@ class TrayAgentApplication:
         self._execution_approvals = ExecutionApprovalVerifier(
             self.config.state_path
         )
+        self._remote_fleet_service = create_configured_remote_fleet_service(
+            self.config.state_path
+        )
+        self._remote_service_controller = (
+            None
+            if self._remote_fleet_service is None
+            else FleetRemoteServiceController(self._remote_fleet_service)
+        )
         self._service = DesktopServiceController(
             local_host_id=self.host_id,
             llm_model=self.config.provider.model,
             approval_verifier=self._execution_approvals,
+            remote=self._remote_service_controller,
         )
         self._system_backend = create_local_system_backend()
         by_name = {
@@ -300,6 +311,8 @@ class TrayAgentApplication:
                 running = self.handle(command)
         finally:
             self.tray.stop()
+            if self._remote_service_controller is not None:
+                self._remote_service_controller.close()
         return 0
 
 
