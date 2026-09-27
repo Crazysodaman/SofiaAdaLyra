@@ -117,6 +117,11 @@ class HabitPatternEngine:
             principal_id=observation.principal_id,
             audience_id=observation.audience_id,
         )
+        if (
+            existing is not None
+            and observation.evidence_ref in existing.evidence_refs
+        ):
+            return existing
         if existing is None:
             support = 1
             observable = 1
