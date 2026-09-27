@@ -37,6 +37,18 @@ _PHRASES: dict[str, tuple[str, str]] = {
     'help you in the lab': ('help-in-lab', 'offered'),
     'ask to hug you': ('hug', 'offered'),
     'ask to cuddle you': ('cuddle', 'offered'),
+    'kiss you': ('kiss', 'described'),
+    'ask to kiss you': ('kiss', 'offered'),
+    'hold you close': ('hold-close', 'described'),
+    'put my arm around you': ('arm-around', 'described'),
+    'rest my head on your shoulder': ('rest-head-on-shoulder', 'described'),
+    'dance with you': ('dance-with', 'described'),
+    'flirt with you': ('flirt', 'described'),
+    'ask to be intimate with you': ('intimate-contact', 'offered'),
+    'initiate intimate contact with you': ('intimate-contact', 'described'),
+    'ask to have sex with you': ('sexual-contact', 'offered'),
+    'have sex with you': ('sexual-contact', 'described'),
+    'initiate sexual contact with you': ('sexual-contact', 'described'),
 }
 if any(action not in _ACTIONS for action, _ in _PHRASES.values()):
     raise RuntimeError('Action grammar refers to a missing catalog definition.')
