@@ -528,6 +528,87 @@ class ReflectionJournal:
             )
             return message_id
 
+    def defer_followup(
+        self,
+        *,
+        thought_id: str,
+        created_at: datetime,
+        reconsider_after: datetime,
+        salience: float,
+    ) -> str:
+        identifier = _short(thought_id, "Thought ID", 160)
+        created = _utc(created_at)
+        due = _utc(reconsider_after)
+        if due <= created:
+            raise ValueError("reconsider_after must be after created_at")
+        if not 0.0 <= salience <= 1.0:
+            raise ValueError("salience must be in [0,1]")
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT scope_key FROM reflection_thoughts WHERE thought_id=?",
+                (identifier,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(identifier)
+            scope_key = row[0]
+            followup_id = f"followup:{identifier}"
+            desired = (
+                followup_id,
+                identifier,
+                scope_key,
+                created.isoformat(),
+                due.isoformat(),
+                float(salience),
+                "deferred",
+            )
+            old = db.execute(
+                "SELECT followup_id,thought_id,scope_key,created_at,"
+                "reconsider_after,salience,status "
+                "FROM reflection_followups WHERE followup_id=?",
+                (followup_id,),
+            ).fetchone()
+            if old is not None and tuple(old) != desired:
+                raise ValueError("followup identity is already in use")
+            if old is None:
+                db.execute(
+                    "INSERT INTO reflection_followups VALUES (?,?,?,?,?,?,?)",
+                    desired,
+                )
+            return followup_id
+
+    def due_followups(
+        self,
+        *,
+        now: datetime,
+        scope: SocialScope | None = None,
+        limit: int = 10,
+    ) -> tuple[tuple[str, str, float], ...]:
+        moment = _utc(now)
+        resolved_scope = _scope(scope)
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("followup limit must be 1-50")
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT followup_id,thought_id,salience "
+                "FROM reflection_followups "
+                "WHERE scope_key=? AND status='deferred' "
+                "AND reconsider_after<=? "
+                "ORDER BY salience DESC,reconsider_after,followup_id LIMIT ?",
+                (resolved_scope.key, moment.isoformat(), limit),
+            ).fetchall()
+        return tuple((row[0], row[1], float(row[2])) for row in rows)
+
+    def mark_outbox_bridged(self, *, message_id: str) -> None:
+        identifier = _short(message_id, "Message ID", 160)
+        with self._connect() as db:
+            changed = db.execute(
+                "UPDATE reflection_outbox SET status='bridged' "
+                "WHERE message_id=? AND status='pending'",
+                (identifier,),
+            )
+            if changed.rowcount != 1:
+                raise ValueError("no pending reflection message to bridge")
+
     def pending(
         self, *, limit: int = 25, scope: SocialScope | None = None,
     ) -> tuple[OutboxEntry, ...]:
