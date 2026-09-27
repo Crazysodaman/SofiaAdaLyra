@@ -21,6 +21,7 @@ from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.social.model import PrincipalContext
 
 
 class ConversationService:
@@ -229,6 +230,8 @@ class ConversationService:
     def respond(
         self,
         content: str,
+        *,
+        principal: PrincipalContext | None = None,
     ) -> CognitiveResponse:
         """
         Persist a user message, process authorization or any
@@ -244,6 +247,11 @@ class ConversationService:
         if not isinstance(content, str):
             raise TypeError(
                 "ConversationService content must be a string."
+            )
+
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError(
+                "ConversationService principal must be a PrincipalContext or None."
             )
 
         content = content.strip()
@@ -286,6 +294,7 @@ class ConversationService:
         response = self._runtime.respond(
             request,
             filesystem_results=filesystem_results,
+            principal=principal,
         )
 
         assistant_message = ConversationMessage(
