@@ -48,6 +48,8 @@ from sofia.ui.control_center import (
     ServiceTarget,
     TrayCommand,
     TrayStatus,
+    tray_command_enabled,
+    tray_command_requires_confirmation,
     tray_menu_labels,
 )
 from sofia.ui.remote_client import (
@@ -66,6 +68,7 @@ __all__ = [
     "quick_tool_labels","theme_signals_from_sources","DesktopControlSettings",
     "DesktopControlSettingsStore","GameMode","MASTER_SETTINGS_SECTIONS","RemoteChatMode",
     "ServiceAction","ServiceKind","ServiceTarget","TrayCommand","TrayStatus",
-    "tray_menu_labels","RemoteEndpointRequired","RuntimeEndpoint","RuntimeEndpointSelector",
+    "tray_command_enabled","tray_command_requires_confirmation","tray_menu_labels",
+    "RemoteEndpointRequired","RuntimeEndpoint","RuntimeEndpointSelector",
     "RuntimeEndpointState",
 ]
