@@ -22,7 +22,13 @@ from sofia.interaction.reviewed_hug_question import (
 from sofia.interaction.trusted_offer_gate import GuardedOfferResult, _policy_gate
 
 
-def respond_reviewed_hug_question(service, content: str) -> CognitiveResponse:
+def respond_reviewed_hug_question(
+    service,
+    content: str,
+    *,
+    principal=None,
+    audience=None,
+) -> CognitiveResponse:
     """Save exact reviewed question; never infer or issue a permission grant."""
     if not is_reviewed_hug_question(content):
         raise ValueError('Only a complete reviewed ambiguous hug question is supported.')
