@@ -1,4 +1,3 @@
-from pathlib import Path
 import sys
 
 import pytest
@@ -15,7 +14,7 @@ def test_startup_command_bootstraps_tray_from_package_root():
     command = tray_startup_command()
     assert "sofia.ui.tray_agent import main" in command
     assert "sys.path.insert(0" in command
-    assert str(windows_startup._package_root()) in command
+    assert repr(str(windows_startup._package_root())) in command
     assert command.startswith('"')
 
 
