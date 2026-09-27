@@ -12,7 +12,7 @@ from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
 
 
 @pytest.fixture
-def local_tmp_path(local_tmp_path: Path):
+def local_tmp_path(tmp_path: Path):
     resolved = tmp_path.resolve()
     if not str(resolved).startswith("\\\\"):
         yield resolved
@@ -25,7 +25,6 @@ def local_tmp_path(local_tmp_path: Path):
         yield root
     finally:
         shutil.rmtree(root, ignore_errors=True)
-
 
 
 def test_bootstrap_pair_creates_ca_client_and_server_material(local_tmp_path: Path):
@@ -132,4 +131,4 @@ def test_bootstrap_pair_can_include_server_ip_san(local_tmp_path: Path):
 
 def test_refuse_network_secret_root():
     with pytest.raises(ValueError, match="local storage"):
-        _refuse_network_secret_root(Path(r"\\\\Artemis\\Hestia\\fleet-pki"))
+        _refuse_network_secret_root(Path(r"\\Artemis\Hestia\fleet-pki"))
