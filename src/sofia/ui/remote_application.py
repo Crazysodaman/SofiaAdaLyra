@@ -17,6 +17,8 @@ from sofia.ui.remote_transport import (
     RemoteChatClientConfig,
 )
 from sofia.ui.text import UITextClient
+from sofia.ui.runtime_authority import RuntimeAuthorityState, RuntimeChatAuthorityStore
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 
 class RemoteDesktopApplication:
@@ -81,18 +83,25 @@ def create_desktop_application(configuration: SofiaConfiguration):
     settings = DesktopControlSettingsStore(configuration.state_path).load()
 
     endpoint = None
+    pin = ""
     if settings.remote_chat_mode is RemoteChatMode.PINNED_ENDPOINT:
         endpoint = settings.pinned_chat_endpoint
+        pin = os.environ.get("SOFIA_REMOTE_CHAT_SERVER_PIN", "").strip()
     elif settings.remote_chat_mode is RemoteChatMode.FLEET_AUTO:
-        # Temporary authority publication seam. OPS/RUN will replace this
-        # environment handoff with the durable Fleet-authority endpoint record.
-        endpoint = os.environ.get("SOFIA_REMOTE_CHAT_ENDPOINT", "").strip() or None
+        authority = RuntimeChatAuthorityStore(
+            SQLiteStatePlane(configuration.state_path)
+        ).current()
+        if (
+            authority is not None
+            and authority.state is RuntimeAuthorityState.READY
+        ):
+            endpoint = authority.endpoint
+            pin = authority.server_public_key_sha256
 
     if endpoint is None:
         from sofia.application import SofiaApplication
         return SofiaApplication(configuration)
 
-    pin = os.environ.get("SOFIA_REMOTE_CHAT_SERVER_PIN", "").strip()
     if re.fullmatch(r"[0-9a-f]{64}", pin) is None:
         raise RuntimeError(
             "SOFIA_REMOTE_CHAT_SERVER_PIN must be a lowercase SHA-256 digest"
