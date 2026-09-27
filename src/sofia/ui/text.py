@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Protocol
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.social.principal import Audience, AuthenticatedPrincipal
 from sofia.ui.drafts import UIDraft, UIDraftStore
 
 
@@ -21,7 +22,13 @@ class ConversationPort(Protocol):
 
     def messages(self) -> tuple[ConversationMessage, ...]: ...
 
-    def respond(self, content: str): ...
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: AuthenticatedPrincipal | None = None,
+        audience: Audience | None = None,
+    ): ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +49,8 @@ class UITextClient:
         conversation: ConversationPort,
         drafts: UIDraftStore,
         client_id: str,
+        principal: AuthenticatedPrincipal | None = None,
+        audience: Audience | None = None,
     ) -> None:
         try:
             inspect.getattr_static(conversation, "session_id")
@@ -57,7 +66,13 @@ class UITextClient:
             raise ValueError("client_id must be nonempty")
         self._conversation = conversation
         self._drafts = drafts
+        if (principal is None) != (audience is None):
+            raise ValueError("principal and audience must be supplied together")
+        self._conversation = conversation
+        self._drafts = drafts
         self._client_id = client_id
+        self._principal = principal
+        self._audience = audience
 
     @property
     def client_id(self) -> str:
@@ -130,6 +145,10 @@ class UITextClient:
         if not content.strip():
             raise ValueError("content must not be blank")
 
-        response = self._conversation.respond(content)
+        response = self._conversation.respond(
+            content,
+            principal=self._principal,
+            audience=self._audience,
+        )
         self.clear_draft()
         return response
