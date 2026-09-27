@@ -103,6 +103,47 @@ class CognitiveContextAssembler:
             ),
             "",
             context.grounding.serialize(),
+        ]
+
+        if context.principal is not None:
+            sections.extend(
+                [
+                    "",
+                    "AUTHENTICATED PRINCIPAL",
+                    (
+                        "The following principal identity was established "
+                        "outside model-generated content."
+                    ),
+                    f"Principal ID: {context.principal.principal_id}",
+                    f"Principal kind: {context.principal.kind.value}",
+                    f"Authentication source: {context.principal.source}",
+                ]
+            )
+            if context.principal.display_name is not None:
+                sections.append(
+                    f"Verified display name: {context.principal.display_name}"
+                )
+            sections.append(
+                "Do not infer additional identity, permissions, preferences, "
+                "or relationship facts from authentication alone."
+            )
+
+        if context.audience is not None:
+            sections.extend(
+                [
+                    "",
+                    "AUTHENTICATED AUDIENCE",
+                    f"Audience ID: {context.audience.audience_id}",
+                    f"Audience scope: {context.audience.scope.value}",
+                    (
+                        "Audience identity constrains information scope; it "
+                        "does not grant action authority."
+                    ),
+                ]
+            )
+
+        sections.extend(
+            [
             "",
             "AUTHORITATIVE SELF-STATE PROJECTION",
             (
@@ -183,7 +224,8 @@ class CognitiveContextAssembler:
                 "Clothing, footwear, toolkit, wrist-device, equipment, "
                 "and other component dimensions are separate design data."
             ),
-        ]
+            ]
+        )
 
         if context.avatar_presentation is not None:
             sections.extend(
