@@ -156,6 +156,13 @@ function Save-Receipt([hashtable]$Payload) {{
     $Payload | ConvertTo-Json -Depth 5 | Set-Content -Path $Receipt -Encoding UTF8
 }}
 
+function Read-TextSafe([string]$Path) {{
+    if (-not (Test-Path $Path -PathType Leaf)) {{ return "" }}
+    $Value = Get-Content $Path -Raw -ErrorAction SilentlyContinue
+    if ($null -eq $Value) {{ return "" }}
+    return ([string]$Value).Trim()
+}}
+
 try {{
     $Wheel = Join-Path $Stage $WheelName
     if (-not (Test-Path $Wheel -PathType Leaf)) {{ throw "Approved Fleet wheel missing." }}
@@ -248,18 +255,32 @@ try {{
     $Args = @("-m","sofia.distributed.agent_main","--config",(Join-Path $Root "agent.json"))
     $StartedAgent = Start-Process -FilePath $AgentPython -ArgumentList $Args -WindowStyle Hidden -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
 
-    Start-Sleep -Seconds 3
-    if ($StartedAgent.HasExited) {{
-        $Text = if (Test-Path $Stderr) {{ Get-Content $Stderr -Raw }} else {{ "" }}
-        throw "Fleet agent exited during startup. $Text"
+    $Listener = $null
+    foreach ($Attempt in 1..15) {{
+        Start-Sleep -Seconds 1
+        $StartedAgent.Refresh()
+        if ($StartedAgent.HasExited) {{
+            $Text = Read-TextSafe $Stderr
+            if ($Text) {{
+                throw "Fleet agent exited during startup. stderr: $Text"
+            }}
+            throw "Fleet agent exited during startup with code $($StartedAgent.ExitCode) and produced no stderr."
+        }}
+        $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue |
+            Where-Object {{ $_.OwningProcess -eq $StartedAgent.Id }} |
+            Select-Object -First 1
+        if ($null -ne $Listener) {{ break }}
     }}
-    $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue | Where-Object {{ $_.OwningProcess -eq $StartedAgent.Id }} | Select-Object -First 1
     if ($null -eq $Listener) {{
-        $Text = if (Test-Path $Stderr) {{ (Get-Content $Stderr -Raw).Trim() }} else {{ "" }}
+        $Text = Read-TextSafe $Stderr
+        $OutText = Read-TextSafe $Stdout
         if ($Text) {{
             throw "Fleet agent is not listening on the approved port. stderr: $Text"
         }}
-        throw "Fleet agent is not listening on the approved port and produced no stderr."
+        if ($OutText) {{
+            throw "Fleet agent is not listening on the approved port. stdout: $OutText"
+        }}
+        throw "Fleet agent is alive but is not listening on the approved port and produced no output."
     }}
 
     Set-Content (Join-Path $Root "agent.pid") ([string]$StartedAgent.Id) -Encoding ASCII
