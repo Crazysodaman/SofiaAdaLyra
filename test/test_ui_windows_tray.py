@@ -40,3 +40,9 @@ def test_tray_agent_requires_typed_command_queue():
     agent=WindowsTrayAgent(events=queue,status_provider=_status)
     queue.put(TrayCommand.OPEN_CHAT)
     assert queue.get() is TrayCommand.OPEN_CHAT
+
+
+def test_default_tray_icon_is_bundled_fox():
+    agent = WindowsTrayAgent(events=Queue(), status_provider=_status)
+    assert agent.icon_path.name == "sofia_fox.ico"
+    assert agent.icon_path.is_file()
