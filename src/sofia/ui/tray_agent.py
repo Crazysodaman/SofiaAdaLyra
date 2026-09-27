@@ -23,6 +23,7 @@ from sofia.ops.activity import (
 )
 from sofia.ops.capability import OpsToolService
 from sofia.system.capability import create_local_system_backend
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
@@ -76,6 +77,9 @@ class TrayAgentApplication:
         self._settings_process: subprocess.Popen | None = None
         self._last_error: str | None = None
         self._execution_approvals = ExecutionApprovalVerifier(
+            self.config.state_path
+        )
+        self._operator_stop = OperatorStopStore(
             self.config.state_path
         )
         self._remote_fleet_service = create_configured_remote_fleet_service(
@@ -225,6 +229,8 @@ class TrayAgentApplication:
             self._observe_activity()
 
     def _service_action(self, kind: ServiceKind, action: ServiceAction) -> None:
+        if self._operator_stop.current().active:
+            raise PermissionError("operator stop is active")
         settings = self.settings_store.load()
         service_name = (
             settings.llm_service_name
