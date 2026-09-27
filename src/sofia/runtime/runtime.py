@@ -55,6 +55,7 @@ from sofia.filesystem.observation import (
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
+from sofia.ops.capability import OpsToolService
 from sofia.dev.release_store import ReleaseStateStore
 from sofia.operational.model import (
     OperationalState,
@@ -130,6 +131,7 @@ class SofiaRuntime:
         avatar_store: AvatarStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
+        ops_service: OpsToolService,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
         state_plane: StatePlane,
@@ -158,7 +160,12 @@ class SofiaRuntime:
         self._identity_store = identity_store
         self._personality_store = personality_store
         self._avatar_store = avatar_store
+        if not isinstance(ops_service, OpsToolService):
+            raise TypeError(
+                "SofiaRuntime ops_service must be an OpsToolService."
+            )
         self._memory_system = memory_system
+        self._ops_service = ops_service
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
@@ -354,6 +361,10 @@ class SofiaRuntime:
         if not isinstance(authority, PresentationAuthority):
             raise TypeError("avatar presentation must be PresentationAuthority")
         self._avatar_presentation = authority
+
+    @property
+    def ops_service(self) -> OpsToolService:
+        return self._ops_service
 
     @property
     def memory_system(self) -> MemorySystem:
