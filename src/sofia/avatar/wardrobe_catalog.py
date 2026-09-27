@@ -12,7 +12,7 @@ from enum import Enum
 import re
 
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
-from .wardrobe_routine import Activity, OutfitPlan, Season
+from .wardrobe_routine import Activity, OutfitPlan, Season, Weather
 
 _HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
@@ -295,10 +295,18 @@ def build_starter_wardrobe() -> WardrobePrebuild:
             "engineer.pouch",
         ), frozenset({Activity.ENGINEERING, Activity.LAB, Activity.CONVERSATION}),
             ALL_SEASONS, style_tags=("technical", "engineer", "canonical_brief")),
+        OutfitPlan("engineer.light", under + (
+            "engineer.shirt", "engineer.trousers", "engineer.socks",
+            "engineer.boots", "engineer.belt", "engineer.pouch",
+        ), frozenset({Activity.ENGINEERING, Activity.LAB, Activity.CONVERSATION}),
+            frozenset({Season.SPRING, Season.SUMMER, Season.AUTUMN}),
+            weather=frozenset({Weather.HOT, Weather.MILD}),
+            style_tags=("technical", "engineer", "lightweight")),
         OutfitPlan("lounge.relaxed", under + (
             "lounge.top", "lounge.sweats",
         ), frozenset({Activity.RELAXING, Activity.CONVERSATION, Activity.SLEEP}),
-            ALL_SEASONS, lounge=True, style_tags=("relaxed", "proposed_colors")),
+            ALL_SEASONS, lounge=True,
+            style_tags=("relaxed", "cozy", "soft", "proposed_colors")),
         OutfitPlan("fallback.covered", under + (
             "fallback.top", "fallback.trousers",
         ), frozenset(Activity), ALL_SEASONS,

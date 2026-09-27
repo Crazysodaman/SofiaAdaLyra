@@ -324,8 +324,13 @@ class OutfitPlanner:
         def score(entry: tuple[OutfitPlan, Outfit]) -> int:
             plan, _ = entry
             result = 6 if context.season in plan.seasons else -6
-            if weather is not None and plan.weather:
-                result += 4 if weather in plan.weather else -4
+            if plan.weather:
+                if weather is None:
+                    # Do not choose a weather-specialized outfit from missing
+                    # or stale weather evidence merely because IDs sort first.
+                    result -= 1
+                else:
+                    result += 4 if weather in plan.weather else -4
             if plan.lounge and context.lounge_window:
                 result += 7
             elif plan.lounge and not context.lounge_window:
