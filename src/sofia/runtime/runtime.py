@@ -164,6 +164,10 @@ class SofiaRuntime:
         self._state_plane = state_plane
         self._configuration_store = StatePlaneConfigurationStore(state_plane)
         self._release_state_store = ReleaseStateStore(state_plane)
+        self._semantic_integrity = SemanticIntegrityVerifier(
+            configuration.state_path,
+            state_plane=state_plane,
+        )
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -344,6 +348,10 @@ class SofiaRuntime:
     @property
     def release_state_store(self) -> ReleaseStateStore:
         return self._release_state_store
+
+    @property
+    def semantic_integrity(self) -> SemanticIntegrityVerifier:
+        return self._semantic_integrity
 
     @property
     def environment_service(self) -> EnvironmentService:
