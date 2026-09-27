@@ -14,6 +14,7 @@ from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.personality.clarification import ClarificationJournal
 from sofia.personality.emotion import CurrentEmotionalState, EmotionalJournal
+from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
@@ -284,12 +285,26 @@ class EmotionalConversationService(ConversationService):
             )
         now = datetime.now(timezone.utc)
         scope = self.relationship_scope
+        current_state = self.emotional_journal.current_state(
+            now=now,
+            subject=subject,
+            scope=scope,
+        )
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        influence = ContinuityInfluence.from_state(
+            emotion=current_state,
+            environment=environment,
+        )
         projections = [
             self.emotional_journal.current_state_prompt(
                 now=now,
                 subject=subject,
                 scope=scope,
             ),
+            influence.prompt(),
         ]
         emotional_context = self.emotional_journal.prompt_context(
             now=now,
