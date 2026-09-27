@@ -21,6 +21,8 @@ from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
 from sofia.habits.service import HabitLearningService
+from sofia.application.memory_review import MemoryReviewService
+from sofia.memory.auto_learning import ExplicitChatMemoryLearner
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
@@ -43,10 +45,17 @@ class ConversationService:
         self,
         runtime: SofiaRuntime,
         conversation_store: ConversationStore,
+        *,
+        allow_sensitive_memory: bool = False,
     ) -> None:
         if not isinstance(runtime, SofiaRuntime):
             raise TypeError(
                 "ConversationService runtime must be a SofiaRuntime."
+            )
+
+        if type(allow_sensitive_memory) is not bool:
+            raise TypeError(
+                "allow_sensitive_memory must be a boolean."
             )
 
         if not isinstance(
@@ -71,6 +80,19 @@ class ConversationService:
             environment_service=runtime.environment_service,
         )
         self._habit_learning_error: str | None = None
+        candidate_store = runtime.memory_system.candidate_store
+        self._memory_learning: ExplicitChatMemoryLearner | None = None
+        self._memory_learning_error: str | None = None
+        if candidate_store is not None:
+            review = MemoryReviewService(
+                conversation_store=conversation_store,
+                candidate_store=candidate_store,
+                state_path=runtime.configuration.state_path,
+            )
+            self._memory_learning = ExplicitChatMemoryLearner(
+                review,
+                allow_sensitive=allow_sensitive_memory,
+            )
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -90,6 +112,10 @@ class ConversationService:
     @property
     def habit_learning_error(self) -> str | None:
         return self._habit_learning_error
+
+    @property
+    def memory_learning_error(self) -> str | None:
+        return self._memory_learning_error
 
     @property
     def session(self) -> ConversationSession | None:
@@ -339,6 +365,25 @@ class ConversationService:
                 # Preserve the durable user turn and surface degraded learning
                 # through the inspectable error property instead of losing chat.
                 self._habit_learning_error = type(exc).__name__
+
+            learner = self._memory_learning
+            if learner is not None:
+                try:
+                    learner.propose(
+                        session_id=self._session.id,
+                        message_id=user_message.id,
+                        content=user_message.content,
+                        created_at=user_message.created_at,
+                        principal_label=(
+                            principal.display_name
+                            or principal.principal_id
+                        ),
+                    )
+                    self._memory_learning_error = None
+                except Exception as exc:
+                    # Reviewed-memory proposal is non-authoritative background
+                    # learning. A failed candidate must not lose the source turn.
+                    self._memory_learning_error = type(exc).__name__
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
