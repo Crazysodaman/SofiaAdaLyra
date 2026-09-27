@@ -16,7 +16,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import (
-    CandidateChoice, ReviewedFrame, from_reviewed_action, parse_choice,
+    CandidateChoice, ReviewedFrame, choice_request, from_reviewed_action, parse_choice,
 )
 from sofia.interaction.decision_reason_audit import audit_decision_reason
 
@@ -24,6 +24,18 @@ from sofia.interaction.offer_route import OFFER, routed_choice_request
 
 _BASELINE = 'existing-choice'
 _ROUTED = 'routed-avatar-social-choice'
+
+
+class ChoiceProvider(Protocol):
+    def respond(self, request: CognitiveRequest) -> CognitiveResponse: ...
+
+
+@dataclass(frozen=True)
+class ChoiceObservation:
+    path: str
+    choice: CandidateChoice | None
+    findings: tuple[str, ...]
+    failure: str | None = None
 
 
 def _observe(*, provider: ChoiceProvider, request: CognitiveRequest,
