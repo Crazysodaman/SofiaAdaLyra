@@ -11,7 +11,11 @@ from sofia.habits.patterns import (
     HabitSuppression,
 )
 from sofia.state.json_repository import JsonStateRepository
-from sofia.state.namespaces import HABIT_PATTERN, HABIT_SUPPRESSION
+from sofia.state.namespaces import (
+    HABIT_EVIDENCE_INVALIDATION,
+    HABIT_PATTERN,
+    HABIT_SUPPRESSION,
+)
 from sofia.state.plane import StatePlane, StatePlaneConflictError
 
 
@@ -23,6 +27,10 @@ class HabitPatternStore:
             raise TypeError("state_plane must be a StatePlane")
         self._patterns = JsonStateRepository(state_plane, HABIT_PATTERN)
         self._suppressions = JsonStateRepository(state_plane, HABIT_SUPPRESSION)
+        self._invalidations = JsonStateRepository(
+            state_plane,
+            HABIT_EVIDENCE_INVALIDATION,
+        )
 
     @staticmethod
     def _pattern_value(item: HabitPattern) -> dict[str, Any]:
@@ -157,4 +165,73 @@ class HabitPatternStore:
         return any(
             value.get("signature") == signature
             for value, _ in rows
+        )
+
+
+    def invalidate_evidence(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+        evidence_ref: str,
+        reason: str,
+        created_at: datetime,
+    ) -> str:
+        if not isinstance(evidence_ref, str) or not evidence_ref.strip():
+            raise ValueError("evidence_ref must be nonempty")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError("reason must be nonempty")
+        key = f"invalidate:{evidence_ref}"
+        value = {
+            "evidence_ref": evidence_ref,
+            "reason": reason,
+            "created_at": created_at.isoformat(),
+        }
+        try:
+            self._invalidations.create(
+                key,
+                value,
+                principal_id=principal_id,
+                audience=audience_id,
+                updated_at=created_at,
+                source=evidence_ref,
+            )
+        except StatePlaneConflictError:
+            existing = self._invalidations.get(
+                key,
+                principal_id=principal_id,
+                audience=audience_id,
+            )
+            if existing is None or existing[0] != value:
+                raise ValueError(
+                    "evidence invalidation already exists with different data"
+                )
+        return key
+
+    def invalidated_evidence_refs(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+    ) -> frozenset[str]:
+        rows = self._invalidations.list(
+            principal_id=principal_id,
+            audience=audience_id,
+        )
+        return frozenset(
+            value["evidence_ref"]
+            for value, _ in rows
+            if isinstance(value.get("evidence_ref"), str)
+        )
+
+    def is_evidence_invalidated(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+        evidence_ref: str,
+    ) -> bool:
+        return evidence_ref in self.invalidated_evidence_refs(
+            principal_id=principal_id,
+            audience_id=audience_id,
         )
