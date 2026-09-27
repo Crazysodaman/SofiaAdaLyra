@@ -129,12 +129,18 @@ class SofiaRuntime:
         cognitive_system: CognitiveSystem,
         capability_system: CapabilitySystem,
         configuration: SofiaConfiguration,
+        state_plane: StatePlane,
         environment_service: EnvironmentService | None = None,
         operational_store: OperationalStore | None = None,
         filesystem_observation_store: (
             FilesystemObservationStore | None
         ) = None,
     ) -> None:
+        if not isinstance(state_plane, StatePlane):
+            raise TypeError(
+                "SofiaRuntime state_plane must be a StatePlane."
+            )
+
         if not isinstance(
             capability_system,
             CapabilitySystem,
@@ -153,6 +159,7 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._state_plane = state_plane
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -321,6 +328,10 @@ class SofiaRuntime:
     @property
     def configuration(self) -> SofiaConfiguration:
         return self._configuration
+
+    @property
+    def state_plane(self) -> StatePlane:
+        return self._state_plane
 
     @property
     def environment_service(self) -> EnvironmentService:
