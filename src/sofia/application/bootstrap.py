@@ -19,6 +19,12 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.run.orchestration import GlobalRunBudget, RuntimeOrchestrator
+from sofia.social.principal import (
+    Audience,
+    AudienceScope,
+    AuthenticatedPrincipal,
+    PrincipalKind,
+)
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
 
@@ -55,10 +61,23 @@ class SofiaApplication:
         self._run_orchestrator = RuntimeOrchestrator(GlobalRunBudget())
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
+        owner_principal = AuthenticatedPrincipal(
+            principal_id=configuration.primary_principal_id,
+            kind=PrincipalKind.HUMAN,
+            source="local-ui",
+            display_name=configuration.primary_principal_display_name,
+        )
+        owner_audience = Audience(
+            audience_id=f"private:{configuration.primary_principal_id}",
+            scope=AudienceScope.PRIVATE,
+            member_principal_ids=(configuration.primary_principal_id,),
+        )
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
             drafts=self._ui_draft_store,
             client_id="local-text",
+            principal=owner_principal,
+            audience=owner_audience,
         )
 
     @property
