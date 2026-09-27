@@ -154,8 +154,12 @@ class ExpandedConversationService(InteractiveConversationService):
             if ('?' not in text and '"' not in text and '`' not in text and
                     not re.search(r"\b(?:not|never|don't|if|would|could|should)\b", text, re.I)
                     and _ACTION_COMPOUND.search(text)):
-                return self._guarded_reply(
-                    content, _COMPOSITE_ACTION, principal=principal
+                return (
+                    self._guarded_reply(content, _COMPOSITE_ACTION)
+                    if principal is None
+                    else self._guarded_reply(
+                        content, _COMPOSITE_ACTION, principal=principal
+                    )
                 )
             if self._session is not None:
                 config = getattr(self._runtime, 'configuration', None)
