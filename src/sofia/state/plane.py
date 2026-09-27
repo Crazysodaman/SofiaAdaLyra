@@ -37,6 +37,16 @@ class StatePlane(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete(
+        self,
+        key: StateKey,
+        *,
+        expected_revision: int,
+    ) -> None:
+        """Delete exactly one known revision or fail on concurrent change."""
+        raise NotImplementedError
+
+    @abstractmethod
     def list_namespace(
         self,
         namespace: str,
