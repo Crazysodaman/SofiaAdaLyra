@@ -68,6 +68,7 @@ from sofia.self_model.model import (
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
+from sofia.social.principal import Audience, AuthenticatedPrincipal
 
 
 _PACKAGE_NAME = "sofia-ada-lyra"
@@ -527,6 +528,9 @@ class SofiaRuntime:
         self,
         request: CognitiveRequest,
         filesystem_results: tuple[FilesystemResult, ...] = (),
+        *,
+        principal: AuthenticatedPrincipal | None = None,
+        audience: Audience | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -549,6 +553,20 @@ class SofiaRuntime:
                     "SofiaRuntime filesystem_results must contain "
                     "FilesystemResult instances."
                 )
+
+        if principal is not None and not isinstance(
+            principal,
+            AuthenticatedPrincipal,
+        ):
+            raise TypeError(
+                "SofiaRuntime principal must be an "
+                "AuthenticatedPrincipal or None."
+            )
+
+        if audience is not None and not isinstance(audience, Audience):
+            raise TypeError(
+                "SofiaRuntime audience must be an Audience or None."
+            )
 
         user_content = self._latest_user_content(request)
 
@@ -616,6 +634,8 @@ class SofiaRuntime:
         operation = CognitiveOperation(
             context=CognitiveContext(
                 request=request,
+                principal=principal,
+                audience=audience,
                 identity=self._identity,
                 personality=self._personality,
                 constitution=self._constitution,
