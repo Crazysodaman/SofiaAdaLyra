@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.habits.emotion_bridge import record_expectation_appraisals
 from sofia.run.periodic import (
     OpportunityPolicy,
     PeriodicThoughtGate,
@@ -154,6 +155,7 @@ class ApplicationBackgroundCoordinator:
         idle_seconds: float = 45.0,
         opportunity_policy: OpportunityPolicy | None = None,
         reflection_enabled: bool = True,
+        habit_enabled: bool = True,
     ) -> None:
         if not isinstance(service, EmotionalConversationService):
             raise TypeError("service must be an EmotionalConversationService")
@@ -161,12 +163,15 @@ class ApplicationBackgroundCoordinator:
             raise TypeError("state_path must be a Path")
         if not isinstance(reflection_enabled, bool):
             raise TypeError("reflection_enabled must be boolean")
+        if not isinstance(habit_enabled, bool):
+            raise TypeError("habit_enabled must be boolean")
         if not isinstance(poll_seconds, (int, float)) or poll_seconds <= 0:
             raise ValueError("poll_seconds must be positive")
         if not isinstance(idle_seconds, (int, float)) or idle_seconds <= 0:
             raise ValueError("idle_seconds must be positive")
         self.service = service
         self.reflection_enabled = reflection_enabled
+        self.habit_enabled = habit_enabled
         self.state_path = state_path
         self.poll_seconds = float(poll_seconds)
         self.idle_seconds = float(idle_seconds)
@@ -190,6 +195,7 @@ class ApplicationBackgroundCoordinator:
         self._stop_event = Event()
         self._thread: Thread | None = None
         self.last_error: str | None = None
+        self._habit_last_tick: datetime | None = None
 
     def set_act_delivery(
         self,
@@ -213,6 +219,38 @@ class ApplicationBackgroundCoordinator:
 
     def run_once(self, *, now: datetime | None = None) -> str:
         moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+
+        principal = self.service.current_principal
+        if self.habit_enabled and principal is not None:
+            previous = self._habit_last_tick
+            if previous is not None:
+                self.service.habit_learning.record_running_coverage(
+                    principal_id=principal.principal_id,
+                    started_at=previous,
+                    ended_at=moment,
+                )
+            self._habit_last_tick = moment
+            resolved = self.service.habit_learning.evaluate(
+                principal_id=principal.principal_id,
+                now=moment,
+            )
+            if resolved:
+                record_expectation_appraisals(
+                    expectations=resolved,
+                    store=self.service.habit_learning.store,
+                    journal=self.service.emotional_journal,
+                    at=moment,
+                )
+            snapshot = self.service._runtime.environment_service.snapshot(
+                now=moment,
+                refresh_providers=False,
+            )
+            self.service.habit_learning.expectations.ensure_time_expectations(
+                principal_id=principal.principal_id,
+                timezone_name=snapshot.timezone,
+                now=moment,
+            )
+
         if not self.service.ready_for_idle_reflection(
             idle_seconds=self.idle_seconds
         ):
