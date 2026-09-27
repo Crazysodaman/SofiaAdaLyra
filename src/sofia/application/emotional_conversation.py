@@ -300,8 +300,8 @@ class EmotionalConversationService(ConversationService):
         # uninitialized service; a normally opened service always has this.
         reflections = getattr(self, "_reflection_journal", None)
         if reflections is not None:
-            reflections.reflect_due(now=now)
-            reflection_context = reflections.prompt_context()
+            reflections.reflect_due(now=now, subject=subject)
+            reflection_context = reflections.prompt_context(subject=subject)
             if reflection_context is not None:
                 projections.append(reflection_context)
         clarifications = getattr(self, "_clarification_journal", None)
