@@ -848,3 +848,65 @@ def test_unsupported_capability_is_explicit(
 
     assert result.kind is SystemCapabilityResultKind.UNSUPPORTED
     assert result.evidence is None
+
+def test_process_inspection_accepts_windows_powershell_json_datetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sofia.system.windows.platform.system",
+        lambda: "Windows",
+    )
+    payload = json.dumps(
+        [
+            {
+                "ProcessId": 4242,
+                "Name": "factorio.exe",
+                "ExecutablePath": r"D:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe",
+                "CreationDate": "/Date(1790332800000-0500)/",
+                "WorkingSetSize": 123456,
+            }
+        ]
+    )
+    backend = WindowsSystemCapabilityBackend(
+        powershell_runner=lambda command: payload
+    )
+
+    result = backend.execute(
+        _request(SystemCapabilityName.PROCESS_INSPECT)
+    )
+
+    assert result.kind is SystemCapabilityResultKind.SUCCESS
+    process = result.evidence["processes"][0]
+    assert process.name == "factorio.exe"
+    assert process.started_at is not None
+    assert process.started_at.tzinfo is not None
+
+
+def test_process_inspection_accepts_iso_datetime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sofia.system.windows.platform.system",
+        lambda: "Windows",
+    )
+    payload = json.dumps(
+        [
+            {
+                "ProcessId": 4242,
+                "Name": "factorio.exe",
+                "ExecutablePath": r"D:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe",
+                "CreationDate": "2026-09-26T20:45:00-05:00",
+                "WorkingSetSize": 123456,
+            }
+        ]
+    )
+    backend = WindowsSystemCapabilityBackend(
+        powershell_runner=lambda command: payload
+    )
+
+    result = backend.execute(
+        _request(SystemCapabilityName.PROCESS_INSPECT)
+    )
+
+    assert result.kind is SystemCapabilityResultKind.SUCCESS
+    assert result.evidence["processes"][0].started_at is not None
