@@ -15,6 +15,7 @@ from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.act_service import SofiaActService
 from sofia.application.evolution import SofiaEvolutionService
+from sofia.application.release_runtime import create_release_manager
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
@@ -55,6 +56,10 @@ class SofiaApplication:
             configuration=configuration,
             state_plane=self._runtime.state_plane,
         )
+        self._release_manager = create_release_manager(
+            configuration=configuration,
+            state_plane=self._runtime.state_plane,
+        )
         conversation_store = ConversationStore(configuration.state_path)
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime, conversation_store=conversation_store,
@@ -80,6 +85,10 @@ class SofiaApplication:
     @property
     def evolution(self) -> SofiaEvolutionService:
         return self._evolution
+
+    @property
+    def release_manager(self):
+        return self._release_manager
 
     @property
     def act(self) -> SofiaActService:
@@ -122,6 +131,8 @@ class SofiaApplication:
             if ui_draft_store is not None:
                 ui_draft_store.open()
             self._runtime.start()
+            if self._release_manager is not None:
+                self._release_manager.reconcile_pointer()
             if self._runtime.embodiment is None:
                 raise SofiaApplicationError(
                     "AVATAR presentation requires canonical embodiment."
