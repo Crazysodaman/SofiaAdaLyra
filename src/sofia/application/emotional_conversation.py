@@ -18,6 +18,8 @@ from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
+from sofia.relationship.store import RelationshipStore
+from sofia.social.principal import AuthenticatedPrincipal
 
 
 class EmotionalConversationService(ConversationService):
@@ -37,6 +39,8 @@ class EmotionalConversationService(ConversationService):
         self._model_lock = RLock()
         self._active_user_requests = 0
         self._last_user_activity = monotonic()
+        self._relationship_store: RelationshipStore | None = None
+        self._session_principal: AuthenticatedPrincipal | None = None
 
     def open(self) -> None:
         super().open()
@@ -45,6 +49,7 @@ class EmotionalConversationService(ConversationService):
             self._emotional_journal = EmotionalJournal(state_path)
             self._reflection_journal = ReflectionJournal(state_path)
             self._clarification_journal = ClarificationJournal(state_path)
+            self._relationship_store = RelationshipStore(state_path)
             changes = getattr(self._runtime, "workspace_changes", None)
             if self._runtime.personality is not None and changes is not None:
                 record_workspace_observation(
@@ -57,6 +62,7 @@ class EmotionalConversationService(ConversationService):
             self._emotional_journal = None
             self._reflection_journal = None
             self._clarification_journal = None
+            self._relationship_store = None
             raise
 
     @property
@@ -78,7 +84,9 @@ class EmotionalConversationService(ConversationService):
         return self._clarification_journal
 
     def _relationship_subject(self) -> str:
-        """Use the canonical relationship subject for this single-user surface."""
+        """Use authenticated principal identity before legacy relationship labels."""
+        if self._session_principal is not None:
+            return self._session_principal.principal_id
         core_state = getattr(self._runtime, "core_state", None)
         relationships = getattr(core_state, "relationships", ()) if core_state is not None else ()
         if relationships:
@@ -122,11 +130,28 @@ class EmotionalConversationService(ConversationService):
         audience=None,
     ):
         """Serialize user inference against application-owned idle inference."""
+        if principal is not None and not isinstance(
+            principal,
+            AuthenticatedPrincipal,
+        ):
+            raise TypeError("principal must be AuthenticatedPrincipal or None")
+        if (
+            principal is not None
+            and self._session_principal is not None
+            and principal.principal_id
+            != self._session_principal.principal_id
+        ):
+            raise PermissionError(
+                "conversation relationship scope is already bound to a "
+                "different authenticated principal"
+            )
         started = monotonic()
         self._active_user_requests += 1
         try:
             with self._model_lock:
                 acquired = monotonic()
+                if principal is not None and self._session_principal is None:
+                    self._session_principal = principal
                 try:
                     return super().respond(
                         content,
@@ -229,6 +254,8 @@ class EmotionalConversationService(ConversationService):
         self._emotional_journal = None
         self._reflection_journal = None
         self._clarification_journal = None
+        self._relationship_store = None
+        self._session_principal = None
 
     def _should_record_legacy_affection(self, user) -> bool:
         """Subclass hook: independent policy may veto a legacy head-pat cue."""
@@ -261,6 +288,50 @@ class EmotionalConversationService(ConversationService):
                 subject=subject,
             ),
         ]
+        relationship_store = getattr(self, "_relationship_store", None)
+        principal = getattr(self, "_session_principal", None)
+        if (
+            relationship_store is not None
+            and principal is not None
+            and messages
+            and messages[-1].role is ConversationRole.USER
+        ):
+            user = messages[-1]
+            prior = relationship_store.context(
+                principal,
+                now=user.created_at,
+            )
+            relationship_store.observe_contact(
+                principal,
+                occurred_at=user.created_at,
+            )
+            if prior is not None:
+                projections.append(
+                    "\n".join(
+                        (
+                            "AUTHENTICATED RELATIONSHIP CONTINUITY",
+                            f"Principal ID: {principal.principal_id}",
+                            (
+                                "Previously observed contact count: "
+                                f"{prior.contact_count}"
+                            ),
+                            (
+                                "Previous authenticated contact: "
+                                f"{prior.last_contact_at.isoformat()}"
+                            ),
+                            (
+                                "Observed contact gap seconds: "
+                                f"{int(prior.absence.total_seconds())}"
+                            ),
+                            (
+                                "This is contact-history evidence only. "
+                                "It may support familiarity or reunion wording, "
+                                "but it does not prove subjective feelings, "
+                                "obligation, or entitlement to attention."
+                            ),
+                        )
+                    )
+                )
         emotional_context = self.emotional_journal.prompt_context(now=now)
         if emotional_context is not None:
             projections.append(emotional_context)
