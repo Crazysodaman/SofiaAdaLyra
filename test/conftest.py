@@ -92,6 +92,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_emotional_", ("pkg_rel", "pkg_core")),
     ("test_model_evaluation_harness.py", ("pkg_verify", "pkg_core")),
     ("test_package_grouping.py", ("pkg_verify",)),
+    ("test_module_entrypoint.py", ("pkg_core",)),
 )
 
 _IMPORT_RE = re.compile(
