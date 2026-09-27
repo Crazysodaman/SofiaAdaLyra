@@ -1,17 +1,17 @@
-"""Single-owner worker thread for the desktop Sofía application.
+"""Single-owner worker thread for the desktop Sofía client.
 
-Tk widgets live on the main thread. SofiaApplication and every controller call
-live on exactly one dedicated worker thread for the lifetime of the desktop
-session. This preserves SQLite thread affinity without globally disabling
-SQLite's safety checks.
+Tk widgets live on the main thread. The selected local or authenticated remote
+application and every controller call live on exactly one dedicated worker
+thread for the lifetime of the desktop session.
 """
 from __future__ import annotations
 
 from queue import Queue
 from threading import Thread
-from sofia.application import SofiaApplication
+
 from sofia.config import SofiaConfiguration
 from sofia.ui.desktop_controller import DesktopWorkbenchController
+from sofia.ui.remote_application import create_desktop_application
 from sofia.ui.theme import canonical_theme
 
 
@@ -78,7 +78,7 @@ class DesktopApplicationWorker:
 
     def _run(self) -> None:
         try:
-            application = SofiaApplication(
+            application = create_desktop_application(
                 self._configuration
             )
             controller = DesktopWorkbenchController(
