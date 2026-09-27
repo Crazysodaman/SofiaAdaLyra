@@ -98,10 +98,34 @@ def test_prepare_stage_copies_only_reviewed_bundle_and_generated_installer(tmp_p
     assert active_stage.name.startswith(stage.name + "-")
     assert generated == active_stage / "install.ps1"
     assert (active_stage / "agent.json").is_file()
+    staged_config = json.loads((active_stage / "agent.json").read_text(encoding="utf-8"))
+    assert staged_config["listen_port"] == 7443
     assert (active_stage / "certs" / "fleet-ca.pem").is_file()
     assert (active_stage / "certs" / "artemis-server.pem").is_file()
     assert (active_stage / "certs" / "artemis-server-key.pem").is_file()
     assert (active_stage / wheel.name).read_bytes() == b"reviewed-wheel"
+
+
+def test_prepare_stage_overrides_agent_config_port(tmp_path: Path):
+    bundle, wheel = _bundle(tmp_path)
+    (bundle / "agent.json").write_text(
+        json.dumps({"listen_port": 7443}),
+        encoding="utf-8",
+    )
+    installer = WindowsCimBootstrapInstaller(
+        host="Artemis",
+        credential_user=r"Artemis\Administrator",
+        bundle_directory=bundle,
+        wheel_path=wheel,
+        controller_stage_directory=tmp_path / "stage",
+        remote_stage_path=r"H:\Fleet\Artemis",
+        node_id=NODE_ID,
+        listen_port=9999,
+        launcher=lambda *_: None,
+    )
+    generated = installer.prepare_stage(_package(wheel))
+    staged = json.loads((generated.parent / "agent.json").read_text(encoding="utf-8"))
+    assert staged["listen_port"] == 9999
 
 
 def test_prepare_stage_rejects_changed_wheel(tmp_path: Path):
