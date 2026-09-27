@@ -98,3 +98,20 @@ def interaction_class(
         return InteractionClass.INTIMATE
 
     return InteractionClass.NEUTRAL
+
+
+_NONCONTACT_ACTIONS = frozenset({
+    "move-away",
+    "give-space",
+    "decline",
+    "offer-hand",
+    "offer-tool",
+    "ask-permission",
+})
+
+
+def requires_contact_permission(semantic_id: str) -> bool:
+    """Conservative initiative gate for Sofía-originated represented actions."""
+    if not isinstance(semantic_id, str) or not semantic_id.strip():
+        raise ValueError("semantic_id must be nonempty")
+    return semantic_id not in _NONCONTACT_ACTIONS
