@@ -14,11 +14,9 @@ class ConstitutionStore:
         self.constitution_path = constitution_path
 
     def load(self) -> Constitution:
-        content = self.constitution_path.read_text(encoding="utf-8")
-
-        content_hash = sha256(
-            content.encode("utf-8")
-        ).hexdigest()
+        raw = self.constitution_path.read_bytes()
+        content = raw.decode("utf-8")
+        content_hash = sha256(raw).hexdigest()
 
         return Constitution(
             version="1.0",
