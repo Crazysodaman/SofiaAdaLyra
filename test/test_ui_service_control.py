@@ -17,6 +17,14 @@ class Local:
         return type("Result",(),{"stdout":"ok","stderr":""})()
 
 
+class Approval:
+    def __init__(self):
+        self.calls=[]
+
+    def consume(self, **kwargs):
+        self.calls.append(kwargs)
+
+
 class Ollama:
     def __init__(self):
         self.unloaded=[]
@@ -33,6 +41,7 @@ def test_local_runtime_service_action_uses_typed_maintenance():
         local_maintenance=local,
         ollama=Ollama(),
         llm_model="qwen3:14b",
+        approval_verifier=Approval(),
     )
     result=controller.execute(
         ServiceTarget(ServiceKind.SOFIA_RUNTIME,"venus","SofiaAdaLyra"),
@@ -49,6 +58,7 @@ def test_llm_unload_is_separate_from_stopping_ollama_service():
         local_maintenance=local,
         ollama=ollama,
         llm_model="qwen3:14b",
+        approval_verifier=Approval(),
     )
     result=controller.execute(
         ServiceTarget(ServiceKind.LLM_ENGINE,"venus","Ollama"),
@@ -65,6 +75,7 @@ def test_remote_target_never_falls_back_to_local_service_control():
         local_maintenance=Local(),
         ollama=Ollama(),
         llm_model="qwen3:14b",
+        approval_verifier=Approval(),
     )
     with pytest.raises(RemoteControlUnavailable):
         controller.execute(
@@ -88,6 +99,7 @@ def test_remote_target_uses_explicit_fleet_controller():
         remote=remote,
         ollama=Ollama(),
         llm_model="qwen3:14b",
+        approval_verifier=Approval(),
     )
     target=ServiceTarget(ServiceKind.LLM_ENGINE,"artemis","Ollama")
     result=controller.execute(target,ServiceAction.RESTART)
