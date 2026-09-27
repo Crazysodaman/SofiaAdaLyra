@@ -142,7 +142,13 @@ class ExpandedConversationService(InteractiveConversationService):
             config.state_path, subject='sofia',
             semantic_id=gesture.event.gesture, region_id=gesture.event.region_id)
 
-    def respond(self, content: str):
+    def respond(
+        self,
+        content: str,
+        *,
+        principal=None,
+        audience=None,
+    ):
         if isinstance(content, str):
             text = content.strip()
             if ('?' not in text and '"' not in text and '`' not in text and
@@ -159,7 +165,11 @@ class ExpandedConversationService(InteractiveConversationService):
                         return self._guarded_reply(content, _STOPPED_ACTION)
                     if context is not None and context.blocked:
                         return self._guarded_reply(content, _BOUNDARY_ACTION)
-        return super().respond(content)
+        return super().respond(
+            content,
+            principal=principal,
+            audience=audience,
+        )
 
     def _build_request(self) -> CognitiveRequest:
         # Check source-backed boundaries BEFORE the parent writes an accepted
