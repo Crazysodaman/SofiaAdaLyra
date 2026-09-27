@@ -188,26 +188,19 @@ try {{
     if ($LASTEXITCODE -ne 0) {{ throw "Failed to restrict Fleet server private-key ACL." }}
 
     $ManagedPython = Join-Path $Root ".venv\\Scripts\\python.exe"
-    if (Test-Path $ManagedPython -PathType Leaf) {{
-        $ExpectedManagedPython = [System.IO.Path]::GetFullPath($ManagedPython)
-        $ManagedProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-            Where-Object {{
-                $_.ExecutablePath -and
-                [System.IO.Path]::GetFullPath($_.ExecutablePath).Equals(
-                    $ExpectedManagedPython,
-                    [System.StringComparison]::OrdinalIgnoreCase
-                ) -and
-                $_.CommandLine -and
-                (
-                    $_.CommandLine.Contains("sofia.distributed.agent_main") -or
-                    $_.CommandLine.Contains("agent_canary.py")
-                )
-            }}
-        foreach ($ManagedProcess in $ManagedProcesses) {{
-            Stop-Process -Id $ManagedProcess.ProcessId -Force -ErrorAction Stop
-            Start-Sleep -Milliseconds 500
+    $ManagedProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {{
+            $_.CommandLine -and
+            $_.CommandLine.Contains($Root) -and
+            (
+                $_.CommandLine.Contains("sofia.distributed.agent_main") -or
+                $_.CommandLine.Contains("agent_canary.py")
+            )
         }}
+    foreach ($ManagedProcess in $ManagedProcesses) {{
+        Stop-Process -Id $ManagedProcess.ProcessId -Force -ErrorAction SilentlyContinue
     }}
+    if ($ManagedProcesses) {{ Start-Sleep -Milliseconds 750 }}
 
     $Candidates = @()
     $Command = Get-Command python.exe -ErrorAction SilentlyContinue
@@ -307,7 +300,10 @@ except BaseException as exc:
             throw "Fleet agent exited during startup with code $($StartedAgent.ExitCode) and produced no stderr."
         }}
         $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue |
-            Where-Object {{ $_.OwningProcess -eq $StartedAgent.Id }} |
+            Where-Object {{
+                $Owner = Get-CimInstance Win32_Process -Filter ("ProcessId=" + $_.OwningProcess) -ErrorAction SilentlyContinue
+                $Owner -and $Owner.CommandLine -and $Owner.CommandLine.Contains($Runner)
+            }} |
             Select-Object -First 1
         if ($null -ne $Listener) {{ break }}
     }}
@@ -344,8 +340,20 @@ except BaseException as exc:
 catch {{
     if ($null -ne $StartedAgent -and -not $StartedAgent.HasExited) {{
         Stop-Process -Id $StartedAgent.Id -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
     }}
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {{
+            $_.CommandLine -and
+            $_.CommandLine.Contains($Root) -and
+            (
+                $_.CommandLine.Contains("sofia.distributed.agent_main") -or
+                $_.CommandLine.Contains("agent_canary.py")
+            )
+        }} |
+        ForEach-Object {{
+            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+        }}
+    Start-Sleep -Milliseconds 500
     Save-Receipt @{{
         status = "failed"
         host_id = $env:COMPUTERNAME
