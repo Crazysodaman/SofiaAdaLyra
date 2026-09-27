@@ -2,11 +2,14 @@
 from __future__ import annotations
 import os,platform
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any,Callable
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.integrate.model import SideEffectClass
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from .github import GitHubAdapter
 from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter
@@ -37,6 +40,94 @@ def _tool(name:str,description:str,parameters:dict[str,Any],handler:Callable[[di
 
 def _object(properties:dict[str,Any]|None=None,required:list[str]|None=None)->dict[str,Any]:
     return {"type":"object","properties":properties or {},"required":required or [],"additionalProperties":False}
+
+
+_MUTATING_SIDE_EFFECTS = {
+    "notification.send": SideEffectClass.EXTERNAL_COMMUNICATION,
+    "home_assistant.service.call": SideEffectClass.DESTRUCTIVE,
+    "portainer.container.restart": SideEffectClass.REVERSIBLE_WRITE,
+    "jmri.power.set": SideEffectClass.REVERSIBLE_WRITE,
+    "github.issue.create": SideEffectClass.EXTERNAL_COMMUNICATION,
+    "github.pull_request.create": SideEffectClass.EXTERNAL_COMMUNICATION,
+    "github.pull_request.merge": SideEffectClass.DESTRUCTIVE,
+    "discord.pause": SideEffectClass.REVERSIBLE_WRITE,
+    "discord.resume": SideEffectClass.REVERSIBLE_WRITE,
+    "discord.revoke": SideEffectClass.DESTRUCTIVE,
+    "local.service.start": SideEffectClass.REVERSIBLE_WRITE,
+    "local.service.stop": SideEffectClass.REVERSIBLE_WRITE,
+    "local.service.restart": SideEffectClass.REVERSIBLE_WRITE,
+    "local.host.reboot": SideEffectClass.DESTRUCTIVE,
+    "local.package.update": SideEffectClass.DESTRUCTIVE,
+    "hyperv.vm.start": SideEffectClass.REVERSIBLE_WRITE,
+    "hyperv.vm.stop": SideEffectClass.REVERSIBLE_WRITE,
+    "storage.write_text": SideEffectClass.REVERSIBLE_WRITE,
+    "storage.mkdir": SideEffectClass.REVERSIBLE_WRITE,
+    "storage.copy": SideEffectClass.REVERSIBLE_WRITE,
+    "storage.move": SideEffectClass.REVERSIBLE_WRITE,
+    "storage.delete": SideEffectClass.DESTRUCTIVE,
+    "sqlite.state.backup": SideEffectClass.REVERSIBLE_WRITE,
+    "sqlite.state.wal_checkpoint": SideEffectClass.REVERSIBLE_WRITE,
+    "sqlite.state.vacuum": SideEffectClass.REVERSIBLE_WRITE,
+}
+
+
+def _with_execution_approval(
+    registration: IntegrationToolRegistration,
+    verifier: ExecutionApprovalVerifier,
+) -> IntegrationToolRegistration:
+    capability_name = registration.capability.name
+    if capability_name not in _MUTATING_SIDE_EFFECTS:
+        return registration
+
+    original_handler = registration.handler
+
+    def execute(request: CapabilityRequest):
+        parameters = dict(request.parameters)
+        approval_id = parameters.get("approval_id")
+        verifier.consume(
+            approval_id=approval_id,
+            capability=capability_name,
+            parameters=parameters,
+            now=datetime.now(timezone.utc),
+        )
+        parameters.pop("approval_id", None)
+        stripped = CapabilityRequest(
+            capability=request.capability,
+            parameters=parameters,
+            requested_scope=request.requested_scope,
+            rationale=request.rationale,
+        )
+        return original_handler(stripped)
+
+    definition = registration.binding.definition
+    schema = dict(definition.parameters)
+    if schema.get("type") != "object":
+        raise ValueError(
+            f"mutating integration tool {capability_name} requires object parameters"
+        )
+    properties = dict(schema.get("properties", {}))
+    properties["approval_id"] = {"type": "string"}
+    required = list(schema.get("required", []))
+    if "approval_id" not in required:
+        required.append("approval_id")
+    schema["properties"] = properties
+    schema["required"] = required
+
+    binding = CognitiveToolBinding(
+        definition=CognitiveToolDefinition(
+            name=definition.name,
+            description=definition.description,
+            parameters=schema,
+        ),
+        capability_name=registration.binding.capability_name,
+        requested_scope=registration.binding.requested_scope,
+        fixed_parameters=registration.binding.fixed_parameters,
+    )
+    return IntegrationToolRegistration(
+        capability=registration.capability,
+        handler=execute,
+        binding=binding,
+    )
 
 def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)->tuple[IntegrationToolRegistration,...]:
     tools=[]
@@ -244,4 +335,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
             _tool("sqlite.state.vacuum","Run VACUUM against Sofía's state database.",_object(),lambda p:sqlite.vacuum()),
         ))
 
-    return tuple(tools)
+    verifier = ExecutionApprovalVerifier(state_path)
+    return tuple(
+        _with_execution_approval(registration, verifier)
+        for registration in tools
+    )
