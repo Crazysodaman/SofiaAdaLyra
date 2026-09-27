@@ -1,6 +1,7 @@
 ﻿from collections.abc import Callable
 
 from sofia.application.bootstrap import SofiaApplication
+from sofia.social.principals import local_sparks_principal
 
 
 class ConversationLoop:
@@ -56,7 +57,10 @@ class ConversationLoop:
                     break
 
                 response = self._application.conversation.respond(
-                    user_input
+                    user_input,
+                    principal=local_sparks_principal(
+                        "local:terminal"
+                    ),
                 )
 
                 self._output(
