@@ -50,6 +50,7 @@ from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
 from sofia.machine.discovery import create_machine_discovery
+from sofia.machine.location import MachineLocationRegistry
 from sofia.machine.location_state import StatePlaneMachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.safe.capability_policy import protected_capability_extras
@@ -65,7 +66,7 @@ from sofia.state.sqlite_plane import SQLiteStatePlane
 
 def _configuration_with_persistent_host_location(
     configuration: SofiaConfiguration,
-    state_plane: SQLiteStatePlane,
+    state_plane: SQLiteStatePlane | None = None,
 ) -> SofiaConfiguration:
     """Use durable machine location unless an explicit process override exists."""
     if configuration.environment.host_location is not None:
@@ -76,10 +77,16 @@ def _configuration_with_persistent_host_location(
 
     try:
         identity = create_machine_discovery().discover().identity
-        record = StatePlaneMachineLocationRegistry(
-            state_plane,
-            legacy_path=registry_path,
-        ).get(identity.machine_id)
+        record = (
+            StatePlaneMachineLocationRegistry(
+                state_plane,
+                legacy_path=registry_path,
+            ).get(identity.machine_id)
+            if state_plane is not None
+            else MachineLocationRegistry(
+                registry_path
+            ).get(identity.machine_id)
+        )
     except (OSError, RuntimeError, TypeError, ValueError):
         return configuration
 
