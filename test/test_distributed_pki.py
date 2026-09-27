@@ -51,6 +51,13 @@ def test_bootstrap_pair_creates_ca_client_and_server_material(local_tmp_path: Pa
     assert ca.extensions.get_extension_for_class(
         x509.BasicConstraints
     ).value.ca is True
+    ca_ski = ca.extensions.get_extension_for_class(
+        x509.SubjectKeyIdentifier
+    ).value
+    ca_aki = ca.extensions.get_extension_for_class(
+        x509.AuthorityKeyIdentifier
+    ).value
+    assert ca_aki.key_identifier == ca_ski.digest
 
     controller = x509.load_pem_x509_certificate(controller_cert.read_bytes())
     controller_eku = controller.extensions.get_extension_for_class(
@@ -58,6 +65,10 @@ def test_bootstrap_pair_creates_ca_client_and_server_material(local_tmp_path: Pa
     ).value
     assert ExtendedKeyUsageOID.CLIENT_AUTH in controller_eku
     assert ExtendedKeyUsageOID.SERVER_AUTH not in controller_eku
+    controller_aki = controller.extensions.get_extension_for_class(
+        x509.AuthorityKeyIdentifier
+    ).value
+    assert controller_aki.key_identifier == ca_ski.digest
 
     server = x509.load_pem_x509_certificate(server_cert.read_bytes())
     server_eku = server.extensions.get_extension_for_class(
@@ -65,6 +76,10 @@ def test_bootstrap_pair_creates_ca_client_and_server_material(local_tmp_path: Pa
     ).value
     assert ExtendedKeyUsageOID.SERVER_AUTH in server_eku
     assert ExtendedKeyUsageOID.CLIENT_AUTH not in server_eku
+    server_aki = server.extensions.get_extension_for_class(
+        x509.AuthorityKeyIdentifier
+    ).value
+    assert server_aki.key_identifier == ca_ski.digest
 
     sans = server.extensions.get_extension_for_class(
         x509.SubjectAlternativeName
