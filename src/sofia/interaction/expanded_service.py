@@ -23,7 +23,8 @@ from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.preference_context import read_interaction_context
 from sofia.interaction.emotion_expression import expression_candidates
-from sofia.interaction.semantic_context import interaction_class
+from sofia.interaction.semantic_context import InteractionClass, interaction_class
+from sofia.interaction.private_context import private_interaction_grant
 from sofia.social.model import PrincipalContext
 
 _ACTION_COMPOUND = re.compile(
@@ -43,6 +44,10 @@ _COMPOSITE_ACTION = (
 _BOUNDARY_ACTION = (
     'That represented action conflicts with a recorded interaction boundary, '
     'so I have not accepted or narrated it as completed. We can keep talking.'
+)
+_PRIVATE_SEXUAL_DISABLED = (
+    'Private adult interaction context is not enabled for this authenticated '
+    'session, so I have not treated that sexual interaction as active.'
 )
 
 
@@ -186,6 +191,29 @@ class ExpandedConversationService(InteractiveConversationService):
                     action, context = self._context_for(
                         content, message_id='preflight', session_id=self._session.id,
                         occurred_at=datetime.now(timezone.utc))
+                    semantic_id = (
+                        action.action_id
+                        if action is not None
+                        else (context.semantic_id if context is not None else None)
+                    )
+                    region_id = (
+                        None
+                        if action is not None
+                        else (context.region_id if context is not None else None)
+                    )
+                    if (
+                        semantic_id is not None
+                        and interaction_class(
+                            semantic_id,
+                            region_id=region_id,
+                        ) is InteractionClass.SEXUAL
+                        and not private_interaction_grant(principal).allowed
+                    ):
+                        return self._guarded_reply(
+                            content,
+                            _PRIVATE_SEXUAL_DISABLED,
+                            principal=principal,
+                        )
                     if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
                         return self._guarded_reply(
                             content, _STOPPED_ACTION, principal=principal
@@ -221,6 +249,13 @@ class ExpandedConversationService(InteractiveConversationService):
                     region_id=region_id,
                 )
                 principal = self.current_principal
+                if (
+                    classification is InteractionClass.SEXUAL
+                    and not private_interaction_grant(principal).allowed
+                ):
+                    raise PermissionError(
+                        "sexual interaction context lost private-owner authorization"
+                    )
                 if principal is not None:
                     self.habit_learning.record_interaction_observation(
                         principal=principal,
