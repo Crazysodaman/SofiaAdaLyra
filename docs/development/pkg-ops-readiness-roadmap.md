@@ -502,3 +502,34 @@ Do not claim OPS fleet/orchestration support until real acceptance includes:
 24. proactive notifications are useful, deduplicated and do not spam routine telemetry.
 
 A mocked transport or caller-supplied "authenticated=true" flag is not live enrollment or orchestration proof.
+
+## Fleet control-plane candidate | 2026-09-26
+
+Branch `feature/fleet-tray-remote-controls` makes the Fleet workstream explicit instead of hiding it inside generic OPS status.
+
+Candidate source adds:
+
+- durable per-host foreground-activity state with operator override;
+- Game Mode `Auto`, forced gaming protection, and forced normal mode;
+- local Windows process evidence for Steam-library games without requiring Steam Web API access;
+- an optional explicit game-executable allowlist via `SOFIA_GAME_EXECUTABLES`;
+- activity-aware placement where gaming/busy hosts are deprioritized before momentary CPU load for ordinary movable workloads;
+- an explicit `allow_interactive_host` workload exception for clients/workloads that belong on the interactive machine;
+- the cognition-facing `ops.placement.choose` path using the same durable activity evidence;
+- a typed Fleet-agent bootstrap planner that distinguishes already-correct agent, trusted authorized auto-install, ask-Sparks, and reject-out-of-scope outcomes;
+- exact package/version/hash verification after any authorized installer runs.
+
+This still does **not** claim unrestricted LAN scanning or arbitrary software deployment. Discovery remains bounded to approved scopes, and installation still requires a trusted bootstrap path plus explicit or standing installation authority.
+
+Live gates still required:
+
+1. discover a real Windows candidate inside an approved scope;
+2. discover a real Linux candidate and Raspberry Pi-class candidate;
+3. exercise the trusted bootstrap path on at least one disposable/test host;
+4. prove an unauthorized/untrusted candidate produces an operator request rather than installation;
+5. verify signed/hash-pinned agent material before enrollment;
+6. prove Game Mode changes actual placement/migration behavior under measured contention;
+7. connect activity-aware placement to real workload execution;
+8. connect ACT one-time enrollment/migration/failure notices;
+9. connect RUN authoritative runtime movement/fencing and remote-client reconnection;
+10. preserve Sparks-only explicit approval for final host decommissioning.
