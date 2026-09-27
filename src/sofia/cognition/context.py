@@ -24,6 +24,7 @@ from sofia.operational.model import (
     RuntimeContinuity,
 )
 from sofia.personality.model import PersonalityProfile
+from sofia.social.model import PrincipalContext
 from sofia.self_model.model import SofiaCoreState
 from sofia.self_model.operational import SofiaOperationalSelfModel
 from sofia.system.knowledge import (
@@ -59,6 +60,7 @@ class CognitiveContext:
     system_capability_machine_id: str | None = None
     avatar_presentation: PresentationProjection | None = None
     environment_snapshot: EnvironmentSnapshot | None = None
+    principal: PrincipalContext | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -230,6 +232,15 @@ class CognitiveContext:
             raise TypeError(
                 "CognitiveContext environment_snapshot must be an "
                 "EnvironmentSnapshot or None."
+            )
+
+
+        if (
+            self.principal is not None
+            and not isinstance(self.principal, PrincipalContext)
+        ):
+            raise TypeError(
+                "CognitiveContext principal must be a PrincipalContext or None."
             )
 
         if self.system_capability_machine_id is not None:
