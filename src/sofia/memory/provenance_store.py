@@ -230,7 +230,7 @@ class DurableMemoryCandidateStore:
             clauses.append("status = ?")
             parameters.append(status.value)
         if principal_id is not None:
-            clauses.append("(principal_id IS NULL OR principal_id = ?)")
+            clauses.append("principal_id = ?")
             parameters.append(principal_id)
             if audience_id is None:
                 clauses.append("audience_id IS NULL")
