@@ -198,7 +198,10 @@ try {{
                     [System.StringComparison]::OrdinalIgnoreCase
                 ) -and
                 $_.CommandLine -and
-                $_.CommandLine.Contains("sofia.distributed.agent_main")
+                (
+                    $_.CommandLine.Contains("sofia.distributed.agent_main") -or
+                    $_.CommandLine.Contains("agent_canary.py")
+                )
             }}
         foreach ($ManagedProcess in $ManagedProcesses) {{
             Stop-Process -Id $ManagedProcess.ProcessId -Force -ErrorAction Stop
@@ -252,7 +255,44 @@ try {{
 
     $Stdout = Join-Path $Root "agent.stdout.log"
     $Stderr = Join-Path $Root "agent.stderr.log"
-    $Args = @("-m","sofia.distributed.agent_main","--config",(Join-Path $Root "agent.json"))
+    $StartupStatus = Join-Path $Root "agent.startup.json"
+    Remove-Item $StartupStatus -Force -ErrorAction SilentlyContinue
+    $Runner = Join-Path $Root "agent_canary.py"
+    @'
+from pathlib import Path
+import json
+import sys
+import traceback
+
+from sofia.distributed.agent import RemoteAgentServer
+from sofia.distributed.agent_main import configuration_from_file
+from sofia.distributed.agent_tools import create_default_agent_dispatcher
+
+root = Path(sys.argv[1])
+config_path = Path(sys.argv[2])
+status_path = root / "agent.startup.json"
+
+def status(stage, error=None):
+    payload = dict(stage=stage)
+    if error is not None:
+        payload["error"] = error
+    status_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+
+try:
+    status("loading_config")
+    config = configuration_from_file(config_path)
+    status("creating_dispatcher")
+    dispatcher = create_default_agent_dispatcher()
+    status("creating_server")
+    server = RemoteAgentServer(config, dispatcher)
+    status("listening")
+    server.serve_forever()
+except BaseException as exc:
+    status("failed", type(exc).__name__ + ": " + str(exc))
+    traceback.print_exc(file=sys.stderr)
+    raise
+'@ | Set-Content -Path $Runner -Encoding UTF8
+    $Args = @($Runner,$Root,(Join-Path $Root "agent.json"))
     $StartedAgent = Start-Process -FilePath $AgentPython -ArgumentList $Args -WindowStyle Hidden -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
 
     $Listener = $null
@@ -274,13 +314,20 @@ try {{
     if ($null -eq $Listener) {{
         $Text = Read-TextSafe $Stderr
         $OutText = Read-TextSafe $Stdout
+        $Phase = ""
+        if (Test-Path $StartupStatus -PathType Leaf) {{
+            $Phase = Read-TextSafe $StartupStatus
+        }}
         if ($Text) {{
-            throw "Fleet agent is not listening on the approved port. stderr: $Text"
+            throw "Fleet agent is not listening on the approved port. startup=$Phase stderr: $Text"
         }}
         if ($OutText) {{
-            throw "Fleet agent is not listening on the approved port. stdout: $OutText"
+            throw "Fleet agent is not listening on the approved port. startup=$Phase stdout: $OutText"
         }}
-        throw "Fleet agent is alive but is not listening on the approved port and produced no output."
+        if ($Phase) {{
+            throw "Fleet agent is alive but is not listening on the approved port. startup=$Phase"
+        }}
+        throw "Fleet agent is alive but is not listening on the approved port and produced no startup evidence."
     }}
 
     Set-Content (Join-Path $Root "agent.pid") ([string]$StartedAgent.Id) -Encoding ASCII
