@@ -114,7 +114,11 @@ class IdleReflectionWorker:
         if current.tzinfo is None or current.utcoffset() is None:
             raise ValueError("Worker time must be timezone-aware.")
         current = current.astimezone(timezone.utc)
-        self._service.reflection_journal.reflect_due(now=current)
+        scope = self._service.relationship_scope
+        self._service.reflection_journal.reflect_due(
+            now=current,
+            scope=scope,
+        )
         if not self._service.ready_for_idle_reflection(idle_seconds=self._idle_seconds):
             return None
         absence_event_id = None
@@ -134,7 +138,10 @@ class IdleReflectionWorker:
         # Iterate oldest-first to keep an active burst from starving the
         # oldest event inside that window. General archival retrieval is K/23.
         events = reversed(self._service.emotional_journal.recent(
-            now=current, days=366, limit=50,
+            now=current,
+            days=366,
+            limit=50,
+            scope=scope,
         ))
         for event in events:
             if not self._claim(event.event_id, current):
