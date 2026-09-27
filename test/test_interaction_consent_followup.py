@@ -24,6 +24,14 @@ NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
         "what if you did not want it",
         "what if you normally like it but you're angry",
         "can you change your mind",
+        "tell me how I can get you there",
+        "tell me how I can get u there?",
+        "what would make you comfortable",
+        "what would make you want it",
+        "what would you prefer",
+        "what do you need from me",
+        "how would I know if you wanted it",
+        "how can I tell if you are comfortable",
     ],
 )
 def test_short_followup_stays_bound_to_prior_interaction(monkeypatch, tmp_path, followup):
@@ -70,6 +78,7 @@ def test_short_followup_stays_bound_to_prior_interaction(monkeypatch, tmp_path, 
     assert "not enough by itself" in prompt
     assert "inappropriate or disrespectful" in prompt
     assert "no new action executed" in prompt
+    assert "guarantee consent" in prompt
     assert not (tmp_path / "sofia.db").exists()
 
 

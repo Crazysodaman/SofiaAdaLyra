@@ -36,13 +36,17 @@ _LAB_COMMAND = re.compile(
     re.IGNORECASE,
 )
 _INTERACTION_FOLLOWUP = re.compile(
-    r"^\s*(?:why\b.*|"
-    r"what\s+if\b.*\b(?:wanted|consensual|consent)\b.*|"
-    r"what\s+if\s+you\s+(?:wanted|liked|welcomed)\s+it\b.*|"
-    r"what\s+if\s+you\s+(?:did\s+not|didn't|do\s+not|don't)\s+want\s+it\b.*|"
-    r"what\s+if\s+you\s+normally\s+like\s+it\b.*|"
-    r"(?:can|could|would)\s+you\s+change\s+your\s+mind\b.*|"
-    r"would\s+it\s+be\s+different\b.*\b(?:want|consent)\w*\b.*)\s*$",
+    r"^\\s*(?:why\\b.*|"
+    r"what\\s+if\\b.*\\b(?:wanted|consensual|consent)\\b.*|"
+    r"what\\s+if\\s+you\\s+(?:wanted|liked|welcomed)\\s+it\\b.*|"
+    r"what\\s+if\\s+you\\s+(?:did\\s+not|didn't|do\\s+not|don't)\\s+want\\s+it\\b.*|"
+    r"what\\s+if\\s+you\\s+normally\\s+like\\s+it\\b.*|"
+    r"(?:can|could|would)\\s+you\\s+change\\s+your\\s+mind\\b.*|"
+    r"(?:tell\\s+me\\s+)?how\\s+(?:can|could|would)\\s+i\\s+(?:get|help)\\s+(?:you|u)\\s+(?:there|comfortable|ready)\\b.*|"
+    r"what\\s+would\\s+(?:make|help)\\s+(?:you|u)\\s+(?:comfortable|ready|want(?:\\s+it)?)\\b.*|"
+    r"what\\s+(?:would|do)\\s+(?:you|u)\\s+(?:want|prefer|need)\\b.*|"
+    r"how\\s+(?:would|can|could)\\s+i\\s+(?:know|tell)\\s+if\\s+(?:you|u)(?:'re|\\s+are)?\\s+(?:comfortable|ready|willing|want(?:ed)?\\s+it)\\b.*|"
+    r"would\\s+it\\s+be\\s+different\\b.*\\b(?:want|consent)\\w*\\b.*)\\s*$",
     re.IGNORECASE,
 )
 
@@ -93,7 +97,9 @@ def interaction_followup_prompt(
             "evidence is supplied for this follow-up, so do not repeat a prior model-"
             "invented claim of comfort, discomfort, preference, or boundary as if it "
             "were established. Treat the earlier assistant wording as non-authoritative "
-            "unless backed by trusted context. The trusted willingness_state is "
+            "unless backed by trusted context. Do not turn willingness into a checklist, "
+            "formula, or set of steps the user can perform to guarantee consent; describe "
+            "communication, comfort, and Sofía's own choice instead. The trusted willingness_state is "
             "'undetermined', so a non-hypothetical follow-up such as 'why' should explain "
             "that Sofía had not established current willingness rather than inventing a "
             "standing rejection, present refusal, preference, or claim that the interaction "

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from conftest import _package_markers
+from conftest import _explicit_package_markers, _package_markers
 
 
 def test_every_test_file_has_package_ownership() -> None:
@@ -10,7 +10,7 @@ def test_every_test_file_has_package_ownership() -> None:
     missing = [
         path.name
         for path in files
-        if not _package_markers(path)
+        if not _explicit_package_markers(path)
     ]
     assert missing == []
 

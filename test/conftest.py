@@ -90,6 +90,8 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_thought_", ("pkg_rel", "pkg_core")),
     ("test_current_emotional_state", ("pkg_rel", "pkg_core")),
     ("test_emotional_", ("pkg_rel", "pkg_core")),
+    ("test_model_evaluation_harness.py", ("pkg_verify", "pkg_core")),
+    ("test_package_grouping.py", ("pkg_verify",)),
 )
 
 _IMPORT_RE = re.compile(
@@ -97,7 +99,8 @@ _IMPORT_RE = re.compile(
 )
 
 
-def _package_markers(path: Path) -> frozenset[str]:
+def _explicit_package_markers(path: Path) -> frozenset[str]:
+    """Return only ownership proven by imports or explicit filename rules."""
     markers: set[str] = set()
     try:
         source = path.read_text(encoding="utf-8-sig")
@@ -112,10 +115,17 @@ def _package_markers(path: Path) -> frozenset[str]:
         if name.startswith(prefix):
             markers.update(owned_markers)
 
-    if not markers:
-        markers.add("pkg_core")
-
     return frozenset(markers)
+
+
+def _package_markers(path: Path) -> frozenset[str]:
+    """Return package markers used by pytest collection.
+
+    The fallback keeps ad-hoc external fixtures compatible. Repository audit
+    tests use _explicit_package_markers so unclassified tests cannot hide here.
+    """
+    markers = _explicit_package_markers(path)
+    return markers or frozenset({"pkg_core"})
 
 
 def pytest_collection_modifyitems(items) -> None:
