@@ -1,0 +1,181 @@
+"""Standalone Windows tray control process for Sofía."""
+from __future__ import annotations
+
+from dataclasses import replace
+from datetime import datetime, timezone
+from pathlib import Path
+from queue import Queue
+import socket
+import sqlite3
+import subprocess
+import sys
+
+from sofia.config import create_default_configuration
+from sofia.machine.discovery import create_machine_discovery
+from sofia.ops.activity import ActivityMode, HostActivityStore
+
+from .control_center import (
+    DesktopControlSettingsStore,
+    GameMode,
+    ServiceAction,
+    ServiceKind,
+    ServiceTarget,
+    TrayCommand,
+    TrayStatus,
+)
+from .service_control import DesktopServiceController
+from .windows_tray import WindowsTrayAgent
+
+
+def _ensure_state(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        with sqlite3.connect(path):
+            pass
+
+
+def _local_host_id() -> str:
+    try:
+        return create_machine_discovery().discover().identity.machine_id
+    except Exception:
+        return f"hostname:{socket.gethostname()}"
+
+
+class TrayAgentApplication:
+    def __init__(self) -> None:
+        self.config = create_default_configuration()
+        _ensure_state(self.config.state_path)
+        self.settings_store = DesktopControlSettingsStore(self.config.state_path)
+        self.activity_store = HostActivityStore(self.config.state_path)
+        self.host_id = _local_host_id()
+        self.events: Queue[TrayCommand] = Queue()
+        self._chat_process: subprocess.Popen | None = None
+        self._settings_process: subprocess.Popen | None = None
+        self._last_error: str | None = None
+        self._service = DesktopServiceController(
+            local_host_id=self.host_id,
+            llm_model=self.config.provider.model,
+        )
+        self.tray = WindowsTrayAgent(
+            events=self.events,
+            status_provider=self.status,
+        )
+
+    def status(self) -> TrayStatus:
+        settings = self.settings_store.load()
+        return TrayStatus(
+            runtime_host=self.host_id,
+            runtime_state="configured",
+            llm_host=self.host_id,
+            llm_state="configured",
+            llm_model=self.config.provider.model,
+            game_mode=settings.game_mode,
+            fleet_total=1,
+            fleet_healthy=1,
+            fleet_attention=0 if self._last_error is None else 1,
+        )
+
+    @staticmethod
+    def _spawn_module(module: str) -> subprocess.Popen:
+        executable = Path(sys.executable)
+        if sys.platform == "win32":
+            pythonw = executable.with_name("pythonw.exe")
+            if pythonw.is_file():
+                executable = pythonw
+        creationflags = 0
+        if sys.platform == "win32":
+            creationflags = (
+                getattr(subprocess, "DETACHED_PROCESS", 0)
+                | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            )
+        return subprocess.Popen(
+            (str(executable), "-m", module),
+            cwd=str(Path(__file__).resolve().parents[3]),
+            creationflags=creationflags,
+            close_fds=True,
+        )
+
+    def _open_chat(self) -> None:
+        if self._chat_process is None or self._chat_process.poll() is not None:
+            self._chat_process = self._spawn_module("sofia.ui")
+
+    def _open_settings(self) -> None:
+        if self._settings_process is None or self._settings_process.poll() is not None:
+            self._settings_process = self._spawn_module("sofia.ui.settings_window")
+
+    def _set_game_mode(self, value: GameMode) -> None:
+        settings = self.settings_store.load()
+        updated = replace(settings, game_mode=value)
+        now = datetime.now(timezone.utc)
+        self.settings_store.save(updated, at=now)
+        override = {
+            GameMode.AUTO: ActivityMode.AUTO,
+            GameMode.ON: ActivityMode.GAMING,
+            GameMode.OFF: ActivityMode.NORMAL,
+        }[value]
+        self.activity_store.set_override(self.host_id, override, at=now)
+
+    def _service_action(self, kind: ServiceKind, action: ServiceAction) -> None:
+        settings = self.settings_store.load()
+        service_name = (
+            settings.llm_service_name
+            if kind is ServiceKind.LLM_ENGINE
+            else settings.runtime_service_name
+        )
+        self._service.execute(
+            ServiceTarget(kind, self.host_id, service_name),
+            action,
+        )
+
+    def handle(self, command: TrayCommand) -> bool:
+        try:
+            if command is TrayCommand.OPEN_CHAT:
+                self._open_chat()
+            elif command in (TrayCommand.OPEN_FLEET, TrayCommand.OPEN_SETTINGS):
+                self._open_settings()
+            elif command is TrayCommand.GAME_AUTO:
+                self._set_game_mode(GameMode.AUTO)
+            elif command is TrayCommand.GAME_ON:
+                self._set_game_mode(GameMode.ON)
+            elif command is TrayCommand.GAME_OFF:
+                self._set_game_mode(GameMode.OFF)
+            elif command is TrayCommand.LLM_START:
+                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.START)
+            elif command is TrayCommand.LLM_STOP:
+                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.STOP)
+            elif command is TrayCommand.LLM_RESTART:
+                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.RESTART)
+            elif command is TrayCommand.LLM_UNLOAD_MODEL:
+                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.UNLOAD_MODEL)
+            elif command is TrayCommand.RUNTIME_START:
+                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.START)
+            elif command is TrayCommand.RUNTIME_STOP:
+                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.STOP)
+            elif command is TrayCommand.RUNTIME_RESTART:
+                self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART)
+            elif command is TrayCommand.DIAGNOSTICS:
+                self._last_error = self._last_error or "Diagnostics requested"
+            elif command is TrayCommand.EXIT_UI:
+                return False
+            self._last_error = None
+        except Exception as exc:
+            self._last_error = f"{type(exc).__name__}: {exc}"
+        return True
+
+    def run(self) -> int:
+        self.tray.start()
+        try:
+            running = True
+            while running:
+                running = self.handle(self.events.get())
+        finally:
+            self.tray.stop()
+        return 0
+
+
+def main() -> int:
+    return TrayAgentApplication().run()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
