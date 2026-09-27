@@ -15,6 +15,7 @@ from sofia.interaction.representation import (
     AvatarInteractionIntent,
     InteractionProjectionBundle,
     InteractionProjectionDenied,
+    InteractionPhase,
     InteractionStage,
     InteractionVisibility,
     PrivateInteractionGrant,
@@ -28,6 +29,7 @@ __all__ += (
     "AvatarInteractionIntent",
     "InteractionProjectionBundle",
     "InteractionProjectionDenied",
+    "InteractionPhase",
     "InteractionStage",
     "InteractionVisibility",
     "PrivateInteractionGrant",
@@ -35,4 +37,25 @@ __all__ += (
     "TextInteractionProjection",
     "project_interaction",
     "reviewed_interaction",
+)
+
+
+from sofia.interaction.initiative import (
+    CanonicalInitiativePlanner,
+    CanonicalInteractionProposal,
+    InitiativeSource,
+    InteractionReactionLink,
+)
+from sofia.interaction.target_body import (
+    RepresentedTargetBody,
+    TargetRegion,
+)
+
+__all__ += (
+    "CanonicalInitiativePlanner",
+    "CanonicalInteractionProposal",
+    "InitiativeSource",
+    "InteractionReactionLink",
+    "RepresentedTargetBody",
+    "TargetRegion",
 )
