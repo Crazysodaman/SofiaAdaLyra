@@ -224,6 +224,34 @@ class SQLiteStatePlane(StatePlane):
             raise RuntimeError("State Plane write vanished after commit")
         return persisted
 
+    def delete(
+        self,
+        key: StateKey,
+        *,
+        expected_revision: int,
+    ) -> None:
+        if not isinstance(key, StateKey):
+            raise TypeError("key must be a StateKey")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("expected_revision must be a positive integer")
+        with self._lock, self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                """
+                DELETE FROM state_plane_record
+                WHERE namespace=? AND record_key=?
+                  AND principal_id=? AND audience=?
+                  AND revision=?
+                """,
+                (*self._scope(key), expected_revision),
+            )
+            if changed.rowcount != 1:
+                db.rollback()
+                raise StatePlaneConflictError(
+                    "state record compare-and-swap delete failed"
+                )
+            db.commit()
+
     def list_namespace(
         self,
         namespace: str,
