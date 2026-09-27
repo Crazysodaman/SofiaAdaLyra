@@ -55,6 +55,14 @@ def _serial() -> int:
     return x509.random_serial_number()
 
 
+def _refuse_network_secret_root(root: Path) -> None:
+    text = str(root)
+    if text.startswith("\\\\"):
+        raise ValueError(
+            "Fleet PKI private material must be generated on local storage, not a UNC/network path"
+        )
+
+
 def create_ca(
     *,
     certificate_path: Path,
@@ -213,6 +221,7 @@ def bootstrap_pair(
     controller_name: str = "Venus",
 ) -> dict[str, str]:
     root = output_directory.resolve()
+    _refuse_network_secret_root(root)
     ca_dir = root / "ca"
     venus_dir = root / "venus"
     server_dir = root / server_name.casefold()
