@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sofia.avatar.presentation import AppearanceState, PresentationState
+from sofia.avatar.wardrobe_routine import EmotionStyleInfluence
 from sofia.personality.influence import ContinuityInfluence
 
 
@@ -100,4 +101,40 @@ def propose_avatar_influence(
         expression_tags=tuple(dict.fromkeys(expressions)),
         posture_tags=tuple(dict.fromkeys(posture)),
         reasons=tuple(dict.fromkeys(reasons)) or ("no_change",),
+    )
+
+
+def wardrobe_emotion_influences(
+    influence: ContinuityInfluence,
+) -> tuple[EmotionStyleInfluence, ...]:
+    """Translate grounded modeled emotion into bounded wardrobe style bias."""
+    if not isinstance(influence, ContinuityInfluence):
+        raise TypeError("influence must be ContinuityInfluence")
+    if (
+        influence.primary_emotion is None
+        or influence.primary_intensity < 0.20
+        or not influence.primary_emotion_evidence_refs
+    ):
+        return ()
+
+    tags: tuple[str, ...]
+    emotion = influence.primary_emotion
+    if emotion in {"joy", "excitement", "playfulness", "amusement"}:
+        tags = ("playful", "bright")
+    elif emotion in {"fondness", "affection", "warmth", "tenderness"}:
+        tags = ("soft", "cozy")
+    elif emotion in {"determination", "frustration", "anger"}:
+        tags = ("focused", "practical")
+    elif emotion in {"bashfulness", "embarrassment", "nervousness"}:
+        tags = ("soft", "reserved")
+    else:
+        tags = ("contextual",)
+
+    return (
+        EmotionStyleInfluence(
+            emotion=emotion,
+            intensity=influence.primary_intensity,
+            style_tags=tags,
+            evidence_refs=influence.primary_emotion_evidence_refs,
+        ),
     )
