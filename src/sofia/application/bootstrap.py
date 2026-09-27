@@ -15,6 +15,7 @@ from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.act_service import SofiaActService
 from sofia.application.act_runtime import configure_act_delivery_from_environment
+from sofia.application.avatar_runtime import AvatarBackgroundPresentation
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
 from sofia.application.memory_review import MemoryReviewService
@@ -120,6 +121,7 @@ class SofiaApplication:
         self._background: ApplicationBackgroundCoordinator | None = None
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
+        self._avatar_background: AvatarBackgroundPresentation | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
@@ -229,6 +231,15 @@ class SofiaApplication:
                         busy=False,
                     )
                 )
+                avatar_background = AvatarBackgroundPresentation(
+                    runtime=self._runtime,
+                    conversation=self._conversation_service,
+                    bundle=bundle,
+                )
+                coordinator.set_presentation_update(
+                    lambda now: avatar_background.run_once(now=now)
+                )
+                self._avatar_background = avatar_background
                 coordinator.start()
                 self._background = coordinator
                 self._idle_worker = coordinator.idle
@@ -254,6 +265,7 @@ class SofiaApplication:
                 ) from exc
             self._background = None
             self._idle_worker = None
+            self._avatar_background = None
         try:
             bundle = getattr(self, "_presentation_bundle", None)
             if bundle is not None:
@@ -263,6 +275,7 @@ class SofiaApplication:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
             self._presentation_bundle = None
+            self._avatar_background = None
             self._conversation_service.close()
             ui_draft_store = getattr(
                 self,
