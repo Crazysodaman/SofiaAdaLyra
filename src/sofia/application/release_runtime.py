@@ -6,6 +6,7 @@ from pathlib import Path
 from sofia.config.model import SofiaConfiguration
 from sofia.dev.release_store import ReleaseStateStore
 from sofia.run.release import ReleaseManager
+from sofia.safe.audit import AuditChain
 from sofia.safe.release import ReleaseActivationGuard
 from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
 from sofia.state.plane import StatePlane
@@ -55,4 +56,5 @@ def create_release_manager(
         release_root=release_root,
         store=ReleaseStateStore(state_plane),
         guard=ReleaseActivationGuard(verifier),
+        audit=AuditChain(configuration.state_path),
     )
