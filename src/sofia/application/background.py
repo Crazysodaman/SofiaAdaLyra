@@ -248,6 +248,7 @@ class ApplicationBackgroundCoordinator:
             now=now,
             days=366,
             limit=16,
+            scope=self.service.relationship_scope,
         )
         refs = [event.event_id for event in events]
         if absence is not None and absence not in refs:
