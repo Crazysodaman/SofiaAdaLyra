@@ -98,8 +98,12 @@ def test_malformed_blueprint_rejected():
 
 def test_preset_cannot_reference_missing_blueprint():
     pack = build_starter_wardrobe()
+    without_engineer_shirt = tuple(
+        bp for bp in pack.blueprints
+        if bp.garment.item_id != "engineer.shirt"
+    )
     with pytest.raises(WardrobeError):
-        replace(pack, blueprints=pack.blueprints[:-1])
+        replace(pack, blueprints=without_engineer_shirt)
 
 
 def test_underwear_and_outerwear_share_body_without_same_layer_conflicts():
