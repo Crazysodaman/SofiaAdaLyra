@@ -27,6 +27,8 @@ class MemoryCandidate:
     content: str
     sources: tuple[SourceMessage, ...]
     created_at: datetime
+    principal_id: str | None = None
+    audience_id: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.candidate_id, UUID):
@@ -44,6 +46,14 @@ class MemoryCandidate:
             raise TypeError("created_at must be a datetime")
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
+        for name in ("principal_id", "audience_id"):
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"{name} must be None or nonempty")
+        if self.audience_id is not None and self.principal_id is None:
+            raise ValueError("audience-scoped memory requires principal_id")
 
 
 class MemoryCandidateRegistry:
