@@ -21,6 +21,7 @@ from sofia.interaction.registry import (
     PRIVATE_SEMANTICS,
     InteractionCatalog,
 )
+from sofia.interaction.target_body import RepresentedTargetBody
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
 
@@ -41,6 +42,31 @@ class InteractionStage(str, Enum):
 class InteractionVisibility(str, Enum):
     PUBLIC = "public"
     PRIVATE = "private"
+
+
+class InteractionPhase(str, Enum):
+    INSTANT = "instant"
+    ENTER = "enter"
+    HOLD = "hold"
+    EXIT = "exit"
+
+
+INTERACTION_MODIFIERS = frozenset({
+    "gentle",
+    "brief",
+    "playful",
+    "teasing",
+    "affectionate",
+    "romantic",
+    "sensual",
+    "sexual",
+    "shy",
+    "confident",
+    "hesitant",
+    "close",
+    "protective",
+    "comforting",
+})
 
 
 def _identifier(value: str, label: str) -> str:
@@ -107,6 +133,9 @@ class RepresentedInteraction:
     occurred_at: datetime
     evidence_refs: tuple[str, ...]
     region_id: str | None = None
+    target_region_id: str | None = None
+    phase: InteractionPhase = InteractionPhase.INSTANT
+    modifiers: tuple[str, ...] = ()
     registry_version: str = CATALOG_VERSION
 
     def __post_init__(self) -> None:
@@ -114,9 +143,17 @@ class RepresentedInteraction:
         _identifier(self.semantic_id, "semantic_id")
         _identifier(self.actor_id, "actor_id")
         _identifier(self.target_id, "target_id")
-        if self.actor_id == self.target_id:
-            raise ValueError("interaction actor and target must be distinct")
-        if self.category not in ("gesture", "action", "expression"):
+        if (
+            self.actor_id == self.target_id
+            and self.category not in ("pose", "presentation", "expression")
+        ):
+            raise ValueError(
+                "self-directed semantics are limited to pose, presentation, "
+                "and expression categories"
+            )
+        if self.category not in (
+            "gesture", "action", "expression", "pose", "presentation"
+        ):
             raise ValueError("interaction category is not supported")
         if not isinstance(self.stage, InteractionStage):
             raise TypeError("stage must be an InteractionStage")
@@ -125,6 +162,17 @@ class RepresentedInteraction:
         _utc(self.occurred_at)
         if self.region_id is not None:
             _identifier(self.region_id, "region_id")
+        if self.target_region_id is not None:
+            _identifier(self.target_region_id, "target_region_id")
+        if not isinstance(self.phase, InteractionPhase):
+            raise TypeError("phase must be an InteractionPhase")
+        if (
+            not isinstance(self.modifiers, tuple)
+            or len(self.modifiers) > 8
+            or len(set(self.modifiers)) != len(self.modifiers)
+            or any(item not in INTERACTION_MODIFIERS for item in self.modifiers)
+        ):
+            raise ValueError("interaction modifiers are invalid")
         if (
             not isinstance(self.evidence_refs, tuple)
             or not self.evidence_refs
@@ -154,6 +202,9 @@ class AvatarInteractionIntent:
     actor_id: str
     target_id: str
     region_id: str | None
+    target_region_id: str | None
+    phase: InteractionPhase
+    modifiers: tuple[str, ...]
     stage: InteractionStage
     visibility: InteractionVisibility
     render_status: str = "unrendered"
@@ -187,6 +238,10 @@ def reviewed_interaction(
     occurred_at: datetime,
     evidence_refs: tuple[str, ...],
     region_id: str | None = None,
+    target_region_id: str | None = None,
+    target_body: RepresentedTargetBody | None = None,
+    phase: InteractionPhase = InteractionPhase.INSTANT,
+    modifiers: tuple[str, ...] = (),
     visibility: InteractionVisibility | None = None,
 ) -> RepresentedInteraction:
     """Create a canonical interaction only from reviewed catalog vocabulary."""
@@ -198,8 +253,22 @@ def reviewed_interaction(
         raise ValueError("semantic interaction is not in the reviewed catalog")
     if region_id is not None and region_id not in catalog.region_ids:
         raise ValueError("interaction region is not in the canonical region catalog")
+    target_region_private = False
+    if target_region_id is not None:
+        if not isinstance(target_body, RepresentedTargetBody):
+            raise TypeError(
+                "target_body is required when target_region_id is supplied"
+            )
+        target_region_private = target_body.require_region(
+            target_region_id
+        ).private
 
-    requires_private = (category, semantic_id) in PRIVATE_SEMANTICS
+    requires_private = (
+        (category, semantic_id) in PRIVATE_SEMANTICS
+        or target_region_private
+        or "sexual" in modifiers
+        or "sensual" in modifiers
+    )
     chosen_visibility = visibility or (
         InteractionVisibility.PRIVATE
         if requires_private
@@ -219,6 +288,9 @@ def reviewed_interaction(
         occurred_at=_utc(occurred_at),
         evidence_refs=evidence_refs,
         region_id=region_id,
+        target_region_id=target_region_id,
+        phase=phase,
+        modifiers=modifiers,
     )
 
 
@@ -258,6 +330,9 @@ def project_interaction(
         "actor_id": interaction.actor_id,
         "target_id": interaction.target_id,
         "region_id": interaction.region_id,
+        "target_region_id": interaction.target_region_id,
+        "phase": interaction.phase.value,
+        "modifiers": interaction.modifiers,
         "stage": interaction.stage.value,
         "visibility": interaction.visibility.value,
         "represented_action": interaction.stage is InteractionStage.REPRESENTED,
@@ -285,6 +360,9 @@ def project_interaction(
         actor_id=interaction.actor_id,
         target_id=interaction.target_id,
         region_id=interaction.region_id,
+        target_region_id=interaction.target_region_id,
+        phase=interaction.phase,
+        modifiers=interaction.modifiers,
         stage=interaction.stage,
         visibility=interaction.visibility,
     )
