@@ -503,7 +503,9 @@ class SofiaRuntime:
             )
 
         self._state = RuntimeState.STARTING
-        self._environment_service.invalidate()
+        environment_service = getattr(self, "_environment_service", None)
+        if environment_service is not None:
+            environment_service.invalidate()
 
         runtime_id = uuid4()
         started_at = datetime.now(timezone.utc)
@@ -660,14 +662,20 @@ class SofiaRuntime:
         environment_details_needed = environment_details_relevant(
             user_content or None
         )
+        environment_service = getattr(
+            self,
+            "_environment_service",
+            None,
+        )
         if (
-            user_content
+            environment_service is not None
+            and user_content
             and self._environment_query_resolver.might_match(
                 user_content
             )
         ):
             environment_snapshot = (
-                self._environment_service.snapshot(
+                environment_service.snapshot(
                     refresh_providers=environment_details_needed,
                 )
             )
@@ -695,9 +703,12 @@ class SofiaRuntime:
                 embodiment=self._embodiment,
             )
 
-        if environment_snapshot is None:
+        if (
+            environment_snapshot is None
+            and environment_service is not None
+        ):
             environment_snapshot = (
-                self._environment_service.snapshot(
+                environment_service.snapshot(
                     refresh_providers=environment_details_needed,
                 )
             )
