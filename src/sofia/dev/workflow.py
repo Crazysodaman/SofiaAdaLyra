@@ -54,7 +54,9 @@ class EngineeringWorkflow:
             if len(parts)>=3: paths.append(parts[-1])
         return tuple(sorted(set(paths)))
 
-    def apply(self,candidate:EngineeringCandidate)->tuple[str,...]:
+    def apply(self,candidate:EngineeringCandidate,*,authorized:bool=False)->tuple[str,...]:
+        if type(authorized) is not bool: raise TypeError("authorized must be boolean")
+        if not authorized: raise PermissionError("candidate apply requires explicit authority")
         self.git.require_head(candidate.base_sha)
         self.git.require_clean_scope(candidate.allowed_paths)
         patch_paths=self._patch_paths(self.workspace,candidate.patch)
@@ -78,7 +80,9 @@ class EngineeringWorkflow:
             self._applied_hashes[path]=sha256(target.read_bytes()).hexdigest() if target.is_file() else None
         return self.git.changed_paths()
 
-    def rollback_applied(self)->None:
+    def rollback_applied(self,*,authorized:bool=False)->None:
+        if type(authorized) is not bool: raise TypeError("authorized must be boolean")
+        if not authorized: raise PermissionError("candidate rollback requires explicit authority")
         if not self._applied_paths: return
         for path,expected in self._applied_hashes.items():
             target=self.workspace/path
@@ -93,7 +97,9 @@ class EngineeringWorkflow:
             elif target.exists(): raise GitWorkspaceError(f"refusing rollback of non-file candidate path: {path}")
         self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
 
-    def commit(self,message:str)->str:
+    def commit(self,message:str,*,authorized:bool=False)->str:
+        if type(authorized) is not bool: raise TypeError("authorized must be boolean")
+        if not authorized: raise PermissionError("candidate commit requires explicit authority")
         if not message.strip(): raise ValueError("commit message required")
         if not self._applied_paths: raise GitWorkspaceError("no reviewed candidate paths are pending commit")
         self.git.run("add","--",*self._applied_paths)
@@ -101,6 +107,8 @@ class EngineeringWorkflow:
         self._applied_paths=(); self._applied_hashes={}; self._applied_existed={}
         return self.git.head_sha()
 
-    def push(self,branch:str,*,remote:str="origin")->None:
+    def push(self,branch:str,*,remote:str="origin",authorized:bool=False)->None:
+        if type(authorized) is not bool: raise TypeError("authorized must be boolean")
+        if not authorized: raise PermissionError("candidate push requires explicit authority")
         if not branch.strip() or branch.startswith("-"): raise ValueError("exact branch name required")
         self.git.run("push",remote,f"HEAD:refs/heads/{branch}")
