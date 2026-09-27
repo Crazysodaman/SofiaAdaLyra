@@ -188,6 +188,9 @@ class ApplicationBackgroundCoordinator:
         )
         self._act_delivery: Callable[[datetime], object | None] | None = None
         self._tasks: dict[str, Callable[[datetime], object | None]] = {}
+        self._task_intervals: dict[str, float] = {}
+        self._task_last_run: dict[str, datetime] = {}
+        self._task_cursor = 0
         self._heartbeat: Callable[[datetime, bool], None] | None = None
         self._stop_event = Event()
         self._thread: Thread | None = None
@@ -205,6 +208,8 @@ class ApplicationBackgroundCoordinator:
         self,
         task_kind: str,
         callback: Callable[[datetime], object | None] | None,
+        *,
+        interval_seconds: float = 900.0,
     ) -> None:
         """Install one typed background unit under the shared global budget."""
         if not isinstance(task_kind, str) or not task_kind.strip():
@@ -212,10 +217,18 @@ class ApplicationBackgroundCoordinator:
         key = task_kind.strip()
         if callback is None:
             self._tasks.pop(key, None)
+            self._task_intervals.pop(key, None)
+            self._task_last_run.pop(key, None)
             return
         if not callable(callback):
             raise TypeError("background task callback must be callable or None")
+        if (
+            not isinstance(interval_seconds, (int, float))
+            or interval_seconds <= 0
+        ):
+            raise ValueError("interval_seconds must be positive")
         self._tasks[key] = callback
+        self._task_intervals[key] = float(interval_seconds)
 
     def set_heartbeat(
         self,
@@ -295,23 +308,42 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
-        for task_kind in sorted(self._tasks):
-            claim_id = self.budget.claim(task_kind, now=moment)
-            if claim_id is None:
-                return "budget_busy"
-            try:
-                result = self._tasks[task_kind](moment)
-                self.budget.finish(claim_id, now=moment)
-                if result is not None:
-                    return f"{task_kind}:attempted"
-            except Exception as exc:
-                self.budget.finish(
-                    claim_id,
-                    now=datetime.now(timezone.utc),
-                    error=exc,
-                )
-                self.last_error = type(exc).__name__
-                raise
+        task_names = sorted(self._tasks)
+        if task_names:
+            start = self._task_cursor % len(task_names)
+            ordered = task_names[start:] + task_names[:start]
+            for task_kind in ordered:
+                last_run = self._task_last_run.get(task_kind)
+                interval = self._task_intervals[task_kind]
+                if (
+                    last_run is not None
+                    and (moment - last_run).total_seconds() < interval
+                ):
+                    continue
+                claim_id = self.budget.claim(task_kind, now=moment)
+                if claim_id is None:
+                    return "budget_busy"
+                try:
+                    result = self._tasks[task_kind](moment)
+                    self._task_last_run[task_kind] = moment
+                    self.budget.finish(claim_id, now=moment)
+                    self._task_cursor = (
+                        task_names.index(task_kind) + 1
+                    ) % len(task_names)
+                    return (
+                        f"{task_kind}:idle"
+                        if result is None
+                        else f"{task_kind}:attempted"
+                    )
+                except Exception as exc:
+                    self._task_last_run[task_kind] = moment
+                    self.budget.finish(
+                        claim_id,
+                        now=datetime.now(timezone.utc),
+                        error=exc,
+                    )
+                    self.last_error = type(exc).__name__
+                    raise
 
         if self._act_delivery is not None:
             claim_id = self.budget.claim("act_delivery", now=moment)
