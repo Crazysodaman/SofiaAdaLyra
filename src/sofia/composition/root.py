@@ -1,7 +1,7 @@
 ﻿from dataclasses import replace
 from pathlib import Path
 
-from sofia.action.executor import TestActionExecutor
+from sofia.action.executor import FailClosedActionExecutor
 from sofia.action.system import ActionSystem
 from sofia.authorization.model import (
     AuthorizationDecision,
@@ -488,7 +488,7 @@ def compose(
         else CognitiveContextAssembler()
     )
 
-    action_executor = TestActionExecutor()
+    action_executor = FailClosedActionExecutor()
 
     action_system = ActionSystem(
         executor=action_executor,
