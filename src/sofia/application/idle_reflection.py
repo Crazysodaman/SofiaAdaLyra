@@ -114,7 +114,8 @@ class IdleReflectionWorker:
         if current.tzinfo is None or current.utcoffset() is None:
             raise ValueError("Worker time must be timezone-aware.")
         current = current.astimezone(timezone.utc)
-        self._service.reflection_journal.reflect_due(now=current)
+        subject = self._service._relationship_subject()
+        self._service.reflection_journal.reflect_due(now=current, subject=subject)
         if not self._service.ready_for_idle_reflection(idle_seconds=self._idle_seconds):
             return None
         absence_event_id = None
