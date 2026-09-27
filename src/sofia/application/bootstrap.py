@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from sofia.avatar.presentation_store import PresentationStoreError
 from sofia.avatar.runtime_state import (
@@ -11,6 +12,8 @@ from sofia.avatar.runtime_state import (
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
+from sofia.application.background import ApplicationBackgroundCoordinator
+from sofia.application.act_service import SofiaActService
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
@@ -56,6 +59,10 @@ class SofiaApplication:
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime, conversation_store=conversation_store,
         )
+        self._act_service = SofiaActService(
+            Path(configuration.state_path)
+        )
+        self._background: ApplicationBackgroundCoordinator | None = None
         self._idle_worker: IdleReflectionWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
@@ -73,6 +80,16 @@ class SofiaApplication:
     @property
     def evolution(self) -> SofiaEvolutionService:
         return self._evolution
+
+    @property
+    def act(self) -> SofiaActService:
+        return self._act_service
+
+    @property
+    def background_coordinator(
+        self,
+    ) -> ApplicationBackgroundCoordinator | None:
+        return self._background
 
     @property
     def conversation(self) -> ConversationService:
@@ -125,12 +142,19 @@ class SofiaApplication:
             if enabled and self._runtime.personality is not None:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
                     raise SofiaApplicationError("Idle reflection requires an emotional conversation service.")
-                worker = IdleReflectionWorker(
+                coordinator = ApplicationBackgroundCoordinator(
                     service=self._conversation_service,
-                    state_path=self._configuration.state_path,
+                    state_path=Path(self._configuration.state_path),
                 )
-                worker.start()
-                self._idle_worker = worker
+                coordinator.set_act_delivery(
+                    lambda now: self._act_service.deliver_one(
+                        now=now,
+                        busy=False,
+                    )
+                )
+                coordinator.start()
+                self._background = coordinator
+                self._idle_worker = coordinator.idle
             return response
         except (
             SofiaRuntimeError,
@@ -143,13 +167,15 @@ class SofiaApplication:
 
     def shutdown(self) -> None:
         """Stop idle inference *before* closing the shared cognitive runtime."""
-        worker = getattr(self, "_idle_worker", None)
-        if worker is not None:
+        coordinator = getattr(self, "_background", None)
+        if coordinator is not None:
             try:
-                worker.stop()
+                coordinator.stop()
             except RuntimeError as exc:
-                # Do not shut down a runtime while its model request may be live.
-                raise SofiaApplicationError("Idle reflection has not stopped safely.") from exc
+                raise SofiaApplicationError(
+                    "Background coordination has not stopped safely."
+                ) from exc
+            self._background = None
             self._idle_worker = None
         try:
             bundle = getattr(self, "_presentation_bundle", None)
