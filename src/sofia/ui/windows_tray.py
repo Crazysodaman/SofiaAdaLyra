@@ -122,6 +122,9 @@ class WindowsTrayAgent:
         MF_CHECKED = 0x0008
         MF_SEPARATOR = 0x0800
         MF_POPUP = 0x0010
+        MB_OKCANCEL = 0x00000001
+        MB_ICONWARNING = 0x00000030
+        IDOK = 1
         TPM_RIGHTBUTTON = 0x0002
         TPM_RETURNCMD = 0x0100
         TPM_NONOTIFY = 0x0080
@@ -242,6 +245,13 @@ class WindowsTrayAgent:
         user32.TrackPopupMenu.restype = wintypes.UINT
         user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
         user32.GetCursorPos.restype = wintypes.BOOL
+        user32.MessageBoxW.argtypes = [
+            wintypes.HWND,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.UINT,
+        ]
+        user32.MessageBoxW.restype = ctypes.c_int
         user32.SetForegroundWindow.argtypes = [wintypes.HWND]
         user32.SetForegroundWindow.restype = wintypes.BOOL
         user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
@@ -331,9 +341,14 @@ class WindowsTrayAgent:
                 append(root, MF_POPUP, game, "Game Mode")
 
                 llm_label = status.llm_model or "LLM Engine"
-                append(llm, MF_STRING, 1020, "Start")
-                append(llm, MF_STRING, 1021, "Stop")
-                append(llm, MF_STRING, 1022, "Restart")
+                llm_service_flags = (
+                    MF_STRING
+                    if status.llm_state != "not_found"
+                    else MF_STRING | MF_GRAYED
+                )
+                append(llm, llm_service_flags, 1020, "Start")
+                append(llm, llm_service_flags, 1021, "Stop")
+                append(llm, llm_service_flags, 1022, "Restart")
                 append(llm, MF_STRING, 1023, "Unload model")
                 append(root, MF_POPUP, llm, f"{llm_label}: {status.llm_state}")
 
@@ -361,6 +376,27 @@ class WindowsTrayAgent:
                     None,
                 )
                 command = action_ids.get(int(selected))
+                if command in (
+                    TrayCommand.RUNTIME_STOP,
+                    TrayCommand.RUNTIME_RESTART,
+                ):
+                    action = (
+                        "stop"
+                        if command is TrayCommand.RUNTIME_STOP
+                        else "restart"
+                    )
+                    confirmed = user32.MessageBoxW(
+                        hwnd,
+                        (
+                            f"This will {action} the Sofía runtime on "
+                            f"{status.runtime_host or 'this host'}.\n\n"
+                            "Continue?"
+                        ),
+                        "Confirm Sofía runtime control",
+                        MB_OKCANCEL | MB_ICONWARNING,
+                    )
+                    if confirmed != IDOK:
+                        command = None
                 if command is not None:
                     self._events.put(command)
             finally:
