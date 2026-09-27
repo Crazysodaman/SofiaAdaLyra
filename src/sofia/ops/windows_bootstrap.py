@@ -175,6 +175,10 @@ try {{
     Copy-Item (Join-Path $Stage "certs\\artemis-server-key.pem") (Join-Path $Root "certs\\artemis-server-key.pem") -Force
     Copy-Item $Wheel (Join-Path $Root $WheelName) -Force
 
+    $ServerKey = Join-Path $Root "certs\\artemis-server-key.pem"
+    & icacls.exe $ServerKey /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+    if ($LASTEXITCODE -ne 0) {{ throw "Failed to restrict Fleet server private-key ACL." }}
+
     $Candidates = @()
     $Command = Get-Command python.exe -ErrorAction SilentlyContinue
     if ($null -ne $Command) {{ $Candidates += $Command.Source }}
@@ -368,6 +372,10 @@ class WindowsCimBootstrapInstaller:
             f"pid={evidence.process_id} port={evidence.listen_port} "
             f"python={evidence.python_version}"
         )
+        try:
+            shutil.rmtree(self._active_controller_stage_directory)
+        except OSError as exc:
+            print(f"warning: verified bootstrap stage cleanup failed: {exc}")
         return InstallReceipt(
             candidate.host_id,
             package.package_id,
