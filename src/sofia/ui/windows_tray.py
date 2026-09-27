@@ -151,6 +151,95 @@ class WindowsTrayAgent:
                 ("hBalloonIcon", wintypes.HICON),
             ]
 
+        # ctypes defaults function return values to a 32-bit int. Declare every
+        # handle-bearing Win32 call we use so x64 HWND/HMENU/HICON values are
+        # never truncated.
+        kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+        kernel32.GetModuleHandleW.restype = wintypes.HINSTANCE
+        kernel32.GetLastError.argtypes = []
+        kernel32.GetLastError.restype = wintypes.DWORD
+
+        user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASSW)]
+        user32.RegisterClassW.restype = wintypes.WORD
+        user32.CreateWindowExW.argtypes = [
+            wintypes.DWORD,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.HMENU,
+            wintypes.HINSTANCE,
+            ctypes.c_void_p,
+        ]
+        user32.CreateWindowExW.restype = wintypes.HWND
+        user32.DefWindowProcW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.DefWindowProcW.restype = ctypes.c_ssize_t
+        user32.DestroyWindow.argtypes = [wintypes.HWND]
+        user32.DestroyWindow.restype = wintypes.BOOL
+        user32.PostMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.PostMessageW.restype = wintypes.BOOL
+        user32.PostQuitMessage.argtypes = [ctypes.c_int]
+        user32.PostQuitMessage.restype = None
+
+        user32.CreatePopupMenu.argtypes = []
+        user32.CreatePopupMenu.restype = wintypes.HMENU
+        user32.AppendMenuW.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            ctypes.c_size_t,
+            wintypes.LPCWSTR,
+        ]
+        user32.AppendMenuW.restype = wintypes.BOOL
+        user32.DestroyMenu.argtypes = [wintypes.HMENU]
+        user32.DestroyMenu.restype = wintypes.BOOL
+        user32.TrackPopupMenu.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            ctypes.c_void_p,
+        ]
+        user32.TrackPopupMenu.restype = wintypes.UINT
+        user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        user32.GetCursorPos.restype = wintypes.BOOL
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        user32.SetForegroundWindow.restype = wintypes.BOOL
+        user32.LoadIconW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR]
+        user32.LoadIconW.restype = wintypes.HICON
+        user32.GetMessageW.argtypes = [
+            ctypes.POINTER(wintypes.MSG),
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.UINT,
+        ]
+        user32.GetMessageW.restype = ctypes.c_int
+        user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.TranslateMessage.restype = wintypes.BOOL
+        user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.DispatchMessageW.restype = ctypes.c_ssize_t
+
+        shell32.Shell_NotifyIconW.argtypes = [
+            wintypes.DWORD,
+            ctypes.POINTER(NOTIFYICONDATAW),
+        ]
+        shell32.Shell_NotifyIconW.restype = wintypes.BOOL
+
         action_ids = {
             1001: TrayCommand.OPEN_CHAT,
             1002: TrayCommand.OPEN_FLEET,
@@ -275,7 +364,7 @@ class WindowsTrayAgent:
         window_class.lpszClassName = class_name
         atom = user32.RegisterClassW(ctypes.byref(window_class))
         if not atom:
-            error = ctypes.GetLastError()
+            error = kernel32.GetLastError()
             if error != 1410:  # ERROR_CLASS_ALREADY_EXISTS
                 raise ctypes.WinError(error)
 
@@ -292,7 +381,11 @@ class WindowsTrayAgent:
         nid.uID = 1
         nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
         nid.uCallbackMessage = self._CALLBACK_MESSAGE
-        nid.hIcon = user32.LoadIconW(None, IDI_APPLICATION)
+        icon_resource = ctypes.cast(
+            ctypes.c_void_p(IDI_APPLICATION),
+            wintypes.LPCWSTR,
+        )
+        nid.hIcon = user32.LoadIconW(None, icon_resource)
         nid.szTip = "Sofía Ada Lyra"
         if not shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid)):
             user32.DestroyWindow(hwnd)
