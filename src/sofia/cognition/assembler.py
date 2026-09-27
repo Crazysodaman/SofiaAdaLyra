@@ -206,6 +206,25 @@ class CognitiveContextAssembler:
                 ]
             )
 
+        if context.principal is not None:
+            sections.extend(
+                [
+                    "",
+                    "AUTHENTICATED PRINCIPAL / AUDIENCE",
+                    (
+                        "This identity was supplied by an external authenticated "
+                        "boundary. It is not inferred from conversation text."
+                    ),
+                    f"Principal ID: {context.principal.principal_id}",
+                    f"Audience ID: {context.principal.audience_id}",
+                    f"Audience kind: {context.principal.audience_kind.value}",
+                ]
+            )
+            if context.principal.display_name is not None:
+                sections.append(
+                    f"Display name: {context.principal.display_name}"
+                )
+
         if context.identity is not None:
             sections.extend(
                 [
