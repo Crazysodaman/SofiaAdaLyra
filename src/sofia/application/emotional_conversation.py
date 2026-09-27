@@ -12,6 +12,8 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
+from sofia.habits.context import habit_context_from_environment
+from sofia.habits.projection import habit_prompt
 from sofia.personality.clarification import ClarificationJournal
 from sofia.personality.emotion import CurrentEmotionalState, EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
@@ -270,9 +272,30 @@ class EmotionalConversationService(ConversationService):
                 subject=subject,
             ),
         ]
-        emotional_context = self.emotional_journal.prompt_context(now=now)
+        emotional_context = self.emotional_journal.prompt_context(
+            now=now,
+            subject=subject,
+        )
         if emotional_context is not None:
             projections.append(emotional_context)
+
+        principal = None
+        session = getattr(self, "_session", None)
+        social_store = getattr(self, "_social_store", None)
+        if session is not None and social_store is not None:
+            principal = social_store.get(session.id)
+        if principal is not None:
+            environment = self._runtime.environment_service.snapshot(
+                now=now,
+                refresh_providers=False,
+            )
+            learned = habit_prompt(
+                self.habit_learning.store,
+                principal=principal,
+                current_context=habit_context_from_environment(environment),
+            )
+            if learned is not None:
+                projections.append(learned)
         # The optional guard preserves compatibility with a test-only
         # uninitialized service; a normally opened service always has this.
         reflections = getattr(self, "_reflection_journal", None)
