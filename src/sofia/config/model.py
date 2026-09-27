@@ -2,6 +2,8 @@
 from typing import Any
 from pathlib import Path
 
+CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
+
 from sofia.environment.config import EnvironmentConfiguration
 from sofia.identity.model import IdentityBootstrapMode
 
