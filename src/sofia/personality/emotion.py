@@ -21,6 +21,8 @@ EMOTIONS = frozenset({
     "disappointment", "excitement", "fondness", "frustration", "gratitude",
     "hope", "joy", "longing", "playfulness", "reflection", "relief",
     "romance", "sadness", "sensuality", "surprise", "uncertainty", "warmth",
+    "calmness", "comfort", "loneliness", "hurt", "irritation",
+    "awkwardness", "nostalgia",
     # Additional fictional appraisals, never observations of physiology or consent.
     "anger", "fear", "jealousy", "embarrassment", "humiliation",
     "sexual-arousal", "aversion", "disgust", "nervousness", "shame",
@@ -67,11 +69,13 @@ _POSITIVE = frozenset({
     "affection", "amusement", "anticipation", "appreciation", "contentment",
     "excitement", "fondness", "gratitude", "hope", "joy", "playfulness",
     "relief", "romance", "tenderness", "warmth", "pride",
+    "calmness", "comfort", "nostalgia",
     "sexual-attraction", "sexual-desire",
 })
 _NEGATIVE = frozenset({
     "anger", "aversion", "concern", "disappointment", "disgust", "fear",
     "frustration", "humiliation", "jealousy", "nervousness", "sadness", "shame",
+    "loneliness", "hurt", "irritation", "awkwardness",
 })
 _SOURCE_WEIGHT = {"observed": 0.60, "user_reported": 0.55, "inferred": 0.48}
 _HALF_LIFE_HOURS = {
@@ -87,6 +91,9 @@ _HALF_LIFE_HOURS = {
     "pride": 24.0, "jealousy": 8.0, "humiliation": 8.0, "shame": 8.0,
     "reflection": 12.0, "sensuality": 4.0, "affectionate-uncertainty": 8.0,
     "sexual-attraction": 24.0, "sexual-desire": 4.0,
+    "calmness": 8.0, "comfort": 24.0, "loneliness": 12.0,
+    "hurt": 24.0, "irritation": 2.0, "awkwardness": 2.0,
+    "nostalgia": 12.0,
 }
 _REUNION_MIN_GAP = timedelta(hours=6)
 _LONGING_GAP = timedelta(hours=18)
