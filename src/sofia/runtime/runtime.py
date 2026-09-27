@@ -23,6 +23,7 @@ from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.model import SofiaConfiguration
+from sofia.config.state_store import StatePlaneConfigurationStore
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -53,6 +54,7 @@ from sofia.filesystem.observation import (
 from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
+from sofia.dev.release_store import ReleaseStateStore
 from sofia.operational.model import (
     OperationalState,
     RuntimeContinuity,
@@ -160,6 +162,8 @@ class SofiaRuntime:
         self._capability_system = capability_system
         self._configuration = configuration
         self._state_plane = state_plane
+        self._configuration_store = StatePlaneConfigurationStore(state_plane)
+        self._release_state_store = ReleaseStateStore(state_plane)
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -332,6 +336,14 @@ class SofiaRuntime:
     @property
     def state_plane(self) -> StatePlane:
         return self._state_plane
+
+    @property
+    def configuration_store(self) -> StatePlaneConfigurationStore:
+        return self._configuration_store
+
+    @property
+    def release_state_store(self) -> ReleaseStateStore:
+        return self._release_state_store
 
     @property
     def environment_service(self) -> EnvironmentService:
