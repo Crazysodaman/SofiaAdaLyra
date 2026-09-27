@@ -18,13 +18,25 @@ from sofia.discord.store import (
     DiscordOutboxRecord,
     InboxClaimResult,
 )
+from sofia.social.principal import (
+    Audience,
+    AudienceScope,
+    AuthenticatedPrincipal,
+    PrincipalKind,
+)
 
 
 class ConversationResponder(Protocol):
     @property
     def session_id(self) -> str | None: ...
 
-    def respond(self, content: str): ...
+    def respond(
+        self,
+        content: str,
+        *,
+        principal: AuthenticatedPrincipal | None = None,
+        audience: Audience | None = None,
+    ): ...
 
 
 class BridgeDisposition(str, Enum):
@@ -139,7 +151,21 @@ class DiscordConversationBridge:
             return BridgeResult(disposition)
 
         try:
-            response = self._conversation.respond(inbound.content)
+            principal = AuthenticatedPrincipal(
+                principal_id=f"discord:{binding.owner_user_id}",
+                kind=PrincipalKind.HUMAN,
+                source="discord",
+            )
+            audience = Audience(
+                audience_id=f"discord-dm:{channel_id}",
+                scope=AudienceScope.PRIVATE,
+                member_principal_ids=(principal.principal_id,),
+            )
+            response = self._conversation.respond(
+                inbound.content,
+                principal=principal,
+                audience=audience,
+            )
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("conversation response content is empty")
