@@ -30,6 +30,7 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.personality.influence import ContinuityInfluence
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
 from sofia.social.principals import local_sparks_principal
 from sofia.state.component_schema import verify_production_component_schemas
@@ -247,6 +248,32 @@ class SofiaApplication:
                     )
 
                 coordinator.set_act_delivery(deliver_act)
+
+                def bridge_reflection_outreach(now):
+                    service = self._conversation_service
+                    if not hasattr(service, "current_emotional_state"):
+                        return None
+                    emotion = service.current_emotional_state(now=now)
+                    environment = self._runtime.environment_service.snapshot(
+                        now=now,
+                        refresh_providers=False,
+                    )
+                    influence = ContinuityInfluence.from_state(
+                        emotion=emotion,
+                        environment=environment,
+                    )
+                    count = self._act_service.bridge_reflection_outbox(
+                        reflections=service.reflection_journal,
+                        scope=service.relationship_scope,
+                        now=now,
+                        influence=influence,
+                    )
+                    return count or None
+
+                coordinator.set_task(
+                    "reflection_outreach",
+                    bridge_reflection_outreach,
+                )
                 runtime_id = self._runtime.runtime_id
                 if runtime_id is None:
                     raise SofiaApplicationError(
