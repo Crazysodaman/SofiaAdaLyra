@@ -62,7 +62,17 @@ class WindowsTrayAgent:
             return
         if self._hwnd is not None and sys.platform == "win32":
             import ctypes
-            ctypes.windll.user32.PostMessageW(self._hwnd, 0x0010, 0, 0)  # WM_CLOSE
+            from ctypes import wintypes
+
+            post_message = ctypes.windll.user32.PostMessageW
+            post_message.argtypes = [
+                wintypes.HWND,
+                wintypes.UINT,
+                wintypes.WPARAM,
+                wintypes.LPARAM,
+            ]
+            post_message.restype = wintypes.BOOL
+            post_message(self._hwnd, 0x0010, 0, 0)  # WM_CLOSE
         self._stopped.wait(timeout=5)
         self._thread = None
 
