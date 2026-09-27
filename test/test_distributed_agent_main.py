@@ -79,3 +79,14 @@ def test_file_config_defaults_listener_when_omitted(tmp_path):
 
     assert config.listen_host == "0.0.0.0"
     assert config.listen_port == 7443
+
+
+def test_file_config_accepts_utf8_bom(tmp_path):
+    path = _write_config(tmp_path)
+    raw = path.read_text(encoding="utf-8")
+    path.write_text(raw, encoding="utf-8-sig")
+
+    config = configuration_from_file(path)
+
+    assert config.node_id == NODE_ID
+    assert config.node_name == "Artemis"
