@@ -241,7 +241,7 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     lowered = system.casefold()
     assert "accepted" in lowered
     assert "consent" in lowered
-    assert "user desire" in lowered
+    assert "does not mean" in lowered
     assert request.tools == ()
     assert request.allow_tools is False
 
