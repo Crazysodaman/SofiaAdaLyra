@@ -30,6 +30,7 @@ class DesktopApplicationWorker:
         configuration: SofiaConfiguration,
         session_id: str | None,
         events: Queue[tuple[str, object]],
+        discord_provisioning: DiscordProvisioning | None = None,
     ) -> None:
         if not isinstance(configuration, SofiaConfiguration):
             raise TypeError("configuration must be SofiaConfiguration")
@@ -40,10 +41,21 @@ class DesktopApplicationWorker:
             raise ValueError("session_id must be nonempty or None")
         if not isinstance(events, Queue):
             raise TypeError("events must be a Queue")
+        if (
+            discord_provisioning is not None
+            and not isinstance(
+                discord_provisioning,
+                DiscordProvisioning,
+            )
+        ):
+            raise TypeError(
+                "discord_provisioning must be DiscordProvisioning or None"
+            )
 
         self._configuration = configuration
         self._session_id = session_id
         self._events = events
+        self._discord_provisioning = discord_provisioning
         self._commands: Queue[tuple[str, object]] = Queue()
         self._thread: Thread | None = None
 
@@ -86,7 +98,11 @@ class DesktopApplicationWorker:
         controller = None
         discord_service: DiscordBackgroundService | None = None
         try:
-            provisioning = DiscordProvisioning.from_environment()
+            provisioning = (
+                self._discord_provisioning
+                if self._discord_provisioning is not None
+                else DiscordProvisioning.from_environment()
+            )
             session_id = self._session_id
             if provisioning.enabled:
                 bound_session = discord_bound_session_id(
