@@ -261,7 +261,7 @@ class SofiaApplication:
             environment_snapshot = (
                 environment_service.snapshot(
                     now=datetime.now(timezone.utc),
-                    refresh_providers=False,
+                    refresh_providers=True,
                 )
                 if environment_service is not None
                 else None
@@ -308,7 +308,7 @@ class SofiaApplication:
             self._conversation_service.start(session_id=session_id)
             self._evaluate_contextual_presentation(
                 now=datetime.now(timezone.utc),
-                refresh_environment=False,
+                refresh_environment=True,
             )
             response = self._conversation_service.deliver_pending_awareness()
             reflection_enabled = bool(
