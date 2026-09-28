@@ -76,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
                     "ChatGPT export valid: "
                     f"{len(export_batch.conversations)} conversations "
                     f"{export_batch.message_count} visible messages "
+                    f"{export_batch.attachment_count} attachment links "
                     f"skipped_do_not_remember="
                     f"{export_batch.skipped_do_not_remember} "
                     f"skipped_memory_disabled="
