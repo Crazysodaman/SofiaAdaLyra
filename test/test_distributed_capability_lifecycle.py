@@ -71,7 +71,7 @@ def test_remote_fleet_service_opens_and_closes_durable_state_per_tool_call(
 
     # Construction registers a reusable service but owns no live remote DB
     # handles. Those belong only to an individual tool call.
-    assert events == ()
+    assert events == []
 
     assert service.nodes() == ()
     assert events == [
