@@ -20,6 +20,7 @@ from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext, SocialScope
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
 class EmotionalConversationService(ConversationService):
@@ -106,7 +107,15 @@ class EmotionalConversationService(ConversationService):
         if relationships:
             subject = getattr(relationships[0], "subject", None)
             if isinstance(subject, str) and subject.strip():
-                return subject.strip()
+                value = subject.strip()
+                # The canonical core self-model predates principal IDs and
+                # stores Sparks by display name. Emotional persistence uses
+                # authenticated principal IDs, so normalize the known local
+                # relationship to the same durable key across desktop,
+                # Discord, remote chat and background presentation evaluation.
+                if value.casefold() == "sparks":
+                    return SPARKS_PRINCIPAL_ID
+                return value
         return "unbound"
 
     @property
@@ -121,9 +130,9 @@ class EmotionalConversationService(ConversationService):
             else ()
         )
         if relationships:
-            subject = getattr(relationships[0], "subject", None)
+            subject = self._relationship_subject()
             if isinstance(subject, str) and subject.strip():
-                return SocialScope.relationship(subject.strip())
+                return SocialScope.relationship(subject)
         # Keep the fallback read scope aligned with _relationship_subject().
         # A relationship-scoped event recorded for the sentinel must not
         # disappear merely because no authenticated principal is available.
