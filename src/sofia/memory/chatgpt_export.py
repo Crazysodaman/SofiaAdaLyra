@@ -91,6 +91,7 @@ class ChatGPTExportBatch:
     observed_at: datetime
     conversations: tuple[ChatGPTExportConversation, ...]
     skipped_do_not_remember: int = 0
+    skipped_memory_disabled: int = 0
 
     @property
     def message_count(self) -> int:
@@ -217,6 +218,7 @@ def parse_chatgpt_export_archive(
 
         conversations: list[ChatGPTExportConversation] = []
         skipped = 0
+        skipped_disabled = 0
         seen_ids: set[str] = set()
         for name in conversation_files:
             decoded = json.loads(archive.read(name).decode("utf-8-sig"))
@@ -226,6 +228,17 @@ def parse_chatgpt_export_archive(
                 if isinstance(raw, dict) and raw.get("is_do_not_remember") is True:
                     skipped += 1
                     continue
+                if isinstance(raw, dict):
+                    scope = raw.get("memory_scope")
+                    if (
+                        isinstance(scope, str)
+                        and (
+                            scope.strip().casefold() == "disabled"
+                            or scope.strip().casefold().endswith("_disabled")
+                        )
+                    ):
+                        skipped_disabled += 1
+                        continue
                 item = _conversation(raw, digest=digest)
                 if item is None:
                     skipped += 1
@@ -240,4 +253,5 @@ def parse_chatgpt_export_archive(
         observed_at=when.astimezone(timezone.utc),
         conversations=tuple(conversations),
         skipped_do_not_remember=skipped,
+        skipped_memory_disabled=skipped_disabled,
     )
