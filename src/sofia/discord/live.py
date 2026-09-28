@@ -1,9 +1,10 @@
-"""Supervised foreground composition for Sofía's live Discord DM channel.
+"""Production composition for Sofía's live Discord DM channel.
 
-This module is intentionally separate from the normal terminal application.
-Nothing imports it to start networking automatically. The live process resumes
-its durable Discord-bound conversation, quarantines interrupted work, and then
-hands transport to discord.py.
+The module supports both the standalone supervised Discord entrypoint and the
+desktop-owned production path. Desktop startup may attach Discord only when it
+is explicitly provisioned, using an audience-scoped conversation on the same
+canonical Sofía runtime. The standalone path remains available for supervised
+transport testing and dedicated deployments.
 """
 
 from __future__ import annotations
