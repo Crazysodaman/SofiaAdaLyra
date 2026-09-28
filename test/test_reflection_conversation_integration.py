@@ -24,10 +24,13 @@ def test_completed_reflection_reaches_conversation_once(monkeypatch, tmp_path):
     path = tmp_path / 'state.db'
     service._emotional_journal = EmotionalJournal(path)
     service._reflection_journal = ReflectionJournal(path)
+    scope = service.relationship_scope
     service.emotional_journal.record(
         event_id='verified-fix', source='observed', evidence_ref='pytest-result-1',
         description='The targeted tests passed.', emotions=('relief', 'joy'),
         occurred_at=now - timedelta(days=2),
+        subject=service._relationship_subject(),
+        scope=scope,
     )
     result = service._build_request()
     assert result.messages[0].role is CognitiveRole.SYSTEM
@@ -35,10 +38,10 @@ def test_completed_reflection_reaches_conversation_once(monkeypatch, tmp_path):
     assert 'RECORDED REFLECTIONS' in result.messages[0].content
     assert 'verified-fix' in result.messages[0].content
     assert result.messages[-1] is request.messages[-1]
-    count = len(service.reflection_journal.recent_thoughts())
+    count = len(service.reflection_journal.recent_thoughts(scope=scope))
     assert count >= 1
     service._build_request()
-    assert len(ReflectionJournal(path).recent_thoughts()) == count
+    assert len(ReflectionJournal(path).recent_thoughts(scope=scope)) == count
 
 
 def test_reflections_do_not_create_a_persona_when_profile_absent(monkeypatch, tmp_path):

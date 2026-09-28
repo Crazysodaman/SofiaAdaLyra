@@ -9,16 +9,18 @@ from sofia.application.emotional_conversation import EmotionalConversationServic
 from sofia.cognition.model import CognitiveResponse
 from sofia.personality.emotion import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
+from sofia.social.model import SocialScope
 
 
 def _service(tmp_path, *, profile=True, active=True, event_age=timedelta(minutes=1)):
     path = tmp_path / "state.db"
     journal = EmotionalJournal(path)
     now = datetime.now(timezone.utc) - event_age
+    scope = SocialScope.relationship("unbound")
     journal.record(
         event_id="real-event", occurred_at=now, source="observed",
         evidence_ref="evidence-1", description="One observed file changed.",
-        emotions=("curiosity",),
+        emotions=("curiosity",), subject="unbound", scope=scope,
     )
     seen = []
     def respond(request):
@@ -44,11 +46,13 @@ def test_selected_real_event_generates_persisted_thought_without_delivery(tmp_pa
     assert outcome.thought_id is not None and outcome.queued_message_id is None
     assert len(seen) == 1
     stored = ReflectionJournal(tmp_path / "state.db")
-    thought = stored.recent_thoughts()[0]
+    thought = stored.recent_thoughts(scope=service.relationship_scope)[0]
     assert thought.evidence_refs == ("real-event",)
     assert stored.pending() == ()
     emotional_events = service.emotional_journal.recent(
         now=datetime.now(timezone.utc), days=366, limit=50,
+        subject=service._relationship_subject(),
+        scope=service.relationship_scope,
     )
     reflected = tuple(
         item for item in emotional_events
@@ -67,7 +71,9 @@ def test_unknown_event_never_reaches_model(tmp_path):
     with pytest.raises(KeyError, match="No matching"):
         service.reflect_on_event(event_id="invented")
     assert seen == []
-    assert service.reflection_journal.recent_thoughts() == ()
+    assert service.reflection_journal.recent_thoughts(
+        scope=service.relationship_scope,
+    ) == ()
 
 
 @pytest.mark.parametrize("profile,active", [(False, True), (True, False)])
@@ -82,14 +88,18 @@ def test_personality_and_active_session_are_required(tmp_path, profile, active):
 def test_idle_reflection_can_refresh_decayed_emotion_without_user_prompt(tmp_path):
     service, seen = _service(tmp_path, event_age=timedelta(days=2))
     before = service.emotional_journal.current_state(
-        now=datetime.now(timezone.utc), subject=None,
+        now=datetime.now(timezone.utc),
+        subject=service._relationship_subject(),
+        scope=service.relationship_scope,
     )
     assert "curiosity" not in {item.name for item in before.active}
 
     service.reflect_on_event(event_id="real-event")
 
     after = service.emotional_journal.current_state(
-        now=datetime.now(timezone.utc), subject=None,
+        now=datetime.now(timezone.utc),
+        subject=service._relationship_subject(),
+        scope=service.relationship_scope,
     )
     assert "curiosity" in {item.name for item in after.active}
     assert len(seen) == 1
