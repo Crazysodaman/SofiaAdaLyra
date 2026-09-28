@@ -103,24 +103,6 @@ class DesktopApplicationWorker:
                 if self._discord_provisioning is not None
                 else DiscordProvisioning.from_environment()
             )
-            session_id = self._session_id
-            if provisioning.enabled:
-                bound_session = discord_bound_session_id(
-                    provisioning,
-                    configuration=self._configuration,
-                )
-                if (
-                    session_id is not None
-                    and bound_session is not None
-                    and session_id != bound_session
-                ):
-                    raise RuntimeError(
-                        "requested desktop session conflicts with the "
-                        "durable Discord conversation binding"
-                    )
-                if session_id is None:
-                    session_id = bound_session
-
             application = create_desktop_application(
                 self._configuration
             )
@@ -128,7 +110,7 @@ class DesktopApplicationWorker:
                 application
             )
             history = controller.start(
-                session_id=session_id
+                session_id=self._session_id
             )
 
             if provisioning.enabled:
@@ -137,16 +119,23 @@ class DesktopApplicationWorker:
                         "provisioned Discord must run on the canonical "
                         "runtime host, not through a remote desktop client"
                     )
-                conversation = getattr(
+                open_channel = getattr(
                     application,
-                    "conversation",
+                    "open_channel_conversation",
                     None,
                 )
-                if conversation is None:
+                if not callable(open_channel):
                     raise RuntimeError(
-                        "provisioned Discord requires the canonical "
-                        "desktop conversation"
+                        "canonical runtime does not expose channel "
+                        "conversation composition"
                     )
+                discord_session_id = discord_bound_session_id(
+                    provisioning,
+                    configuration=self._configuration,
+                )
+                conversation = open_channel(
+                    session_id=discord_session_id,
+                )
                 channel = compose_live_discord_for_conversation(
                     provisioning,
                     conversation=conversation,
