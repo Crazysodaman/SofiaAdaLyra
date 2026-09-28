@@ -16,6 +16,15 @@ from sofia.embodiment.store import AvatarStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
+from sofia.interaction.registry import catalog_for_engine
+from sofia.interaction.representation import (
+    InteractionProjectionDenied,
+    InteractionStage,
+    InteractionVisibility,
+    PrivateInteractionGrant,
+    project_interaction,
+    reviewed_interaction,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +125,11 @@ def test_stop_overrides_every_representative_gesture_family(engine, content):
         ("I sit beside you", "sit-beside", "described"),
         ("I offer you my hand", "offer-hand", "offered"),
         ("I give you space", "give-space", "described"),
+        ("I pull you closer", "pull-closer", "described"),
+        ("I rest my head on you", "rest-head-on", "described"),
+        ("I kiss your neck", "kiss-neck", "described"),
+        ("I kiss your cheek", "kiss-cheek", "described"),
+        ("I kiss your forehead", "kiss-forehead", "described"),
     ),
 )
 def test_social_actions_keep_offer_and_description_distinct(
@@ -252,3 +266,71 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
         assert db.execute(
             "SELECT COUNT(*) FROM interaction_evidence"
         ).fetchone()[0] == 0
+
+
+
+@pytest.mark.parametrize(
+    ("category", "semantic_id", "actor_id", "target_id"),
+    (
+        ("action", "sensual-pose", "sofia", "sparks"),
+        ("pose", "bend-over", "sofia", "sofia"),
+        ("presentation", "change-lingerie", "sofia", "sofia"),
+        ("presentation", "remove-top", "sofia", "sofia"),
+    ),
+)
+def test_private_adult_semantics_require_current_grant(
+    engine,
+    category,
+    semantic_id,
+    actor_id,
+    target_id,
+):
+    interaction = reviewed_interaction(
+        catalog=catalog_for_engine(engine),
+        interaction_id=f"matrix-private-{category}-{semantic_id}",
+        category=category,
+        semantic_id=semantic_id,
+        actor_id=actor_id,
+        target_id=target_id,
+        stage=InteractionStage.REPRESENTED,
+        occurred_at=NOW,
+        evidence_refs=("matrix-private-evidence",),
+    )
+    assert interaction.visibility is InteractionVisibility.PRIVATE
+    with pytest.raises(InteractionProjectionDenied):
+        project_interaction(interaction)
+
+    grant = PrivateInteractionGrant(
+        adult_verified=True,
+        owner_verified=True,
+        private_session=True,
+        explicit_current_opt_in=True,
+        external_stop_active=False,
+    )
+    projected = project_interaction(interaction, grant=grant)
+    assert projected.interaction.semantic_id == semantic_id
+    assert projected.text.visibility is InteractionVisibility.PRIVATE
+    assert projected.avatar.animation_confirmed is False
+
+
+def test_external_stop_overrides_private_interaction_grant(engine):
+    interaction = reviewed_interaction(
+        catalog=catalog_for_engine(engine),
+        interaction_id="matrix-private-stop",
+        category="presentation",
+        semantic_id="change-lingerie",
+        actor_id="sofia",
+        target_id="sofia",
+        stage=InteractionStage.REPRESENTED,
+        occurred_at=NOW,
+        evidence_refs=("matrix-private-stop-evidence",),
+    )
+    stopped_grant = PrivateInteractionGrant(
+        adult_verified=True,
+        owner_verified=True,
+        private_session=True,
+        explicit_current_opt_in=True,
+        external_stop_active=True,
+    )
+    with pytest.raises(InteractionProjectionDenied):
+        project_interaction(interaction, grant=stopped_grant)
