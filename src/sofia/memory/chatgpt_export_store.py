@@ -24,6 +24,7 @@ class ChatGPTExportEvidenceStore:
                         principal_id TEXT NOT NULL,
                         conversation_count INTEGER NOT NULL,
                         message_count INTEGER NOT NULL,
+                        attachment_count INTEGER NOT NULL,
                         skipped_do_not_remember INTEGER NOT NULL,
                         skipped_memory_disabled INTEGER NOT NULL
                     );
@@ -57,6 +58,25 @@ class ChatGPTExportEvidenceStore:
                             )
                             ON DELETE RESTRICT
                     );
+                    CREATE TABLE IF NOT EXISTS chatgpt_export_attachment (
+                        source_digest TEXT NOT NULL,
+                        conversation_id TEXT NOT NULL,
+                        message_id TEXT NOT NULL,
+                        ordinal INTEGER NOT NULL,
+                        asset_id TEXT NOT NULL,
+                        file_name TEXT,
+                        content_type TEXT,
+                        PRIMARY KEY (
+                            source_digest, conversation_id, message_id, ordinal
+                        ),
+                        FOREIGN KEY (
+                            source_digest, conversation_id, message_id
+                        )
+                            REFERENCES chatgpt_export_message(
+                                source_digest, conversation_id, message_id
+                            )
+                            ON DELETE RESTRICT
+                    );
                     CREATE INDEX IF NOT EXISTS chatgpt_export_message_source
                         ON chatgpt_export_message(source_id);
                     """
@@ -81,7 +101,8 @@ class ChatGPTExportEvidenceStore:
         with closing(self._connect()) as db:
             existing = db.execute(
                 "SELECT principal_id, conversation_count, message_count, "
-                "skipped_do_not_remember, skipped_memory_disabled "
+                "attachment_count, skipped_do_not_remember, "
+                "skipped_memory_disabled "
                 "FROM chatgpt_export_batch "
                 "WHERE source_digest=?",
                 (batch.source_digest,),
@@ -90,6 +111,7 @@ class ChatGPTExportEvidenceStore:
                 principal_id,
                 len(batch.conversations),
                 batch.message_count,
+                batch.attachment_count,
                 batch.skipped_do_not_remember,
                 batch.skipped_memory_disabled,
             )
@@ -104,15 +126,16 @@ class ChatGPTExportEvidenceStore:
                 db.execute(
                     "INSERT INTO chatgpt_export_batch "
                     "(source_digest, observed_at, principal_id, "
-                    "conversation_count, message_count, "
+                    "conversation_count, message_count, attachment_count, "
                     "skipped_do_not_remember, skipped_memory_disabled) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         batch.source_digest,
                         batch.observed_at.isoformat(),
                         principal_id,
                         len(batch.conversations),
                         batch.message_count,
+                        batch.attachment_count,
                         batch.skipped_do_not_remember,
                         batch.skipped_memory_disabled,
                     ),
@@ -162,14 +185,35 @@ class ChatGPTExportEvidenceStore:
                                 message.position,
                             ),
                         )
+                        for ordinal, attachment in enumerate(
+                            message.attachments
+                        ):
+                            db.execute(
+                                "INSERT INTO chatgpt_export_attachment "
+                                "(source_digest, conversation_id, message_id, "
+                                "ordinal, asset_id, file_name, content_type) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (
+                                    batch.source_digest,
+                                    conversation.conversation_id,
+                                    message.message_id,
+                                    ordinal,
+                                    attachment.asset_id,
+                                    attachment.file_name,
+                                    attachment.content_type,
+                                ),
+                            )
         return True
 
-    def counts(self, source_digest: str) -> tuple[int, int, int, int] | None:
+    def counts(
+        self,
+        source_digest: str,
+    ) -> tuple[int, int, int, int, int] | None:
         if not isinstance(source_digest, str) or not source_digest.strip():
             raise ValueError("source_digest must be nonempty")
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT conversation_count, message_count, "
+                "SELECT conversation_count, message_count, attachment_count, "
                 "skipped_do_not_remember, skipped_memory_disabled "
                 "FROM chatgpt_export_batch "
                 "WHERE source_digest=?",
@@ -194,5 +238,36 @@ class ChatGPTExportEvidenceStore:
             ).fetchall()
         return tuple(
             (str(row[0]), str(row[1]), str(row[2]), int(row[3]))
+            for row in rows
+        )
+
+
+    def attachments_for_message(
+        self,
+        source_digest: str,
+        conversation_id: str,
+        message_id: str,
+    ) -> tuple[tuple[str, str | None, str | None], ...]:
+        if not all(
+            isinstance(value, str) and value.strip()
+            for value in (source_digest, conversation_id, message_id)
+        ):
+            raise ValueError(
+                "source_digest, conversation_id and message_id are required"
+            )
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT asset_id, file_name, content_type "
+                "FROM chatgpt_export_attachment "
+                "WHERE source_digest=? AND conversation_id=? AND message_id=? "
+                "ORDER BY ordinal ASC",
+                (source_digest, conversation_id, message_id),
+            ).fetchall()
+        return tuple(
+            (
+                str(row[0]),
+                None if row[1] is None else str(row[1]),
+                None if row[2] is None else str(row[2]),
+            )
             for row in rows
         )
