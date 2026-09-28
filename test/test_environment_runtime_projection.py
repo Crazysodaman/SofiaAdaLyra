@@ -246,6 +246,7 @@ def test_unrelated_runtime_turn_does_not_refresh_environment_provider(tmp_path):
     counting = CountingProvider()
     app.runtime.environment_service._providers = (counting,)
     app.start()
+    assert counting.calls == 1
 
     provider = CapturingProvider()
     app.runtime.cognitive_system.engine = LLMCognitiveEngine(
@@ -262,6 +263,6 @@ def test_unrelated_runtime_turn_does_not_refresh_environment_provider(tmp_path):
             ),
         )
     )
-    assert counting.calls == 0
+    assert counting.calls == 1
     app.shutdown()
 
