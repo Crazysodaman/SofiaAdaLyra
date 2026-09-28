@@ -204,8 +204,12 @@ def _conversation(
         role = author.get("role") if isinstance(author, dict) else None
         if role not in _VISIBLE_ROLES:
             continue
+        attachments = _attachments(
+            message,
+            asset_names=asset_names,
+        )
         content = _text_content(message)
-        if content is None:
+        if content is None and not attachments:
             continue
         message_id = message.get("id") or node_id
         if not isinstance(message_id, str) or not message_id.strip():
@@ -219,13 +223,10 @@ def _conversation(
                 conversation_id=conversation_id,
                 message_id=message_id,
                 role=role,
-                content=content,
+                content=content or "",
                 source_created_at=_aware_utc(message.get("create_time")),
                 position=position,
-                attachments=_attachments(
-                    message,
-                    asset_names=asset_names,
-                ),
+                attachments=attachments,
             )
         )
 
