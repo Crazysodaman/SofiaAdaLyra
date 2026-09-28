@@ -31,26 +31,8 @@ Thumbs.db
 # Local cognitive-engine evaluation results
 batch-f-results.json
 
-# Generated virtual lab world state (do not silently commit private runtime state)
-/state/*-lab.db
-/state/*-lab.db-*
-
-
-# Headless AVATAR presentation state (runtime-generated, private local state)
-/state/avatar-presentation.json
-/state/avatar-presentation.json.tmp
-
-# Persistent machine location state (private local coordinates)
-/state/machine-locations.json
-/state/machine-locations.json.tmp
-
-# Local Sofía database recovery snapshots (private runtime state)
-/state/sofia.pre-*.db
-/state/sofia.pre-*.db-*
-
-
-# Local Fleet PKI material (private keys/certificates; never commit)
-/state/fleet-pki/
+# Local runtime state (development mode seeds and mutable state)
+/state/
 
 # Local pytest scratch roots
 /.pytest-tmp/
