@@ -17,7 +17,7 @@ from sofia.embodiment.store import AvatarStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import catalog_for_engine
+from sofia.interaction.registry import PRIVATE_SEMANTICS, catalog_for_engine
 from sofia.interaction.representation import (
     InteractionProjectionDenied,
     InteractionStage,
@@ -271,21 +271,21 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
 
 
 @pytest.mark.parametrize(
-    ("category", "semantic_id", "actor_id", "target_id"),
-    (
-        ("action", "sensual-pose", "sofia", "sparks"),
-        ("pose", "bend-over", "sofia", "sofia"),
-        ("presentation", "change-lingerie", "sofia", "sofia"),
-        ("presentation", "remove-top", "sofia", "sofia"),
-    ),
+    ("category", "semantic_id"),
+    tuple(sorted(PRIVATE_SEMANTICS)),
 )
-def test_private_adult_semantics_require_current_grant(
+def test_every_private_semantic_requires_current_grant(
     engine,
     category,
     semantic_id,
-    actor_id,
-    target_id,
 ):
+    if category == "action":
+        actor_id, target_id = "sofia", "sparks"
+    elif category in {"pose", "presentation"}:
+        actor_id, target_id = "sofia", "sofia"
+    else:
+        actor_id, target_id = "user", "sofia"
+
     interaction = reviewed_interaction(
         catalog=catalog_for_engine(engine),
         interaction_id=f"matrix-private-{category}-{semantic_id}",
