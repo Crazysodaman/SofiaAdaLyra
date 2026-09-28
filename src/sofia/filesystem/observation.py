@@ -243,12 +243,12 @@ class FilesystemObservationStore:
 
         self._state_path = Path(state_path)
 
-        self._connection = sqlite3.connect(
+        self._connection: sqlite3.Connection | None = sqlite3.connect(
             self._state_path,
             check_same_thread=False,
         )
 
-        self._connection.execute(
+        self._require_connection().execute(
             """
             CREATE TABLE IF NOT EXISTS filesystem_observation (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -258,7 +258,7 @@ class FilesystemObservationStore:
             """
         )
 
-        self._connection.execute(
+        self._require_connection().execute(
             """
             CREATE TABLE IF NOT EXISTS filesystem_observation_entry (
                 observation_id INTEGER NOT NULL,
@@ -274,7 +274,7 @@ class FilesystemObservationStore:
             """
         )
 
-        self._connection.commit()
+        self._require_connection().commit()
 
     def record(
         self,
@@ -289,7 +289,7 @@ class FilesystemObservationStore:
                 "FilesystemObservation."
             )
 
-        cursor = self._connection.execute(
+        cursor = self._require_connection().execute(
             """
             INSERT INTO filesystem_observation (
                 root,
@@ -306,7 +306,7 @@ class FilesystemObservationStore:
         observation_id = cursor.lastrowid
 
         for entry in observation.entries:
-            self._connection.execute(
+            self._require_connection().execute(
                 """
                 INSERT INTO filesystem_observation_entry (
                     observation_id,
@@ -326,7 +326,7 @@ class FilesystemObservationStore:
                 ),
             )
 
-        self._connection.commit()
+        self._require_connection().commit()
 
     def latest(
         self,
@@ -339,7 +339,7 @@ class FilesystemObservationStore:
 
         resolved_root = root.resolve()
 
-        row = self._connection.execute(
+        row = self._require_connection().execute(
             """
             SELECT id, observed_at
             FROM filesystem_observation
@@ -355,7 +355,7 @@ class FilesystemObservationStore:
 
         observation_id, observed_at = row
 
-        entry_rows = self._connection.execute(
+        entry_rows = self._require_connection().execute(
             """
             SELECT
                 path,
@@ -395,4 +395,12 @@ class FilesystemObservationStore:
         )
 
     def close(self) -> None:
+        if self._connection is None:
+            return
         self._connection.close()
+        self._connection = None
+
+    def _require_connection(self) -> sqlite3.Connection:
+        if self._connection is None:
+            raise RuntimeError("FilesystemObservationStore is closed")
+        return self._connection

@@ -27,7 +27,7 @@ def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch,
     assert app.conversation._conversation_store._connection is None
     assert app.runtime._memory_system._store._connection is None
     assert app.runtime._operational_store._connection is None
-    # FilesystemObservationStore.close() leaves its connection field populated.
-    # Actual deletion is the Windows-specific proof that the handle was closed.
+    assert app.runtime._filesystem_observation_store._connection is None
+    # Actual deletion is the Windows-specific proof that every handle was closed.
     database.unlink()  # Raises PermissionError on Windows if a handle remains.
     assert not database.exists()

@@ -6,6 +6,7 @@ An application-owned cognitive lock must serialize this with conversations.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import logging
 from pathlib import Path
@@ -45,7 +46,7 @@ class IdleReflectionWorker:
         self._stop_event = Event()
         self._thread: Thread | None = None
         self.last_error: str | None = None
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS idle_reflection_attempts (
                     event_id TEXT PRIMARY KEY,
@@ -64,7 +65,7 @@ class IdleReflectionWorker:
     def _claim(self, event_id: str, now: datetime) -> bool:
         """Atomically reserve an event, including recovery after a crash."""
         iso = now.isoformat()
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 "SELECT status, claimed_at, next_retry_at FROM idle_reflection_attempts "
@@ -89,7 +90,7 @@ class IdleReflectionWorker:
             return True
 
     def _finish(self, event_id: str, now: datetime, error: BaseException | None) -> None:
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             if error is None:
                 db.execute(
                     "UPDATE idle_reflection_attempts SET status='done', next_retry_at=NULL, "

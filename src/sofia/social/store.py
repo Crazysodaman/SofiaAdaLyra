@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -20,7 +21,7 @@ class SocialSessionStore:
         return connection
 
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS social_session_principal (
@@ -45,7 +46,7 @@ class SocialSessionStore:
         if not isinstance(principal, PrincipalContext):
             raise TypeError("principal must be a PrincipalContext")
 
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 """
@@ -104,7 +105,7 @@ class SocialSessionStore:
     def get(self, session_id: str) -> PrincipalContext | None:
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("session_id must be nonempty")
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             row = connection.execute(
                 """
                 SELECT principal_id, audience_id, audience_kind, display_name

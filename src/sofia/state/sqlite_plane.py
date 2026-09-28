@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 import sqlite3
@@ -32,7 +33,7 @@ class SQLiteStatePlane(StatePlane):
         return db
 
     def _initialize(self) -> None:
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS state_plane_meta (
@@ -78,7 +79,7 @@ class SQLiteStatePlane(StatePlane):
 
     @property
     def schema_revision(self) -> int:
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             row = db.execute(
                 "SELECT value FROM state_plane_meta WHERE key='schema_revision'"
             ).fetchone()
@@ -116,7 +117,7 @@ class SQLiteStatePlane(StatePlane):
     def read(self, key: StateKey) -> StateRecord | None:
         if not isinstance(key, StateKey):
             raise TypeError("key must be a StateKey")
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             row = db.execute(
                 """
                 SELECT namespace, record_key, principal_id, audience,
@@ -144,7 +145,7 @@ class SQLiteStatePlane(StatePlane):
                 "expected_revision must be None or a positive integer"
             )
         scope = self._scope(record.key)
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             current = db.execute(
                 """
@@ -234,7 +235,7 @@ class SQLiteStatePlane(StatePlane):
             raise TypeError("key must be a StateKey")
         if type(expected_revision) is not int or expected_revision < 1:
             raise ValueError("expected_revision must be a positive integer")
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             changed = db.execute(
                 """
@@ -265,7 +266,7 @@ class SQLiteStatePlane(StatePlane):
         # administrative enumeration must use a separate privileged interface.
         principal = principal_id or ""
         audience_value = audience or ""
-        with self._lock, self._connect() as db:
+        with self._lock, closing(self._connect()) as db, db:
             rows = db.execute(
                 """
                 SELECT namespace, record_key, principal_id, audience,
