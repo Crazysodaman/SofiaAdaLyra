@@ -6,6 +6,7 @@ fox-anatomy, private/intimate and social-action interactions.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -262,7 +263,7 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
     )
     assert result is None
     assert not first_processing
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         assert db.execute(
             "SELECT COUNT(*) FROM interaction_evidence"
         ).fetchone()[0] == 0
