@@ -1,5 +1,6 @@
 """Cognitive tools for authenticated, exact-grant remote fleet operations."""
 from __future__ import annotations
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime,timezone,timedelta
 import os
@@ -33,41 +34,67 @@ class RemoteFleetToolService:
         client_private_key:Path,
         max_inventory_age:timedelta=timedelta(minutes=5),
     )->None:
-        base=state_path.parent
-        self._endpoint_lookup=DurableEndpointPolicy(base/"remote-endpoints.db")
+        self._state_path=Path(state_path)
+        self._base=self._state_path.parent
+        self._ca_file=Path(ca_file)
+        self._client_certificate=Path(client_certificate)
+        self._client_private_key=Path(client_private_key)
+        self._max_inventory_age=max_inventory_age
+        self._operator_stop=OperatorStopStore(self._state_path)
+
+    @contextmanager
+    def _control_session(self):
+        """Open durable Fleet state only for the lifetime of one tool call."""
+        endpoint_lookup=DurableEndpointPolicy(
+            self._base/"remote-endpoints.db"
+        )
         transport=PinnedHttpsRemoteTransport(
-            self._endpoint_lookup.get,
-            ca_file=ca_file,
-            client_certificate=client_certificate,
-            client_private_key=client_private_key,
+            endpoint_lookup.get,
+            ca_file=self._ca_file,
+            client_certificate=self._client_certificate,
+            client_private_key=self._client_private_key,
         )
-        self._operator_stop=OperatorStopStore(state_path)
-        self.control=DurableRemoteControl(
+        control=DurableRemoteControl(
             transport=transport,
-            identity_path=base/"remote-identities.db",
-            endpoint_path=base/"remote-endpoints.db",
-            authorization_path=base/"remote-grants.db",
-            ledger_path=base/"remote-ledger.db",
-            max_inventory_age=max_inventory_age,
+            identity_path=self._base/"remote-identities.db",
+            endpoint_path=self._base/"remote-endpoints.db",
+            authorization_path=self._base/"remote-grants.db",
+            ledger_path=self._base/"remote-ledger.db",
+            max_inventory_age=self._max_inventory_age,
         )
+        try:
+            yield control
+        finally:
+            control.close()
+            endpoint_lookup.close()
 
     def nodes(self)->tuple[dict[str,Any],...]:
         now=datetime.now(timezone.utc)
         out=[]
-        for enrollment in self.control.identities.active():
-            endpoint=self.control.endpoints.get(enrollment.node.node_id)
-            grants=self.control.authorization.active_grants_for_node(enrollment.node.node_id,now=now)
-            out.append({
-                "node_id":str(enrollment.node.node_id),
-                "name":enrollment.node.name,
-                "endpoint":None if endpoint is None else {
-                    "hostname":endpoint.hostname,"port":endpoint.port,"transport":endpoint.transport.value,
-                },
-                "authorized_operations":tuple(
-                    {"capability":g.capability,"operation":g.operation,"expires_at":g.expires_at.isoformat()}
-                    for g in grants
-                ),
-            })
+        with self._control_session() as control:
+            for enrollment in control.identities.active():
+                endpoint=control.endpoints.get(enrollment.node.node_id)
+                grants=control.authorization.active_grants_for_node(
+                    enrollment.node.node_id,
+                    now=now,
+                )
+                out.append({
+                    "node_id":str(enrollment.node.node_id),
+                    "name":enrollment.node.name,
+                    "endpoint":None if endpoint is None else {
+                        "hostname":endpoint.hostname,
+                        "port":endpoint.port,
+                        "transport":endpoint.transport.value,
+                    },
+                    "authorized_operations":tuple(
+                        {
+                            "capability":g.capability,
+                            "operation":g.operation,
+                            "expires_at":g.expires_at.isoformat(),
+                        }
+                        for g in grants
+                    ),
+                })
         return tuple(out)
 
     def invoke(self,node_id_text:str,capability:str,operation:str,parameters:dict[str,Any])->dict[str,Any]:
@@ -77,14 +104,37 @@ class RemoteFleetToolService:
             raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
         now=datetime.now(timezone.utc)
-        enrollment=self.control.identities.get(node_id)
-        if enrollment is None: raise PermissionError("node is not actively enrolled")
-        endpoint=self.control.endpoints.get(node_id)
-        if endpoint is None: raise PermissionError("node has no active approved endpoint")
-        grant=self.control.authorization.find_active(node_id=node_id,capability=capability,operation=operation,now=now)
-        if grant is None: raise PermissionError("no active exact-scope human grant for remote operation")
-        request=RemoteOperationRequest(uuid4(),node_id,grant.grant_id,capability,operation,parameters)
-        result=self.control.invoke(enrollment,endpoint,request,now=now)
+        with self._control_session() as control:
+            enrollment=control.identities.get(node_id)
+            if enrollment is None:
+                raise PermissionError("node is not actively enrolled")
+            endpoint=control.endpoints.get(node_id)
+            if endpoint is None:
+                raise PermissionError("node has no active approved endpoint")
+            grant=control.authorization.find_active(
+                node_id=node_id,
+                capability=capability,
+                operation=operation,
+                now=now,
+            )
+            if grant is None:
+                raise PermissionError(
+                    "no active exact-scope human grant for remote operation"
+                )
+            request=RemoteOperationRequest(
+                uuid4(),
+                node_id,
+                grant.grant_id,
+                capability,
+                operation,
+                parameters,
+            )
+            result=control.invoke(
+                enrollment,
+                endpoint,
+                request,
+                now=now,
+            )
         return {
             "request_id":str(result.request_id),
             "node_id":str(result.node_id),
@@ -93,8 +143,8 @@ class RemoteFleetToolService:
         }
 
     def close(self)->None:
-        self.control.close()
-        self._endpoint_lookup.close()
+        """Compatibility no-op: production Fleet sessions are per-call."""
+        return None
 
 def _registration(
     service:RemoteFleetToolService,
