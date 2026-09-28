@@ -51,3 +51,16 @@ batch-f-results.json
 
 # Local Fleet PKI material (private keys/certificates; never commit)
 /state/fleet-pki/
+
+# Local pytest scratch roots
+/.pytest-tmp/
+/.pytest-local/
+
+# Local runtime SQLite state and sidecars
+/sofia.db
+/sofia.db-*
+/state/*.db
+/state/*.db-*
+
+# Local one-off failure captures
+/regression-failure.log
