@@ -1,12 +1,20 @@
 """Foreground live Discord composition tests without Discord network access."""
 
+import asyncio
 from pathlib import Path
+from threading import Event
 
 import pytest
 
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.discordpy import ensure_verified_binding
-from sofia.discord.live import compose_live_discord, run_live_discord
+from sofia.discord.live import (
+    DiscordBackgroundService,
+    compose_live_discord,
+    compose_live_discord_for_conversation,
+    discord_bound_session_id,
+    run_live_discord,
+)
 from sofia.discord.provisioning import DiscordProvisioning
 
 
@@ -140,3 +148,105 @@ def test_foreground_runner_always_shuts_application_down(tmp_path) -> None:
 
     assert len(applications) == 1
     assert applications[0].shutdown_called is True
+
+
+def test_existing_application_channel_reuses_active_conversation(tmp_path) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    conversation = FakeConversation()
+    conversation.session_id = "desktop-session"
+
+    channel = compose_live_discord_for_conversation(
+        provisioning(),
+        conversation=conversation,
+        configuration=config,
+    )
+
+    assert channel.runtime.session_id == "desktop-session"
+    binding = ensure_verified_binding(channel.runtime)
+    assert binding.session_id == "desktop-session"
+    assert (
+        discord_bound_session_id(
+            provisioning(),
+            configuration=config,
+        )
+        == "desktop-session"
+    )
+
+
+def test_existing_application_channel_rejects_different_bound_session(
+    tmp_path,
+) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    first = FakeConversation()
+    first.session_id = "bound-session"
+    channel = compose_live_discord_for_conversation(
+        provisioning(),
+        conversation=first,
+        configuration=config,
+    )
+    ensure_verified_binding(channel.runtime)
+
+    second = FakeConversation()
+    second.session_id = "different-session"
+    with pytest.raises(RuntimeError, match="does not match Discord binding"):
+        compose_live_discord_for_conversation(
+            provisioning(),
+            conversation=second,
+            configuration=config,
+        )
+
+
+def test_background_service_starts_and_stops_without_owning_application(
+    tmp_path,
+) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    conversation = FakeConversation()
+    conversation.session_id = "desktop-session"
+    channel = compose_live_discord_for_conversation(
+        provisioning(),
+        conversation=conversation,
+        configuration=config,
+    )
+
+    created = []
+    started = Event()
+
+    class FakeAsyncClient:
+        def __init__(self) -> None:
+            self.closed = False
+            self._sofia_ready = False
+            self._sofia_startup_error = None
+            self.token = None
+
+        async def start(self, token):
+            self.token = token
+            self._sofia_ready = True
+            started.set()
+            while not self.closed:
+                await asyncio.sleep(0.01)
+
+        async def close(self):
+            self.closed = True
+
+    def factory(runtime):
+        assert runtime is channel.runtime
+        client = FakeAsyncClient()
+        created.append(client)
+        return client
+
+    service = DiscordBackgroundService(
+        provisioning(),
+        channel,
+        client_factory=factory,
+    )
+    service.start()
+
+    assert started.wait(timeout=2)
+    assert service.running
+    assert created[0].token == "secret"
+
+    service.stop()
+
+    assert not service.running
+    assert created[0].closed is True
+    assert service.error is None
