@@ -5,6 +5,11 @@ import pytest
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.runtime.model import RuntimeState
+from sofia.social.principals import (
+    discord_sparks_principal,
+    local_sparks_principal,
+)
+from sofia.social.store import SocialSessionStore
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -221,5 +226,50 @@ def test_start_refreshes_environment_before_live_context(
     application.start()
 
     assert refresh_flags[:2] == [True, True]
+
+    application.shutdown()
+
+
+def test_channel_conversations_share_runtime_but_keep_audience_sessions_isolated(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    configuration = create_configuration(
+        personality_path,
+        tmp_path / "sofia.db",
+    )
+    application = SofiaApplication(configuration)
+    application.start()
+
+    desktop_session = application.conversation.session_id
+    assert desktop_session is not None
+
+    discord_conversation = application.open_channel_conversation()
+    discord_session = discord_conversation.session_id
+    assert discord_session is not None
+    assert discord_session != desktop_session
+
+    application.conversation.respond(
+        "Hello from the desktop.",
+        principal=local_sparks_principal(),
+    )
+    discord_conversation.respond(
+        "Hello from Discord.",
+        principal=discord_sparks_principal(
+            223456789012345678
+        ),
+    )
+
+    bindings = SocialSessionStore(configuration.state_path)
+    desktop_principal = bindings.get(desktop_session)
+    discord_principal = bindings.get(discord_session)
+
+    assert desktop_principal is not None
+    assert discord_principal is not None
+    assert desktop_principal.principal_id == discord_principal.principal_id
+    assert desktop_principal.audience_id == "local:text"
+    assert discord_principal.audience_id == (
+        "discord:dm:223456789012345678"
+    )
 
     application.shutdown()
