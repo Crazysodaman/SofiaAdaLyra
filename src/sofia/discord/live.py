@@ -8,9 +8,11 @@ hands transport to discord.py.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 import logging
 import sys
+from threading import Event, Thread
 from typing import Callable, Protocol
 
 from sofia.application import SofiaApplication
@@ -18,7 +20,11 @@ from sofia.config import SofiaConfiguration, create_default_configuration
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import DiscordConversationBridge
 from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender
-from sofia.discord.discordpy import DiscordLiveRuntime, run_discordpy_client
+from sofia.discord.discordpy import (
+    DiscordLiveRuntime,
+    create_discordpy_client,
+    run_discordpy_client,
+)
 from sofia.discord.ingress import DiscordIngress
 from sofia.discord.outbound import DiscordOutboundGate
 from sofia.discord.process_lock import DiscordProcessLock
@@ -36,6 +42,258 @@ class _ApplicationLike(Protocol):
     def start(self, session_id: str | None = None): ...
 
     def shutdown(self) -> None: ...
+
+
+@dataclass(slots=True)
+class ComposedDiscordChannel:
+    """Live Discord transport bound to an already-started conversation."""
+
+    runtime: DiscordLiveRuntime
+    inbox: DiscordInboxStore
+    bindings: DiscordBindingStore
+    deliveries: DiscordDeliveryStore
+    recovered_generation_claims: int
+    recovered_delivery_claims: int
+
+
+def _validated_existing_binding(
+    provisioning: DiscordProvisioning,
+    *,
+    configuration: SofiaConfiguration,
+):
+    discord_config = provisioning.require_config()
+    bindings = DiscordBindingStore(configuration.state_path)
+    existing = bindings.get(
+        bot_user_id=discord_config.bot_user_id,
+        channel_id=discord_config.dm_channel_id,
+    )
+    if existing is None:
+        return None
+    if existing.owner_user_id != discord_config.owner_user_id:
+        raise RuntimeError(
+            "configured Discord owner does not match durable channel binding"
+        )
+    if existing.state is BindingState.REVOKED:
+        raise RuntimeError(
+            "Discord channel binding is revoked; supervised re-enrollment is required"
+        )
+    return existing
+
+
+def discord_bound_session_id(
+    provisioning: DiscordProvisioning,
+    *,
+    configuration: SofiaConfiguration,
+) -> str | None:
+    """Return the durable Discord session that production startup must resume."""
+
+    if not isinstance(provisioning, DiscordProvisioning):
+        raise TypeError("provisioning must be DiscordProvisioning")
+    if not provisioning.enabled:
+        return None
+    existing = _validated_existing_binding(
+        provisioning,
+        configuration=configuration,
+    )
+    return None if existing is None else existing.session_id
+
+
+def compose_live_discord_for_conversation(
+    provisioning: DiscordProvisioning,
+    *,
+    conversation,
+    configuration: SofiaConfiguration | None = None,
+) -> ComposedDiscordChannel:
+    """Bind Discord to one already-started canonical conversation/runtime."""
+
+    if not isinstance(provisioning, DiscordProvisioning):
+        raise TypeError("provisioning must be DiscordProvisioning")
+    discord_config = provisioning.require_config()
+    config = configuration or create_default_configuration()
+
+    active_session = getattr(conversation, "session_id", None)
+    if not isinstance(active_session, str) or not active_session.strip():
+        raise RuntimeError(
+            "live Discord requires an already-started Sofía conversation"
+        )
+
+    inbox = DiscordInboxStore(config.state_path)
+    bindings = DiscordBindingStore(config.state_path)
+    deliveries = DiscordDeliveryStore(config.state_path)
+
+    existing = _validated_existing_binding(
+        provisioning,
+        configuration=config,
+    )
+    if existing is not None and active_session != existing.session_id:
+        raise RuntimeError(
+            "active Sofía conversation does not match Discord binding"
+        )
+
+    recovered_generation = inbox.recover_interrupted_processing()
+    recovered_delivery = deliveries.recover_interrupted()
+    if recovered_generation or recovered_delivery:
+        _log.warning(
+            "Discord restart quarantined %d generation claim(s) and %d "
+            "delivery claim(s) with unknown outcome.",
+            recovered_generation,
+            recovered_delivery,
+        )
+
+    ingress = DiscordIngress(
+        config=discord_config,
+        inbox=inbox,
+    )
+    bridge = DiscordConversationBridge(
+        store=inbox,
+        bindings=bindings,
+        conversation=conversation,
+    )
+    gate = DiscordOutboundGate(
+        config=discord_config,
+        bindings=bindings,
+    )
+    sender = DiscordSafeSender(
+        gate=gate,
+        deliveries=deliveries,
+    )
+    runtime = DiscordLiveRuntime(
+        config=discord_config,
+        ingress=ingress,
+        bridge=bridge,
+        sender=sender,
+        store=inbox,
+        bindings=bindings,
+        session_id=active_session,
+    )
+    return ComposedDiscordChannel(
+        runtime=runtime,
+        inbox=inbox,
+        bindings=bindings,
+        deliveries=deliveries,
+        recovered_generation_claims=recovered_generation,
+        recovered_delivery_claims=recovered_delivery,
+    )
+
+
+class DiscordBackgroundService:
+    """Run discord.py beside a canonical application without creating another one."""
+
+    def __init__(
+        self,
+        provisioning: DiscordProvisioning,
+        channel: ComposedDiscordChannel,
+        *,
+        client_factory=create_discordpy_client,
+        on_error: Callable[[Exception], None] | None = None,
+    ) -> None:
+        if not isinstance(provisioning, DiscordProvisioning):
+            raise TypeError("provisioning must be DiscordProvisioning")
+        if not isinstance(channel, ComposedDiscordChannel):
+            raise TypeError("channel must be ComposedDiscordChannel")
+        if not callable(client_factory):
+            raise TypeError("client_factory must be callable")
+        if on_error is not None and not callable(on_error):
+            raise TypeError("on_error must be callable or None")
+        self._provisioning = provisioning
+        self._channel = channel
+        self._client_factory = client_factory
+        self._on_error = on_error
+        self._client = None
+        self._thread: Thread | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_ready = Event()
+        self._stop_requested = Event()
+        self._error: Exception | None = None
+
+    @property
+    def error(self) -> Exception | None:
+        return self._error
+
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self) -> None:
+        if self._thread is not None:
+            raise RuntimeError("Discord background service already started")
+        token = self._provisioning.require_token()
+        self._client = self._client_factory(self._channel.runtime)
+        self._thread = Thread(
+            target=self._run,
+            args=(token,),
+            name="sofia-discord",
+            daemon=True,
+        )
+        self._thread.start()
+        if not self._loop_ready.wait(timeout=5.0):
+            raise RuntimeError("Discord background event loop did not start")
+        if self._error is not None:
+            raise RuntimeError(
+                f"Discord background startup failed: {self._error}"
+            ) from self._error
+
+    def _run(self, token: str) -> None:
+        loop = asyncio.new_event_loop()
+        self._loop = loop
+        asyncio.set_event_loop(loop)
+        self._loop_ready.set()
+        try:
+            loop.run_until_complete(self._client.start(token))
+            startup_error = getattr(
+                self._client,
+                "_sofia_startup_error",
+                None,
+            )
+            if startup_error is not None and not self._stop_requested.is_set():
+                raise RuntimeError(
+                    f"Discord startup failed: {startup_error}"
+                ) from startup_error
+            ready = bool(
+                getattr(self._client, "_sofia_ready", False)
+            )
+            if not ready and not self._stop_requested.is_set():
+                raise RuntimeError(
+                    "Discord client exited before authenticated readiness"
+                )
+        except Exception as exc:
+            self._error = exc
+            if self._on_error is not None:
+                self._on_error(exc)
+        finally:
+            try:
+                close = getattr(self._client, "close", None)
+                if callable(close):
+                    loop.run_until_complete(close())
+            except Exception:
+                pass
+            self._loop = None
+            loop.close()
+
+    def stop(self) -> None:
+        thread = self._thread
+        if thread is None:
+            return
+        self._stop_requested.set()
+        self._loop_ready.wait(timeout=5.0)
+        loop = self._loop
+        client = self._client
+        if loop is not None and loop.is_running() and client is not None:
+            future = asyncio.run_coroutine_threadsafe(
+                client.close(),
+                loop,
+            )
+            try:
+                future.result(timeout=10.0)
+            except Exception:
+                pass
+        thread.join(timeout=10.0)
+        if thread.is_alive():
+            raise RuntimeError(
+                "Discord background service did not stop safely"
+            )
+        self._thread = None
+        self._client = None
 
 
 @dataclass(slots=True)
