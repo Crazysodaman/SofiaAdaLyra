@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -78,7 +79,7 @@ class SemanticIntegrityVerifier:
             raise ValueError("verification time must be timezone-aware")
         findings: list[IntegrityFinding] = []
 
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             result = db.execute("PRAGMA integrity_check").fetchone()
             if result is None or result[0] != "ok":
                 findings.append(
@@ -425,7 +426,7 @@ class SemanticIntegrityVerifier:
                     f"active release {release_id} lacks protected acceptance history",
                 )
             )
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             if not self._table(db, "safe_audit_event"):
                 findings.append(
                     IntegrityFinding(

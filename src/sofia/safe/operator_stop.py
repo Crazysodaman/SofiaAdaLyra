@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,7 +33,7 @@ class OperatorStopStore:
     def __init__(self,state_path:Path|str)->None:
         self.path=Path(state_path)
         self.path.parent.mkdir(parents=True,exist_ok=True)
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS safe_operator_stop (
@@ -58,7 +59,7 @@ class OperatorStopStore:
                 ))
 
     def current(self)->OperatorStopState:
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             row=db.execute("""
                 SELECT active,updated_at,updated_by,reason
                 FROM safe_operator_stop WHERE singleton=1
@@ -91,7 +92,7 @@ class OperatorStopStore:
         moment=at or datetime.now(timezone.utc)
         if moment.tzinfo is None or moment.utcoffset() is None:
             raise ValueError("at must be timezone-aware")
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("""
                 UPDATE safe_operator_stop

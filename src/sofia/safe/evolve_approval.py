@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -33,7 +34,7 @@ class DurableEvolutionApprovalVerifier(
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.audit = AuditChain(self.path)
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -104,7 +105,7 @@ class DurableEvolutionApprovalVerifier(
             raise PermissionError(
                 "current EVOLVE approval authority is explicitly Sparks"
             )
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -151,7 +152,7 @@ class DurableEvolutionApprovalVerifier(
     def revoke(self, approval_id: str) -> None:
         if not isinstance(approval_id, str) or not approval_id.strip():
             raise ValueError("approval_id must be nonempty")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -201,7 +202,7 @@ class DurableEvolutionApprovalVerifier(
     ) -> bool:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.row_factory = sqlite3.Row
             row = db.execute(
                 """

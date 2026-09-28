@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -36,7 +37,7 @@ class KnowledgeAccessStore:
     def __init__(self,state_path:Path|str)->None:
         self.path=Path(state_path)
         self.path.parent.mkdir(parents=True,exist_ok=True)
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_access (
@@ -50,7 +51,7 @@ class KnowledgeAccessStore:
     def set(self,access:KnowledgeAccess)->KnowledgeAccess:
         if not isinstance(access,KnowledgeAccess):
             raise TypeError("access must be KnowledgeAccess")
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             db.execute("""
                 INSERT INTO knowledge_access(
                     document_id,visibility,principal_id,audience_id
@@ -70,7 +71,7 @@ class KnowledgeAccessStore:
     def get(self,document_id:str)->KnowledgeAccess|None:
         if not isinstance(document_id,str) or not document_id.strip():
             raise ValueError("document_id must be nonempty")
-        with sqlite3.connect(self.path,timeout=10) as db:
+        with closing(sqlite3.connect(self.path,timeout=10)) as db, db:
             row=db.execute("""
                 SELECT document_id,visibility,principal_id,audience_id
                 FROM knowledge_access WHERE document_id=?

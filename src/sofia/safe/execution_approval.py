@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -75,7 +76,7 @@ class ExecutionApprovalVerifier:
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.audit = AuditChain(self.path)
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -94,7 +95,7 @@ class ExecutionApprovalVerifier:
     def record(self, approval: ExecutionApproval) -> None:
         if not isinstance(approval, ExecutionApproval):
             raise TypeError("approval must be an ExecutionApproval")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute(
                 """
@@ -153,7 +154,7 @@ class ExecutionApprovalVerifier:
         moment = now.astimezone(timezone.utc)
         expected = execution_fingerprint(capability, parameters)
 
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("BEGIN IMMEDIATE")

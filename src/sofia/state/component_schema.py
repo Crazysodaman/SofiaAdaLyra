@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,7 +33,7 @@ class StateSchemaCoordinator:
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS state_schema_component (
@@ -69,7 +70,7 @@ class StateSchemaCoordinator:
         if not isinstance(schema, ComponentSchema):
             raise TypeError("schema must be ComponentSchema")
         expected = schema.compatibility
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 """
@@ -140,7 +141,7 @@ class StateSchemaCoordinator:
             raise ValueError("applied_at must be timezone-aware")
         if compatibility.current_revision != to_revision:
             raise ValueError("compatibility current revision must equal to_revision")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 """
