@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "input",
-        help="Path to the ChatGPT memory dump text or JSON file.",
+        help="Path to a ChatGPT memory dump text/JSON file or full export ZIP.",
     )
     parser.add_argument(
         "--state-path",
