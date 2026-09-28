@@ -146,3 +146,54 @@ def test_private_seasonal_outfit_requires_private_commit_and_public_stays_fallba
     )
     assert authority.projection(AudienceScope.PRIVATE, grant=grant()).outfit_id == target
     assert authority.projection(AudienceScope.PUBLIC).outfit_id == "engineer.signature"
+
+
+def test_composed_outfit_can_register_present_and_survive_snapshot_restore(tmp_path):
+    catalog = build_starter_wardrobe()
+    outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
+    authority = PresentationAuthority(
+        catalog.wardrobe,
+        outfits=outfits,
+        canonical_daily_outfit_id="engineer.signature",
+        initial_appearance=AppearanceState(
+            "long layered", "deep crimson", "dark violet", ("engineer",)
+        ),
+    )
+    studio = WardrobeStudio(catalog, authority=authority)
+    plan = studio.compose(
+        outfit_id="studio.spring.custom.01",
+        item_ids=(
+            "underlayer.top",
+            "underlayer.bottom",
+            "closet.normal.top.01",
+            "closet.normal.bottom.02",
+            "closet.normal.footwear.03",
+        ),
+        activities=frozenset({Activity.CONVERSATION}),
+        seasons=frozenset({Season.SPRING}),
+        style_tags=("self-composed", "spring"),
+        display_name="Spring Self-Composed 01",
+        register=True,
+    )
+    assert plan.outfit_id in authority.available_outfit_ids
+
+    authority.propose_outfit(
+        operation_id="studio-wear",
+        expected_revision=authority.current.revision,
+        outfit_id=plan.outfit_id,
+        reason="self-composed outfit",
+        daily=True,
+    )
+    authority.commit_text(
+        operation_id="studio-wear",
+        renderer_unavailable=True,
+    )
+    snapshot = authority.snapshot()
+
+    restored = PresentationAuthority.restore(
+        catalog.wardrobe,
+        outfits=outfits,
+        snapshot=snapshot,
+    )
+    assert restored.current.outfit_id == "studio.spring.custom.01"
+    assert "studio.spring.custom.01" in restored.available_outfit_ids

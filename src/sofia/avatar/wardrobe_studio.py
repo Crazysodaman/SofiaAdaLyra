@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .wardrobe import Garment, Wardrobe, WardrobeError
+from .presentation import PresentationAuthority
+from .wardrobe import Garment, WardrobeError
 from .wardrobe_catalog import GarmentBlueprint, WardrobePrebuild
 from .wardrobe_piece_catalog import all_closet_categories
 from .wardrobe_routine import Activity, OutfitPlan, Season
@@ -27,10 +28,18 @@ class GarmentDesignRequest:
 class WardrobeStudio:
     """Compose outfits and propose new garment blueprints from typed inputs."""
 
-    def __init__(self, catalog: WardrobePrebuild) -> None:
+    def __init__(
+        self,
+        catalog: WardrobePrebuild,
+        *,
+        authority: PresentationAuthority | None = None,
+    ) -> None:
         if not isinstance(catalog, WardrobePrebuild):
             raise TypeError("catalog must be WardrobePrebuild")
+        if authority is not None and not isinstance(authority, PresentationAuthority):
+            raise TypeError("authority must be PresentationAuthority or None")
         self.catalog = catalog
+        self.authority = authority
         self._categories = {
             category.category_id: category
             for category in all_closet_categories()
@@ -47,7 +56,10 @@ class WardrobeStudio:
         private_only: bool = False,
         style_tags: tuple[str, ...] = (),
         display_name: str | None = None,
+        register: bool = False,
     ) -> OutfitPlan:
+        if type(register) is not bool:
+            raise WardrobeError("register must be boolean")
         selected = self.catalog.wardrobe.selection(item_ids)
         if private_only:
             if not selected.private_only:
@@ -63,7 +75,7 @@ class WardrobeStudio:
                 raise WardrobeError(
                     "public composition must cover torso and pelvis"
                 )
-        return OutfitPlan(
+        plan = OutfitPlan(
             outfit_id,
             item_ids,
             activities,
@@ -73,6 +85,17 @@ class WardrobeStudio:
             style_tags=style_tags,
             display_name=display_name,
         )
+        if register:
+            if self.authority is None:
+                raise WardrobeError(
+                    "registered composition requires live presentation authority"
+                )
+            self.authority.register_outfit(
+                outfit_id=plan.outfit_id,
+                item_ids=plan.item_ids,
+                private_only=plan.private_only,
+            )
+        return plan
 
     def design_piece(
         self,

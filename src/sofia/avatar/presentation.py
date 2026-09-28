@@ -224,6 +224,7 @@ class PresentationAuthority:
         self._wardrobe = wardrobe
         self._outfits = normalized
         self._private_outfits = frozenset(private_outfits)
+        self._dynamic_outfits: dict[str, tuple[str, ...]] = {}
         if canonical_daily_outfit_id in self._private_outfits:
             raise PresentationDenied("canonical daily outfit cannot be private")
         self._canonical_daily_outfit_id = canonical_daily_outfit_id
@@ -257,6 +258,37 @@ class PresentationAuthority:
     @property
     def available_outfit_ids(self) -> tuple[str, ...]:
         return tuple(self._outfits)
+
+    def register_outfit(
+        self,
+        *,
+        outfit_id: str,
+        item_ids: tuple[str, ...],
+        private_only: bool,
+    ) -> None:
+        """Register one composed outfit built from already-known garments."""
+        _id(outfit_id, "outfit ID")
+        if outfit_id in self._outfits:
+            raise PresentationConflict("outfit ID is already registered")
+        if not isinstance(item_ids, tuple) or not item_ids:
+            raise PresentationError("registered outfit requires garment IDs")
+        if type(private_only) is not bool:
+            raise PresentationError("private_only must be boolean")
+        selected = self._wardrobe.selection(item_ids)
+        if selected.private_only != private_only:
+            raise PresentationDenied(
+                "registered outfit privacy must match its garment selection"
+            )
+        if not private_only and not selected.covered_default:
+            raise PresentationDenied(
+                "registered public outfit must satisfy covered-default policy"
+            )
+        self._outfits[outfit_id] = selected.item_ids
+        if private_only:
+            self._private_outfits = frozenset(
+                (*self._private_outfits, outfit_id)
+            )
+        self._dynamic_outfits[outfit_id] = selected.item_ids
 
     def propose_outfit(
         self,
@@ -440,6 +472,15 @@ class PresentationAuthority:
             "current": self._state_dict(self._current),
             "last_daily": self._state_dict(self._last_daily),
             "finished": sorted(self._finished),
+            "dynamic_outfits": [
+                {
+                    "outfit_id": outfit_id,
+                    "item_ids": list(item_ids),
+                }
+                for outfit_id, item_ids in sorted(
+                    self._dynamic_outfits.items()
+                )
+            ],
         }
 
     @classmethod
@@ -457,13 +498,39 @@ class PresentationAuthority:
         daily_data = snapshot.get("last_daily")
         if not isinstance(current_data, dict) or not isinstance(daily_data, dict):
             raise PresentationError("snapshot is incomplete")
+        dynamic_raw = snapshot.get("dynamic_outfits", [])
+        if not isinstance(dynamic_raw, list):
+            raise PresentationError("dynamic_outfits must be a list")
+        combined = dict(outfits)
+        dynamic: dict[str, tuple[str, ...]] = {}
+        for row in dynamic_raw:
+            if not isinstance(row, dict):
+                raise PresentationError("invalid dynamic outfit entry")
+            outfit_id = row.get("outfit_id")
+            item_ids = row.get("item_ids")
+            _id(outfit_id, "dynamic outfit ID")
+            if (
+                not isinstance(item_ids, list)
+                or not item_ids
+                or any(not isinstance(item, str) for item in item_ids)
+            ):
+                raise PresentationError("invalid dynamic outfit garments")
+            if outfit_id in combined:
+                raise PresentationError(
+                    "dynamic outfit collides with catalog outfit"
+                )
+            values = tuple(item_ids)
+            combined[outfit_id] = values
+            dynamic[outfit_id] = values
+
         daily_appearance = cls._appearance_from_dict(daily_data.get("appearance"))
         authority = cls(
             wardrobe,
-            outfits=outfits,
+            outfits=combined,
             canonical_daily_outfit_id=canonical,
             initial_appearance=daily_appearance,
         )
+        authority._dynamic_outfits = dynamic
         current = authority._state_from_dict(current_data)
         daily = authority._state_from_dict(daily_data)
         if daily.attire is not AttireMode.CLOTHED or daily.private_only:

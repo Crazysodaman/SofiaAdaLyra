@@ -288,7 +288,10 @@ class SofiaApplication:
             )
             self._runtime.set_avatar_presentation(bundle.authority)
             self._presentation_bundle = bundle
-            self._wardrobe_studio = WardrobeStudio(bundle.catalog)
+            self._wardrobe_studio = WardrobeStudio(
+                bundle.catalog,
+                authority=bundle.authority,
+            )
             self._presentation_routine = HeadlessPresentationRoutine(
                 authority=bundle.authority,
                 store=bundle.store,
