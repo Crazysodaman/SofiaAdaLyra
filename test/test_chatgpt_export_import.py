@@ -44,12 +44,25 @@ def _write_export(path: Path) -> None:
                 "id": "user-1",
                 "parent": None,
                 "children": ["assistant-thought"],
-                "message": _message(
-                    "user-message-1",
-                    "user",
-                    "Sparks prefers evidence-first imports.",
-                    1790611200.0,
-                ),
+                "message": {
+                    **_message(
+                        "user-message-1",
+                        "user",
+                        "Sparks prefers evidence-first imports.",
+                        1790611200.0,
+                        content_type="multimodal_text",
+                    ),
+                    "content": {
+                        "content_type": "multimodal_text",
+                        "parts": [
+                            "Sparks prefers evidence-first imports.",
+                            {
+                                "content_type": "image_asset_pointer",
+                                "asset_pointer": "sediment://file_asset_1",
+                            },
+                        ],
+                    },
+                },
             },
             "assistant-thought": {
                 "id": "assistant-thought",
@@ -135,6 +148,10 @@ def _write_export(path: Path) -> None:
             json.dumps({"version": 1}),
         )
         archive.writestr(
+            "conversation_asset_file_names.json",
+            json.dumps({"file_asset_1": "reference.png"}),
+        )
+        archive.writestr(
             "conversations-000.json",
             json.dumps([eligible, do_not_remember, memory_disabled]),
         )
@@ -155,6 +172,7 @@ def test_full_export_parser_keeps_only_visible_active_branch_and_honors_do_not_r
     assert batch.skipped_do_not_remember == 1
     assert batch.skipped_memory_disabled == 1
     assert batch.message_count == 2
+    assert batch.attachment_count == 1
     conversation = batch.conversations[0]
     assert conversation.conversation_id == "conversation-1"
     assert conversation.memory_scope == "global_enabled"
@@ -162,6 +180,8 @@ def test_full_export_parser_keeps_only_visible_active_branch_and_honors_do_not_r
         ("user", "Sparks prefers evidence-first imports."),
         ("assistant", "Visible assistant reply."),
     ]
+    assert conversation.messages[0].attachments[0].asset_id == "file_asset_1"
+    assert conversation.messages[0].attachments[0].file_name == "reference.png"
     assert all("private reasoning" not in item.content for item in conversation.messages)
     assert all("Inactive branch" not in item.content for item in conversation.messages)
 
@@ -175,7 +195,7 @@ def test_full_export_evidence_is_principal_bound_and_idempotent(tmp_path: Path):
 
     assert store.save(batch) is True
     assert store.save(batch) is False
-    assert store.counts(batch.source_digest) == (1, 2, 1, 1)
+    assert store.counts(batch.source_digest) == (1, 2, 1, 1, 1)
 
     with __import__("sqlite3").connect(state_path) as db:
         principal = db.execute(
@@ -184,6 +204,14 @@ def test_full_export_evidence_is_principal_bound_and_idempotent(tmp_path: Path):
             (batch.source_digest,),
         ).fetchone()[0]
     assert principal == SPARKS_PRINCIPAL_ID
+
+    assert store.attachments_for_message(
+        batch.source_digest,
+        "conversation-1",
+        "user-message-1",
+    ) == (
+        ("file_asset_1", "reference.png", "image_asset_pointer"),
+    )
 
 
 def test_full_export_cli_imports_evidence_without_creating_memory_candidates(
