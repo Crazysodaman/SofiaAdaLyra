@@ -88,7 +88,8 @@ def test_cooldown_and_daily_limit_use_acknowledged_delivery_only():
     assert decision(h=History(last_delivered_at=T0 - timedelta(hours=1))) is Decision.TOO_SOON
     assert decision(h=History(last_delivered_at=T0 - timedelta(hours=6))) is Decision.ELIGIBLE_FOR_AUTHORIZATION
     assert decision(
-        h=History(delivered_day_utc="2026-09-25", delivered_today=1)
+        p=policy(max_daily=1),
+        h=History(delivered_day_utc=T0.date().isoformat(), delivered_today=1),
     ) is Decision.DAILY_LIMIT
 
 
