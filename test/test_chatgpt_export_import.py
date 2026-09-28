@@ -258,3 +258,57 @@ def test_full_export_cli_refuses_blind_bulk_promotion(tmp_path: Path, capsys):
     ) == 2
 
     assert "blind --promote-all is not allowed" in capsys.readouterr().err
+
+
+def test_full_export_parser_retains_attachment_only_visible_message(tmp_path: Path):
+    source = tmp_path / "attachment-only.zip"
+    conversation = {
+        "id": "conversation-image",
+        "conversation_id": "conversation-image",
+        "title": "Image only",
+        "current_node": "image-node",
+        "is_do_not_remember": False,
+        "memory_scope": "global_enabled",
+        "mapping": {
+            "image-node": {
+                "id": "image-node",
+                "parent": None,
+                "children": [],
+                "message": {
+                    "id": "image-message",
+                    "author": {"role": "user"},
+                    "create_time": 1790611400.0,
+                    "content": {
+                        "content_type": "multimodal_text",
+                        "parts": [
+                            {
+                                "content_type": "image_asset_pointer",
+                                "asset_pointer": "sediment://file_image_only",
+                            }
+                        ],
+                    },
+                },
+            },
+        },
+    }
+    with ZipFile(source, "w") as archive:
+        archive.writestr("export_manifest.json", json.dumps({"version": 1}))
+        archive.writestr(
+            "conversation_asset_file_names.json",
+            json.dumps({"file_image_only": "image-only.png"}),
+        )
+        archive.writestr(
+            "conversations-000.json",
+            json.dumps([conversation]),
+        )
+
+    batch = parse_chatgpt_export_archive(
+        source.read_bytes(),
+        observed_at=NOW,
+    )
+
+    assert batch.message_count == 1
+    assert batch.attachment_count == 1
+    message = batch.conversations[0].messages[0]
+    assert message.content == ""
+    assert message.attachments[0].file_name == "image-only.png"
