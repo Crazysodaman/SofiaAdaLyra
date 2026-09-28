@@ -15,6 +15,7 @@ import sqlite3
 from uuid import uuid4
 
 from sofia.social.model import AudienceKind, ScopeKind, SocialScope
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
 EMOTIONS = frozenset({
@@ -296,6 +297,52 @@ class EmotionalJournal:
             db.execute(
                 "CREATE INDEX IF NOT EXISTS emotional_events_scope_time "
                 "ON emotional_events(scope_kind, principal_id, audience_id, occurred_at)"
+            )
+
+            # Older unbound application paths used the display label "Sparks"
+            # as the relationship storage key. Authenticated channel state uses
+            # the canonical principal ID. Normalize the single-user legacy rows
+            # so desktop, Discord and background continuity share one history.
+            db.execute(
+                "UPDATE emotional_events SET subject=?, principal_id=? "
+                "WHERE scope_kind='relationship' "
+                "AND (subject='Sparks' OR principal_id='Sparks')",
+                (SPARKS_PRINCIPAL_ID, SPARKS_PRINCIPAL_ID),
+            )
+            legacy_presence = db.execute(
+                "SELECT last_interaction_at, last_message_ref "
+                "FROM emotional_presence WHERE subject='Sparks'"
+            ).fetchone()
+            if legacy_presence is not None:
+                canonical_presence = db.execute(
+                    "SELECT last_interaction_at, last_message_ref "
+                    "FROM emotional_presence WHERE subject=?",
+                    (SPARKS_PRINCIPAL_ID,),
+                ).fetchone()
+                if (
+                    canonical_presence is None
+                    or legacy_presence[0] > canonical_presence[0]
+                ):
+                    db.execute(
+                        "INSERT INTO emotional_presence "
+                        "(subject, last_interaction_at, last_message_ref) "
+                        "VALUES (?, ?, ?) "
+                        "ON CONFLICT(subject) DO UPDATE SET "
+                        "last_interaction_at=excluded.last_interaction_at, "
+                        "last_message_ref=excluded.last_message_ref",
+                        (
+                            SPARKS_PRINCIPAL_ID,
+                            legacy_presence[0],
+                            legacy_presence[1],
+                        ),
+                    )
+                db.execute(
+                    "DELETE FROM emotional_presence WHERE subject='Sparks'"
+                )
+            db.execute(
+                "UPDATE emotional_return_expectations SET subject=? "
+                "WHERE subject='Sparks'",
+                (SPARKS_PRINCIPAL_ID,),
             )
 
     @contextmanager
