@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 
 from sofia.personality.emotion import EmotionalJournal
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
 
@@ -417,3 +418,41 @@ def test_background_absence_does_not_exist_without_real_contact_evidence(tmp_pat
 
     assert journal.observe_absence(subject="Sparks", now=NOW) is None
     assert journal.recent(now=NOW) == ()
+
+
+def test_legacy_sparks_relationship_rows_migrate_to_canonical_principal(tmp_path):
+    import sqlite3
+
+    state_path = tmp_path / "state.db"
+    journal = EmotionalJournal(state_path)
+    journal.record(
+        event_id="legacy-sparks-event",
+        source="observed",
+        evidence_ref="legacy:test",
+        description="Legacy display-name relationship evidence.",
+        emotions=("warmth",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    journal.observe_contact(
+        subject="Sparks",
+        message_id="legacy-presence",
+        occurred_at=NOW,
+    )
+
+    # Reopening applies the canonical-principal normalization.
+    reopened = EmotionalJournal(state_path)
+    state = reopened.current_state(
+        now=NOW,
+        subject=SPARKS_PRINCIPAL_ID,
+    )
+
+    assert "warmth" in {item.name for item in state.active}
+    with sqlite3.connect(state_path) as db:
+        assert db.execute(
+            "SELECT 1 FROM emotional_presence WHERE subject='Sparks'"
+        ).fetchone() is None
+        assert db.execute(
+            "SELECT 1 FROM emotional_presence WHERE subject=?",
+            (SPARKS_PRINCIPAL_ID,),
+        ).fetchone() is not None
