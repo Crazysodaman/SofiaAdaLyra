@@ -107,6 +107,11 @@ class MemorySystem:
             )
 
         if self._candidate_store is not None:
+            # Reviewed production memory is identity-scoped. An unbound
+            # cognitive request must never mean "all principals"; fail closed
+            # until an authenticated PrincipalContext is supplied.
+            if principal is None:
+                return ()
             return self._recall_promoted(
                 query,
                 limit=limit,
