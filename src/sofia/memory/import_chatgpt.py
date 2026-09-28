@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 
 from sofia.config import create_default_configuration
+from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
+from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.chatgpt_import import parse_chatgpt_memory_dump
 from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
 from sofia.memory.chatgpt_migration import ChatGPTMemoryMigrationService
@@ -54,6 +56,45 @@ def main(argv: list[str] | None = None) -> int:
                 "--approved-by is only valid with --promote-all"
             )
 
+        state_path = (
+            Path(args.state_path)
+            if args.state_path
+            else Path(create_default_configuration().state_path)
+        )
+
+        if source.suffix.casefold() == ".zip":
+            if args.promote_all:
+                raise PermissionError(
+                    "full ChatGPT conversation exports are source evidence; "
+                    "blind --promote-all is not allowed"
+                )
+            export_batch = parse_chatgpt_export_archive(
+                source.read_bytes()
+            )
+            if args.dry_run:
+                print(
+                    "ChatGPT export valid: "
+                    f"{len(export_batch.conversations)} conversations "
+                    f"{export_batch.message_count} visible messages "
+                    f"skipped_do_not_remember="
+                    f"{export_batch.skipped_do_not_remember} "
+                    f"digest={export_batch.source_digest}"
+                )
+                return 0
+            export_store = ChatGPTExportEvidenceStore(state_path)
+            created = export_store.save(export_batch)
+            status = "imported" if created else "already_imported"
+            print(
+                f"ChatGPT export {status}: "
+                f"{len(export_batch.conversations)} conversations "
+                f"{export_batch.message_count} visible messages "
+                f"skipped_do_not_remember="
+                f"{export_batch.skipped_do_not_remember} "
+                f"digest={export_batch.source_digest} "
+                "memory_status=evidence_only"
+            )
+            return 0
+
         payload = source.read_text(encoding="utf-8-sig")
         batch = parse_chatgpt_memory_dump(payload)
         if args.dry_run:
@@ -63,11 +104,6 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        state_path = (
-            Path(args.state_path)
-            if args.state_path
-            else Path(create_default_configuration().state_path)
-        )
         store = ChatGPTMemoryImportStore(state_path)
         migration = None
         try:
