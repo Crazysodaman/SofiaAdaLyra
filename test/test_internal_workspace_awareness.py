@@ -150,6 +150,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     app._runtime = runtime
     app._configuration = runtime.configuration
     app._conversation_service = conversation
+    app._channel_conversations = []
     app._idle_worker = None
     assert app.start() is None
     assert calls[:4] == ["runtime:start", "conversation:open", "conversation:start", "awareness"]
