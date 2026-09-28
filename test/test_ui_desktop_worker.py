@@ -5,6 +5,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.discord.provisioning import DiscordProvisioning
 from sofia.ui.desktop_worker import (
     DesktopApplicationWorker,
 )
@@ -58,6 +59,7 @@ def test_worker_owns_real_application_for_full_lifecycle(
         configuration=_configuration(tmp_path),
         session_id=None,
         events=events,
+        discord_provisioning=DiscordProvisioning(enabled=False),
     )
 
     worker.start()
@@ -86,3 +88,65 @@ def test_worker_owns_real_application_for_full_lifecycle(
     kind, payload = events.get(timeout=30)
     assert kind == "shutdown_complete"
     assert payload is None
+
+
+def test_worker_initializes_provisioned_discord_on_same_application(
+    tmp_path: Path,
+    monkeypatch,
+):
+    events: Queue[tuple[str, object]] = Queue()
+    starts: list[object] = []
+    stops: list[object] = []
+
+    class FakeDiscordBackgroundService:
+        def __init__(self, provisioning, channel, *, on_error=None):
+            self.provisioning = provisioning
+            self.channel = channel
+            self.on_error = on_error
+
+        def start(self):
+            starts.append(self.channel)
+
+        def stop(self):
+            stops.append(self.channel)
+
+    monkeypatch.setattr(
+        "sofia.ui.desktop_worker.DiscordBackgroundService",
+        FakeDiscordBackgroundService,
+    )
+
+    provisioning = DiscordProvisioning(
+        enabled=True,
+        owner_user_id=123456789012345678,
+        bot_user_id=987654321098765432,
+        dm_channel_id=223456789012345678,
+        token="test-token",
+    )
+    worker = DesktopApplicationWorker(
+        configuration=_configuration(tmp_path),
+        session_id=None,
+        events=events,
+        discord_provisioning=provisioning,
+    )
+
+    worker.start()
+
+    kind, payload = events.get(timeout=30)
+    assert kind == "started"
+    history, draft, palette = payload
+    assert isinstance(history, tuple)
+    assert isinstance(draft, str)
+    assert palette.background.startswith("#")
+
+    kind, payload = events.get(timeout=30)
+    assert kind == "discord_started"
+    assert payload is None
+    assert len(starts) == 1
+    assert starts[0].runtime.session_id
+
+    worker.shutdown("")
+
+    kind, payload = events.get(timeout=30)
+    assert kind == "shutdown_complete"
+    assert payload is None
+    assert stops == starts
