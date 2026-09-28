@@ -132,6 +132,11 @@ class DesktopApplicationWorker:
             )
 
             if provisioning.enabled:
+                if getattr(application, "runtime", None) is None:
+                    raise RuntimeError(
+                        "provisioned Discord must run on the canonical "
+                        "runtime host, not through a remote desktop client"
+                    )
                 conversation = getattr(
                     application,
                     "conversation",
