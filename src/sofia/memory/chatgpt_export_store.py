@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.memory.chatgpt_export import ChatGPTExportBatch
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
 class ChatGPTExportEvidenceStore:
@@ -20,6 +21,7 @@ class ChatGPTExportEvidenceStore:
                     CREATE TABLE IF NOT EXISTS chatgpt_export_batch (
                         source_digest TEXT PRIMARY KEY,
                         observed_at TEXT NOT NULL,
+                        principal_id TEXT NOT NULL,
                         conversation_count INTEGER NOT NULL,
                         message_count INTEGER NOT NULL,
                         skipped_do_not_remember INTEGER NOT NULL
@@ -65,17 +67,25 @@ class ChatGPTExportEvidenceStore:
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
-    def save(self, batch: ChatGPTExportBatch) -> bool:
+    def save(
+        self,
+        batch: ChatGPTExportBatch,
+        *,
+        principal_id: str = SPARKS_PRINCIPAL_ID,
+    ) -> bool:
         if not isinstance(batch, ChatGPTExportBatch):
             raise TypeError("batch must be ChatGPTExportBatch")
+        if not isinstance(principal_id, str) or not principal_id.strip():
+            raise ValueError("principal_id must be nonempty")
         with closing(self._connect()) as db:
             existing = db.execute(
-                "SELECT conversation_count, message_count, "
+                "SELECT principal_id, conversation_count, message_count, "
                 "skipped_do_not_remember FROM chatgpt_export_batch "
                 "WHERE source_digest=?",
                 (batch.source_digest,),
             ).fetchone()
             expected = (
+                principal_id,
                 len(batch.conversations),
                 batch.message_count,
                 batch.skipped_do_not_remember,
@@ -90,12 +100,14 @@ class ChatGPTExportEvidenceStore:
             with db:
                 db.execute(
                     "INSERT INTO chatgpt_export_batch "
-                    "(source_digest, observed_at, conversation_count, "
-                    "message_count, skipped_do_not_remember) "
-                    "VALUES (?, ?, ?, ?, ?)",
+                    "(source_digest, observed_at, principal_id, "
+                    "conversation_count, message_count, "
+                    "skipped_do_not_remember) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
                     (
                         batch.source_digest,
                         batch.observed_at.isoformat(),
+                        principal_id,
                         len(batch.conversations),
                         batch.message_count,
                         batch.skipped_do_not_remember,
