@@ -31,12 +31,18 @@ class EmotionalConversationService(ConversationService):
     The model receives bounded, read-only data, not journal write access.
     """
 
-    def __init__(self, runtime: SofiaRuntime, conversation_store: ConversationStore) -> None:
+    def __init__(
+        self,
+        runtime: SofiaRuntime,
+        conversation_store: ConversationStore,
+        *,
+        model_lock=None,
+    ) -> None:
         super().__init__(runtime=runtime, conversation_store=conversation_store)
         self._emotional_journal: EmotionalJournal | None = None
         self._reflection_journal: ReflectionJournal | None = None
         self._clarification_journal: ClarificationJournal | None = None
-        self._model_lock = RLock()
+        self._model_lock = model_lock if model_lock is not None else RLock()
         self._active_user_requests = 0
         self._last_user_activity = monotonic()
 
