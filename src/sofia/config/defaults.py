@@ -34,9 +34,16 @@ def create_default_configuration() -> SofiaConfiguration:
     )
 
     environment = environment_configuration_from_environ(os.environ)
-    environment_capabilities = (
-        *((("environment.nws.read",) if environment.nws_enabled else ())),
-        *((("environment.home_assistant.read",) if environment.home_assistant_enabled else ())),
+    environment_capabilities = tuple(
+        capability
+        for capability, enabled in (
+            ("environment.nws.read", environment.nws_enabled),
+            (
+                "environment.home_assistant.read",
+                environment.home_assistant_enabled,
+            ),
+        )
+        if enabled
     )
 
     standing_capabilities=tuple(dict.fromkeys((
