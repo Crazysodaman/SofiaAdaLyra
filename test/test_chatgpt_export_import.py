@@ -87,6 +87,27 @@ def _write_export(path: Path) -> None:
             },
         },
     }
+    memory_disabled = {
+        "id": "conversation-disabled",
+        "conversation_id": "conversation-disabled",
+        "title": "Memory disabled",
+        "current_node": "disabled-user",
+        "is_do_not_remember": False,
+        "memory_scope": "global_disabled",
+        "mapping": {
+            "disabled-user": {
+                "id": "disabled-user",
+                "parent": None,
+                "children": [],
+                "message": _message(
+                    "disabled-message",
+                    "user",
+                    "This scope must be skipped.",
+                    1790611350.0,
+                ),
+            },
+        },
+    }
     do_not_remember = {
         "id": "conversation-private",
         "conversation_id": "conversation-private",
@@ -115,7 +136,7 @@ def _write_export(path: Path) -> None:
         )
         archive.writestr(
             "conversations-000.json",
-            json.dumps([eligible, do_not_remember]),
+            json.dumps([eligible, do_not_remember, memory_disabled]),
         )
 
 
@@ -132,6 +153,7 @@ def test_full_export_parser_keeps_only_visible_active_branch_and_honors_do_not_r
 
     assert len(batch.conversations) == 1
     assert batch.skipped_do_not_remember == 1
+    assert batch.skipped_memory_disabled == 1
     assert batch.message_count == 2
     conversation = batch.conversations[0]
     assert conversation.conversation_id == "conversation-1"
@@ -153,7 +175,7 @@ def test_full_export_evidence_is_principal_bound_and_idempotent(tmp_path: Path):
 
     assert store.save(batch) is True
     assert store.save(batch) is False
-    assert store.counts(batch.source_digest) == (1, 2, 1)
+    assert store.counts(batch.source_digest) == (1, 2, 1, 1)
 
     with __import__("sqlite3").connect(state_path) as db:
         principal = db.execute(
