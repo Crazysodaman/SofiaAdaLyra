@@ -113,10 +113,26 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         store=SimpleNamespace(
             save=lambda authority: None,
         ),
+        catalog=SimpleNamespace(
+            wardrobe=object(),
+            presets=(),
+        ),
     )
     monkeypatch.setattr(
         "sofia.application.bootstrap.load_or_bootstrap_presentation",
         lambda *, embodiment, state_path: presentation_bundle,
+    )
+    monkeypatch.setattr(
+        "sofia.application.bootstrap.WardrobeStudio",
+        lambda catalog, *, authority=None: None,
+    )
+    monkeypatch.setattr(
+        "sofia.application.bootstrap.OutfitPlanner",
+        lambda wardrobe, presets: None,
+    )
+    monkeypatch.setattr(
+        "sofia.application.bootstrap.HeadlessPresentationRoutine",
+        lambda **kwargs: None,
     )
 
     def open_conversation():
