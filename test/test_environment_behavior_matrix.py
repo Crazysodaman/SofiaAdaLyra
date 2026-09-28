@@ -240,8 +240,8 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     assert '"region_id": "chest"' in system
     lowered = system.casefold()
     assert "accepted" in lowered
+    assert "recognized" in lowered
     assert "consent" in lowered
-    assert "does not mean" in lowered
     assert request.tools == ()
     assert request.allow_tools is False
 
