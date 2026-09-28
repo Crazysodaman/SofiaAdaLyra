@@ -40,11 +40,30 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     presentation_bundle = SimpleNamespace(
         authority=object(),
         store=SimpleNamespace(save=lambda authority: None),
+        catalog=SimpleNamespace(
+            wardrobe=object(),
+            presets=(),
+        ),
     )
     monkeypatch.setattr(
         bootstrap,
         "load_or_bootstrap_presentation",
         lambda *, embodiment, state_path: presentation_bundle,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "WardrobeStudio",
+        lambda catalog, *, authority=None: None,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "OutfitPlanner",
+        lambda wardrobe, presets: None,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "HeadlessPresentationRoutine",
+        lambda **kwargs: None,
     )
     app = object.__new__(bootstrap.SofiaApplication)
     app._runtime = runtime
