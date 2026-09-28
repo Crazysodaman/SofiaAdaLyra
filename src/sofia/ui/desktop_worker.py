@@ -10,6 +10,12 @@ from queue import Queue
 from threading import Thread
 
 from sofia.config import SofiaConfiguration
+from sofia.discord.live import (
+    DiscordBackgroundService,
+    compose_live_discord_for_conversation,
+    discord_bound_session_id,
+)
+from sofia.discord.provisioning import DiscordProvisioning
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.remote_application import create_desktop_application
 from sofia.ui.theme import canonical_theme
@@ -77,7 +83,28 @@ class DesktopApplicationWorker:
         self._commands.put((kind, payload))
 
     def _run(self) -> None:
+        controller = None
+        discord_service: DiscordBackgroundService | None = None
         try:
+            provisioning = DiscordProvisioning.from_environment()
+            session_id = self._session_id
+            if provisioning.enabled:
+                bound_session = discord_bound_session_id(
+                    provisioning,
+                    configuration=self._configuration,
+                )
+                if (
+                    session_id is not None
+                    and bound_session is not None
+                    and session_id != bound_session
+                ):
+                    raise RuntimeError(
+                        "requested desktop session conflicts with the "
+                        "durable Discord conversation binding"
+                    )
+                if session_id is None:
+                    session_id = bound_session
+
             application = create_desktop_application(
                 self._configuration
             )
@@ -85,8 +112,34 @@ class DesktopApplicationWorker:
                 application
             )
             history = controller.start(
-                session_id=self._session_id
+                session_id=session_id
             )
+
+            if provisioning.enabled:
+                conversation = getattr(
+                    application,
+                    "conversation",
+                    None,
+                )
+                if conversation is None:
+                    raise RuntimeError(
+                        "provisioned Discord requires the canonical "
+                        "desktop conversation"
+                    )
+                channel = compose_live_discord_for_conversation(
+                    provisioning,
+                    conversation=conversation,
+                    configuration=self._configuration,
+                )
+                discord_service = DiscordBackgroundService(
+                    provisioning,
+                    channel,
+                    on_error=lambda exc: self._events.put(
+                        ("discord_error", exc)
+                    ),
+                )
+                discord_service.start()
+
             draft = controller.draft_text()
             try:
                 palette = controller.theme_palette()
@@ -95,7 +148,19 @@ class DesktopApplicationWorker:
             self._events.put(
                 ("started", (history, draft, palette))
             )
+            if discord_service is not None:
+                self._events.put(("discord_started", None))
         except Exception as exc:
+            if discord_service is not None:
+                try:
+                    discord_service.stop()
+                except Exception:
+                    pass
+            if controller is not None and controller.started:
+                try:
+                    controller.shutdown()
+                except Exception:
+                    pass
             self._events.put(("startup_error", exc))
             return
 
@@ -136,14 +201,24 @@ class DesktopApplicationWorker:
                 continue
 
             if kind == "shutdown":
+                shutdown_error = None
+                if discord_service is not None:
+                    try:
+                        discord_service.stop()
+                    except Exception as exc:
+                        shutdown_error = exc
                 try:
                     controller.shutdown(
                         current_draft=payload
                     )
                 except Exception as exc:
-                    self._events.put(("shutdown_error", exc))
-                else:
+                    shutdown_error = shutdown_error or exc
+                if shutdown_error is None:
                     self._events.put(("shutdown_complete", None))
+                else:
+                    self._events.put(
+                        ("shutdown_error", shutdown_error)
+                    )
                 return
 
             self._events.put(
