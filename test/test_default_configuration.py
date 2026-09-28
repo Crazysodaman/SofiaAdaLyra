@@ -55,3 +55,51 @@ def test_default_configuration_creates_state_directory():
 
     assert state_path.parent.is_dir()
     assert state_path.name == "sofia.db"
+
+
+def test_default_configuration_authorizes_explicit_nws_provider(monkeypatch):
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_LOCATION_LABEL",
+        "Configured area",
+    )
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_TIMEZONE",
+        "America/Chicago",
+    )
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_LATITUDE",
+        "32.5",
+    )
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_LONGITUDE",
+        "-97.1",
+    )
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_NWS_ENABLED",
+        "true",
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.environment.nws_enabled is True
+    assert (
+        "environment.nws.read"
+        in configuration.standing_allowed_capabilities
+    )
+
+
+def test_default_configuration_authorizes_explicit_home_assistant_provider(
+    monkeypatch,
+):
+    monkeypatch.setenv(
+        "SOFIA_ENVIRONMENT_HA_WEATHER_ENTITY",
+        "weather.home",
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.environment.home_assistant_enabled is True
+    assert (
+        "environment.home_assistant.read"
+        in configuration.standing_allowed_capabilities
+    )
