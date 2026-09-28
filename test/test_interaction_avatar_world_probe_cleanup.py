@@ -1,11 +1,47 @@
 """Windows-sensitive disposable-probe cleanup; no real Ollama or production DB."""
 from dataclasses import replace
+import gc
+from pathlib import Path
+import sqlite3
 
 from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
 from sofia.interaction.avatar_world_probe import _shutdown_disposable_app
+
+
+def _open_sqlite_diagnostics(database: Path) -> tuple[str, ...]:
+    target = str(database.resolve()).casefold()
+    diagnostics: list[str] = []
+    for candidate in gc.get_objects():
+        if not isinstance(candidate, sqlite3.Connection):
+            continue
+        try:
+            rows = candidate.execute("PRAGMA database_list").fetchall()
+        except (sqlite3.Error, ReferenceError):
+            continue
+        paths = tuple(str(row[2]) for row in rows if len(row) >= 3 and row[2])
+        if not any(path.casefold() == target for path in paths):
+            continue
+        referrers: list[str] = []
+        for referrer in gc.get_referrers(candidate):
+            if isinstance(referrer, dict):
+                keys = [
+                    str(key)
+                    for key, value in referrer.items()
+                    if value is candidate
+                ]
+                if keys:
+                    referrers.append("dict:" + ",".join(sorted(keys)))
+            else:
+                referrers.append(
+                    f"{type(referrer).__module__}.{type(referrer).__qualname__}"
+                )
+        diagnostics.append(
+            f"open sqlite connection paths={paths!r} referrers={tuple(referrers)!r}"
+        )
+    return tuple(diagnostics)
 
 
 def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch, tmp_path):
@@ -28,6 +64,8 @@ def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch,
     assert app.runtime._memory_system._store._connection is None
     assert app.runtime._operational_store._connection is None
     assert app.runtime._filesystem_observation_store._connection is None
+    diagnostics = _open_sqlite_diagnostics(database)
+    assert diagnostics == (), "\n".join(diagnostics)
     # Actual deletion is the Windows-specific proof that every handle was closed.
     database.unlink()  # Raises PermissionError on Windows if a handle remains.
     assert not database.exists()
