@@ -99,6 +99,7 @@ def test_cli_runs_conversation_and_exits(
 
     result = main(
         configuration=configuration,
+        argv=("--cli",),
         input_function=lambda _: next(inputs),
         output_function=outputs.append,
     )
@@ -125,6 +126,7 @@ def test_cli_exits_cleanly_on_eof(
 
     result = main(
         configuration=configuration,
+        argv=("--cli",),
         input_function=raise_eof,
         output_function=outputs.append,
     )
@@ -154,6 +156,7 @@ def test_cli_configuration_failure_returns_error(
 
     result = main(
         configuration=configuration,
+        argv=("--cli",),
         output_function=outputs.append,
     )
 
