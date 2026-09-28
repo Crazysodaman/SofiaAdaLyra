@@ -5,6 +5,7 @@ import os
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import RLock
 
 from sofia.avatar.influence import wardrobe_emotion_influences
 from sofia.avatar.interact_bridge import HostEnvironmentEvidence
@@ -86,9 +87,13 @@ class SofiaApplication:
             configuration=configuration,
             state_plane=self._runtime.state_plane,
         )
+        self._model_lock = RLock()
+        self._channel_conversations: list[ConversationService] = []
         conversation_store = ConversationStore(configuration.state_path)
         self._conversation_service: ConversationService = OptInInteractionConversationService(
-            runtime=self._runtime, conversation_store=conversation_store,
+            runtime=self._runtime,
+            conversation_store=conversation_store,
+            model_lock=self._model_lock,
         )
         candidate_store = self._runtime.memory_system.candidate_store
         if candidate_store is None:
@@ -175,6 +180,44 @@ class SofiaApplication:
     @property
     def idle_reflection_worker(self) -> IdleReflectionWorker | None:
         return getattr(self, "_idle_worker", None)
+
+    def open_channel_conversation(
+        self,
+        *,
+        session_id: str | None = None,
+    ) -> ConversationService:
+        """Open one audience-scoped conversation on the canonical runtime.
+
+        Each channel keeps its own durable session/audience binding while all
+        channels share identity, memory, environment, avatar state, cognition,
+        and the application-owned inference lock.
+        """
+        if self._runtime.state.value != "ready":
+            raise SofiaApplicationError(
+                "Sofía must be started before opening a channel conversation."
+            )
+        conversation_store = ConversationStore(
+            self._configuration.state_path
+        )
+        service: ConversationService = OptInInteractionConversationService(
+            runtime=self._runtime,
+            conversation_store=conversation_store,
+            model_lock=self._model_lock,
+        )
+        service.set_learning_coordinator(
+            self._conversation_learning
+        )
+        service.set_habit_continuity(
+            self._habit_continuity
+        )
+        try:
+            service.open()
+            service.start(session_id=session_id)
+        except Exception:
+            service.close()
+            raise
+        self._channel_conversations.append(service)
+        return service
 
     @property
     def text_ui(self) -> UITextClient:
@@ -559,6 +602,11 @@ class SofiaApplication:
             self._background = None
             self._idle_worker = None
         try:
+            for service in reversed(
+                getattr(self, "_channel_conversations", ())
+            ):
+                service.close()
+            self._channel_conversations.clear()
             bundle = getattr(self, "_presentation_bundle", None)
             if bundle is not None:
                 bundle.store.save(bundle.authority)
