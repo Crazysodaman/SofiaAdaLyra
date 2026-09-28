@@ -631,6 +631,22 @@ class _TkDesktopWorkbench:
             elif kind == "theme":
                 if self._adaptive_theme.get():
                     self._apply_theme(payload)
+            elif kind == "discord_started":
+                self._status.set("Ready · Discord connecting")
+            elif kind == "discord_error":
+                self._status.set(
+                    f"Discord failed: {type(payload).__name__}"
+                )
+                detail = _format_exception_chain(payload)
+                traceback.print_exception(
+                    type(payload),
+                    payload,
+                    payload.__traceback__,
+                )
+                self._show_error(
+                    "Discord transport failed",
+                    detail,
+                )
             elif kind == "draft_error":
                 self._status.set(
                     f"Draft save failed: {type(payload).__name__}"
