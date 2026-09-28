@@ -24,7 +24,8 @@ class ChatGPTExportEvidenceStore:
                         principal_id TEXT NOT NULL,
                         conversation_count INTEGER NOT NULL,
                         message_count INTEGER NOT NULL,
-                        skipped_do_not_remember INTEGER NOT NULL
+                        skipped_do_not_remember INTEGER NOT NULL,
+                        skipped_memory_disabled INTEGER NOT NULL
                     );
                     CREATE TABLE IF NOT EXISTS chatgpt_export_conversation (
                         source_digest TEXT NOT NULL,
@@ -80,7 +81,8 @@ class ChatGPTExportEvidenceStore:
         with closing(self._connect()) as db:
             existing = db.execute(
                 "SELECT principal_id, conversation_count, message_count, "
-                "skipped_do_not_remember FROM chatgpt_export_batch "
+                "skipped_do_not_remember, skipped_memory_disabled "
+                "FROM chatgpt_export_batch "
                 "WHERE source_digest=?",
                 (batch.source_digest,),
             ).fetchone()
@@ -89,6 +91,7 @@ class ChatGPTExportEvidenceStore:
                 len(batch.conversations),
                 batch.message_count,
                 batch.skipped_do_not_remember,
+                batch.skipped_memory_disabled,
             )
             if existing is not None:
                 if tuple(existing) != expected:
@@ -102,8 +105,8 @@ class ChatGPTExportEvidenceStore:
                     "INSERT INTO chatgpt_export_batch "
                     "(source_digest, observed_at, principal_id, "
                     "conversation_count, message_count, "
-                    "skipped_do_not_remember) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    "skipped_do_not_remember, skipped_memory_disabled) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
                         batch.source_digest,
                         batch.observed_at.isoformat(),
@@ -111,6 +114,7 @@ class ChatGPTExportEvidenceStore:
                         len(batch.conversations),
                         batch.message_count,
                         batch.skipped_do_not_remember,
+                        batch.skipped_memory_disabled,
                     ),
                 )
                 for conversation in batch.conversations:
@@ -160,13 +164,14 @@ class ChatGPTExportEvidenceStore:
                         )
         return True
 
-    def counts(self, source_digest: str) -> tuple[int, int, int] | None:
+    def counts(self, source_digest: str) -> tuple[int, int, int, int] | None:
         if not isinstance(source_digest, str) or not source_digest.strip():
             raise ValueError("source_digest must be nonempty")
         with closing(self._connect()) as db:
             row = db.execute(
                 "SELECT conversation_count, message_count, "
-                "skipped_do_not_remember FROM chatgpt_export_batch "
+                "skipped_do_not_remember, skipped_memory_disabled "
+                "FROM chatgpt_export_batch "
                 "WHERE source_digest=?",
                 (source_digest,),
             ).fetchone()
