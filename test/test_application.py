@@ -3,6 +3,8 @@
 import pytest
 
 from sofia.application import SofiaApplication, SofiaApplicationError
+from sofia.application.act_service import SofiaActService
+from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.runtime.model import RuntimeState
 from sofia.social.principals import (
@@ -101,6 +103,36 @@ def test_new_application_is_not_started(
 
     assert application.runtime.state is RuntimeState.CREATED
 
+
+
+
+def test_production_application_composes_live_interact_memory_act_environment_and_avatar(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    assert isinstance(
+        application.conversation,
+        OptInInteractionConversationService,
+    )
+    assert application.runtime.memory_system.uses_reviewed_memory is True
+    assert isinstance(application.act, SofiaActService)
+    assert application.runtime.environment_service is not None
+    assert application.wardrobe_studio is None
+
+    application.start()
+    try:
+        assert application.wardrobe_studio is not None
+        assert application.runtime.avatar_presentation is not None
+        assert hasattr(application.conversation, "current_emotional_state")
+    finally:
+        application.shutdown()
 
 def test_start_starts_runtime(
     personality_path: Path,
