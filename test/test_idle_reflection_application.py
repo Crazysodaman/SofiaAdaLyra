@@ -55,6 +55,8 @@ class FakeCoordinator:
 
 def _application(monkeypatch, tmp_path, *, personality=True):
     events = []
+    state_path = tmp_path / "state.db"
+    state_path.touch()
     runtime = SimpleNamespace(
         personality=object() if personality else None,
         embodiment=object(),
@@ -100,7 +102,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     )
     app = object.__new__(bootstrap.SofiaApplication)
     app._runtime = runtime
-    app._configuration = SimpleNamespace(state_path=tmp_path / "state.db")
+    app._configuration = SimpleNamespace(state_path=state_path)
     app._conversation_service = conversation
     app._channel_conversations = []
     app._idle_worker = None
