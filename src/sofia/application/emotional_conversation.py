@@ -118,7 +118,10 @@ class EmotionalConversationService(ConversationService):
             subject = getattr(relationships[0], "subject", None)
             if isinstance(subject, str) and subject.strip():
                 return SocialScope.relationship(subject.strip())
-        return SocialScope.global_scope()
+        # Keep the fallback read scope aligned with _relationship_subject().
+        # A relationship-scoped event recorded for the sentinel must not
+        # disappear merely because no authenticated principal is available.
+        return SocialScope.relationship(self._relationship_subject())
 
     def observe_background_absence(self, *, now: datetime) -> str | None:
         """Let the running idle worker appraise a real contact gap at this instant."""

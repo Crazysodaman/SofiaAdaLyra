@@ -66,7 +66,9 @@ def test_explicit_return_duration_reaches_reunion_appraisal(monkeypatch, tmp_pat
     service._build_request()
     reunion_at = departure + timedelta(days=7)
     event_id = service.emotional_journal.observe_contact(
-        subject="current user", message_id="return", occurred_at=reunion_at,
+        subject=service._relationship_subject(),
+        message_id="return",
+        occurred_at=reunion_at,
     )
 
     assert event_id == "reunion:return"
