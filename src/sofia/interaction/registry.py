@@ -10,7 +10,7 @@ from types import MappingProxyType
 from typing import Iterable, Mapping
 import re
 
-CATALOG_VERSION = "human-fox-interaction-catalog-v3"
+CATALOG_VERSION = "human-fox-interaction-catalog-v4"
 
 
 def normalize_alias(value: str) -> str:
@@ -138,6 +138,23 @@ ACTION_DEFINITIONS = _definitions("action", {
     "kiss-neck": ("kiss neck",),
     "kiss-cheek": ("kiss cheek",),
     "kiss-forehead": ("kiss forehead",),
+    # Explicit adult/private sexual actions. These are semantic vocabulary only.
+    # They never imply consent, willingness, sensation, completion, or a
+    # renderer/real-world action.
+    "sexual-intercourse": ("sexual intercourse", "have sex"),
+    "oral-sex": ("oral sex", "perform oral sex", "give oral sex"),
+    "fellatio": ("fellatio", "blowjob"),
+    "cunnilingus": ("cunnilingus",),
+    "analingus": ("analingus",),
+    "anal-sex": ("anal sex", "anal intercourse"),
+    "vaginal-sex": ("vaginal sex", "vaginal intercourse"),
+    "manual-genital-stimulation": (
+        "manual genital stimulation",
+        "hand stimulation",
+        "handjob",
+    ),
+    "mutual-masturbation": ("mutual masturbation",),
+    "genital-rubbing": ("genital rubbing",),
 })
 
 POSE_DEFINITIONS = _definitions("pose", {
@@ -180,6 +197,16 @@ PRIVATE_SEMANTICS = frozenset({
     ("action", "sensual-pose"),
     ("action", "flash-chest"),
     ("action", "breast-press-pose"),
+    ("action", "sexual-intercourse"),
+    ("action", "oral-sex"),
+    ("action", "fellatio"),
+    ("action", "cunnilingus"),
+    ("action", "analingus"),
+    ("action", "anal-sex"),
+    ("action", "vaginal-sex"),
+    ("action", "manual-genital-stimulation"),
+    ("action", "mutual-masturbation"),
+    ("action", "genital-rubbing"),
     ("pose", "bend-over"),
     ("pose", "arch-back"),
     ("pose", "sit-legs-apart"),

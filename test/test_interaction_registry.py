@@ -69,6 +69,12 @@ def test_separate_gestures_actions_expressions_and_no_unknown_fallback(catalog):
     assert names.resolve_semantic("gesture", "rubbing").canonical_id == "rub"
     assert names.resolve_semantic("gesture", "intimate touch").canonical_id == "intimate-touch"
     assert names.resolve_semantic("action", "embrace").canonical_id == "hug"
+    assert names.resolve_semantic("action", "blowjob").canonical_id == "fellatio"
+    assert names.resolve_semantic("action", "anal sex").canonical_id == "anal-sex"
+    assert names.resolve_semantic("action", "vaginal sex").canonical_id == "vaginal-sex"
+    assert names.resolve_semantic(
+        "action", "mutual masturbation"
+    ).canonical_id == "mutual-masturbation"
     assert names.resolve_semantic("expression", "giggling").canonical_id == "giggle"
     assert names.resolve_semantic("expression", "sobbing").canonical_id == "sob"
     assert names.resolve_semantic("gesture", "hug").status == "unknown"
