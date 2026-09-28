@@ -18,7 +18,7 @@ from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.retrieval_projection import SourceMessage
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
-from sofia.social.principals import local_sparks_principal
+from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
 
 def _candidate(content: str) -> MemoryCandidate:
@@ -36,6 +36,8 @@ def _candidate(content: str) -> MemoryCandidate:
         content=content,
         sources=(source,),
         created_at=now,
+        principal_id=SPARKS_PRINCIPAL_ID,
+        audience_id=None,
     )
 
 
