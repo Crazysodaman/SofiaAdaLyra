@@ -7,6 +7,7 @@ from sofia.application.emotional_conversation import EmotionalConversationServic
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.personality.emotion import EmotionalJournal
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
 def _service(monkeypatch, tmp_path, *, personality=True):
@@ -75,3 +76,36 @@ def test_explicit_return_duration_reaches_reunion_appraisal(monkeypatch, tmp_pat
     event = service.emotional_journal.recent(now=reunion_at)[0]
     assert {"relief", "warmth", "fondness"} <= set(event.current_emotions)
     assert "anger" not in event.current_emotions
+
+
+def test_unbound_primary_emotion_scope_matches_authenticated_sparks_principal(tmp_path):
+    service = object.__new__(EmotionalConversationService)
+    service._runtime = SimpleNamespace(
+        personality=object(),
+        core_state=SimpleNamespace(
+            relationships=(SimpleNamespace(subject="Sparks"),),
+        ),
+    )
+    service._session = None
+    service._social_store = None
+    service._emotional_journal = EmotionalJournal(tmp_path / "state.db")
+
+    assert service._relationship_subject() == SPARKS_PRINCIPAL_ID
+    assert service.relationship_scope.principal_id == SPARKS_PRINCIPAL_ID
+
+    now = datetime.now(timezone.utc)
+    service.emotional_journal.record(
+        event_id="discord-shared-emotion",
+        source="observed",
+        evidence_ref="discord:test",
+        description="Authenticated Discord relationship state.",
+        emotions=("warmth",),
+        occurred_at=now,
+        subject=SPARKS_PRINCIPAL_ID,
+        scope=service.relationship_scope,
+    )
+
+    state = service.current_emotional_state(now=now)
+    assert "warmth" in {
+        item.emotion for item in state.active
+    }
