@@ -64,6 +64,13 @@ def _text_content(message: dict[str, Any]) -> str | None:
 
 
 @dataclass(frozen=True, slots=True)
+class ChatGPTExportAttachment:
+    asset_id: str
+    file_name: str | None
+    content_type: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ChatGPTExportMessage:
     source_id: str
     conversation_id: str
@@ -72,6 +79,7 @@ class ChatGPTExportMessage:
     content: str
     source_created_at: datetime | None
     position: int
+    attachments: tuple[ChatGPTExportAttachment, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +104,52 @@ class ChatGPTExportBatch:
     @property
     def message_count(self) -> int:
         return sum(len(item.messages) for item in self.conversations)
+
+    @property
+    def attachment_count(self) -> int:
+        return sum(
+            len(message.attachments)
+            for conversation in self.conversations
+            for message in conversation.messages
+        )
+
+
+def _attachments(
+    message: dict[str, Any],
+    *,
+    asset_names: dict[str, str],
+) -> tuple[ChatGPTExportAttachment, ...]:
+    content = message.get("content")
+    parts = content.get("parts") if isinstance(content, dict) else None
+    if not isinstance(parts, list):
+        return ()
+    result: list[ChatGPTExportAttachment] = []
+    seen: set[str] = set()
+    for part in parts:
+        if not isinstance(part, dict):
+            continue
+        pointer = part.get("asset_pointer")
+        if not isinstance(pointer, str) or not pointer.strip():
+            continue
+        asset_id = pointer.strip()
+        if asset_id.startswith("sediment://"):
+            asset_id = asset_id[len("sediment://"):]
+        if not asset_id or asset_id in seen:
+            continue
+        seen.add(asset_id)
+        raw_type = part.get("content_type")
+        result.append(
+            ChatGPTExportAttachment(
+                asset_id=asset_id,
+                file_name=asset_names.get(asset_id),
+                content_type=(
+                    raw_type.strip()
+                    if isinstance(raw_type, str) and raw_type.strip()
+                    else None
+                ),
+            )
+        )
+    return tuple(result)
 
 
 def _active_node_ids(conversation: dict[str, Any]) -> tuple[str, ...]:
@@ -124,6 +178,7 @@ def _conversation(
     raw: Any,
     *,
     digest: str,
+    asset_names: dict[str, str],
 ) -> ChatGPTExportConversation | None:
     if not isinstance(raw, dict):
         raise ValueError("ChatGPT export conversations must be objects")
@@ -167,6 +222,10 @@ def _conversation(
                 content=content,
                 source_created_at=_aware_utc(message.get("create_time")),
                 position=position,
+                attachments=_attachments(
+                    message,
+                    asset_names=asset_names,
+                ),
             )
         )
 
@@ -207,6 +266,25 @@ def parse_chatgpt_export_archive(
 
     with archive:
         names = set(archive.namelist())
+        asset_names: dict[str, str] = {}
+        if "conversation_asset_file_names.json" in names:
+            raw_asset_names = json.loads(
+                archive.read("conversation_asset_file_names.json").decode(
+                    "utf-8-sig"
+                )
+            )
+            if not isinstance(raw_asset_names, dict):
+                raise ValueError(
+                    "conversation_asset_file_names.json must be a JSON object"
+                )
+            asset_names = {
+                str(key): value
+                for key, value in raw_asset_names.items()
+                if isinstance(key, str)
+                and key.strip()
+                and isinstance(value, str)
+                and value.strip()
+            }
         if "export_manifest.json" not in names:
             raise ValueError("ChatGPT export manifest is missing")
         conversation_files = sorted(
@@ -239,7 +317,11 @@ def parse_chatgpt_export_archive(
                     ):
                         skipped_disabled += 1
                         continue
-                item = _conversation(raw, digest=digest)
+                item = _conversation(
+                    raw,
+                    digest=digest,
+                    asset_names=asset_names,
+                )
                 if item is None:
                     skipped += 1
                     continue
