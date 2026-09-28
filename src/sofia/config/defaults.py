@@ -33,6 +33,12 @@ def create_default_configuration() -> SofiaConfiguration:
         if value.strip()
     )
 
+    environment = environment_configuration_from_environ(os.environ)
+    environment_capabilities = (
+        *((("environment.nws.read",) if environment.nws_enabled else ())),
+        *((("environment.home_assistant.read",) if environment.home_assistant_enabled else ())),
+    )
+
     standing_capabilities=tuple(dict.fromkeys((
         "tool.catalog",
         "codebase.inspect",
@@ -72,6 +78,7 @@ def create_default_configuration() -> SofiaConfiguration:
         "sqlite.state.tables",
         "sqlite.state.query",
         "sqlite.state.integrity",
+        *environment_capabilities,
         *configured_capabilities,
     )))
 
@@ -92,5 +99,5 @@ def create_default_configuration() -> SofiaConfiguration:
         filesystem_root=repository_root,
         identity_bootstrap_mode=layout.identity_bootstrap_mode,
         standing_allowed_capabilities=standing_capabilities,
-        environment=environment_configuration_from_environ(os.environ),
+        environment=environment,
     )
