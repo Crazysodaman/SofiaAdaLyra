@@ -78,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
                     f"{export_batch.message_count} visible messages "
                     f"skipped_do_not_remember="
                     f"{export_batch.skipped_do_not_remember} "
+                    f"skipped_memory_disabled="
+                    f"{export_batch.skipped_memory_disabled} "
                     f"digest={export_batch.source_digest}"
                 )
                 return 0
