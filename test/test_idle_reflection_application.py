@@ -20,6 +20,39 @@ class FakeWorker:
         self.events.append("worker:stop")
 
 
+class FakeCoordinator:
+    def __init__(
+        self,
+        *,
+        service,
+        state_path,
+        reflection_enabled=True,
+        **_kwargs,
+    ):
+        self.idle = (
+            FakeWorker(service=service, state_path=state_path)
+            if reflection_enabled
+            else None
+        )
+
+    def set_act_delivery(self, _callback):
+        pass
+
+    def set_task(self, _task_kind, _callback, **_kwargs):
+        pass
+
+    def set_heartbeat(self, _callback):
+        pass
+
+    def start(self):
+        if self.idle is not None:
+            self.idle.start()
+
+    def stop(self):
+        if self.idle is not None:
+            self.idle.stop()
+
+
 def _application(monkeypatch, tmp_path, *, personality=True):
     events = []
     runtime = SimpleNamespace(
@@ -69,9 +102,14 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     app._runtime = runtime
     app._configuration = SimpleNamespace(state_path=tmp_path / "state.db")
     app._conversation_service = conversation
+    app._channel_conversations = []
     app._idle_worker = None
     monkeypatch.setattr(bootstrap, "EmotionalConversationService", SimpleNamespace)
-    monkeypatch.setattr(bootstrap, "IdleReflectionWorker", FakeWorker)
+    monkeypatch.setattr(
+        bootstrap,
+        "ApplicationBackgroundCoordinator",
+        FakeCoordinator,
+    )
     return app, events
 
 
