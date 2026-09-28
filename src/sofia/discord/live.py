@@ -52,6 +52,7 @@ class ComposedDiscordChannel:
     inbox: DiscordInboxStore
     bindings: DiscordBindingStore
     deliveries: DiscordDeliveryStore
+    state_path: object
     recovered_generation_claims: int
     recovered_delivery_claims: int
 
@@ -171,6 +172,7 @@ def compose_live_discord_for_conversation(
         inbox=inbox,
         bindings=bindings,
         deliveries=deliveries,
+        state_path=config.state_path,
         recovered_generation_claims=recovered_generation,
         recovered_delivery_claims=recovered_delivery,
     )
@@ -205,6 +207,7 @@ class DiscordBackgroundService:
         self._loop_ready = Event()
         self._stop_requested = Event()
         self._error: Exception | None = None
+        self._process_lock = DiscordProcessLock(channel.state_path)
 
     @property
     def error(self) -> Exception | None:
@@ -218,20 +221,29 @@ class DiscordBackgroundService:
         if self._thread is not None:
             raise RuntimeError("Discord background service already started")
         token = self._provisioning.require_token()
-        self._client = self._client_factory(self._channel.runtime)
-        self._thread = Thread(
-            target=self._run,
-            args=(token,),
-            name="sofia-discord",
-            daemon=True,
-        )
-        self._thread.start()
-        if not self._loop_ready.wait(timeout=5.0):
-            raise RuntimeError("Discord background event loop did not start")
-        if self._error is not None:
-            raise RuntimeError(
-                f"Discord background startup failed: {self._error}"
-            ) from self._error
+        self._process_lock.acquire()
+        try:
+            self._client = self._client_factory(self._channel.runtime)
+            self._thread = Thread(
+                target=self._run,
+                args=(token,),
+                name="sofia-discord",
+                daemon=True,
+            )
+            self._thread.start()
+            if not self._loop_ready.wait(timeout=5.0):
+                raise RuntimeError(
+                    "Discord background event loop did not start"
+                )
+            if self._error is not None:
+                raise RuntimeError(
+                    f"Discord background startup failed: {self._error}"
+                ) from self._error
+        except Exception:
+            self._process_lock.release()
+            self._thread = None
+            self._client = None
+            raise
 
     def _run(self, token: str) -> None:
         loop = asyncio.new_event_loop()
@@ -294,6 +306,7 @@ class DiscordBackgroundService:
             )
         self._thread = None
         self._client = None
+        self._process_lock.release()
 
 
 @dataclass(slots=True)
