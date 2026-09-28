@@ -47,7 +47,9 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
     monkeypatch.setenv("SOFIA_ACT_QUIET_END_LOCAL", "8")
     monkeypatch.setenv("SOFIA_ACT_MAX_DAILY", "2")
 
-    service = SofiaActService(tmp_path / "state.db")
+    state_path = tmp_path / "state.db"
+    state_path.touch()
+    service = SofiaActService(state_path)
     assert act_runtime.configure_act_delivery_from_environment(service) is True
     assert service.delivery_enabled is True
 
