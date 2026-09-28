@@ -189,3 +189,37 @@ def test_start_failure_is_exposed_as_application_error(
         application.start()
 
     assert application.runtime.state is RuntimeState.FAILED
+
+def test_start_refreshes_environment_before_live_context(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    service = application.runtime.environment_service
+    original_snapshot = service.snapshot
+    refresh_flags: list[bool] = []
+
+    def recording_snapshot(*, now=None, refresh_providers=True):
+        refresh_flags.append(refresh_providers)
+        return original_snapshot(
+            now=now,
+            refresh_providers=refresh_providers,
+        )
+
+    monkeypatch.setattr(
+        service,
+        "snapshot",
+        recording_snapshot,
+    )
+
+    application.start()
+
+    assert refresh_flags[:2] == [True, True]
+
+    application.shutdown()
