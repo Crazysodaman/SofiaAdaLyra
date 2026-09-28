@@ -18,6 +18,7 @@ from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.retrieval_projection import SourceMessage
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.social.principals import local_sparks_principal
 
 
 def _candidate(content: str) -> MemoryCandidate:
@@ -86,8 +87,13 @@ def test_reviewed_memory_path_ignores_matching_legacy_rows(
     candidate_store.promote(promoted.candidate_id)
     candidate_store.propose(draft)
 
-    result = system.recall_relevant(
+    assert system.recall_relevant(
         "model trains"
+    ) == ()
+
+    result = system.recall_relevant(
+        "model trains",
+        principal=local_sparks_principal(),
     )
 
     assert result == (
@@ -277,7 +283,8 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
                     content="Tell me about model trains.",
                 ),
             )
-        )
+        ),
+        principal=local_sparks_principal(),
     )
 
     assert recorder.last_request is not None
@@ -287,5 +294,59 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
     )
     assert candidate.content in assembled
     assert "Legacy model trains memory" not in assembled
+
+    runtime.shutdown()
+
+
+def test_runtime_unbound_request_cannot_see_principal_scoped_promoted_memory(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    now = datetime.now(timezone.utc)
+    source = SourceMessage(
+        message_id=str(uuid4()),
+        session_id="session-private",
+        role="user",
+        content="private source evidence",
+        created_at=now,
+        position=0,
+    )
+    candidate = MemoryCandidate(
+        candidate_id=uuid4(),
+        content="Sparks private model train preference.",
+        sources=(source,),
+        created_at=now,
+        principal_id=local_sparks_principal().principal_id,
+        audience_id=None,
+    )
+    candidate_store = runtime.memory_system.candidate_store
+    assert candidate_store is not None
+    candidate_store.propose(candidate)
+    candidate_store.promote(candidate.candidate_id)
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+    runtime.start()
+
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Tell me about the private model train preference.",
+                ),
+            )
+        )
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert candidate.content not in assembled
 
     runtime.shutdown()
