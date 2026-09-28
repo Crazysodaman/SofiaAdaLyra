@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import logging
+from pathlib import Path
 import sys
 from threading import Event, Thread
 from typing import Callable, Protocol
@@ -52,7 +53,7 @@ class ComposedDiscordChannel:
     inbox: DiscordInboxStore
     bindings: DiscordBindingStore
     deliveries: DiscordDeliveryStore
-    state_path: object
+    state_path: Path | str
     recovered_generation_claims: int
     recovered_delivery_claims: int
 
