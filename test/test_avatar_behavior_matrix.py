@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from sofia.avatar.influence import wardrobe_emotion_influences
+from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_routine import (
     Activity, OutfitPlanner, Season, WardrobeContext, Weather, WeatherObservation,
@@ -97,3 +100,44 @@ def test_grounded_fondness_can_nudge_lounge_without_overriding_activity():
     assert conversation.outfit_id == "lounge.relaxed"
     assert "modeled_emotion_influence" in conversation.reasons
     assert engineering.outfit_id == "engineer.signature"
+
+
+
+def test_season_is_a_hard_compatibility_constraint_not_an_emotion_score():
+    catalog = build_starter_wardrobe()
+    spring_only = (
+        catalog.preset("seasonal.spring.normal.01"),
+    )
+    planner = OutfitPlanner(catalog.wardrobe, spring_only)
+
+    with pytest.raises(WardrobeError, match="season"):
+        planner.suggest(
+            WardrobeContext(
+                DAY,
+                Season.WINTER,
+                Activity.CONVERSATION,
+                emotion_influences=wardrobe_emotion_influences(
+                    influence("fondness", 1.0)
+                ),
+            )
+        )
+
+
+def test_private_outfits_are_never_automatic_even_at_night_with_emotion():
+    catalog = build_starter_wardrobe()
+    result = OutfitPlanner(
+        catalog.wardrobe,
+        catalog.presets,
+    ).suggest(
+        WardrobeContext(
+            NIGHT,
+            Season.WINTER,
+            Activity.CONVERSATION,
+            emotion_influences=wardrobe_emotion_influences(
+                influence("fondness", 1.0)
+            ),
+        )
+    )
+    selected = catalog.preset(result.outfit_id)
+    assert selected.private_only is False
+    assert not catalog.wardrobe.selection(selected.item_ids).private_only

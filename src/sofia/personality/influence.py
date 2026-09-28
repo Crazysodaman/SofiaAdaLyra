@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable
 
-from sofia.environment.model import EnvironmentSnapshot
+from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
 from sofia.personality.emotion import CurrentEmotionalState
 
 
@@ -58,15 +58,20 @@ class ContinuityInfluence:
             if environment is None or environment.daylight is None
             else environment.daylight.state.value
         )
+        weather_is_current = (
+            environment is not None
+            and environment.weather is not None
+            and environment.weather_freshness is EnvironmentFreshness.CURRENT
+        )
         weather_condition = (
-            None
-            if environment is None or environment.weather is None
-            else environment.weather.condition
+            environment.weather.condition
+            if weather_is_current
+            else None
         )
         temperature_c = (
-            None
-            if environment is None or environment.weather is None
-            else environment.weather.temperature_c
+            environment.weather.temperature_c
+            if weather_is_current
+            else None
         )
         weather_freshness = (
             None

@@ -7,8 +7,10 @@ emotion, renderer evidence or action authority.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+import pytest
 from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
@@ -21,12 +23,13 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
-from sofia.environment.model import WeatherObservation
+from sofia.environment.astronomy import season_for
+from sofia.environment.model import EnvironmentFreshness, Season, WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.personality.emotion import EmotionalJournal
-from sofia.personality.influence import ContinuityInfluence
+from sofia.personality.influence import ContinuityInfluence, daypart
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -162,8 +165,11 @@ def test_stale_weather_cannot_influence_avatar_or_wardrobe(tmp_path):
         environment=snapshot,
     )
 
-    assert influence.weather_condition == "rainy"
+    assert influence.weather_condition is None
+    assert influence.temperature_c is None
     assert influence.weather_freshness == "stale"
+    assert "Weather condition: unknown" in influence.prompt()
+    assert "Weather freshness: stale" in influence.prompt()
 
     catalog, authority = presentation_authority()
     avatar = propose_avatar_influence(
@@ -238,3 +244,90 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     assert "user desire" in lowered
     assert request.tools == ()
     assert request.allow_tools is False
+
+
+
+@pytest.mark.parametrize(
+    ("hour", "expected"),
+    (
+        (0, "night"),
+        (4, "night"),
+        (5, "morning"),
+        (11, "morning"),
+        (12, "afternoon"),
+        (16, "afternoon"),
+        (17, "evening"),
+        (21, "evening"),
+        (22, "night"),
+        (23, "night"),
+    ),
+)
+def test_daypart_boundary_matrix(hour, expected):
+    assert daypart(NOW.replace(hour=hour)) == expected
+
+
+@pytest.mark.parametrize(
+    ("day", "expected"),
+    (
+        (date(2026, 1, 15), Season.WINTER),
+        (date(2026, 4, 15), Season.SPRING),
+        (date(2026, 7, 15), Season.SUMMER),
+        (date(2026, 10, 15), Season.AUTUMN),
+    ),
+)
+def test_northern_season_matrix(day, expected):
+    assert season_for(day=day, latitude=32.5) is expected
+
+
+@pytest.mark.parametrize(
+    ("day", "expected"),
+    (
+        (date(2026, 1, 15), Season.SUMMER),
+        (date(2026, 4, 15), Season.AUTUMN),
+        (date(2026, 7, 15), Season.WINTER),
+        (date(2026, 10, 15), Season.SPRING),
+    ),
+)
+def test_southern_hemisphere_inverts_season_matrix(day, expected):
+    assert season_for(day=day, latitude=-33.9) is expected
+
+
+def test_future_weather_is_diagnostic_only_and_cannot_influence_shared_context(
+    tmp_path,
+):
+    future = WeatherObservation(
+        condition="stormy",
+        observed_at=NOW + timedelta(minutes=10),
+        expires_at=NOW + timedelta(minutes=40),
+        source_id="matrix.future-weather",
+        location_label="Matrix site",
+        temperature_c=8.0,
+    )
+    config = EnvironmentConfiguration(
+        location=ConfiguredLocation(
+            label="Matrix site",
+            timezone="America/Chicago",
+            latitude=32.5,
+            longitude=-97.1,
+        )
+    )
+    snapshot = EnvironmentService(
+        config,
+        providers=(Provider(future),),
+    ).snapshot(now=NOW)
+    assert snapshot.weather_freshness is EnvironmentFreshness.FUTURE
+
+    _, state = modeled_state(tmp_path)
+    influence = ContinuityInfluence.from_state(
+        emotion=state,
+        environment=snapshot,
+    )
+    assert influence.weather_condition is None
+    assert influence.temperature_c is None
+    assert influence.weather_freshness == "future"
+
+    host = HostEnvironmentEvidence.from_environment_snapshot(
+        snapshot,
+        activity=Activity.CONVERSATION,
+    )
+    assert host.weather is None

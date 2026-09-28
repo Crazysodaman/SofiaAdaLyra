@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
 from sofia.environment.model import WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
-from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.emotion import EmotionalJournal, ReturnExpectation
 from sofia.personality.influence import ContinuityInfluence
 
 
@@ -167,3 +169,142 @@ def test_sexuality_dimensions_remain_independent_modeled_state_not_consent(tmp_p
     assert {"sexual-attraction", "sexual-desire", "sexual-arousal", "affection"} <= names
     assert "rather than a single sexual mode" in prompt
     assert "never equate any of them with consent" in prompt
+
+
+
+def test_repeated_source_backed_evidence_reinforces_without_unbounded_intensity(
+    tmp_path,
+):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="reinforce-1",
+        source="user_reported",
+        evidence_ref="message-1",
+        description="Reviewed evidence supports fondness.",
+        emotions=("fondness",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    first = next(
+        item
+        for item in journal.current_state(now=NOW, subject="Sparks").active
+        if item.name == "fondness"
+    )
+
+    journal.record(
+        event_id="reinforce-2",
+        source="user_reported",
+        evidence_ref="message-2",
+        description="Separate reviewed evidence also supports fondness.",
+        emotions=("fondness",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    reinforced = next(
+        item
+        for item in journal.current_state(now=NOW, subject="Sparks").active
+        if item.name == "fondness"
+    )
+
+    assert reinforced.intensity > first.intensity
+    assert reinforced.intensity <= 1.0
+    assert reinforced.evidence_refs == ("message-2", "message-1") or set(
+        reinforced.evidence_refs
+    ) == {"message-1", "message-2"}
+
+
+def test_reappraisal_changes_current_state_without_rewriting_original_evidence(
+    tmp_path,
+):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="revision-1",
+        source="observed",
+        evidence_ref="test-result-1",
+        description="A result initially supported frustration.",
+        emotions=("frustration",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    journal.revise(
+        event_id="revision-1",
+        emotions=("relief",),
+        reason="Later reviewed evidence showed the result was expected.",
+        revised_at=NOW + timedelta(minutes=1),
+    )
+
+    event = journal.recent(
+        now=NOW + timedelta(minutes=2),
+        subject="Sparks",
+    )[0]
+    assert event.original_emotions == ("frustration",)
+    assert event.current_emotions == ("relief",)
+    assert event.revision_count == 1
+
+    names = {
+        item.name
+        for item in journal.current_state(
+            now=NOW + timedelta(minutes=2),
+            subject="Sparks",
+        ).active
+    }
+    assert "relief" in names
+    assert "frustration" not in names
+
+
+@pytest.mark.parametrize(
+    ("gap", "required", "forbidden"),
+    (
+        (
+            timedelta(hours=2),
+            {"fondness", "warmth", "anticipation"},
+            {"sadness", "frustration", "anger"},
+        ),
+        (
+            timedelta(hours=24),
+            {"longing", "fondness", "warmth"},
+            {"frustration", "anger"},
+        ),
+        (
+            timedelta(days=4),
+            {"longing", "sadness", "fondness", "relief"},
+            {"frustration", "anger"},
+        ),
+        (
+            timedelta(days=8),
+            {"longing", "sadness", "fondness", "relief"},
+            {"frustration", "anger"},
+        ),
+    ),
+)
+def test_absence_duration_changes_reunion_appraisal_without_inventing_blame(
+    gap,
+    required,
+    forbidden,
+):
+    appraisal = EmotionalJournal.appraise_reunion(
+        gap=gap,
+        returned_at=NOW,
+        expectation=None,
+    )
+    labels = set(appraisal.emotions)
+    assert required <= labels
+    assert not labels.intersection(forbidden)
+
+
+def test_explicit_late_return_expectation_can_support_frustration_and_anger():
+    expectation = ReturnExpectation(
+        subject="Sparks",
+        source_ref="return-expectation-1",
+        recorded_at=NOW - timedelta(days=8),
+        expected_return_at=NOW - timedelta(days=4),
+    )
+    appraisal = EmotionalJournal.appraise_reunion(
+        gap=timedelta(days=8),
+        returned_at=NOW,
+        expectation=expectation,
+    )
+    assert {"longing", "sadness", "frustration", "anger", "relief"} <= set(
+        appraisal.emotions
+    )
+    assert appraisal.expectation_source_ref == "return-expectation-1"

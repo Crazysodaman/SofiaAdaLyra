@@ -319,10 +319,16 @@ class OutfitPlanner:
         key = period_key(context.now, cadence)
         compatible = [
             (plan, outfit) for plan, outfit in self._plans.values()
-            if context.activity in plan.activities
+            if (
+                context.activity in plan.activities
+                and context.season in plan.seasons
+            )
         ]
         if not compatible:
-            raise WardrobeError("no activity-compatible covered outfit; host must use verified fallback")
+            raise WardrobeError(
+                "no activity-and-season-compatible covered outfit; "
+                "host must use verified fallback"
+            )
         recent = tuple(sorted((w for w in worn if timedelta(0) <= (
             context.now.astimezone(timezone.utc) - w.occurred_at.astimezone(timezone.utc)
         ) <= timedelta(days=90)), key=lambda w: (w.occurred_at.astimezone(timezone.utc), w.renderer_receipt_id)))
