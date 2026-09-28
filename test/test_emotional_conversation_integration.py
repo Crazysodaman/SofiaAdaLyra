@@ -107,5 +107,5 @@ def test_unbound_primary_emotion_scope_matches_authenticated_sparks_principal(tm
 
     state = service.current_emotional_state(now=now)
     assert "warmth" in {
-        item.emotion for item in state.active
+        item.name for item in state.active
     }
