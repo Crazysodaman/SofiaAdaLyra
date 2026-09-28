@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -112,7 +113,7 @@ def read_evolved_preference(
                 )
             )
 
-    with sqlite3.connect(state, timeout=5) as db:
+    with closing(sqlite3.connect(state, timeout=5)) as db:
         exists = db.execute(
             """
             SELECT 1 FROM sqlite_master
