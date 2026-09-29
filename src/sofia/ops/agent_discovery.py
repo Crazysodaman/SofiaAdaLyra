@@ -7,9 +7,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from http.client import HTTPSConnection
+import ipaddress
 import json
 import os
+import socket
 from pathlib import Path
 import ssl
 from typing import Iterable
@@ -183,6 +186,105 @@ class MtlsAgentDiscoverySource:
         return tuple(observations)
 
 
+class ScopedMtlsAgentDiscoverySource:
+    """Discover Fleet agents only inside explicitly configured network scopes."""
+
+    def __init__(
+        self,
+        *,
+        explicit_targets: tuple[AgentDiscoveryTarget, ...],
+        scopes: tuple[str, ...],
+        ca_file: Path | str,
+        client_certificate: Path | str,
+        client_private_key: Path | str,
+        agent_port: int = 7443,
+        max_hosts_per_scope: int = 256,
+        connect_timeout_seconds: float = 0.2,
+        mtls_timeout_seconds: float = 2.0,
+    ) -> None:
+        if not isinstance(explicit_targets, tuple):
+            raise TypeError("explicit_targets must be a tuple")
+        if not isinstance(scopes, tuple):
+            raise TypeError("scopes must be a tuple")
+        if type(agent_port) is not int or not 1 <= agent_port <= 65535:
+            raise ValueError("agent_port must be in 1..65535")
+        if (
+            type(max_hosts_per_scope) is not int
+            or not 1 <= max_hosts_per_scope <= 1024
+        ):
+            raise ValueError("max_hosts_per_scope must be in 1..1024")
+        if connect_timeout_seconds <= 0 or mtls_timeout_seconds <= 0:
+            raise ValueError("discovery timeouts must be positive")
+        self.explicit_targets = explicit_targets
+        self.scopes = scopes
+        self.ca_file = Path(ca_file)
+        self.client_certificate = Path(client_certificate)
+        self.client_private_key = Path(client_private_key)
+        self.agent_port = agent_port
+        self.max_hosts_per_scope = max_hosts_per_scope
+        self.connect_timeout_seconds = float(connect_timeout_seconds)
+        self.mtls_timeout_seconds = float(mtls_timeout_seconds)
+
+    def _scope_addresses(self) -> tuple[str, ...]:
+        addresses: list[str] = []
+        for raw in self.scopes:
+            try:
+                network = ipaddress.ip_network(raw, strict=False)
+            except ValueError as exc:
+                raise ValueError(
+                    f"invalid Fleet discovery scope: {raw}"
+                ) from exc
+            hosts = tuple(str(value) for value in network.hosts())
+            if len(hosts) > self.max_hosts_per_scope:
+                raise ValueError(
+                    "Fleet discovery scope exceeds max_hosts_per_scope: "
+                    f"{raw} has {len(hosts)} hosts"
+                )
+            addresses.extend(hosts)
+        return tuple(dict.fromkeys(addresses))
+
+    def _reachable(self, address: str) -> AgentDiscoveryTarget | None:
+        try:
+            with socket.create_connection(
+                (address, self.agent_port),
+                timeout=self.connect_timeout_seconds,
+            ):
+                pass
+        except OSError:
+            return None
+        try:
+            hostname = socket.gethostbyaddr(address)[0]
+        except (OSError, socket.herror):
+            hostname = address
+        return AgentDiscoveryTarget(
+            hostname=hostname,
+            port=self.agent_port,
+            inside_approved_scope=True,
+        )
+
+    def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
+        candidates = list(self.explicit_targets)
+        addresses = self._scope_addresses()
+        if addresses:
+            workers = min(32, len(addresses))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                for target in pool.map(self._reachable, addresses):
+                    if target is not None:
+                        candidates.append(target)
+        unique = {
+            (target.hostname.casefold(), target.port): target
+            for target in candidates
+        }
+        source = MtlsAgentDiscoverySource(
+            tuple(unique.values()),
+            ca_file=self.ca_file,
+            client_certificate=self.client_certificate,
+            client_private_key=self.client_private_key,
+            timeout_seconds=self.mtls_timeout_seconds,
+        )
+        return source.discover()
+
+
 def _parse_discovery_target(value: str) -> AgentDiscoveryTarget:
     raw = value.strip()
     if not raw:
@@ -210,9 +312,10 @@ def create_configured_fleet_discovery_source(configuration):
     policy = configuration.fleet_discovery
     if not policy.enabled:
         return None
-    if not policy.targets:
+    if not policy.targets and not policy.scopes:
         raise ValueError(
-            "Fleet discovery is enabled but no approved targets are configured"
+            "Fleet discovery is enabled but no approved targets or scopes "
+            "are configured"
         )
     values = {
         "ca": os.environ.get("SOFIA_REMOTE_CA", "").strip(),
@@ -224,9 +327,14 @@ def create_configured_fleet_discovery_source(configuration):
             "Fleet discovery requires SOFIA_REMOTE_CA, "
             "SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY"
         )
-    return MtlsAgentDiscoverySource(
-        tuple(_parse_discovery_target(value) for value in policy.targets),
+    return ScopedMtlsAgentDiscoverySource(
+        explicit_targets=tuple(
+            _parse_discovery_target(value)
+            for value in policy.targets
+        ),
+        scopes=policy.scopes,
         ca_file=Path(values["ca"]),
         client_certificate=Path(values["cert"]),
         client_private_key=Path(values["key"]),
+        max_hosts_per_scope=policy.max_hosts_per_scope,
     )
