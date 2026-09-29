@@ -96,6 +96,13 @@ class EnvironmentQueryResolver:
             "what is the weather like",
             "what's the weather right now",
             "what is the weather right now",
+            "what's the weather today",
+            "what is the weather today",
+            "how's the weather today",
+            "how is the weather today",
+            "today's weather",
+            "todays weather",
+            "weather today",
             "how's the weather",
             "how is the weather",
         }
