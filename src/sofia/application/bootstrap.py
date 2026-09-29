@@ -582,7 +582,11 @@ class SofiaApplication:
                 self._background = coordinator
                 self._idle_worker = coordinator.idle
 
-            model_lifecycle = self._runtime.model_lifecycle
+            model_lifecycle = getattr(
+                self._runtime,
+                "model_lifecycle",
+                None,
+            )
             if (
                 model_lifecycle is not None
                 and model_lifecycle.policy.enabled

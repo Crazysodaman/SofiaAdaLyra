@@ -55,7 +55,7 @@ def _inference_models(value: Any) -> tuple[str, ...]:
             for item in value.split(",")
             if item.strip()
         )
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         result = []
         for item in value:
             if not isinstance(item, str) or not item.strip():
