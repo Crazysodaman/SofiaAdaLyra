@@ -497,6 +497,7 @@ def compose(
         "remote.vm.get",
         "remote.container.list",
         "remote.container.get",
+        "remote.ollama.inference_policy",
         "remote.ollama.models",
         "remote.ollama.running",
         "remote.ollama.show",
