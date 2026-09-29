@@ -56,7 +56,7 @@ def test_tray_has_separate_llm_runtime_game_and_settings_controls():
                 runtime_state="running",
                 llm_host="artemis",
                 llm_state="running",
-                llm_model="qwen3:14b",
+                llm_model="owner-primary:model",
                 game_mode=GameMode.AUTO,
                 fleet_total=5,
                 fleet_healthy=5,
@@ -69,7 +69,7 @@ def test_tray_has_separate_llm_runtime_game_and_settings_controls():
     assert TrayCommand.LLM_STOP in menu
     assert TrayCommand.RUNTIME_STOP in menu
     assert TrayCommand.OPEN_SETTINGS in menu
-    assert menu[TrayCommand.LLM_STOP] == "Stop qwen3:14b"
+    assert menu[TrayCommand.LLM_STOP] == "Stop LLM service"
 
 
 def test_master_settings_has_expected_command_center_sections():
@@ -87,7 +87,7 @@ def _tray_status(*, runtime_state="running", llm_state="running"):
         runtime_state=runtime_state,
         llm_host="venus" if llm_state == "running" else None,
         llm_state=llm_state,
-        llm_model="qwen3:14b",
+        llm_model="owner-primary:model",
         game_mode=GameMode.AUTO,
         fleet_total=1,
         fleet_healthy=1,
@@ -121,3 +121,30 @@ def test_missing_ollama_service_disables_service_actions_but_not_unload():
     assert tray_command_enabled(TrayCommand.LLM_STOP, missing) is False
     assert tray_command_enabled(TrayCommand.LLM_RESTART, missing) is False
     assert tray_command_enabled(TrayCommand.LLM_UNLOAD_MODEL, missing) is True
+
+
+
+def test_tray_status_reports_arbitrary_dual_model_roles_without_name_logic():
+    status = TrayStatus(
+        runtime_host="venus",
+        runtime_state="running",
+        llm_host="venus",
+        llm_state="running",
+        llm_model="owner-primary:anything",
+        game_mode=GameMode.AUTO,
+        fleet_total=1,
+        fleet_healthy=1,
+        fleet_attention=0,
+        llm_secondary_model="owner-secondary:anything",
+        cognitive_routing_enabled=True,
+    )
+
+    assert status.configured_llm_models == (
+        "owner-primary:anything",
+        "owner-secondary:anything",
+    )
+    menu = dict(tray_menu_labels(status))
+    assert (
+        menu[TrayCommand.LLM_UNLOAD_MODEL]
+        == "Unload 2 configured models"
+    )
