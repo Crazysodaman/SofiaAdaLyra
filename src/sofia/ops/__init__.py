@@ -17,7 +17,9 @@ from .recovery import BackupEvidence,HostUpdateAssignment,RecoveryDenied,Recover
 from .activity import ActivityMode,HostActivityObservation,HostActivityState,HostActivityStore,detect_windows_game
 from .agent_discovery import (
     AgentDiscoveryTarget,
+    CombinedFleetDiscoverySource,
     MtlsAgentDiscoverySource,
+    ScopedHostPresenceDiscoverySource,
     ScopedMtlsAgentDiscoverySource,
 )
 from .discovery import (
@@ -50,7 +52,8 @@ __all__=[
     "HostActivityState","HostActivityStore","detect_windows_game","AgentPackage","AgentInstaller",
     "BootstrapCandidate","BootstrapDisposition","BootstrapPlan","FleetBootstrapExecutor",
     "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
-    "AgentDiscoveryTarget","MtlsAgentDiscoverySource",
+    "AgentDiscoveryTarget","CombinedFleetDiscoverySource",
+    "MtlsAgentDiscoverySource","ScopedHostPresenceDiscoverySource",
     "ScopedMtlsAgentDiscoverySource",
     "FleetDiscoveryBootstrapCoordinator","FleetDiscoveryBootstrapResult",
     "FleetDiscoveryCoordinator","FleetDiscoveryEvidence",
