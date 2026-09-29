@@ -660,6 +660,21 @@ class SofiaRuntime:
                 )
 
         user_content = self._latest_user_content(request)
+        environment_query = user_content
+        if (
+            user_content
+            and self._environment_query_resolver.is_generic_source_followup(
+                user_content
+            )
+        ):
+            previous_user_content = self._previous_user_content(request)
+            if (
+                previous_user_content
+                and self._environment_query_resolver.is_weather_or_forecast_query(
+                    previous_user_content
+                )
+            ):
+                environment_query = "what is your weather source"
 
         presentation = self.avatar_projection_for(
             principal=principal,
@@ -690,9 +705,9 @@ class SofiaRuntime:
         )
         if (
             environment_service is not None
-            and user_content
+            and environment_query
             and self._environment_query_resolver.might_match(
-                user_content
+                environment_query
             )
         ):
             environment_snapshot = (
@@ -702,7 +717,7 @@ class SofiaRuntime:
             )
             environment_answer = (
                 self._environment_query_resolver.resolve(
-                    user_content,
+                    environment_query,
                     snapshot=environment_snapshot,
                 )
             )
@@ -931,6 +946,20 @@ class SofiaRuntime:
             root=self._configuration.filesystem_root,
             authorized=False,
         )
+
+    @staticmethod
+    def _previous_user_content(
+        request: CognitiveRequest,
+    ) -> str:
+        seen_latest = False
+        for message in reversed(request.messages):
+            if message.role.value != "user":
+                continue
+            if not seen_latest:
+                seen_latest = True
+                continue
+            return message.content
+        return ""
 
     @staticmethod
     def _latest_user_content(
