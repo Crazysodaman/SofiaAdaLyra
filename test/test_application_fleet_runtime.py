@@ -75,3 +75,20 @@ def test_invalid_fleet_bootstrap_protocol_rejected_early():
         FleetBootstrapConfiguration(
             protocol_version="banana",
         )
+
+
+def test_background_bootstrap_rejects_reusable_operator_approval(tmp_path):
+    configuration = SimpleNamespace(
+        fleet_bootstrap=FleetBootstrapConfiguration(
+            enabled=True,
+            authority="operator_approved",
+            package_sha256="a" * 64,
+            package_source="approved-wheel",
+        )
+    )
+
+    with pytest.raises(ValueError, match="cannot be configured"):
+        create_fleet_bootstrap_coordinator(
+            configuration=configuration,
+            act_service=_act(tmp_path),
+        )
