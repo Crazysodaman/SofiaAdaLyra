@@ -109,7 +109,7 @@ def test_runtime_provisioning_loads_saved_ids_and_protected_token(
 
     monkeypatch.setattr(
         "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
-        lambda path: Secrets(),
+        staticmethod(lambda path: Secrets()),
     )
 
     provisioning = DiscordProvisioning.from_runtime(
