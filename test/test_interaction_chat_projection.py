@@ -128,3 +128,17 @@ def test_real_exposed_tool_surface_is_preserved(monkeypatch):
 
     assert result is original
     assert result.tools == (tool,)
+
+
+def test_interaction_prompt_rejects_ungrounded_relationship_and_sensation_language(
+    monkeypatch,
+):
+    service, _ = _service(monkeypatch, "*pats your head*")
+
+    result = service._build_request()
+
+    prompt = result.messages[0].content
+    assert "Do not say the gesture 'feels good'" in prompt
+    assert "Do not invent relationship titles" in prompt
+    assert "Do not pivot a simple gesture into a diagnostic/work menu" in prompt
+    assert "prefer a short natural response" in prompt
