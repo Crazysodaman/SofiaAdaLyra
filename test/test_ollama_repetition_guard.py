@@ -125,3 +125,52 @@ def test_provider_does_not_retry_empty_history_or_quoted_short_text():
     request = CognitiveRequest(messages=(_message(CognitiveRole.USER, 'Hello'),))
     assert not is_near_duplicate_reply(request, CognitiveResponse(content=_COPY))
     assert not is_near_duplicate_reply(_request(), CognitiveResponse(content='Sure.'))
+
+
+
+def test_hru_generic_assistant_fallback_is_repaired():
+    bad = (
+        "I'm settled and ready to help you with whatever you need. "
+        "How can I assist you today?"
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: neutral",
+        ),
+        _message(CognitiveRole.USER, "hru"),
+    ))
+    client = _Client(bad, bad)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == "I'm feeling pretty settled right now."
+    assert len(client.calls) == 2
+    assert "How can I assist you" not in response.content
+
+
+def test_generic_meaningful_conversation_deflection_is_repaired():
+    bad = (
+        "I appreciate the gesture, but I'm here to have a meaningful "
+        "conversation. How can I assist you today?"
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "TRUSTED INTERACTION INTERPRETATION\n"
+                '{"region_id": "head", "gesture": "pat", '
+                '"interaction_preference_evidence": "unspecified", '
+                '"willingness_state": "undetermined"}'
+            ),
+        ),
+        _message(CognitiveRole.USER, "pats your head"),
+    ))
+    client = _Client(bad, bad)
+
+    response = _provider(client).respond(request)
+
+    assert "meaningful conversation" not in response.content.casefold()
+    assert "How can I assist you" not in response.content
+    assert "represented interaction" in response.content
+    assert len(client.calls) == 2
