@@ -107,6 +107,8 @@ class MtlsAgentDiscoverySource:
                 trusted_bootstrap_available=target.trusted_bootstrap_available,
                 observed_endpoint_hostname=target.hostname,
                 observed_endpoint_port=target.port,
+                capabilities_verified=True,
+                capability_names=tuple(sorted(set(capability_names))),
             )
 
         connection = HTTPSConnection(
@@ -156,6 +158,57 @@ class MtlsAgentDiscoverySource:
             except (KeyError, TypeError, ValueError):
                 return None
             if not name or not protocol.compatible_with(self.required_protocol):
+                return None
+
+            connection.request(
+                "GET",
+                "/v1/capabilities",
+                headers={"Accept": "application/json"},
+            )
+            capability_response = connection.getresponse()
+            capability_raw = capability_response.read()
+            if capability_response.status != 200:
+                return None
+            try:
+                capability_payload = json.loads(
+                    capability_raw.decode("utf-8")
+                )
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return None
+            if not isinstance(capability_payload, dict):
+                return None
+            try:
+                if capability_payload.get("node_id") != str(node_id):
+                    return None
+                capability_protocol = FleetProtocolVersion.parse(
+                    str(capability_payload["protocol_version"])
+                )
+                if not capability_protocol.compatible_with(
+                    self.required_protocol
+                ):
+                    return None
+                raw_capabilities = capability_payload["capabilities"]
+                if not isinstance(raw_capabilities, list) or not raw_capabilities:
+                    return None
+                capability_names = []
+                for item in raw_capabilities:
+                    if not isinstance(item, dict):
+                        return None
+                    capability_name = str(item["name"]).strip()
+                    operations = item["operations"]
+                    if (
+                        not capability_name
+                        or not isinstance(operations, list)
+                        or not operations
+                        or any(
+                            not isinstance(operation, str)
+                            or not operation.strip()
+                            for operation in operations
+                        )
+                    ):
+                        return None
+                    capability_names.append(capability_name)
+            except (KeyError, TypeError, ValueError):
                 return None
             return FleetDiscoveryEvidence(
                 host_id=name,
