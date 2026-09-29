@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 
 from sofia.config.model import (
+    CognitiveRoutingConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -13,6 +14,83 @@ from sofia.config.user_settings import RuntimeUserSettingsStore
 
 def _repository_root() -> Path:
     return Path(__file__).resolve().parents[3]
+
+
+def _environment_flag(name: str, *, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().casefold()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean flag")
+
+
+def _positive_environment_int(name: str, *, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+    return value
+
+
+def _routing_configuration_from_environ(
+    base: ProviderConfiguration,
+) -> CognitiveRoutingConfiguration | None:
+    if not _environment_flag("SOFIA_COGNITION_ROUTING_ENABLED"):
+        return None
+
+    provider_name = os.environ.get(
+        "SOFIA_COGNITION_ROUTING_PROVIDER",
+        base.provider,
+    ).strip()
+    primary_model = os.environ.get(
+        "SOFIA_COGNITION_PRIMARY_MODEL",
+        "qwen3.5:9b",
+    ).strip()
+    secondary_model = os.environ.get(
+        "SOFIA_COGNITION_SECONDARY_MODEL",
+        "huihui_ai/qwen3.5-abliterated:4b",
+    ).strip()
+
+    primary = ProviderConfiguration(
+        provider=provider_name,
+        model=primary_model,
+        temperature=base.temperature,
+        seed=base.seed,
+        context_size=_positive_environment_int(
+            "SOFIA_COGNITION_PRIMARY_CONTEXT_SIZE",
+            default=16000,
+        ),
+        thinking=base.thinking,
+    )
+    secondary = ProviderConfiguration(
+        provider=provider_name,
+        model=secondary_model,
+        temperature=base.temperature,
+        seed=base.seed,
+        context_size=_positive_environment_int(
+            "SOFIA_COGNITION_SECONDARY_CONTEXT_SIZE",
+            default=8192,
+        ),
+        thinking=False,
+    )
+    return CognitiveRoutingConfiguration(
+        enabled=True,
+        primary=primary,
+        secondary=secondary,
+        verify_enabled=_environment_flag(
+            "SOFIA_COGNITION_VERIFY_ENABLED",
+            default=True,
+        ),
+    )
 
 
 def production_storage_layout(
@@ -160,6 +238,13 @@ def create_default_configuration(
         *configured_capabilities,
     )))
 
+    provider_configuration = ProviderConfiguration(
+        provider="ollama",
+        model=user_settings.provider_model,
+        context_size=user_settings.provider_context_size,
+        thinking=user_settings.provider_thinking,
+    )
+
     return SofiaConfiguration(
         constitution_path=layout.constitution_path,
         constitution_hash_path=layout.constitution_hash_path,
@@ -167,15 +252,13 @@ def create_default_configuration(
         personality_path=layout.personality_path,
         avatar_path=layout.avatar_path,
         state_path=layout.state_path,
-        provider=ProviderConfiguration(
-            provider="ollama",
-            model=user_settings.provider_model,
-            context_size=user_settings.provider_context_size,
-            thinking=user_settings.provider_thinking,
-        ),
+        provider=provider_configuration,
         filesystem_root=repository_root,
         identity_bootstrap_mode=layout.identity_bootstrap_mode,
         standing_allowed_capabilities=standing_capabilities,
+        routing=_routing_configuration_from_environ(
+            provider_configuration
+        ),
         environment=environment,
     )
 
