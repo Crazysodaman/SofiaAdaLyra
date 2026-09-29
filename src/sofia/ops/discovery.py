@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from re import fullmatch
 from typing import Protocol
+from uuid import UUID
 
 from sofia.ops.bootstrap import BootstrapCandidate
 from sofia.ops.model import FleetHost, HostLifecycle
@@ -29,6 +31,10 @@ class FleetDiscoveryEvidence:
     installed_protocol_version: str | None = None
     installed_signer_key_id: str | None = None
     installed_signature_verified: bool = False
+    observed_node_id: UUID | None = None
+    observed_public_key_sha256: str | None = None
+    observed_endpoint_hostname: str | None = None
+    observed_endpoint_port: int | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -49,6 +55,32 @@ class FleetDiscoveryEvidence:
             raise TypeError("trusted_bootstrap_available must be boolean")
         if type(self.installed_signature_verified) is not bool:
             raise TypeError("installed_signature_verified must be boolean")
+        if self.observed_node_id is not None and not isinstance(
+            self.observed_node_id,
+            UUID,
+        ):
+            raise TypeError("observed_node_id must be UUID or None")
+        if self.observed_public_key_sha256 is not None and fullmatch(
+            r"[0-9a-f]{64}",
+            self.observed_public_key_sha256,
+        ) is None:
+            raise ValueError(
+                "observed_public_key_sha256 must be lowercase SHA-256"
+            )
+        if self.observed_endpoint_hostname is not None and (
+            not isinstance(self.observed_endpoint_hostname, str)
+            or not self.observed_endpoint_hostname.strip()
+        ):
+            raise ValueError(
+                "observed_endpoint_hostname must be nonempty or None"
+            )
+        if self.observed_endpoint_port is not None and (
+            type(self.observed_endpoint_port) is not int
+            or not 1 <= self.observed_endpoint_port <= 65535
+        ):
+            raise ValueError(
+                "observed_endpoint_port must be in 1..65535 or None"
+            )
 
     def bootstrap_candidate(self) -> BootstrapCandidate:
         return BootstrapCandidate(
@@ -140,10 +172,26 @@ class FleetDiscoveryCoordinator:
                 lifecycle=HostLifecycle.CANDIDATE,
                 trusted=False,
                 telemetry=None,
-                tags=(
-                    "discovered",
-                    f"source:{observation.source}",
-                    f"hostname:{observation.hostname}",
+                tags=tuple(
+                    value
+                    for value in (
+                        "discovered",
+                        f"source:{observation.source}",
+                        f"hostname:{observation.hostname}",
+                        (
+                            "observed-node:"
+                            f"{observation.observed_node_id}"
+                            if observation.observed_node_id is not None
+                            else None
+                        ),
+                        (
+                            "observed-key:"
+                            f"{observation.observed_public_key_sha256}"
+                            if observation.observed_public_key_sha256
+                            else None
+                        ),
+                    )
+                    if value is not None
                 ),
                 node_id=None,
             )
