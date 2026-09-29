@@ -76,6 +76,11 @@ def _interaction_request(request: CognitiveRequest) -> bool:
 def _interaction_response_is_grounded(content: str) -> bool:
     if not isinstance(content, str) or not content.strip():
         return False
+    stripped = content.strip()
+    if stripped.count("*") % 2:
+        return False
+    if stripped.endswith(("—", "-", ",", ":")):
+        return False
     return not any(
         pattern.search(content)
         for pattern in (
