@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -38,7 +39,21 @@ def _ops(tmp_path,hosts):
         state_plane=SQLiteStatePlane(state),
     )
     for host in hosts:
-        ops.registry.register_candidate(host)
+        candidate=replace(
+            host,
+            lifecycle=HostLifecycle.CANDIDATE,
+        )
+        ops.registry.register_candidate(candidate)
+        if host.lifecycle is not HostLifecycle.CANDIDATE:
+            ops.registry.transition(
+                host.host_id,
+                HostLifecycle.ENROLLED,
+            )
+        if host.lifecycle is HostLifecycle.HEALTHY:
+            ops.registry.transition(
+                host.host_id,
+                HostLifecycle.HEALTHY,
+            )
     return ops
 
 
