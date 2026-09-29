@@ -633,6 +633,8 @@ class _TkDesktopWorkbench:
                     self._apply_theme(payload)
             elif kind == "discord_started":
                 self._status.set("Ready · Discord connecting")
+            elif kind == "discord_disabled":
+                self._status.set("Ready · Discord disabled")
             elif kind == "discord_error":
                 self._status.set(
                     f"Discord failed: {type(payload).__name__}"
