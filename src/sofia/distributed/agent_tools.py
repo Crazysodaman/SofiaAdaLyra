@@ -25,7 +25,10 @@ def _plain(value:Any)->Any:
     if isinstance(value,(tuple,list,set,frozenset)): return [_plain(v) for v in value]
     return value
 
-def create_default_agent_dispatcher()->RemoteAgentDispatcher:
+def create_default_agent_dispatcher(
+    *,
+    inference_models: tuple[str, ...] = (),
+)->RemoteAgentDispatcher:
     dispatcher=RemoteAgentDispatcher()
     backend=create_local_system_backend()
     by_name={cap.name:cap for cap in backend.supported_capabilities}
@@ -54,7 +57,20 @@ def create_default_agent_dispatcher()->RemoteAgentDispatcher:
         lambda p: _plain(collect_local_telemetry()),
     )
 
+    if not isinstance(inference_models, tuple):
+        raise TypeError("inference_models must be a tuple")
+    if any(
+        not isinstance(model, str) or not model.strip()
+        for model in inference_models
+    ):
+        raise ValueError("inference_models must contain nonempty strings")
+
     ollama=OllamaAdapter()
+    dispatcher.register(
+        "llm.inspect",
+        "inference_policy",
+        lambda p: {"allowed_models": list(inference_models)},
+    )
     dispatcher.register("llm.inspect","models",lambda p:_plain(ollama.models()))
     dispatcher.register("llm.inspect","running",lambda p:_plain(ollama.running()))
     dispatcher.register(
