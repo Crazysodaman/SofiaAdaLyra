@@ -339,9 +339,9 @@ def run_settings_window() -> int:
     ttk.Label(
         routing_frame,
         text=(
-            "Recommended local pairing: qwen3.5:9b primary and "
-            "huihui_ai/qwen3.5-abliterated:4B secondary. "
-            "Tool-enabled requests remain primary-only."
+            "Model identities are owner-configurable. Routing uses the "
+            "selected role assignments, and tool-enabled requests remain "
+            "primary-only."
         ),
         wraplength=690,
     ).pack(anchor="w")
