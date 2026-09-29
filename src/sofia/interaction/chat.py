@@ -13,6 +13,7 @@ import re
 from time import monotonic
 from uuid import uuid4
 
+from sofia.application.conversation_service import _conversation_tools_relevant
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.conversation.model import ConversationMessage, ConversationRole
@@ -373,9 +374,14 @@ class InteractiveConversationService(EmotionalConversationService):
         # boundary before representational interaction interpretation. Once a
         # turn is tool-relevant, do not let avatar/body discussion downgrade
         # it into a tool-free fictional interaction request.
-        if request.allow_tools and request.tools:
-            return request
         messages = self.messages()
+        if (
+            request.allow_tools
+            and messages
+            and messages[-1].role is ConversationRole.USER
+            and _conversation_tools_relevant(messages[-1].content)
+        ):
+            return request
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
         user = messages[-1]

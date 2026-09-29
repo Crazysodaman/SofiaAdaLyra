@@ -404,3 +404,13 @@ def test_live_conversation_request_preserves_tool_relevance_gate(tmp_path: Path)
     finally:
         application.shutdown()
 
+
+
+
+def test_interaction_control_word_without_operational_target_stays_tool_free():
+    assert _conversation_tools_relevant("Sofía, stop interactions") is False
+
+
+def test_operational_control_still_requires_target():
+    assert _conversation_tools_relevant("restart the service") is True
+    assert _conversation_tools_relevant("stop") is False

@@ -75,12 +75,11 @@ def _conversation_tools_relevant(content: str | None) -> bool:
         return False
     if _RUNNING_APP_RE.search(text):
         return True
-    if _TOOL_CONTROL_RE.search(text):
-        return True
     if _TOOL_TARGET_RE.search(text) is None:
         return False
     return (
         _TOOL_ACTION_RE.search(text) is not None
+        or _TOOL_CONTROL_RE.search(text) is not None
         or _TOOL_QUESTION_RE.search(text) is not None
     )
 
