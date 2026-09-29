@@ -10,6 +10,7 @@ from sofia.config.defaults import (
     production_storage_layout,
 )
 from sofia.config.model import (
+    CognitiveRoutingConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "ConfigurationPrecedence",
     "ConfigurationResolver",
     "ConfigurationValue",
+    "CognitiveRoutingConfiguration",
     "ProviderConfiguration",
     "SofiaConfiguration",
     "create_default_configuration",
