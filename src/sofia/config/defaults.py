@@ -4,6 +4,7 @@ import os
 
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
+    FleetBootstrapConfiguration,
     FleetCognitionConfiguration,
     FleetDiscoveryConfiguration,
     ModelLifecycleConfiguration,
@@ -97,6 +98,46 @@ def _fleet_cognition_configuration_from_environ() -> FleetCognitionConfiguration
         denied_host_ids=_environment_csv(
             "SOFIA_COGNITION_FLEET_DENIED_HOST_IDS"
         ),
+    )
+
+
+def _fleet_bootstrap_configuration_from_environ() -> FleetBootstrapConfiguration:
+    sha256 = os.environ.get(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_SHA256",
+        "",
+    ).strip() or None
+    source = os.environ.get(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_SOURCE",
+        "",
+    ).strip() or None
+    signer = os.environ.get(
+        "SOFIA_FLEET_BOOTSTRAP_SIGNER_KEY_ID",
+        "",
+    ).strip() or None
+    return FleetBootstrapConfiguration(
+        enabled=_environment_flag(
+            "SOFIA_FLEET_BOOTSTRAP_ENABLED",
+            default=False,
+        ),
+        authority=os.environ.get(
+            "SOFIA_FLEET_BOOTSTRAP_AUTHORITY",
+            "none",
+        ).strip().lower(),
+        package_id=os.environ.get(
+            "SOFIA_FLEET_BOOTSTRAP_PACKAGE_ID",
+            "sofia-fleet-agent",
+        ).strip(),
+        package_version=os.environ.get(
+            "SOFIA_FLEET_BOOTSTRAP_PACKAGE_VERSION",
+            "0.1.0",
+        ).strip(),
+        package_sha256=sha256,
+        package_source=source,
+        protocol_version=os.environ.get(
+            "SOFIA_FLEET_BOOTSTRAP_PROTOCOL_VERSION",
+            "1.0",
+        ).strip(),
+        signer_key_id=signer,
     )
 
 
@@ -381,6 +422,7 @@ def create_default_configuration(
         ),
         fleet_cognition=_fleet_cognition_configuration_from_environ(),
         fleet_discovery=_fleet_discovery_configuration_from_environ(),
+        fleet_bootstrap=_fleet_bootstrap_configuration_from_environ(),
         environment=environment,
     )
 
