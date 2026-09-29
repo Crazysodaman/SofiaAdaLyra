@@ -8,7 +8,7 @@ from sofia.application import (
 )
 from sofia.config import (
     SofiaConfiguration,
-    create_default_configuration,
+    create_production_configuration,
 )
 
 
@@ -19,7 +19,7 @@ def _run_terminal(
     output_function: Callable[[str], None],
 ) -> int:
     if configuration is None:
-        configuration = create_default_configuration()
+        configuration = create_production_configuration()
 
     try:
         application = SofiaApplication(configuration)
@@ -75,7 +75,7 @@ def main(
         desktop_configuration = (
             configuration
             if configuration is not None
-            else create_default_configuration()
+            else create_production_configuration()
         )
         try:
             ensure_tray_agent(desktop_configuration)
