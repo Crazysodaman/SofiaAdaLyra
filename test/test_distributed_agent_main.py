@@ -90,3 +90,43 @@ def test_file_config_accepts_utf8_bom(tmp_path):
 
     assert config.node_id == NODE_ID
     assert config.node_name == "Artemis"
+
+
+
+def test_file_config_inference_is_opt_in_and_model_names_are_owner_data(tmp_path):
+    path = _write_config(
+        tmp_path,
+        inference_models=[
+            "vendor/primary:anything",
+            "vendor/secondary:anything",
+        ],
+        inference_max_context_size=24576,
+        inference_allow_tools=False,
+    )
+
+    config = configuration_from_file(path)
+
+    assert config.inference_models == (
+        "vendor/primary:anything",
+        "vendor/secondary:anything",
+    )
+    assert config.inference_max_context_size == 24576
+    assert config.inference_allow_tools is False
+
+
+def test_file_config_defaults_to_no_remote_inference(tmp_path):
+    config = configuration_from_file(_write_config(tmp_path))
+
+    assert config.inference_models == ()
+    assert config.inference_max_context_size == 65536
+    assert config.inference_allow_tools is True
+
+
+def test_file_config_rejects_duplicate_inference_models(tmp_path):
+    path = _write_config(
+        tmp_path,
+        inference_models=["vendor/model:any","vendor/model:any"],
+    )
+
+    with pytest.raises(ValueError, match="duplicates"):
+        configuration_from_file(path)

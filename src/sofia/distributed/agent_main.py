@@ -11,6 +11,10 @@ from uuid import UUID
 
 from .agent import RemoteAgentConfig, RemoteAgentServer
 from .agent_tools import create_default_agent_dispatcher
+from .inference_service import (
+    LocalOllamaInferenceService,
+    RemoteInferencePolicy,
+)
 
 
 _REQUIRED = (
@@ -35,8 +39,34 @@ _CONFIG_KEYS = frozenset(
         "expected_client_public_key_sha256",
         "ledger_path",
         "protocol_version",
+        "inference_models",
+        "inference_max_context_size",
+        "inference_allow_tools",
     }
 )
+
+
+def _inference_models(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return tuple(
+            item.strip()
+            for item in value.split(",")
+            if item.strip()
+        )
+    if isinstance(value, list):
+        result = []
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(
+                    "inference_models must contain nonempty strings"
+                )
+            result.append(item.strip())
+        return tuple(result)
+    raise ValueError(
+        "inference_models must be a list or comma-separated string"
+    )
 
 
 def _required(name: str) -> str:
@@ -74,6 +104,19 @@ def configuration_from_environment() -> RemoteAgentConfig:
         protocol_version=os.environ.get(
             "SOFIA_AGENT_PROTOCOL_VERSION", "1.0"
         ).strip() or "1.0",
+        inference_models=_inference_models(
+            os.environ.get("SOFIA_AGENT_INFERENCE_MODELS", "")
+        ),
+        inference_max_context_size=int(
+            os.environ.get(
+                "SOFIA_AGENT_INFERENCE_MAX_CONTEXT_SIZE",
+                "65536",
+            )
+        ),
+        inference_allow_tools=os.environ.get(
+            "SOFIA_AGENT_INFERENCE_ALLOW_TOOLS",
+            "1",
+        ).strip().casefold() not in {"0","false","off"},
     )
 
 
@@ -128,6 +171,16 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
         ledger_path=ledger_path,
         protocol_version=str(payload.get("protocol_version", "1.0")).strip()
         or "1.0",
+        inference_models=_inference_models(
+            payload.get("inference_models", ())
+        ),
+        inference_max_context_size=int(
+            payload.get("inference_max_context_size", 65536)
+        ),
+        inference_allow_tools=payload.get(
+            "inference_allow_tools",
+            True,
+        ),
     )
 
 
@@ -158,7 +211,23 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         config.ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        server = RemoteAgentServer(config, create_default_agent_dispatcher())
+        inference = (
+            None
+            if not config.inference_models
+            else LocalOllamaInferenceService(
+                node_id=config.node_id,
+                policy=RemoteInferencePolicy(
+                    allowed_models=config.inference_models,
+                    max_context_size=config.inference_max_context_size,
+                    allow_tools=config.inference_allow_tools,
+                ),
+            )
+        )
+        server = RemoteAgentServer(
+            config,
+            create_default_agent_dispatcher(),
+            inference_handler=None if inference is None else inference.infer,
+        )
         try:
             server.serve_forever()
         finally:

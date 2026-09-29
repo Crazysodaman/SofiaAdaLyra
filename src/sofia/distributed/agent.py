@@ -53,11 +53,28 @@ class RemoteAgentConfig:
     expected_client_public_key_sha256:str
     ledger_path:Path
     protocol_version:str="1.0"
+    inference_models:tuple[str,...]=()
+    inference_max_context_size:int=65536
+    inference_allow_tools:bool=True
     def __post_init__(self):
         if not self.node_name.strip(): raise ValueError("node_name required")
         if not 1<=self.listen_port<=65535: raise ValueError("listen_port out of range")
         if fullmatch(r"[0-9a-f]{64}",self.expected_client_public_key_sha256) is None: raise ValueError("client public-key pin must be lowercase SHA-256")
         FleetProtocolVersion.parse(self.protocol_version)
+        if not isinstance(self.inference_models,tuple):
+            raise TypeError("inference_models must be a tuple")
+        normalized=[]
+        for model in self.inference_models:
+            if not isinstance(model,str) or not model.strip() or len(model.encode("utf-8"))>512:
+                raise ValueError("inference_models contains an invalid model")
+            normalized.append(model.strip())
+        if len(set(normalized))!=len(normalized):
+            raise ValueError("inference_models must not contain duplicates")
+        object.__setattr__(self,"inference_models",tuple(normalized))
+        if type(self.inference_max_context_size) is not int or not 512<=self.inference_max_context_size<=1048576:
+            raise ValueError("inference_max_context_size must be in 512..1048576")
+        if type(self.inference_allow_tools) is not bool:
+            raise TypeError("inference_allow_tools must be bool")
 
 class RemoteAgentDispatcher:
     def __init__(self)->None:
