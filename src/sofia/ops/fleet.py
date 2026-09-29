@@ -32,6 +32,18 @@ class FleetRegistry:
             raise FleetRemovalApprovalRequired("final fleet removal requires exact Sparks approval evidence")
         if state is HostLifecycle.ENROLLED and not host.trusted: raise PermissionError("untrusted candidate cannot enroll")
         updated=replace(host,lifecycle=state); self._hosts[host_id]=updated; return updated
+    def authenticate_candidate(self,host_id:str,node_id)->FleetHost:
+        host=self._hosts[host_id]
+        if host.lifecycle is not HostLifecycle.CANDIDATE:
+            raise ValueError("only a candidate can be authenticated")
+        if host.trusted:
+            raise ValueError("candidate is already trusted")
+        if host.node_id is not None:
+            raise ValueError("untrusted candidate already has a node binding")
+        updated=replace(host,trusted=True,node_id=node_id)
+        self._hosts[host_id]=updated
+        return updated
+
     def update_telemetry(self,host_id:str,telemetry)->FleetHost:
         host=self._hosts[host_id]; updated=replace(host,telemetry=telemetry); self._hosts[host_id]=updated; return updated
 
