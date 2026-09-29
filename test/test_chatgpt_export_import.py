@@ -213,6 +213,20 @@ def test_full_export_evidence_is_principal_bound_and_idempotent(tmp_path: Path):
         ("file_asset_1", "reference.png", "image_asset_pointer"),
     )
 
+    recalled = store.search_relevant(
+        "evidence imports",
+        principal_id=SPARKS_PRINCIPAL_ID,
+    )
+    assert len(recalled) == 1
+    assert recalled[0].role == "user"
+    assert recalled[0].content == "Sparks prefers evidence-first imports."
+    assert recalled[0].title == "Sofía project"
+
+    assert store.search_relevant(
+        "evidence imports",
+        principal_id="person:someone-else",
+    ) == ()
+
 
 def test_full_export_cli_imports_evidence_without_creating_memory_candidates(
     tmp_path: Path,
