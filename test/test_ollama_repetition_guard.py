@@ -65,7 +65,8 @@ def test_near_verbatim_long_reply_is_detected_without_modifying_request():
     assert retry.messages[-1] is request.messages[-1]
     assert retry.messages[:-2] == request.messages[:-1]
     assert retry.messages[-2].role is CognitiveRole.SYSTEM
-    assert retry.tools == request.tools
+    assert retry.tools == ()
+    assert retry.allow_tools is False
     assert request.messages == original
 
 
@@ -93,14 +94,15 @@ def test_explicit_repeat_request_does_not_retry():
     assert len(client.calls) == 1
 
 
-def test_tool_bearing_request_does_not_retry_or_reexecute_tools():
+def test_tool_bearing_request_retries_text_only_without_reexecuting_tools():
     tool = CognitiveToolDefinition(name='inspect', description='Read-only inspection.',
                                    parameters={'type': 'object'})
-    client = _Client(_COPY)
+    client = _Client(_COPY, _NEW)
     request = _request(tools=(tool,))
-    assert _provider(client).respond(request).content == _COPY
-    assert len(client.calls) == 1
+    assert _provider(client).respond(request).content == _NEW
+    assert len(client.calls) == 2
     assert client.calls[0]['tools'][0]['function']['name'] == 'inspect'
+    assert 'tools' not in client.calls[1]
 
 
 def test_tool_history_and_tool_call_response_do_not_trigger_retry():
@@ -126,6 +128,36 @@ def test_provider_does_not_retry_empty_history_or_quoted_short_text():
     assert not is_near_duplicate_reply(request, CognitiveResponse(content=_COPY))
     assert not is_near_duplicate_reply(_request(), CognitiveResponse(content='Sure.'))
 
+
+
+def test_hru_quality_guard_remains_active_when_tools_are_available():
+    bad = (
+        "I'm settled and ready to help you with anything you need! "
+        "How can I assist you today?"
+    )
+    tool = CognitiveToolDefinition(
+        name='inspect_system',
+        description='Inspect the local operating system.',
+        parameters={'type': 'object'},
+    )
+    request = CognitiveRequest(
+        messages=(
+            _message(
+                CognitiveRole.SYSTEM,
+                "CURRENT MODELED EMOTIONAL STATE\nOverall tone: neutral",
+            ),
+            _message(CognitiveRole.USER, "hru"),
+        ),
+        tools=(tool,),
+    )
+    client = _Client(bad, bad)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == "I'm feeling pretty settled right now."
+    assert len(client.calls) == 2
+    assert client.calls[0]['tools'][0]['function']['name'] == 'inspect_system'
+    assert 'tools' not in client.calls[1]
 
 
 def test_hru_generic_assistant_fallback_is_repaired():
