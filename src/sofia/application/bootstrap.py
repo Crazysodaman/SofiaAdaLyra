@@ -38,6 +38,10 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.ops.agent_discovery import (
+    create_configured_fleet_discovery_source,
+)
+from sofia.ops.discovery import FleetDiscoveryCoordinator
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
@@ -391,11 +395,20 @@ class SofiaApplication:
             presentation_runtime_enabled = (
                 self._presentation_routine is not None
             )
+            fleet_discovery_source = (
+                create_configured_fleet_discovery_source(
+                    self._configuration
+                )
+            )
+            fleet_discovery_enabled = (
+                fleet_discovery_source is not None
+            )
             background_needed = (
                 reflection_enabled
                 or habit_runtime_enabled
                 or act_delivery_enabled
                 or presentation_runtime_enabled
+                or fleet_discovery_enabled
             )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
@@ -452,6 +465,27 @@ class SofiaApplication:
                     "reflection_outreach",
                     bridge_reflection_outreach,
                 )
+
+                if fleet_discovery_enabled:
+                    discovery = FleetDiscoveryCoordinator(
+                        self._runtime.ops_service.registry
+                    )
+
+                    def discover_fleet_candidates(now):
+                        result = discovery.run(fleet_discovery_source)
+                        count = (
+                            len(result.created_host_ids)
+                            + len(result.rejected_host_ids)
+                        )
+                        return count or None
+
+                    coordinator.set_task(
+                        "fleet_discovery",
+                        discover_fleet_candidates,
+                        interval_seconds=float(
+                            self._configuration.fleet_discovery.interval_seconds
+                        ),
+                    )
 
                 if presentation_runtime_enabled:
                     def evaluate_avatar_presentation(now):
