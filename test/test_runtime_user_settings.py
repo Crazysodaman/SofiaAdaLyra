@@ -21,7 +21,7 @@ def test_runtime_user_settings_round_trip(tmp_path):
         provider_thinking=True,
         cognitive_routing_enabled=True,
         cognitive_primary_model="qwen3.5:9b",
-        cognitive_secondary_model="huihui_ai/qwen3.5-abliterated:4b",
+        cognitive_secondary_model="huihui_ai/qwen3.5-abliterated:4B",
         cognitive_primary_context_size=16000,
         cognitive_secondary_context_size=8192,
         cognitive_verify_enabled=False,
