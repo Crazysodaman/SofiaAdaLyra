@@ -234,6 +234,17 @@ class EnvironmentQueryResolver:
             "is it light outside",
         }
     )
+    _GENERIC_SOURCE_FOLLOWUP_FORMS = frozenset(
+        {
+            "where you pull the info",
+            "where did you pull that info from",
+            "where did you get that info",
+            "where did you get the info",
+            "where is that info from",
+            "what source did you use",
+            "what source are you using",
+        }
+    )
     _CONTEXT_SOURCE_FORMS = frozenset(
         {
             "explain your current environment context sources",
@@ -250,6 +261,24 @@ class EnvironmentQueryResolver:
             "weather source",
         }
     )
+
+    @classmethod
+    def is_generic_source_followup(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return _normalize(query) in cls._GENERIC_SOURCE_FOLLOWUP_FORMS
+
+    @classmethod
+    def is_weather_or_forecast_query(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        normalized = _normalize(query)
+        return normalized in (
+            cls._WEATHER_FORMS
+            | cls._FORECAST_FORMS
+            | cls._TOMORROW_WEATHER_FORMS
+            | cls._WEEKLY_FORECAST_FORMS
+        )
 
     @classmethod
     def might_match(cls, query: str) -> bool:
