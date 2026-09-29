@@ -513,3 +513,18 @@ def test_generic_source_followup_is_classified_without_globally_hijacking_it():
     assert resolver.is_generic_source_followup("where you pull the info")
     assert resolver.is_weather_or_forecast_query("hows the weather")
     assert not resolver.might_match("where you pull the info")
+
+
+def test_missing_weather_without_location_explains_location_dependency():
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration()
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        "how is the weather",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "don't have current weather evidence" in answer.content
+    assert "No configured or current location evidence" in answer.content
