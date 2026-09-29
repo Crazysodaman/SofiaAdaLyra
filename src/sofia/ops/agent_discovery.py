@@ -490,9 +490,19 @@ def create_configured_fleet_discovery_source(configuration):
         "cert": os.environ.get("SOFIA_REMOTE_CLIENT_CERT", "").strip(),
         "key": os.environ.get("SOFIA_REMOTE_CLIENT_KEY", "").strip(),
     }
+    presence_source = (
+        None
+        if not policy.scopes
+        else ScopedHostPresenceDiscoverySource(
+            scopes=policy.scopes,
+            max_hosts_per_scope=policy.max_hosts_per_scope,
+        )
+    )
     if not all(values.values()):
+        if presence_source is not None:
+            return presence_source
         raise ValueError(
-            "Fleet discovery requires SOFIA_REMOTE_CA, "
+            "Fleet discovery targets require SOFIA_REMOTE_CA, "
             "SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY"
         )
     agent_source = ScopedMtlsAgentDiscoverySource(
@@ -506,12 +516,9 @@ def create_configured_fleet_discovery_source(configuration):
         client_private_key=Path(values["key"]),
         max_hosts_per_scope=policy.max_hosts_per_scope,
     )
-    if not policy.scopes:
+    if presence_source is None:
         return agent_source
     return CombinedFleetDiscoverySource(
         agent_source,
-        ScopedHostPresenceDiscoverySource(
-            scopes=policy.scopes,
-            max_hosts_per_scope=policy.max_hosts_per_scope,
-        ),
+        presence_source,
     )
