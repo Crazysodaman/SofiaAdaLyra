@@ -8,6 +8,7 @@ from typing import Any,Mapping
 
 from sofia.integrations.hyperv import HyperVAdapter
 from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
+from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.machine.hardware import create_hardware_discovery
 from sofia.ops.local_telemetry import collect_local_telemetry
@@ -51,6 +52,35 @@ def create_default_agent_dispatcher()->RemoteAgentDispatcher:
         "ops.telemetry",
         "latest",
         lambda p: _plain(collect_local_telemetry()),
+    )
+
+    ollama=OllamaAdapter()
+    dispatcher.register("llm.inspect","models",lambda p:_plain(ollama.models()))
+    dispatcher.register("llm.inspect","running",lambda p:_plain(ollama.running()))
+    dispatcher.register(
+        "llm.inspect",
+        "show",
+        lambda p:_plain(ollama.show(str(p["model"]))),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "pull",
+        lambda p:_plain(ollama.pull(str(p["model"]))),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "load",
+        lambda p:_plain(
+            ollama.load(
+                str(p["model"]),
+                keep_alive=str(p.get("keep_alive","10m")),
+            )
+        ),
+    )
+    dispatcher.register(
+        "llm.manage",
+        "unload",
+        lambda p:_plain(ollama.unload(str(p["model"]))),
     )
 
     maintenance=LocalMaintenanceAdapter()
