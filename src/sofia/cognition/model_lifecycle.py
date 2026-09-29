@@ -38,6 +38,7 @@ class ModelUnavailableError(ModelLifecycleError):
 class ModelLifecycleBackend(Protocol):
     def models(self) -> Any: ...
     def running(self) -> Any: ...
+    def pull(self, name: str) -> Any: ...
     def load(self, name: str, *, keep_alive: str) -> Any: ...
     def unload(self, name: str) -> Any: ...
 
@@ -261,6 +262,47 @@ class ModelLifecycleManager:
             else:
                 self._busy[model] = count - 1
             self._last_used[model] = moment
+
+    def install(
+        self,
+        role: CognitiveModelRole,
+    ) -> ModelLifecycleStatus:
+        provider = self.provider_for(role)
+        if provider.provider != self.managed_provider:
+            raise ModelLifecycleError(
+                f"provider {provider.provider!r} is not managed by this lifecycle backend"
+            )
+        model = provider.model
+        with self._lock:
+            installed, running = self._inventory()
+            if model in installed:
+                return ModelLifecycleStatus(
+                    role=role,
+                    provider=provider.provider,
+                    model=model,
+                    state=(
+                        ModelResidency.READY
+                        if model in running
+                        else ModelResidency.UNLOADED
+                    ),
+                )
+            self._transient[model] = ModelResidency.LOADING
+            try:
+                self.backend.pull(model)
+            except Exception as exc:
+                self._last_error[model] = type(exc).__name__
+                self._transient.pop(model, None)
+                raise ModelLifecycleError(
+                    f"failed to install configured {role.value} model"
+                ) from exc
+            self._transient.pop(model, None)
+            self._last_error.pop(model, None)
+            return ModelLifecycleStatus(
+                role=role,
+                provider=provider.provider,
+                model=model,
+                state=ModelResidency.UNLOADED,
+            )
 
     def ensure_loaded(
         self,

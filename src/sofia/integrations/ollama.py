@@ -13,6 +13,15 @@ class OllamaAdapter:
     def show(self,name:str)->Any:
         if not name.strip(): raise ValueError("model name required")
         return self.http.request("POST","/api/show",payload={"name":name})
+    def pull(self,name:str)->Any:
+        """Install or update one exact Ollama model tag."""
+        if not isinstance(name,str) or not name.strip():
+            raise ValueError("model name required")
+        return self.http.request(
+            "POST",
+            "/api/pull",
+            payload={"model":name,"stream":False},
+        )
     def load(self,name:str,*,keep_alive:str="10m")->Any:
         """Ask Ollama to make one exact installed model resident."""
         if not isinstance(name,str) or not name.strip(): raise ValueError("model name required")

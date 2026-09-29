@@ -34,6 +34,10 @@ class Backend:
     def running(self):
         return {"models":[{"name":name} for name in sorted(self.resident)]}
 
+    def pull(self, name):
+        self.installed.add(name)
+        return {"done":True}
+
     def load(self, name, *, keep_alive):
         if name not in self.installed:
             raise RuntimeError("not installed")
@@ -218,3 +222,17 @@ def test_idle_sweep_never_unloads_busy_model():
     assert manager.sweep_idle(
         now=NOW+timedelta(hours=1, seconds=61)
     )==("vendor/primary:any",)
+
+
+
+def test_install_pulls_missing_configured_role_without_loading_it():
+    backend=Backend()
+    manager=ModelLifecycleManager(
+        selection=_selection(secondary=None),
+        policy=ModelLifecycleConfiguration(),
+        backend=backend,
+    )
+    status=manager.install(CognitiveModelRole.PRIMARY)
+    assert status.state is ModelResidency.UNLOADED
+    assert backend.installed=={"vendor/primary:any"}
+    assert backend.resident==set()
