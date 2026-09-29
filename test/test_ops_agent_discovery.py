@@ -2,8 +2,14 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import UUID
 
+import pytest
+
 import sofia.ops.agent_discovery as discovery_module
-from sofia.ops import AgentDiscoveryTarget, MtlsAgentDiscoverySource
+from sofia.ops import (
+    AgentDiscoveryTarget,
+    MtlsAgentDiscoverySource,
+    ScopedMtlsAgentDiscoverySource,
+)
 
 
 NODE_ID = UUID("11111111-2222-3333-4444-555555555555")
@@ -162,3 +168,84 @@ def test_incompatible_protocol_is_not_admitted_as_discovery_evidence(
     monkeypatch.setattr(source, "_context", lambda: SimpleNamespace())
 
     assert source.discover() == ()
+
+
+def test_scoped_discovery_refuses_oversized_network():
+    source = ScopedMtlsAgentDiscoverySource(
+        explicit_targets=(),
+        scopes=("10.0.0.0/24",),
+        ca_file="ca.pem",
+        client_certificate="client.pem",
+        client_private_key="client.key",
+        max_hosts_per_scope=32,
+    )
+
+    with pytest.raises(ValueError, match="exceeds max_hosts_per_scope"):
+        source._scope_addresses()
+
+
+def test_scoped_discovery_expands_only_configured_hosts(monkeypatch):
+    source = ScopedMtlsAgentDiscoverySource(
+        explicit_targets=(),
+        scopes=("192.0.2.0/30",),
+        ca_file="ca.pem",
+        client_certificate="client.pem",
+        client_private_key="client.key",
+        max_hosts_per_scope=8,
+    )
+
+    assert source._scope_addresses() == (
+        "192.0.2.1",
+        "192.0.2.2",
+    )
+
+
+def test_scoped_discovery_passes_only_reachable_targets_to_mtls(
+    monkeypatch,
+):
+    observed = []
+
+    source = ScopedMtlsAgentDiscoverySource(
+        explicit_targets=(
+            AgentDiscoveryTarget(
+                hostname="artemis.local",
+                inside_approved_scope=True,
+            ),
+        ),
+        scopes=("192.0.2.0/30",),
+        ca_file="ca.pem",
+        client_certificate="client.pem",
+        client_private_key="client.key",
+        max_hosts_per_scope=8,
+    )
+
+    monkeypatch.setattr(
+        source,
+        "_reachable",
+        lambda address: (
+            AgentDiscoveryTarget(
+                hostname=address,
+                inside_approved_scope=True,
+            )
+            if address.endswith(".2")
+            else None
+        ),
+    )
+
+    def fake_discover(self):
+        observed.extend(
+            (target.hostname, target.port)
+            for target in self.targets
+        )
+        return ()
+
+    monkeypatch.setattr(
+        discovery_module.MtlsAgentDiscoverySource,
+        "discover",
+        fake_discover,
+    )
+
+    assert source.discover() == ()
+    assert ("artemis.local", 7443) in observed
+    assert ("192.0.2.2", 7443) in observed
+    assert ("192.0.2.1", 7443) not in observed
