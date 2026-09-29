@@ -26,7 +26,7 @@ def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch,
         _shutdown_disposable_app(app)
     assert app.conversation._conversation_store._connection is None
     assert app.runtime._memory_system._store._connection is None
-    assert app.runtime._operational_store._connection is None
+    assert app.runtime._operational_store._closed is True
     assert app.runtime._filesystem_observation_store._connection is None
     # Actual deletion is the Windows-specific proof that every handle was closed.
     database.unlink()
