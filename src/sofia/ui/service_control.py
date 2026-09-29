@@ -39,7 +39,6 @@ class DesktopServiceController:
         local_maintenance: LocalMaintenanceAdapter | None = None,
         remote: RemoteServiceController | None = None,
         ollama: OllamaAdapter | None = None,
-        llm_model: str | None = None,
         approval_verifier: ExecutionApprovalVerifier | None = None,
     ) -> None:
         if not isinstance(local_host_id, str) or not local_host_id.strip():
@@ -48,7 +47,6 @@ class DesktopServiceController:
         self.local = local_maintenance or LocalMaintenanceAdapter()
         self.remote = remote
         self.ollama = ollama or OllamaAdapter()
-        self.llm_model = llm_model
         self.approval_verifier = approval_verifier
 
     @staticmethod
@@ -79,6 +77,7 @@ class DesktopServiceController:
         action: ServiceAction,
         *,
         approval_id: str | None = None,
+        llm_model: str | None = None,
     ) -> ServiceControlResult:
         if not isinstance(target, ServiceTarget):
             raise TypeError("ServiceTarget required")
@@ -99,7 +98,7 @@ class DesktopServiceController:
         capability, parameters = self.approval_spec(
             target,
             action,
-            llm_model=self.llm_model,
+            llm_model=llm_model,
         )
         self.approval_verifier.consume(
             approval_id=approval_id or "",
@@ -111,14 +110,14 @@ class DesktopServiceController:
         if action is ServiceAction.UNLOAD_MODEL:
             if target.kind is not ServiceKind.LLM_ENGINE:
                 raise ValueError("only an LLM target can unload a model")
-            if not self.llm_model:
+            if not llm_model:
                 raise ValueError("LLM model identity required for unload")
-            self.ollama.unload(self.llm_model)
+            self.ollama.unload(llm_model)
             return ServiceControlResult(
                 target.host_id,
                 target.service_name,
                 action,
-                f"unload requested for {self.llm_model}",
+                f"unload requested for {llm_model}",
             )
 
         command = {
