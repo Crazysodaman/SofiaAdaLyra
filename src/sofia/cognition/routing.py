@@ -256,11 +256,24 @@ class RoutingCognitiveEngine(CognitiveEngine):
         verification_passes = 0
 
         try:
-            # Requests with executable tools exposed stay on the primary
-            # engine. The secondary/open model may review text, but it never
-            # becomes a fallback tool-selection engine.
+            # Requests with tools exposed always use the primary engine for
+            # tool selection. A secondary engine may review a completed text
+            # response, but it never becomes a fallback tool-selection engine.
             if request.tools:
-                return self.registry.primary.respond(request)
+                primary_response = self.registry.primary.respond(request)
+                if (
+                    decision.route is CognitiveRoute.VERIFY
+                    and self.verify_enabled
+                    and not primary_response.tool_calls
+                ):
+                    response, fallback_count, verification_passes = (
+                        self._review_existing_response(
+                            request,
+                            primary_response,
+                        )
+                    )
+                    return response
+                return primary_response
 
             if decision.route is CognitiveRoute.VERIFY and self.verify_enabled:
                 response, fallback_count, verification_passes = (
@@ -327,6 +340,19 @@ class RoutingCognitiveEngine(CognitiveEngine):
         if primary_response.tool_calls:
             return primary_response, fallback_count, 0
 
+        return self._review_existing_response(
+            request,
+            primary_response,
+            fallback_count=fallback_count,
+        )
+
+    def _review_existing_response(
+        self,
+        request: CognitiveRequest,
+        primary_response: CognitiveResponse,
+        *,
+        fallback_count: int = 0,
+    ) -> tuple[CognitiveResponse, int, int]:
         critique_request = self._build_critique_request(
             request,
             primary_response,
