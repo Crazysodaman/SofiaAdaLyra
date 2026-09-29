@@ -65,7 +65,8 @@ class FakeConnection:
             (
                 b'{"node_id":"11111111-2222-3333-4444-555555555555",'
                 b'"protocol_version":"1.0","capabilities":['
-                b'{"name":"system.inspect","operations":["latest"]}]}'
+                b'{"name":"system.inspect","operations":["latest"]},'
+                b'{"name":"ops.telemetry","operations":["latest"]}]}'
             )
         )
 
@@ -117,7 +118,10 @@ def test_mtls_agent_discovery_returns_untrusted_identity_evidence(monkeypatch):
     assert observation.observed_endpoint_hostname == "artemis.local"
     assert observation.observed_endpoint_port == 7443
     assert observation.capabilities_verified is True
-    assert observation.capability_names == ("system.inspect",)
+    assert observation.capability_names == (
+        "ops.telemetry",
+        "system.inspect",
+    )
 
 
 def test_out_of_scope_target_is_never_contacted(monkeypatch):
@@ -372,7 +376,8 @@ def test_mtls_discovery_rejects_mismatched_capability_identity(monkeypatch):
                     (
                         b'{"node_id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",'
                         b'"protocol_version":"1.0","capabilities":['
-                        b'{"name":"system.inspect","operations":["latest"]}]}'
+                        b'{"name":"system.inspect","operations":["latest"]},'
+                        b'{"name":"ops.telemetry","operations":["latest"]}]}'
                     )
                 )
             return super().getresponse()
