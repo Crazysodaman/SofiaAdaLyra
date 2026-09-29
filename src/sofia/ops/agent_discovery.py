@@ -243,10 +243,6 @@ class ScopedHostPresenceDiscoverySource:
             return False
 
     def _observe(self, address: str) -> FleetDiscoveryEvidence | None:
-        # Hosts already exposing the Fleet agent belong to the mTLS identity
-        # source, which can provide stronger evidence than mere presence.
-        if self._port_open(address, self.fleet_agent_port):
-            return None
         if not any(self._port_open(address, port) for port in self.ports):
             return None
         try:
@@ -262,7 +258,7 @@ class ScopedHostPresenceDiscoverySource:
             source="approved-scope-host-presence",
             inside_approved_scope=True,
             trusted_bootstrap_available=False,
-            observed_endpoint_hostname=address,
+            observed_endpoint_hostname=hostname,
         )
 
     def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
