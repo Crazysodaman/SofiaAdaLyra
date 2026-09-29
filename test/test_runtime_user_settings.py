@@ -65,12 +65,23 @@ def test_environment_mapping_contains_only_enabled_integrations():
     assert "SOFIA_ENVIRONMENT_HA_WEATHER_ENTITY" not in mapping
 
 
-def test_enabled_discord_requires_all_ids():
-    with pytest.raises(ValueError, match="owner, bot, and DM channel"):
+def test_enabled_discord_requires_owner_and_bot_ids():
+    with pytest.raises(ValueError, match="owner and bot IDs"):
         RuntimeUserSettings(
             discord_enabled=True,
             discord_owner_user_id=123456789012345678,
         )
+
+
+def test_enabled_discord_allows_channel_autodiscovery():
+    settings = RuntimeUserSettings(
+        discord_enabled=True,
+        discord_owner_user_id=123456789012345678,
+        discord_bot_user_id=987654321098765432,
+        discord_dm_channel_id=None,
+    )
+
+    assert settings.discord_dm_channel_id is None
 
 
 def test_enabled_home_assistant_requires_entity():
