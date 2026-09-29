@@ -14,7 +14,7 @@ from sofia.environment.model import LocationSubject
 class RuntimeUserSettings:
     provider_model: str = "qwen3:14b"
     provider_context_size: int = 20000
-    provider_thinking: bool = False
+    provider_thinking: bool | str = False
 
     discord_enabled: bool = False
     discord_owner_user_id: int | None = None
@@ -50,7 +50,26 @@ class RuntimeUserSettings:
         if type(self.provider_context_size) is not int or self.provider_context_size <= 0:
             raise ValueError("provider_context_size must be positive")
         if type(self.provider_thinking) is not bool:
-            raise TypeError("provider_thinking must be boolean")
+            if not isinstance(self.provider_thinking, str):
+                raise TypeError(
+                    "provider_thinking must be boolean or a reasoning level"
+                )
+            normalized_thinking = self.provider_thinking.strip().casefold()
+            if normalized_thinking not in {
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+            }:
+                raise ValueError(
+                    "provider_thinking reasoning level must be "
+                    "low, medium, high, or xhigh"
+                )
+            object.__setattr__(
+                self,
+                "provider_thinking",
+                normalized_thinking,
+            )
         for name in ("discord_enabled", "home_assistant_enabled", "nws_enabled"):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
