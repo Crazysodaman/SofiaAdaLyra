@@ -349,3 +349,64 @@ def test_bootstrap_coordinator_marks_matching_installed_agent_ready():
 
     assert result.ready_host_ids == ("terra",)
     assert result.operator_host_ids == ()
+
+
+def test_unknown_candidate_refines_from_stronger_agent_evidence():
+    registry = FleetRegistry()
+    coordinator = FleetDiscoveryCoordinator(registry)
+    coordinator.ingest(
+        (
+            evidence(
+                host_id="newhost.local",
+                hostname="newhost.local",
+                platform="unknown",
+                architecture="unknown",
+                source="approved-scope-host-presence",
+                trusted_bootstrap_available=False,
+            ),
+        )
+    )
+
+    coordinator.ingest(
+        (
+            evidence(
+                host_id="newhost.local",
+                hostname="newhost.local",
+                platform="windows",
+                architecture="amd64",
+                source="mtls-agent-discovery",
+                trusted_bootstrap_available=False,
+                observed_node_id=UUID(
+                    "11111111-2222-3333-4444-555555555555"
+                ),
+                observed_public_key_sha256="d" * 64,
+                observed_endpoint_hostname="newhost.local",
+                observed_endpoint_port=7443,
+                installed_protocol_version="1.0",
+            ),
+        )
+    )
+
+    host = registry.host("newhost.local")
+    assert host is not None
+    assert host.platform == "windows"
+    assert host.architecture == "amd64"
+    assert host.lifecycle is HostLifecycle.CANDIDATE
+    assert host.trusted is False
+    assert any(tag.startswith("observed-node:") for tag in host.tags)
+
+
+def test_known_candidate_identity_cannot_be_rewritten_by_discovery():
+    registry = FleetRegistry()
+    coordinator = FleetDiscoveryCoordinator(registry)
+    coordinator.ingest((evidence(platform="linux", architecture="x86_64"),))
+
+    with pytest.raises(ValueError, match="durable Fleet identity"):
+        coordinator.ingest(
+            (
+                evidence(
+                    platform="windows",
+                    architecture="amd64",
+                ),
+            )
+        )
