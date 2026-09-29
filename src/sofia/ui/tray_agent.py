@@ -313,11 +313,13 @@ class TrayAgentApplication:
         action: ServiceAction,
         *,
         llm_model: str | None = None,
+        llm_keep_alive: str | None = None,
     ) -> None:
         capability, parameters = self._service.approval_spec(
             target,
             action,
             llm_model=llm_model,
+            llm_keep_alive=llm_keep_alive,
         )
         now = datetime.now(timezone.utc)
         approval = ExecutionApproval(
@@ -337,9 +339,16 @@ class TrayAgentApplication:
             action,
             approval_id=approval.approval_id,
             llm_model=llm_model,
+            llm_keep_alive=llm_keep_alive,
         )
 
-    def _service_action(self, kind: ServiceKind, action: ServiceAction) -> None:
+    def _service_action(
+        self,
+        kind: ServiceKind,
+        action: ServiceAction,
+        *,
+        model_role: CognitiveModelRole | None = None,
+    ) -> None:
         if self._operator_stop.current().active:
             raise PermissionError("operator stop is active")
         settings = self.settings_store.load()
@@ -360,6 +369,28 @@ class TrayAgentApplication:
 
         if target.host_id != self.host_id:
             self._service.execute(target, action)
+            return
+
+        if action is ServiceAction.LOAD_MODEL:
+            if model_role is None:
+                raise ValueError("model role required for load")
+            selection = self._current_model_selection()
+            policy = self._current_model_lifecycle_policy()
+            provider = (
+                selection.primary
+                if model_role is CognitiveModelRole.PRIMARY
+                else selection.secondary
+            )
+            if provider is None:
+                raise ValueError(
+                    f"{model_role.value} model is not configured"
+                )
+            self._execute_approved_local_service_action(
+                target,
+                action,
+                llm_model=provider.model,
+                llm_keep_alive=policy.keep_alive,
+            )
             return
 
         if action is ServiceAction.UNLOAD_MODEL:
@@ -395,6 +426,18 @@ class TrayAgentApplication:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.STOP)
             elif command is TrayCommand.LLM_RESTART:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.RESTART)
+            elif command is TrayCommand.LLM_LOAD_PRIMARY:
+                self._service_action(
+                    ServiceKind.LLM_ENGINE,
+                    ServiceAction.LOAD_MODEL,
+                    model_role=CognitiveModelRole.PRIMARY,
+                )
+            elif command is TrayCommand.LLM_LOAD_SECONDARY:
+                self._service_action(
+                    ServiceKind.LLM_ENGINE,
+                    ServiceAction.LOAD_MODEL,
+                    model_role=CognitiveModelRole.SECONDARY,
+                )
             elif command is TrayCommand.LLM_UNLOAD_MODEL:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.UNLOAD_MODEL)
             elif command is TrayCommand.RUNTIME_START:

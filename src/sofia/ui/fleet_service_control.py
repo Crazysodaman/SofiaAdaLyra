@@ -22,9 +22,12 @@ class FleetRemoteServiceController:
             raise TypeError("ServiceTarget required")
         if not isinstance(action, ServiceAction):
             raise TypeError("ServiceAction required")
-        if action is ServiceAction.UNLOAD_MODEL:
+        if action in {
+            ServiceAction.LOAD_MODEL,
+            ServiceAction.UNLOAD_MODEL,
+        }:
             raise ValueError(
-                "remote model unload is not an enrolled Fleet capability"
+                "remote model lifecycle is not an enrolled Fleet capability"
             )
         if target.kind not in (
             ServiceKind.SOFIA_RUNTIME,

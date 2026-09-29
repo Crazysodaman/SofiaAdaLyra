@@ -27,7 +27,12 @@ class Approval:
 
 class Ollama:
     def __init__(self):
+        self.loaded=[]
         self.unloaded=[]
+
+    def load(self,name,*,keep_alive):
+        self.loaded.append((name,keep_alive))
+        return {"done":True}
 
     def unload(self,name):
         self.unloaded.append(name)
@@ -117,3 +122,23 @@ def test_llm_unload_requires_model_from_caller_not_controller_state():
             ServiceTarget(ServiceKind.LLM_ENGINE,"venus","Ollama"),
             ServiceAction.UNLOAD_MODEL,
         )
+
+
+
+def test_llm_load_is_separate_from_starting_ollama_service():
+    local=Local(); ollama=Ollama()
+    controller=DesktopServiceController(
+        local_host_id="venus",
+        local_maintenance=local,
+        ollama=ollama,
+        approval_verifier=Approval(),
+    )
+    result=controller.execute(
+        ServiceTarget(ServiceKind.LLM_ENGINE,"venus","Ollama"),
+        ServiceAction.LOAD_MODEL,
+        llm_model="vendor/custom-primary:any",
+        llm_keep_alive="6m",
+    )
+    assert ollama.loaded==[("vendor/custom-primary:any","6m")]
+    assert local.calls==[]
+    assert result.detail=="load requested for vendor/custom-primary:any"

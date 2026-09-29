@@ -301,6 +301,8 @@ class WindowsTrayAgent:
             1021: TrayCommand.LLM_STOP,
             1022: TrayCommand.LLM_RESTART,
             1023: TrayCommand.LLM_UNLOAD_MODEL,
+            1024: TrayCommand.LLM_LOAD_PRIMARY,
+            1025: TrayCommand.LLM_LOAD_SECONDARY,
             1030: TrayCommand.RUNTIME_START,
             1031: TrayCommand.RUNTIME_STOP,
             1032: TrayCommand.RUNTIME_RESTART,
@@ -396,6 +398,30 @@ class WindowsTrayAgent:
                         else MF_STRING | MF_GRAYED
                     )
                     append(llm, flags, item_id, label)
+                load_primary_flags = (
+                    MF_STRING
+                    if tray_command_enabled(
+                        TrayCommand.LLM_LOAD_PRIMARY,
+                        status,
+                    )
+                    else MF_STRING | MF_GRAYED
+                )
+                append(llm, load_primary_flags, 1024, "Load Primary")
+                if status.cognitive_routing_enabled:
+                    load_secondary_flags = (
+                        MF_STRING
+                        if tray_command_enabled(
+                            TrayCommand.LLM_LOAD_SECONDARY,
+                            status,
+                        )
+                        else MF_STRING | MF_GRAYED
+                    )
+                    append(
+                        llm,
+                        load_secondary_flags,
+                        1025,
+                        "Load Secondary",
+                    )
                 unload_label = (
                     "Unload configured model"
                     if len(status.configured_llm_models) <= 1

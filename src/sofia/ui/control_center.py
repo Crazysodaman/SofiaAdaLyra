@@ -23,6 +23,7 @@ class ServiceAction(str, Enum):
     START = "start"
     STOP = "stop"
     RESTART = "restart"
+    LOAD_MODEL = "load_model"
     UNLOAD_MODEL = "unload_model"
 
 
@@ -209,6 +210,8 @@ class TrayCommand(str, Enum):
     LLM_START = "llm_start"
     LLM_STOP = "llm_stop"
     LLM_RESTART = "llm_restart"
+    LLM_LOAD_PRIMARY = "llm_load_primary"
+    LLM_LOAD_SECONDARY = "llm_load_secondary"
     LLM_UNLOAD_MODEL = "llm_unload_model"
     RUNTIME_START = "runtime_start"
     RUNTIME_STOP = "runtime_stop"
@@ -234,6 +237,8 @@ def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
         (TrayCommand.LLM_START, "Start LLM service"),
         (TrayCommand.LLM_STOP, "Stop LLM service"),
         (TrayCommand.LLM_RESTART, "Restart LLM service"),
+        (TrayCommand.LLM_LOAD_PRIMARY, "Load primary model"),
+        (TrayCommand.LLM_LOAD_SECONDARY, "Load secondary model"),
         (TrayCommand.LLM_UNLOAD_MODEL, unload_label),
         (TrayCommand.RUNTIME_START, "Start Sofía runtime"),
         (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
@@ -282,6 +287,13 @@ def tray_command_enabled(command: TrayCommand, status: TrayStatus) -> bool:
         TrayCommand.LLM_RESTART,
     }:
         return status.llm_state != "not_found"
+    if command is TrayCommand.LLM_LOAD_PRIMARY:
+        return status.llm_primary_residency == "unloaded"
+    if command is TrayCommand.LLM_LOAD_SECONDARY:
+        return (
+            status.cognitive_routing_enabled
+            and status.llm_secondary_residency == "unloaded"
+        )
     if command is TrayCommand.RUNTIME_START:
         return status.runtime_state != "running"
     if command in {

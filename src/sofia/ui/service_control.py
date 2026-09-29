@@ -55,7 +55,20 @@ class DesktopServiceController:
         action: ServiceAction,
         *,
         llm_model: str | None = None,
+        llm_keep_alive: str | None = None,
     ) -> tuple[str, dict]:
+        if action is ServiceAction.LOAD_MODEL:
+            if target.kind is not ServiceKind.LLM_ENGINE:
+                raise ValueError("only an LLM target can load a model")
+            if not llm_model:
+                raise ValueError("LLM model identity required for load")
+            keep_alive = (llm_keep_alive or "10m").strip()
+            if not keep_alive:
+                raise ValueError("LLM keep_alive required for load")
+            return "ollama.model.load", {
+                "model": llm_model,
+                "keep_alive": keep_alive,
+            }
         if action is ServiceAction.UNLOAD_MODEL:
             if target.kind is not ServiceKind.LLM_ENGINE:
                 raise ValueError("only an LLM target can unload a model")
@@ -78,6 +91,7 @@ class DesktopServiceController:
         *,
         approval_id: str | None = None,
         llm_model: str | None = None,
+        llm_keep_alive: str | None = None,
     ) -> ServiceControlResult:
         if not isinstance(target, ServiceTarget):
             raise TypeError("ServiceTarget required")
@@ -99,6 +113,7 @@ class DesktopServiceController:
             target,
             action,
             llm_model=llm_model,
+            llm_keep_alive=llm_keep_alive,
         )
         self.approval_verifier.consume(
             approval_id=approval_id or "",
@@ -106,6 +121,22 @@ class DesktopServiceController:
             parameters=parameters,
             now=datetime.now(timezone.utc),
         )
+
+        if action is ServiceAction.LOAD_MODEL:
+            if target.kind is not ServiceKind.LLM_ENGINE:
+                raise ValueError("only an LLM target can load a model")
+            if not llm_model:
+                raise ValueError("LLM model identity required for load")
+            keep_alive = (llm_keep_alive or "10m").strip()
+            if not keep_alive:
+                raise ValueError("LLM keep_alive required for load")
+            self.ollama.load(llm_model, keep_alive=keep_alive)
+            return ServiceControlResult(
+                target.host_id,
+                target.service_name,
+                action,
+                f"load requested for {llm_model}",
+            )
 
         if action is ServiceAction.UNLOAD_MODEL:
             if target.kind is not ServiceKind.LLM_ENGINE:
