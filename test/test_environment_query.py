@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from sofia.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
