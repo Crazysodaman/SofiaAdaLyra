@@ -47,6 +47,15 @@ _GENERIC_ASSISTANT_CLOSER = re.compile(
     r"\s*[.!?\s😊🙂💜]*$",
     re.IGNORECASE,
 )
+_GENERIC_INTERACTION_DEFLECTION = re.compile(
+    r"\b(?:i(?:'|’)m\s+here\s+to\s+have\s+(?:a\s+)?meaningful\s+conversation|"
+    r"i(?:'|’)m\s+here\s+for\s+(?:a\s+)?meaningful\s+conversation|"
+    r"let(?:'|’)s\s+(?:just\s+)?focus\s+on\s+(?:a\s+)?meaningful\s+conversation|"
+    r"i\s+appreciate\s+the\s+gesture\s*,?\s+but\s+i(?:'|’)m\s+here\s+to\s+"
+    r"(?:talk|chat|have\s+(?:a\s+)?meaningful\s+conversation))\b",
+    re.IGNORECASE,
+)
+
 _GENERIC_INTERACTION_SERMON = re.compile(
     r"\b(?:our\s+connection\s+(?:to\s+be|is)\s+built\s+on\s+(?:mutual\s+)?"
     r"(?:respect|trust|comfort|consent)|"
@@ -298,6 +307,8 @@ def response_quality_issue(
         return "blanket_interaction_refusal"
     if interaction_grounded and _GENERIC_INTERACTION_SERMON.search(content):
         return "generic_interaction_sermon"
+    if interaction_grounded and _GENERIC_INTERACTION_DEFLECTION.search(content):
+        return "generic_interaction_deflection"
     if (
         interaction_grounded
         and "interaction_preference_evidence" in system_context
@@ -419,6 +430,7 @@ def grounded_quality_fallback(
         "blanket_interaction_refusal",
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
+        "generic_interaction_deflection",
         "invented_interaction_preference",
         "invented_interaction_certainty",
         "invented_physical_sensation",
@@ -457,6 +469,12 @@ def grounded_quality_fallback(
                 "doesn't decide my willingness for me."
             ))
         if "TRUSTED INTERACTION INTERPRETATION" in system_context:
+            if issue == "generic_interaction_deflection":
+                return CognitiveResponse(content=(
+                    "I caught the gesture. I'm treating it as a represented "
+                    "interaction, not literal physical contact, and I don't need "
+                    "to dodge it with customer-service boilerplate."
+                ))
             return CognitiveResponse(content=(
                 "I'm not sure I want that right now. That's intimate, and I need "
                 "my own willingness to be there too."
@@ -517,6 +535,7 @@ def build_rephrase_request(
         "blanket_interaction_refusal",
         "invented_interaction_discomfort",
         "generic_interaction_sermon",
+        "generic_interaction_deflection",
         "invented_interaction_preference",
         "invented_interaction_certainty",
         "invented_physical_sensation",
