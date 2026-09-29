@@ -11,7 +11,7 @@ from queue import Empty, Queue
 import traceback
 from typing import Any
 
-from sofia.config import SofiaConfiguration, create_default_configuration
+from sofia.config import SofiaConfiguration, create_production_configuration
 from sofia.ui.desktop_worker import DesktopApplicationWorker
 from sofia.ui.quick_tools import (
     quick_tool_by_label,
@@ -894,7 +894,7 @@ def run_desktop(
             "Tkinter is required for the local desktop workbench."
         ) from exc
 
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
     root = tk.Tk()
     _TkDesktopWorkbench(
         tk=tk,
