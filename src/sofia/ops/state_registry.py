@@ -155,6 +155,23 @@ class StatePlaneFleetRegistry(FleetRegistry):
             raise
         return updated
 
+    def authenticate_candidate(
+        self,
+        host_id: str,
+        node_id: UUID,
+    ) -> FleetHost:
+        before = self._hosts[host_id]
+        updated = super().authenticate_candidate(host_id, node_id)
+        try:
+            self._persist(
+                updated,
+                source="ops:fleet-authenticated-candidate",
+            )
+        except Exception:
+            self._hosts[host_id] = before
+            raise
+        return updated
+
     def update_telemetry(
         self,
         host_id: str,
