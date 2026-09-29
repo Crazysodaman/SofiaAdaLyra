@@ -41,7 +41,12 @@ from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
-from sofia.ops.discovery import FleetDiscoveryCoordinator
+from sofia.ops.discovery import (
+    FleetDiscoveryCoordinator,
+    FleetDiscoveryEnrollmentReconciler,
+)
+from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
@@ -473,9 +478,28 @@ class SofiaApplication:
 
                     def discover_fleet_candidates(now):
                         result = discovery.run(fleet_discovery_source)
+                        base = Path(self._configuration.state_path).parent
+                        identities = DurableNodeIdentityRegistry(
+                            base / "remote-identities.db"
+                        )
+                        endpoints = DurableEndpointPolicy(
+                            base / "remote-endpoints.db"
+                        )
+                        try:
+                            reconciled = FleetDiscoveryEnrollmentReconciler(
+                                enrollment_service=(
+                                    self._runtime.ops_service.enrollment
+                                ),
+                                identity_registry=identities,
+                                endpoint_policy=endpoints,
+                            ).reconcile(result)
+                        finally:
+                            identities.close()
+                            endpoints.close()
                         count = (
                             len(result.created_host_ids)
                             + len(result.rejected_host_ids)
+                            + len(reconciled.enrolled_host_ids)
                         )
                         return count or None
 
