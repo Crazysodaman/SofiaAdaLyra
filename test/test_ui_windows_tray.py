@@ -14,11 +14,13 @@ def _status():
         runtime_state="running",
         llm_host="venus",
         llm_state="running",
-        llm_model="qwen3:14b",
+        llm_model="vendor/primary:9b",
         game_mode=GameMode.AUTO,
         fleet_total=3,
         fleet_healthy=3,
         fleet_attention=0,
+        llm_secondary_model="vendor/open:4b",
+        cognitive_routing_enabled=True,
     )
 
 
