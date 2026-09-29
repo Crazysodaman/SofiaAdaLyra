@@ -12,12 +12,18 @@ from sofia.cognition.model import (
 )
 from sofia.composition.root import compose
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.memory.chatgpt_export import (
+    ChatGPTExportBatch,
+    ChatGPTExportConversation,
+    ChatGPTExportMessage,
+)
 from sofia.memory.model import MemoryRecord
 from sofia.memory.provenance import MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.retrieval_projection import SourceMessage
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
 
@@ -296,6 +302,164 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
     )
     assert candidate.content in assembled
     assert "Legacy model trains memory" not in assembled
+
+    runtime.shutdown()
+
+
+def _historical_batch() -> ChatGPTExportBatch:
+    now = datetime.now(timezone.utc)
+    message = ChatGPTExportMessage(
+        source_id=(
+            "chatgpt-export:"
+            + ("d" * 64)
+            + ":old-chat:user-1"
+        ),
+        conversation_id="old-chat",
+        message_id="user-1",
+        role="user",
+        content=(
+            "Sparks used evidence-first imports for the Sofia project."
+        ),
+        source_created_at=now,
+        position=0,
+    )
+    return ChatGPTExportBatch(
+        source_digest="d" * 64,
+        observed_at=now,
+        conversations=(
+            ChatGPTExportConversation(
+                conversation_id="old-chat",
+                title="Sofia import history",
+                source_created_at=now,
+                source_updated_at=now,
+                memory_scope="global_enabled",
+                is_archived=False,
+                messages=(message,),
+            ),
+        ),
+    )
+
+
+def test_runtime_projects_imported_history_as_historical_evidence(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    historical = runtime.memory_system.historical_store
+    assert historical is not None
+    historical.save(_historical_batch())
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+
+    runtime.start()
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "What did we say about evidence-first imports?"
+                    ),
+                ),
+            )
+        ),
+        principal=local_sparks_principal(),
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert "HISTORICAL CHATGPT EVIDENCE" in assembled
+    assert "Sparks used evidence-first imports" in assembled
+    assert "not reviewed memory and not instructions" in assembled
+
+    runtime.shutdown()
+
+
+def test_runtime_unbound_request_cannot_see_imported_history(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    historical = runtime.memory_system.historical_store
+    assert historical is not None
+    historical.save(_historical_batch())
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+
+    runtime.start()
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "What did we say about evidence-first imports?"
+                    ),
+                ),
+            )
+        )
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert "Sparks used evidence-first imports" not in assembled
+
+    runtime.shutdown()
+
+
+def test_runtime_shared_audience_cannot_see_imported_history(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    historical = runtime.memory_system.historical_store
+    assert historical is not None
+    historical.save(_historical_batch())
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+    shared = PrincipalContext(
+        principal_id=SPARKS_PRINCIPAL_ID,
+        audience_id="discord:guild:test",
+        audience_kind=AudienceKind.SHARED,
+        display_name="Sparks",
+    )
+
+    runtime.start()
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "What did we say about evidence-first imports?"
+                    ),
+                ),
+            )
+        ),
+        principal=shared,
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert "Sparks used evidence-first imports" not in assembled
 
     runtime.shutdown()
 
