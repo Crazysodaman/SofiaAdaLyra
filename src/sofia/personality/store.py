@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from sofia.personality.model import PersonalityProfile
+from sofia.state.atomic_file import atomic_write_text
 
 
 class PersonalityStoreError(Exception):
@@ -34,13 +35,14 @@ class PersonalityStore:
 
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
+            atomic_write_text(
+                self._path,
                 json.dumps(
                     data,
                     indent=2,
                     ensure_ascii=False,
-                ) + "\n",
-                encoding="utf-8",
+                )
+                + "\n",
             )
         except OSError as exc:
             raise PersonalityStoreError(
