@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from re import fullmatch
-from typing import Protocol
+from typing import Callable, Protocol
 from uuid import UUID
 
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
@@ -121,10 +121,21 @@ class FleetDiscoveryResult:
 class FleetDiscoveryCoordinator:
     """Convert bounded observations into durable untrusted Fleet candidates."""
 
-    def __init__(self, registry) -> None:
+    def __init__(
+        self,
+        registry,
+        *,
+        candidate_notifier: Callable[
+            [FleetHost, FleetDiscoveryEvidence],
+            None,
+        ] | None = None,
+    ) -> None:
         if not hasattr(registry, "host") or not hasattr(registry, "register_candidate"):
             raise TypeError("registry must support host() and register_candidate()")
+        if candidate_notifier is not None and not callable(candidate_notifier):
+            raise TypeError("candidate_notifier must be callable or None")
         self.registry = registry
+        self.candidate_notifier = candidate_notifier
 
     def ingest(
         self,
@@ -205,6 +216,8 @@ class FleetDiscoveryCoordinator:
             )
             self.registry.register_candidate(candidate)
             created.append(observation.host_id)
+            if self.candidate_notifier is not None:
+                self.candidate_notifier(candidate, observation)
 
         return FleetDiscoveryResult(
             observed=tuple(seen.values()),
