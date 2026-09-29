@@ -242,3 +242,19 @@ def test_state_plane_registry_persists_authenticated_candidate(tmp_path):
     assert durable.trusted is True
     assert durable.node_id == node_id
     assert durable.lifecycle is HostLifecycle.CANDIDATE
+
+
+def test_candidate_notifier_runs_once_for_new_host_only():
+    notices = []
+    registry = FleetRegistry()
+    coordinator = FleetDiscoveryCoordinator(
+        registry,
+        candidate_notifier=lambda host, observation: notices.append(
+            (host.host_id, observation.source)
+        ),
+    )
+
+    coordinator.ingest((evidence(),))
+    coordinator.ingest((evidence(),))
+
+    assert notices == [("terra", "approved-lan")]
