@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import os
 
@@ -10,9 +11,58 @@ from sofia.config.layout import RuntimeStorageLayout
 from sofia.config.user_settings import RuntimeUserSettingsStore
 
 
+def _repository_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def production_storage_layout(
+    *,
+    state_path: Path | str | None = None,
+) -> RuntimeStorageLayout:
+    """Resolve canonical production storage without provisioning it."""
+    repository_root = _repository_root()
+    layout = RuntimeStorageLayout.from_environment(
+        repository_root,
+        mode_override="production",
+    )
+    if state_path is None:
+        return layout
+    if not isinstance(state_path, (Path, str)):
+        raise TypeError("state_path must be a Path, string, or None")
+
+    state = Path(state_path)
+    state_root = state.parent
+    protected_override = os.environ.get(
+        "SOFIA_PROTECTED_ROOT",
+        "",
+    ).strip()
+    protected_root = (
+        Path(protected_override)
+        if protected_override
+        else state_root / "protected"
+    )
+    return replace(
+        layout,
+        state_root=state_root,
+        protected_root=protected_root,
+        state_path=state,
+        constitution_path=protected_root / "constitution.md",
+        constitution_hash_path=protected_root / "constitution.sha256",
+        identity_path=protected_root / "identity.json",
+        personality_path=state_root / "personality.json",
+        avatar_path=state_root / "avatar.json",
+    )
+
+
+def production_state_path() -> Path:
+    """Return the canonical live SQLite path without creating files."""
+    return production_storage_layout().state_path
+
+
 def create_default_configuration(
     *,
     runtime_mode: str | None = None,
+    state_path: Path | str | None = None,
 ) -> SofiaConfiguration:
     """
     Create the standard local configuration for Sofía.
@@ -21,12 +71,22 @@ def create_default_configuration(
     the current working directory.
     """
 
-    repository_root = Path(__file__).resolve().parents[3]
+    repository_root = _repository_root()
 
-    layout = RuntimeStorageLayout.from_environment(
-        repository_root,
-        mode_override=runtime_mode,
-    )
+    if runtime_mode == "production":
+        layout = production_storage_layout(
+            state_path=state_path,
+        )
+    else:
+        if state_path is not None:
+            raise ValueError(
+                "explicit state_path is supported only for production "
+                "configuration"
+            )
+        layout = RuntimeStorageLayout.from_environment(
+            repository_root,
+            mode_override=runtime_mode,
+        )
     layout.provision_from_source()
 
     user_settings = RuntimeUserSettingsStore(
@@ -128,6 +188,12 @@ def create_default_configuration(
     )
 
 
-def create_production_configuration() -> SofiaConfiguration:
+def create_production_configuration(
+    *,
+    state_path: Path | str | None = None,
+) -> SofiaConfiguration:
     """Create the canonical live configuration for Sofía."""
-    return create_default_configuration(runtime_mode="production")
+    return create_default_configuration(
+        runtime_mode="production",
+        state_path=state_path,
+    )
