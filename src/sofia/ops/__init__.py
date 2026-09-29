@@ -15,6 +15,12 @@ from .maintenance import MaintenanceOperation,MaintenancePolicy,MaintenanceReque
 from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentService,MachineNodeBinding
 from .recovery import BackupEvidence,HostUpdateAssignment,RecoveryDenied,RecoveryGuard,RestoreVerification,UpdatePlanner,UpdateRing
 from .activity import ActivityMode,HostActivityObservation,HostActivityState,HostActivityStore,detect_windows_game
+from .discovery import (
+    FleetDiscoveryCoordinator,
+    FleetDiscoveryEvidence,
+    FleetDiscoveryResult,
+    FleetDiscoverySource,
+)
 from .bootstrap import (
     AgentPackage,AgentInstaller,BootstrapCandidate,BootstrapDisposition,BootstrapPlan,
     FleetBootstrapExecutor,FleetBootstrapPlanner,InstallAuthority,InstallReceipt,
@@ -35,4 +41,6 @@ __all__=[
     "HostActivityState","HostActivityStore","detect_windows_game","AgentPackage","AgentInstaller",
     "BootstrapCandidate","BootstrapDisposition","BootstrapPlan","FleetBootstrapExecutor",
     "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
+    "FleetDiscoveryCoordinator","FleetDiscoveryEvidence",
+    "FleetDiscoveryResult","FleetDiscoverySource",
 ]
