@@ -10,7 +10,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 import os
 
+from sofia.config.model import SofiaConfiguration
+from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.discord.access import SingleUserDiscordConfig, _snowflake
+from sofia.safe.secret_store import ProtectedSecretStore
 
 
 def _enabled(value: str | None) -> bool:
@@ -94,6 +97,55 @@ class DiscordProvisioning:
             owner_user_id=identity.owner_user_id,
             bot_user_id=identity.bot_user_id,
             dm_channel_id=identity.dm_channel_id,
+            token=token,
+        )
+
+
+    @classmethod
+    def from_runtime(
+        cls,
+        configuration: SofiaConfiguration,
+        environ: Mapping[str, str] | None = None,
+    ) -> "DiscordProvisioning":
+        if not isinstance(configuration, SofiaConfiguration):
+            raise TypeError("configuration must be SofiaConfiguration")
+        source = os.environ if environ is None else environ
+        override_names = (
+            "SOFIA_DISCORD_ENABLED",
+            "SOFIA_DISCORD_OWNER_ID",
+            "SOFIA_DISCORD_BOT_ID",
+            "SOFIA_DISCORD_DM_CHANNEL_ID",
+            "SOFIA_DISCORD_TOKEN",
+        )
+        if any(name in source for name in override_names):
+            return cls.from_environment(source)
+
+        settings = RuntimeUserSettingsStore(
+            configuration.state_path
+        ).load()
+        if not settings.discord_enabled:
+            return cls(enabled=False)
+
+        owner = settings.discord_owner_user_id
+        bot = settings.discord_bot_user_id
+        channel = settings.discord_dm_channel_id
+        if not all(_snowflake(value) for value in (owner, bot, channel)):
+            raise ValueError(
+                "saved Discord settings require valid owner, bot, and "
+                "DM channel IDs"
+            )
+        token = ProtectedSecretStore.for_state_path(
+            configuration.state_path
+        ).get("discord-token")
+        if not token:
+            raise ValueError(
+                "Discord is enabled but no protected Discord token is stored"
+            )
+        return cls(
+            enabled=True,
+            owner_user_id=owner,
+            bot_user_id=bot,
+            dm_channel_id=channel,
             token=token,
         )
 
