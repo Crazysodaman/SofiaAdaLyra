@@ -101,7 +101,9 @@ class DesktopApplicationWorker:
             provisioning = (
                 self._discord_provisioning
                 if self._discord_provisioning is not None
-                else DiscordProvisioning.from_environment()
+                else DiscordProvisioning.from_runtime(
+                    self._configuration
+                )
             )
             application = create_desktop_application(
                 self._configuration
