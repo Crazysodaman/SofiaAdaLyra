@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
+from sofia.cognition.fleet_engine import FleetPlacedCognitiveEngine
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -19,8 +20,11 @@ from sofia.cognition.routing import (
 )
 from sofia.composition.root import _create_cognitive_engine
 from sofia.config import create_default_configuration
+from sofia.ops.capability import OpsToolService
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
+    FleetCognitionConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -496,3 +500,113 @@ def test_verify_precedes_reviewed_interaction_standard_routing():
     assert engine.last_decision.route is CognitiveRoute.VERIFY
     assert len(primary.requests) == 2
     assert len(secondary.requests) == 1
+
+
+class RemoteInferenceStub:
+    def infer(self, node_id, provider, request):
+        return CognitiveResponse(content="remote")
+
+
+def test_default_configuration_keeps_fleet_cognition_off(monkeypatch):
+    monkeypatch.delenv("SOFIA_COGNITION_FLEET_ENABLED", raising=False)
+    configuration = create_default_configuration()
+    assert configuration.fleet_cognition.enabled is False
+
+
+def test_default_configuration_parses_fleet_cognition_policy(monkeypatch):
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_ENABLED", "1")
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_LOCAL_FALLBACK", "1")
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_GPU_REQUIRED", "1")
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_MIN_RAM_BYTES", "123")
+    monkeypatch.setenv("SOFIA_COGNITION_FLEET_MIN_VRAM_BYTES", "456")
+    monkeypatch.setenv(
+        "SOFIA_COGNITION_FLEET_ALLOWED_HOST_IDS",
+        "alpha,beta,alpha",
+    )
+
+    configuration = create_default_configuration()
+
+    policy = configuration.fleet_cognition
+    assert policy.enabled is True
+    assert policy.local_fallback is True
+    assert policy.gpu_required is True
+    assert policy.min_ram_bytes == 123
+    assert policy.min_vram_bytes == 456
+    assert policy.allowed_host_ids == ("alpha", "beta")
+
+
+def test_composition_wraps_both_routed_roles_for_fleet_cognition(tmp_path):
+    state = tmp_path / "sofia.db"
+    routing = CognitiveRoutingConfiguration(
+        enabled=True,
+        primary=ProviderConfiguration(
+            provider="test-llm",
+            model="primary-model",
+        ),
+        secondary=ProviderConfiguration(
+            provider="test-llm",
+            model="secondary-model",
+        ),
+    )
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=state,
+        provider=ProviderConfiguration(
+            provider="test-llm",
+            model="legacy-model",
+        ),
+        filesystem_root=tmp_path,
+        routing=routing,
+        fleet_cognition=FleetCognitionConfiguration(enabled=True),
+    )
+    ops = OpsToolService(
+        state,
+        state_plane=SQLiteStatePlane(state),
+    )
+
+    engine = _create_cognitive_engine(
+        configuration,
+        ops_service=ops,
+        local_host_id="local-host",
+        remote_inference_client=RemoteInferenceStub(),
+    )
+
+    assert isinstance(engine, RoutingCognitiveEngine)
+    assert isinstance(engine.registry.primary, FleetPlacedCognitiveEngine)
+    assert isinstance(engine.registry.secondary, FleetPlacedCognitiveEngine)
+    assert engine.registry.primary.workload_id == "cognition-primary"
+    assert engine.registry.secondary.workload_id == "cognition-secondary"
+
+
+def test_fleet_cognition_fails_closed_without_remote_transport(tmp_path):
+    state = tmp_path / "sofia.db"
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=state,
+        provider=ProviderConfiguration(
+            provider="test-llm",
+            model="primary-model",
+        ),
+        filesystem_root=tmp_path,
+        fleet_cognition=FleetCognitionConfiguration(enabled=True),
+    )
+    ops = OpsToolService(
+        state,
+        state_plane=SQLiteStatePlane(state),
+    )
+
+    with pytest.raises(ValueError, match="pinned-mTLS"):
+        _create_cognitive_engine(
+            configuration,
+            ops_service=ops,
+            local_host_id="local-host",
+            remote_inference_client=None,
+        )
