@@ -287,13 +287,22 @@ def run_settings_window() -> int:
     for label, variable in (
         ("Owner user ID", discord_owner),
         ("Bot user ID", discord_bot),
-        ("DM channel ID", discord_channel),
+        ("DM channel ID (optional, auto-detected)", discord_channel),
     ):
         ttk.Label(discord_frame, text=label).pack(anchor="w")
         ttk.Entry(
             discord_frame,
             textvariable=variable,
         ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(
+        discord_frame,
+        text=(
+            "Leave DM Channel ID blank to let Sofía resolve the authenticated "
+            "private DM automatically. A stored value is treated as a cache "
+            "and corrected if Discord resolves a different channel."
+        ),
+        wraplength=700,
+    ).pack(anchor="w", pady=(0, 8))
     ttk.Label(discord_frame, text="Bot token").pack(anchor="w")
     ttk.Entry(
         discord_frame,
