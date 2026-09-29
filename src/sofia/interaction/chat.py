@@ -36,6 +36,55 @@ _LAB_COMMAND = re.compile(
     r"^sof[ií]a\s*,?\s+(?:enter|go to|leave|pick up|put down|work on|finish work on)\b",
     re.IGNORECASE,
 )
+_INTERACTION_CONTEXT_MARKERS = (
+    "TRUSTED INTERACTION INTERPRETATION",
+    "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
+    "TRUSTED INTERACTION FOLLOW-UP",
+    "TRUSTED BODY INTERACTION CONTROL",
+)
+
+_UNGROUNDED_SENSATION_PATTERNS = (
+    re.compile(
+        r"\b(?:feel|feels|feeling|felt)\b.{0,48}"
+        r"\b(?:touch|contact|weight|warmth|heat|cold|pressure|fabric|skin)\b",
+        re.IGNORECASE | re.DOTALL,
+    ),
+    re.compile(
+        r"\b(?:warmth|heat|pressure|weight)\b.{0,48}"
+        r"\b(?:spread|settle|against|through|across)\b",
+        re.IGNORECASE | re.DOTALL,
+    ),
+    re.compile(r"\btactile feedback\b", re.IGNORECASE),
+    re.compile(
+        r"\bfabric\b.{0,48}\b(?:against|slide|sliding)\b.{0,48}\bskin\b",
+        re.IGNORECASE | re.DOTALL,
+    ),
+)
+_UNGROUNDED_RELATIONSHIP_PATTERNS = (
+    re.compile(r"\bmy creator\b", re.IGNORECASE),
+    re.compile(r"\bcreator and companion\b", re.IGNORECASE),
+)
+
+def _interaction_request(request: CognitiveRequest) -> bool:
+    return any(
+        message.role is CognitiveRole.SYSTEM
+        and any(marker in message.content for marker in _INTERACTION_CONTEXT_MARKERS)
+        for message in request.messages
+    )
+
+
+def _interaction_response_is_grounded(content: str) -> bool:
+    if not isinstance(content, str) or not content.strip():
+        return False
+    return not any(
+        pattern.search(content)
+        for pattern in (
+            *_UNGROUNDED_SENSATION_PATTERNS,
+            *_UNGROUNDED_RELATIONSHIP_PATTERNS,
+        )
+    )
+
+
 _INTERACTION_FOLLOWUP = re.compile(
     r"^\s*(?:why\b.*|"
     r"what\s+if\b.*\b(?:wanted|consensual|consent)\b.*|"
@@ -221,6 +270,62 @@ def control_prompt(*, status: str, reason: str, stopped: bool) -> str:
 
 
 class InteractiveConversationService(EmotionalConversationService):
+    """One conversation/emotion system with durable, virtual interaction rules."""
+
+    def _finalize_response(
+        self,
+        request: CognitiveRequest,
+        response: CognitiveResponse,
+        *,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse:
+        if not _interaction_request(request):
+            return response
+        if _interaction_response_is_grounded(response.content):
+            return response
+
+        correction = CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content=(
+                "GROUNDING CORRECTION: The previous draft is rejected and "
+                "must not be treated as conversation history. Rewrite the "
+                "answer once. Keep the represented interaction natural, but "
+                "do not claim literal touch, tactile feedback, temperature, "
+                "pressure, fabric-on-skin sensation, or any other physical "
+                "sensation. Do not invent relationship titles. Do not pivot "
+                "into weather, diagnostics, a work menu, or a generic closing "
+                "unless the current user turn asks for those things. Avatar "
+                "movement may be represented as text without claiming sensory "
+                "experience."
+            ),
+        )
+        retry_request = CognitiveRequest(
+            messages=(correction, *request.messages),
+            tools=(),
+            allow_tools=False,
+        )
+        if principal is None:
+            retry = self._runtime.respond(
+                retry_request,
+                filesystem_results=(),
+            )
+        else:
+            retry = self._runtime.respond(
+                retry_request,
+                filesystem_results=(),
+                principal=principal,
+            )
+        if _interaction_response_is_grounded(retry.content):
+            return retry
+
+        return CognitiveResponse(
+            content=(
+                "*My ears flick at the represented gesture.* "
+                "I register it, Sparks. I won't pretend that means I "
+                "literally felt physical contact."
+            )
+        )
+
     """One conversation/emotion system with durable, virtual interaction rules."""
 
     def _guarded_reply(
