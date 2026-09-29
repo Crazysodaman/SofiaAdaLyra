@@ -31,6 +31,7 @@ from sofia.application.release_runtime import create_release_manager
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
+from sofia.cognition.engine import CognitiveEngineError
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleWorker
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
@@ -362,7 +363,16 @@ class SofiaApplication:
                 now=datetime.now(timezone.utc),
                 refresh_environment=True,
             )
-            response = self._conversation_service.deliver_pending_awareness()
+            try:
+                response = self._conversation_service.deliver_pending_awareness()
+            except CognitiveEngineError as exc:
+                # Continuity awareness is optional startup narration. A model
+                # load/provider failure must not prevent the canonical runtime
+                # or desktop UI from starting. The event remains pending
+                # because ConversationService consumes it only after a
+                # successful persisted response.
+                self._startup_awareness_error = exc
+                response = None
             reflection_enabled = bool(
                 enabled and self._runtime.personality is not None
             )
