@@ -5,6 +5,13 @@ from datetime import datetime, timezone
 import sqlite3
 
 from sofia.config import create_production_configuration
+from sofia.config.model_catalog import (
+    RECOMMENDED_PRIMARY_CONTEXT_SIZE,
+    RECOMMENDED_PRIMARY_MODEL,
+    RECOMMENDED_SECONDARY_CONTEXT_SIZE,
+    RECOMMENDED_SECONDARY_MODEL,
+    known_local_model_names,
+)
 from sofia.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
@@ -284,9 +291,11 @@ def run_settings_window() -> int:
 
     models = frames["Models"]
     ttk.Label(models, text="Ollama model").pack(anchor="w")
-    ttk.Entry(
+    ttk.Combobox(
         models,
         textvariable=provider_model,
+        values=known_local_model_names(),
+        state="normal",
     ).pack(anchor="w", fill="x", pady=(2, 8))
     ttk.Label(models, text="Context size").pack(anchor="w")
     ttk.Entry(
@@ -323,6 +332,15 @@ def run_settings_window() -> int:
     for label, variable in (
         ("Primary model", cognitive_primary_model),
         ("Secondary / open model", cognitive_secondary_model),
+    ):
+        ttk.Label(routing_frame, text=label).pack(anchor="w")
+        ttk.Combobox(
+            routing_frame,
+            textvariable=variable,
+            values=known_local_model_names(),
+            state="normal",
+        ).pack(anchor="w", fill="x", pady=(2, 5))
+    for label, variable in (
         ("Primary context size", cognitive_primary_context),
         ("Secondary context size", cognitive_secondary_context),
     ):
@@ -331,6 +349,19 @@ def run_settings_window() -> int:
             routing_frame,
             textvariable=variable,
         ).pack(anchor="w", fill="x", pady=(2, 5))
+
+    def load_recommended_pair() -> None:
+        cognitive_primary_model.set(RECOMMENDED_PRIMARY_MODEL)
+        cognitive_secondary_model.set(RECOMMENDED_SECONDARY_MODEL)
+        cognitive_primary_context.set(str(RECOMMENDED_PRIMARY_CONTEXT_SIZE))
+        cognitive_secondary_context.set(str(RECOMMENDED_SECONDARY_CONTEXT_SIZE))
+        cognitive_routing_enabled.set(True)
+
+    ttk.Button(
+        routing_frame,
+        text="Load recommended local pair",
+        command=load_recommended_pair,
+    ).pack(anchor="w", pady=(2, 6))
     ttk.Checkbutton(
         routing_frame,
         text="Enable two-pass verification for explicit verify requests",
