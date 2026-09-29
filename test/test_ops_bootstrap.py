@@ -115,3 +115,17 @@ def test_executor_rejects_unverified_or_wrong_install_receipt():
 
     with pytest.raises(RuntimeError, match="did not verify"):
         FleetBootstrapExecutor().execute(plan, BadInstaller())
+
+
+def test_compatible_present_agent_is_ready_without_package_hash_evidence():
+    plan = FleetBootstrapPlanner().plan(
+        candidate(
+            installed_protocol_version=PACKAGE.protocol_version,
+            agent_present=True,
+        ),
+        PACKAGE,
+        authority=InstallAuthority.NONE,
+    )
+
+    assert plan.disposition is BootstrapDisposition.READY_FOR_ENROLLMENT
+    assert "already present" in plan.reason
