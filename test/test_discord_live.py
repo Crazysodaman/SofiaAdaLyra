@@ -21,6 +21,8 @@ from sofia.discord.provisioning import DiscordProvisioning
 OWNER = 123456789012345678
 BOT = 987654321098765432
 CHANNEL = 223456789012345678
+AUTO_CHANNEL = 323456789012345678
+STALE_CHANNEL = 423456789012345678
 
 
 class FakeConversation:
@@ -50,6 +52,16 @@ class FakeApplication:
 class Configuration:
     def __init__(self, state_path: Path) -> None:
         self.state_path = state_path
+
+
+def unpinned_provisioning() -> DiscordProvisioning:
+    return DiscordProvisioning(
+        enabled=True,
+        owner_user_id=OWNER,
+        bot_user_id=BOT,
+        dm_channel_id=None,
+        token="secret",
+    )
 
 
 def provisioning() -> DiscordProvisioning:
@@ -250,3 +262,79 @@ def test_background_service_starts_and_stops_without_owning_application(
     assert not service.running
     assert created[0].closed is True
     assert service.error is None
+
+
+
+def test_unpinned_live_runtime_accepts_authenticated_channel(tmp_path) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    conversation = FakeConversation()
+    conversation.session_id = "desktop-session"
+
+    channel = compose_live_discord_for_conversation(
+        unpinned_provisioning(),
+        conversation=conversation,
+        configuration=config,
+    )
+
+    assert channel.runtime.config.dm_channel_id is None
+    channel.runtime.pin_verified_channel(AUTO_CHANNEL)
+    assert channel.runtime.config.dm_channel_id == AUTO_CHANNEL
+
+    binding = ensure_verified_binding(channel.runtime)
+    assert binding.channel_id == AUTO_CHANNEL
+    assert binding.owner_user_id == OWNER
+    assert binding.session_id == "desktop-session"
+
+
+def test_verified_channel_replaces_and_revokes_stale_manual_pin(
+    tmp_path,
+) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    conversation = FakeConversation()
+    conversation.session_id = "desktop-session"
+    stale = DiscordProvisioning(
+        enabled=True,
+        owner_user_id=OWNER,
+        bot_user_id=BOT,
+        dm_channel_id=STALE_CHANNEL,
+        token="secret",
+    )
+
+    channel = compose_live_discord_for_conversation(
+        stale,
+        conversation=conversation,
+        configuration=config,
+    )
+    old_binding = ensure_verified_binding(channel.runtime)
+    assert old_binding.channel_id == STALE_CHANNEL
+
+    channel.runtime.pin_verified_channel(AUTO_CHANNEL)
+    new_binding = ensure_verified_binding(channel.runtime)
+
+    stale_after = channel.bindings.get(
+        bot_user_id=BOT,
+        channel_id=STALE_CHANNEL,
+    )
+    assert stale_after is not None
+    assert stale_after.state is BindingState.REVOKED
+    assert new_binding.channel_id == AUTO_CHANNEL
+    assert channel.runtime.config.dm_channel_id == AUTO_CHANNEL
+
+
+def test_unpinned_restart_recovers_unique_owner_binding(tmp_path) -> None:
+    config = Configuration(tmp_path / "state.sqlite3")
+    store = DiscordBindingStore(config.state_path)
+    store.bind(
+        bot_user_id=BOT,
+        owner_user_id=OWNER,
+        channel_id=AUTO_CHANNEL,
+        session_id="remembered-session",
+    )
+
+    assert (
+        discord_bound_session_id(
+            unpinned_provisioning(),
+            configuration=config,
+        )
+        == "remembered-session"
+    )
