@@ -1,5 +1,11 @@
 from pathlib import Path
 
+from sofia.config.cognitive_models import CognitiveModelSelection
+from sofia.config.model import (
+    CognitiveRoutingConfiguration,
+    ProviderConfiguration,
+    SofiaConfiguration,
+)
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_MODEL,
     RECOMMENDED_PRIMARY_MODEL,
@@ -44,3 +50,45 @@ def test_model_catalog_is_suggestions_not_an_allow_list():
     assert settings.cognitive_secondary_model == "vendor/custom-open:3b"
     assert RECOMMENDED_PRIMARY_MODEL in known_local_model_names()
     assert RECOMMENDED_SECONDARY_MODEL in known_local_model_names()
+
+
+
+def test_effective_model_selection_uses_roles_not_concrete_model_names(
+    tmp_path,
+):
+    routing = CognitiveRoutingConfiguration(
+        enabled=True,
+        primary=ProviderConfiguration(
+            provider="ollama",
+            model="vendor/owner-primary:anything",
+        ),
+        secondary=ProviderConfiguration(
+            provider="ollama",
+            model="vendor/owner-secondary:anything",
+        ),
+    )
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(
+            provider="ollama",
+            model="vendor/legacy:anything",
+        ),
+        filesystem_root=tmp_path,
+        routing=routing,
+    )
+
+    selection = CognitiveModelSelection.from_configuration(configuration)
+
+    assert selection.routing_enabled is True
+    assert selection.primary.model == "vendor/owner-primary:anything"
+    assert selection.secondary is not None
+    assert selection.secondary.model == "vendor/owner-secondary:anything"
+    assert selection.model_names == (
+        "vendor/owner-primary:anything",
+        "vendor/owner-secondary:anything",
+    )

@@ -23,6 +23,7 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
+from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
 from sofia.config.state_store import StatePlaneConfigurationStore
 from sofia.constitution.integrity import (
@@ -465,14 +466,10 @@ class SofiaRuntime:
         ):
             return None
 
-        provider_configuration = self._configuration.provider
-        routing = self._configuration.routing
-        if (
-            routing is not None
-            and routing.enabled
-            and routing.primary is not None
-        ):
-            provider_configuration = routing.primary
+        model_selection = CognitiveModelSelection.from_configuration(
+            self._configuration
+        )
+        provider_configuration = model_selection.primary
 
         return OperationalState(
             runtime_id=self._runtime_id,
