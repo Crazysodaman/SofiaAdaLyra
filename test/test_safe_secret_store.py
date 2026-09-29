@@ -1,3 +1,7 @@
+import sys
+
+import pytest
+
 from sofia.safe.secret_store import ProtectedSecretStore
 
 
@@ -35,3 +39,15 @@ def test_secret_store_clear_is_idempotent(tmp_path):
     assert store.clear("home-assistant-token") is True
     assert store.clear("home-assistant-token") is False
     assert store.get("home-assistant-token") is None
+
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DPAPI only")
+def test_windows_dpapi_round_trip(tmp_path):
+    store = ProtectedSecretStore(tmp_path / "dpapi-secrets")
+
+    store.set("discord-token", "windows-dpapi-secret")
+
+    path = tmp_path / "dpapi-secrets" / "discord-token.dpapi"
+    assert b"windows-dpapi-secret" not in path.read_bytes()
+    assert store.get("discord-token") == "windows-dpapi-secret"
