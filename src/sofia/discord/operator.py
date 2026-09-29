@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import sys
 from typing import Callable
 
-from sofia.config import SofiaConfiguration, create_default_configuration
+from sofia.config import SofiaConfiguration, create_production_configuration
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.delivery import DiscordDeliveryStore
 from sofia.discord.provisioning import DiscordIdentity
@@ -34,7 +34,7 @@ def inspect_discord_state(
 ) -> DiscordOperatorStatus:
     if not isinstance(identity, DiscordIdentity):
         raise TypeError("identity must be DiscordIdentity")
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
 
     bindings = DiscordBindingStore(config.state_path)
     binding = bindings.get(
@@ -73,7 +73,7 @@ def control_discord(
         raise ValueError(
             "Discord operator action must be status, pause, resume, revoke, or reenroll"
         )
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
     if action != "status":
         bindings = DiscordBindingStore(config.state_path)
         binding = bindings.get(

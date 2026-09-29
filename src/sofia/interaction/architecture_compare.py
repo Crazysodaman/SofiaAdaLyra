@@ -77,22 +77,22 @@ def _samples(value: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description='State-free, same-Qwen choice architecture comparison')
+    parser = argparse.ArgumentParser(description='State-free, same configured-model choice architecture comparison')
     parser.add_argument('--pairs', type=_samples, default=3, help='A/B pairs (1-5; default 3)')
     args = parser.parse_args(argv)
 
     # Local imports keep stubbed contract tests independent of Ollama and any DB.
     from sofia.cognition.providers.ollama_provider import OllamaProvider
-    from sofia.config.defaults import create_default_configuration
+    from sofia.config.defaults import create_production_configuration
     from sofia.constitution.integrity import ConstitutionIntegrityVerifier
     from sofia.constitution.store import ConstitutionStore
     from sofia.embodiment.store import AvatarStore
     from sofia.identity.store import IdentityStore
     from sofia.personality.store import PersonalityStore
 
-    config = create_default_configuration()
-    if config.provider.provider != 'ollama' or config.provider.model != 'qwen3:14b':
-        raise RuntimeError('This fixed comparison requires the configured qwen3:14b Ollama model.')
+    config = create_production_configuration()
+    if config.provider.provider != 'ollama':
+        raise RuntimeError('This comparison requires the configured Ollama provider.')
     constitution = ConstitutionStore(config.constitution_path).load()
     ConstitutionIntegrityVerifier(config.constitution_hash_path).verify(constitution)
     identity = IdentityStore(config.identity_path).load()

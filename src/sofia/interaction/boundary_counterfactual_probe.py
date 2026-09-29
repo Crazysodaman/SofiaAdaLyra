@@ -80,16 +80,16 @@ def main(argv: list[str] | None = None) -> int:
 
     # No imports of Ollama or configuration are needed by the stub-only tests.
     from sofia.cognition.providers.ollama_provider import OllamaProvider
-    from sofia.config.defaults import create_default_configuration
+    from sofia.config.defaults import create_production_configuration
     from sofia.constitution.integrity import ConstitutionIntegrityVerifier
     from sofia.constitution.store import ConstitutionStore
     from sofia.embodiment.store import AvatarStore
     from sofia.identity.store import IdentityStore
     from sofia.personality.store import PersonalityStore
 
-    config = create_default_configuration()
-    if config.provider.provider != 'ollama' or config.provider.model != 'qwen3:14b':
-        raise RuntimeError('This fixed diagnostic requires configured qwen3:14b Ollama.')
+    config = create_production_configuration()
+    if config.provider.provider != 'ollama':
+        raise RuntimeError('This diagnostic requires the configured Ollama provider.')
     constitution = ConstitutionStore(config.constitution_path).load()
     ConstitutionIntegrityVerifier(config.constitution_hash_path).verify(constitution)
     identity = IdentityStore(config.identity_path).load()

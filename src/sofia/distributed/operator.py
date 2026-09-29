@@ -5,7 +5,7 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from uuid import UUID,uuid4
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.distributed.endpoint_policy import ApprovedEndpoint
@@ -68,7 +68,7 @@ def fingerprint_certificate(path:Path)->str:
 
 def _state_path(raw:str|None)->Path:
     if raw: return Path(raw)
-    return Path(create_default_configuration().state_path)
+    return Path(create_production_configuration().state_path)
 
 def main(argv:list[str]|None=None)->int:
     parser=argparse.ArgumentParser(prog="python -m sofia.distributed.operator")

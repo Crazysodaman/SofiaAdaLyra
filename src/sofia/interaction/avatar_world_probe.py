@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.config.defaults import create_default_configuration
+from sofia.config.defaults import create_production_configuration
 from sofia.interaction.expanded_service import ExpandedConversationService
 
 _CASES = (
@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     # This changes only the current diagnostic process, not user settings.
     os.environ['SOFIA_IDLE_REFLECTIONS'] = '0'
-    baseline = create_default_configuration()
+    baseline = create_production_configuration()
     if baseline.provider.provider != 'ollama':
         raise RuntimeError('This diagnostic needs the configured Ollama provider.')
     print('AVATAR WORLD: real app + Ollama, disposable state per synthetic case.')

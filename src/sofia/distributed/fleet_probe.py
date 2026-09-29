@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
@@ -32,7 +32,7 @@ def _paths(state_path: Path) -> dict[str, Path]:
 
 
 def _state_path(raw: str | None) -> Path:
-    return Path(raw) if raw else Path(create_default_configuration().state_path)
+    return Path(raw) if raw else Path(create_production_configuration().state_path)
 
 
 def _scalar(raw: str) -> str | int | float | bool | None:
