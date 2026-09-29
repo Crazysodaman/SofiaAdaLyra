@@ -240,6 +240,36 @@ def test_verify_never_duplicates_tool_call():
     assert len(secondary.requests) == 0
 
 
+def test_verify_reviews_completed_tool_text_without_secondary_tools():
+    tool = CognitiveToolDefinition(
+        name="service.restart",
+        description="Restart a service.",
+        parameters={"type": "object"},
+    )
+    primary = QueueEngine(
+        CognitiveResponse(content="draft after tool work"),
+        CognitiveResponse(content="verified final"),
+    )
+    secondary = QueueEngine(
+        CognitiveResponse(content="review critique")
+    )
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary)
+    )
+
+    result = engine.respond(
+        request("Restart the service and verify it.", tools=(tool,))
+    )
+
+    assert result.content == "verified final"
+    assert len(primary.requests) == 2
+    assert len(secondary.requests) == 1
+    assert secondary.requests[0].tools == ()
+    assert secondary.requests[0].allow_tools is False
+    assert primary.requests[1].tools == ()
+    assert primary.requests[1].allow_tools is False
+
+
 def test_verify_can_be_disabled_without_changing_policy():
     primary = QueueEngine(CognitiveResponse(content="single pass"))
     secondary = QueueEngine()
