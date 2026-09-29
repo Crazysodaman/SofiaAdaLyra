@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import subprocess
 from datetime import datetime
 
 import pytest
@@ -910,3 +911,31 @@ def test_process_inspection_accepts_iso_datetime(
 
     assert result.kind is SystemCapabilityResultKind.SUCCESS
     assert result.evidence["processes"][0].started_at is not None
+
+
+
+def test_default_powershell_runner_suppresses_console_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+
+    class Completed:
+        stdout = "{}"
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return Completed()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+
+    backend = WindowsSystemCapabilityBackend()
+    result = backend._run_powershell("'{}'")
+
+    assert result == "{}"
+    assert calls
+    argv, kwargs = calls[0]
+    assert argv[0] == "powershell.exe"
+    assert kwargs["creationflags"] == 0x08000000
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
