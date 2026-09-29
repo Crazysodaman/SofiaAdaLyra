@@ -4,42 +4,52 @@ from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
 
 
-def _routing(primary: str, secondary: str):
+def _selection(primary: str, secondary: str | None = None):
     return SimpleNamespace(
-        enabled=True,
+        routing_enabled=secondary is not None,
         primary=SimpleNamespace(model=primary),
-        secondary=SimpleNamespace(model=secondary),
+        secondary=(
+            None
+            if secondary is None
+            else SimpleNamespace(model=secondary)
+        ),
+        model_names=(
+            (primary,)
+            if secondary is None or secondary == primary
+            else (primary, secondary)
+        ),
     )
 
 
-def test_tray_reads_single_model_from_effective_configuration():
+def test_tray_status_exposes_single_effective_model():
     app=object.__new__(TrayAgentApplication)
-    app.config=SimpleNamespace(
-        provider=SimpleNamespace(model="vendor/single:7b"),
-        routing=None,
+    app._current_model_selection=lambda: _selection("vendor/single:7b")
+    app.settings_store=SimpleNamespace(
+        load=lambda: SimpleNamespace(
+            runtime_service_name="SofiaAdaLyra",
+            llm_service_name="Ollama",
+            game_mode=GameMode.AUTO,
+        )
     )
+    app._runtime_authority=SimpleNamespace(current=lambda: None)
+    app._service_state=lambda name: "running"
+    app.host_id="venus"
+    app.ops=SimpleNamespace(fleet=lambda: ())
+    app._last_error=None
 
-    assert app._configured_llm_models() == ("vendor/single:7b",)
+    status=app.status()
 
-
-def test_tray_reads_both_models_from_effective_routing_configuration():
-    app=object.__new__(TrayAgentApplication)
-    app.config=SimpleNamespace(
-        provider=SimpleNamespace(model="legacy/ignored:1b"),
-        routing=_routing("vendor/primary:9b", "vendor/open:4b"),
-    )
-
-    assert app._configured_llm_models() == (
-        "vendor/primary:9b",
-        "vendor/open:4b",
-    )
+    assert status.llm_model == "vendor/single:7b"
+    assert status.llm_secondary_model is None
+    assert status.cognitive_routing_enabled is False
+    assert status.configured_llm_models == ("vendor/single:7b",)
 
 
 def test_tray_status_exposes_primary_secondary_and_routing_mode():
     app=object.__new__(TrayAgentApplication)
-    app.config=SimpleNamespace(
-        provider=SimpleNamespace(model="legacy/ignored:1b"),
-        routing=_routing("vendor/primary:9b", "vendor/open:4b"),
+    app._current_model_selection=lambda: _selection(
+        "vendor/primary:9b",
+        "vendor/open:4b",
     )
     app.settings_store=SimpleNamespace(
         load=lambda: SimpleNamespace(
@@ -63,4 +73,3 @@ def test_tray_status_exposes_primary_secondary_and_routing_mode():
         "vendor/primary:9b",
         "vendor/open:4b",
     )
-    assert status.cognition_mode_label == "Dual-model routing"
