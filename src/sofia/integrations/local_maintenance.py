@@ -31,7 +31,18 @@ class LocalMaintenanceAdapter:
 
     @staticmethod
     def _run(argv:Sequence[str])->LocalCommandResult:
-        cp=subprocess.run(tuple(argv),text=True,capture_output=True,timeout=180,check=False)
+        cp=subprocess.run(
+            tuple(argv),
+            text=True,
+            capture_output=True,
+            timeout=180,
+            check=False,
+            creationflags=(
+                getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                if platform.system() == "Windows"
+                else 0
+            ),
+        )
         result=LocalCommandResult(tuple(argv),cp.returncode,cp.stdout,cp.stderr)
         if cp.returncode:
             raise LocalMaintenanceError(cp.stderr.strip() or cp.stdout.strip() or f"command failed: {argv[0]}")
