@@ -225,7 +225,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         server = RemoteAgentServer(
             config,
-            create_default_agent_dispatcher(),
+            create_default_agent_dispatcher(
+                inference_models=config.inference_models,
+            ),
             inference_handler=None if inference is None else inference.infer,
         )
         try:
