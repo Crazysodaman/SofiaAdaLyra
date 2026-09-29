@@ -1,7 +1,10 @@
 from pathlib import Path
 import re
 
-from sofia.config import create_production_configuration
+from sofia.config import (
+    create_production_configuration,
+    production_state_path,
+)
 from sofia.config.layout import RuntimeStorageLayout
 from sofia.identity.model import IdentityBootstrapMode
 import sofia.config.layout as layout_module
@@ -129,3 +132,18 @@ def test_windows_production_layout_defaults_to_programdata(
         layout.identity_bootstrap_mode
         is IdentityBootstrapMode.REQUIRE_EXISTING
     )
+
+
+
+def test_production_state_path_resolution_has_no_filesystem_side_effect(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "production-state"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.delenv("SOFIA_PROTECTED_ROOT", raising=False)
+
+    path = production_state_path()
+
+    assert path == state_root / "sofia.db"
+    assert state_root.exists() is False
