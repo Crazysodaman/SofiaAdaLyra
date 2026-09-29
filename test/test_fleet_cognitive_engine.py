@@ -85,7 +85,14 @@ def _host(
     )
 
 
-def _engine(tmp_path,*,hosts,policy=None,remote=None):
+def _engine(
+    tmp_path,
+    *,
+    hosts,
+    policy=None,
+    remote=None,
+    prepare=None,
+):
     local=LocalEngine()
     ops=_ops(tmp_path,hosts)
     calls=[]
@@ -103,6 +110,7 @@ def _engine(tmp_path,*,hosts,policy=None,remote=None):
         ops=ops,
         local_host_id="local",
         remote_infer=remote_infer,
+        remote_prepare=prepare,
         policy=policy or FleetCognitionPolicy(enabled=True),
         workload_id="cognition-primary",
     )
@@ -208,3 +216,74 @@ def test_remote_tool_calls_are_returned_for_authoritative_runtime_dispatch(tmp_p
 
     assert response.tool_calls==(call,)
     assert local.calls==[]
+
+
+def test_remote_model_preflight_runs_before_inference(tmp_path):
+    events=[]
+    def prepare(node_id,provider,auto_provision):
+        events.append(("prepare",node_id,provider.model,auto_provision))
+    def remote(node_id,provider,request):
+        events.append(("infer",node_id,provider.model))
+        return CognitiveResponse(content="remote")
+
+    node=uuid4()
+    engine,local,calls=_engine(
+        tmp_path,
+        hosts=(
+            _host("local",cpu=80),
+            _host("remote",cpu=10,node_id=node),
+        ),
+        prepare=prepare,
+        remote=remote,
+    )
+
+    response=engine.respond(CognitiveRequest(messages=()))
+
+    assert response.content=="remote"
+    assert events[0]==("prepare",node,"owner/model:any",False)
+    assert events[1]==("infer",node,"owner/model:any")
+    assert local.calls==[]
+
+
+def test_remote_model_preflight_receives_auto_provision_policy(tmp_path):
+    observed=[]
+    node=uuid4()
+    engine,local,calls=_engine(
+        tmp_path,
+        hosts=(
+            _host("local",cpu=80),
+            _host("remote",cpu=10,node_id=node),
+        ),
+        policy=FleetCognitionPolicy(
+            enabled=True,
+            auto_provision_models=True,
+        ),
+        prepare=lambda node_id,provider,auto: observed.append(
+            (node_id,provider.model,auto)
+        ),
+    )
+
+    assert engine.respond(CognitiveRequest(messages=())).content=="remote"
+    assert observed==[(node,"owner/model:any",True)]
+    assert local.calls==[]
+
+
+def test_remote_model_preflight_failure_falls_back_local(tmp_path):
+    node=uuid4()
+    engine,local,calls=_engine(
+        tmp_path,
+        hosts=(
+            _host("local",cpu=80),
+            _host("remote",cpu=10,node_id=node),
+        ),
+        prepare=lambda *_: (_ for _ in ()).throw(
+            RuntimeError("model unavailable")
+        ),
+    )
+
+    response=engine.respond(CognitiveRequest(messages=()))
+
+    assert response.content=="local"
+    assert len(local.calls)==1
+    assert calls==[]
+    assert engine.last_remote is False
