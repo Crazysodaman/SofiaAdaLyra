@@ -1,4 +1,5 @@
 ﻿from datetime import datetime, timezone
+import re
 from uuid import uuid4
 
 from sofia.authorization.evaluator import (
@@ -24,6 +25,64 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
+
+
+_TOOL_TARGET_RE = re.compile(
+    r"\\b(?:file|folder|directory|code|codebase|repository|repo|github|"
+    r"issue|pull\\s+request|process|cpu|gpu|memory|ram|disk|storage|"
+    r"system|computer|machine|host|network|service|hardware|vm|"
+    r"virtual\\s+machine|container|docker|ollama|sqlite|database|"
+    r"home\\s+assistant|portainer|jmri|discord|fleet|remote|telemetry|"
+    r"package|deployment|server)\\b",
+    re.IGNORECASE,
+)
+_TOOL_ACTION_RE = re.compile(
+    r"\\b(?:inspect|check|show|list|read|search|find|query|get|status|"
+    r"state|running|run|start|stop|restart|reboot|update|upgrade|deploy|"
+    r"install|remove|delete|create|write|edit|change|control)\\b",
+    re.IGNORECASE,
+)
+_TOOL_CONTROL_RE = re.compile(
+    r"\\b(?:start|stop|restart|reboot|update|upgrade|deploy|install|"
+    r"remove|delete|write|edit)\\b",
+    re.IGNORECASE,
+)
+_TOOL_QUESTION_RE = re.compile(
+    r"^\\s*(?:what|which|how|is|are|do|does|can|could|would|will)\\b",
+    re.IGNORECASE,
+)
+_RUNNING_APP_RE = re.compile(
+    r"\\b(?:is|are)\\s+[A-Za-z0-9_.-]+\\s+running\\b|"
+    r"\\bwhat(?:\'s|\\s+is)\\s+running\\b",
+    re.IGNORECASE,
+)
+
+
+def _conversation_tools_relevant(content: str | None) -> bool:
+    """Expose operational tools only when the current user turn needs them.
+
+    Ordinary social/environment/avatar conversation stays tool-free. This keeps
+    provider-side response-quality repair available and avoids sending the full
+    operational toolbox/context on turns such as hru or timezone follow-ups.
+    Host authorization still independently governs every exposed capability.
+    """
+    if content is None:
+        return False
+    if not isinstance(content, str):
+        raise TypeError("conversation tool relevance content must be a string or None")
+    text = content.strip()
+    if not text:
+        return False
+    if _RUNNING_APP_RE.search(text):
+        return True
+    if _TOOL_CONTROL_RE.search(text):
+        return True
+    if _TOOL_TARGET_RE.search(text) is None:
+        return False
+    return (
+        _TOOL_ACTION_RE.search(text) is not None
+        or _TOOL_QUESTION_RE.search(text) is not None
+    )
 
 
 class ConversationService:
@@ -202,6 +261,7 @@ class ConversationService:
                     ),
                 ),
             ),
+            allow_tools=False,
         )
 
         response = self._runtime.respond(
@@ -459,8 +519,18 @@ class ConversationService:
             for message in messages
         )
 
+        latest_user = next(
+            (
+                message.content
+                for message in reversed(messages)
+                if message.role is ConversationRole.USER
+            ),
+            None,
+        )
+
         return CognitiveRequest(
             messages=cognitive_messages,
+            allow_tools=_conversation_tools_relevant(latest_user),
         )
 
     @staticmethod
