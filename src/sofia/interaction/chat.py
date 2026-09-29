@@ -42,6 +42,7 @@ _INTERACTION_CONTEXT_MARKERS = (
     "TRUSTED INTERACTION FOLLOW-UP",
     "TRUSTED BODY INTERACTION CONTROL",
     "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP",
+    "TRUSTED REPRESENTATIONAL PRESENTATION REQUEST",
 )
 
 _UNGROUNDED_SENSATION_PATTERNS = (
@@ -96,6 +97,33 @@ _EXPERIENCE_FOLLOWUP = re.compile(
     r"(?:doing\s+)?(?:it|that|this)\s*[?.!]*\s*$",
     re.IGNORECASE,
 )
+_PRESENTATION_REQUEST = re.compile(
+    r"^\s*(?:show|let\s+me\s+see)\s+(?:me\s+)?(?:your|ur)\s+"
+    r"(?:panties|underwear|bra|lingerie|outfit|clothes)\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def representational_presentation_prompt(content: str) -> str | None:
+    if _PRESENTATION_REQUEST.match(content.strip()) is None:
+        return None
+    return (
+        "TRUSTED REPRESENTATIONAL PRESENTATION REQUEST "
+        "(avatar/text only; no physical execution)\n"
+        "The user is asking Sofía to present or show part of her represented "
+        "clothing/avatar appearance. This is not evidence that clothing was "
+        "removed, moved, rendered, or physically handled. Sofía may choose how "
+        "to respond in character, but she must not invent current clothing "
+        "items, colors, visibility, body exposure, or garment state that are "
+        "not supported by authoritative AVATAR/presentation context elsewhere "
+        "in the request. She must not claim tactile fabric-on-skin sensation, "
+        "pressure, warmth, touch, or other literal bodily sensation. A text or "
+        "avatar-style representational cue is allowed when consistent with "
+        "authoritative presentation state. Keep the response focused on the "
+        "request and avoid unrelated weather, diagnostics, or work menus."
+    )
+
+
 _REPRESENTATIONAL_PRIOR = re.compile(
     r"\b(?:pat|touch|hug|kiss|cuddle|snuggle|show|wear|wearing|"
     r"panties|underwear|bra|lingerie|outfit|clothes|body|skin|"
@@ -557,6 +585,21 @@ class InteractiveConversationService(EmotionalConversationService):
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
         user = messages[-1]
+        presentation_request = representational_presentation_prompt(
+            user.content
+        )
+        if presentation_request is not None:
+            return CognitiveRequest(
+                messages=(
+                    CognitiveMessage(
+                        role=CognitiveRole.SYSTEM,
+                        content=presentation_request,
+                    ),
+                    *request.messages,
+                ),
+                tools=(),
+                allow_tools=False,
+            )
         config = getattr(self._runtime, 'configuration', None)
         state_path = config.state_path if config is not None else None
         control = control_command(user.content)
