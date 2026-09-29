@@ -16,6 +16,11 @@ from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.model_lifecycle import (
+    CognitiveModelRole,
+    LifecycleManagedCognitiveEngine,
+    ModelLifecycleManager,
+)
 from sofia.cognition.providers.factory import create_llm_provider
 from sofia.cognition.routing import (
     CognitiveEngineRegistry,
@@ -29,6 +34,7 @@ from sofia.cognition.tools import (
     create_default_tool_bindings,
     create_system_tool_bindings,
 )
+from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
 from sofia.config.reviewed_projection import apply_reviewed_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
@@ -44,6 +50,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability,creat
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.integrations.ollama import OllamaAdapter
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
@@ -116,17 +123,55 @@ def _configuration_with_persistent_host_location(
     )
 
 
-def _create_llm_engine(provider_configuration):
+def _create_llm_engine(
+    provider_configuration,
+    *,
+    lifecycle: ModelLifecycleManager | None = None,
+    role: CognitiveModelRole | None = None,
+):
     provider = create_llm_provider(
         provider_configuration
     )
-    return LLMCognitiveEngine(
+    engine = LLMCognitiveEngine(
         configuration=provider_configuration,
         provider=provider,
     )
+    if (
+        lifecycle is not None
+        and role is not None
+        and provider_configuration.provider == "ollama"
+    ):
+        return LifecycleManagedCognitiveEngine(
+            delegate=engine,
+            lifecycle=lifecycle,
+            role=role,
+        )
+    return engine
 
 
-def _create_cognitive_engine(configuration: SofiaConfiguration):
+def _create_model_lifecycle(
+    configuration: SofiaConfiguration,
+) -> ModelLifecycleManager | None:
+    if not configuration.model_lifecycle.enabled:
+        return None
+    selection = CognitiveModelSelection.from_configuration(configuration)
+    if not any(
+        provider.provider == "ollama"
+        for provider in selection.providers
+    ):
+        return None
+    return ModelLifecycleManager(
+        selection=selection,
+        policy=configuration.model_lifecycle,
+        backend=OllamaAdapter(),
+    )
+
+
+def _create_cognitive_engine(
+    configuration: SofiaConfiguration,
+    *,
+    lifecycle: ModelLifecycleManager | None = None,
+):
     routing = configuration.routing
     if routing is not None and routing.enabled:
         primary_configuration = routing.primary
@@ -150,8 +195,16 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
             )
 
         registry = CognitiveEngineRegistry(
-            primary=_create_llm_engine(primary_configuration),
-            secondary=_create_llm_engine(secondary_configuration),
+            primary=_create_llm_engine(
+                primary_configuration,
+                lifecycle=lifecycle,
+                role=CognitiveModelRole.PRIMARY,
+            ),
+            secondary=_create_llm_engine(
+                secondary_configuration,
+                lifecycle=lifecycle,
+                role=CognitiveModelRole.SECONDARY,
+            ),
         )
         return RoutingCognitiveEngine(
             registry=registry,
@@ -167,7 +220,11 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
         return RuleEngine()
 
     if configuration.provider.provider in {"test-llm", "ollama"}:
-        return _create_llm_engine(configuration.provider)
+        return _create_llm_engine(
+            configuration.provider,
+            lifecycle=lifecycle,
+            role=CognitiveModelRole.PRIMARY,
+        )
 
     raise ValueError(
         f"Unknown cognitive provider: "
@@ -616,8 +673,12 @@ def compose(
         ),
     )
 
-    cognitive_engine = _create_cognitive_engine(
+    model_lifecycle = _create_model_lifecycle(
         configuration
+    )
+    cognitive_engine = _create_cognitive_engine(
+        configuration,
+        lifecycle=model_lifecycle,
     )
 
     # Normal Ollama conversation uses a compact projection of the verified
@@ -672,6 +733,7 @@ def compose(
         environment_service=environment_service,
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
+        model_lifecycle=model_lifecycle,
     )
 
     runtime_holder["runtime"] = runtime

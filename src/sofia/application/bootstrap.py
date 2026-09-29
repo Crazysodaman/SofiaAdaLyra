@@ -32,6 +32,7 @@ from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
 from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.model_lifecycle import ModelLifecycleWorker
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
@@ -132,6 +133,7 @@ class SofiaApplication:
             configuration.state_path
         )
         self._idle_worker: IdleReflectionWorker | None = None
+        self._model_lifecycle_worker: ModelLifecycleWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._presentation_routine: HeadlessPresentationRoutine | None = None
         self._wardrobe_studio: WardrobeStudio | None = None
@@ -579,6 +581,25 @@ class SofiaApplication:
                     coordinator.start()
                 self._background = coordinator
                 self._idle_worker = coordinator.idle
+
+            model_lifecycle = self._runtime.model_lifecycle
+            if (
+                model_lifecycle is not None
+                and model_lifecycle.policy.enabled
+            ):
+                interval = min(
+                    60.0,
+                    max(
+                        5.0,
+                        model_lifecycle.policy.idle_unload_seconds / 4,
+                    ),
+                )
+                lifecycle_worker = ModelLifecycleWorker(
+                    manager=model_lifecycle,
+                    interval_seconds=interval,
+                )
+                lifecycle_worker.start()
+                self._model_lifecycle_worker = lifecycle_worker
             return response
         except (
             SofiaRuntimeError,
@@ -601,6 +622,19 @@ class SofiaApplication:
                 ) from exc
             self._background = None
             self._idle_worker = None
+        lifecycle_worker = getattr(
+            self,
+            "_model_lifecycle_worker",
+            None,
+        )
+        if lifecycle_worker is not None:
+            try:
+                lifecycle_worker.stop()
+            except RuntimeError as exc:
+                raise SofiaApplicationError(
+                    "Model lifecycle worker has not stopped safely."
+                ) from exc
+            self._model_lifecycle_worker = None
         try:
             for service in reversed(
                 getattr(self, "_channel_conversations", ())

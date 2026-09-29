@@ -21,6 +21,7 @@ from sofia.authorization.model import (
 from sofia.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.cognition.model_lifecycle import ModelLifecycleManager
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.cognitive_models import CognitiveModelSelection
@@ -144,6 +145,7 @@ class SofiaRuntime:
         filesystem_observation_store: (
             FilesystemObservationStore | None
         ) = None,
+        model_lifecycle: ModelLifecycleManager | None = None,
     ) -> None:
         if not isinstance(state_plane, StatePlane):
             raise TypeError(
@@ -173,6 +175,15 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        if (
+            model_lifecycle is not None
+            and not isinstance(model_lifecycle, ModelLifecycleManager)
+        ):
+            raise TypeError(
+                "SofiaRuntime model_lifecycle must be a "
+                "ModelLifecycleManager or None."
+            )
+        self._model_lifecycle = model_lifecycle
         self._state_plane = state_plane
         self._configuration_store = StatePlaneConfigurationStore(state_plane)
         self._release_state_store = ReleaseStateStore(state_plane)
@@ -377,6 +388,10 @@ class SofiaRuntime:
     @property
     def cognitive_system(self) -> CognitiveSystem:
         return self._cognitive_system
+
+    @property
+    def model_lifecycle(self) -> ModelLifecycleManager | None:
+        return self._model_lifecycle
 
     @property
     def capability_system(self) -> CapabilitySystem:

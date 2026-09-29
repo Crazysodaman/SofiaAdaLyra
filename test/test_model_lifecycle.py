@@ -2,8 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from sofia.cognition.engine import CognitiveEngine
+from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
+    LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
     ModelResidency,
     ModelUnavailableError,
@@ -156,3 +159,62 @@ def test_statuses_are_role_based_and_model_name_agnostic():
         CognitiveModelRole.PRIMARY:ModelResidency.UNLOADED,
         CognitiveModelRole.SECONDARY:ModelResidency.READY,
     }
+
+
+
+class Delegate(CognitiveEngine):
+    def __init__(self):
+        self.calls=0
+
+    def respond(self, request):
+        self.calls+=1
+        return CognitiveResponse(content="awake")
+
+
+def test_lifecycle_engine_wakes_unloaded_model_before_cognition():
+    backend=Backend(
+        installed=("vendor/primary:any",),
+        running=(),
+    )
+    manager=ModelLifecycleManager(
+        selection=_selection(secondary=None),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+    )
+    delegate=Delegate()
+    engine=LifecycleManagedCognitiveEngine(
+        delegate=delegate,
+        lifecycle=manager,
+        role=CognitiveModelRole.PRIMARY,
+    )
+
+    response=engine.respond(CognitiveRequest(messages=()))
+
+    assert response.content=="awake"
+    assert delegate.calls==1
+    assert backend.loads==[("vendor/primary:any","10m")]
+    assert backend.resident=={"vendor/primary:any"}
+
+
+def test_idle_sweep_never_unloads_busy_model():
+    backend=Backend(
+        installed=("vendor/primary:any",),
+        running=("vendor/primary:any",),
+    )
+    manager=ModelLifecycleManager(
+        selection=_selection(secondary=None),
+        policy=ModelLifecycleConfiguration(
+            enabled=True,
+            idle_unload_seconds=60,
+        ),
+        backend=backend,
+    )
+    manager.begin_use(CognitiveModelRole.PRIMARY, now=NOW)
+
+    assert manager.sweep_idle(now=NOW+timedelta(hours=1))==()
+    assert backend.resident=={"vendor/primary:any"}
+
+    manager.end_use(CognitiveModelRole.PRIMARY, now=NOW+timedelta(hours=1))
+    assert manager.sweep_idle(
+        now=NOW+timedelta(hours=1, seconds=61)
+    )==("vendor/primary:any",)
