@@ -11,11 +11,16 @@ from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.ops import (
+    FleetDiscoveryBootstrapCoordinator,
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,
     FleetDiscoveryEnrollmentReconciler,
     FleetRegistry,
     FleetEnrollmentService,
+    AgentPackage,
+    BootstrapDisposition,
+    InstallAuthority,
+    InstallReceipt,
     FleetHost,
     HostLifecycle,
 )
@@ -258,3 +263,89 @@ def test_candidate_notifier_runs_once_for_new_host_only():
     coordinator.ingest((evidence(),))
 
     assert notices == [("terra", "approved-lan")]
+
+
+def test_bootstrap_coordinator_surfaces_operator_when_installer_missing():
+    discovery = FleetDiscoveryCoordinator(FleetRegistry()).ingest(
+        (evidence(trusted_bootstrap_available=True),)
+    )
+    notices = []
+    coordinator = FleetDiscoveryBootstrapCoordinator(
+        package=AgentPackage(
+            "sofia-fleet-agent",
+            "1.2.3",
+            "a" * 64,
+            "approved-wheel",
+        ),
+        authority=InstallAuthority.STANDING_POLICY,
+        installer_factory=None,
+        operator_notifier=lambda plan: notices.append(plan),
+    )
+
+    result = coordinator.reconcile(discovery)
+
+    assert result.operator_host_ids == ("terra",)
+    assert result.installed_host_ids == ()
+    assert notices
+    assert notices[0].disposition is BootstrapDisposition.ASK_OPERATOR
+
+
+def test_bootstrap_coordinator_executes_typed_installer_when_configured():
+    discovery = FleetDiscoveryCoordinator(FleetRegistry()).ingest(
+        (evidence(trusted_bootstrap_available=True),)
+    )
+    package = AgentPackage(
+        "sofia-fleet-agent",
+        "1.2.3",
+        "a" * 64,
+        "approved-wheel",
+    )
+
+    class Installer:
+        def install(self, candidate, approved_package):
+            return InstallReceipt(
+                candidate.host_id,
+                approved_package.package_id,
+                approved_package.version,
+                approved_package.sha256,
+                True,
+                approved_package.protocol_version,
+            )
+
+    coordinator = FleetDiscoveryBootstrapCoordinator(
+        package=package,
+        authority=InstallAuthority.STANDING_POLICY,
+        installer_factory=lambda observation: Installer(),
+    )
+
+    result = coordinator.reconcile(discovery)
+
+    assert result.installed_host_ids == ("terra",)
+    assert len(result.receipts) == 1
+    assert result.receipts[0].verified is True
+
+
+def test_bootstrap_coordinator_marks_matching_installed_agent_ready():
+    discovery = FleetDiscoveryCoordinator(FleetRegistry()).ingest(
+        (
+            evidence(
+                installed_agent_version="1.2.3",
+                installed_agent_sha256="a" * 64,
+                installed_protocol_version="1.0",
+            ),
+        )
+    )
+    coordinator = FleetDiscoveryBootstrapCoordinator(
+        package=AgentPackage(
+            "sofia-fleet-agent",
+            "1.2.3",
+            "a" * 64,
+            "approved-wheel",
+        ),
+        authority=InstallAuthority.NONE,
+    )
+
+    result = coordinator.reconcile(discovery)
+
+    assert result.ready_host_ids == ("terra",)
+    assert result.operator_host_ids == ()
