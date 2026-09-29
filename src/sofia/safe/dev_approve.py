@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from sofia.config import create_production_configuration
+from sofia.config import production_state_path
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.safe.dev_approval import DevApprovalVerifier
 
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         state_path = (
             Path(args.state_path)
             if args.state_path
-            else Path(create_production_configuration().state_path)
+            else production_state_path()
         )
         verifier = DevApprovalVerifier(state_path)
         verifier.record(approval)
