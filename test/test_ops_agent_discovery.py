@@ -26,11 +26,12 @@ class FakeSocket:
 
 class FakeResponse:
     status = 200
+
+    def __init__(self, payload):
+        self.payload = payload
+
     def read(self):
-        return (
-            b'{"node_id":"11111111-2222-3333-4444-555555555555",'
-            b'"name":"Artemis","protocol_version":"1.0"}'
-        )
+        return self.payload
 
 
 class FakeConnection:
@@ -41,16 +42,31 @@ class FakeConnection:
         self.timeout = timeout
         self.sock = FakeSocket()
         self.closed = False
+        self.path = None
 
     def connect(self):
         return None
 
     def request(self, method, path, headers=None):
         assert method == "GET"
-        assert path == "/v1/identity"
+        assert path in ("/v1/identity", "/v1/capabilities")
+        self.path = path
 
     def getresponse(self):
-        return FakeResponse()
+        if self.path == "/v1/identity":
+            return FakeResponse(
+                (
+                    b'{"node_id":"11111111-2222-3333-4444-555555555555",'
+                    b'"name":"Artemis","protocol_version":"1.0"}'
+                )
+            )
+        return FakeResponse(
+            (
+                b'{"node_id":"11111111-2222-3333-4444-555555555555",'
+                b'"protocol_version":"1.0","capabilities":['
+                b'{"name":"system.inspect","operations":["latest"]}]}'
+            )
+        )
 
     def close(self):
         self.closed = True
@@ -99,6 +115,8 @@ def test_mtls_agent_discovery_returns_untrusted_identity_evidence(monkeypatch):
     assert observation.installed_protocol_version == "1.0"
     assert observation.observed_endpoint_hostname == "artemis.local"
     assert observation.observed_endpoint_port == 7443
+    assert observation.capabilities_verified is True
+    assert observation.capability_names == ("system.inspect",)
 
 
 def test_out_of_scope_target_is_never_contacted(monkeypatch):
@@ -136,16 +154,16 @@ def test_out_of_scope_target_is_never_contacted(monkeypatch):
 def test_incompatible_protocol_is_not_admitted_as_discovery_evidence(
     monkeypatch,
 ):
-    class IncompatibleResponse(FakeResponse):
-        def read(self):
-            return (
-                b'{"node_id":"11111111-2222-3333-4444-555555555555",'
-                b'"name":"Artemis","protocol_version":"2.0"}'
-            )
-
     class IncompatibleConnection(FakeConnection):
         def getresponse(self):
-            return IncompatibleResponse()
+            if self.path == "/v1/identity":
+                return FakeResponse(
+                    (
+                        b'{"node_id":"11111111-2222-3333-4444-555555555555",'
+                        b'"name":"Artemis","protocol_version":"2.0"}'
+                    )
+                )
+            return super().getresponse()
 
     monkeypatch.setattr(
         discovery_module,
@@ -343,3 +361,42 @@ def test_combined_discovery_prefers_first_source_for_same_endpoint():
     ).discover()
 
     assert result == (stronger,)
+
+
+def test_mtls_discovery_rejects_mismatched_capability_identity(monkeypatch):
+    class BadCapabilitiesConnection(FakeConnection):
+        def getresponse(self):
+            if self.path == "/v1/capabilities":
+                return FakeResponse(
+                    (
+                        b'{"node_id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",'
+                        b'"protocol_version":"1.0","capabilities":['
+                        b'{"name":"system.inspect","operations":["latest"]}]}'
+                    )
+                )
+            return super().getresponse()
+
+    monkeypatch.setattr(
+        discovery_module,
+        "HTTPSConnection",
+        BadCapabilitiesConnection,
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "public_key_fingerprint_from_der_certificate",
+        lambda cert: "a" * 64,
+    )
+    source = MtlsAgentDiscoverySource(
+        (
+            AgentDiscoveryTarget(
+                hostname="artemis.local",
+                inside_approved_scope=True,
+            ),
+        ),
+        ca_file="ca.pem",
+        client_certificate="client.pem",
+        client_private_key="client.key",
+    )
+    monkeypatch.setattr(source, "_context", lambda: SimpleNamespace())
+
+    assert source.discover() == ()
