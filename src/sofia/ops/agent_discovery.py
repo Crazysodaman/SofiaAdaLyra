@@ -1,7 +1,7 @@
 """mTLS Fleet-agent discovery against explicitly approved candidate endpoints.
 
-This discovers agent identity evidence only. It does not approve endpoints,
-enroll nodes, grant capabilities, or trust the returned identity.
+This discovers agent identity and capability evidence only. It does not approve
+endpoints, enroll nodes, grant capabilities, or trust the returned identity.
 """
 from __future__ import annotations
 
@@ -107,8 +107,6 @@ class MtlsAgentDiscoverySource:
                 trusted_bootstrap_available=target.trusted_bootstrap_available,
                 observed_endpoint_hostname=target.hostname,
                 observed_endpoint_port=target.port,
-                capabilities_verified=True,
-                capability_names=tuple(sorted(set(capability_names))),
             )
 
         connection = HTTPSConnection(
@@ -227,6 +225,8 @@ class MtlsAgentDiscoverySource:
                 observed_public_key_sha256=public_key_sha256,
                 observed_endpoint_hostname=target.hostname,
                 observed_endpoint_port=target.port,
+                capabilities_verified=True,
+                capability_names=tuple(sorted(set(capability_names))),
             )
         except (OSError, ssl.SSLError):
             return None
