@@ -136,24 +136,28 @@ def create_fleet_candidate_notifier(
             if observation.observed_node_id is not None
             else "unverified"
         )
-        act_service.queue_system_notice(
-            notice_id=f"fleet-candidate:{host.host_id}",
-            recipient_id=SPARKS_PRINCIPAL_ID,
-            channel="home_assistant",
-            destination=destination,
-            evidence_id=(
-                f"fleet-discovery:{host.host_id}:"
-                f"{observation.source}"
-            ),
-            content=(
-                f"New Fleet candidate discovered: {host.host_id} "
-                f"({host.platform}/{host.architecture}). "
-                f"Node evidence: {node_text}. "
-                "The machine is untrusted and not enrolled yet."
-            ),
-            created_at=observed,
-            expires_at=observed + timedelta(days=7),
-        )
+        try:
+            act_service.queue_system_notice(
+                notice_id=f"fleet-candidate:{host.host_id}",
+                recipient_id=SPARKS_PRINCIPAL_ID,
+                channel="home_assistant",
+                destination=destination,
+                evidence_id=(
+                    f"fleet-discovery:{host.host_id}:"
+                    f"{observation.source}"
+                ),
+                content=(
+                    f"New Fleet candidate discovered: {host.host_id} "
+                    f"({host.platform}/{host.architecture}). "
+                    f"Node evidence: {node_text}. "
+                    "The machine is untrusted and not enrolled yet."
+                ),
+                created_at=observed,
+                expires_at=observed + timedelta(days=7),
+            )
+        except Exception:
+            # Reporting must never become discovery authority or availability.
+            return
 
     return discovered
 
@@ -227,18 +231,22 @@ def create_fleet_bootstrap_plan_notifier(
             )
         )
         now = datetime.now(timezone.utc)
-        act_service.queue_system_notice(
-            notice_id=f"fleet-bootstrap:{host_id}",
-            recipient_id=SPARKS_PRINCIPAL_ID,
-            channel="home_assistant",
-            destination=destination,
-            evidence_id=(
-                f"fleet-bootstrap-plan:{host_id}:"
-                f"{plan.package.sha256[:16]}"
-            ),
-            content=content,
-            created_at=now,
-            expires_at=now + timedelta(days=7),
-        )
+        try:
+            act_service.queue_system_notice(
+                notice_id=f"fleet-bootstrap:{host_id}",
+                recipient_id=SPARKS_PRINCIPAL_ID,
+                channel="home_assistant",
+                destination=destination,
+                evidence_id=(
+                    f"fleet-bootstrap-plan:{host_id}:"
+                    f"{plan.package.sha256[:16]}"
+                ),
+                content=content,
+                created_at=now,
+                expires_at=now + timedelta(days=7),
+            )
+        except Exception:
+            # Bootstrap authority cannot depend on notification delivery.
+            return
 
     return notify
