@@ -53,6 +53,8 @@ class FleetDiscoveryEvidence:
     observed_public_key_sha256: str | None = None
     observed_endpoint_hostname: str | None = None
     observed_endpoint_port: int | None = None
+    capabilities_verified: bool = False
+    capability_names: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for name in (
@@ -98,6 +100,15 @@ class FleetDiscoveryEvidence:
         ):
             raise ValueError(
                 "observed_endpoint_port must be in 1..65535 or None"
+            )
+        if type(self.capabilities_verified) is not bool:
+            raise TypeError("capabilities_verified must be boolean")
+        if not isinstance(self.capability_names, tuple) or any(
+            not isinstance(name, str) or not name.strip()
+            for name in self.capability_names
+        ):
+            raise ValueError(
+                "capability_names must be a tuple of nonempty strings"
             )
 
     def bootstrap_candidate(self) -> BootstrapCandidate:
@@ -320,6 +331,7 @@ class FleetDiscoveryEnrollmentReconciler:
                 or not observation.observed_public_key_sha256
                 or not observation.observed_endpoint_hostname
                 or observation.observed_endpoint_port is None
+                or observation.capabilities_verified is not True
             ):
                 if host is not None and host.lifecycle is HostLifecycle.CANDIDATE:
                     pending.append(observation.host_id)
