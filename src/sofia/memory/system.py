@@ -1,11 +1,13 @@
 ﻿import re
 
+from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
+from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
 from sofia.memory.promoted_retrieval import retrieve_promoted
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
-from sofia.social.model import PrincipalContext
+from sofia.social.model import AudienceKind, PrincipalContext
 
 
 class MemorySystem:
@@ -24,6 +26,7 @@ class MemorySystem:
         self,
         store: MemoryStore,
         candidate_store: DurableMemoryCandidateStore | None = None,
+        historical_store: ChatGPTExportEvidenceStore | None = None,
     ) -> None:
         if not isinstance(store, MemoryStore):
             raise TypeError(
@@ -42,8 +45,21 @@ class MemorySystem:
                 "DurableMemoryCandidateStore or None."
             )
 
+        if (
+            historical_store is not None
+            and not isinstance(
+                historical_store,
+                ChatGPTExportEvidenceStore,
+            )
+        ):
+            raise TypeError(
+                "MemorySystem historical_store must be a "
+                "ChatGPTExportEvidenceStore or None."
+            )
+
         self._store = store
         self._candidate_store = candidate_store
+        self._historical_store = historical_store
 
     @property
     def candidate_store(
@@ -54,6 +70,14 @@ class MemorySystem:
     @property
     def uses_reviewed_memory(self) -> bool:
         return self._candidate_store is not None
+
+    @property
+    def uses_historical_evidence(self) -> bool:
+        return self._historical_store is not None
+
+    @property
+    def historical_store(self) -> ChatGPTExportEvidenceStore | None:
+        return self._historical_store
 
     def remember(
         self,
@@ -120,6 +144,36 @@ class MemorySystem:
 
         return self._recall_legacy(
             query,
+            limit=limit,
+        )
+
+    def recall_historical_evidence(
+        self,
+        query: str,
+        limit: int = 4,
+        *,
+        principal: PrincipalContext | None = None,
+    ) -> tuple[HistoricalConversationEvidence, ...]:
+        """Retrieve imported ChatGPT history as evidence, never as memory."""
+        if not isinstance(query, str):
+            raise TypeError(
+                "MemorySystem historical query must be a string."
+            )
+        if type(limit) is not int or limit < 1:
+            raise ValueError(
+                "MemorySystem historical limit must be positive."
+            )
+        if self._historical_store is None or principal is None:
+            return ()
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError(
+                "MemorySystem principal must be a PrincipalContext or None."
+            )
+        if principal.audience_kind is not AudienceKind.PRIVATE:
+            return ()
+        return self._historical_store.search_relevant(
+            query,
+            principal_id=principal.principal_id,
             limit=limit,
         )
 
