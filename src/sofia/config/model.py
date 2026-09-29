@@ -86,6 +86,38 @@ class ProviderConfiguration:
 
 
 @dataclass(frozen=True)
+class CognitiveRoutingConfiguration:
+    """Optional multi-model cognitive routing configuration."""
+
+    enabled: bool = False
+    primary: ProviderConfiguration | None = None
+    secondary: ProviderConfiguration | None = None
+    verify_enabled: bool = True
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise TypeError("routing enabled must be a bool")
+        if type(self.verify_enabled) is not bool:
+            raise TypeError("routing verify_enabled must be a bool")
+        for name in ("primary", "secondary"):
+            value = getattr(self, name)
+            if value is not None and not isinstance(
+                value,
+                ProviderConfiguration,
+            ):
+                raise TypeError(
+                    f"routing {name} must be a ProviderConfiguration or None"
+                )
+        if self.enabled and (
+            self.primary is None or self.secondary is None
+        ):
+            raise ValueError(
+                "enabled cognitive routing requires primary and secondary "
+                "provider configurations"
+            )
+
+
+@dataclass(frozen=True)
 class SofiaConfiguration:
     constitution_path: Path
     constitution_hash_path: Path
@@ -97,6 +129,7 @@ class SofiaConfiguration:
     filesystem_root: Path
     identity_bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.FIRST_BOOTSTRAP
     standing_allowed_capabilities: tuple[str, ...] = ()
+    routing: CognitiveRoutingConfiguration | None = None
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
     )
@@ -142,6 +175,15 @@ class SofiaConfiguration:
         if not self.state_path:
             raise ValueError(
                 "SofiaConfiguration state_path must not be empty."
+            )
+
+        if self.routing is not None and not isinstance(
+            self.routing,
+            CognitiveRoutingConfiguration,
+        ):
+            raise TypeError(
+                "SofiaConfiguration routing must be a "
+                "CognitiveRoutingConfiguration or None."
             )
 
         if not isinstance(self.environment, EnvironmentConfiguration):
