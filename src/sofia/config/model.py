@@ -194,6 +194,8 @@ class FleetDiscoveryConfiguration:
     enabled: bool = False
     interval_seconds: int = 300
     targets: tuple[str, ...] = ()
+    scopes: tuple[str, ...] = ()
+    max_hosts_per_scope: int = 256
 
     def __post_init__(self) -> None:
         if type(self.enabled) is not bool:
@@ -209,6 +211,20 @@ class FleetDiscoveryConfiguration:
                 raise ValueError(
                     "fleet discovery targets must contain nonempty strings"
                 )
+        if not isinstance(self.scopes, tuple):
+            raise TypeError("fleet discovery scopes must be a tuple")
+        for scope in self.scopes:
+            if not isinstance(scope, str) or not scope.strip():
+                raise ValueError(
+                    "fleet discovery scopes must contain nonempty strings"
+                )
+        if (
+            type(self.max_hosts_per_scope) is not int
+            or not 1 <= self.max_hosts_per_scope <= 1024
+        ):
+            raise ValueError(
+                "fleet discovery max_hosts_per_scope must be in 1..1024"
+            )
 
 
 @dataclass(frozen=True)
