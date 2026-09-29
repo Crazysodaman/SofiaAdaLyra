@@ -208,6 +208,9 @@ class MtlsAgentDiscoverySource:
                     ):
                         return None
                     capability_names.append(capability_name)
+                required = {"system.inspect", "ops.telemetry"}
+                if not required.issubset(set(capability_names)):
+                    return None
             except (KeyError, TypeError, ValueError):
                 return None
             return FleetDiscoveryEvidence(
