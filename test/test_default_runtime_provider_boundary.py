@@ -9,8 +9,10 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
+from sofia.cognition.routing import RoutingCognitiveEngine
 from sofia.composition.root import compose
 from sofia.config import create_default_configuration
+from sofia.config.model import ModelLifecycleConfiguration
 from sofia.environment.config import EnvironmentConfiguration
 
 
@@ -35,9 +37,18 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         state_path=tmp_path / "sofia.db",
         filesystem_root=tmp_path,
         environment=EnvironmentConfiguration(),
+        model_lifecycle=ModelLifecycleConfiguration(
+            enabled=False,
+            auto_install_missing=False,
+        ),
     )
     runtime = compose(configuration)
-    provider = runtime.cognitive_system.engine.provider
+    engine = runtime.cognitive_system.engine
+    assert isinstance(engine, RoutingCognitiveEngine)
+    assert default.routing is not None
+    assert default.routing.secondary is not None
+
+    provider = engine.registry.secondary.provider
     assert isinstance(provider, OllamaProvider)
 
     client = CapturingOllamaClient()
@@ -64,8 +75,11 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         assert response.content == "Captured."
         assert len(client.requests) == 1
         sent = client.requests[0]
-        assert sent["model"] == default.provider.model
-        assert sent["options"]["num_ctx"] == 20000
+        assert sent["model"] == default.routing.secondary.model
+        assert (
+            sent["options"]["num_ctx"]
+            == default.routing.secondary.context_size
+        )
         assert sent["think"] is False
         assert sent["messages"][0]["role"] == "system"
         system = sent["messages"][0]["content"]
