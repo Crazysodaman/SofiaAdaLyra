@@ -21,6 +21,8 @@ from .agent_discovery import (
     ScopedMtlsAgentDiscoverySource,
 )
 from .discovery import (
+    FleetDiscoveryBootstrapCoordinator,
+    FleetDiscoveryBootstrapResult,
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,
     FleetDiscoveryEnrollmentReconciler,
@@ -50,6 +52,7 @@ __all__=[
     "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
     "AgentDiscoveryTarget","MtlsAgentDiscoverySource",
     "ScopedMtlsAgentDiscoverySource",
+    "FleetDiscoveryBootstrapCoordinator","FleetDiscoveryBootstrapResult",
     "FleetDiscoveryCoordinator","FleetDiscoveryEvidence",
     "FleetDiscoveryEnrollmentReconciler","FleetDiscoveryEnrollmentResult",
     "FleetDiscoveryResult","FleetDiscoverySource",
