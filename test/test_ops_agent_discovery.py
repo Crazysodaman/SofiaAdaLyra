@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 
 import sofia.ops.agent_discovery as discovery_module
+from sofia.ops.agent_discovery import create_configured_fleet_discovery_source
 from sofia.ops import (
     AgentDiscoveryTarget,
     FleetDiscoveryEvidence,
@@ -400,3 +401,48 @@ def test_mtls_discovery_rejects_mismatched_capability_identity(monkeypatch):
     monkeypatch.setattr(source, "_context", lambda: SimpleNamespace())
 
     assert source.discover() == ()
+
+
+def test_scoped_presence_discovery_can_start_without_mtls_credentials(
+    monkeypatch,
+):
+    for name in (
+        "SOFIA_REMOTE_CA",
+        "SOFIA_REMOTE_CLIENT_CERT",
+        "SOFIA_REMOTE_CLIENT_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    configuration = SimpleNamespace(
+        fleet_discovery=SimpleNamespace(
+            enabled=True,
+            targets=(),
+            scopes=("192.0.2.0/30",),
+            max_hosts_per_scope=8,
+        )
+    )
+
+    source = create_configured_fleet_discovery_source(configuration)
+
+    assert isinstance(source, ScopedHostPresenceDiscoverySource)
+
+
+def test_explicit_agent_targets_without_mtls_credentials_fail_closed(
+    monkeypatch,
+):
+    for name in (
+        "SOFIA_REMOTE_CA",
+        "SOFIA_REMOTE_CLIENT_CERT",
+        "SOFIA_REMOTE_CLIENT_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    configuration = SimpleNamespace(
+        fleet_discovery=SimpleNamespace(
+            enabled=True,
+            targets=("artemis.local:7443",),
+            scopes=(),
+            max_hosts_per_scope=8,
+        )
+    )
+
+    with pytest.raises(ValueError, match="targets require"):
+        create_configured_fleet_discovery_source(configuration)
