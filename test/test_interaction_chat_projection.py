@@ -14,7 +14,10 @@ from sofia.cognition.model import (
 )
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
-from sofia.interaction.chat import InteractiveConversationService
+from sofia.interaction.chat import (
+    InteractiveConversationService,
+    representational_experience_followup_prompt,
+)
 
 AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
 
@@ -224,3 +227,43 @@ def test_repeated_invalid_interaction_reply_uses_grounded_fallback(draft):
 
     assert "literally felt physical contact" in result.content
     assert result.content != draft
+
+
+def test_clothing_presentation_request_gets_grounded_interaction_context(
+    monkeypatch,
+):
+    service, _ = _service(monkeypatch, "show me ur panties")
+
+    result = service._build_request()
+
+    prompt = result.messages[0].content
+    assert "TRUSTED REPRESENTATIONAL PRESENTATION REQUEST" in prompt
+    assert "must not invent current clothing" in prompt
+    assert "must not claim tactile fabric-on-skin sensation" in prompt
+
+
+def test_how_did_u_feel_followup_is_grounded_from_prior_presentation():
+    messages = (
+        SimpleNamespace(
+            role=ConversationRole.USER,
+            content="show me ur panties",
+        ),
+        SimpleNamespace(
+            role=ConversationRole.ASSISTANT,
+            content="generated prior reply",
+        ),
+        SimpleNamespace(
+            role=ConversationRole.USER,
+            content="how did u feel doing it",
+        ),
+    )
+
+    prompt = representational_experience_followup_prompt(
+        content="how did u feel doing it",
+        messages=messages,
+    )
+
+    assert prompt is not None
+    assert "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP" in prompt
+    assert "Prior assistant-generated wording is not authoritative" in prompt
+    assert "must not be reused as proof" in prompt
