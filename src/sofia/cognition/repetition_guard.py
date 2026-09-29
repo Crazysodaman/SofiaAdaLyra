@@ -196,8 +196,7 @@ def _normalized(text: str) -> str:
 
 def _retry_eligible(request: CognitiveRequest, response: CognitiveResponse) -> bool:
     return not (
-        request.tools
-        or response.tool_calls
+        response.tool_calls
         or not request.messages
         or request.messages[-1].role is not CognitiveRole.USER
         or _EXPLICIT_REPEAT.search(request.messages[-1].content)
@@ -568,5 +567,6 @@ def build_rephrase_request(
     )
     return CognitiveRequest(
         messages=(*request.messages[:-1], instruction, request.messages[-1]),
-        tools=request.tools,
+        tools=(),
+        allow_tools=False,
     )
