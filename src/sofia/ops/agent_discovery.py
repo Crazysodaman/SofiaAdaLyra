@@ -186,6 +186,125 @@ class MtlsAgentDiscoverySource:
         return tuple(observations)
 
 
+class ScopedHostPresenceDiscoverySource:
+    """Observe bare hosts in approved scopes without inferring trust or OS."""
+
+    def __init__(
+        self,
+        *,
+        scopes: tuple[str, ...],
+        ports: tuple[int, ...] = (22, 135, 445, 5985),
+        max_hosts_per_scope: int = 256,
+        connect_timeout_seconds: float = 0.15,
+        fleet_agent_port: int = 7443,
+    ) -> None:
+        if not isinstance(scopes, tuple):
+            raise TypeError("scopes must be a tuple")
+        if not isinstance(ports, tuple) or not ports:
+            raise ValueError("ports must be a nonempty tuple")
+        if any(type(port) is not int or not 1 <= port <= 65535 for port in ports):
+            raise ValueError("presence ports must be in 1..65535")
+        if type(max_hosts_per_scope) is not int or not 1 <= max_hosts_per_scope <= 1024:
+            raise ValueError("max_hosts_per_scope must be in 1..1024")
+        if connect_timeout_seconds <= 0:
+            raise ValueError("connect_timeout_seconds must be positive")
+        self.scopes = scopes
+        self.ports = ports
+        self.max_hosts_per_scope = max_hosts_per_scope
+        self.connect_timeout_seconds = float(connect_timeout_seconds)
+        self.fleet_agent_port = fleet_agent_port
+
+    def _scope_addresses(self) -> tuple[str, ...]:
+        addresses: list[str] = []
+        for raw in self.scopes:
+            try:
+                network = ipaddress.ip_network(raw, strict=False)
+            except ValueError as exc:
+                raise ValueError(
+                    f"invalid Fleet discovery scope: {raw}"
+                ) from exc
+            hosts = tuple(str(value) for value in network.hosts())
+            if len(hosts) > self.max_hosts_per_scope:
+                raise ValueError(
+                    "Fleet discovery scope exceeds max_hosts_per_scope: "
+                    f"{raw} has {len(hosts)} hosts"
+                )
+            addresses.extend(hosts)
+        return tuple(dict.fromkeys(addresses))
+
+    def _port_open(self, address: str, port: int) -> bool:
+        try:
+            with socket.create_connection(
+                (address, port),
+                timeout=self.connect_timeout_seconds,
+            ):
+                return True
+        except OSError:
+            return False
+
+    def _observe(self, address: str) -> FleetDiscoveryEvidence | None:
+        # Hosts already exposing the Fleet agent belong to the mTLS identity
+        # source, which can provide stronger evidence than mere presence.
+        if self._port_open(address, self.fleet_agent_port):
+            return None
+        if not any(self._port_open(address, port) for port in self.ports):
+            return None
+        try:
+            hostname = socket.gethostbyaddr(address)[0]
+        except (OSError, socket.herror):
+            hostname = address
+        return FleetDiscoveryEvidence(
+            host_id=hostname,
+            hostname=hostname,
+            platform="unknown",
+            architecture="unknown",
+            observed_at=datetime.now(timezone.utc),
+            source="approved-scope-host-presence",
+            inside_approved_scope=True,
+            trusted_bootstrap_available=False,
+            observed_endpoint_hostname=address,
+        )
+
+    def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
+        addresses = self._scope_addresses()
+        if not addresses:
+            return ()
+        workers = min(32, len(addresses))
+        observations = []
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for observation in pool.map(self._observe, addresses):
+                if observation is not None:
+                    observations.append(observation)
+        return tuple(observations)
+
+
+class CombinedFleetDiscoverySource:
+    """Prefer authenticated Fleet-agent evidence, then add bare host presence."""
+
+    def __init__(
+        self,
+        *sources,
+    ) -> None:
+        self.sources = tuple(sources)
+        if not self.sources:
+            raise ValueError("at least one discovery source is required")
+
+    def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
+        observations = []
+        seen_endpoints = set()
+        for source in self.sources:
+            for observation in source.discover():
+                endpoint = (
+                    observation.observed_endpoint_hostname
+                    or observation.hostname
+                ).casefold()
+                if endpoint in seen_endpoints:
+                    continue
+                seen_endpoints.add(endpoint)
+                observations.append(observation)
+        return tuple(observations)
+
+
 class ScopedMtlsAgentDiscoverySource:
     """Discover Fleet agents only inside explicitly configured network scopes."""
 
@@ -327,7 +446,7 @@ def create_configured_fleet_discovery_source(configuration):
             "Fleet discovery requires SOFIA_REMOTE_CA, "
             "SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY"
         )
-    return ScopedMtlsAgentDiscoverySource(
+    agent_source = ScopedMtlsAgentDiscoverySource(
         explicit_targets=tuple(
             _parse_discovery_target(value)
             for value in policy.targets
@@ -337,4 +456,13 @@ def create_configured_fleet_discovery_source(configuration):
         client_certificate=Path(values["cert"]),
         client_private_key=Path(values["key"]),
         max_hosts_per_scope=policy.max_hosts_per_scope,
+    )
+    if not policy.scopes:
+        return agent_source
+    return CombinedFleetDiscoverySource(
+        agent_source,
+        ScopedHostPresenceDiscoverySource(
+            scopes=policy.scopes,
+            max_hosts_per_scope=policy.max_hosts_per_scope,
+        ),
     )
