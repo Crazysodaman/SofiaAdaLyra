@@ -127,3 +127,14 @@ def test_direct_current_outfit_uses_human_readable_piece_names():
     assert "Spring Everyday 01" in result.content
     assert "Classic Top" in result.content
     assert "Utility Bottom" in result.content
+
+
+
+def test_current_outfit_recognizes_chat_shorthand():
+    for query in (
+        "what are u wearing",
+        "what r u wearing",
+    ):
+        result = answer(query)
+        assert result.recognized
+        assert "signature engineer outfit" in result.content
