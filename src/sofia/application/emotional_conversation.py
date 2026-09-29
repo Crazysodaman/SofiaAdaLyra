@@ -397,4 +397,5 @@ class EmotionalConversationService(ConversationService):
             messages=(CognitiveMessage(role=CognitiveRole.SYSTEM,
                                       content="\n\n".join(projections)), *request.messages),
             tools=request.tools,
+            allow_tools=request.allow_tools,
         )
