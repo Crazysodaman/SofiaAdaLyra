@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime,timezone
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
-import json,sqlite3,ssl
+import json,platform,sqlite3,ssl
 from math import isfinite
 from re import fullmatch
 from threading import RLock
@@ -265,7 +265,13 @@ class RemoteAgentServer:
             def do_GET(self):
                 if not self._authorized_peer(): self._json(403,{"error":"unauthorized peer"}); return
                 if self.path=="/v1/identity":
-                    self._json(200,{"node_id":str(owner.config.node_id),"name":owner.config.node_name,"protocol_version":owner.config.protocol_version}); return
+                    self._json(200,{
+                        "node_id":str(owner.config.node_id),
+                        "name":owner.config.node_name,
+                        "protocol_version":owner.config.protocol_version,
+                        "platform":platform.system().casefold() or "unknown",
+                        "architecture":platform.machine().casefold() or "unknown",
+                    }); return
                 if self.path=="/v1/capabilities":
                     self._json(200,{
                         "node_id":str(owner.config.node_id),
