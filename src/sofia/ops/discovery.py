@@ -12,7 +12,15 @@ from re import fullmatch
 from typing import Protocol
 from uuid import UUID
 
+from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.model import NodeEndpoint, NodeTransport
 from sofia.ops.bootstrap import BootstrapCandidate
+from sofia.ops.enrollment import (
+    AuthenticatedPeerEvidence,
+    FleetEnrollmentService,
+    MachineNodeBinding,
+)
 from sofia.ops.model import FleetHost, HostLifecycle
 
 
@@ -210,3 +218,106 @@ class FleetDiscoveryCoordinator:
             raise TypeError("source must provide discover()")
         observations = source.discover()
         return self.ingest(observations)
+
+
+@dataclass(frozen=True, slots=True)
+class FleetDiscoveryEnrollmentResult:
+    enrolled_host_ids: tuple[str, ...]
+    pending_host_ids: tuple[str, ...]
+
+
+class FleetDiscoveryEnrollmentReconciler:
+    """Enroll only candidates whose discovered identity matches preapproved state."""
+
+    def __init__(
+        self,
+        *,
+        enrollment_service: FleetEnrollmentService,
+        identity_registry: DurableNodeIdentityRegistry,
+        endpoint_policy: DurableEndpointPolicy,
+    ) -> None:
+        if not isinstance(enrollment_service, FleetEnrollmentService):
+            raise TypeError("enrollment_service must be FleetEnrollmentService")
+        if not isinstance(identity_registry, DurableNodeIdentityRegistry):
+            raise TypeError(
+                "identity_registry must be DurableNodeIdentityRegistry"
+            )
+        if not isinstance(endpoint_policy, DurableEndpointPolicy):
+            raise TypeError("endpoint_policy must be DurableEndpointPolicy")
+        self.enrollment_service = enrollment_service
+        self.identity_registry = identity_registry
+        self.endpoint_policy = endpoint_policy
+
+    def reconcile(
+        self,
+        discovery: FleetDiscoveryResult,
+    ) -> FleetDiscoveryEnrollmentResult:
+        if not isinstance(discovery, FleetDiscoveryResult):
+            raise TypeError("discovery must be FleetDiscoveryResult")
+        enrolled = []
+        pending = []
+
+        for observation in discovery.observed:
+            host = self.enrollment_service.registry.host(
+                observation.host_id
+            )
+            if (
+                host is None
+                or host.lifecycle is not HostLifecycle.CANDIDATE
+                or host.trusted
+                or observation.observed_node_id is None
+                or not observation.observed_public_key_sha256
+                or not observation.observed_endpoint_hostname
+                or observation.observed_endpoint_port is None
+            ):
+                if host is not None and host.lifecycle is HostLifecycle.CANDIDATE:
+                    pending.append(observation.host_id)
+                continue
+
+            enrollment = self.identity_registry.get(
+                observation.observed_node_id
+            )
+            if (
+                enrollment is None
+                or enrollment.public_key_sha256
+                != observation.observed_public_key_sha256
+            ):
+                pending.append(observation.host_id)
+                continue
+
+            endpoint = NodeEndpoint(
+                observation.observed_endpoint_hostname,
+                observation.observed_endpoint_port,
+                NodeTransport.HTTPS,
+            )
+            if not self.endpoint_policy.permits(
+                observation.observed_node_id,
+                endpoint,
+            ):
+                pending.append(observation.host_id)
+                continue
+
+            binding = MachineNodeBinding(
+                host_id=observation.host_id,
+                node_id=observation.observed_node_id,
+                verified_at=observation.observed_at,
+                source=observation.source,
+            )
+            peer = AuthenticatedPeerEvidence(
+                node_id=observation.observed_node_id,
+                public_key_sha256=observation.observed_public_key_sha256,
+                observed_at=observation.observed_at,
+                verifier="mtls-agent-discovery",
+            )
+            self.enrollment_service.enroll(
+                host,
+                binding=binding,
+                enrollment=enrollment,
+                peer=peer,
+            )
+            enrolled.append(observation.host_id)
+
+        return FleetDiscoveryEnrollmentResult(
+            enrolled_host_ids=tuple(sorted(set(enrolled))),
+            pending_host_ids=tuple(sorted(set(pending))),
+        )
