@@ -631,11 +631,6 @@ def run_settings_window() -> int:
                 ),
             )
 
-            now = datetime.now(timezone.utc)
-            configure_windows_startup(updated.start_with_windows)
-            store.save(updated, at=now)
-            runtime_store.save(runtime_updated, at=now)
-
             if discord_clear_token.get():
                 secrets.clear("discord-token")
             if discord_token_value:
@@ -648,6 +643,11 @@ def run_settings_window() -> int:
                     "home-assistant-token",
                     ha_token_value,
                 )
+
+            now = datetime.now(timezone.utc)
+            configure_windows_startup(updated.start_with_windows)
+            runtime_store.save(runtime_updated, at=now)
+            store.save(updated, at=now)
 
             activity.set_override(
                 _local_host_id(),
