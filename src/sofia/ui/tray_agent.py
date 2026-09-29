@@ -174,6 +174,21 @@ class TrayAgentApplication:
             )
         )
 
+    def _configured_llm_models(self) -> tuple[str, ...]:
+        routing = self.config.routing
+        if (
+            routing is not None
+            and routing.enabled
+            and routing.primary is not None
+            and routing.secondary is not None
+        ):
+            return tuple(
+                dict.fromkeys(
+                    (routing.primary.model, routing.secondary.model)
+                )
+            )
+        return (self.config.provider.model,)
+
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
         selection = self._current_model_selection()
@@ -203,6 +218,11 @@ class TrayAgentApplication:
         )
         if self._last_error is not None:
             attention += 1
+        configured_models = self._configured_llm_models()
+        routing_enabled = (
+            self.config.routing is not None
+            and self.config.routing.enabled
+        )
         return TrayStatus(
             runtime_host=runtime_host,
             runtime_state=runtime_state,
