@@ -28,7 +28,20 @@ def _protect_windows(data: bytes) -> bytes:
     result = _DATA_BLOB()
     crypt32 = ctypes.windll.crypt32
     kernel32 = ctypes.windll.kernel32
-    ok = crypt32.CryptProtectData(
+    protect = crypt32.CryptProtectData
+    protect.argtypes = [
+        ctypes.POINTER(_DATA_BLOB),
+        wintypes.LPCWSTR,
+        ctypes.POINTER(_DATA_BLOB),
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(_DATA_BLOB),
+    ]
+    protect.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [wintypes.HLOCAL]
+    kernel32.LocalFree.restype = wintypes.HLOCAL
+    ok = protect(
         ctypes.byref(source),
         "SofiaAdaLyra",
         None,
@@ -56,7 +69,20 @@ def _unprotect_windows(data: bytes) -> bytes:
     result = _DATA_BLOB()
     crypt32 = ctypes.windll.crypt32
     kernel32 = ctypes.windll.kernel32
-    ok = crypt32.CryptUnprotectData(
+    unprotect = crypt32.CryptUnprotectData
+    unprotect.argtypes = [
+        ctypes.POINTER(_DATA_BLOB),
+        ctypes.POINTER(wintypes.LPWSTR),
+        ctypes.POINTER(_DATA_BLOB),
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(_DATA_BLOB),
+    ]
+    unprotect.restype = wintypes.BOOL
+    kernel32.LocalFree.argtypes = [wintypes.HLOCAL]
+    kernel32.LocalFree.restype = wintypes.HLOCAL
+    ok = unprotect(
         ctypes.byref(source),
         None,
         None,
@@ -117,8 +143,12 @@ class ProtectedSecretStore:
         encrypted = self._protect(value.encode("utf-8"))
         target = self._path(key)
         temporary = target.with_suffix(target.suffix + ".tmp")
-        temporary.write_bytes(encrypted)
-        os.replace(temporary, target)
+        try:
+            temporary.write_bytes(encrypted)
+            os.replace(temporary, target)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
 
     def get(self, key: str) -> str | None:
         target = self._path(key)
