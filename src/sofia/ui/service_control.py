@@ -57,6 +57,12 @@ class DesktopServiceController:
         llm_model: str | None = None,
         llm_keep_alive: str | None = None,
     ) -> tuple[str, dict]:
+        if action is ServiceAction.INSTALL_MODEL:
+            if target.kind is not ServiceKind.LLM_ENGINE:
+                raise ValueError("only an LLM target can install a model")
+            if not llm_model:
+                raise ValueError("LLM model identity required for install")
+            return "ollama.model.pull", {"model": llm_model}
         if action is ServiceAction.LOAD_MODEL:
             if target.kind is not ServiceKind.LLM_ENGINE:
                 raise ValueError("only an LLM target can load a model")
@@ -121,6 +127,19 @@ class DesktopServiceController:
             parameters=parameters,
             now=datetime.now(timezone.utc),
         )
+
+        if action is ServiceAction.INSTALL_MODEL:
+            if target.kind is not ServiceKind.LLM_ENGINE:
+                raise ValueError("only an LLM target can install a model")
+            if not llm_model:
+                raise ValueError("LLM model identity required for install")
+            self.ollama.pull(llm_model)
+            return ServiceControlResult(
+                target.host_id,
+                target.service_name,
+                action,
+                f"install requested for {llm_model}",
+            )
 
         if action is ServiceAction.LOAD_MODEL:
             if target.kind is not ServiceKind.LLM_ENGINE:

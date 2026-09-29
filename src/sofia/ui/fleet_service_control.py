@@ -23,6 +23,7 @@ class FleetRemoteServiceController:
         if not isinstance(action, ServiceAction):
             raise TypeError("ServiceAction required")
         if action in {
+            ServiceAction.INSTALL_MODEL,
             ServiceAction.LOAD_MODEL,
             ServiceAction.UNLOAD_MODEL,
         }:
