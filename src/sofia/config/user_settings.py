@@ -7,11 +7,6 @@ import json
 from pathlib import Path
 import sqlite3
 
-from sofia.config.model_defaults import (
-    DEFAULT_PROVIDER_MODEL,
-    DEFAULT_ROUTING_PRIMARY_MODEL,
-    DEFAULT_ROUTING_SECONDARY_MODEL,
-)
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
     DEFAULT_PROVIDER_MODEL,
@@ -26,14 +21,14 @@ from sofia.environment.model import LocationSubject
 @dataclass(frozen=True, slots=True)
 class RuntimeUserSettings:
     provider_model: str = DEFAULT_PROVIDER_MODEL
-    provider_context_size: int = 20000
+    provider_context_size: int = DEFAULT_PROVIDER_CONTEXT_SIZE
     provider_thinking: bool | str = False
 
     cognitive_routing_enabled: bool = False
-    cognitive_primary_model: str = DEFAULT_ROUTING_PRIMARY_MODEL
-    cognitive_secondary_model: str = DEFAULT_ROUTING_SECONDARY_MODEL
-    cognitive_primary_context_size: int = 16000
-    cognitive_secondary_context_size: int = 8192
+    cognitive_primary_model: str = RECOMMENDED_PRIMARY_MODEL
+    cognitive_secondary_model: str = RECOMMENDED_SECONDARY_MODEL
+    cognitive_primary_context_size: int = RECOMMENDED_PRIMARY_CONTEXT_SIZE
+    cognitive_secondary_context_size: int = RECOMMENDED_SECONDARY_CONTEXT_SIZE
     cognitive_verify_enabled: bool = True
 
     discord_enabled: bool = False
