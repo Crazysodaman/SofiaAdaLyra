@@ -303,6 +303,8 @@ class WindowsTrayAgent:
             1023: TrayCommand.LLM_UNLOAD_MODEL,
             1024: TrayCommand.LLM_LOAD_PRIMARY,
             1025: TrayCommand.LLM_LOAD_SECONDARY,
+            1026: TrayCommand.LLM_INSTALL_PRIMARY,
+            1027: TrayCommand.LLM_INSTALL_SECONDARY,
             1030: TrayCommand.RUNTIME_START,
             1031: TrayCommand.RUNTIME_STOP,
             1032: TrayCommand.RUNTIME_RESTART,
@@ -398,6 +400,30 @@ class WindowsTrayAgent:
                         else MF_STRING | MF_GRAYED
                     )
                     append(llm, flags, item_id, label)
+                install_primary_flags = (
+                    MF_STRING
+                    if tray_command_enabled(
+                        TrayCommand.LLM_INSTALL_PRIMARY,
+                        status,
+                    )
+                    else MF_STRING | MF_GRAYED
+                )
+                append(llm, install_primary_flags, 1026, "Install Primary")
+                if status.cognitive_routing_enabled:
+                    install_secondary_flags = (
+                        MF_STRING
+                        if tray_command_enabled(
+                            TrayCommand.LLM_INSTALL_SECONDARY,
+                            status,
+                        )
+                        else MF_STRING | MF_GRAYED
+                    )
+                    append(
+                        llm,
+                        install_secondary_flags,
+                        1027,
+                        "Install Secondary",
+                    )
                 load_primary_flags = (
                     MF_STRING
                     if tray_command_enabled(

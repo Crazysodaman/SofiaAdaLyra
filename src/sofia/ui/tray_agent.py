@@ -377,6 +377,26 @@ class TrayAgentApplication:
             self._service.execute(target, action)
             return
 
+        if action is ServiceAction.INSTALL_MODEL:
+            if model_role is None:
+                raise ValueError("model role required for install")
+            selection = self._current_model_selection()
+            provider = (
+                selection.primary
+                if model_role is CognitiveModelRole.PRIMARY
+                else selection.secondary
+            )
+            if provider is None:
+                raise ValueError(
+                    f"{model_role.value} model is not configured"
+                )
+            self._execute_approved_local_service_action(
+                target,
+                action,
+                llm_model=provider.model,
+            )
+            return
+
         if action is ServiceAction.LOAD_MODEL:
             if model_role is None:
                 raise ValueError("model role required for load")
@@ -432,6 +452,18 @@ class TrayAgentApplication:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.STOP)
             elif command is TrayCommand.LLM_RESTART:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.RESTART)
+            elif command is TrayCommand.LLM_INSTALL_PRIMARY:
+                self._service_action(
+                    ServiceKind.LLM_ENGINE,
+                    ServiceAction.INSTALL_MODEL,
+                    model_role=CognitiveModelRole.PRIMARY,
+                )
+            elif command is TrayCommand.LLM_INSTALL_SECONDARY:
+                self._service_action(
+                    ServiceKind.LLM_ENGINE,
+                    ServiceAction.INSTALL_MODEL,
+                    model_role=CognitiveModelRole.SECONDARY,
+                )
             elif command is TrayCommand.LLM_LOAD_PRIMARY:
                 self._service_action(
                     ServiceKind.LLM_ENGINE,
