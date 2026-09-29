@@ -61,11 +61,19 @@ class ConfiguredRemoteInferenceClient:
         endpoint_lookup = DurableEndpointPolicy(
             self.base / "remote-endpoints.db"
         )
+        timeout_seconds = 10.0
+        if capability == "llm.manage":
+            timeout_seconds = {
+                "pull": 7200.0,
+                "load": 600.0,
+                "unload": 60.0,
+            }.get(operation, 10.0)
         transport = PinnedHttpsRemoteTransport(
             endpoint_lookup.get,
             ca_file=self.ca_file,
             client_certificate=self.client_certificate,
             client_private_key=self.client_private_key,
+            timeout_seconds=timeout_seconds,
         )
         control = DurableRemoteControl(
             transport=transport,
