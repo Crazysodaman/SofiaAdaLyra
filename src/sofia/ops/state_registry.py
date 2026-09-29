@@ -155,6 +155,31 @@ class StatePlaneFleetRegistry(FleetRegistry):
             raise
         return updated
 
+    def refine_candidate_identity(
+        self,
+        host_id: str,
+        *,
+        platform: str,
+        architecture: str,
+        tags: tuple[str, ...] | None = None,
+    ) -> FleetHost:
+        before = self._hosts[host_id]
+        updated = super().refine_candidate_identity(
+            host_id,
+            platform=platform,
+            architecture=architecture,
+            tags=tags,
+        )
+        try:
+            self._persist(
+                updated,
+                source="ops:fleet-discovery-refine",
+            )
+        except Exception:
+            self._hosts[host_id] = before
+            raise
+        return updated
+
     def authenticate_candidate(
         self,
         host_id: str,
