@@ -18,7 +18,11 @@ from threading import Event, Thread
 from typing import Callable, Protocol
 
 from sofia.application import SofiaApplication
-from sofia.config import SofiaConfiguration, create_default_configuration
+from sofia.config import (
+    SofiaConfiguration,
+    create_default_configuration,
+    create_production_configuration,
+)
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import DiscordConversationBridge
 from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender
@@ -446,7 +450,7 @@ def run_live_discord(
 
 def main() -> int:
     try:
-        configuration = create_default_configuration()
+        configuration = create_production_configuration()
         provisioning = DiscordProvisioning.from_runtime(
             configuration
         )
