@@ -32,15 +32,7 @@ def production_storage_layout(
 
     state = Path(state_path)
     state_root = state.parent
-    protected_override = os.environ.get(
-        "SOFIA_PROTECTED_ROOT",
-        "",
-    ).strip()
-    protected_root = (
-        Path(protected_override)
-        if protected_override
-        else state_root / "protected"
-    )
+    protected_root = state_root / "protected"
     return replace(
         layout,
         state_root=state_root,
