@@ -51,6 +51,13 @@ class FleetEnrollmentService:
             raise PermissionError("machine binding, enrollment and authenticated peer disagree")
         if peer.public_key_sha256!=enrollment.public_key_sha256:
             raise PermissionError("authenticated peer key does not match enrolled key pin")
+        stored=self.registry.host(candidate.host_id)
+        if stored is None:
+            self.registry.register_candidate(candidate)
+        elif stored != candidate:
+            raise ValueError(
+                "candidate does not match durable Fleet record"
+            )
         trusted=self.registry.authenticate_candidate(
             candidate.host_id,
             enrollment.node.node_id,
