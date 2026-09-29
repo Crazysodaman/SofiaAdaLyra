@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 
@@ -226,6 +226,7 @@ def create_fleet_bootstrap_plan_notifier(
                 "or a configured trusted installer."
             )
         )
+        now = datetime.now(timezone.utc)
         act_service.queue_system_notice(
             notice_id=f"fleet-bootstrap:{host_id}",
             recipient_id=SPARKS_PRINCIPAL_ID,
@@ -236,12 +237,8 @@ def create_fleet_bootstrap_plan_notifier(
                 f"{plan.package.sha256[:16]}"
             ),
             content=content,
-            created_at=__import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            ),
-            expires_at=__import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            ) + timedelta(days=7),
+            created_at=now,
+            expires_at=now + timedelta(days=7),
         )
 
     return notify
