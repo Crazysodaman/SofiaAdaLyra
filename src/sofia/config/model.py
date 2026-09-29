@@ -157,11 +157,17 @@ class FleetCognitionConfiguration:
     min_ram_bytes: int = 0
     min_vram_bytes: int = 0
     gpu_required: bool = False
+    auto_provision_models: bool = False
     allowed_host_ids: tuple[str, ...] = ()
     denied_host_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        for name in ("enabled", "local_fallback", "gpu_required"):
+        for name in (
+            "enabled",
+            "local_fallback",
+            "gpu_required",
+            "auto_provision_models",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"fleet cognition {name} must be a bool")
         for name in ("min_ram_bytes", "min_vram_bytes"):
