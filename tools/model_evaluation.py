@@ -262,6 +262,40 @@ def installed_models(client: Client) -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
+def model_metadata(client: Client, model: str) -> dict:
+    """Capture bounded Ollama capability metadata without changing the model."""
+    try:
+        response = client.show(model)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+
+    def value(source, name):
+        if isinstance(source, dict):
+            return source.get(name)
+        return getattr(source, name, None)
+
+    capabilities = value(response, "capabilities") or ()
+    details = value(response, "details") or {}
+    if not isinstance(capabilities, (list, tuple)):
+        capabilities = ()
+    return {
+        "status": "ok",
+        "capabilities": [
+            item for item in capabilities
+            if isinstance(item, str)
+        ],
+        "family": value(details, "family"),
+        "families": value(details, "families"),
+        "parameter_size": value(details, "parameter_size"),
+        "quantization_level": value(details, "quantization_level"),
+        "format": value(details, "format"),
+    }
+
+
 def select_models(
     available: tuple[str, ...],
     requested: tuple[str, ...] | None = None,
@@ -300,6 +334,10 @@ def evaluate_models(
     """
     if not models:
         raise ValueError("At least one model is required.")
+    metadata = {
+        model: model_metadata(client, model)
+        for model in models
+    }
     configurations = {
         model: ProviderConfiguration(
             provider="ollama", model=model, temperature=temperature,
@@ -348,6 +386,7 @@ def evaluate_models(
         "fixture_kind": "synthetic controlled canonical-fact snapshot; not live state",
         "controlled_operational_model": CONTROLLED_MODEL,
         "provider": "ollama", "models": list(models),
+        "model_metadata": metadata,
         "generation": {
             "temperature": temperature, "seed": seed,
             "context_size": context_size, "thinking": thinking,
