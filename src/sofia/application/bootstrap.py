@@ -298,6 +298,13 @@ class SofiaApplication:
             if ui_draft_store is not None:
                 ui_draft_store.open()
             self._runtime.start()
+            model_lifecycle = getattr(
+                self._runtime,
+                "model_lifecycle",
+                None,
+            )
+            if model_lifecycle is not None:
+                model_lifecycle.install_missing()
             environment_service = getattr(
                 self._runtime,
                 "environment_service",

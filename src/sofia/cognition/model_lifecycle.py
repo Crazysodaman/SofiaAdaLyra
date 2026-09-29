@@ -123,6 +123,14 @@ class ModelLifecycleManager:
         return self.selection.secondary
 
     @property
+    def configured_roles(self) -> tuple[CognitiveModelRole, ...]:
+        return (
+            (CognitiveModelRole.PRIMARY, CognitiveModelRole.SECONDARY)
+            if self.selection.secondary is not None
+            else (CognitiveModelRole.PRIMARY,)
+        )
+
+    @property
     def background_role(self) -> CognitiveModelRole:
         return (
             CognitiveModelRole.SECONDARY
@@ -303,6 +311,17 @@ class ModelLifecycleManager:
                 model=model,
                 state=ModelResidency.UNLOADED,
             )
+
+    def install_missing(self) -> tuple[str, ...]:
+        if not self.policy.auto_install_missing:
+            return ()
+        installed_names: list[str] = []
+        for role in self.configured_roles:
+            status = self.status(role)
+            if status.state is not ModelResidency.UNAVAILABLE:
+                continue
+            installed_names.append(self.install(role).model)
+        return tuple(installed_names)
 
     def ensure_loaded(
         self,

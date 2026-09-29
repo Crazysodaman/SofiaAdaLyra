@@ -36,6 +36,7 @@ class RuntimeUserSettings:
     cognitive_secondary_context_size: int = RECOMMENDED_SECONDARY_CONTEXT_SIZE
     cognitive_verify_enabled: bool = True
     cognitive_model_auto_manage: bool = True
+    cognitive_model_auto_install: bool = True
     cognitive_model_idle_unload_seconds: int = 1800
     cognitive_model_keep_alive: str = "10m"
 
@@ -105,6 +106,7 @@ class RuntimeUserSettings:
             "cognitive_routing_enabled",
             "cognitive_verify_enabled",
             "cognitive_model_auto_manage",
+            "cognitive_model_auto_install",
         ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
@@ -361,6 +363,7 @@ class RuntimeUserSettingsStore:
             data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
             data["cognitive_routing_enabled"] = True
             data["cognitive_model_auto_manage"] = True
+            data["cognitive_model_auto_install"] = True
             if (
                 data.get("provider_model") == LEGACY_SINGLE_PRESET.model
                 and data.get("provider_context_size")

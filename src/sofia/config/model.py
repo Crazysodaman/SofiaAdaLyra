@@ -122,12 +122,15 @@ class ModelLifecycleConfiguration:
     """Host-owned lifecycle policy for configured cognitive model roles."""
 
     enabled: bool = False
+    auto_install_missing: bool = False
     idle_unload_seconds: int = 1800
     keep_alive: str = "10m"
 
     def __post_init__(self) -> None:
         if type(self.enabled) is not bool:
             raise TypeError("model lifecycle enabled must be a bool")
+        if type(self.auto_install_missing) is not bool:
+            raise TypeError("model lifecycle auto_install_missing must be a bool")
         if (
             type(self.idle_unload_seconds) is not int
             or not 1 <= self.idle_unload_seconds <= 86400
