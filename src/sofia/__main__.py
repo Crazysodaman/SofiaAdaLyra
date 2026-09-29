@@ -70,8 +70,24 @@ def main(
 
     try:
         from sofia.ui.desktop import run_desktop
+        from sofia.ui.tray_launcher import ensure_tray_agent
 
-        return run_desktop(configuration=configuration)
+        desktop_configuration = (
+            configuration
+            if configuration is not None
+            else create_default_configuration()
+        )
+        try:
+            ensure_tray_agent(desktop_configuration)
+        except Exception as exc:
+            output_function(
+                "Sofía tray failed to start: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
+        return run_desktop(
+            configuration=desktop_configuration
+        )
     except KeyboardInterrupt:
         return 0
     except Exception as exc:
