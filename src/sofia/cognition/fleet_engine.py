@@ -16,6 +16,10 @@ RemoteInfer = Callable[
     [UUID, ProviderConfiguration, CognitiveRequest],
     CognitiveResponse,
 ]
+RemotePrepare = Callable[
+    [UUID, ProviderConfiguration, bool],
+    None,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +31,7 @@ class FleetCognitionPolicy:
     min_ram_bytes: int = 0
     min_vram_bytes: int = 0
     gpu_required: bool = False
+    auto_provision_models: bool = False
     allowed_host_ids: tuple[str, ...] = ()
     denied_host_ids: tuple[str, ...] = ()
 
@@ -37,6 +42,8 @@ class FleetCognitionPolicy:
             raise TypeError("local_fallback must be a bool")
         if type(self.gpu_required) is not bool:
             raise TypeError("gpu_required must be a bool")
+        if type(self.auto_provision_models) is not bool:
+            raise TypeError("auto_provision_models must be a bool")
         for name in ("min_ram_bytes", "min_vram_bytes"):
             value = getattr(self, name)
             if type(value) is not int or value < 0:
@@ -70,6 +77,7 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
         ops: OpsToolService,
         local_host_id: str,
         remote_infer: RemoteInfer,
+        remote_prepare: RemotePrepare | None = None,
         policy: FleetCognitionPolicy,
         workload_id: str,
     ) -> None:
@@ -83,6 +91,8 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
             raise ValueError("local_host_id required")
         if not callable(remote_infer):
             raise TypeError("remote_infer must be callable")
+        if remote_prepare is not None and not callable(remote_prepare):
+            raise TypeError("remote_prepare must be callable or None")
         if not isinstance(policy, FleetCognitionPolicy):
             raise TypeError("policy must be FleetCognitionPolicy")
         if not isinstance(workload_id, str) or not workload_id.strip():
@@ -92,6 +102,7 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
         self.ops = ops
         self.local_host_id = local_host_id.strip()
         self.remote_infer = remote_infer
+        self.remote_prepare = remote_prepare
         self.policy = policy
         self.workload_id = workload_id.strip()
         self.last_host_id: str | None = None
@@ -178,6 +189,12 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
             return self._local_or_raise(request)
 
         try:
+            if self.remote_prepare is not None:
+                self.remote_prepare(
+                    host.node_id,
+                    self.provider,
+                    self.policy.auto_provision_models,
+                )
             response = self.remote_infer(
                 host.node_id,
                 self.provider,
