@@ -273,13 +273,12 @@ def run_settings_window() -> int:
     ).pack(anchor="w", fill="x", pady=(2, 8))
 
     integrations = frames["Integrations"]
-
-    discord_frame = ttk.LabelFrame(
-        integrations,
-        text="Discord",
-        padding=10,
-    )
-    discord_frame.pack(fill="x", pady=(0, 12))
+    integration_tabs = ttk.Notebook(integrations)
+    integration_tabs.pack(fill="both", expand=True)
+    discord_frame = ttk.Frame(integration_tabs, padding=10)
+    ha_frame = ttk.Frame(integration_tabs, padding=10)
+    integration_tabs.add(discord_frame, text="Discord")
+    integration_tabs.add(ha_frame, text="Home Assistant")
     ttk.Checkbutton(
         discord_frame,
         text="Enable owner-only Discord DM integration",
@@ -319,12 +318,6 @@ def run_settings_window() -> int:
         wraplength=700,
     ).pack(anchor="w", pady=(6, 0))
 
-    ha_frame = ttk.LabelFrame(
-        integrations,
-        text="Home Assistant",
-        padding=10,
-    )
-    ha_frame.pack(fill="x")
     ttk.Checkbutton(
         ha_frame,
         text="Enable Home Assistant environment integration",
@@ -370,12 +363,12 @@ def run_settings_window() -> int:
     ).pack(anchor="w", fill="x", pady=(2, 0))
 
     environment = frames["Environment"]
-    location_frame = ttk.LabelFrame(
-        environment,
-        text="Configured location",
-        padding=10,
-    )
-    location_frame.pack(fill="x", pady=(0, 12))
+    environment_tabs = ttk.Notebook(environment)
+    environment_tabs.pack(fill="both", expand=True)
+    location_frame = ttk.Frame(environment_tabs, padding=10)
+    weather_frame = ttk.Frame(environment_tabs, padding=10)
+    environment_tabs.add(location_frame, text="Location")
+    environment_tabs.add(weather_frame, text="Weather")
     ttk.Label(
         location_frame,
         text=(
@@ -403,12 +396,6 @@ def run_settings_window() -> int:
         state="readonly",
     ).pack(anchor="w", fill="x", pady=(2, 0))
 
-    weather_frame = ttk.LabelFrame(
-        environment,
-        text="Weather and refresh",
-        padding=10,
-    )
-    weather_frame.pack(fill="x")
     ttk.Checkbutton(
         weather_frame,
         text="Enable National Weather Service provider",
