@@ -14,7 +14,13 @@ from uuid import uuid4
 
 from sofia.config import create_production_configuration
 from sofia.config.cognitive_models import CognitiveModelSelection
+from sofia.config.model import ModelLifecycleConfiguration
+from sofia.cognition.model_lifecycle import (
+    CognitiveModelRole,
+    ModelLifecycleManager,
+)
 from sofia.distributed.capability import create_configured_remote_fleet_service
+from sofia.integrations.ollama import OllamaAdapter
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
     ActivityMode,
@@ -126,6 +132,25 @@ class TrayAgentApplication:
         )
         return CognitiveModelSelection.from_configuration(configuration)
 
+    def _current_model_lifecycle_policy(
+        self,
+    ) -> ModelLifecycleConfiguration:
+        configuration = create_production_configuration(
+            state_path=self.config.state_path,
+        )
+        return configuration.model_lifecycle
+
+    @staticmethod
+    def _current_model_statuses(
+        selection: CognitiveModelSelection,
+        policy: ModelLifecycleConfiguration,
+    ):
+        return ModelLifecycleManager(
+            selection=selection,
+            policy=policy,
+            backend=OllamaAdapter(),
+        ).statuses()
+
     def _service_state(self, service_name: str) -> str:
         try:
             result = self._system_backend.execute(
@@ -177,6 +202,15 @@ class TrayAgentApplication:
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
         selection = self._current_model_selection()
+        lifecycle_policy = self._current_model_lifecycle_policy()
+        lifecycle_statuses = self._current_model_statuses(
+            selection,
+            lifecycle_policy,
+        )
+        lifecycle_by_role = {
+            item.role: item.state.value
+            for item in lifecycle_statuses
+        }
         authority = self._runtime_authority.current()
         remote_runtime = (
             authority is not None
@@ -219,6 +253,16 @@ class TrayAgentApplication:
                 else selection.secondary.model
             ),
             cognitive_routing_enabled=selection.routing_enabled,
+            llm_primary_residency=lifecycle_by_role.get(
+                CognitiveModelRole.PRIMARY
+            ),
+            llm_secondary_residency=lifecycle_by_role.get(
+                CognitiveModelRole.SECONDARY
+            ),
+            cognitive_auto_manage=lifecycle_policy.enabled,
+            cognitive_idle_unload_seconds=(
+                lifecycle_policy.idle_unload_seconds
+            ),
         )
 
     @staticmethod

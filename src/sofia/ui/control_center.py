@@ -65,6 +65,10 @@ class TrayStatus:
     fleet_attention: int
     llm_secondary_model: str | None = None
     cognitive_routing_enabled: bool = False
+    llm_primary_residency: str | None = None
+    llm_secondary_residency: str | None = None
+    cognitive_auto_manage: bool = False
+    cognitive_idle_unload_seconds: int | None = None
 
     @property
     def configured_llm_models(self) -> tuple[str, ...]:

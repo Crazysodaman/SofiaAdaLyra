@@ -352,22 +352,38 @@ class WindowsTrayAgent:
                     else "Cognition"
                 )
                 primary_label = status.llm_model or "not configured"
+                primary_state = status.llm_primary_residency or "unknown"
                 append(
                     llm,
                     MF_STRING | MF_GRAYED,
                     0,
-                    f"Primary: {primary_label}",
+                    f"Primary: {primary_label} [{primary_state}]",
                 )
                 if status.cognitive_routing_enabled:
                     secondary_label = (
                         status.llm_secondary_model or "not configured"
                     )
+                    secondary_state = (
+                        status.llm_secondary_residency or "unknown"
+                    )
                     append(
                         llm,
                         MF_STRING | MF_GRAYED,
                         0,
-                        f"Secondary: {secondary_label}",
+                        f"Secondary: {secondary_label} [{secondary_state}]",
                     )
+                residency_label = (
+                    f"Auto residency: on, unload after "
+                    f"{status.cognitive_idle_unload_seconds}s"
+                    if status.cognitive_auto_manage
+                    else "Auto residency: off"
+                )
+                append(
+                    llm,
+                    MF_STRING | MF_GRAYED,
+                    0,
+                    residency_label,
+                )
                 append(llm, MF_SEPARATOR, 0, None)
                 for item_id, label, command in (
                     (1020, "Start", TrayCommand.LLM_START),
