@@ -113,6 +113,20 @@ def test_timezone_query_reports_only_evidenced_timezone():
     assert answer.content.endswith("America/Chicago.")
 
 
+def test_current_weather_today_common_phrasings_are_recognized():
+    resolver = EnvironmentQueryResolver()
+    for query in (
+        "what's the weather today?",
+        "what is the weather today?",
+        "how's the weather today?",
+        "how is the weather today?",
+        "today's weather",
+        "todays weather",
+        "weather today",
+    ):
+        assert resolver.might_match(query), query
+
+
 def test_direct_weather_refuses_stale_observation():
     weather = WeatherObservation(
         condition="rainy",
