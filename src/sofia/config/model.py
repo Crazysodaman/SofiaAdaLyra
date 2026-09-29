@@ -190,6 +190,41 @@ class FleetCognitionConfiguration:
 
 
 @dataclass(frozen=True)
+class FleetBootstrapConfiguration:
+    enabled: bool = False
+    authority: str = "none"
+    package_id: str = "sofia-fleet-agent"
+    package_version: str = "0.1.0"
+    package_sha256: str | None = None
+    package_source: str | None = None
+    protocol_version: str = "1.0"
+    signer_key_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise TypeError("fleet bootstrap enabled must be boolean")
+        if self.authority not in {
+            "none",
+            "operator_approved",
+            "standing_policy",
+        }:
+            raise ValueError("invalid fleet bootstrap authority")
+        if not self.package_id.strip() or not self.package_version.strip():
+            raise ValueError("fleet bootstrap package identity required")
+        if self.package_sha256 is not None and (
+            len(self.package_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in self.package_sha256)
+        ):
+            raise ValueError(
+                "fleet bootstrap package_sha256 must be lowercase SHA-256"
+            )
+        if self.package_source is not None and not self.package_source.strip():
+            raise ValueError(
+                "fleet bootstrap package_source must be None or nonempty"
+            )
+
+
+@dataclass(frozen=True)
 class FleetDiscoveryConfiguration:
     enabled: bool = False
     interval_seconds: int = 300
@@ -248,6 +283,9 @@ class SofiaConfiguration:
     )
     fleet_discovery: FleetDiscoveryConfiguration = field(
         default_factory=FleetDiscoveryConfiguration
+    )
+    fleet_bootstrap: FleetBootstrapConfiguration = field(
+        default_factory=FleetBootstrapConfiguration
     )
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
@@ -330,6 +368,15 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration fleet_discovery must be a "
                 "FleetDiscoveryConfiguration."
+            )
+
+        if not isinstance(
+            self.fleet_bootstrap,
+            FleetBootstrapConfiguration,
+        ):
+            raise TypeError(
+                "SofiaConfiguration fleet_bootstrap must be a "
+                "FleetBootstrapConfiguration."
             )
 
         if not isinstance(self.environment, EnvironmentConfiguration):
