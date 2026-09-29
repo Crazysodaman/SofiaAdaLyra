@@ -534,6 +534,34 @@ def run_settings_window() -> int:
                     "Home Assistant is enabled but no access token is stored"
                 )
 
+            selected_location_subject = LocationSubject(
+                location_subject.get()
+            )
+            selected_nws_subject = LocationSubject(
+                nws_subject.get()
+            )
+            parsed_latitude = _optional_float(
+                location_latitude.get(),
+                "Latitude",
+            )
+            parsed_longitude = _optional_float(
+                location_longitude.get(),
+                "Longitude",
+            )
+            if (
+                nws_enabled.get()
+                and selected_nws_subject is not LocationSubject.HOST
+                and (
+                    selected_location_subject is not selected_nws_subject
+                    or parsed_latitude is None
+                    or parsed_longitude is None
+                )
+            ):
+                raise ValueError(
+                    "NWS requires configured coordinates for its selected "
+                    "user/site location subject"
+                )
+
             runtime_updated = RuntimeUserSettings(
                 provider_model=provider_model.get().strip(),
                 provider_context_size=_positive(
@@ -579,21 +607,11 @@ def run_settings_window() -> int:
                 location_timezone=_optional_text(
                     location_timezone.get()
                 ),
-                location_latitude=_optional_float(
-                    location_latitude.get(),
-                    "Latitude",
-                ),
-                location_longitude=_optional_float(
-                    location_longitude.get(),
-                    "Longitude",
-                ),
-                location_subject=LocationSubject(
-                    location_subject.get()
-                ),
+                location_latitude=parsed_latitude,
+                location_longitude=parsed_longitude,
+                location_subject=selected_location_subject,
                 nws_enabled=bool(nws_enabled.get()),
-                nws_location_subject=LocationSubject(
-                    nws_subject.get()
-                ),
+                nws_location_subject=selected_nws_subject,
                 nws_user_agent=nws_user_agent.get().strip(),
                 refresh_seconds=_positive(
                     refresh_seconds.get(),
