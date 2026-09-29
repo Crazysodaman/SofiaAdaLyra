@@ -340,7 +340,7 @@ def run_settings_window() -> int:
         routing_frame,
         text=(
             "Recommended local pairing: qwen3.5:9b primary and "
-            "huihui_ai/qwen3.5-abliterated:4b secondary. "
+            "huihui_ai/qwen3.5-abliterated:4B secondary. "
             "Tool-enabled requests remain primary-only."
         ),
         wraplength=690,
