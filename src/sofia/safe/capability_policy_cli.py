@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import sys
 
-from sofia.config import create_production_configuration
+from sofia.config import production_state_path
 from sofia.safe.capability_policy import (
     protected_capability_extras,
     set_protected_capability_extras,
@@ -27,11 +27,10 @@ def main(argv:list[str]|None=None)->int:
     parser.add_argument("--state-path")
     args=parser.parse_args(argv)
     try:
-        configuration=create_production_configuration()
         state_path=(
             Path(args.state_path)
             if args.state_path
-            else Path(configuration.state_path)
+            else production_state_path()
         )
         plane=SQLiteStatePlane(state_path)
         if args.command=="show":
