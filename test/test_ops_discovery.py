@@ -146,7 +146,7 @@ def test_preapproved_discovered_identity_auto_enrolls(tmp_path):
         observed_endpoint_hostname="artemis.local",
         observed_endpoint_port=7443,
         capabilities_verified=True,
-        capability_names=("system.inspect",),
+        capability_names=("system.inspect", "ops.telemetry"),
     )
     discovery = coordinator.ingest((observation,))
 
@@ -479,7 +479,7 @@ def test_mtls_evidence_marks_bootstrap_candidate_agent_present():
         observed_public_key_sha256="f" * 64,
         installed_protocol_version="1.0",
         capabilities_verified=True,
-        capability_names=("system.inspect",),
+        capability_names=("system.inspect", "ops.telemetry"),
     ).bootstrap_candidate()
 
     assert candidate.agent_present is True
