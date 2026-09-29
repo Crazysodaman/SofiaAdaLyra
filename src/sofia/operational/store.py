@@ -1,6 +1,10 @@
-﻿from datetime import datetime
+from __future__ import annotations
+
+from contextlib import closing, contextmanager
+from datetime import datetime
 from pathlib import Path
 import sqlite3
+from threading import RLock
 from uuid import UUID
 
 from sofia.operational.model import (
@@ -10,15 +14,12 @@ from sofia.operational.model import (
 
 
 class OperationalStore:
-    """
-    SQLite-backed persistence for runtime lifecycle evidence.
+    """SQLite-backed persistence for runtime lifecycle evidence.
 
-    Runtime history is operational evidence and is kept separate from
-    Sofía's identity, memory, and cognitive state.
-
-    A runtime is recorded only after successful startup. Therefore a
-    failed startup cannot replace the previous successful runtime
-    evidence.
+    Connections are intentionally short lived. The desktop worker, Discord,
+    background jobs, and supervisor may have different thread lifetimes, so a
+    connection created by one thread must not become an accidental ownership
+    constraint for later lifecycle reads or writes.
     """
 
     def __init__(
@@ -26,35 +27,45 @@ class OperationalStore:
         database_path: Path | str,
     ) -> None:
         self._database_path = Path(database_path)
-        self._connection: sqlite3.Connection | None = None
-
+        self._lock = RLock()
+        self._closed = False
         self.open()
 
     def open(self) -> None:
-        if self._connection is not None:
-            return
-
-        self._connection = sqlite3.connect(
-            str(self._database_path)
-        )
-
-        self._initialize_database()
-
-    def _initialize_database(self) -> None:
-        connection = self._require_connection()
-
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS operational_runtime_history (
-                runtime_id TEXT PRIMARY KEY,
-                started_at TEXT NOT NULL,
-                stopped_at TEXT,
-                lifecycle_state TEXT NOT NULL
+        with self._lock:
+            self._database_path.parent.mkdir(
+                parents=True,
+                exist_ok=True,
             )
-            """
-        )
+            self._closed = False
+            with closing(self._connect()) as connection:
+                with connection:
+                    connection.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS operational_runtime_history (
+                            runtime_id TEXT PRIMARY KEY,
+                            started_at TEXT NOT NULL,
+                            stopped_at TEXT,
+                            lifecycle_state TEXT NOT NULL
+                        )
+                        """
+                    )
 
-        connection.commit()
+    def _connect(self) -> sqlite3.Connection:
+        self._require_open()
+        connection = sqlite3.connect(
+            str(self._database_path),
+            timeout=10,
+        )
+        connection.execute("PRAGMA busy_timeout=10000")
+        return connection
+
+    @contextmanager
+    def _transaction(self):
+        with self._lock:
+            with closing(self._connect()) as connection:
+                with connection:
+                    yield connection
 
     def record_started(
         self,
@@ -65,37 +76,32 @@ class OperationalStore:
             raise TypeError(
                 "OperationalStore runtime_id must be a UUID."
             )
-
         if not isinstance(started_at, datetime):
             raise TypeError(
                 "OperationalStore started_at must be a datetime."
             )
-
         if started_at.tzinfo is None:
             raise ValueError(
                 "OperationalStore started_at must be timezone-aware."
             )
 
-        connection = self._require_connection()
-
-        connection.execute(
-            """
-            INSERT INTO operational_runtime_history (
-                runtime_id,
-                started_at,
-                stopped_at,
-                lifecycle_state
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO operational_runtime_history (
+                    runtime_id,
+                    started_at,
+                    stopped_at,
+                    lifecycle_state
+                )
+                VALUES (?, ?, NULL, ?)
+                """,
+                (
+                    str(runtime_id),
+                    started_at.isoformat(),
+                    "ready",
+                ),
             )
-            VALUES (?, ?, NULL, ?)
-            """,
-            (
-                str(runtime_id),
-                started_at.isoformat(),
-                "ready",
-            ),
-        )
-
-        connection.commit()
 
     def record_stopped(
         self,
@@ -106,34 +112,29 @@ class OperationalStore:
             raise TypeError(
                 "OperationalStore runtime_id must be a UUID."
             )
-
         if not isinstance(stopped_at, datetime):
             raise TypeError(
                 "OperationalStore stopped_at must be a datetime."
             )
-
         if stopped_at.tzinfo is None:
             raise ValueError(
                 "OperationalStore stopped_at must be timezone-aware."
             )
 
-        connection = self._require_connection()
-
-        connection.execute(
-            """
-            UPDATE operational_runtime_history
-            SET stopped_at = ?,
-                lifecycle_state = ?
-            WHERE runtime_id = ?
-            """,
-            (
-                stopped_at.isoformat(),
-                "stopped",
-                str(runtime_id),
-            ),
-        )
-
-        connection.commit()
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                UPDATE operational_runtime_history
+                SET stopped_at = ?,
+                    lifecycle_state = ?
+                WHERE runtime_id = ?
+                """,
+                (
+                    stopped_at.isoformat(),
+                    "stopped",
+                    str(runtime_id),
+                ),
+            )
 
     def latest_runtime(
         self,
@@ -143,24 +144,23 @@ class OperationalStore:
         datetime | None,
         str,
     ] | None:
-        connection = self._require_connection()
-
-        row = connection.execute(
-            """
-            SELECT
-                runtime_id,
-                started_at,
-                stopped_at,
-                lifecycle_state
-            FROM operational_runtime_history
-            ORDER BY started_at DESC
-            LIMIT 1
-            """
-        ).fetchone()
+        with self._lock:
+            with closing(self._connect()) as connection:
+                row = connection.execute(
+                    """
+                    SELECT
+                        runtime_id,
+                        started_at,
+                        stopped_at,
+                        lifecycle_state
+                    FROM operational_runtime_history
+                    ORDER BY started_at DESC
+                    LIMIT 1
+                    """
+                ).fetchone()
 
         if row is None:
             return None
-
         return (
             UUID(row[0]),
             datetime.fromisoformat(row[1]),
@@ -181,34 +181,32 @@ class OperationalStore:
             raise TypeError(
                 "OperationalStore current_runtime_id must be a UUID."
             )
-
         if not isinstance(current_started_at, datetime):
             raise TypeError(
                 "OperationalStore current_started_at must be a datetime."
             )
-
         if current_started_at.tzinfo is None:
             raise ValueError(
                 "OperationalStore current_started_at must be "
                 "timezone-aware."
             )
 
-        connection = self._require_connection()
-
-        row = connection.execute(
-            """
-            SELECT
-                runtime_id,
-                started_at,
-                stopped_at,
-                lifecycle_state
-            FROM operational_runtime_history
-            WHERE runtime_id != ?
-            ORDER BY started_at DESC
-            LIMIT 1
-            """,
-            (str(current_runtime_id),),
-        ).fetchone()
+        with self._lock:
+            with closing(self._connect()) as connection:
+                row = connection.execute(
+                    """
+                    SELECT
+                        runtime_id,
+                        started_at,
+                        stopped_at,
+                        lifecycle_state
+                    FROM operational_runtime_history
+                    WHERE runtime_id != ?
+                    ORDER BY started_at DESC
+                    LIMIT 1
+                    """,
+                    (str(current_runtime_id),),
+                ).fetchone()
 
         if row is None:
             return RuntimeContinuity(
@@ -232,16 +230,11 @@ class OperationalStore:
         )
 
     def close(self) -> None:
-        if self._connection is None:
-            return
+        with self._lock:
+            self._closed = True
 
-        self._connection.close()
-        self._connection = None
-
-    def _require_connection(self) -> sqlite3.Connection:
-        if self._connection is None:
+    def _require_open(self) -> None:
+        if self._closed:
             raise RuntimeError(
                 "OperationalStore must be opened before use."
             )
-
-        return self._connection
