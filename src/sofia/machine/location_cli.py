@@ -14,13 +14,13 @@ from pathlib import Path
 from .discovery import create_machine_discovery
 from .location import MachineLocationRegistry, new_machine_location
 from .location_state import StatePlaneMachineLocationRegistry
-from sofia.config import create_production_configuration
+from sofia.config import production_state_path
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from .persistence import MachineInventoryPersistence
 
 
 def _state_directory() -> Path:
-    return Path(create_production_configuration().state_path).parent
+    return production_state_path().parent
 
 
 def _registry(
