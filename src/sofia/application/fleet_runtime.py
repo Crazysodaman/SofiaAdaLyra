@@ -5,7 +5,13 @@ import json
 import os
 
 from sofia.application.act_service import SofiaActService
+from sofia.ops.bootstrap import (
+    AgentPackage,
+    BootstrapDisposition,
+    InstallAuthority,
+)
 from sofia.ops.capability import OpsToolService
+from sofia.ops.discovery import FleetDiscoveryBootstrapCoordinator
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.state.model import StateClass, StateKey, StateRecord
 
@@ -150,3 +156,92 @@ def create_fleet_candidate_notifier(
         )
 
     return discovered
+
+
+
+def create_fleet_bootstrap_coordinator(
+    *,
+    configuration,
+    act_service: SofiaActService,
+    installer_factory=None,
+):
+    """Compose discovery bootstrap planning from explicit production policy."""
+    policy = configuration.fleet_bootstrap
+    if not policy.enabled:
+        return None
+    if not policy.package_sha256 or not policy.package_source:
+        raise ValueError(
+            "Fleet bootstrap is enabled but the approved package SHA-256 "
+            "and source are not both configured"
+        )
+    authority = InstallAuthority(policy.authority)
+    package = AgentPackage(
+        package_id=policy.package_id,
+        version=policy.package_version,
+        sha256=policy.package_sha256,
+        source=policy.package_source,
+        protocol_version=policy.protocol_version,
+        signer_key_id=policy.signer_key_id,
+    )
+    notifier = create_fleet_bootstrap_plan_notifier(
+        act_service=act_service,
+    )
+    return FleetDiscoveryBootstrapCoordinator(
+        package=package,
+        authority=authority,
+        installer_factory=installer_factory,
+        operator_notifier=notifier,
+    )
+
+
+def create_fleet_bootstrap_plan_notifier(
+    *,
+    act_service: SofiaActService,
+):
+    """Notify Sparks only when a candidate needs explicit bootstrap action."""
+    if not isinstance(act_service, SofiaActService):
+        raise TypeError("act_service must be a SofiaActService")
+    destination = os.environ.get(
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+        "",
+    ).strip()
+    if not destination:
+        return None
+    if (
+        "/" in destination
+        or not destination.replace("_", "").replace("-", "").isalnum()
+    ):
+        raise ValueError(
+            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
+        )
+
+    def notify(plan) -> None:
+        if plan.disposition is not BootstrapDisposition.ASK_OPERATOR:
+            return
+        host_id = plan.candidate.host_id
+        content = (
+            plan.operator_message
+            or (
+                f"Fleet candidate {host_id} needs bootstrap authorization "
+                "or a configured trusted installer."
+            )
+        )
+        act_service.queue_system_notice(
+            notice_id=f"fleet-bootstrap:{host_id}",
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            channel="home_assistant",
+            destination=destination,
+            evidence_id=(
+                f"fleet-bootstrap-plan:{host_id}:"
+                f"{plan.package.sha256[:16]}"
+            ),
+            content=content,
+            created_at=__import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            ),
+            expires_at=__import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            ) + timedelta(days=7),
+        )
+
+    return notify
