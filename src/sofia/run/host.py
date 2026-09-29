@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
@@ -113,10 +113,7 @@ class RunSupervisorHost:
             raise ValueError("poll interval must be shorter than lease TTL")
 
     def _supervisor(self) -> tuple[LocalRunLeaseStore, LocalRuntimeSupervisor]:
-        configuration = replace(
-            create_production_configuration(
-                state_path=self.state_path,
-            ),
+        configuration = create_production_configuration(
             state_path=self.state_path,
         )
         verify_production_component_schemas(self.state_path)
