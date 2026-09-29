@@ -149,6 +149,41 @@ class ModelLifecycleConfiguration:
 
 
 @dataclass(frozen=True)
+class FleetCognitionConfiguration:
+    """Optional production placement of cognitive roles onto trusted Fleet nodes."""
+
+    enabled: bool = False
+    local_fallback: bool = True
+    min_ram_bytes: int = 0
+    min_vram_bytes: int = 0
+    gpu_required: bool = False
+    allowed_host_ids: tuple[str, ...] = ()
+    denied_host_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in ("enabled", "local_fallback", "gpu_required"):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"fleet cognition {name} must be a bool")
+        for name in ("min_ram_bytes", "min_vram_bytes"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ValueError(
+                    f"fleet cognition {name} must be a nonnegative int"
+                )
+        for name in ("allowed_host_ids", "denied_host_ids"):
+            values = getattr(self, name)
+            if not isinstance(values, tuple):
+                raise TypeError(f"fleet cognition {name} must be a tuple")
+            if any(
+                not isinstance(value, str) or not value.strip()
+                for value in values
+            ):
+                raise ValueError(
+                    f"fleet cognition {name} must contain nonempty host IDs"
+                )
+
+
+@dataclass(frozen=True)
 class SofiaConfiguration:
     constitution_path: Path
     constitution_hash_path: Path
@@ -163,6 +198,9 @@ class SofiaConfiguration:
     routing: CognitiveRoutingConfiguration | None = None
     model_lifecycle: ModelLifecycleConfiguration = field(
         default_factory=ModelLifecycleConfiguration
+    )
+    fleet_cognition: FleetCognitionConfiguration = field(
+        default_factory=FleetCognitionConfiguration
     )
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
@@ -227,6 +265,15 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration model_lifecycle must be a "
                 "ModelLifecycleConfiguration."
+            )
+
+        if not isinstance(
+            self.fleet_cognition,
+            FleetCognitionConfiguration,
+        ):
+            raise TypeError(
+                "SofiaConfiguration fleet_cognition must be a "
+                "FleetCognitionConfiguration."
             )
 
         if not isinstance(self.environment, EnvironmentConfiguration):
