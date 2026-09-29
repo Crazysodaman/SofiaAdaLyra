@@ -41,6 +41,7 @@ _INTERACTION_CONTEXT_MARKERS = (
     "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
     "TRUSTED INTERACTION FOLLOW-UP",
     "TRUSTED BODY INTERACTION CONTROL",
+    "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP",
 )
 
 _UNGROUNDED_SENSATION_PATTERNS = (
@@ -87,6 +88,55 @@ def _interaction_response_is_grounded(content: str) -> bool:
             *_UNGROUNDED_SENSATION_PATTERNS,
             *_UNGROUNDED_RELATIONSHIP_PATTERNS,
         )
+    )
+
+
+_EXPERIENCE_FOLLOWUP = re.compile(
+    r"^\s*how\s+did\s+(?:you|u)\s+feel(?:\s+about)?\s+"
+    r"(?:doing\s+)?(?:it|that|this)\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
+_REPRESENTATIONAL_PRIOR = re.compile(
+    r"\b(?:pat|touch|hug|kiss|cuddle|snuggle|show|wear|wearing|"
+    r"panties|underwear|bra|lingerie|outfit|clothes|body|skin|"
+    r"ear|ears|tail|pose|posing)\b",
+    re.IGNORECASE,
+)
+
+
+def representational_experience_followup_prompt(
+    *,
+    content: str,
+    messages: tuple[ConversationMessage, ...],
+) -> str | None:
+    if _EXPERIENCE_FOLLOWUP.match(content.strip()) is None:
+        return None
+    prior_user = next(
+        (
+            message
+            for message in reversed(messages[:-1])
+            if message.role is ConversationRole.USER
+        ),
+        None,
+    )
+    if (
+        prior_user is None
+        or _REPRESENTATIONAL_PRIOR.search(prior_user.content) is None
+    ):
+        return None
+    return (
+        "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP "
+        "(read-only; no physical sensation evidence)\n"
+        "The user is asking how Sofía experienced the immediately prior "
+        "represented/avatar/clothing interaction. Prior assistant-generated "
+        "wording is not authoritative evidence and must not be reused as proof "
+        "that literal touch, warmth, pressure, fabric-on-skin sensation, "
+        "arousal, or other bodily sensation occurred. If trusted CURRENT "
+        "MODELED EMOTIONAL STATE is present elsewhere in the request, Sofía "
+        "may describe that modeled emotional reaction in ordinary first-person "
+        "language. Otherwise distinguish uncertainty from invention. Keep the "
+        "answer about the requested experience and do not drag unrelated "
+        "weather, diagnostics, or work-menu material into it."
     )
 
 
@@ -552,6 +602,24 @@ class InteractiveConversationService(EmotionalConversationService):
             return CognitiveRequest(
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
                           *request.messages), tools=(),
+                allow_tools=False,
+            )
+        experience_followup = (
+            representational_experience_followup_prompt(
+                content=user.content,
+                messages=messages,
+            )
+        )
+        if experience_followup is not None:
+            return CognitiveRequest(
+                messages=(
+                    CognitiveMessage(
+                        role=CognitiveRole.SYSTEM,
+                        content=experience_followup,
+                    ),
+                    *request.messages,
+                ),
+                tools=(),
                 allow_tools=False,
             )
         followup = interaction_followup_prompt(
