@@ -2,11 +2,55 @@
 from __future__ import annotations
 
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
+import re
 import sqlite3
 
 from sofia.memory.chatgpt_export import ChatGPTExportBatch
+from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
+
+_SEARCH_TOKEN = re.compile(r"[A-Za-z0-9À-ÿ']+")
+_SEARCH_STOPWORDS = frozenset({
+    "a", "about", "an", "and", "are", "as", "at", "be", "been", "but",
+    "by", "can", "could", "did", "do", "does", "for", "from", "had", "has",
+    "have", "he", "her", "hers", "him", "his", "how", "i", "if", "in",
+    "into", "is", "it", "its", "me", "my", "of", "on", "or", "our",
+    "ours", "she", "should", "so", "that", "the", "their", "theirs", "them",
+    "they", "this", "to", "us", "was", "we", "were", "what", "when",
+    "where", "which", "who", "why", "will", "with", "would", "you", "your",
+    "yours",
+})
+
+
+def _search_tokens(*values: str, limit: int = 256) -> tuple[str, ...]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        for raw in _SEARCH_TOKEN.findall(value.casefold()):
+            token = raw.strip("'")
+            if (
+                len(token) < 2
+                or token in _SEARCH_STOPWORDS
+                or token in seen
+            ):
+                continue
+            seen.add(token)
+            ordered.append(token)
+            if len(ordered) >= limit:
+                return tuple(ordered)
+    return tuple(ordered)
+
+
+def _optional_datetime(value: str | None) -> datetime | None:
+    if value is None or not value.strip():
+        return None
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
 
 
 class ChatGPTExportEvidenceStore:
@@ -79,6 +123,24 @@ class ChatGPTExportEvidenceStore:
                     );
                     CREATE INDEX IF NOT EXISTS chatgpt_export_message_source
                         ON chatgpt_export_message(source_id);
+                    CREATE TABLE IF NOT EXISTS chatgpt_export_search_token (
+                        source_digest TEXT NOT NULL,
+                        conversation_id TEXT NOT NULL,
+                        message_id TEXT NOT NULL,
+                        token TEXT NOT NULL,
+                        PRIMARY KEY (
+                            source_digest, conversation_id, message_id, token
+                        ),
+                        FOREIGN KEY (
+                            source_digest, conversation_id, message_id
+                        )
+                            REFERENCES chatgpt_export_message(
+                                source_digest, conversation_id, message_id
+                            )
+                            ON DELETE RESTRICT
+                    );
+                    CREATE INDEX IF NOT EXISTS chatgpt_export_search_token_lookup
+                        ON chatgpt_export_search_token(token);
                     """
                 )
 
@@ -203,6 +265,21 @@ class ChatGPTExportEvidenceStore:
                                     attachment.content_type,
                                 ),
                             )
+                        for token in _search_tokens(
+                            conversation.title or "",
+                            message.content,
+                        ):
+                            db.execute(
+                                "INSERT INTO chatgpt_export_search_token "
+                                "(source_digest, conversation_id, message_id, token) "
+                                "VALUES (?, ?, ?, ?)",
+                                (
+                                    batch.source_digest,
+                                    conversation.conversation_id,
+                                    message.message_id,
+                                    token,
+                                ),
+                            )
         return True
 
     def counts(
@@ -220,6 +297,113 @@ class ChatGPTExportEvidenceStore:
                 (source_digest,),
             ).fetchone()
         return None if row is None else tuple(int(value) for value in row)
+
+
+    def search_relevant(
+        self,
+        query: str,
+        *,
+        principal_id: str,
+        limit: int = 4,
+        budget_characters: int = 3000,
+    ) -> tuple[HistoricalConversationEvidence, ...]:
+        """Return bounded principal-scoped historical source evidence."""
+        if not isinstance(query, str):
+            raise TypeError("query must be a string")
+        if not isinstance(principal_id, str) or not principal_id.strip():
+            raise ValueError("principal_id must be nonempty")
+        if type(limit) is not int or limit < 1:
+            raise ValueError("limit must be a positive integer")
+        if type(budget_characters) is not int or budget_characters < 256:
+            raise ValueError("budget_characters must be at least 256")
+
+        terms = _search_tokens(query, limit=8)
+        if not terms:
+            return ()
+
+        placeholders = ",".join("?" for _ in terms)
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                f"""
+                SELECT
+                    m.source_digest,
+                    m.conversation_id,
+                    m.message_id,
+                    m.role,
+                    c.title,
+                    m.content,
+                    m.source_created_at,
+                    m.position,
+                    COUNT(DISTINCT s.token) AS matched_terms
+                FROM chatgpt_export_search_token AS s
+                JOIN chatgpt_export_message AS m
+                  ON m.source_digest=s.source_digest
+                 AND m.conversation_id=s.conversation_id
+                 AND m.message_id=s.message_id
+                JOIN chatgpt_export_conversation AS c
+                  ON c.source_digest=m.source_digest
+                 AND c.conversation_id=m.conversation_id
+                JOIN chatgpt_export_batch AS b
+                  ON b.source_digest=m.source_digest
+                WHERE b.principal_id=?
+                  AND s.token IN ({placeholders})
+                  AND length(trim(m.content)) > 0
+                GROUP BY
+                    m.source_digest,
+                    m.conversation_id,
+                    m.message_id,
+                    m.role,
+                    c.title,
+                    m.content,
+                    m.source_created_at,
+                    m.position
+                ORDER BY
+                    matched_terms DESC,
+                    CASE m.role WHEN 'user' THEN 1 ELSE 0 END DESC,
+                    COALESCE(m.source_created_at, '') DESC,
+                    m.position DESC
+                LIMIT ?
+                """,
+                (
+                    principal_id,
+                    *terms,
+                    max(limit * 4, limit),
+                ),
+            ).fetchall()
+
+        results: list[HistoricalConversationEvidence] = []
+        per_conversation: dict[str, int] = {}
+        remaining = budget_characters
+        for row in rows:
+            conversation_id = str(row[1])
+            if per_conversation.get(conversation_id, 0) >= 2:
+                continue
+            content = str(row[5]).strip()
+            allowance = min(1200, remaining)
+            if allowance < 96:
+                break
+            if len(content) > allowance:
+                content = content[: max(1, allowance - 1)].rstrip() + "…"
+            results.append(
+                HistoricalConversationEvidence(
+                    source_digest=str(row[0]),
+                    conversation_id=conversation_id,
+                    message_id=str(row[2]),
+                    role=str(row[3]),
+                    title=None if row[4] is None else str(row[4]),
+                    content=content,
+                    source_created_at=_optional_datetime(
+                        None if row[6] is None else str(row[6])
+                    ),
+                )
+            )
+            per_conversation[conversation_id] = (
+                per_conversation.get(conversation_id, 0) + 1
+            )
+            remaining -= len(content)
+            if len(results) >= limit:
+                break
+        return tuple(results)
 
     def messages_for_conversation(
         self,
