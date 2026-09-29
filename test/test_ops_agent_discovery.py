@@ -284,7 +284,7 @@ def test_bare_host_presence_creates_untrusted_unknown_evidence(monkeypatch):
     assert observation.observed_node_id is None
 
 
-def test_bare_presence_skips_hosts_already_exposing_fleet_agent(monkeypatch):
+def test_unrelated_7443_listener_does_not_hide_bare_host(monkeypatch):
     source = ScopedHostPresenceDiscoverySource(
         scopes=("192.0.2.0/30",),
         max_hosts_per_scope=8,
@@ -293,11 +293,19 @@ def test_bare_presence_skips_hosts_already_exposing_fleet_agent(monkeypatch):
         source,
         "_port_open",
         lambda address, port: (
-            address == "192.0.2.2" and port == 7443
+            address == "192.0.2.2" and port in (445, 7443)
         ),
     )
+    monkeypatch.setattr(
+        discovery_module.socket,
+        "gethostbyaddr",
+        lambda address: ("newhost.local", [], [address]),
+    )
 
-    assert source.discover() == ()
+    observations = source.discover()
+
+    assert len(observations) == 1
+    assert observations[0].host_id == "newhost.local"
 
 
 def test_combined_discovery_prefers_first_source_for_same_endpoint():
