@@ -5,6 +5,7 @@ import os
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
     FleetCognitionConfiguration,
+    FleetDiscoveryConfiguration,
     ModelLifecycleConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
@@ -96,6 +97,23 @@ def _fleet_cognition_configuration_from_environ() -> FleetCognitionConfiguration
         denied_host_ids=_environment_csv(
             "SOFIA_COGNITION_FLEET_DENIED_HOST_IDS"
         ),
+    )
+
+
+def _fleet_discovery_configuration_from_environ() -> FleetDiscoveryConfiguration:
+    raw_targets = _environment_csv(
+        "SOFIA_FLEET_DISCOVERY_TARGETS"
+    )
+    return FleetDiscoveryConfiguration(
+        enabled=_environment_flag(
+            "SOFIA_FLEET_DISCOVERY_ENABLED",
+            default=False,
+        ),
+        interval_seconds=_positive_environment_int(
+            "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
+            default=300,
+        ),
+        targets=raw_targets,
     )
 
 
@@ -354,6 +372,7 @@ def create_default_configuration(
             user_settings,
         ),
         fleet_cognition=_fleet_cognition_configuration_from_environ(),
+        fleet_discovery=_fleet_discovery_configuration_from_environ(),
         environment=environment,
     )
 
