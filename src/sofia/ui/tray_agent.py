@@ -12,7 +12,7 @@ import subprocess
 import sys
 from uuid import uuid4
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.distributed.capability import create_configured_remote_fleet_service
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
@@ -69,7 +69,7 @@ def _local_host_id() -> str:
 
 class TrayAgentApplication:
     def __init__(self) -> None:
-        self.config = create_default_configuration()
+        self.config = create_production_configuration()
         _ensure_state(self.config.state_path)
         verify_production_component_schemas(self.config.state_path)
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
