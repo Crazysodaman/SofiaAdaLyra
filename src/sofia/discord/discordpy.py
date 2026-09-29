@@ -241,6 +241,11 @@ def create_discordpy_client(
             return channel
 
         async def _recover_prepared_outbox(self, channel) -> None:
+            channel_id = runtime.config.dm_channel_id
+            if channel_id is None:
+                raise RuntimeError(
+                    "Discord owner DM is not pinned for outbox recovery"
+                )
             pending = runtime.store.list_outbox(
                 bot_user_id=runtime.config.bot_user_id,
                 channel_id=channel_id,
