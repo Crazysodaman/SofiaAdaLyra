@@ -109,3 +109,39 @@ def test_unbound_primary_emotion_scope_matches_authenticated_sparks_principal(tm
     assert "warmth" in {
         item.name for item in state.active
     }
+
+def test_emotional_projection_preserves_parent_tool_gate(monkeypatch, tmp_path):
+    request = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="hru",
+            ),
+        ),
+        allow_tools=False,
+    )
+    message = SimpleNamespace(
+        id="user-message-tool-gate",
+        content="hru",
+        role=ConversationRole.USER,
+        created_at=datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(
+        ConversationService,
+        "_build_request",
+        lambda self: request,
+    )
+    monkeypatch.setattr(
+        EmotionalConversationService,
+        "messages",
+        lambda self: (message,),
+    )
+    service = object.__new__(EmotionalConversationService)
+    service._runtime = SimpleNamespace(personality=object())
+    service._emotional_journal = EmotionalJournal(tmp_path / "tool-gate.db")
+
+    result = service._build_request()
+
+    assert result.allow_tools is False
+    assert result.tools == ()
+
