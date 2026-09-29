@@ -7,6 +7,7 @@ import pytest
 import sofia.ops.agent_discovery as discovery_module
 from sofia.ops import (
     AgentDiscoveryTarget,
+    FleetDiscoveryEvidence,
     CombinedFleetDiscoverySource,
     MtlsAgentDiscoverySource,
     ScopedHostPresenceDiscoverySource,
