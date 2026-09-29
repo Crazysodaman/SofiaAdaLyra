@@ -7,6 +7,7 @@ from sofia.config.model import (
 )
 from sofia.environment.config import environment_configuration_from_environ
 from sofia.config.layout import RuntimeStorageLayout
+from sofia.config.user_settings import RuntimeUserSettingsStore
 
 
 def create_default_configuration() -> SofiaConfiguration:
@@ -24,6 +25,10 @@ def create_default_configuration() -> SofiaConfiguration:
     )
     layout.provision_from_source()
 
+    user_settings = RuntimeUserSettingsStore(
+        layout.state_path
+    ).load()
+
     configured_capabilities = tuple(
         value.strip()
         for value in os.environ.get(
@@ -33,7 +38,17 @@ def create_default_configuration() -> SofiaConfiguration:
         if value.strip()
     )
 
-    environment = environment_configuration_from_environ(os.environ)
+    environment_values = user_settings.environment_mapping()
+    environment_values.update(
+        {
+            key: value
+            for key, value in os.environ.items()
+            if key.startswith("SOFIA_ENVIRONMENT_")
+        }
+    )
+    environment = environment_configuration_from_environ(
+        environment_values
+    )
     environment_capabilities = tuple(
         capability
         for capability, enabled in (
@@ -98,10 +113,9 @@ def create_default_configuration() -> SofiaConfiguration:
         state_path=layout.state_path,
         provider=ProviderConfiguration(
             provider="ollama",
-            model="qwen3:14b",
-            # Preserve the current context until we test full-runtime requirements.
-            context_size=20000,
-            thinking=False,
+            model=user_settings.provider_model,
+            context_size=user_settings.provider_context_size,
+            thinking=user_settings.provider_thinking,
         ),
         filesystem_root=repository_root,
         identity_bootstrap_mode=layout.identity_bootstrap_mode,
