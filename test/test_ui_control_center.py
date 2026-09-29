@@ -61,6 +61,8 @@ def test_tray_has_separate_llm_runtime_game_and_settings_controls():
                 fleet_total=5,
                 fleet_healthy=5,
                 fleet_attention=0,
+                llm_secondary_model="vendor/open:4b",
+                cognitive_routing_enabled=True,
             )
         )
     )
