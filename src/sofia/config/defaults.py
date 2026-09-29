@@ -86,6 +86,10 @@ def _fleet_cognition_configuration_from_environ() -> FleetCognitionConfiguration
             "SOFIA_COGNITION_FLEET_GPU_REQUIRED",
             default=False,
         ),
+        auto_provision_models=_environment_flag(
+            "SOFIA_COGNITION_FLEET_AUTO_PROVISION_MODELS",
+            default=False,
+        ),
         allowed_host_ids=_environment_csv(
             "SOFIA_COGNITION_FLEET_ALLOWED_HOST_IDS"
         ),
