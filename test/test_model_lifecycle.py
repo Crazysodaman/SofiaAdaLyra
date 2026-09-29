@@ -175,7 +175,7 @@ class Delegate(CognitiveEngine):
         return CognitiveResponse(content="awake")
 
 
-def test_lifecycle_engine_wakes_unloaded_model_before_cognition():
+def test_lifecycle_engine_lets_cognition_wake_unloaded_model_without_preload():
     backend=Backend(
         installed=("vendor/primary:any",),
         running=(),
@@ -196,8 +196,8 @@ def test_lifecycle_engine_wakes_unloaded_model_before_cognition():
 
     assert response.content=="awake"
     assert delegate.calls==1
-    assert backend.loads==[("vendor/primary:any","10m")]
-    assert backend.resident=={"vendor/primary:any"}
+    assert backend.loads==[]
+    assert backend.resident==set()
 
 
 def test_idle_sweep_never_unloads_busy_model():
@@ -271,3 +271,34 @@ def test_install_missing_is_disabled_by_policy():
 
     assert manager.install_missing()==()
     assert backend.installed==set()
+
+
+
+def test_ensure_available_rejects_missing_model_without_loading_or_pulling():
+    backend=Backend(installed=("vendor/secondary:any",))
+    manager=ModelLifecycleManager(
+        selection=_selection(),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+    )
+
+    with pytest.raises(ModelUnavailableError):
+        manager.ensure_available(CognitiveModelRole.PRIMARY, now=NOW)
+
+    assert backend.loads==[]
+    assert backend.installed=={"vendor/secondary:any"}
+
+
+def test_ensure_available_accepts_installed_unloaded_model_without_preload():
+    backend=Backend(installed=("vendor/primary:any",))
+    manager=ModelLifecycleManager(
+        selection=_selection(secondary=None),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+    )
+
+    status=manager.ensure_available(CognitiveModelRole.PRIMARY, now=NOW)
+
+    assert status.state is ModelResidency.UNLOADED
+    assert backend.loads==[]
+    assert backend.resident==set()

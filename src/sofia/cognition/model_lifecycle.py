@@ -323,6 +323,39 @@ class ModelLifecycleManager:
             installed_names.append(self.install(role).model)
         return tuple(installed_names)
 
+    def ensure_available(
+        self,
+        role: CognitiveModelRole,
+        *,
+        now: datetime | None = None,
+    ) -> ModelLifecycleStatus:
+        provider = self.provider_for(role)
+        if provider.provider != self.managed_provider:
+            raise ModelLifecycleError(
+                f"provider {provider.provider!r} is not managed by this lifecycle backend"
+            )
+        moment = self._now(now)
+        with self._lock:
+            installed, running = self._inventory()
+            model = provider.model
+            if model not in installed:
+                raise ModelUnavailableError(
+                    f"configured {role.value} model is not installed"
+                )
+            self._last_error.pop(model, None)
+            self._last_used[model] = moment
+            if model in running:
+                self._observed_ready_at.setdefault(model, moment)
+                state = ModelResidency.READY
+            else:
+                state = ModelResidency.UNLOADED
+            return ModelLifecycleStatus(
+                role=role,
+                provider=provider.provider,
+                model=model,
+                state=state,
+            )
+
     def ensure_loaded(
         self,
         role: CognitiveModelRole,
@@ -472,7 +505,10 @@ class LifecycleManagedCognitiveEngine(CognitiveEngine):
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         try:
-            self.lifecycle.ensure_loaded(self.role)
+            # Ollama chat is itself the wake/load operation. Pre-loading through
+            # /api/generate adds a second heavyweight request and can time out
+            # before the real cognitive request starts.
+            self.lifecycle.ensure_available(self.role)
             self.lifecycle.begin_use(self.role)
         except ModelLifecycleError as exc:
             raise CognitiveEngineError(
