@@ -668,3 +668,39 @@ def test_default_configuration_parses_fleet_discovery_policy(monkeypatch):
         "198.51.100.0/30",
     )
     assert configuration.fleet_discovery.max_hosts_per_scope == 64
+
+
+def test_default_configuration_parses_fleet_bootstrap_policy(monkeypatch):
+    monkeypatch.setenv("SOFIA_FLEET_BOOTSTRAP_ENABLED", "1")
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_AUTHORITY",
+        "standing_policy",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_ID",
+        "sofia-fleet-agent",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_VERSION",
+        "1.2.3",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_SHA256",
+        "a" * 64,
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_PACKAGE_SOURCE",
+        "approved-wheel",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_BOOTSTRAP_PROTOCOL_VERSION",
+        "1.0",
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.fleet_bootstrap.enabled is True
+    assert configuration.fleet_bootstrap.authority == "standing_policy"
+    assert configuration.fleet_bootstrap.package_version == "1.2.3"
+    assert configuration.fleet_bootstrap.package_sha256 == "a" * 64
+    assert configuration.fleet_bootstrap.package_source == "approved-wheel"
