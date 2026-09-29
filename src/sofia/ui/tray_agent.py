@@ -13,6 +13,7 @@ import sys
 from uuid import uuid4
 
 from sofia.config import create_production_configuration
+from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.distributed.capability import create_configured_remote_fleet_service
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
@@ -99,7 +100,6 @@ class TrayAgentApplication:
         )
         self._service = DesktopServiceController(
             local_host_id=self.host_id,
-            llm_model=self.config.provider.model,
             approval_verifier=self._execution_approvals,
             remote=self._remote_service_controller,
         )
@@ -119,6 +119,12 @@ class TrayAgentApplication:
             events=self.events,
             status_provider=self.status,
         )
+
+    def _current_model_selection(self) -> CognitiveModelSelection:
+        configuration = create_production_configuration(
+            state_path=self.config.state_path,
+        )
+        return CognitiveModelSelection.from_configuration(configuration)
 
     def _service_state(self, service_name: str) -> str:
         try:
@@ -170,6 +176,7 @@ class TrayAgentApplication:
 
     def status(self) -> TrayStatus:
         settings = self.settings_store.load()
+        selection = self._current_model_selection()
         authority = self._runtime_authority.current()
         remote_runtime = (
             authority is not None
@@ -201,11 +208,17 @@ class TrayAgentApplication:
             runtime_state=runtime_state,
             llm_host=self.host_id if llm_state == "running" else None,
             llm_state=llm_state,
-            llm_model=self.config.provider.model,
+            llm_model=selection.primary.model,
             game_mode=settings.game_mode,
             fleet_total=len(hosts),
             fleet_healthy=healthy,
             fleet_attention=attention,
+            llm_secondary_model=(
+                None
+                if selection.secondary is None
+                else selection.secondary.model
+            ),
+            cognitive_routing_enabled=selection.routing_enabled,
         )
 
     @staticmethod
@@ -250,6 +263,38 @@ class TrayAgentApplication:
         if value is GameMode.AUTO:
             self._observe_activity()
 
+    def _execute_approved_local_service_action(
+        self,
+        target: ServiceTarget,
+        action: ServiceAction,
+        *,
+        llm_model: str | None = None,
+    ) -> None:
+        capability, parameters = self._service.approval_spec(
+            target,
+            action,
+            llm_model=llm_model,
+        )
+        now = datetime.now(timezone.utc)
+        approval = ExecutionApproval(
+            approval_id=str(uuid4()),
+            capability=capability,
+            request_fingerprint=execution_fingerprint(
+                capability,
+                parameters,
+            ),
+            approved_by="Sparks",
+            approved_at=now,
+            expires_at=now + timedelta(seconds=60),
+        )
+        self._execution_approvals.record(approval)
+        self._service.execute(
+            target,
+            action,
+            approval_id=approval.approval_id,
+            llm_model=llm_model,
+        )
+
     def _service_action(self, kind: ServiceKind, action: ServiceAction) -> None:
         if self._operator_stop.current().active:
             raise PermissionError("operator stop is active")
@@ -273,28 +318,19 @@ class TrayAgentApplication:
             self._service.execute(target, action)
             return
 
-        capability, parameters = self._service.approval_spec(
+        if action is ServiceAction.UNLOAD_MODEL:
+            selection = self._current_model_selection()
+            for model_name in selection.model_names:
+                self._execute_approved_local_service_action(
+                    target,
+                    action,
+                    llm_model=model_name,
+                )
+            return
+
+        self._execute_approved_local_service_action(
             target,
             action,
-            llm_model=self.config.provider.model,
-        )
-        now = datetime.now(timezone.utc)
-        approval = ExecutionApproval(
-            approval_id=str(uuid4()),
-            capability=capability,
-            request_fingerprint=execution_fingerprint(
-                capability,
-                parameters,
-            ),
-            approved_by="Sparks",
-            approved_at=now,
-            expires_at=now + timedelta(seconds=60),
-        )
-        self._execution_approvals.record(approval)
-        self._service.execute(
-            target,
-            action,
-            approval_id=approval.approval_id,
         )
 
     def handle(self, command: TrayCommand) -> bool:
