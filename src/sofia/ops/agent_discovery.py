@@ -95,8 +95,8 @@ class MtlsAgentDiscoverySource:
             return FleetDiscoveryEvidence(
                 host_id=target.hostname,
                 hostname=target.hostname,
-                platform=target.platform,
-                architecture=target.architecture,
+                platform=platform_name,
+                architecture=architecture,
                 observed_at=datetime.now(timezone.utc),
                 source="mtls-agent-discovery",
                 inside_approved_scope=False,
@@ -143,6 +143,12 @@ class MtlsAgentDiscoverySource:
                 protocol = FleetProtocolVersion.parse(
                     str(payload["protocol_version"])
                 )
+                platform_name = str(
+                    payload.get("platform") or target.platform
+                ).strip()
+                architecture = str(
+                    payload.get("architecture") or target.architecture
+                ).strip()
             except (KeyError, TypeError, ValueError):
                 return None
             if not name or not protocol.compatible_with(self.required_protocol):
