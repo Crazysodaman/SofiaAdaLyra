@@ -34,6 +34,9 @@ from sofia.ops.enrollment import (
 from sofia.ops.model import FleetHost, HostLifecycle
 
 
+_BASELINE_FLEET_CAPABILITIES = frozenset({"system.inspect", "ops.telemetry"})
+
+
 @dataclass(frozen=True, slots=True)
 class FleetDiscoveryEvidence:
     host_id: str
@@ -109,6 +112,13 @@ class FleetDiscoveryEvidence:
         ):
             raise ValueError(
                 "capability_names must be a tuple of nonempty strings"
+            )
+        if self.capabilities_verified and not _BASELINE_FLEET_CAPABILITIES.issubset(
+            set(self.capability_names)
+        ):
+            raise ValueError(
+                "verified Fleet capability evidence must include "
+                "system.inspect and ops.telemetry"
             )
 
     def bootstrap_candidate(self) -> BootstrapCandidate:
