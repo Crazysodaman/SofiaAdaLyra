@@ -17,6 +17,10 @@ from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.factory import create_llm_provider
+from sofia.cognition.routing import (
+    CognitiveEngineRegistry,
+    RoutingCognitiveEngine,
+)
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.system import CognitiveSystem
 from sofia.cognition.test_engine import TestCognitiveEngine
@@ -112,7 +116,48 @@ def _configuration_with_persistent_host_location(
     )
 
 
+def _create_llm_engine(provider_configuration):
+    provider = create_llm_provider(
+        provider_configuration
+    )
+    return LLMCognitiveEngine(
+        configuration=provider_configuration,
+        provider=provider,
+    )
+
+
 def _create_cognitive_engine(configuration: SofiaConfiguration):
+    routing = configuration.routing
+    if routing is not None and routing.enabled:
+        primary_configuration = routing.primary
+        secondary_configuration = routing.secondary
+        if (
+            primary_configuration is None
+            or secondary_configuration is None
+        ):
+            raise ValueError(
+                "enabled cognitive routing requires primary and secondary "
+                "provider configurations"
+            )
+        supported = {"ollama", "test-llm"}
+        if primary_configuration.provider not in supported:
+            raise ValueError(
+                "routing primary provider must be ollama or test-llm"
+            )
+        if secondary_configuration.provider not in supported:
+            raise ValueError(
+                "routing secondary provider must be ollama or test-llm"
+            )
+
+        registry = CognitiveEngineRegistry(
+            primary=_create_llm_engine(primary_configuration),
+            secondary=_create_llm_engine(secondary_configuration),
+        )
+        return RoutingCognitiveEngine(
+            registry=registry,
+            verify_enabled=routing.verify_enabled,
+        )
+
     if configuration.provider.provider == "test":
         return TestCognitiveEngine(
             configuration=configuration.provider
@@ -121,25 +166,8 @@ def _create_cognitive_engine(configuration: SofiaConfiguration):
     if configuration.provider.provider == "rule":
         return RuleEngine()
 
-    if configuration.provider.provider == "test-llm":
-        provider = create_llm_provider(
-            configuration.provider
-        )
-
-        return LLMCognitiveEngine(
-            configuration=configuration.provider,
-            provider=provider,
-        )
-
-    if configuration.provider.provider == "ollama":
-        provider = create_llm_provider(
-            configuration.provider
-        )
-
-        return LLMCognitiveEngine(
-            configuration=configuration.provider,
-            provider=provider,
-        )
+    if configuration.provider.provider in {"test-llm", "ollama"}:
+        return _create_llm_engine(configuration.provider)
 
     raise ValueError(
         f"Unknown cognitive provider: "
@@ -595,9 +623,24 @@ def compose(
     # Normal Ollama conversation uses a compact projection of the verified
     # Constitution. Full assembly remains the default for other providers,
     # constitutional questions, and any operation with exposed tools.
+    routed_primary = (
+        configuration.routing.primary
+        if (
+            configuration.routing is not None
+            and configuration.routing.enabled
+        )
+        else None
+    )
+    uses_ollama = (
+        configuration.provider.provider == "ollama"
+        or (
+            routed_primary is not None
+            and routed_primary.provider == "ollama"
+        )
+    )
     context_assembler = (
         ConversationalContextAssembler()
-        if configuration.provider.provider == "ollama"
+        if uses_ollama
         else CognitiveContextAssembler()
     )
 
