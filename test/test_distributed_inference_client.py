@@ -23,6 +23,8 @@ def test_installed_model_preflight_does_not_mutate_remote(tmp_path, monkeypatch)
 
     def operation(node_id, capability, operation, parameters):
         calls.append((capability, operation, parameters))
+        if (capability, operation) == ("llm.inspect", "inference_policy"):
+            return {"allowed_models": ["qwen3.5:9b"]}
         return {"models": [{"name": "qwen3.5:9b"}]}
 
     monkeypatch.setattr(client, "_operation", operation)
@@ -33,16 +35,20 @@ def test_installed_model_preflight_does_not_mutate_remote(tmp_path, monkeypatch)
         False,
     )
 
-    assert calls == [("llm.inspect", "models", {})]
+    assert calls == [
+        ("llm.inspect", "inference_policy", {}),
+        ("llm.inspect", "models", {}),
+    ]
 
 
 def test_missing_model_without_auto_provision_fails_closed(tmp_path, monkeypatch):
     client = _client(tmp_path)
-    monkeypatch.setattr(
-        client,
-        "_operation",
-        lambda *_: {"models": [{"name": "other:model"}]},
-    )
+    def operation(node_id, capability, operation, parameters):
+        if (capability, operation) == ("llm.inspect", "inference_policy"):
+            return {"allowed_models": ["qwen3.5:9b"]}
+        return {"models": [{"name": "other:model"}]}
+
+    monkeypatch.setattr(client, "_operation", operation)
 
     with pytest.raises(RuntimeError, match="not installed"):
         client.ensure_model_available(
@@ -64,6 +70,8 @@ def test_missing_model_can_be_pulled_then_reverified(tmp_path, monkeypatch):
 
     def operation(node_id, capability, operation, parameters):
         calls.append((capability, operation, parameters))
+        if (capability, operation) == ("llm.inspect", "inference_policy"):
+            return {"allowed_models": ["qwen3.5:9b"]}
         if (capability, operation) == ("llm.inspect", "models"):
             return next(inventories)
         if (capability, operation) == ("llm.manage", "pull"):
@@ -79,6 +87,7 @@ def test_missing_model_can_be_pulled_then_reverified(tmp_path, monkeypatch):
     )
 
     assert calls == [
+        ("llm.inspect", "inference_policy", {}),
         ("llm.inspect", "models", {}),
         ("llm.manage", "pull", {"model": "qwen3.5:9b"}),
         ("llm.inspect", "models", {}),
@@ -90,6 +99,8 @@ def test_pull_success_without_inventory_evidence_is_rejected(tmp_path, monkeypat
     inventories = iter(({"models": []}, {"models": []}))
 
     def operation(node_id, capability, operation, parameters):
+        if (capability, operation) == ("llm.inspect", "inference_policy"):
+            return {"allowed_models": ["qwen3.5:9b"]}
         if (capability, operation) == ("llm.inspect", "models"):
             return next(inventories)
         return {"status": "success"}
@@ -123,3 +134,26 @@ def test_operator_stop_blocks_remote_model_management_before_transport(
             "pull",
             {"model": "qwen3.5:9b"},
         )
+
+
+def test_model_not_allowed_by_agent_policy_is_rejected_before_inventory(
+    tmp_path,
+    monkeypatch,
+):
+    client = _client(tmp_path)
+    calls = []
+
+    def operation(node_id, capability, operation, parameters):
+        calls.append((capability, operation, parameters))
+        return {"allowed_models": ["secondary:model"]}
+
+    monkeypatch.setattr(client, "_operation", operation)
+
+    with pytest.raises(PermissionError, match="does not allow model"):
+        client.ensure_model_available(
+            uuid4(),
+            ProviderConfiguration(provider="ollama", model="qwen3.5:9b"),
+            True,
+        )
+
+    assert calls == [("llm.inspect", "inference_policy", {})]
