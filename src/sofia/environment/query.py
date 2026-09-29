@@ -521,16 +521,28 @@ class EnvironmentQueryResolver:
                 is not EnvironmentFreshness.CURRENT
             ):
                 freshness = snapshot.weather_freshness.value
+                if weather is not None:
+                    detail = (
+                        f"; the available observation is {freshness}."
+                    )
+                elif snapshot.effective_location is None:
+                    detail = (
+                        ". No configured or current location evidence is "
+                        "available for a weather provider."
+                    )
+                elif snapshot.provider_errors:
+                    detail = (
+                        ". A configured weather provider did not produce "
+                        "current evidence."
+                    )
+                else:
+                    detail = (
+                        ". No configured weather provider produced evidence "
+                        "for the effective location."
+                    )
                 return EnvironmentQueryAnswer(
                     True,
-                    (
-                        "I don't have current weather evidence"
-                        + (
-                            f"; the available observation is {freshness}."
-                            if weather is not None
-                            else "."
-                        )
-                    ),
+                    "I don't have current weather evidence" + detail,
                 )
             parts = [weather.condition]
             if weather.temperature_c is not None:
