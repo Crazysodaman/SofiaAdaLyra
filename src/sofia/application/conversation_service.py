@@ -28,32 +28,32 @@ from sofia.rel.store import RelationshipStore
 
 
 _TOOL_TARGET_RE = re.compile(
-    r"\\b(?:file|folder|directory|code|codebase|repository|repo|github|"
-    r"issue|pull\\s+request|process|cpu|gpu|memory|ram|disk|storage|"
+    r"\b(?:file|folder|directory|code|codebase|repository|repo|github|"
+    r"issue|pull\s+request|process|cpu|gpu|memory|ram|disk|storage|"
     r"system|computer|machine|host|network|service|hardware|sensor|sensors|vm|"
-    r"virtual\\s+machine|container|docker|ollama|sqlite|database|"
-    r"home\\s+assistant|portainer|jmri|discord|fleet|remote|telemetry|"
-    r"package|deployment|server)\\b",
+    r"virtual\s+machine|container|docker|ollama|sqlite|database|"
+    r"home\s+assistant|portainer|jmri|discord|fleet|remote|telemetry|"
+    r"package|deployment|server)\b",
     re.IGNORECASE,
 )
 _TOOL_ACTION_RE = re.compile(
-    r"\\b(?:inspect|check|show|list|read|search|find|query|get|status|"
+    r"\b(?:inspect|check|show|list|read|search|find|query|get|status|"
     r"state|running|run|start|stop|restart|reboot|update|upgrade|deploy|"
-    r"install|remove|delete|create|write|edit|change|control)\\b",
+    r"install|remove|delete|create|write|edit|change|control)\b",
     re.IGNORECASE,
 )
 _TOOL_CONTROL_RE = re.compile(
-    r"\\b(?:start|stop|restart|reboot|update|upgrade|deploy|install|"
-    r"remove|delete|write|edit)\\b",
+    r"\b(?:start|stop|restart|reboot|update|upgrade|deploy|install|"
+    r"remove|delete|write|edit)\b",
     re.IGNORECASE,
 )
 _TOOL_QUESTION_RE = re.compile(
-    r"^\\s*(?:what|which|how|is|are|do|does|can|could|would|will)\\b",
+    r"^\s*(?:what|which|how|is|are|do|does|can|could|would|will)\b",
     re.IGNORECASE,
 )
 _RUNNING_APP_RE = re.compile(
-    r"\\b(?:is|are)\\s+[A-Za-z0-9_.-]+\\s+running\\b|"
-    r"\\bwhat(?:\'s|\\s+is)\\s+running\\b",
+    r"\b(?:is|are)\s+[A-Za-z0-9_.-]+\s+running\\b|"
+    r"\bwhat(?:\'s|\s+is)\s+running\b",
     re.IGNORECASE,
 )
 
