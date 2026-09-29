@@ -186,6 +186,52 @@ class DiscordBindingStore:
             updated_at=now,
         )
 
+    def find_for_owner(
+        self,
+        *,
+        bot_user_id: int,
+        owner_user_id: int,
+    ) -> DiscordChannelBinding | None:
+        """Return the unique non-revoked binding for one bot/owner pair."""
+        if not _snowflake(bot_user_id) or not _snowflake(owner_user_id):
+            raise ValueError("Discord IDs must be positive unsigned 64-bit integers")
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    bot_user_id,
+                    channel_id,
+                    owner_user_id,
+                    session_id,
+                    state,
+                    generation,
+                    updated_at
+                FROM discord_channel_bindings
+                WHERE bot_user_id = ?
+                  AND owner_user_id = ?
+                  AND state != 'revoked'
+                ORDER BY updated_at DESC
+                """,
+                (str(bot_user_id), str(owner_user_id)),
+            ).fetchall()
+        if not rows:
+            return None
+        if len(rows) > 1:
+            raise RuntimeError(
+                "multiple active Discord bindings exist for this owner; "
+                "supervised cleanup is required"
+            )
+        row = rows[0]
+        return DiscordChannelBinding(
+            bot_user_id=int(row["bot_user_id"]),
+            owner_user_id=int(row["owner_user_id"]),
+            channel_id=int(row["channel_id"]),
+            session_id=row["session_id"],
+            state=BindingState(row["state"]),
+            generation=int(row["generation"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
     def get(
         self,
         *,
