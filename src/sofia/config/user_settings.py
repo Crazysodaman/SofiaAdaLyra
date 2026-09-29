@@ -96,6 +96,17 @@ class RuntimeUserSettings:
 
         if self.home_assistant_enabled and not self.home_assistant_url:
             raise ValueError("enabled Home Assistant requires a base URL")
+        if self.home_assistant_enabled and not any(
+            (
+                self.home_assistant_weather_entity,
+                self.home_assistant_indoor_temperature_entity,
+                self.home_assistant_indoor_humidity_entity,
+                self.home_assistant_current_location_entity,
+            )
+        ):
+            raise ValueError(
+                "enabled Home Assistant requires at least one entity"
+            )
 
         if not isinstance(self.location_subject, LocationSubject):
             raise TypeError("location_subject must be a LocationSubject")
