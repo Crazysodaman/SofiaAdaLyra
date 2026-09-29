@@ -27,8 +27,16 @@ class AvatarSelfFactAnswer:
 
 
 def _normalize(query: str) -> str:
-    value = " ".join(query.strip().casefold().split())
-    return value.rstrip(" ?!.")
+    raw = " ".join(query.strip().casefold().split()).rstrip(" ?!.")
+    shorthand = {
+        "u": "you",
+        "r": "are",
+        "ur": "your",
+    }
+    return " ".join(
+        shorthand.get(token, token)
+        for token in raw.split()
+    )
 
 
 def _friendly_outfit(outfit_id: str | None) -> str:
