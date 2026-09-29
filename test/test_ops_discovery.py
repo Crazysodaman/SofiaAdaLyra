@@ -145,6 +145,8 @@ def test_preapproved_discovered_identity_auto_enrolls(tmp_path):
         observed_public_key_sha256=key,
         observed_endpoint_hostname="artemis.local",
         observed_endpoint_port=7443,
+        capabilities_verified=True,
+        capability_names=("system.inspect",),
     )
     discovery = coordinator.ingest((observation,))
 
@@ -410,3 +412,74 @@ def test_known_candidate_identity_cannot_be_rewritten_by_discovery():
                 ),
             )
         )
+
+
+def test_preapproved_identity_without_verified_capabilities_stays_pending(
+    tmp_path,
+):
+    registry = FleetRegistry()
+    node_id = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+    key = "e" * 64
+    observation = evidence(
+        host_id="Artemis",
+        hostname="artemis.local",
+        platform="windows",
+        architecture="amd64",
+        observed_node_id=node_id,
+        observed_public_key_sha256=key,
+        observed_endpoint_hostname="artemis.local",
+        observed_endpoint_port=7443,
+        capabilities_verified=False,
+    )
+    discovery = FleetDiscoveryCoordinator(registry).ingest((observation,))
+
+    identities = DurableNodeIdentityRegistry(tmp_path / "identities.db")
+    endpoints = DurableEndpointPolicy(tmp_path / "endpoints.db")
+    identities.enroll(
+        NodeEnrollment(
+            DistributedNode(node_id, "Artemis"),
+            key,
+            NOW,
+            "Sparks",
+        )
+    )
+    endpoints.approve(
+        ApprovedEndpoint(
+            node_id,
+            NodeEndpoint(
+                "artemis.local",
+                7443,
+                NodeTransport.HTTPS,
+            ),
+            "Sparks",
+        )
+    )
+    try:
+        result = FleetDiscoveryEnrollmentReconciler(
+            enrollment_service=FleetEnrollmentService(registry),
+            identity_registry=identities,
+            endpoint_policy=endpoints,
+        ).reconcile(discovery)
+    finally:
+        identities.close()
+        endpoints.close()
+
+    host = registry.host("Artemis")
+    assert host is not None
+    assert host.lifecycle is HostLifecycle.CANDIDATE
+    assert host.trusted is False
+    assert result.pending_host_ids == ("Artemis",)
+
+
+def test_mtls_evidence_marks_bootstrap_candidate_agent_present():
+    candidate = evidence(
+        observed_node_id=UUID(
+            "11111111-2222-3333-4444-555555555555"
+        ),
+        observed_public_key_sha256="f" * 64,
+        installed_protocol_version="1.0",
+        capabilities_verified=True,
+        capability_names=("system.inspect",),
+    ).bootstrap_candidate()
+
+    assert candidate.agent_present is True
