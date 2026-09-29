@@ -14,12 +14,13 @@ from pathlib import Path
 from .discovery import create_machine_discovery
 from .location import MachineLocationRegistry, new_machine_location
 from .location_state import StatePlaneMachineLocationRegistry
+from sofia.config import create_production_configuration
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from .persistence import MachineInventoryPersistence
 
 
 def _state_directory() -> Path:
-    return Path(__file__).resolve().parents[3] / "state"
+    return Path(create_production_configuration().state_path).parent
 
 
 def _registry(
@@ -130,7 +131,7 @@ def _parser() -> argparse.ArgumentParser:
         "--state-directory",
         type=Path,
         default=_state_directory(),
-        help="Sofía state directory (default: repository state/).",
+        help="Sofía state directory (default: canonical production state).",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
