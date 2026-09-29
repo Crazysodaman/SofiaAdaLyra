@@ -20,6 +20,8 @@ from sofia.cognition.routing import (
 )
 from sofia.composition.root import _create_cognitive_engine
 from sofia.config import create_default_configuration
+import sofia.config.defaults as config_defaults
+from sofia.config.user_settings import RuntimeUserSettings
 from sofia.ops.capability import OpsToolService
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.config.model import (
@@ -348,10 +350,19 @@ def test_default_configuration_can_enable_selected_models(monkeypatch):
     assert configuration.routing.secondary.context_size == 8192
 
 
-def test_default_configuration_keeps_routing_off_without_flag(monkeypatch):
+def test_default_configuration_uses_persisted_routing_setting_without_flag(
+    monkeypatch,
+):
     monkeypatch.delenv(
         "SOFIA_COGNITION_ROUTING_ENABLED",
         raising=False,
+    )
+    monkeypatch.setattr(
+        config_defaults.RuntimeUserSettingsStore,
+        "load",
+        lambda self: RuntimeUserSettings(
+            cognitive_routing_enabled=False,
+        ),
     )
 
     configuration = create_default_configuration()
