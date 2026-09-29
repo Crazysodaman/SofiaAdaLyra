@@ -514,6 +514,14 @@ def test_verify_precedes_reviewed_interaction_standard_routing():
 
 
 class RemoteInferenceStub:
+    def ensure_model_available(
+        self,
+        node_id,
+        provider,
+        auto_provision,
+    ):
+        return None
+
     def infer(self, node_id, provider, request):
         return CognitiveResponse(content="remote")
 
@@ -528,6 +536,10 @@ def test_default_configuration_parses_fleet_cognition_policy(monkeypatch):
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_ENABLED", "1")
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_LOCAL_FALLBACK", "1")
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_GPU_REQUIRED", "1")
+    monkeypatch.setenv(
+        "SOFIA_COGNITION_FLEET_AUTO_PROVISION_MODELS",
+        "1",
+    )
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_MIN_RAM_BYTES", "123")
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_MIN_VRAM_BYTES", "456")
     monkeypatch.setenv(
@@ -541,6 +553,7 @@ def test_default_configuration_parses_fleet_cognition_policy(monkeypatch):
     assert policy.enabled is True
     assert policy.local_fallback is True
     assert policy.gpu_required is True
+    assert policy.auto_provision_models is True
     assert policy.min_ram_bytes == 123
     assert policy.min_vram_bytes == 456
     assert policy.allowed_host_ids == ("alpha", "beta")
