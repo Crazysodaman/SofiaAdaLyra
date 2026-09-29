@@ -59,6 +59,25 @@ def _optional_int(value: str, label: str) -> int | None:
     return parsed
 
 
+def _thinking_ui_value(value: bool | str) -> str:
+    if value is True:
+        return "on"
+    if value is False:
+        return "off"
+    return value
+
+
+def _thinking_setting(value: str) -> bool | str:
+    normalized = value.strip().casefold()
+    if normalized == "off":
+        return False
+    if normalized == "on":
+        return True
+    if normalized in {"low", "medium", "high", "xhigh"}:
+        return normalized
+    raise ValueError("Thinking must be off, on, low, medium, high, or xhigh")
+
+
 def _optional_float(value: str, label: str) -> float | None:
     stripped = value.strip()
     if not stripped:
@@ -105,7 +124,9 @@ def run_settings_window() -> int:
 
     provider_model = tk.StringVar(value=runtime.provider_model)
     provider_context = tk.StringVar(value=str(runtime.provider_context_size))
-    provider_thinking = tk.BooleanVar(value=runtime.provider_thinking)
+    provider_thinking = tk.StringVar(
+        value=_thinking_ui_value(runtime.provider_thinking)
+    )
 
     discord_enabled = tk.BooleanVar(value=runtime.discord_enabled)
     discord_owner = tk.StringVar(
@@ -254,10 +275,20 @@ def run_settings_window() -> int:
         models,
         textvariable=provider_context,
     ).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Checkbutton(
+    ttk.Label(models, text="Thinking / reasoning effort").pack(anchor="w")
+    ttk.Combobox(
         models,
-        text="Enable provider thinking",
-        variable=provider_thinking,
+        textvariable=provider_thinking,
+        values=("off", "on", "low", "medium", "high", "xhigh"),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 4))
+    ttk.Label(
+        models,
+        text=(
+            "On uses the model's default thinking mode. Named levels are "
+            "passed through to Ollama for models that support them."
+        ),
+        wraplength=720,
     ).pack(anchor="w", pady=(0, 12))
     ttk.Label(models, text="LLM Windows service name").pack(anchor="w")
     ttk.Entry(
@@ -564,7 +595,9 @@ def run_settings_window() -> int:
                     provider_context.get(),
                     "Context size",
                 ),
-                provider_thinking=bool(provider_thinking.get()),
+                provider_thinking=_thinking_setting(
+                    provider_thinking.get()
+                ),
                 discord_enabled=bool(discord_enabled.get()),
                 discord_owner_user_id=_optional_int(
                     discord_owner.get(),
