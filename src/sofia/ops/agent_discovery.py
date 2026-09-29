@@ -96,8 +96,8 @@ class MtlsAgentDiscoverySource:
             return FleetDiscoveryEvidence(
                 host_id=target.hostname,
                 hostname=target.hostname,
-                platform=platform_name,
-                architecture=architecture,
+                platform=target.platform,
+                architecture=target.architecture,
                 observed_at=datetime.now(timezone.utc),
                 source="mtls-agent-discovery",
                 inside_approved_scope=False,
@@ -157,8 +157,8 @@ class MtlsAgentDiscoverySource:
             return FleetDiscoveryEvidence(
                 host_id=name,
                 hostname=target.hostname,
-                platform=target.platform,
-                architecture=target.architecture,
+                platform=platform_name,
+                architecture=architecture,
                 observed_at=datetime.now(timezone.utc),
                 source="mtls-agent-discovery",
                 inside_approved_scope=True,
