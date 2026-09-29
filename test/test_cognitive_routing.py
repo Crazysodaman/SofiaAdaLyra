@@ -646,6 +646,14 @@ def test_default_configuration_parses_fleet_discovery_policy(monkeypatch):
         "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
         "120",
     )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_DISCOVERY_SCOPES",
+        "192.0.2.0/30,198.51.100.0/30",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE",
+        "64",
+    )
 
     configuration = create_default_configuration()
 
@@ -655,3 +663,8 @@ def test_default_configuration_parses_fleet_discovery_policy(monkeypatch):
         "artemis.local:7443",
         "terra.local",
     )
+    assert configuration.fleet_discovery.scopes == (
+        "192.0.2.0/30",
+        "198.51.100.0/30",
+    )
+    assert configuration.fleet_discovery.max_hosts_per_scope == 64
