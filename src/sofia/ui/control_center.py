@@ -63,6 +63,18 @@ class TrayStatus:
     fleet_total: int
     fleet_healthy: int
     fleet_attention: int
+    llm_secondary_model: str | None = None
+    cognitive_routing_enabled: bool = False
+
+    @property
+    def configured_llm_models(self) -> tuple[str, ...]:
+        values = (
+            self.llm_model,
+            self.llm_secondary_model
+            if self.cognitive_routing_enabled
+            else None,
+        )
+        return tuple(dict.fromkeys(value for value in values if value))
 
 
 @dataclass(frozen=True)
@@ -203,17 +215,22 @@ class TrayCommand(str, Enum):
 
 def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
     """Stable quick-control menu; renderer may group/submenu these entries."""
-    llm = status.llm_model or "LLM"
+    model_count = len(status.configured_llm_models)
+    unload_label = (
+        "Unload configured model"
+        if model_count <= 1
+        else f"Unload {model_count} configured models"
+    )
     return (
         (TrayCommand.OPEN_CHAT, "Open Sofía"),
         (TrayCommand.OPEN_FLEET, f"Fleet: {status.fleet_healthy}/{status.fleet_total} healthy"),
         (TrayCommand.GAME_AUTO, "Game Mode: Auto"),
         (TrayCommand.GAME_ON, "Game Mode: On"),
         (TrayCommand.GAME_OFF, "Game Mode: Off"),
-        (TrayCommand.LLM_START, f"Start {llm}"),
-        (TrayCommand.LLM_STOP, f"Stop {llm}"),
-        (TrayCommand.LLM_RESTART, f"Restart {llm}"),
-        (TrayCommand.LLM_UNLOAD_MODEL, "Unload model"),
+        (TrayCommand.LLM_START, "Start LLM service"),
+        (TrayCommand.LLM_STOP, "Stop LLM service"),
+        (TrayCommand.LLM_RESTART, "Restart LLM service"),
+        (TrayCommand.LLM_UNLOAD_MODEL, unload_label),
         (TrayCommand.RUNTIME_START, "Start Sofía runtime"),
         (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
         (TrayCommand.RUNTIME_RESTART, "Restart Sofía runtime"),
