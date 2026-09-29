@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from uuid import UUID
 
 class HostLifecycle(str,Enum):
     CANDIDATE="candidate"; ENROLLED="enrolled"; HEALTHY="healthy"; DEGRADED="degraded"; MAINTENANCE="maintenance"; DRAINING="draining"; QUARANTINED="quarantined"; OFFLINE="offline"; DECOMMISSIONED="decommissioned"
@@ -26,9 +27,11 @@ class HostTelemetry:
 
 @dataclass(frozen=True)
 class FleetHost:
-    host_id:str; platform:str; architecture:str; lifecycle:HostLifecycle; trusted:bool; telemetry:HostTelemetry|None=None; tags:tuple[str,...]=()
+    host_id:str; platform:str; architecture:str; lifecycle:HostLifecycle; trusted:bool; telemetry:HostTelemetry|None=None; tags:tuple[str,...]=(); node_id:UUID|None=None
     def __post_init__(self):
         if not self.host_id.strip(): raise ValueError("host_id required")
+        if self.node_id is not None and not isinstance(self.node_id,UUID):
+            raise TypeError("node_id must be UUID or None")
 
 @dataclass(frozen=True)
 class WorkloadContract:

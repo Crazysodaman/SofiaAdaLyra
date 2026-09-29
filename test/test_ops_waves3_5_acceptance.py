@@ -169,6 +169,7 @@ def test_authenticated_enrollment_binds_machine_node_and_peer_key():
     enrolled=FleetEnrollmentService(registry).enroll(candidate,binding=binding,enrollment=enrollment,peer=peer)
     assert enrolled.trusted
     assert enrolled.lifecycle is HostLifecycle.ENROLLED
+    assert enrolled.node_id == node_id
 
 def test_authenticated_enrollment_rejects_wrong_peer_key():
     node_id=uuid4()

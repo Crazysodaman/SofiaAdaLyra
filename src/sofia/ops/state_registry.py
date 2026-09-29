@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime
 import json
 from pathlib import Path
+from uuid import UUID
 
 from sofia.ops.approval import FleetRemovalApproval
 from sofia.ops.fleet import FleetRegistry
@@ -49,6 +50,9 @@ class StatePlaneFleetRegistry(FleetRegistry):
                 "trusted": host.trusted,
                 "telemetry": telemetry,
                 "tags": list(host.tags),
+                "node_id": (
+                    None if host.node_id is None else str(host.node_id)
+                ),
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -71,6 +75,11 @@ class StatePlaneFleetRegistry(FleetRegistry):
             trusted=bool(raw["trusted"]),
             telemetry=telemetry,
             tags=tuple(raw.get("tags", ())),
+            node_id=(
+                None
+                if raw.get("node_id") is None
+                else UUID(raw["node_id"])
+            ),
         )
 
     def _load(self) -> None:

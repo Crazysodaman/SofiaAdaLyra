@@ -50,6 +50,7 @@ class OpsToolService:
                 "observed_at":host.telemetry.observed_at.isoformat(),
             },
             "tags":host.tags,
+            "node_id":None if host.node_id is None else str(host.node_id),
         }
 
     def fleet(self)->tuple[dict[str,Any],...]:

@@ -22,3 +22,25 @@ def test_persisted_decommission_still_needs_sparks(tmp_path:Path):
     try: s.transition("venus",HostLifecycle.DECOMMISSIONED)
     except PermissionError: pass
     else: raise AssertionError("removal gate bypassed")
+
+
+
+def test_fleet_registry_round_trip_preserves_authenticated_node_binding(tmp_path:Path):
+    from uuid import uuid4
+    node_id=uuid4()
+    bound=FleetHost(
+        "terra",
+        "linux",
+        "x86_64",
+        HostLifecycle.CANDIDATE,
+        True,
+        node_id=node_id,
+    )
+    path=tmp_path/"fleet-bound.json"
+    store=JsonFleetRegistry(path)
+    store.register_candidate(bound)
+
+    restored=JsonFleetRegistry(path).host("terra")
+
+    assert restored is not None
+    assert restored.node_id==node_id

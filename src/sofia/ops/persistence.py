@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+from uuid import UUID
 import time
 
 from .fleet import FleetRegistry
@@ -69,6 +70,11 @@ class JsonFleetRegistry(FleetRegistry):
                 tele = HostTelemetry(**tele)
             raw["lifecycle"] = HostLifecycle(raw["lifecycle"])
             raw["tags"] = tuple(raw.get("tags", ()))
+            raw["node_id"] = (
+                None
+                if raw.get("node_id") is None
+                else UUID(raw["node_id"])
+            )
             self._hosts[raw["host_id"]] = FleetHost(telemetry=tele, **raw)
 
     def _mutate_and_flush(self, operation):
@@ -120,6 +126,11 @@ class JsonFleetRegistry(FleetRegistry):
                     "trusted": host.trusted,
                     "telemetry": telemetry,
                     "tags": list(host.tags),
+                    "node_id": (
+                        None
+                        if host.node_id is None
+                        else str(host.node_id)
+                    ),
                 }
             )
 
