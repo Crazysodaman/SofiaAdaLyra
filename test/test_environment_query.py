@@ -528,3 +528,27 @@ def test_missing_weather_without_location_explains_location_dependency():
     assert answer.recognized
     assert "don't have current weather evidence" in answer.content
     assert "No configured or current location evidence" in answer.content
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        "so whats the weather",
+        "so whats the weather?",
+        "so what's the weather",
+        "whats the weather",
+    ),
+)
+def test_casual_weather_phrasing_stays_deterministic(query):
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration()
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        query,
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "don't have current weather evidence" in answer.content
+    assert "No configured or current location evidence" in answer.content
