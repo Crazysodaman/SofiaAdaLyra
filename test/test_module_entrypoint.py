@@ -55,7 +55,7 @@ def test_module_entrypoint_cli_preserves_terminal_client(monkeypatch):
 
     monkeypatch.setattr(sys, "argv", ["sofia", "--cli"])
     monkeypatch.setattr(
-        "sofia.config.create_default_configuration",
+        "sofia.config.create_production_configuration",
         lambda: configuration,
     )
     monkeypatch.setattr(
