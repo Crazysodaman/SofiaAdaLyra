@@ -7,7 +7,9 @@ import pytest
 import sofia.ops.agent_discovery as discovery_module
 from sofia.ops import (
     AgentDiscoveryTarget,
+    CombinedFleetDiscoverySource,
     MtlsAgentDiscoverySource,
+    ScopedHostPresenceDiscoverySource,
     ScopedMtlsAgentDiscoverySource,
 )
 
@@ -249,3 +251,86 @@ def test_scoped_discovery_passes_only_reachable_targets_to_mtls(
     assert ("artemis.local", 7443) in observed
     assert ("192.0.2.2", 7443) in observed
     assert ("192.0.2.1", 7443) not in observed
+
+
+def test_bare_host_presence_creates_untrusted_unknown_evidence(monkeypatch):
+    source = ScopedHostPresenceDiscoverySource(
+        scopes=("192.0.2.0/30",),
+        max_hosts_per_scope=8,
+    )
+    monkeypatch.setattr(
+        source,
+        "_port_open",
+        lambda address, port: (
+            address == "192.0.2.2" and port == 445
+        ),
+    )
+    monkeypatch.setattr(
+        discovery_module.socket,
+        "gethostbyaddr",
+        lambda address: ("newhost.local", [], [address]),
+    )
+
+    observations = source.discover()
+
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation.host_id == "newhost.local"
+    assert observation.platform == "unknown"
+    assert observation.architecture == "unknown"
+    assert observation.inside_approved_scope is True
+    assert observation.trusted_bootstrap_available is False
+    assert observation.observed_node_id is None
+
+
+def test_bare_presence_skips_hosts_already_exposing_fleet_agent(monkeypatch):
+    source = ScopedHostPresenceDiscoverySource(
+        scopes=("192.0.2.0/30",),
+        max_hosts_per_scope=8,
+    )
+    monkeypatch.setattr(
+        source,
+        "_port_open",
+        lambda address, port: (
+            address == "192.0.2.2" and port == 7443
+        ),
+    )
+
+    assert source.discover() == ()
+
+
+def test_combined_discovery_prefers_first_source_for_same_endpoint():
+    stronger = FleetDiscoveryEvidence(
+        host_id="Artemis",
+        hostname="artemis.local",
+        platform="windows",
+        architecture="amd64",
+        observed_at=datetime.now(timezone.utc),
+        source="mtls-agent-discovery",
+        inside_approved_scope=True,
+        observed_endpoint_hostname="192.0.2.2",
+        observed_endpoint_port=7443,
+    )
+    weaker = FleetDiscoveryEvidence(
+        host_id="artemis.local",
+        hostname="artemis.local",
+        platform="unknown",
+        architecture="unknown",
+        observed_at=datetime.now(timezone.utc),
+        source="approved-scope-host-presence",
+        inside_approved_scope=True,
+        observed_endpoint_hostname="192.0.2.2",
+    )
+
+    class Source:
+        def __init__(self, values):
+            self.values = values
+        def discover(self):
+            return self.values
+
+    result = CombinedFleetDiscoverySource(
+        Source((stronger,)),
+        Source((weaker,)),
+    ).discover()
+
+    assert result == (stronger,)
