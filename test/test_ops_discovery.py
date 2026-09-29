@@ -16,6 +16,7 @@ from sofia.ops import (
     FleetDiscoveryEnrollmentReconciler,
     FleetRegistry,
     FleetEnrollmentService,
+    FleetHost,
     HostLifecycle,
 )
 
