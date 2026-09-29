@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import sqlite3
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
@@ -73,7 +73,7 @@ def run_settings_window() -> int:
     import tkinter as tk
     from tkinter import messagebox, ttk
 
-    config = create_default_configuration()
+    config = create_production_configuration()
     _ensure_state_database(config.state_path)
     store = DesktopControlSettingsStore(config.state_path)
     runtime_store = RuntimeUserSettingsStore(config.state_path)
