@@ -96,7 +96,6 @@ def run_settings_window() -> int:
         notebook.add(frame, text=name)
         frames[name] = frame
 
-    close_to_tray = tk.BooleanVar(value=current.close_to_tray)
     start_windows = tk.BooleanVar(value=current.start_with_windows)
     game_mode = tk.StringVar(value=current.game_mode.value)
     remote_mode = tk.StringVar(value=current.remote_chat_mode.value)
@@ -190,11 +189,14 @@ def run_settings_window() -> int:
     )
 
     general = frames["General"]
-    ttk.Checkbutton(
+    ttk.Label(
         general,
-        text="Close chat window to system tray",
-        variable=close_to_tray,
-    ).pack(anchor="w", pady=4)
+        text=(
+            "Closing the chat window leaves the independently running tray "
+            "agent available. Use Exit UI from the tray to close the tray."
+        ),
+        wraplength=720,
+    ).pack(anchor="w", pady=(0, 8))
     ttk.Checkbutton(
         general,
         text="Start tray client with Windows",
@@ -495,7 +497,7 @@ def run_settings_window() -> int:
         try:
             selected_game_mode = GameMode(game_mode.get())
             updated = DesktopControlSettings(
-                close_to_tray=bool(close_to_tray.get()),
+                close_to_tray=current.close_to_tray,
                 start_with_windows=bool(start_windows.get()),
                 game_mode=selected_game_mode,
                 remote_chat_mode=RemoteChatMode(remote_mode.get()),
