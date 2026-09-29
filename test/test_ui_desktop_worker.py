@@ -71,6 +71,10 @@ def test_worker_owns_real_application_for_full_lifecycle(
     assert isinstance(draft, str)
     assert palette.background.startswith("#")
 
+    kind, payload = events.get(timeout=30)
+    assert kind == "discord_disabled"
+    assert payload is None
+
     worker.send("Hello from one worker thread.")
 
     kind, payload = events.get(timeout=30)
