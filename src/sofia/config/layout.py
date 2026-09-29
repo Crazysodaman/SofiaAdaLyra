@@ -27,13 +27,21 @@ class RuntimeStorageLayout:
     def from_environment(
         cls,
         repository_root: Path,
+        *,
+        mode_override: str | None = None,
     ) -> "RuntimeStorageLayout":
         if not isinstance(repository_root, Path):
             raise TypeError("repository_root must be a Path")
-        mode = os.environ.get(
-            "SOFIA_RUNTIME_MODE",
-            "development",
-        ).strip().lower()
+        mode = (
+            os.environ.get(
+                "SOFIA_RUNTIME_MODE",
+                "development",
+            ).strip().lower()
+            if mode_override is None
+            else mode_override.strip().lower()
+        )
+        if not isinstance(mode_override, (str, type(None))):
+            raise TypeError("mode_override must be text or None")
         if mode not in {"development", "production"}:
             raise ValueError(
                 "SOFIA_RUNTIME_MODE must be development or production"
