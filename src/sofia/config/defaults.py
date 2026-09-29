@@ -43,8 +43,12 @@ def _positive_environment_int(name: str, *, default: int) -> int:
 
 def _routing_configuration_from_environ(
     base: ProviderConfiguration,
+    user_settings,
 ) -> CognitiveRoutingConfiguration | None:
-    if not _environment_flag("SOFIA_COGNITION_ROUTING_ENABLED"):
+    if not _environment_flag(
+        "SOFIA_COGNITION_ROUTING_ENABLED",
+        default=user_settings.cognitive_routing_enabled,
+    ):
         return None
 
     provider_name = os.environ.get(
@@ -53,11 +57,11 @@ def _routing_configuration_from_environ(
     ).strip()
     primary_model = os.environ.get(
         "SOFIA_COGNITION_PRIMARY_MODEL",
-        "qwen3.5:9b",
+        user_settings.cognitive_primary_model,
     ).strip()
     secondary_model = os.environ.get(
         "SOFIA_COGNITION_SECONDARY_MODEL",
-        "huihui_ai/qwen3.5-abliterated:4b",
+        user_settings.cognitive_secondary_model,
     ).strip()
 
     primary = ProviderConfiguration(
@@ -67,7 +71,7 @@ def _routing_configuration_from_environ(
         seed=base.seed,
         context_size=_positive_environment_int(
             "SOFIA_COGNITION_PRIMARY_CONTEXT_SIZE",
-            default=16000,
+            default=user_settings.cognitive_primary_context_size,
         ),
         thinking=base.thinking,
     )
@@ -78,7 +82,7 @@ def _routing_configuration_from_environ(
         seed=base.seed,
         context_size=_positive_environment_int(
             "SOFIA_COGNITION_SECONDARY_CONTEXT_SIZE",
-            default=8192,
+            default=user_settings.cognitive_secondary_context_size,
         ),
         thinking=False,
     )
@@ -88,7 +92,7 @@ def _routing_configuration_from_environ(
         secondary=secondary,
         verify_enabled=_environment_flag(
             "SOFIA_COGNITION_VERIFY_ENABLED",
-            default=True,
+            default=user_settings.cognitive_verify_enabled,
         ),
     )
 
@@ -257,7 +261,8 @@ def create_default_configuration(
         identity_bootstrap_mode=layout.identity_bootstrap_mode,
         standing_allowed_capabilities=standing_capabilities,
         routing=_routing_configuration_from_environ(
-            provider_configuration
+            provider_configuration,
+            user_settings,
         ),
         environment=environment,
     )

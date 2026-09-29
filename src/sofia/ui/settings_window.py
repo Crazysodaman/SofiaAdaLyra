@@ -127,6 +127,24 @@ def run_settings_window() -> int:
     provider_thinking = tk.StringVar(
         value=_thinking_ui_value(runtime.provider_thinking)
     )
+    cognitive_routing_enabled = tk.BooleanVar(
+        value=runtime.cognitive_routing_enabled
+    )
+    cognitive_primary_model = tk.StringVar(
+        value=runtime.cognitive_primary_model
+    )
+    cognitive_secondary_model = tk.StringVar(
+        value=runtime.cognitive_secondary_model
+    )
+    cognitive_primary_context = tk.StringVar(
+        value=str(runtime.cognitive_primary_context_size)
+    )
+    cognitive_secondary_context = tk.StringVar(
+        value=str(runtime.cognitive_secondary_context_size)
+    )
+    cognitive_verify_enabled = tk.BooleanVar(
+        value=runtime.cognitive_verify_enabled
+    )
 
     discord_enabled = tk.BooleanVar(value=runtime.discord_enabled)
     discord_owner = tk.StringVar(
@@ -290,6 +308,44 @@ def run_settings_window() -> int:
         ),
         wraplength=720,
     ).pack(anchor="w", pady=(0, 12))
+
+    routing_frame = ttk.LabelFrame(
+        models,
+        text="Dual-model cognition",
+        padding=8,
+    )
+    routing_frame.pack(anchor="w", fill="x", pady=(0, 12))
+    ttk.Checkbutton(
+        routing_frame,
+        text="Enable multi-model cognitive routing",
+        variable=cognitive_routing_enabled,
+    ).pack(anchor="w", pady=(0, 6))
+    for label, variable in (
+        ("Primary model", cognitive_primary_model),
+        ("Secondary / open model", cognitive_secondary_model),
+        ("Primary context size", cognitive_primary_context),
+        ("Secondary context size", cognitive_secondary_context),
+    ):
+        ttk.Label(routing_frame, text=label).pack(anchor="w")
+        ttk.Entry(
+            routing_frame,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 5))
+    ttk.Checkbutton(
+        routing_frame,
+        text="Enable two-pass verification for explicit verify requests",
+        variable=cognitive_verify_enabled,
+    ).pack(anchor="w", pady=(2, 4))
+    ttk.Label(
+        routing_frame,
+        text=(
+            "Recommended local pairing: qwen3.5:9b primary and "
+            "huihui_ai/qwen3.5-abliterated:4b secondary. "
+            "Tool-enabled requests remain primary-only."
+        ),
+        wraplength=690,
+    ).pack(anchor="w")
+
     ttk.Label(models, text="LLM Windows service name").pack(anchor="w")
     ttk.Entry(
         models,
@@ -597,6 +653,26 @@ def run_settings_window() -> int:
                 ),
                 provider_thinking=_thinking_setting(
                     provider_thinking.get()
+                ),
+                cognitive_routing_enabled=bool(
+                    cognitive_routing_enabled.get()
+                ),
+                cognitive_primary_model=(
+                    cognitive_primary_model.get().strip()
+                ),
+                cognitive_secondary_model=(
+                    cognitive_secondary_model.get().strip()
+                ),
+                cognitive_primary_context_size=_positive(
+                    cognitive_primary_context.get(),
+                    "Primary routing context size",
+                ),
+                cognitive_secondary_context_size=_positive(
+                    cognitive_secondary_context.get(),
+                    "Secondary routing context size",
+                ),
+                cognitive_verify_enabled=bool(
+                    cognitive_verify_enabled.get()
                 ),
                 discord_enabled=bool(discord_enabled.get()),
                 discord_owner_user_id=_optional_int(

@@ -16,6 +16,13 @@ class RuntimeUserSettings:
     provider_context_size: int = 20000
     provider_thinking: bool | str = False
 
+    cognitive_routing_enabled: bool = False
+    cognitive_primary_model: str = "qwen3.5:9b"
+    cognitive_secondary_model: str = "huihui_ai/qwen3.5-abliterated:4b"
+    cognitive_primary_context_size: int = 16000
+    cognitive_secondary_context_size: int = 8192
+    cognitive_verify_enabled: bool = True
+
     discord_enabled: bool = False
     discord_owner_user_id: int | None = None
     discord_bot_user_id: int | None = None
@@ -70,6 +77,28 @@ class RuntimeUserSettings:
                 "provider_thinking",
                 normalized_thinking,
             )
+
+        for name in (
+            "cognitive_routing_enabled",
+            "cognitive_verify_enabled",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be boolean")
+        for name in (
+            "cognitive_primary_model",
+            "cognitive_secondary_model",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} is required")
+        for name in (
+            "cognitive_primary_context_size",
+            "cognitive_secondary_context_size",
+        ):
+            value = getattr(self, name)
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"{name} must be positive")
+
         for name in ("discord_enabled", "home_assistant_enabled", "nws_enabled"):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")

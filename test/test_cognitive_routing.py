@@ -373,3 +373,29 @@ def test_invalid_routing_flag_is_rejected(monkeypatch):
 
     with pytest.raises(ValueError, match="boolean flag"):
         create_default_configuration()
+
+
+
+def test_tool_enabled_primary_failure_does_not_fall_back_to_secondary():
+    tool = CognitiveToolDefinition(
+        name="ops.execute",
+        description="Execute an authorized operation.",
+        parameters={"type": "object"},
+    )
+    primary = QueueEngine(
+        CognitiveEngineError("primary failed")
+    )
+    secondary = QueueEngine(
+        CognitiveResponse(content="secondary must not run")
+    )
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary)
+    )
+
+    with pytest.raises(CognitiveEngineError, match="primary failed"):
+        engine.respond(
+            request("Run this operation.", tools=(tool,))
+        )
+
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 0

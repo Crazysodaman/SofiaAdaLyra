@@ -19,6 +19,12 @@ def test_runtime_user_settings_round_trip(tmp_path):
         provider_model="qwen3:14b",
         provider_context_size=32768,
         provider_thinking=True,
+        cognitive_routing_enabled=True,
+        cognitive_primary_model="qwen3.5:9b",
+        cognitive_secondary_model="huihui_ai/qwen3.5-abliterated:4b",
+        cognitive_primary_context_size=16000,
+        cognitive_secondary_context_size=8192,
+        cognitive_verify_enabled=False,
         discord_enabled=True,
         discord_owner_user_id=123456789012345678,
         discord_bot_user_id=987654321098765432,
@@ -98,4 +104,12 @@ def test_location_requires_coordinate_pair():
             location_label="Home",
             location_timezone="America/Chicago",
             location_latitude=32.5,
+        )
+
+
+
+def test_routing_settings_validate_context_sizes():
+    with pytest.raises(ValueError, match="cognitive_secondary_context_size"):
+        RuntimeUserSettings(
+            cognitive_secondary_context_size=0,
         )

@@ -256,6 +256,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
         verification_passes = 0
 
         try:
+            # Requests with executable tools exposed stay on the primary
+            # engine. The secondary/open model may review text, but it never
+            # becomes a fallback tool-selection engine.
+            if request.tools:
+                return self.registry.primary.respond(request)
+
             if decision.route is CognitiveRoute.VERIFY and self.verify_enabled:
                 response, fallback_count, verification_passes = (
                     self._verified_response(request)
