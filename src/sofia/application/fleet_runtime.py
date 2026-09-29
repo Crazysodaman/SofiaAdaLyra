@@ -178,6 +178,12 @@ def create_fleet_bootstrap_coordinator(
             "Fleet bootstrap is enabled but the approved package SHA-256 "
             "and source are not both configured"
         )
+    if policy.authority == InstallAuthority.OPERATOR_APPROVED.value:
+        raise ValueError(
+            "operator_approved cannot be configured as reusable background "
+            "Fleet bootstrap authority; use an explicit approved bootstrap "
+            "operation for that candidate"
+        )
     authority = InstallAuthority(policy.authority)
     package = AgentPackage(
         package_id=policy.package_id,
