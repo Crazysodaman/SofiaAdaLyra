@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from sofia.config import create_production_configuration
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.discord.provisioning import DiscordProvisioning
@@ -155,3 +156,47 @@ def test_runtime_provisioning_saved_disabled_does_not_require_secret(
     )
 
     assert provisioning.enabled is False
+
+
+
+def test_production_discord_reads_saved_settings_from_live_state(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "ProgramData" / "SofiaAdaLyra"
+    protected_root = state_root / "protected"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_PROTECTED_ROOT", str(protected_root))
+    monkeypatch.delenv("SOFIA_DISCORD_ENABLED", raising=False)
+
+    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+        RuntimeUserSettings(
+            discord_enabled=True,
+            discord_owner_user_id=int(OWNER),
+            discord_bot_user_id=int(BOT),
+            discord_dm_channel_id=int(CHANNEL),
+        )
+    )
+
+    class Secrets:
+        def get(self, key):
+            assert key == "discord-token"
+            return "production-secret-token"
+
+    monkeypatch.setattr(
+        "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
+        staticmethod(lambda path: Secrets()),
+    )
+
+    configuration = create_production_configuration()
+    provisioning = DiscordProvisioning.from_runtime(
+        configuration,
+        environ={},
+    )
+
+    assert configuration.state_path == state_root / "sofia.db"
+    assert provisioning.enabled is True
+    assert provisioning.owner_user_id == int(OWNER)
+    assert provisioning.bot_user_id == int(BOT)
+    assert provisioning.dm_channel_id == int(CHANNEL)
+    assert provisioning.require_token() == "production-secret-token"
