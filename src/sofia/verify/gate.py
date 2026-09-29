@@ -33,19 +33,32 @@ class VerificationEvidence:
         return all(item.returncode == 0 for item in self.commands)
 
 
-_PHASES = {
-    "static": (
-        ("compile", ("-m", "compileall", "-q", "src/sofia")),
+_STATIC_COMMANDS = (
+    (
+        "compile",
+        (
+            "-m",
+            "compileall",
+            "-q",
+            "src/sofia",
+            "test",
+            "tools",
+        ),
     ),
+    ("dependency-check", ("-m", "pip", "check")),
+)
+
+_PHASES = {
+    "static": _STATIC_COMMANDS,
     "full": (
-        ("compile", ("-m", "compileall", "-q", "src/sofia")),
+        *_STATIC_COMMANDS,
         (
             "pytest",
             ("-m", "pytest", "-q", "-m", "not integration"),
         ),
     ),
     "prelive": (
-        ("compile", ("-m", "compileall", "-q", "src/sofia")),
+        *_STATIC_COMMANDS,
         ("pytest", ("-m", "pytest", "-q")),
         ("semantic", ("-m", "sofia.verify.semantic")),
     ),
