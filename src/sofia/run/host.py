@@ -10,7 +10,10 @@ import sys
 import time
 
 from sofia.application.release_runtime import create_release_manager
-from sofia.config import create_production_configuration
+from sofia.config import (
+    create_production_configuration,
+    production_state_path,
+)
 from sofia.integrations.local_maintenance import LocalMaintenanceAdapter
 from sofia.run.lease import LocalRunLeaseStore, RunLease
 from sofia.run.release import ReleaseRecoveryHook
@@ -111,7 +114,9 @@ class RunSupervisorHost:
 
     def _supervisor(self) -> tuple[LocalRunLeaseStore, LocalRuntimeSupervisor]:
         configuration = replace(
-            create_production_configuration(),
+            create_production_configuration(
+                state_path=self.state_path,
+            ),
             state_path=self.state_path,
         )
         verify_production_component_schemas(self.state_path)
@@ -195,12 +200,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        configuration = create_production_configuration()
         host = RunSupervisorHost(
             state_path=(
                 Path(args.state_path)
                 if args.state_path
-                else Path(configuration.state_path)
+                else production_state_path()
             ),
             service_name=args.service,
             owner_id=args.owner_id,
