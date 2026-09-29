@@ -236,3 +236,38 @@ def test_install_pulls_missing_configured_role_without_loading_it():
     assert status.state is ModelResidency.UNLOADED
     assert backend.installed=={"vendor/primary:any"}
     assert backend.resident==set()
+
+
+
+def test_install_missing_provisions_all_configured_roles_without_loading():
+    names=("vendor/primary:any","vendor/secondary:any")
+    backend=Backend()
+    manager=ModelLifecycleManager(
+        selection=_selection(*names),
+        policy=ModelLifecycleConfiguration(
+            enabled=True,
+            auto_install_missing=True,
+        ),
+        backend=backend,
+    )
+
+    installed=manager.install_missing()
+
+    assert installed==names
+    assert backend.installed==set(names)
+    assert backend.resident==set()
+
+
+def test_install_missing_is_disabled_by_policy():
+    backend=Backend()
+    manager=ModelLifecycleManager(
+        selection=_selection(secondary=None),
+        policy=ModelLifecycleConfiguration(
+            enabled=True,
+            auto_install_missing=False,
+        ),
+        backend=backend,
+    )
+
+    assert manager.install_missing()==()
+    assert backend.installed==set()

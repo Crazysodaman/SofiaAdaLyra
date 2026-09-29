@@ -142,6 +142,7 @@ def test_fresh_runtime_settings_enable_dual_cognition_and_residency():
     assert settings.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert settings.cognitive_routing_enabled is True
     assert settings.cognitive_model_auto_manage is True
+    assert settings.cognitive_model_auto_install is True
     assert settings.provider_model == settings.cognitive_primary_model
 
 
@@ -201,6 +202,7 @@ def test_legacy_saved_settings_migrate_to_dual_cognition(tmp_path):
     assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert migrated.cognitive_routing_enabled is True
     assert migrated.cognitive_model_auto_manage is True
+    assert migrated.cognitive_model_auto_install is True
     assert migrated.cognitive_primary_model == "owner/primary:any"
     assert migrated.cognitive_secondary_model == "owner/secondary:any"
     assert migrated.provider_model == migrated.cognitive_primary_model

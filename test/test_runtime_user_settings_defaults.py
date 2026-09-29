@@ -33,6 +33,7 @@ def _clear_environment_overrides(monkeypatch):
         "SOFIA_COGNITION_SECONDARY_CONTEXT_SIZE",
         "SOFIA_COGNITION_VERIFY_ENABLED",
         "SOFIA_COGNITION_MODEL_AUTO_MANAGE",
+        "SOFIA_COGNITION_MODEL_AUTO_INSTALL",
         "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
         "SOFIA_COGNITION_MODEL_KEEP_ALIVE",
     )
@@ -227,3 +228,4 @@ def test_fresh_production_style_configuration_uses_dual_cognition_defaults(
         == configuration.routing.primary.model
     )
     assert configuration.model_lifecycle.enabled is True
+    assert configuration.model_lifecycle.auto_install_missing is True
