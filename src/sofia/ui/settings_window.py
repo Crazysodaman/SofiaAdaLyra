@@ -152,6 +152,15 @@ def run_settings_window() -> int:
     cognitive_verify_enabled = tk.BooleanVar(
         value=runtime.cognitive_verify_enabled
     )
+    cognitive_model_auto_manage = tk.BooleanVar(
+        value=runtime.cognitive_model_auto_manage
+    )
+    cognitive_model_idle_unload_seconds = tk.StringVar(
+        value=str(runtime.cognitive_model_idle_unload_seconds)
+    )
+    cognitive_model_keep_alive = tk.StringVar(
+        value=runtime.cognitive_model_keep_alive
+    )
 
     discord_enabled = tk.BooleanVar(value=runtime.discord_enabled)
     discord_owner = tk.StringVar(
@@ -373,6 +382,43 @@ def run_settings_window() -> int:
             "Model identities are owner-configurable. Routing uses the "
             "selected role assignments, and tool-enabled requests remain "
             "primary-only."
+        ),
+        wraplength=690,
+    ).pack(anchor="w")
+
+    lifecycle_frame = ttk.LabelFrame(
+        models,
+        text="Automatic model residency",
+        padding=8,
+    )
+    lifecycle_frame.pack(anchor="w", fill="x", pady=(0, 12))
+    ttk.Checkbutton(
+        lifecycle_frame,
+        text="Automatically wake and unload configured models",
+        variable=cognitive_model_auto_manage,
+    ).pack(anchor="w", pady=(0, 6))
+    ttk.Label(
+        lifecycle_frame,
+        text="Unload after idle seconds",
+    ).pack(anchor="w")
+    ttk.Entry(
+        lifecycle_frame,
+        textvariable=cognitive_model_idle_unload_seconds,
+    ).pack(anchor="w", fill="x", pady=(2, 5))
+    ttk.Label(
+        lifecycle_frame,
+        text="Ollama keep-alive after wake",
+    ).pack(anchor="w")
+    ttk.Entry(
+        lifecycle_frame,
+        textvariable=cognitive_model_keep_alive,
+    ).pack(anchor="w", fill="x", pady=(2, 5))
+    ttk.Label(
+        lifecycle_frame,
+        text=(
+            "When enabled, Sofía's runtime stays alive even if every model "
+            "is unloaded. A chat, reflection, or other cognitive request can "
+            "wake the configured model role again automatically."
         ),
         wraplength=690,
     ).pack(anchor="w")
@@ -704,6 +750,16 @@ def run_settings_window() -> int:
                 ),
                 cognitive_verify_enabled=bool(
                     cognitive_verify_enabled.get()
+                ),
+                cognitive_model_auto_manage=bool(
+                    cognitive_model_auto_manage.get()
+                ),
+                cognitive_model_idle_unload_seconds=_positive(
+                    cognitive_model_idle_unload_seconds.get(),
+                    "Model idle unload seconds",
+                ),
+                cognitive_model_keep_alive=(
+                    cognitive_model_keep_alive.get().strip()
                 ),
                 discord_enabled=bool(discord_enabled.get()),
                 discord_owner_user_id=_optional_int(

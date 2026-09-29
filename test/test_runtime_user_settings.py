@@ -25,6 +25,9 @@ def test_runtime_user_settings_round_trip(tmp_path):
         cognitive_primary_context_size=16000,
         cognitive_secondary_context_size=8192,
         cognitive_verify_enabled=False,
+        cognitive_model_auto_manage=True,
+        cognitive_model_idle_unload_seconds=600,
+        cognitive_model_keep_alive="4m",
         discord_enabled=True,
         discord_owner_user_id=123456789012345678,
         discord_bot_user_id=987654321098765432,
@@ -112,4 +115,19 @@ def test_routing_settings_validate_context_sizes():
     with pytest.raises(ValueError, match="cognitive_secondary_context_size"):
         RuntimeUserSettings(
             cognitive_secondary_context_size=0,
+        )
+
+
+
+def test_model_lifecycle_settings_validate_idle_timeout():
+    with pytest.raises(ValueError, match="cognitive_model_idle_unload_seconds"):
+        RuntimeUserSettings(
+            cognitive_model_idle_unload_seconds=0,
+        )
+
+
+def test_model_lifecycle_settings_validate_keep_alive():
+    with pytest.raises(ValueError, match="cognitive_model_keep_alive"):
+        RuntimeUserSettings(
+            cognitive_model_keep_alive="",
         )

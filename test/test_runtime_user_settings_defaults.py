@@ -32,6 +32,9 @@ def _clear_environment_overrides(monkeypatch):
         "SOFIA_COGNITION_PRIMARY_CONTEXT_SIZE",
         "SOFIA_COGNITION_SECONDARY_CONTEXT_SIZE",
         "SOFIA_COGNITION_VERIFY_ENABLED",
+        "SOFIA_COGNITION_MODEL_AUTO_MANAGE",
+        "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
+        "SOFIA_COGNITION_MODEL_KEEP_ALIVE",
     )
     for name in names:
         monkeypatch.delenv(name, raising=False)
@@ -152,3 +155,52 @@ def test_cognitive_environment_override_beats_saved_routing_setting(
     assert configuration.routing is not None
     assert configuration.routing.primary is not None
     assert configuration.routing.primary.model == "primary:env"
+
+
+
+def test_saved_owner_settings_can_enable_model_lifecycle(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-model-lifecycle"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+
+    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+        RuntimeUserSettings(
+            cognitive_model_auto_manage=True,
+            cognitive_model_idle_unload_seconds=420,
+            cognitive_model_keep_alive="6m",
+        )
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.model_lifecycle.enabled is True
+    assert configuration.model_lifecycle.idle_unload_seconds == 420
+    assert configuration.model_lifecycle.keep_alive == "6m"
+
+
+def test_model_lifecycle_environment_override_beats_saved_setting(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-model-lifecycle-override"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+
+    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+        RuntimeUserSettings(
+            cognitive_model_auto_manage=False,
+            cognitive_model_idle_unload_seconds=900,
+        )
+    )
+    monkeypatch.setenv("SOFIA_COGNITION_MODEL_AUTO_MANAGE", "1")
+    monkeypatch.setenv("SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS", "120")
+
+    configuration = create_default_configuration()
+
+    assert configuration.model_lifecycle.enabled is True
+    assert configuration.model_lifecycle.idle_unload_seconds == 120
