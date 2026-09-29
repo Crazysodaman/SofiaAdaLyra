@@ -12,11 +12,18 @@ from typing import Any,Callable,Mapping
 from uuid import UUID
 
 from sofia.distributed.capabilities import RemoteCapability
+from sofia.distributed.inference import (
+    MAX_REQUEST_BYTES,
+    RemoteInferenceContractError,
+    RemoteInferenceRequest,
+    RemoteInferenceResponse,
+)
 from sofia.distributed.operations import RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
 from sofia.distributed.version import FleetProtocolVersion
 
 AgentHandler=Callable[[Mapping[str,Any]],Any]
+InferenceHandler=Callable[[RemoteInferenceRequest],RemoteInferenceResponse]
 _FORBIDDEN_PARAMETERS=frozenset({"command","commands","cmd","shell","script","executable","argv","arguments","password","token","secret","private_key"})
 
 def _bounded_parameters(parameters:dict[str,Any])->dict[str,Any]:
@@ -121,12 +128,102 @@ class AgentRequestLedger:
                     (outcome.value,message[:1000],str(request_id)),
                 )
                 if cursor.rowcount!=1: raise RuntimeError("agent request is not reserved")
+    def status(self,request_id:UUID)->str|None:
+        if not isinstance(request_id,UUID): raise TypeError("request_id must be UUID")
+        with self._lock:
+            row=self._db.execute(
+                "SELECT state,outcome FROM agent_request WHERE request_id=?",
+                (str(request_id),),
+            ).fetchone()
+        if row is None: return None
+        return row[1] if row[0]=="final" and row[1] else row[0]
     def close(self)->None:
         with self._lock: self._db.close()
 
+
+class RemoteInferenceReplayDenied(RuntimeError):
+    """An inference request ID has already been reserved or completed."""
+
+
+class AgentInferenceEndpoint:
+    """Pure admission wrapper for the dedicated inference HTTP endpoint."""
+
+    CAPABILITY="llm.inference"
+    OPERATION="chat"
+
+    def __init__(
+        self,
+        *,
+        node_id:UUID,
+        ledger:AgentRequestLedger,
+        handler:InferenceHandler,
+    )->None:
+        if not isinstance(node_id,UUID): raise TypeError("node_id must be UUID")
+        if not isinstance(ledger,AgentRequestLedger):
+            raise TypeError("ledger must be AgentRequestLedger")
+        if not callable(handler): raise TypeError("handler must be callable")
+        self.node_id=node_id
+        self.ledger=ledger
+        self.handler=handler
+
+    def execute(self,payload:Any)->RemoteInferenceResponse:
+        request=RemoteInferenceRequest.from_payload(payload)
+        if request.node_id!=self.node_id:
+            raise PermissionError("inference request is addressed to a different node")
+        existing=self.ledger.reserve(
+            request.request_id,
+            request.node_id,
+            self.CAPABILITY,
+            self.OPERATION,
+        )
+        if existing is not None:
+            raise RemoteInferenceReplayDenied(
+                "inference request ID is already reserved or completed"
+            )
+        try:
+            response=self.handler(request)
+            if not isinstance(response,RemoteInferenceResponse):
+                raise TypeError("inference handler must return RemoteInferenceResponse")
+            if (
+                response.request_id!=request.request_id
+                or response.node_id!=request.node_id
+            ):
+                raise ValueError("inference response identity does not match request")
+        except Exception as exc:
+            self.ledger.finish(
+                request.request_id,
+                RemoteOutcome.REPORTED_FAILURE,
+                type(exc).__name__,
+            )
+            raise
+        self.ledger.finish(
+            request.request_id,
+            RemoteOutcome.REPORTED_SUCCESS,
+            "inference response returned",
+        )
+        return response
+
+
 class RemoteAgentServer:
-    def __init__(self,config:RemoteAgentConfig,dispatcher:RemoteAgentDispatcher)->None:
-        self.config=config; self.dispatcher=dispatcher; self.ledger=AgentRequestLedger(config.ledger_path)
+    def __init__(
+        self,
+        config:RemoteAgentConfig,
+        dispatcher:RemoteAgentDispatcher,
+        *,
+        inference_handler:InferenceHandler|None=None,
+    )->None:
+        self.config=config
+        self.dispatcher=dispatcher
+        self.ledger=AgentRequestLedger(config.ledger_path)
+        self.inference=(
+            None
+            if inference_handler is None
+            else AgentInferenceEndpoint(
+                node_id=config.node_id,
+                ledger=self.ledger,
+                handler=inference_handler,
+            )
+        )
         owner=self
         class Handler(BaseHTTPRequestHandler):
             server_version="SofiaFleetAgent/1"
@@ -139,11 +236,11 @@ class RemoteAgentServer:
                 body=json.dumps(payload,separators=(",",":"),default=str).encode("utf-8")
                 self.send_response(status); self.send_header("Content-Type","application/json")
                 self.send_header("Content-Length",str(len(body))); self.end_headers(); self.wfile.write(body)
-            def _read_json(self)->dict[str,Any]:
+            def _read_json(self,*,max_bytes:int=65536)->dict[str,Any]:
                 raw_length=self.headers.get("Content-Length","0")
                 try: length=int(raw_length)
                 except ValueError as exc: raise ValueError("invalid Content-Length") from exc
-                if length<0 or length>65536: raise ValueError("request body too large")
+                if length<0 or length>max_bytes: raise ValueError("request body too large")
                 raw=self.rfile.read(length)
                 data=json.loads(raw.decode("utf-8")) if raw else {}
                 if not isinstance(data,dict): raise ValueError("JSON object required")
@@ -158,11 +255,41 @@ class RemoteAgentServer:
                         "observed_at":datetime.now(timezone.utc).isoformat(),
                         "source":"sofia-pinned-mtls-agent",
                         "protocol_version":owner.config.protocol_version,
-                        "capabilities":[{"name":c.name,"operations":list(c.operations)} for c in owner.dispatcher.inventory()],
+                        "capabilities":[
+                            {"name":c.name,"operations":list(c.operations)}
+                            for c in (
+                                owner.dispatcher.inventory()
+                                + (
+                                    (RemoteCapability(
+                                        AgentInferenceEndpoint.CAPABILITY,
+                                        (AgentInferenceEndpoint.OPERATION,),
+                                    ),)
+                                    if owner.inference is not None
+                                    else ()
+                                )
+                            )
+                        ],
                     }); return
                 self._json(404,{"error":"not found"})
             def do_POST(self):
                 if not self._authorized_peer(): self._json(403,{"error":"unauthorized peer"}); return
+                if self.path=="/v1/inference":
+                    if owner.inference is None:
+                        self._json(404,{"error":"inference not configured"}); return
+                    try:
+                        payload=self._read_json(max_bytes=MAX_REQUEST_BYTES)
+                        result=owner.inference.execute(payload)
+                        self._json(200,result.to_payload())
+                    except RemoteInferenceReplayDenied as exc:
+                        self._json(409,{"error":str(exc)})
+                    except (RemoteInferenceContractError,PermissionError,TypeError,ValueError) as exc:
+                        self._json(400,{"error":f"{type(exc).__name__}: {exc}"})
+                    except Exception as exc:
+                        self._json(500,{
+                            "error":"inference failed",
+                            "error_type":type(exc).__name__,
+                        })
+                    return
                 if self.path!="/v1/operations": self._json(404,{"error":"not found"}); return
                 try:
                     payload=self._read_json()

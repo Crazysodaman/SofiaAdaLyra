@@ -9,6 +9,10 @@ from uuid import UUID
 
 from sofia.distributed.capabilities import CapabilityInventory,RemoteCapability
 from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.inference import (
+    RemoteInferenceRequest,
+    RemoteInferenceResponse,
+)
 from sofia.distributed.model import NodeEndpoint,NodeTransport
 from sofia.distributed.operations import RemoteOperationRequest,RemoteOperationResult,RemoteOutcome,RemoteTransport
 from sofia.distributed.tls import public_key_fingerprint_from_der_certificate
@@ -116,6 +120,38 @@ class PinnedHttpsRemoteTransport(RemoteTransport):
             )
         except (KeyError,TypeError,ValueError) as exc:
             raise HttpsTransportError("invalid capability inventory payload") from exc
+
+    def infer(
+        self,
+        enrollment:NodeEnrollment,
+        request:RemoteInferenceRequest,
+    )->RemoteInferenceResponse:
+        if not isinstance(request,RemoteInferenceRequest):
+            raise TypeError("request must be RemoteInferenceRequest")
+        if request.node_id!=enrollment.node.node_id:
+            raise HttpsTransportError(
+                "inference request node does not match enrollment"
+            )
+        data=self._request(
+            enrollment,
+            "POST",
+            "/v1/inference",
+            request.to_payload(),
+        )
+        try:
+            result=RemoteInferenceResponse.from_payload(data)
+        except (TypeError,ValueError) as exc:
+            raise HttpsTransportError(
+                "invalid remote inference response"
+            ) from exc
+        if (
+            result.request_id!=request.request_id
+            or result.node_id!=request.node_id
+        ):
+            raise HttpsTransportError(
+                "remote inference response identity mismatch"
+            )
+        return result
 
     def execute(self,enrollment:NodeEnrollment,request:RemoteOperationRequest)->RemoteOperationResult:
         data=self._request(enrollment,"POST","/v1/operations",{
