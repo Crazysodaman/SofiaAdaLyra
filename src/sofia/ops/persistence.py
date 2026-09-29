@@ -95,6 +95,14 @@ class JsonFleetRegistry(FleetRegistry):
             lambda: super(JsonFleetRegistry, self).transition(host_id, state)
         )
 
+    def authenticate_candidate(self, host_id: str, node_id: UUID) -> FleetHost:
+        return self._mutate_and_flush(
+            lambda: super(JsonFleetRegistry, self).authenticate_candidate(
+                host_id,
+                node_id,
+            )
+        )
+
     def update_telemetry(self, host_id: str, telemetry) -> FleetHost:
         return self._mutate_and_flush(
             lambda: super(JsonFleetRegistry, self).update_telemetry(host_id, telemetry)
