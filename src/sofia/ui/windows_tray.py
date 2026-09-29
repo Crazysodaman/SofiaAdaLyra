@@ -346,7 +346,29 @@ class WindowsTrayAgent:
                     append(game, flags, item_id, label)
                 append(root, MF_POPUP, game, "Game Mode")
 
-                llm_label = status.llm_model or "LLM Engine"
+                llm_label = (
+                    "Cognition (dual)"
+                    if status.cognitive_routing_enabled
+                    else "Cognition"
+                )
+                primary_label = status.llm_model or "not configured"
+                append(
+                    llm,
+                    MF_STRING | MF_GRAYED,
+                    0,
+                    f"Primary: {primary_label}",
+                )
+                if status.cognitive_routing_enabled:
+                    secondary_label = (
+                        status.llm_secondary_model or "not configured"
+                    )
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        f"Secondary: {secondary_label}",
+                    )
+                append(llm, MF_SEPARATOR, 0, None)
                 for item_id, label, command in (
                     (1020, "Start", TrayCommand.LLM_START),
                     (1021, "Stop", TrayCommand.LLM_STOP),
@@ -358,7 +380,15 @@ class WindowsTrayAgent:
                         else MF_STRING | MF_GRAYED
                     )
                     append(llm, flags, item_id, label)
-                append(llm, MF_STRING, 1023, "Unload model")
+                unload_label = (
+                    "Unload configured model"
+                    if len(status.configured_llm_models) <= 1
+                    else (
+                        f"Unload {len(status.configured_llm_models)} "
+                        "configured models"
+                    )
+                )
+                append(llm, MF_STRING, 1023, unload_label)
                 append(root, MF_POPUP, llm, f"{llm_label}: {status.llm_state}")
 
                 for item_id, label, command in (
