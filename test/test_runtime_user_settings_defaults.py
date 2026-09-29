@@ -204,3 +204,26 @@ def test_model_lifecycle_environment_override_beats_saved_setting(
 
     assert configuration.model_lifecycle.enabled is True
     assert configuration.model_lifecycle.idle_unload_seconds == 120
+
+
+
+def test_fresh_production_style_configuration_uses_dual_cognition_defaults(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-dual-default"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+
+    configuration = create_default_configuration()
+
+    assert configuration.routing is not None
+    assert configuration.routing.enabled is True
+    assert configuration.routing.primary is not None
+    assert configuration.routing.secondary is not None
+    assert (
+        configuration.provider.model
+        == configuration.routing.primary.model
+    )
+    assert configuration.model_lifecycle.enabled is True

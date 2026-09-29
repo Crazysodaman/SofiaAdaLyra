@@ -10,6 +10,7 @@ import sqlite3
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
     DEFAULT_PROVIDER_MODEL,
+    LEGACY_SINGLE_PRESET,
     RECOMMENDED_PRIMARY_CONTEXT_SIZE,
     RECOMMENDED_PRIMARY_MODEL,
     RECOMMENDED_SECONDARY_CONTEXT_SIZE,
@@ -18,19 +19,23 @@ from sofia.config.model_catalog import (
 from sofia.environment.model import LocationSubject
 
 
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 2
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimeUserSettings:
+    schema_version: int = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     provider_model: str = DEFAULT_PROVIDER_MODEL
     provider_context_size: int = DEFAULT_PROVIDER_CONTEXT_SIZE
     provider_thinking: bool | str = False
 
-    cognitive_routing_enabled: bool = False
+    cognitive_routing_enabled: bool = True
     cognitive_primary_model: str = RECOMMENDED_PRIMARY_MODEL
     cognitive_secondary_model: str = RECOMMENDED_SECONDARY_MODEL
     cognitive_primary_context_size: int = RECOMMENDED_PRIMARY_CONTEXT_SIZE
     cognitive_secondary_context_size: int = RECOMMENDED_SECONDARY_CONTEXT_SIZE
     cognitive_verify_enabled: bool = True
-    cognitive_model_auto_manage: bool = False
+    cognitive_model_auto_manage: bool = True
     cognitive_model_idle_unload_seconds: int = 1800
     cognitive_model_keep_alive: str = "10m"
 
@@ -63,6 +68,13 @@ class RuntimeUserSettings:
     current_location_max_age_seconds: int = 900
 
     def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+        ):
+            raise ValueError(
+                "schema_version must match the current runtime settings schema"
+            )
         if not isinstance(self.provider_model, str) or not self.provider_model.strip():
             raise ValueError("provider_model is required")
         if type(self.provider_context_size) is not int or self.provider_context_size <= 0:
@@ -336,6 +348,30 @@ class RuntimeUserSettingsStore:
     @staticmethod
     def _decode(raw: str) -> RuntimeUserSettings:
         data = json.loads(raw)
+        if not isinstance(data, dict):
+            raise ValueError("runtime user settings must decode to an object")
+        version = data.get("schema_version", 1)
+        if type(version) is not int or version < 1:
+            raise ValueError("runtime user settings schema_version is invalid")
+        if version > CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION:
+            raise ValueError(
+                "runtime user settings were written by a newer Sofía build"
+            )
+        if version < 2:
+            data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+            data["cognitive_routing_enabled"] = True
+            data["cognitive_model_auto_manage"] = True
+            if (
+                data.get("provider_model") == LEGACY_SINGLE_PRESET.model
+                and data.get("provider_context_size")
+                == LEGACY_SINGLE_PRESET.context_size
+            ):
+                data["provider_model"] = RECOMMENDED_PRIMARY_MODEL
+                data["provider_context_size"] = (
+                    RECOMMENDED_PRIMARY_CONTEXT_SIZE
+                )
+        else:
+            data["schema_version"] = version
         data["location_subject"] = LocationSubject(
             data.get("location_subject", "user")
         )

@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
+import json
 
 import pytest
 
 from sofia.config.user_settings import (
+    CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION,
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
@@ -131,3 +133,74 @@ def test_model_lifecycle_settings_validate_keep_alive():
         RuntimeUserSettings(
             cognitive_model_keep_alive="",
         )
+
+
+
+def test_fresh_runtime_settings_enable_dual_cognition_and_residency():
+    settings = RuntimeUserSettings()
+
+    assert settings.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+    assert settings.cognitive_routing_enabled is True
+    assert settings.cognitive_model_auto_manage is True
+    assert settings.provider_model == settings.cognitive_primary_model
+
+
+def test_legacy_saved_settings_migrate_to_dual_cognition(tmp_path):
+    state = tmp_path / "legacy-sofia.db"
+    store = RuntimeUserSettingsStore(state)
+    legacy = {
+        "provider_model": "qwen3:14b",
+        "provider_context_size": 20000,
+        "provider_thinking": False,
+        "cognitive_routing_enabled": False,
+        "cognitive_primary_model": "owner/primary:any",
+        "cognitive_secondary_model": "owner/secondary:any",
+        "cognitive_primary_context_size": 16000,
+        "cognitive_secondary_context_size": 8192,
+        "cognitive_verify_enabled": True,
+        "cognitive_model_auto_manage": False,
+        "cognitive_model_idle_unload_seconds": 1800,
+        "cognitive_model_keep_alive": "10m",
+        "discord_enabled": False,
+        "discord_owner_user_id": None,
+        "discord_bot_user_id": None,
+        "discord_dm_channel_id": None,
+        "home_assistant_enabled": False,
+        "home_assistant_url": None,
+        "home_assistant_weather_entity": None,
+        "home_assistant_indoor_temperature_entity": None,
+        "home_assistant_indoor_humidity_entity": None,
+        "home_assistant_current_location_entity": None,
+        "home_assistant_current_location_subject": None,
+        "location_label": None,
+        "location_timezone": None,
+        "location_latitude": None,
+        "location_longitude": None,
+        "location_subject": "user",
+        "nws_enabled": False,
+        "nws_location_subject": "user",
+        "nws_user_agent": "SofiaAdaLyra/1.0",
+        "refresh_seconds": 300,
+        "weather_max_age_seconds": 1800,
+        "indoor_max_age_seconds": 900,
+        "current_location_max_age_seconds": 900,
+    }
+    with store._connect() as db, db:
+        db.execute(
+            "INSERT INTO ui_runtime_settings "
+            "(settings_key,value_json,updated_at) VALUES (?,?,?)",
+            (
+                store._KEY,
+                json.dumps(legacy),
+                NOW.isoformat(),
+            ),
+        )
+
+    migrated = store.load()
+
+    assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+    assert migrated.cognitive_routing_enabled is True
+    assert migrated.cognitive_model_auto_manage is True
+    assert migrated.cognitive_primary_model == "owner/primary:any"
+    assert migrated.cognitive_secondary_model == "owner/secondary:any"
+    assert migrated.provider_model == migrated.cognitive_primary_model
