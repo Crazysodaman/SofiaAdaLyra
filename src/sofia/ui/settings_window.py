@@ -5,8 +5,14 @@ from datetime import datetime, timezone
 import sqlite3
 
 from sofia.config import create_default_configuration
+from sofia.config.user_settings import (
+    RuntimeUserSettings,
+    RuntimeUserSettingsStore,
+)
+from sofia.environment.model import LocationSubject
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.safe.secret_store import ProtectedSecretStore
 from .control_center import (
     DesktopControlSettings,
     DesktopControlSettingsStore,
@@ -36,6 +42,33 @@ def _activity_override(mode: GameMode) -> ActivityMode:
     }[mode]
 
 
+def _optional_text(value: str) -> str | None:
+    stripped = value.strip()
+    return stripped or None
+
+
+def _optional_int(value: str, label: str) -> int | None:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if not stripped.isascii() or not stripped.isdigit():
+        raise ValueError(f"{label} must contain digits only")
+    parsed = int(stripped)
+    if parsed <= 0 or parsed >= (1 << 64):
+        raise ValueError(f"{label} must be a positive Discord snowflake")
+    return parsed
+
+
+def _optional_float(value: str, label: str) -> float | None:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    try:
+        return float(stripped)
+    except ValueError as exc:
+        raise ValueError(f"{label} must be numeric") from exc
+
+
 def run_settings_window() -> int:
     import tkinter as tk
     from tkinter import messagebox, ttk
@@ -43,13 +76,16 @@ def run_settings_window() -> int:
     config = create_default_configuration()
     _ensure_state_database(config.state_path)
     store = DesktopControlSettingsStore(config.state_path)
+    runtime_store = RuntimeUserSettingsStore(config.state_path)
+    secrets = ProtectedSecretStore.for_state_path(config.state_path)
     activity = HostActivityStore(config.state_path)
     current = store.load()
+    runtime = runtime_store.load()
 
     root = tk.Tk()
     root.title("Sofía Settings")
-    root.geometry("860x620")
-    root.minsize(720, 520)
+    root.geometry("920x720")
+    root.minsize(760, 580)
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill="both", expand=True, padx=12, pady=12)
@@ -68,9 +104,125 @@ def run_settings_window() -> int:
     runtime_service = tk.StringVar(value=current.runtime_service_name)
     llm_service = tk.StringVar(value=current.llm_service_name)
 
+    provider_model = tk.StringVar(value=runtime.provider_model)
+    provider_context = tk.StringVar(value=str(runtime.provider_context_size))
+    provider_thinking = tk.BooleanVar(value=runtime.provider_thinking)
+
+    discord_enabled = tk.BooleanVar(value=runtime.discord_enabled)
+    discord_owner = tk.StringVar(
+        value="" if runtime.discord_owner_user_id is None
+        else str(runtime.discord_owner_user_id)
+    )
+    discord_bot = tk.StringVar(
+        value="" if runtime.discord_bot_user_id is None
+        else str(runtime.discord_bot_user_id)
+    )
+    discord_channel = tk.StringVar(
+        value="" if runtime.discord_dm_channel_id is None
+        else str(runtime.discord_dm_channel_id)
+    )
+    discord_token = tk.StringVar(value="")
+    discord_clear_token = tk.BooleanVar(value=False)
+    discord_token_status = tk.StringVar(
+        value=(
+            "Token stored securely"
+            if secrets.exists("discord-token")
+            else "No stored token"
+        )
+    )
+
+    ha_enabled = tk.BooleanVar(value=runtime.home_assistant_enabled)
+    ha_url = tk.StringVar(value=runtime.home_assistant_url or "")
+    ha_token = tk.StringVar(value="")
+    ha_clear_token = tk.BooleanVar(value=False)
+    ha_token_status = tk.StringVar(
+        value=(
+            "Token stored securely"
+            if secrets.exists("home-assistant-token")
+            else "No stored token"
+        )
+    )
+    ha_weather = tk.StringVar(
+        value=runtime.home_assistant_weather_entity or ""
+    )
+    ha_temp = tk.StringVar(
+        value=runtime.home_assistant_indoor_temperature_entity or ""
+    )
+    ha_humidity = tk.StringVar(
+        value=runtime.home_assistant_indoor_humidity_entity or ""
+    )
+    ha_location = tk.StringVar(
+        value=runtime.home_assistant_current_location_entity or ""
+    )
+    ha_location_subject = tk.StringVar(
+        value=(
+            ""
+            if runtime.home_assistant_current_location_subject is None
+            else runtime.home_assistant_current_location_subject.value
+        )
+    )
+
+    location_label = tk.StringVar(value=runtime.location_label or "")
+    location_timezone = tk.StringVar(value=runtime.location_timezone or "")
+    location_latitude = tk.StringVar(
+        value=(
+            ""
+            if runtime.location_latitude is None
+            else str(runtime.location_latitude)
+        )
+    )
+    location_longitude = tk.StringVar(
+        value=(
+            ""
+            if runtime.location_longitude is None
+            else str(runtime.location_longitude)
+        )
+    )
+    location_subject = tk.StringVar(value=runtime.location_subject.value)
+    nws_enabled = tk.BooleanVar(value=runtime.nws_enabled)
+    nws_subject = tk.StringVar(value=runtime.nws_location_subject.value)
+    nws_user_agent = tk.StringVar(value=runtime.nws_user_agent)
+    refresh_seconds = tk.StringVar(value=str(runtime.refresh_seconds))
+    weather_age = tk.StringVar(value=str(runtime.weather_max_age_seconds))
+    indoor_age = tk.StringVar(value=str(runtime.indoor_max_age_seconds))
+    current_location_age = tk.StringVar(
+        value=str(runtime.current_location_max_age_seconds)
+    )
+
     general = frames["General"]
-    ttk.Checkbutton(general, text="Close chat window to system tray", variable=close_to_tray).pack(anchor="w", pady=4)
-    ttk.Checkbutton(general, text="Start tray client with Windows", variable=start_windows).pack(anchor="w", pady=4)
+    ttk.Checkbutton(
+        general,
+        text="Close chat window to system tray",
+        variable=close_to_tray,
+    ).pack(anchor="w", pady=4)
+    ttk.Checkbutton(
+        general,
+        text="Start tray client with Windows",
+        variable=start_windows,
+    ).pack(anchor="w", pady=4)
+
+    chat = frames["Chat"]
+    ttk.Label(chat, text="Desktop chat routing").pack(anchor="w")
+    ttk.Combobox(
+        chat,
+        textvariable=remote_mode,
+        values=tuple(value.value for value in RemoteChatMode),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(chat, text="Pinned runtime endpoint").pack(anchor="w")
+    ttk.Entry(
+        chat,
+        textvariable=pinned_endpoint,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(
+        chat,
+        text=(
+            "Fleet-auto follows the authoritative ready Sofía runtime. "
+            "Pinned mode uses the configured mTLS endpoint. Local keeps "
+            "the desktop on this machine."
+        ),
+        wraplength=720,
+    ).pack(anchor="w")
 
     workloads = frames["Workloads"]
     ttk.Label(workloads, text="Game Mode").pack(anchor="w")
@@ -82,56 +234,262 @@ def run_settings_window() -> int:
     ).pack(anchor="w", fill="x", pady=(2, 10))
     ttk.Label(
         workloads,
-        text="Auto uses observed activity. On protects this machine for gaming. Off disables gaming protection.",
-        wraplength=680,
-    ).pack(anchor="w")
-
-    chat = frames["Chat"]
-    ttk.Label(chat, text="Desktop chat routing").pack(anchor="w")
-    ttk.Combobox(
-        chat,
-        textvariable=remote_mode,
-        values=tuple(value.value for value in RemoteChatMode),
-        state="readonly",
-    ).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(chat, text="Pinned runtime endpoint").pack(anchor="w")
-    ttk.Entry(chat, textvariable=pinned_endpoint).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(
-        chat,
-        text="Fleet-auto follows the currently authoritative ready Sofía runtime when OPS/RUN publishes a verified endpoint. Pinned mode uses the configured mTLS endpoint.",
-        wraplength=680,
+        text=(
+            "Auto uses observed activity. On protects this machine for "
+            "gaming. Off disables gaming protection."
+        ),
+        wraplength=720,
     ).pack(anchor="w")
 
     models = frames["Models"]
-    ttk.Label(models, text="LLM service name").pack(anchor="w")
-    ttk.Entry(models, textvariable=llm_service).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(models, text="Sofía runtime service name").pack(anchor="w")
-    ttk.Entry(models, textvariable=runtime_service).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(
+    ttk.Label(models, text="Ollama model").pack(anchor="w")
+    ttk.Entry(
         models,
-        text="LLM start/stop/restart is independent from the Sofía runtime. Model unload keeps the Ollama service running.",
-        wraplength=680,
+        textvariable=provider_model,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(models, text="Context size").pack(anchor="w")
+    ttk.Entry(
+        models,
+        textvariable=provider_context,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Checkbutton(
+        models,
+        text="Enable provider thinking",
+        variable=provider_thinking,
+    ).pack(anchor="w", pady=(0, 12))
+    ttk.Label(models, text="LLM Windows service name").pack(anchor="w")
+    ttk.Entry(
+        models,
+        textvariable=llm_service,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(models, text="Sofía runtime Windows service name").pack(
+        anchor="w"
+    )
+    ttk.Entry(
+        models,
+        textvariable=runtime_service,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+
+    integrations = frames["Integrations"]
+
+    discord_frame = ttk.LabelFrame(
+        integrations,
+        text="Discord",
+        padding=10,
+    )
+    discord_frame.pack(fill="x", pady=(0, 12))
+    ttk.Checkbutton(
+        discord_frame,
+        text="Enable owner-only Discord DM integration",
+        variable=discord_enabled,
+    ).pack(anchor="w", pady=(0, 8))
+    for label, variable in (
+        ("Owner user ID", discord_owner),
+        ("Bot user ID", discord_bot),
+        ("DM channel ID", discord_channel),
+    ):
+        ttk.Label(discord_frame, text=label).pack(anchor="w")
+        ttk.Entry(
+            discord_frame,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(discord_frame, text="Bot token").pack(anchor="w")
+    ttk.Entry(
+        discord_frame,
+        textvariable=discord_token,
+        show="•",
+    ).pack(anchor="w", fill="x", pady=(2, 4))
+    ttk.Label(
+        discord_frame,
+        textvariable=discord_token_status,
     ).pack(anchor="w")
+    ttk.Checkbutton(
+        discord_frame,
+        text="Clear stored Discord token on Save",
+        variable=discord_clear_token,
+    ).pack(anchor="w", pady=(4, 0))
+    ttk.Label(
+        discord_frame,
+        text=(
+            "Leave the token box blank to keep the existing protected "
+            "token. A new value replaces it."
+        ),
+        wraplength=700,
+    ).pack(anchor="w", pady=(6, 0))
+
+    ha_frame = ttk.LabelFrame(
+        integrations,
+        text="Home Assistant",
+        padding=10,
+    )
+    ha_frame.pack(fill="x")
+    ttk.Checkbutton(
+        ha_frame,
+        text="Enable Home Assistant environment integration",
+        variable=ha_enabled,
+    ).pack(anchor="w", pady=(0, 8))
+    ttk.Label(ha_frame, text="Base URL").pack(anchor="w")
+    ttk.Entry(
+        ha_frame,
+        textvariable=ha_url,
+    ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(ha_frame, text="Long-lived access token").pack(anchor="w")
+    ttk.Entry(
+        ha_frame,
+        textvariable=ha_token,
+        show="•",
+    ).pack(anchor="w", fill="x", pady=(2, 4))
+    ttk.Label(
+        ha_frame,
+        textvariable=ha_token_status,
+    ).pack(anchor="w")
+    ttk.Checkbutton(
+        ha_frame,
+        text="Clear stored Home Assistant token on Save",
+        variable=ha_clear_token,
+    ).pack(anchor="w", pady=(4, 8))
+    for label, variable in (
+        ("Weather entity", ha_weather),
+        ("Indoor temperature entity", ha_temp),
+        ("Indoor humidity entity", ha_humidity),
+        ("Current-location entity", ha_location),
+    ):
+        ttk.Label(ha_frame, text=label).pack(anchor="w")
+        ttk.Entry(
+            ha_frame,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(ha_frame, text="Current-location subject").pack(anchor="w")
+    ttk.Combobox(
+        ha_frame,
+        textvariable=ha_location_subject,
+        values=("", "user", "site", "host"),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 0))
+
+    environment = frames["Environment"]
+    location_frame = ttk.LabelFrame(
+        environment,
+        text="Configured location",
+        padding=10,
+    )
+    location_frame.pack(fill="x", pady=(0, 12))
+    ttk.Label(
+        location_frame,
+        text=(
+            "This is configured location context, not proof that a person "
+            "or device is physically there now."
+        ),
+        wraplength=700,
+    ).pack(anchor="w", pady=(0, 8))
+    for label, variable in (
+        ("Location label", location_label),
+        ("Timezone, e.g. America/Chicago", location_timezone),
+        ("Latitude (optional)", location_latitude),
+        ("Longitude (optional)", location_longitude),
+    ):
+        ttk.Label(location_frame, text=label).pack(anchor="w")
+        ttk.Entry(
+            location_frame,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(location_frame, text="Location subject").pack(anchor="w")
+    ttk.Combobox(
+        location_frame,
+        textvariable=location_subject,
+        values=("user", "site", "host"),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 0))
+
+    weather_frame = ttk.LabelFrame(
+        environment,
+        text="Weather and refresh",
+        padding=10,
+    )
+    weather_frame.pack(fill="x")
+    ttk.Checkbutton(
+        weather_frame,
+        text="Enable National Weather Service provider",
+        variable=nws_enabled,
+    ).pack(anchor="w", pady=(0, 8))
+    ttk.Label(weather_frame, text="NWS location subject").pack(anchor="w")
+    ttk.Combobox(
+        weather_frame,
+        textvariable=nws_subject,
+        values=("user", "site", "host"),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(weather_frame, text="NWS User-Agent").pack(anchor="w")
+    ttk.Entry(
+        weather_frame,
+        textvariable=nws_user_agent,
+    ).pack(anchor="w", fill="x", pady=(2, 8))
+    for label, variable in (
+        ("Refresh seconds", refresh_seconds),
+        ("Weather max age seconds", weather_age),
+        ("Indoor max age seconds", indoor_age),
+        ("Current-location max age seconds", current_location_age),
+    ):
+        ttk.Label(weather_frame, text=label).pack(anchor="w")
+        ttk.Entry(
+            weather_frame,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 6))
 
     descriptions = {
-        "Sofía": "Identity/personality presentation controls live here without granting protected-state mutation.",
-        "ACT": "Initiative, quiet hours, delivery channels, mute/stop and notification policy.",
-        "Fleet": "Hosts, enrollment, discovery scope, maintenance policy and health.",
-        "Integrations": "Discord, Home Assistant, JMRI, GitHub, Steam/local gaming evidence and other adapters.",
-        "Environment": "Configured site/host location, weather and environment providers.",
-        "Avatar": "Presentation, wardrobe, appearance and renderer controls.",
-        "Memory": "Retention, review, promotion and privacy controls.",
-        "EVOLVE": "Reviewed revisions, approvals and rollback history.",
-        "Safety & Authority": "Standing grants, revocations, emergency controls and approval policy.",
-        "Advanced": "Certificates, logs, databases, networking and diagnostics.",
+        "Sofía": (
+            "Identity and personality authority are protected elsewhere. "
+            "No direct mutation controls are currently required here."
+        ),
+        "ACT": (
+            "ACT policy controls are not yet exposed as owner-editable "
+            "settings. Existing authority and stop rules remain in force."
+        ),
+        "Fleet": (
+            "Fleet enrollment and maintenance controls remain governed by "
+            "OPS/RUN workflows rather than free-form settings."
+        ),
+        "Avatar": (
+            "Avatar and wardrobe controls will appear here when their "
+            "persistent owner-setting surface is ready."
+        ),
+        "Memory": (
+            "Memory review, promotion, import and privacy actions use the "
+            "reviewed memory workflow; bulk unsafe promotion is not exposed."
+        ),
+        "EVOLVE": (
+            "EVOLVE changes remain review-and-approval operations rather "
+            "than ordinary preferences."
+        ),
+        "Safety & Authority": (
+            "Protected grants, revocations and emergency controls are "
+            "intentionally not editable as ordinary UI preferences."
+        ),
+        "Advanced": (
+            "Advanced diagnostics remain read-only or separately approved "
+            "until a bounded owner-control surface is implemented."
+        ),
     }
     for section, description in descriptions.items():
-        ttk.Label(frames[section], text=description, wraplength=680).pack(anchor="w")
+        ttk.Label(
+            frames[section],
+            text=description,
+            wraplength=720,
+        ).pack(anchor="w")
 
     status = tk.StringVar(value="")
     bottom = ttk.Frame(root, padding=(12, 0, 12, 12))
     bottom.pack(fill="x")
     ttk.Label(bottom, textvariable=status).pack(side="left")
+
+    def _positive(value: str, label: str) -> int:
+        try:
+            parsed = int(value.strip())
+        except ValueError as exc:
+            raise ValueError(f"{label} must be an integer") from exc
+        if parsed <= 0:
+            raise ValueError(f"{label} must be positive")
+        return parsed
 
     def save() -> None:
         try:
@@ -141,24 +499,176 @@ def run_settings_window() -> int:
                 start_with_windows=bool(start_windows.get()),
                 game_mode=selected_game_mode,
                 remote_chat_mode=RemoteChatMode(remote_mode.get()),
-                pinned_chat_endpoint=(pinned_endpoint.get().strip() or None),
+                pinned_chat_endpoint=(
+                    pinned_endpoint.get().strip() or None
+                ),
                 runtime_service_name=runtime_service.get().strip(),
                 llm_service_name=llm_service.get().strip(),
             )
+
+            discord_token_value = discord_token.get().strip()
+            discord_token_after_save = (
+                False
+                if discord_clear_token.get()
+                else secrets.exists("discord-token")
+            )
+            if discord_token_value:
+                discord_token_after_save = True
+            if discord_enabled.get() and not discord_token_after_save:
+                raise ValueError(
+                    "Discord is enabled but no Discord bot token is stored"
+                )
+
+            ha_token_value = ha_token.get().strip()
+            ha_token_after_save = (
+                False
+                if ha_clear_token.get()
+                else secrets.exists("home-assistant-token")
+            )
+            if ha_token_value:
+                ha_token_after_save = True
+            if ha_enabled.get() and not ha_token_after_save:
+                raise ValueError(
+                    "Home Assistant is enabled but no access token is stored"
+                )
+
+            runtime_updated = RuntimeUserSettings(
+                provider_model=provider_model.get().strip(),
+                provider_context_size=_positive(
+                    provider_context.get(),
+                    "Context size",
+                ),
+                provider_thinking=bool(provider_thinking.get()),
+                discord_enabled=bool(discord_enabled.get()),
+                discord_owner_user_id=_optional_int(
+                    discord_owner.get(),
+                    "Discord owner user ID",
+                ),
+                discord_bot_user_id=_optional_int(
+                    discord_bot.get(),
+                    "Discord bot user ID",
+                ),
+                discord_dm_channel_id=_optional_int(
+                    discord_channel.get(),
+                    "Discord DM channel ID",
+                ),
+                home_assistant_enabled=bool(ha_enabled.get()),
+                home_assistant_url=_optional_text(ha_url.get()),
+                home_assistant_weather_entity=_optional_text(
+                    ha_weather.get()
+                ),
+                home_assistant_indoor_temperature_entity=_optional_text(
+                    ha_temp.get()
+                ),
+                home_assistant_indoor_humidity_entity=_optional_text(
+                    ha_humidity.get()
+                ),
+                home_assistant_current_location_entity=_optional_text(
+                    ha_location.get()
+                ),
+                home_assistant_current_location_subject=(
+                    None
+                    if not ha_location_subject.get().strip()
+                    else LocationSubject(
+                        ha_location_subject.get().strip()
+                    )
+                ),
+                location_label=_optional_text(location_label.get()),
+                location_timezone=_optional_text(
+                    location_timezone.get()
+                ),
+                location_latitude=_optional_float(
+                    location_latitude.get(),
+                    "Latitude",
+                ),
+                location_longitude=_optional_float(
+                    location_longitude.get(),
+                    "Longitude",
+                ),
+                location_subject=LocationSubject(
+                    location_subject.get()
+                ),
+                nws_enabled=bool(nws_enabled.get()),
+                nws_location_subject=LocationSubject(
+                    nws_subject.get()
+                ),
+                nws_user_agent=nws_user_agent.get().strip(),
+                refresh_seconds=_positive(
+                    refresh_seconds.get(),
+                    "Refresh seconds",
+                ),
+                weather_max_age_seconds=_positive(
+                    weather_age.get(),
+                    "Weather max age",
+                ),
+                indoor_max_age_seconds=_positive(
+                    indoor_age.get(),
+                    "Indoor max age",
+                ),
+                current_location_max_age_seconds=_positive(
+                    current_location_age.get(),
+                    "Current-location max age",
+                ),
+            )
+
             now = datetime.now(timezone.utc)
             configure_windows_startup(updated.start_with_windows)
             store.save(updated, at=now)
+            runtime_store.save(runtime_updated, at=now)
+
+            if discord_clear_token.get():
+                secrets.clear("discord-token")
+            if discord_token_value:
+                secrets.set("discord-token", discord_token_value)
+
+            if ha_clear_token.get():
+                secrets.clear("home-assistant-token")
+            if ha_token_value:
+                secrets.set(
+                    "home-assistant-token",
+                    ha_token_value,
+                )
+
             activity.set_override(
                 _local_host_id(),
                 _activity_override(selected_game_mode),
                 at=now,
             )
-            status.set("Saved")
-        except Exception as exc:
-            messagebox.showerror("Settings not saved", f"{type(exc).__name__}: {exc}", parent=root)
 
-    ttk.Button(bottom, text="Save", command=save).pack(side="right")
-    ttk.Button(bottom, text="Close", command=root.destroy).pack(side="right", padx=(0, 8))
+            discord_token.set("")
+            ha_token.set("")
+            discord_clear_token.set(False)
+            ha_clear_token.set(False)
+            discord_token_status.set(
+                "Token stored securely"
+                if secrets.exists("discord-token")
+                else "No stored token"
+            )
+            ha_token_status.set(
+                "Token stored securely"
+                if secrets.exists("home-assistant-token")
+                else "No stored token"
+            )
+            status.set(
+                "Saved. Restart Sofía to apply runtime/integration changes."
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Settings not saved",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    ttk.Button(
+        bottom,
+        text="Save",
+        command=save,
+    ).pack(side="right")
+    ttk.Button(
+        bottom,
+        text="Close",
+        command=root.destroy,
+    ).pack(side="right", padx=(0, 8))
 
     root.mainloop()
     return 0
