@@ -86,6 +86,12 @@ class CognitiveRoutingPolicy:
         "uncensored model",
         "secondary model",
     )
+    _INTERACTION_CONTEXT_MARKERS = (
+        "TRUSTED INTERACTION INTERPRETATION",
+        "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
+        "TRUSTED INTERACTION FOLLOW-UP",
+        "TRUSTED BODY INTERACTION CONTROL",
+    )
     _HIGH_IMPACT_MARKERS = (
         "delete",
         "remove",
@@ -139,6 +145,20 @@ class CognitiveRoutingPolicy:
         text = self._latest_user_text(request)
         normalized = text.casefold()
         word_count = len(text.split())
+
+        if any(
+            message.role is CognitiveRole.SYSTEM
+            and any(
+                marker in message.content
+                for marker in self._INTERACTION_CONTEXT_MARKERS
+            )
+            for message in request.messages
+        ):
+            return RoutingDecision(
+                route=CognitiveRoute.STANDARD,
+                score=4,
+                reason="reviewed represented-interaction context",
+            )
 
         if any(marker in normalized for marker in self._VERIFY_MARKERS):
             return RoutingDecision(
@@ -313,7 +333,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
         request: CognitiveRequest,
     ) -> tuple[CognitiveResponse, int]:
         try:
-            return preferred.respond(request), 0
+            response = preferred.respond(request)
+            if not response.tool_calls and len(response.content.strip()) <= 1:
+                raise CognitiveEngineError(
+                    "preferred cognitive engine returned an incomplete response"
+                )
+            return response, 0
         except CognitiveEngineError as preferred_error:
             try:
                 return fallback.respond(request), 1
