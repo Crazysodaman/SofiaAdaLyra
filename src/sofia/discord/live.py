@@ -10,7 +10,7 @@ transport testing and dedicated deployments.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 from pathlib import Path
 import sys
@@ -22,6 +22,7 @@ from sofia.config import (
     SofiaConfiguration,
     create_production_configuration,
 )
+from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import DiscordConversationBridge
 from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender
@@ -69,9 +70,16 @@ def _validated_existing_binding(
 ):
     discord_config = provisioning.require_config()
     bindings = DiscordBindingStore(configuration.state_path)
-    existing = bindings.get(
-        bot_user_id=discord_config.bot_user_id,
-        channel_id=discord_config.dm_channel_id,
+    existing = (
+        bindings.get(
+            bot_user_id=discord_config.bot_user_id,
+            channel_id=discord_config.dm_channel_id,
+        )
+        if discord_config.dm_channel_id is not None
+        else bindings.find_for_owner(
+            bot_user_id=discord_config.bot_user_id,
+            owner_user_id=discord_config.owner_user_id,
+        )
     )
     if existing is None:
         return None
@@ -84,6 +92,26 @@ def _validated_existing_binding(
             "Discord channel binding is revoked; supervised re-enrollment is required"
         )
     return existing
+
+
+def _persist_verified_dm_channel(
+    configuration: SofiaConfiguration,
+    channel_id: int,
+) -> None:
+    """Cache the authenticated owner DM channel in durable user settings."""
+    store = RuntimeUserSettingsStore(configuration.state_path)
+    settings = store.load()
+    if (
+        not settings.discord_enabled
+        or settings.discord_dm_channel_id == channel_id
+    ):
+        return
+    store.save(
+        replace(
+            settings,
+            discord_dm_channel_id=channel_id,
+        )
+    )
 
 
 def discord_bound_session_id(
@@ -171,6 +199,13 @@ def compose_live_discord_for_conversation(
         store=inbox,
         bindings=bindings,
         session_id=active_session,
+        deliveries=deliveries,
+        on_verified_channel=(
+            lambda channel_id: _persist_verified_dm_channel(
+                config,
+                channel_id,
+            )
+        ),
     )
     return ComposedDiscordChannel(
         runtime=runtime,
@@ -344,9 +379,16 @@ def compose_live_discord(
     bindings = DiscordBindingStore(config.state_path)
     deliveries = DiscordDeliveryStore(config.state_path)
 
-    existing = bindings.get(
-        bot_user_id=discord_config.bot_user_id,
-        channel_id=discord_config.dm_channel_id,
+    existing = (
+        bindings.get(
+            bot_user_id=discord_config.bot_user_id,
+            channel_id=discord_config.dm_channel_id,
+        )
+        if discord_config.dm_channel_id is not None
+        else bindings.find_for_owner(
+            bot_user_id=discord_config.bot_user_id,
+            owner_user_id=discord_config.owner_user_id,
+        )
     )
     if existing is not None:
         if existing.owner_user_id != discord_config.owner_user_id:
