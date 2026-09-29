@@ -366,9 +366,13 @@ class RuntimeUserSettingsStore:
                 and data.get("provider_context_size")
                 == LEGACY_SINGLE_PRESET.context_size
             ):
-                data["provider_model"] = RECOMMENDED_PRIMARY_MODEL
-                data["provider_context_size"] = (
-                    RECOMMENDED_PRIMARY_CONTEXT_SIZE
+                data["provider_model"] = data.get(
+                    "cognitive_primary_model",
+                    RECOMMENDED_PRIMARY_MODEL,
+                )
+                data["provider_context_size"] = data.get(
+                    "cognitive_primary_context_size",
+                    RECOMMENDED_PRIMARY_CONTEXT_SIZE,
                 )
         else:
             data["schema_version"] = version
