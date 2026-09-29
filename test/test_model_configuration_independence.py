@@ -21,11 +21,7 @@ CATALOG_PATH = SOURCE_ROOT / "config" / "model_catalog.py"
 
 
 def test_known_model_literals_are_centralized_in_model_catalog():
-    literals = {
-        DEFAULT_PROVIDER_MODEL,
-        RECOMMENDED_PRIMARY_MODEL,
-        RECOMMENDED_SECONDARY_MODEL,
-    }
+    literals = set(known_local_model_names())
     offenders = []
     for path in SOURCE_ROOT.rglob("*.py"):
         if path == CATALOG_PATH:

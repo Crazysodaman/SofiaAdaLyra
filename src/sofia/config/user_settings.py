@@ -400,7 +400,16 @@ class RuntimeUserSettingsStore:
             ).fetchone()
         if row is None:
             return RuntimeUserSettings()
-        return self._decode(str(row[0]))
+        raw = str(row[0])
+        decoded = self._decode(raw)
+        data = json.loads(raw)
+        if (
+            data.get("schema_version")
+            != CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+            or "cognitive_model_auto_install" not in data
+        ):
+            self.save(decoded)
+        return decoded
 
     def save(
         self,
