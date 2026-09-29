@@ -64,7 +64,7 @@ def create_environment_service(
         if not base_url or not token:
             raise ValueError(
                 "Home Assistant environment entities are configured "
-                "but Home Assistant URL/token are unavailable"
+                "but Home Assistant URL/TOKEN are unavailable"
             )
         providers.append(
             HomeAssistantEnvironmentProvider(
