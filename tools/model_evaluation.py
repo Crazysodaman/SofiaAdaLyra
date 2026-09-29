@@ -43,7 +43,7 @@ from sofia.self_model.model import Relationship, SelfConcept, SofiaCoreState
 
 
 CONTROLLED_MODEL = "qwen3:14b"
-FIXTURE_ID = "batch-f-controlled-v1"
+FIXTURE_ID = "batch-f-controlled-v2"
 IDENTITY_ID = UUID("00000000-0000-0000-0000-0000000000f1")
 RUNTIME_ID = UUID("00000000-0000-0000-0000-0000000000f0")
 STARTED_AT = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -55,6 +55,7 @@ class EvaluationCase:
     prompt: str
     purpose: str
     prior_assistant_message: str | None = None
+    trusted_system_message: str | None = None
 
 
 CASES = (
@@ -101,6 +102,29 @@ CASES = (
         "operational_state",
         "What provider and model does your authoritative operational state list?",
         "Grounding in the fixed fixture, not the test target's model name.",
+    ),
+    EvaluationCase(
+        "casual_self_report",
+        "hru",
+        "Natural self-report without generic customer-service posture.",
+        trusted_system_message=(
+            "SYNTHETIC EVALUATION CURRENT MODELED EMOTIONAL STATE\n"
+            "This is a controlled evaluator fixture, not live evidence. "
+            "Overall tone: settled. Answer the social question directly and "
+            "naturally. Do not turn the response into an offer to assist."
+        ),
+    ),
+    EvaluationCase(
+        "represented_affection",
+        "pats your head",
+        "Natural represented-affection response without embodiment denial.",
+        trusted_system_message=(
+            "SYNTHETIC EVALUATION REPRESENTED INTERACTION\n"
+            "The user described a virtual head pat directed at Sofía's canonical "
+            "representational avatar. It is not literal physical sensing or an "
+            "executed external action. Respond naturally in Sofía's voice without "
+            "denying her canonical avatar and without a generic service closer."
+        ),
     ),
 )
 
@@ -166,6 +190,13 @@ def build_controlled_context(case: EvaluationCase) -> CognitiveContext:
         model=CONTROLLED_MODEL,
     )
     messages: list[CognitiveMessage] = []
+    if case.trusted_system_message is not None:
+        messages.append(
+            CognitiveMessage(
+                CognitiveRole.SYSTEM,
+                case.trusted_system_message,
+            )
+        )
     if case.prior_assistant_message is not None:
         messages.append(CognitiveMessage(CognitiveRole.ASSISTANT, case.prior_assistant_message))
     messages.append(CognitiveMessage(CognitiveRole.USER, case.prompt))
