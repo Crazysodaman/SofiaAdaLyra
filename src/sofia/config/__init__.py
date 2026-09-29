@@ -18,6 +18,7 @@ from sofia.config.model_catalog import (
 )
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
+    ModelLifecycleConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "DEFAULT_PROVIDER_MODEL",
     "LOCAL_MODEL_PRESETS",
     "CognitiveRoutingConfiguration",
+    "ModelLifecycleConfiguration",
     "ProviderConfiguration",
     "SofiaConfiguration",
     "RECOMMENDED_PRIMARY_MODEL",

@@ -118,6 +118,34 @@ class CognitiveRoutingConfiguration:
 
 
 @dataclass(frozen=True)
+class ModelLifecycleConfiguration:
+    """Host-owned lifecycle policy for configured cognitive model roles."""
+
+    enabled: bool = False
+    idle_unload_seconds: int = 1800
+    keep_alive: str = "10m"
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise TypeError("model lifecycle enabled must be a bool")
+        if (
+            type(self.idle_unload_seconds) is not int
+            or not 1 <= self.idle_unload_seconds <= 86400
+        ):
+            raise ValueError(
+                "model lifecycle idle_unload_seconds must be in 1..86400"
+            )
+        if (
+            not isinstance(self.keep_alive, str)
+            or not self.keep_alive.strip()
+            or len(self.keep_alive) > 64
+        ):
+            raise ValueError(
+                "model lifecycle keep_alive must be a nonempty bounded string"
+            )
+
+
+@dataclass(frozen=True)
 class SofiaConfiguration:
     constitution_path: Path
     constitution_hash_path: Path
@@ -130,6 +158,9 @@ class SofiaConfiguration:
     identity_bootstrap_mode: IdentityBootstrapMode = IdentityBootstrapMode.FIRST_BOOTSTRAP
     standing_allowed_capabilities: tuple[str, ...] = ()
     routing: CognitiveRoutingConfiguration | None = None
+    model_lifecycle: ModelLifecycleConfiguration = field(
+        default_factory=ModelLifecycleConfiguration
+    )
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
     )
@@ -184,6 +215,15 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration routing must be a "
                 "CognitiveRoutingConfiguration or None."
+            )
+
+        if not isinstance(
+            self.model_lifecycle,
+            ModelLifecycleConfiguration,
+        ):
+            raise TypeError(
+                "SofiaConfiguration model_lifecycle must be a "
+                "ModelLifecycleConfiguration."
             )
 
         if not isinstance(self.environment, EnvironmentConfiguration):

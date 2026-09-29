@@ -30,6 +30,9 @@ class RuntimeUserSettings:
     cognitive_primary_context_size: int = RECOMMENDED_PRIMARY_CONTEXT_SIZE
     cognitive_secondary_context_size: int = RECOMMENDED_SECONDARY_CONTEXT_SIZE
     cognitive_verify_enabled: bool = True
+    cognitive_model_auto_manage: bool = False
+    cognitive_model_idle_unload_seconds: int = 1800
+    cognitive_model_keep_alive: str = "10m"
 
     discord_enabled: bool = False
     discord_owner_user_id: int | None = None
@@ -89,6 +92,7 @@ class RuntimeUserSettings:
         for name in (
             "cognitive_routing_enabled",
             "cognitive_verify_enabled",
+            "cognitive_model_auto_manage",
         ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
@@ -106,6 +110,21 @@ class RuntimeUserSettings:
             value = getattr(self, name)
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{name} must be positive")
+        if (
+            type(self.cognitive_model_idle_unload_seconds) is not int
+            or not 1 <= self.cognitive_model_idle_unload_seconds <= 86400
+        ):
+            raise ValueError(
+                "cognitive_model_idle_unload_seconds must be in 1..86400"
+            )
+        if (
+            not isinstance(self.cognitive_model_keep_alive, str)
+            or not self.cognitive_model_keep_alive.strip()
+            or len(self.cognitive_model_keep_alive) > 64
+        ):
+            raise ValueError(
+                "cognitive_model_keep_alive must be a nonempty bounded string"
+            )
 
         for name in ("discord_enabled", "home_assistant_enabled", "nws_enabled"):
             if type(getattr(self, name)) is not bool:

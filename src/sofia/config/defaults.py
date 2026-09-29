@@ -4,6 +4,7 @@ import os
 
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
+    ModelLifecycleConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
 )
@@ -94,6 +95,26 @@ def _routing_configuration_from_environ(
             "SOFIA_COGNITION_VERIFY_ENABLED",
             default=user_settings.cognitive_verify_enabled,
         ),
+    )
+
+
+def _model_lifecycle_configuration_from_environ(
+    user_settings,
+) -> ModelLifecycleConfiguration:
+    keep_alive = os.environ.get(
+        "SOFIA_COGNITION_MODEL_KEEP_ALIVE",
+        user_settings.cognitive_model_keep_alive,
+    ).strip()
+    return ModelLifecycleConfiguration(
+        enabled=_environment_flag(
+            "SOFIA_COGNITION_MODEL_AUTO_MANAGE",
+            default=user_settings.cognitive_model_auto_manage,
+        ),
+        idle_unload_seconds=_positive_environment_int(
+            "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
+            default=user_settings.cognitive_model_idle_unload_seconds,
+        ),
+        keep_alive=keep_alive,
     )
 
 
@@ -262,6 +283,9 @@ def create_default_configuration(
         standing_allowed_capabilities=standing_capabilities,
         routing=_routing_configuration_from_environ(
             provider_configuration,
+            user_settings,
+        ),
+        model_lifecycle=_model_lifecycle_configuration_from_environ(
             user_settings,
         ),
         environment=environment,
