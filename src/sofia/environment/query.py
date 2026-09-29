@@ -104,6 +104,7 @@ class EnvironmentQueryResolver:
             "todays weather",
             "weather today",
             "how's the weather",
+            "hows the weather",
             "how is the weather",
         }
     )
@@ -240,6 +241,13 @@ class EnvironmentQueryResolver:
             "what are your environment context sources",
             "what environment sources are you using",
             "where does your environment context come from",
+            "where do you get your weather info",
+            "where do you get the weather info",
+            "where did you get that weather info",
+            "where did you pull that weather info from",
+            "what is your weather source",
+            "what's your weather source",
+            "weather source",
         }
     )
 
