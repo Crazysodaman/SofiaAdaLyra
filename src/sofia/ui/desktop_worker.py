@@ -160,6 +160,8 @@ class DesktopApplicationWorker:
             )
             if discord_service is not None:
                 self._events.put(("discord_started", None))
+            else:
+                self._events.put(("discord_disabled", None))
         except Exception as exc:
             if discord_service is not None:
                 try:
