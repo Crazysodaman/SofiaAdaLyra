@@ -1,6 +1,8 @@
 ﻿import json
 from pathlib import Path
 
+from sofia.state.atomic_file import atomic_write_text
+
 from sofia.embodiment.model import (
     AvatarEmbodiment,
     ClothingItem,
@@ -109,13 +111,14 @@ class AvatarStore:
                 exist_ok=True,
             )
 
-            self._path.write_text(
+            atomic_write_text(
+                self._path,
                 json.dumps(
                     data,
                     indent=2,
                     ensure_ascii=False,
-                ) + "\n",
-                encoding="utf-8",
+                )
+                + "\n",
             )
         except OSError as exc:
             raise EmbodimentStoreError(
