@@ -1,4 +1,5 @@
-﻿from datetime import datetime, timedelta, timezone
+﻿from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -232,4 +233,50 @@ def test_store_rejects_naive_stop_timestamp(
             stopped_at=datetime.now(),
         )
 
+    store.close()
+
+
+def test_store_can_cross_thread_boundaries_without_reusing_connection(
+    tmp_path: Path,
+):
+    store = OperationalStore(tmp_path / "sofia.db")
+    runtime_id = uuid4()
+    started_at = datetime.now(timezone.utc)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(
+            store.record_started,
+            runtime_id,
+            started_at,
+        ).result(timeout=5)
+
+    latest = store.latest_runtime()
+    assert latest is not None
+    assert latest[0] == runtime_id
+    assert latest[1] == started_at
+
+    stopped_at = started_at + timedelta(seconds=1)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(
+            store.record_stopped,
+            runtime_id,
+            stopped_at,
+        ).result(timeout=5)
+
+    latest = store.latest_runtime()
+    assert latest is not None
+    assert latest[2] == stopped_at
+    assert latest[3] == "stopped"
+    store.close()
+
+
+def test_closed_operational_store_can_be_reopened(tmp_path: Path):
+    store = OperationalStore(tmp_path / "sofia.db")
+    store.close()
+
+    with pytest.raises(RuntimeError, match="opened"):
+        store.latest_runtime()
+
+    store.open()
+    assert store.latest_runtime() is None
     store.close()
