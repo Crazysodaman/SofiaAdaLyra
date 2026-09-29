@@ -99,3 +99,54 @@ def configure_fleet_enrollment_notices(
 
     ops_service.enrollment.set_enrolled_notifier(enrolled)
     return True
+
+
+
+def create_fleet_candidate_notifier(
+    *,
+    act_service: SofiaActService,
+):
+    """Return a deduped notice callback for newly discovered untrusted hosts."""
+    if not isinstance(act_service, SofiaActService):
+        raise TypeError("act_service must be a SofiaActService")
+    destination = os.environ.get(
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+        "",
+    ).strip()
+    if not destination:
+        return None
+    if (
+        "/" in destination
+        or not destination.replace("_", "").replace("-", "").isalnum()
+    ):
+        raise ValueError(
+            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
+        )
+
+    def discovered(host, observation) -> None:
+        observed = observation.observed_at
+        node_text = (
+            str(observation.observed_node_id)
+            if observation.observed_node_id is not None
+            else "unverified"
+        )
+        act_service.queue_system_notice(
+            notice_id=f"fleet-candidate:{host.host_id}",
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            channel="home_assistant",
+            destination=destination,
+            evidence_id=(
+                f"fleet-discovery:{host.host_id}:"
+                f"{observation.source}"
+            ),
+            content=(
+                f"New Fleet candidate discovered: {host.host_id} "
+                f"({host.platform}/{host.architecture}). "
+                f"Node evidence: {node_text}. "
+                "The machine is untrusted and not enrolled yet."
+            ),
+            created_at=observed,
+            expires_at=observed + timedelta(days=7),
+        )
+
+    return discovered
