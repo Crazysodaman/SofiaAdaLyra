@@ -452,8 +452,8 @@ def main() -> int:
         )
         if not provisioning.enabled:
             raise RuntimeError(
-                "Discord transport is disabled; set SOFIA_DISCORD_ENABLED=1 "
-                "only on the supervised host"
+                "Discord transport is disabled; enable it in Sofía Settings "
+                "or use an explicit supervised environment override"
             )
         run_live_discord(
             provisioning,
