@@ -32,6 +32,38 @@ class FleetRegistry:
             raise FleetRemovalApprovalRequired("final fleet removal requires exact Sparks approval evidence")
         if state is HostLifecycle.ENROLLED and not host.trusted: raise PermissionError("untrusted candidate cannot enroll")
         updated=replace(host,lifecycle=state); self._hosts[host_id]=updated; return updated
+    def refine_candidate_identity(
+        self,
+        host_id:str,
+        *,
+        platform:str,
+        architecture:str,
+        tags:tuple[str,...]|None=None,
+    )->FleetHost:
+        host=self._hosts[host_id]
+        if host.lifecycle is not HostLifecycle.CANDIDATE or host.trusted:
+            raise ValueError("only an untrusted candidate can refine discovery identity")
+        current_platform=host.platform.casefold()
+        current_architecture=host.architecture.casefold()
+        incoming_platform=platform.casefold()
+        incoming_architecture=architecture.casefold()
+        if current_platform not in ("unknown",incoming_platform):
+            raise ValueError("candidate platform identity conflict")
+        if current_architecture not in ("unknown",incoming_architecture):
+            raise ValueError("candidate architecture identity conflict")
+        updated=replace(
+            host,
+            platform=platform if current_platform=="unknown" else host.platform,
+            architecture=(
+                architecture
+                if current_architecture=="unknown"
+                else host.architecture
+            ),
+            tags=host.tags if tags is None else tags,
+        )
+        self._hosts[host_id]=updated
+        return updated
+
     def authenticate_candidate(self,host_id:str,node_id)->FleetHost:
         host=self._hosts[host_id]
         if host.lifecycle is not HostLifecycle.CANDIDATE:
