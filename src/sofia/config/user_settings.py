@@ -7,18 +7,23 @@ import json
 from pathlib import Path
 import sqlite3
 
+from sofia.config.model_defaults import (
+    DEFAULT_PROVIDER_MODEL,
+    DEFAULT_ROUTING_PRIMARY_MODEL,
+    DEFAULT_ROUTING_SECONDARY_MODEL,
+)
 from sofia.environment.model import LocationSubject
 
 
 @dataclass(frozen=True, slots=True)
 class RuntimeUserSettings:
-    provider_model: str = "qwen3:14b"
+    provider_model: str = DEFAULT_PROVIDER_MODEL
     provider_context_size: int = 20000
     provider_thinking: bool | str = False
 
     cognitive_routing_enabled: bool = False
-    cognitive_primary_model: str = "qwen3.5:9b"
-    cognitive_secondary_model: str = "huihui_ai/qwen3.5-abliterated:4B"
+    cognitive_primary_model: str = DEFAULT_ROUTING_PRIMARY_MODEL
+    cognitive_secondary_model: str = DEFAULT_ROUTING_SECONDARY_MODEL
     cognitive_primary_context_size: int = 16000
     cognitive_secondary_context_size: int = 8192
     cognitive_verify_enabled: bool = True
