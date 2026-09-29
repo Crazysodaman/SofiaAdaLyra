@@ -20,7 +20,6 @@ from typing import Callable, Protocol
 from sofia.application import SofiaApplication
 from sofia.config import (
     SofiaConfiguration,
-    create_default_configuration,
     create_production_configuration,
 )
 from sofia.discord.binding import BindingState, DiscordBindingStore
@@ -116,7 +115,7 @@ def compose_live_discord_for_conversation(
     if not isinstance(provisioning, DiscordProvisioning):
         raise TypeError("provisioning must be DiscordProvisioning")
     discord_config = provisioning.require_config()
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
 
     active_session = getattr(conversation, "session_id", None)
     if not isinstance(active_session, str) or not active_session.strip():
@@ -339,7 +338,7 @@ def compose_live_discord(
     if not isinstance(provisioning, DiscordProvisioning):
         raise TypeError("provisioning must be DiscordProvisioning")
     discord_config = provisioning.require_config()
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
 
     inbox = DiscordInboxStore(config.state_path)
     bindings = DiscordBindingStore(config.state_path)
@@ -435,7 +434,7 @@ def run_live_discord(
     runner=run_discordpy_client,
 ) -> None:
     """Run the explicitly enabled Discord channel in the foreground."""
-    config = configuration or create_default_configuration()
+    config = configuration or create_production_configuration()
     with DiscordProcessLock(config.state_path):
         composed = compose_live_discord(
             provisioning,
