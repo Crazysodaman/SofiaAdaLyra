@@ -268,6 +268,12 @@ class ConversationService:
             filesystem_results=(),
         )
 
+        response = self._finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
+
         assistant_message = ConversationMessage(
             id=str(uuid4()),
             session_id=self._session.id,
@@ -483,6 +489,16 @@ class ConversationService:
                 "ConversationService lost its active session."
             )
 
+        return response
+
+    def _finalize_response(
+        self,
+        request: CognitiveRequest,
+        response: CognitiveResponse,
+        *,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse:
+        """Validate/transform model output before it becomes durable history."""
         return response
 
     def messages(
