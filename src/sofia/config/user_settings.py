@@ -74,10 +74,9 @@ class RuntimeUserSettings:
             for value in (
                 self.discord_owner_user_id,
                 self.discord_bot_user_id,
-                self.discord_dm_channel_id,
             )
         ):
-            raise ValueError("enabled Discord requires owner, bot, and DM channel IDs")
+            raise ValueError("enabled Discord requires owner and bot IDs")
 
         for name in (
             "home_assistant_url",
