@@ -70,3 +70,61 @@ def test_missing_personality_or_canonical_embodiment_does_not_invent_one(monkeyp
     service, original = _service(monkeypatch, "*pats your head*",
                                  personality=personality, avatar=avatar)
     assert service._build_request() is original
+
+
+
+def test_empty_tool_surface_does_not_skip_interaction_projection(monkeypatch):
+    service, original = _service(monkeypatch, "*taps your left ear*")
+    assert original.allow_tools is True
+    assert original.tools == ()
+
+    result = service._build_request()
+
+    assert result.messages[0].role is CognitiveRole.SYSTEM
+    assert "TRUSTED INTERACTION INTERPRETATION" in result.messages[0].content
+
+
+def test_real_exposed_tool_surface_is_preserved(monkeypatch):
+    from sofia.cognition.model import CognitiveToolDefinition
+
+    tool = CognitiveToolDefinition(
+        name="hardware.inspect",
+        description="Inspect actual hardware capability.",
+        parameters={"type": "object"},
+    )
+    original_user = CognitiveMessage(
+        role=CognitiveRole.USER,
+        content="Can you inspect the actual sensor hardware?",
+    )
+    original = CognitiveRequest(
+        messages=(original_user,),
+        tools=(tool,),
+        allow_tools=True,
+    )
+    monkeypatch.setattr(
+        EmotionalConversationService,
+        "_build_request",
+        lambda self: original,
+    )
+    user = SimpleNamespace(
+        id="message-tool-1",
+        session_id="session-1",
+        role=ConversationRole.USER,
+        content=original_user.content,
+        created_at=datetime.now(timezone.utc),
+    )
+    monkeypatch.setattr(
+        InteractiveConversationService,
+        "messages",
+        lambda self: (user,),
+    )
+    service = object.__new__(InteractiveConversationService)
+    service._runtime = SimpleNamespace(
+        personality=object(),
+        embodiment=AvatarStore(AVATAR).load(),
+    )
+
+    result = service._build_request()
+
+    assert result is original
+    assert result.tools == (tool,)

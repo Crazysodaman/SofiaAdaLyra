@@ -373,7 +373,7 @@ class InteractiveConversationService(EmotionalConversationService):
         # boundary before representational interaction interpretation. Once a
         # turn is tool-relevant, do not let avatar/body discussion downgrade
         # it into a tool-free fictional interaction request.
-        if request.allow_tools:
+        if request.allow_tools and request.tools:
             return request
         messages = self.messages()
         if not messages or messages[-1].role is not ConversationRole.USER:
