@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         state_path = (
             Path(args.state_path)
             if args.state_path
-            else Path(create_default_configuration().state_path)
+            else Path(create_production_configuration().state_path)
         )
         ExecutionApprovalVerifier(state_path).record(approval)
         print(
