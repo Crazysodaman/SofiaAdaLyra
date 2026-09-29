@@ -467,3 +467,32 @@ def test_incomplete_secondary_response_falls_back_to_primary():
     assert response.content == "complete fallback"
     assert len(secondary.requests) == 1
     assert len(primary.requests) == 1
+
+
+def test_verify_precedes_reviewed_interaction_standard_routing():
+    primary = QueueEngine(
+        CognitiveResponse(content="draft"),
+        CognitiveResponse(content="final"),
+    )
+    secondary = QueueEngine(CognitiveResponse(content="critique"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    value = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="TRUSTED INTERACTION INTERPRETATION\n{}",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="Please verify your answer about this interaction.",
+            ),
+        ),
+    )
+
+    response = engine.respond(value)
+
+    assert response.content == "final"
+    assert engine.last_decision is not None
+    assert engine.last_decision.route is CognitiveRoute.VERIFY
+    assert len(primary.requests) == 2
+    assert len(secondary.requests) == 1
