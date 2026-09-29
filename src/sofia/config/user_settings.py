@@ -12,6 +12,14 @@ from sofia.config.model_defaults import (
     DEFAULT_ROUTING_PRIMARY_MODEL,
     DEFAULT_ROUTING_SECONDARY_MODEL,
 )
+from sofia.config.model_catalog import (
+    DEFAULT_PROVIDER_CONTEXT_SIZE,
+    DEFAULT_PROVIDER_MODEL,
+    RECOMMENDED_PRIMARY_CONTEXT_SIZE,
+    RECOMMENDED_PRIMARY_MODEL,
+    RECOMMENDED_SECONDARY_CONTEXT_SIZE,
+    RECOMMENDED_SECONDARY_MODEL,
+)
 from sofia.environment.model import LocationSubject
 
 
