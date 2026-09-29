@@ -8,19 +8,25 @@ created.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import import_module
 from types import ModuleType
+from typing import Callable
 
-from sofia.discord.access import DiscordInboundFacts, SingleUserDiscordConfig
+from sofia.discord.access import (
+    DiscordInboundFacts,
+    SingleUserDiscordConfig,
+    _snowflake,
+)
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.bridge import (
     BridgeDisposition,
     DiscordConversationBridge,
 )
-from sofia.discord.delivery import DiscordSafeSender
+from sofia.discord.delivery import DiscordDeliveryStore, DiscordSafeSender
 from sofia.discord.inbound import DiscordTextEvent, screen_text_dm
 from sofia.discord.ingress import DiscordIngress, IngressDisposition
+from sofia.discord.outbound import DiscordOutboundGate
 from sofia.discord.store import DiscordInboxStore, DiscordOutboxRecord
 
 DISCORDPY_VERSION = "2.7.1"
@@ -92,7 +98,7 @@ class DiscordPyMessageAdapter:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class DiscordLiveRuntime:
     config: SingleUserDiscordConfig
     ingress: DiscordIngress
@@ -101,19 +107,75 @@ class DiscordLiveRuntime:
     store: DiscordInboxStore
     bindings: DiscordBindingStore
     session_id: str
+    deliveries: DiscordDeliveryStore
+    on_verified_channel: Callable[[int], None] | None = None
+
+    def pin_verified_channel(
+        self,
+        channel_id: int,
+    ) -> SingleUserDiscordConfig:
+        """Pin the authenticated owner DM into all live transport gates."""
+        if not _snowflake(channel_id):
+            raise ValueError(
+                "verified Discord DM channel must be a positive snowflake"
+            )
+
+        previous = self.config.dm_channel_id
+        if previous == channel_id:
+            return self.config
+
+        if previous is not None:
+            stale = self.bindings.get(
+                bot_user_id=self.config.bot_user_id,
+                channel_id=previous,
+            )
+            if (
+                stale is not None
+                and stale.owner_user_id == self.config.owner_user_id
+                and stale.state is not BindingState.REVOKED
+            ):
+                self.bindings.revoke(
+                    bot_user_id=self.config.bot_user_id,
+                    channel_id=previous,
+                )
+
+        resolved = replace(
+            self.config,
+            dm_channel_id=channel_id,
+        )
+        self.config = resolved
+        self.ingress = DiscordIngress(
+            config=resolved,
+            inbox=self.store,
+        )
+        self.sender = DiscordSafeSender(
+            gate=DiscordOutboundGate(
+                config=resolved,
+                bindings=self.bindings,
+            ),
+            deliveries=self.deliveries,
+        )
+        if self.on_verified_channel is not None:
+            self.on_verified_channel(channel_id)
+        return resolved
 
 
 def ensure_verified_binding(runtime: DiscordLiveRuntime):
     """Create the first durable binding only after Discord identity verification."""
+    channel_id = runtime.config.dm_channel_id
+    if channel_id is None:
+        raise RuntimeError(
+            "Discord owner DM must be authenticated before binding"
+        )
     binding = runtime.bindings.get(
         bot_user_id=runtime.config.bot_user_id,
-        channel_id=runtime.config.dm_channel_id,
+        channel_id=channel_id,
     )
     if binding is None:
         return runtime.bindings.bind(
             bot_user_id=runtime.config.bot_user_id,
             owner_user_id=runtime.config.owner_user_id,
-            channel_id=runtime.config.dm_channel_id,
+            channel_id=channel_id,
             session_id=runtime.session_id,
         )
     if binding.owner_user_id != runtime.config.owner_user_id:
@@ -168,21 +230,20 @@ def create_discordpy_client(
             )
 
         async def _bound_dm_channel(self):
-            channel_id = runtime.config.dm_channel_id
-            if channel_id is None:
-                raise RuntimeError("live Discord requires a pinned DM channel")
             owner = await self.fetch_user(runtime.config.owner_user_id)
             channel = await owner.create_dm()
-            if getattr(channel, "id", None) != channel_id:
+            resolved_channel_id = getattr(channel, "id", None)
+            if not _snowflake(resolved_channel_id):
                 raise RuntimeError(
-                    "resolved Discord DM channel does not match configured dm_channel_id"
+                    "Discord did not resolve a valid private DM channel"
                 )
+            runtime.pin_verified_channel(resolved_channel_id)
             return channel
 
         async def _recover_prepared_outbox(self, channel) -> None:
             pending = runtime.store.list_outbox(
                 bot_user_id=runtime.config.bot_user_id,
-                channel_id=runtime.config.dm_channel_id,
+                channel_id=channel_id,
                 states=("prepared",),
             )
             for outbox in pending:
