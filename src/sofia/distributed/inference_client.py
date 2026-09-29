@@ -132,7 +132,6 @@ class ConfiguredRemoteInferenceClient:
         self,
         node_id: UUID,
         provider: ProviderConfiguration,
-        *,
         auto_provision: bool,
     ) -> None:
         if provider.provider != "ollama":
