@@ -10,7 +10,10 @@ from sofia.config.layout import RuntimeStorageLayout
 from sofia.config.user_settings import RuntimeUserSettingsStore
 
 
-def create_default_configuration() -> SofiaConfiguration:
+def create_default_configuration(
+    *,
+    runtime_mode: str | None = None,
+) -> SofiaConfiguration:
     """
     Create the standard local configuration for Sofía.
 
@@ -21,7 +24,8 @@ def create_default_configuration() -> SofiaConfiguration:
     repository_root = Path(__file__).resolve().parents[3]
 
     layout = RuntimeStorageLayout.from_environment(
-        repository_root
+        repository_root,
+        mode_override=runtime_mode,
     )
     layout.provision_from_source()
 
@@ -122,3 +126,8 @@ def create_default_configuration() -> SofiaConfiguration:
         standing_allowed_capabilities=standing_capabilities,
         environment=environment,
     )
+
+
+def create_production_configuration() -> SofiaConfiguration:
+    """Create the canonical live configuration for Sofía."""
+    return create_default_configuration(runtime_mode="production")
