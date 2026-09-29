@@ -13,7 +13,7 @@ import json
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_default_configuration
+from sofia.config.defaults import create_production_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
@@ -90,7 +90,7 @@ def focused_variant(*, case: str, assembled: CognitiveRequest) -> CognitiveReque
 
 
 def main() -> int:
-    configuration = create_default_configuration()
+    configuration = create_production_configuration()
     if configuration.provider.provider != 'ollama':
         raise RuntimeError('The probe supports the configured Ollama provider only.')
     constitution = ConstitutionStore(configuration.constitution_path).load()

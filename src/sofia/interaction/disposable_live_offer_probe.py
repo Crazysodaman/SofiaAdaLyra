@@ -1,4 +1,4 @@
-"""Supervised real-Qwen offer probe using a TEMPORARY application database only.
+"""Supervised real-model offer probe using a TEMPORARY application database only.
 
 Run explicitly with --run-disposable. No production conversation, preferences,
 model settings, actual actions, animations or sensor state are modified.
@@ -16,7 +16,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from sofia.application.bootstrap import SofiaApplication
-from sofia.config.defaults import create_default_configuration
+from sofia.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction import live_offer_service
 from sofia.interaction.architecture_compare import OFFER
@@ -69,12 +69,12 @@ def run_disposable_probe() -> None:
     with TemporaryDirectory(prefix='sofia-interact-supervised-') as directory:
         root = Path(directory).resolve()
         state = root / 'disposable-sofia.db'
-        defaults = create_default_configuration()
+        defaults = create_production_configuration()
         if state == Path(defaults.state_path).resolve() or not state.is_relative_to(root):
             raise RuntimeError('Disposable state isolation check failed.')
         config = replace(defaults, state_path=state, filesystem_root=root)
-        if config.provider.provider != 'ollama' or config.provider.model != 'qwen3:14b':
-            raise RuntimeError('Probe requires the existing configured qwen3:14b model.')
+        if config.provider.provider != 'ollama':
+            raise RuntimeError('Probe requires the configured Ollama provider.')
 
         print('SUPERVISED REAL-APPLICATION OFFER PROBE')
         print('Temporary database:', state)

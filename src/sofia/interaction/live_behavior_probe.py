@@ -18,7 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from sofia.application.bootstrap import SofiaApplication
-from sofia.config.defaults import create_default_configuration
+from sofia.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationRole
 
 
@@ -253,7 +253,7 @@ def run_disposable_probe() -> int:
     with TemporaryDirectory(prefix="sofia-live-behavior-") as directory:
         root = Path(directory).resolve()
         state = root / "disposable-sofia.db"
-        defaults = create_default_configuration()
+        defaults = create_production_configuration()
         production_state = Path(defaults.state_path).resolve()
 
         if state == production_state or not state.is_relative_to(root):

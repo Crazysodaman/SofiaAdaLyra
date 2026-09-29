@@ -95,8 +95,8 @@ def reflection_audit(state_path: Path) -> dict[str, object]:
 
 
 def main() -> int:
-    from sofia.config.defaults import create_default_configuration
-    path = create_default_configuration().state_path
+    from sofia.config.defaults import create_production_configuration
+    path = create_production_configuration().state_path
     try:
         result = reflection_audit(path)
     except (OSError, sqlite3.Error) as exc:

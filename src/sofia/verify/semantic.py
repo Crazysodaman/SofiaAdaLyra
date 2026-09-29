@@ -3,13 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
-from sofia.config import create_default_configuration
+from sofia.config import create_production_configuration
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
 
 def main(argv: list[str] | None = None) -> int:
-    configuration = create_default_configuration()
+    configuration = create_production_configuration()
     state_path = Path(configuration.state_path)
     try:
         verifier = SemanticIntegrityVerifier(

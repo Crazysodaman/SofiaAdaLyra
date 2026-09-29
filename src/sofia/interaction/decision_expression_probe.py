@@ -12,7 +12,7 @@ from collections import Counter
 from datetime import datetime, timezone
 
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.config.defaults import create_default_configuration
+from sofia.config.defaults import create_production_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         help='Independent model samples per non-blocked case (1-8; default: 3).',
     )
     args = parser.parse_args(argv)
-    configuration = create_default_configuration()
+    configuration = create_production_configuration()
     if configuration.provider.provider != 'ollama':
         raise RuntimeError('This diagnostic requires the configured Ollama provider.')
     constitution = ConstitutionStore(configuration.constitution_path).load()
