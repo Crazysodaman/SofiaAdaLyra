@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from sofia.application import SofiaApplication
+from sofia.cognition.engine import CognitiveEngineError
 from sofia.config import ProviderConfiguration, SofiaConfiguration
 from sofia.continuity.model import ContinuityEventKind
 
@@ -445,3 +446,30 @@ def test_workspace_changes_are_delivered_as_one_awareness_response(
     )
 
     application.runtime.shutdown()
+
+
+def test_application_start_survives_awareness_cognition_failure(
+    tmp_path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+
+    application.runtime.start()
+    application.runtime.shutdown()
+
+    def fail_awareness():
+        raise CognitiveEngineError("synthetic model startup failure")
+
+    monkeypatch.setattr(
+        application.conversation,
+        "deliver_pending_awareness",
+        fail_awareness,
+    )
+
+    response = application.start()
+
+    assert response is None
+    assert application.runtime.pending_continuity_event is not None
+    assert application.conversation.session_id is not None
+
+    application.shutdown()
