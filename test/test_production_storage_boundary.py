@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from sofia.config import create_production_configuration
 from sofia.config.layout import RuntimeStorageLayout
@@ -38,22 +39,48 @@ def test_source_does_not_hardcode_repository_state_directory():
         SOURCE_ROOT / "config" / "layout.py",
     }
     patterns = (
-        'parents[3] / "state"',
-        "parents[3] / 'state'",
-        'repository_root / "state"',
-        "repository_root / 'state'",
+        re.compile(
+            r"Path\(__file__\)\.resolve\(\)\.parents\[\d+\]"
+            r"\s*/\s*['\"]state['\"]"
+        ),
+        re.compile(
+            r"repository_root\s*/\s*['\"]state['\"]"
+        ),
     )
     offenders = []
     for path in _source_files():
         if path in allowed:
             continue
         text = path.read_text(encoding="utf-8-sig")
-        if any(pattern in text for pattern in patterns):
+        if any(pattern.search(text) for pattern in patterns):
             offenders.append(path.relative_to(ROOT).as_posix())
 
     assert offenders == [], (
         "Canonical runtime state must come from RuntimeStorageLayout: "
         f"{offenders}"
+    )
+
+
+def test_storage_environment_variables_are_centralized_in_layout():
+    allowed = {
+        SOURCE_ROOT / "config" / "layout.py",
+    }
+    names = (
+        "SOFIA_RUNTIME_MODE",
+        "SOFIA_STATE_ROOT",
+        "SOFIA_PROTECTED_ROOT",
+    )
+    offenders = []
+    for path in _source_files():
+        if path in allowed:
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        if any(name in text for name in names):
+            offenders.append(path.relative_to(ROOT).as_posix())
+
+    assert offenders == [], (
+        "Storage environment variables must be interpreted only by "
+        f"RuntimeStorageLayout: {offenders}"
     )
 
 
