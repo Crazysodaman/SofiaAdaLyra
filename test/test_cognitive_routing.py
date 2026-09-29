@@ -429,3 +429,41 @@ def test_tool_enabled_primary_failure_does_not_fall_back_to_secondary():
 
     assert len(primary.requests) == 1
     assert len(secondary.requests) == 0
+
+
+def test_reviewed_interaction_context_routes_to_primary():
+    primary = QueueEngine(CognitiveResponse(content="grounded"))
+    secondary = QueueEngine()
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    value = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="TRUSTED INTERACTION INTERPRETATION\n{}",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="*pats your head*",
+            ),
+        ),
+    )
+
+    response = engine.respond(value)
+
+    assert response.content == "grounded"
+    assert engine.last_decision is not None
+    assert engine.last_decision.route is CognitiveRoute.STANDARD
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 0
+
+
+def test_incomplete_secondary_response_falls_back_to_primary():
+    secondary = QueueEngine(CognitiveResponse(content="I"))
+    primary = QueueEngine(CognitiveResponse(content="complete fallback"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(request("hello"))
+
+    assert response.content == "complete fallback"
+    assert len(secondary.requests) == 1
+    assert len(primary.requests) == 1
