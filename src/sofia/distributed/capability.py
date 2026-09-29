@@ -43,7 +43,7 @@ class RemoteFleetToolService:
         self._operator_stop=OperatorStopStore(self._state_path)
 
     @contextmanager
-    def _control_session(self):
+    def _control_session(self, *, timeout_seconds: float = 10.0):
         """Open durable Fleet state only for the lifetime of one tool call."""
         endpoint_lookup=DurableEndpointPolicy(
             self._base/"remote-endpoints.db"
@@ -53,6 +53,7 @@ class RemoteFleetToolService:
             ca_file=self._ca_file,
             client_certificate=self._client_certificate,
             client_private_key=self._client_private_key,
+            timeout_seconds=timeout_seconds,
         )
         control=DurableRemoteControl(
             transport=transport,
@@ -104,7 +105,14 @@ class RemoteFleetToolService:
             raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
         now=datetime.now(timezone.utc)
-        with self._control_session() as control:
+        timeout_seconds=10.0
+        if capability=="llm.manage":
+            timeout_seconds={
+                "pull":7200.0,
+                "load":600.0,
+                "unload":60.0,
+            }.get(operation,10.0)
+        with self._control_session(timeout_seconds=timeout_seconds) as control:
             enrollment=control.identities.get(node_id)
             if enrollment is None:
                 raise PermissionError("node is not actively enrolled")
