@@ -7,6 +7,7 @@ from sofia.application import (
     ConversationService,
     SofiaApplication,
 )
+from sofia.application.conversation_service import _conversation_tools_relevant
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -359,3 +360,46 @@ def test_filesystem_request_without_authorization_remains_denied(
     )
 
     application.shutdown()
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "hru",
+        "Central timezone",
+        "what is the weather today",
+        "what are you wearing",
+        "I missed you",
+    ),
+)
+def test_conversation_tool_gate_keeps_ordinary_turns_tool_free(content):
+    assert _conversation_tools_relevant(content) is False
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "check current CPU usage",
+        "list running services",
+        "is Plex running",
+        "restart the service",
+        "what is the system status",
+    ),
+)
+def test_conversation_tool_gate_allows_operational_turns(content):
+    assert _conversation_tools_relevant(content) is True
+
+
+def test_live_conversation_request_preserves_tool_relevance_gate(tmp_path: Path):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        application.conversation.respond("hru")
+        social_request = application.conversation._build_request()
+        assert social_request.allow_tools is False
+
+        application.conversation.respond("check current CPU usage")
+        operational_request = application.conversation._build_request()
+        assert operational_request.allow_tools is True
+    finally:
+        application.shutdown()
+
