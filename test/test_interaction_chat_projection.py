@@ -6,7 +6,12 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.application.emotional_conversation import EmotionalConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
 from sofia.interaction.chat import InteractiveConversationService
@@ -142,3 +147,80 @@ def test_interaction_prompt_rejects_ungrounded_relationship_and_sensation_langua
     assert "Do not invent relationship titles" in prompt
     assert "Do not pivot a simple gesture into a diagnostic/work menu" in prompt
     assert "prefer a short natural response" in prompt
+
+
+def _interaction_request_for_test(content="*pats your head*"):
+    return CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="TRUSTED INTERACTION INTERPRETATION\n{}",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content=content,
+            ),
+        ),
+        tools=(),
+        allow_tools=False,
+    )
+
+
+def test_invalid_physical_sensation_is_retried_before_persistence():
+    class Runtime:
+        def __init__(self):
+            self.calls = []
+
+        def respond(self, request, *, filesystem_results=(), principal=None):
+            self.calls.append(request)
+            return CognitiveResponse(
+                content="*My ears flick.* Thanks, Sparks."
+            )
+
+    service = object.__new__(InteractiveConversationService)
+    service._runtime = Runtime()
+    request = _interaction_request_for_test()
+
+    result = service._finalize_response(
+        request,
+        CognitiveResponse(
+            content=(
+                "Feeling the weight of that pat settle is nice. "
+                "The tactile feedback keeps me grounded."
+            )
+        ),
+        principal=None,
+    )
+
+    assert result.content == "*My ears flick.* Thanks, Sparks."
+    assert len(service._runtime.calls) == 1
+    correction = service._runtime.calls[0].messages[0]
+    assert correction.role is CognitiveRole.SYSTEM
+    assert "GROUNDING CORRECTION" in correction.content
+
+
+@pytest.mark.parametrize(
+    "draft",
+    (
+        "I felt a subtle grounding warmth spread across my hips.",
+        "The fabric slid softly against my skin and I felt it.",
+        "*Eyes flick to the side, then back—",
+        "You are my creator and companion.",
+    ),
+)
+def test_repeated_invalid_interaction_reply_uses_grounded_fallback(draft):
+    class Runtime:
+        def respond(self, request, *, filesystem_results=(), principal=None):
+            return CognitiveResponse(content=draft)
+
+    service = object.__new__(InteractiveConversationService)
+    service._runtime = Runtime()
+
+    result = service._finalize_response(
+        _interaction_request_for_test(),
+        CognitiveResponse(content=draft),
+        principal=None,
+    )
+
+    assert "literally felt physical contact" in result.content
+    assert result.content != draft
