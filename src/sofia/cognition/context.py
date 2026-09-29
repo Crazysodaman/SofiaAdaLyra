@@ -18,6 +18,7 @@ from sofia.embodiment.measurement_query import MeasurementQueryResult
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.filesystem.model import FilesystemResult
 from sofia.identity.model import SofiaIdentity
+from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
 from sofia.operational.model import (
     OperationalState,
@@ -47,6 +48,9 @@ class CognitiveContext:
     identity: SofiaIdentity | None = None
     personality: PersonalityProfile | None = None
     memories: tuple[MemoryRecord, ...] = ()
+    historical_conversation_evidence: tuple[
+        HistoricalConversationEvidence, ...
+    ] = ()
     constitution: Constitution | None = None
     embodiment: Embodiment | None = None
     measurement_query: MeasurementQueryResult | None = None
@@ -103,6 +107,25 @@ class CognitiveContext:
                 raise TypeError(
                     "CognitiveContext memories must contain "
                     "MemoryRecord instances."
+                )
+
+        if not isinstance(
+            self.historical_conversation_evidence,
+            tuple,
+        ):
+            raise TypeError(
+                "CognitiveContext historical_conversation_evidence "
+                "must be a tuple."
+            )
+
+        for evidence in self.historical_conversation_evidence:
+            if not isinstance(
+                evidence,
+                HistoricalConversationEvidence,
+            ):
+                raise TypeError(
+                    "CognitiveContext historical_conversation_evidence "
+                    "must contain HistoricalConversationEvidence instances."
                 )
 
         if (
