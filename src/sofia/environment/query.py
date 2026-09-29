@@ -33,7 +33,12 @@ class EnvironmentQueryAnswer:
 
 
 def _normalize(query: str) -> str:
-    return " ".join(query.strip().casefold().split()).rstrip(" ?!.")
+    normalized = " ".join(
+        query.strip().casefold().replace("’", "'").split()
+    ).rstrip(" ?!.")
+    while normalized.startswith("so "):
+        normalized = normalized[3:].lstrip()
+    return normalized
 
 
 def _fahrenheit(celsius: float) -> float:
@@ -91,12 +96,16 @@ class EnvironmentQueryResolver:
     _WEATHER_FORMS = frozenset(
         {
             "what's the weather",
+            "whats the weather",
             "what is the weather",
             "what's the weather like",
+            "whats the weather like",
             "what is the weather like",
             "what's the weather right now",
+            "whats the weather right now",
             "what is the weather right now",
             "what's the weather today",
+            "whats the weather today",
             "what is the weather today",
             "how's the weather today",
             "how is the weather today",
