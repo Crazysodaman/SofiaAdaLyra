@@ -446,13 +446,19 @@ def run_live_discord(
 
 def main() -> int:
     try:
-        provisioning = DiscordProvisioning.from_environment()
+        configuration = create_default_configuration()
+        provisioning = DiscordProvisioning.from_runtime(
+            configuration
+        )
         if not provisioning.enabled:
             raise RuntimeError(
                 "Discord transport is disabled; set SOFIA_DISCORD_ENABLED=1 "
                 "only on the supervised host"
             )
-        run_live_discord(provisioning)
+        run_live_discord(
+            provisioning,
+            configuration=configuration,
+        )
     except (RuntimeError, TypeError, ValueError) as exc:
         print(f"Sofía Discord startup refused: {exc}", file=sys.stderr)
         return 2
