@@ -26,8 +26,10 @@ def emit_performance(stage: str, **values: Any) -> None:
         "lock_wait_ms", "elapsed_ms", "load_ms", "prompt_eval_ms",
         "generation_ms", "provider_total_ms", "prompt_tokens",
         "generated_tokens", "context_tokens",
+        "route_code", "routing_score", "fallback_count",
+        "verification_passes",
     }
-    if stage not in {"conversation", "idle_reflection", "ollama"}:
+    if stage not in {"conversation", "idle_reflection", "ollama", "router"}:
         raise ValueError("Unsupported performance trace stage.")
     if set(values) - allowed:
         raise ValueError("Unsupported performance trace field.")
