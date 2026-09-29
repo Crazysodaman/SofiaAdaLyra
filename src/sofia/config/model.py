@@ -190,6 +190,28 @@ class FleetCognitionConfiguration:
 
 
 @dataclass(frozen=True)
+class FleetDiscoveryConfiguration:
+    enabled: bool = False
+    interval_seconds: int = 300
+    targets: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if type(self.enabled) is not bool:
+            raise TypeError("fleet discovery enabled must be boolean")
+        if type(self.interval_seconds) is not int or self.interval_seconds < 30:
+            raise ValueError(
+                "fleet discovery interval_seconds must be an int >= 30"
+            )
+        if not isinstance(self.targets, tuple):
+            raise TypeError("fleet discovery targets must be a tuple")
+        for target in self.targets:
+            if not isinstance(target, str) or not target.strip():
+                raise ValueError(
+                    "fleet discovery targets must contain nonempty strings"
+                )
+
+
+@dataclass(frozen=True)
 class SofiaConfiguration:
     constitution_path: Path
     constitution_hash_path: Path
@@ -207,6 +229,9 @@ class SofiaConfiguration:
     )
     fleet_cognition: FleetCognitionConfiguration = field(
         default_factory=FleetCognitionConfiguration
+    )
+    fleet_discovery: FleetDiscoveryConfiguration = field(
+        default_factory=FleetDiscoveryConfiguration
     )
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
@@ -280,6 +305,15 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration fleet_cognition must be a "
                 "FleetCognitionConfiguration."
+            )
+
+        if not isinstance(
+            self.fleet_discovery,
+            FleetDiscoveryConfiguration,
+        ):
+            raise TypeError(
+                "SofiaConfiguration fleet_discovery must be a "
+                "FleetDiscoveryConfiguration."
             )
 
         if not isinstance(self.environment, EnvironmentConfiguration):
