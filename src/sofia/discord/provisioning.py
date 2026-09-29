@@ -110,14 +110,7 @@ class DiscordProvisioning:
         if not isinstance(configuration, SofiaConfiguration):
             raise TypeError("configuration must be SofiaConfiguration")
         source = os.environ if environ is None else environ
-        override_names = (
-            "SOFIA_DISCORD_ENABLED",
-            "SOFIA_DISCORD_OWNER_ID",
-            "SOFIA_DISCORD_BOT_ID",
-            "SOFIA_DISCORD_DM_CHANNEL_ID",
-            "SOFIA_DISCORD_TOKEN",
-        )
-        if any(name in source for name in override_names):
+        if "SOFIA_DISCORD_ENABLED" in source:
             return cls.from_environment(source)
 
         settings = RuntimeUserSettingsStore(
