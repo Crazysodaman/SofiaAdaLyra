@@ -26,6 +26,7 @@ from sofia.application.act_runtime import configure_act_delivery_from_environmen
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
+    create_fleet_bootstrap_coordinator,
     create_fleet_candidate_notifier,
 )
 from sofia.application.memory_review import MemoryReviewService
@@ -481,9 +482,20 @@ class SofiaApplication:
                             act_service=self._act_service,
                         ),
                     )
+                    bootstrap_coordinator = (
+                        create_fleet_bootstrap_coordinator(
+                            configuration=self._configuration,
+                            act_service=self._act_service,
+                        )
+                    )
 
                     def discover_fleet_candidates(now):
                         result = discovery.run(fleet_discovery_source)
+                        bootstrap_result = (
+                            None
+                            if bootstrap_coordinator is None
+                            else bootstrap_coordinator.reconcile(result)
+                        )
                         base = Path(self._configuration.state_path).parent
                         identities = DurableNodeIdentityRegistry(
                             base / "remote-identities.db"
@@ -506,6 +518,16 @@ class SofiaApplication:
                             len(result.created_host_ids)
                             + len(result.rejected_host_ids)
                             + len(reconciled.enrolled_host_ids)
+                            + (
+                                0
+                                if bootstrap_result is None
+                                else len(
+                                    bootstrap_result.operator_host_ids
+                                )
+                                + len(
+                                    bootstrap_result.installed_host_ids
+                                )
+                            )
                         )
                         return count or None
 
