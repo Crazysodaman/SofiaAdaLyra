@@ -1009,6 +1009,11 @@ class WindowsSystemCapabilityBackend(SystemCapabilityBackend):
             capture_output=True,
             text=True,
             check=True,
+            creationflags=getattr(
+                subprocess,
+                "CREATE_NO_WINDOW",
+                0,
+            ),
         )
 
         return completed.stdout
