@@ -15,7 +15,7 @@ from time import monotonic
 from uuid import uuid4
 
 from sofia.cognition.context import CognitiveContext
-from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.model import CognitiveResponse
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction.action_grammar import parse_user_action
@@ -101,10 +101,10 @@ def respond_staged_offer(
     principal = service._bind_principal(principal)
     runtime = service._runtime
     config = runtime.configuration
-    if (config.provider.provider != 'ollama'
-            or config.provider.model != 'qwen3:14b'
-            or not isinstance(runtime.cognitive_system.engine, LLMCognitiveEngine)):
-        raise RuntimeError('Staged avatar offers require the configured qwen3:14b engine.')
+    if not isinstance(runtime.cognitive_system.engine, CognitiveEngine):
+        raise RuntimeError(
+            'Staged avatar offers require a configured cognitive engine.'
+        )
     service._active_user_requests += 1
     try:
         with service._model_lock:

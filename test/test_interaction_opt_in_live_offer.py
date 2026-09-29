@@ -62,7 +62,7 @@ def live_candidate(tmp_path):
     engine = LLMCognitiveEngine(configuration=SimpleNamespace(), provider=provider)
     runtime = SimpleNamespace(
         configuration=SimpleNamespace(
-            provider=SimpleNamespace(provider='ollama', model='qwen3:14b'),
+            provider=SimpleNamespace(provider='ollama', model='vendor/custom:anything'),
             state_path=path,
         ),
         cognitive_system=SimpleNamespace(engine=engine, context_assembler=StubAssembler()),
