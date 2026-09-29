@@ -18,7 +18,7 @@ class RuntimeUserSettings:
 
     cognitive_routing_enabled: bool = False
     cognitive_primary_model: str = "qwen3.5:9b"
-    cognitive_secondary_model: str = "huihui_ai/qwen3.5-abliterated:4b"
+    cognitive_secondary_model: str = "huihui_ai/qwen3.5-abliterated:4B"
     cognitive_primary_context_size: int = 16000
     cognitive_secondary_context_size: int = 8192
     cognitive_verify_enabled: bool = True
