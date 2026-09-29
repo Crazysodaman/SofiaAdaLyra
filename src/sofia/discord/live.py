@@ -452,6 +452,13 @@ def compose_live_discord(
             store=inbox,
             bindings=bindings,
             session_id=active_session,
+            deliveries=deliveries,
+            on_verified_channel=(
+                lambda channel_id: _persist_verified_dm_channel(
+                    config,
+                    channel_id,
+                )
+            ),
         )
         return ComposedDiscordApplication(
             application=application,
