@@ -4,8 +4,10 @@ from __future__ import annotations
 import os
 
 from sofia.config.model import SofiaConfiguration
+from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.integrations.home_assistant import HomeAssistantAdapter
 from sofia.integrations.nws import NwsAdapter
+from sofia.safe.secret_store import ProtectedSecretStore
 
 from .home_assistant import HomeAssistantEnvironmentProvider
 from .nws import NwsEnvironmentProvider
@@ -38,18 +40,31 @@ def create_environment_service(
                 "Home Assistant environment reads require standing "
                 f"capability {HOME_ASSISTANT_ENVIRONMENT_CAPABILITY!r}"
             )
-        base_url = os.environ.get(
-            "SOFIA_HOME_ASSISTANT_URL",
-            "",
-        ).strip()
+        user_settings = RuntimeUserSettingsStore(
+            configuration.state_path
+        ).load()
+        base_url = (
+            os.environ.get(
+                "SOFIA_HOME_ASSISTANT_URL",
+                "",
+            ).strip()
+            or (user_settings.home_assistant_url or "")
+        )
         token = os.environ.get(
             "SOFIA_HOME_ASSISTANT_TOKEN",
             "",
         ).strip()
+        if not token:
+            token = (
+                ProtectedSecretStore.for_state_path(
+                    configuration.state_path
+                ).get("home-assistant-token")
+                or ""
+            )
         if not base_url or not token:
             raise ValueError(
                 "Home Assistant environment entities are configured "
-                "but SOFIA_HOME_ASSISTANT_URL/TOKEN are unavailable"
+                "but Home Assistant URL/token are unavailable"
             )
         providers.append(
             HomeAssistantEnvironmentProvider(
