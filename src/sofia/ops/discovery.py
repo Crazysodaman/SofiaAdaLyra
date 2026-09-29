@@ -15,7 +15,17 @@ from uuid import UUID
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import NodeEndpoint, NodeTransport
-from sofia.ops.bootstrap import BootstrapCandidate
+from sofia.ops.bootstrap import (
+    AgentInstaller,
+    AgentPackage,
+    BootstrapCandidate,
+    BootstrapDisposition,
+    BootstrapPlan,
+    FleetBootstrapExecutor,
+    FleetBootstrapPlanner,
+    InstallAuthority,
+    InstallReceipt,
+)
 from sofia.ops.enrollment import (
     AuthenticatedPeerEvidence,
     FleetEnrollmentService,
@@ -333,4 +343,136 @@ class FleetDiscoveryEnrollmentReconciler:
         return FleetDiscoveryEnrollmentResult(
             enrolled_host_ids=tuple(sorted(set(enrolled))),
             pending_host_ids=tuple(sorted(set(pending))),
+        )
+
+
+
+@dataclass(frozen=True, slots=True)
+class FleetDiscoveryBootstrapResult:
+    plans: tuple[BootstrapPlan, ...]
+    receipts: tuple[InstallReceipt, ...]
+    ready_host_ids: tuple[str, ...]
+    installed_host_ids: tuple[str, ...]
+    operator_host_ids: tuple[str, ...]
+    rejected_host_ids: tuple[str, ...]
+
+
+class FleetDiscoveryBootstrapCoordinator:
+    """Plan bootstrap for discovered candidates and execute only typed authority."""
+
+    def __init__(
+        self,
+        *,
+        package: AgentPackage,
+        authority: InstallAuthority,
+        installer_factory: Callable[
+            [FleetDiscoveryEvidence],
+            AgentInstaller | None,
+        ] | None = None,
+        operator_notifier: Callable[[BootstrapPlan], None] | None = None,
+    ) -> None:
+        if not isinstance(package, AgentPackage):
+            raise TypeError("package must be AgentPackage")
+        if not isinstance(authority, InstallAuthority):
+            raise TypeError("authority must be InstallAuthority")
+        if installer_factory is not None and not callable(installer_factory):
+            raise TypeError("installer_factory must be callable or None")
+        if operator_notifier is not None and not callable(operator_notifier):
+            raise TypeError("operator_notifier must be callable or None")
+        self.package = package
+        self.authority = authority
+        self.installer_factory = installer_factory
+        self.operator_notifier = operator_notifier
+        self.planner = FleetBootstrapPlanner()
+        self.executor = FleetBootstrapExecutor()
+
+    def reconcile(
+        self,
+        discovery: FleetDiscoveryResult,
+    ) -> FleetDiscoveryBootstrapResult:
+        if not isinstance(discovery, FleetDiscoveryResult):
+            raise TypeError("discovery must be FleetDiscoveryResult")
+        plans = []
+        receipts = []
+        ready = []
+        installed = []
+        operator = []
+        rejected = []
+
+        for observation in discovery.observed:
+            plan = self.planner.plan(
+                observation.bootstrap_candidate(),
+                self.package,
+                authority=self.authority,
+            )
+            plans.append(plan)
+
+            if plan.disposition is BootstrapDisposition.READY_FOR_ENROLLMENT:
+                ready.append(observation.host_id)
+                continue
+
+            if plan.disposition is BootstrapDisposition.REJECTED:
+                rejected.append(observation.host_id)
+                continue
+
+            if plan.disposition is BootstrapDisposition.ASK_OPERATOR:
+                operator.append(observation.host_id)
+                if self.operator_notifier is not None:
+                    self.operator_notifier(plan)
+                continue
+
+            if plan.disposition is BootstrapDisposition.AUTO_INSTALL:
+                if self.installer_factory is None:
+                    # A standing policy without a concrete typed installer is
+                    # not sufficient execution authority. Surface it instead.
+                    operator.append(observation.host_id)
+                    if self.operator_notifier is not None:
+                        self.operator_notifier(
+                            BootstrapPlan(
+                                plan.candidate,
+                                plan.package,
+                                BootstrapDisposition.ASK_OPERATOR,
+                                (
+                                    "automatic bootstrap is authorized in policy "
+                                    "but no trusted installer is configured"
+                                ),
+                                plan.operator_message
+                                or (
+                                    f"{observation.host_id} needs a configured "
+                                    "trusted bootstrap installer."
+                                ),
+                            )
+                        )
+                    continue
+                installer = self.installer_factory(observation)
+                if installer is None:
+                    operator.append(observation.host_id)
+                    if self.operator_notifier is not None:
+                        self.operator_notifier(
+                            BootstrapPlan(
+                                plan.candidate,
+                                plan.package,
+                                BootstrapDisposition.ASK_OPERATOR,
+                                (
+                                    "trusted installer factory did not provide "
+                                    "an installer for this candidate"
+                                ),
+                                (
+                                    f"{observation.host_id} requires operator "
+                                    "bootstrap or installer configuration."
+                                ),
+                            )
+                        )
+                    continue
+                receipt = self.executor.execute(plan, installer)
+                receipts.append(receipt)
+                installed.append(observation.host_id)
+
+        return FleetDiscoveryBootstrapResult(
+            plans=tuple(plans),
+            receipts=tuple(receipts),
+            ready_host_ids=tuple(sorted(set(ready))),
+            installed_host_ids=tuple(sorted(set(installed))),
+            operator_host_ids=tuple(sorted(set(operator))),
+            rejected_host_ids=tuple(sorted(set(rejected))),
         )
