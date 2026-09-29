@@ -6,7 +6,9 @@ from sofia.ops.model import HostTelemetry
 
 
 def test_default_agent_advertises_read_only_ops_telemetry():
-    dispatcher = create_default_agent_dispatcher()
+    dispatcher = create_default_agent_dispatcher(
+        inference_models=("primary:model", "secondary:model"),
+    )
     capabilities = {
         item.name: set(item.operations)
         for item in dispatcher.inventory()
@@ -66,7 +68,12 @@ def test_default_agent_advertises_ollama_inspect_and_manage(monkeypatch):
         for item in dispatcher.inventory()
     }
 
-    assert capabilities["llm.inspect"] == {"models", "running", "show"}
+    assert capabilities["llm.inspect"] == {
+        "inference_policy",
+        "models",
+        "running",
+        "show",
+    }
     assert capabilities["llm.manage"] == {"pull", "load", "unload"}
 
 
@@ -88,3 +95,16 @@ def test_agent_ollama_lifecycle_uses_exact_requested_model(monkeypatch):
     assert dispatcher.execute(
         "llm.manage", "unload", {"model": "owner/model:any"}
     ) == {"unloaded": "owner/model:any"}
+
+
+def test_agent_inference_policy_is_read_only_owner_configuration(monkeypatch):
+    monkeypatch.setattr(tools_module, "OllamaAdapter", FakeOllama)
+    dispatcher = create_default_agent_dispatcher(
+        inference_models=("primary:model", "secondary:model"),
+    )
+
+    result = dispatcher.execute("llm.inspect", "inference_policy", {})
+
+    assert result == {
+        "allowed_models": ["primary:model", "secondary:model"]
+    }
