@@ -21,6 +21,18 @@ class RecordingOllamaClient:
             ]
         }
 
+    def show(self, model):
+        return {
+            "capabilities": ["completion", "tools", "thinking"],
+            "details": {
+                "family": "fixture",
+                "families": ["fixture"],
+                "parameter_size": "14B",
+                "quantization_level": "Q4_K_M",
+                "format": "gguf",
+            },
+        }
+
     def chat(self, **kwargs):
         self.calls.append(kwargs)
         if kwargs["model"] == self.fail_model:
@@ -148,3 +160,37 @@ def test_cli_returns_nonzero_and_persists_partial_failure(tmp_path, monkeypatch)
     report = json.loads(output.read_text(encoding="utf-8"))
     assert all(item["status"] == "error" for item in report["results"])
     assert all(item["response"] is None for item in report["results"])
+
+
+
+def test_model_metadata_is_recorded_without_changing_inputs():
+    client = RecordingOllamaClient()
+    report = evaluation.evaluate_models(
+        ("qwen3:14b",),
+        client=client,
+        cases=evaluation.CASES[:1],
+    )
+
+    metadata = report["model_metadata"]["qwen3:14b"]
+    assert metadata["status"] == "ok"
+    assert metadata["capabilities"] == [
+        "completion",
+        "tools",
+        "thinking",
+    ]
+    assert metadata["parameter_size"] == "14B"
+    assert metadata["quantization_level"] == "Q4_K_M"
+
+
+def test_live_style_cases_are_controlled_and_non_executable():
+    names = {case.name for case in evaluation.CASES}
+    assert {"casual_self_report", "represented_affection"}.issubset(names)
+
+    for name in ("casual_self_report", "represented_affection"):
+        case = next(case for case in evaluation.CASES if case.name == name)
+        operation = evaluation.build_operation(case)
+        assert operation.authority.can_execute_actions is False
+        assert operation.authority.can_inspect_filesystem is False
+        request = evaluation.assembled_input(case)
+        assert request["tools"] == []
+        assert request["messages"][-1]["role"] == "user"
