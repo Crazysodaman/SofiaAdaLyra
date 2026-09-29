@@ -465,14 +465,23 @@ class SofiaRuntime:
         ):
             return None
 
+        provider_configuration = self._configuration.provider
+        routing = self._configuration.routing
+        if (
+            routing is not None
+            and routing.enabled
+            and routing.primary is not None
+        ):
+            provider_configuration = routing.primary
+
         return OperationalState(
             runtime_id=self._runtime_id,
             started_at=self._started_at,
             lifecycle_state=self._state.value,
             application_name=_application_name(),
             application_version=_application_version(),
-            provider=self._configuration.provider.provider,
-            model=self._configuration.provider.model,
+            provider=provider_configuration.provider,
+            model=provider_configuration.model,
         )
 
     @property
