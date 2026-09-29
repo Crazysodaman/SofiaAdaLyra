@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from http.client import HTTPSConnection
 import json
+import os
 from pathlib import Path
 import ssl
 from typing import Iterable
@@ -180,3 +181,52 @@ class MtlsAgentDiscoverySource:
             if observation is not None:
                 observations.append(observation)
         return tuple(observations)
+
+
+def _parse_discovery_target(value: str) -> AgentDiscoveryTarget:
+    raw = value.strip()
+    if not raw:
+        raise ValueError("Fleet discovery target must be nonempty")
+    if raw.count(":") > 1:
+        raise ValueError(
+            "Fleet discovery target must use hostname or hostname:port"
+        )
+    if ":" in raw:
+        hostname, port_text = raw.rsplit(":", 1)
+        if not port_text.isdigit():
+            raise ValueError("Fleet discovery target port must be numeric")
+        port = int(port_text)
+    else:
+        hostname = raw
+        port = 7443
+    return AgentDiscoveryTarget(
+        hostname=hostname,
+        port=port,
+        inside_approved_scope=True,
+    )
+
+
+def create_configured_fleet_discovery_source(configuration):
+    policy = configuration.fleet_discovery
+    if not policy.enabled:
+        return None
+    if not policy.targets:
+        raise ValueError(
+            "Fleet discovery is enabled but no approved targets are configured"
+        )
+    values = {
+        "ca": os.environ.get("SOFIA_REMOTE_CA", "").strip(),
+        "cert": os.environ.get("SOFIA_REMOTE_CLIENT_CERT", "").strip(),
+        "key": os.environ.get("SOFIA_REMOTE_CLIENT_KEY", "").strip(),
+    }
+    if not all(values.values()):
+        raise ValueError(
+            "Fleet discovery requires SOFIA_REMOTE_CA, "
+            "SOFIA_REMOTE_CLIENT_CERT and SOFIA_REMOTE_CLIENT_KEY"
+        )
+    return MtlsAgentDiscoverySource(
+        tuple(_parse_discovery_target(value) for value in policy.targets),
+        ca_file=Path(values["ca"]),
+        client_certificate=Path(values["cert"]),
+        client_private_key=Path(values["key"]),
+    )
