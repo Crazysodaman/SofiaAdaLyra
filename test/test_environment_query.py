@@ -119,6 +119,7 @@ def test_current_weather_today_common_phrasings_are_recognized():
         "what's the weather today?",
         "what is the weather today?",
         "how's the weather today?",
+        "hows the weather",
         "how is the weather today?",
         "today's weather",
         "todays weather",
@@ -505,3 +506,10 @@ def test_where_are_you_uses_independent_host_location_not_user_location():
     assert "Sparks home" not in answer.content
     assert "not proof" in answer.content
 
+
+
+def test_generic_source_followup_is_classified_without_globally_hijacking_it():
+    resolver = EnvironmentQueryResolver()
+    assert resolver.is_generic_source_followup("where you pull the info")
+    assert resolver.is_weather_or_forecast_query("hows the weather")
+    assert not resolver.might_match("where you pull the info")
