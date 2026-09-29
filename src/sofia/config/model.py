@@ -4,6 +4,7 @@ from pathlib import Path
 
 CURRENT_CONFIGURATION_SCHEMA_VERSION = 1
 
+from sofia.distributed.version import FleetProtocolVersion
 from sofia.environment.config import EnvironmentConfiguration
 from sofia.identity.model import IdentityBootstrapMode
 
@@ -221,6 +222,11 @@ class FleetBootstrapConfiguration:
         if self.package_source is not None and not self.package_source.strip():
             raise ValueError(
                 "fleet bootstrap package_source must be None or nonempty"
+            )
+        FleetProtocolVersion.parse(self.protocol_version)
+        if self.signer_key_id is not None and not self.signer_key_id.strip():
+            raise ValueError(
+                "fleet bootstrap signer_key_id must be None or nonempty"
             )
 
 
