@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from sofia.identity.model import IdentityBootstrapMode, SofiaIdentity
+from sofia.state.atomic_file import atomic_write_text
 
 
 class IdentityStoreError(Exception):
@@ -46,13 +47,14 @@ class IdentityStore:
         }
 
         try:
-            self.identity_path.write_text(
+            atomic_write_text(
+                self.identity_path,
                 json.dumps(
                     data,
                     ensure_ascii=False,
                     indent=4,
-                ),
-                encoding="utf-8",
+                )
+                + "\n",
             )
         except OSError as exc:
             raise IdentityStoreError(
