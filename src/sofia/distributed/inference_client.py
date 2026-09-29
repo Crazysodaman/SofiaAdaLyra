@@ -146,6 +146,26 @@ class ConfiguredRemoteInferenceClient:
             raise RuntimeError(
                 "Fleet model availability currently supports Ollama only"
             )
+        policy_payload = self._operation(
+            node_id,
+            "llm.inspect",
+            "inference_policy",
+            {},
+        )
+        if (
+            not isinstance(policy_payload, dict)
+            or not isinstance(policy_payload.get("allowed_models"), list)
+        ):
+            raise RuntimeError("remote inference model policy is invalid")
+        allowed_models = frozenset(
+            value.strip()
+            for value in policy_payload["allowed_models"]
+            if isinstance(value, str) and value.strip()
+        )
+        if provider.model not in allowed_models:
+            raise PermissionError(
+                f"remote inference policy does not allow model: {provider.model}"
+            )
         installed = self._installed_model_names(
             self._operation(
                 node_id,
