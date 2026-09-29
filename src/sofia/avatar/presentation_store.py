@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from sofia.state.atomic_file import atomic_write_text
+
 from .presentation import PresentationAuthority, PresentationError
 from .wardrobe import Wardrobe
 
@@ -23,14 +25,17 @@ class PresentationStore:
         if not isinstance(authority, PresentationAuthority):
             raise TypeError("PresentationStore requires PresentationAuthority")
         payload = authority.snapshot()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temp = self.path.with_suffix(self.path.suffix + ".tmp")
         try:
-            temp.write_text(
-                json.dumps(payload, sort_keys=True, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
+            atomic_write_text(
+                self.path,
+                json.dumps(
+                    payload,
+                    sort_keys=True,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+                + "\n",
             )
-            temp.replace(self.path)
         except OSError as exc:
             raise PresentationStoreError("failed to save presentation state") from exc
 
