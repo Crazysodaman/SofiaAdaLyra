@@ -146,6 +146,13 @@ class CognitiveRoutingPolicy:
         normalized = text.casefold()
         word_count = len(text.split())
 
+        if any(marker in normalized for marker in self._VERIFY_MARKERS):
+            return RoutingDecision(
+                route=CognitiveRoute.VERIFY,
+                score=10,
+                reason="explicit verification request",
+            )
+
         if any(
             message.role is CognitiveRole.SYSTEM
             and any(
@@ -158,13 +165,6 @@ class CognitiveRoutingPolicy:
                 route=CognitiveRoute.STANDARD,
                 score=4,
                 reason="reviewed represented-interaction context",
-            )
-
-        if any(marker in normalized for marker in self._VERIFY_MARKERS):
-            return RoutingDecision(
-                route=CognitiveRoute.VERIFY,
-                score=10,
-                reason="explicit verification request",
             )
 
         if (
