@@ -8,6 +8,8 @@ from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
+from sofia.ops.state_registry import StatePlaneFleetRegistry
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.ops import (
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,
@@ -212,3 +214,30 @@ def test_unapproved_discovered_identity_stays_candidate(tmp_path):
 
     identities.close()
     endpoints.close()
+
+
+def test_state_plane_registry_persists_authenticated_candidate(tmp_path):
+    plane = SQLiteStatePlane(tmp_path / "state.db")
+    registry = StatePlaneFleetRegistry(plane)
+    registry.register_candidate(
+        FleetHost(
+            host_id="Artemis",
+            platform="windows",
+            architecture="amd64",
+            lifecycle=HostLifecycle.CANDIDATE,
+            trusted=False,
+        )
+    )
+    node_id = UUID("11111111-2222-3333-4444-555555555555")
+
+    promoted = registry.authenticate_candidate("Artemis", node_id)
+
+    assert promoted.trusted is True
+    assert promoted.node_id == node_id
+
+    reloaded = StatePlaneFleetRegistry(plane)
+    durable = reloaded.host("Artemis")
+    assert durable is not None
+    assert durable.trusted is True
+    assert durable.node_id == node_id
+    assert durable.lifecycle is HostLifecycle.CANDIDATE
