@@ -104,6 +104,9 @@ def _fleet_discovery_configuration_from_environ() -> FleetDiscoveryConfiguration
     raw_targets = _environment_csv(
         "SOFIA_FLEET_DISCOVERY_TARGETS"
     )
+    raw_scopes = _environment_csv(
+        "SOFIA_FLEET_DISCOVERY_SCOPES"
+    )
     return FleetDiscoveryConfiguration(
         enabled=_environment_flag(
             "SOFIA_FLEET_DISCOVERY_ENABLED",
@@ -114,6 +117,11 @@ def _fleet_discovery_configuration_from_environ() -> FleetDiscoveryConfiguration
             default=300,
         ),
         targets=raw_targets,
+        scopes=raw_scopes,
+        max_hosts_per_scope=_positive_environment_int(
+            "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE",
+            default=256,
+        ),
     )
 
 
