@@ -315,11 +315,13 @@ class TrayAgentApplication:
         llm_model: str | None = None,
         llm_keep_alive: str | None = None,
     ) -> None:
+        model_kwargs = {"llm_model": llm_model}
+        if llm_keep_alive is not None:
+            model_kwargs["llm_keep_alive"] = llm_keep_alive
         capability, parameters = self._service.approval_spec(
             target,
             action,
-            llm_model=llm_model,
-            llm_keep_alive=llm_keep_alive,
+            **model_kwargs,
         )
         now = datetime.now(timezone.utc)
         approval = ExecutionApproval(
@@ -334,12 +336,16 @@ class TrayAgentApplication:
             expires_at=now + timedelta(seconds=60),
         )
         self._execution_approvals.record(approval)
+        execute_kwargs = {
+            "approval_id": approval.approval_id,
+            "llm_model": llm_model,
+        }
+        if llm_keep_alive is not None:
+            execute_kwargs["llm_keep_alive"] = llm_keep_alive
         self._service.execute(
             target,
             action,
-            approval_id=approval.approval_id,
-            llm_model=llm_model,
-            llm_keep_alive=llm_keep_alive,
+            **execute_kwargs,
         )
 
     def _service_action(
