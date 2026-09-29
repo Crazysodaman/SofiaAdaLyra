@@ -473,3 +473,23 @@ def test_application_start_survives_awareness_cognition_failure(
     assert application.conversation.session_id is not None
 
     application.shutdown()
+
+
+def test_awareness_instruction_forbids_canned_closer_and_relationship_labels(
+    tmp_path,
+):
+    application = create_application(tmp_path)
+    application.runtime.start()
+    application.runtime.shutdown()
+    application.runtime.start()
+
+    event = application.runtime.pending_continuity_event
+    assert event is not None
+
+    instruction = application.conversation._build_awareness_instruction(event)
+
+    assert "Do not end with an offer, question, menu of next steps" in instruction
+    assert "Do not characterize the user relationship" in instruction
+    assert "Do not speculate that changed test databases" in instruction
+
+    application.runtime.shutdown()
