@@ -40,6 +40,18 @@ def test_enabled_provisioning_builds_exact_single_user_config() -> None:
     assert provisioning.require_token() == "local-secret-token"
 
 
+def test_enabled_provisioning_allows_dm_channel_autodiscovery() -> None:
+    environ = enabled_env()
+    del environ["SOFIA_DISCORD_DM_CHANNEL_ID"]
+
+    provisioning = DiscordProvisioning.from_environment(environ)
+    config = provisioning.require_config()
+
+    assert provisioning.enabled is True
+    assert provisioning.dm_channel_id is None
+    assert config.dm_channel_id is None
+
+
 def test_token_is_not_in_repr() -> None:
     provisioning = DiscordProvisioning.from_environment(enabled_env())
     assert "local-secret-token" not in repr(provisioning)
@@ -50,7 +62,6 @@ def test_token_is_not_in_repr() -> None:
     [
         "SOFIA_DISCORD_OWNER_ID",
         "SOFIA_DISCORD_BOT_ID",
-        "SOFIA_DISCORD_DM_CHANNEL_ID",
         "SOFIA_DISCORD_TOKEN",
     ],
 )
@@ -123,6 +134,40 @@ def test_runtime_provisioning_loads_saved_ids_and_protected_token(
     assert provisioning.bot_user_id == int(BOT)
     assert provisioning.dm_channel_id == int(CHANNEL)
     assert provisioning.require_token() == "saved-secret-token"
+
+
+def test_runtime_provisioning_allows_saved_channel_to_be_blank(
+    tmp_path,
+    monkeypatch,
+):
+    configuration = _configuration(tmp_path)
+    RuntimeUserSettingsStore(configuration.state_path).save(
+        RuntimeUserSettings(
+            discord_enabled=True,
+            discord_owner_user_id=int(OWNER),
+            discord_bot_user_id=int(BOT),
+            discord_dm_channel_id=None,
+        )
+    )
+
+    class Secrets:
+        def get(self, key):
+            assert key == "discord-token"
+            return "saved-secret-token"
+
+    monkeypatch.setattr(
+        "sofia.discord.provisioning.ProtectedSecretStore.for_state_path",
+        staticmethod(lambda path: Secrets()),
+    )
+
+    provisioning = DiscordProvisioning.from_runtime(
+        configuration,
+        environ={},
+    )
+
+    assert provisioning.enabled is True
+    assert provisioning.dm_channel_id is None
+    assert provisioning.require_config().dm_channel_id is None
 
 
 def test_runtime_provisioning_environment_override_wins(
