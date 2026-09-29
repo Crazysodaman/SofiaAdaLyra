@@ -62,6 +62,7 @@ class BootstrapCandidate:
     installed_protocol_version: str | None = None
     installed_signer_key_id: str | None = None
     installed_signature_verified: bool = False
+    agent_present: bool = False
 
     def __post_init__(self) -> None:
         if not all(
@@ -86,6 +87,8 @@ class BootstrapCandidate:
             raise ValueError("installed_signer_key_id must be None or nonempty")
         if not isinstance(self.installed_signature_verified, bool):
             raise TypeError("installed_signature_verified must be boolean")
+        if not isinstance(self.agent_present, bool):
+            raise TypeError("agent_present must be boolean")
 
 
 @dataclass(frozen=True)
@@ -142,6 +145,17 @@ class FleetBootstrapPlanner:
                 candidate.installed_protocol_version
             ).compatible_with(
                 FleetProtocolVersion.parse(package.protocol_version)
+            )
+
+        if candidate.agent_present and installed_protocol_ok:
+            return BootstrapPlan(
+                candidate,
+                package,
+                BootstrapDisposition.READY_FOR_ENROLLMENT,
+                (
+                    "Fleet agent is already present with a compatible "
+                    "protocol; package drift is a maintenance concern"
+                ),
             )
 
         signer_ok = (
