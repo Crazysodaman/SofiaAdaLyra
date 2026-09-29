@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.environment.config import EnvironmentConfiguration
 from sofia.environment.factory import (
     HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
@@ -202,3 +203,59 @@ def test_factory_rejects_nws_when_selected_location_is_still_unresolved():
             )
         )
 
+
+
+
+def test_factory_uses_saved_home_assistant_credentials(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.delenv("SOFIA_HOME_ASSISTANT_URL", raising=False)
+    monkeypatch.delenv("SOFIA_HOME_ASSISTANT_TOKEN", raising=False)
+
+    state = tmp_path / "sofia.db"
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            home_assistant_enabled=True,
+            home_assistant_url="http://home-assistant.saved:8123",
+            home_assistant_weather_entity="weather.home",
+        )
+    )
+
+    class Secrets:
+        def get(self, key):
+            assert key == "home-assistant-token"
+            return "saved-ha-token"
+
+    monkeypatch.setattr(
+        "sofia.environment.factory.ProtectedSecretStore.for_state_path",
+        lambda path: Secrets(),
+    )
+
+    config = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=state,
+        provider=ProviderConfiguration(
+            provider="test",
+            model="test",
+        ),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=(
+            HOME_ASSISTANT_ENVIRONMENT_CAPABILITY,
+        ),
+        environment=EnvironmentConfiguration(
+            home_assistant_weather_entity="weather.home",
+        ),
+    )
+
+    service = create_environment_service(config)
+
+    assert len(service.providers) == 1
+    assert isinstance(
+        service.providers[0],
+        HomeAssistantEnvironmentProvider,
+    )
