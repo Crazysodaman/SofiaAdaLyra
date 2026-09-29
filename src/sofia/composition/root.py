@@ -40,6 +40,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability,creat
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
 from sofia.knowledge.access import KnowledgeAccessStore
@@ -204,6 +205,9 @@ def compose(
     memory_system = MemorySystem(
         memory_store,
         candidate_store=memory_candidate_store,
+        historical_store=ChatGPTExportEvidenceStore(
+            configuration.state_path
+        ),
     )
 
     operational_store = OperationalStore(
