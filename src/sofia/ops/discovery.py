@@ -113,6 +113,10 @@ class FleetDiscoveryEvidence:
             installed_protocol_version=self.installed_protocol_version,
             installed_signer_key_id=self.installed_signer_key_id,
             installed_signature_verified=self.installed_signature_verified,
+            agent_present=(
+                self.observed_node_id is not None
+                and self.observed_public_key_sha256 is not None
+            ),
         )
 
 
