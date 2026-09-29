@@ -391,7 +391,7 @@ class SofiaRuntime:
 
     @property
     def model_lifecycle(self) -> ModelLifecycleManager | None:
-        return self._model_lifecycle
+        return getattr(self, "_model_lifecycle", None)
 
     @property
     def capability_system(self) -> CapabilitySystem:
