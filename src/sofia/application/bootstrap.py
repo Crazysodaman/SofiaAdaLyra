@@ -24,7 +24,10 @@ from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.act_service import SofiaActService
 from sofia.application.act_runtime import configure_act_delivery_from_environment
 from sofia.application.evolution import SofiaEvolutionService
-from sofia.application.fleet_runtime import configure_fleet_enrollment_notices
+from sofia.application.fleet_runtime import (
+    configure_fleet_enrollment_notices,
+    create_fleet_candidate_notifier,
+)
 from sofia.application.memory_review import MemoryReviewService
 from sofia.application.conversation_learning import ConversationLearningCoordinator
 from sofia.application.release_runtime import create_release_manager
@@ -473,7 +476,10 @@ class SofiaApplication:
 
                 if fleet_discovery_enabled:
                     discovery = FleetDiscoveryCoordinator(
-                        self._runtime.ops_service.registry
+                        self._runtime.ops_service.registry,
+                        candidate_notifier=create_fleet_candidate_notifier(
+                            act_service=self._act_service,
+                        ),
                     )
 
                     def discover_fleet_candidates(now):
