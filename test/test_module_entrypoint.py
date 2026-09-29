@@ -12,6 +12,10 @@ def test_module_entrypoint_launches_desktop_by_default(monkeypatch):
         "sofia.ui.desktop.run_desktop",
         lambda configuration=None: calls.append("desktop") or 0,
     )
+    monkeypatch.setattr(
+        "sofia.ui.tray_launcher.ensure_tray_agent",
+        lambda configuration: calls.append("tray") or True,
+    )
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(
@@ -20,7 +24,7 @@ def test_module_entrypoint_launches_desktop_by_default(monkeypatch):
         )
 
     assert exc_info.value.code == 0
-    assert calls == ["desktop"]
+    assert calls == ["tray", "desktop"]
 
 
 def test_module_entrypoint_cli_preserves_terminal_client(monkeypatch):
