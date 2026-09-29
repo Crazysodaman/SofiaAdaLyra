@@ -16,6 +16,10 @@ from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.fleet_engine import (
+    FleetCognitionPolicy,
+    FleetPlacedCognitiveEngine,
+)
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     LifecycleManagedCognitiveEngine,
@@ -44,6 +48,9 @@ from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
 from sofia.distributed.capability import create_configured_remote_fleet_tools
+from sofia.distributed.inference_client import (
+    create_configured_remote_inference_client,
+)
 from sofia.dev.capability import DevCapabilitySet,DevToolService,create_dev_tool_bindings
 from sofia.filesystem.capability import FilesystemCapability
 from sofia.filesystem.change_capability import FilesystemChangesCapability,create_filesystem_changes_binding
@@ -167,10 +174,53 @@ def _create_model_lifecycle(
     )
 
 
+def _fleet_wrap_cognitive_engine(
+    local,
+    *,
+    provider_configuration,
+    configuration: SofiaConfiguration,
+    ops_service: OpsToolService | None,
+    local_host_id: str | None,
+    remote_inference_client,
+    workload_id: str,
+):
+    policy = configuration.fleet_cognition
+    if not policy.enabled:
+        return local
+    if ops_service is None:
+        raise ValueError("enabled Fleet cognition requires OPS service")
+    if not isinstance(local_host_id, str) or not local_host_id.strip():
+        raise ValueError("enabled Fleet cognition requires local host identity")
+    if remote_inference_client is None:
+        raise ValueError(
+            "enabled Fleet cognition requires configured pinned-mTLS remote transport"
+        )
+    return FleetPlacedCognitiveEngine(
+        local=local,
+        provider=provider_configuration,
+        ops=ops_service,
+        local_host_id=local_host_id,
+        remote_infer=remote_inference_client.infer,
+        policy=FleetCognitionPolicy(
+            enabled=True,
+            local_fallback=policy.local_fallback,
+            min_ram_bytes=policy.min_ram_bytes,
+            min_vram_bytes=policy.min_vram_bytes,
+            gpu_required=policy.gpu_required,
+            allowed_host_ids=policy.allowed_host_ids,
+            denied_host_ids=policy.denied_host_ids,
+        ),
+        workload_id=workload_id,
+    )
+
+
 def _create_cognitive_engine(
     configuration: SofiaConfiguration,
     *,
     lifecycle: ModelLifecycleManager | None = None,
+    ops_service: OpsToolService | None = None,
+    local_host_id: str | None = None,
+    remote_inference_client=None,
 ):
     routing = configuration.routing
     if routing is not None and routing.enabled:
@@ -194,17 +244,35 @@ def _create_cognitive_engine(
                 "routing secondary provider must be ollama or test-llm"
             )
 
-        registry = CognitiveEngineRegistry(
-            primary=_create_llm_engine(
+        primary_engine = _fleet_wrap_cognitive_engine(
+            _create_llm_engine(
                 primary_configuration,
                 lifecycle=lifecycle,
                 role=CognitiveModelRole.PRIMARY,
             ),
-            secondary=_create_llm_engine(
+            provider_configuration=primary_configuration,
+            configuration=configuration,
+            ops_service=ops_service,
+            local_host_id=local_host_id,
+            remote_inference_client=remote_inference_client,
+            workload_id="cognition-primary",
+        )
+        secondary_engine = _fleet_wrap_cognitive_engine(
+            _create_llm_engine(
                 secondary_configuration,
                 lifecycle=lifecycle,
                 role=CognitiveModelRole.SECONDARY,
             ),
+            provider_configuration=secondary_configuration,
+            configuration=configuration,
+            ops_service=ops_service,
+            local_host_id=local_host_id,
+            remote_inference_client=remote_inference_client,
+            workload_id="cognition-secondary",
+        )
+        registry = CognitiveEngineRegistry(
+            primary=primary_engine,
+            secondary=secondary_engine,
         )
         return RoutingCognitiveEngine(
             registry=registry,
@@ -220,10 +288,19 @@ def _create_cognitive_engine(
         return RuleEngine()
 
     if configuration.provider.provider in {"test-llm", "ollama"}:
-        return _create_llm_engine(
+        local_engine = _create_llm_engine(
             configuration.provider,
             lifecycle=lifecycle,
             role=CognitiveModelRole.PRIMARY,
+        )
+        return _fleet_wrap_cognitive_engine(
+            local_engine,
+            provider_configuration=configuration.provider,
+            configuration=configuration,
+            ops_service=ops_service,
+            local_host_id=local_host_id,
+            remote_inference_client=remote_inference_client,
+            workload_id="cognition-primary",
         )
 
     raise ValueError(
@@ -676,9 +753,26 @@ def compose(
     model_lifecycle = _create_model_lifecycle(
         configuration
     )
+    remote_inference_client = None
+    local_host_id = None
+    if configuration.fleet_cognition.enabled:
+        remote_inference_client = create_configured_remote_inference_client(
+            state_path
+        )
+        if remote_inference_client is None:
+            raise ValueError(
+                "Fleet cognition is enabled but pinned-mTLS remote transport "
+                "is not configured"
+            )
+        local_host_id = (
+            create_machine_discovery().discover().identity.machine_id
+        )
     cognitive_engine = _create_cognitive_engine(
         configuration,
         lifecycle=model_lifecycle,
+        ops_service=ops_service,
+        local_host_id=local_host_id,
+        remote_inference_client=remote_inference_client,
     )
 
     # Normal Ollama conversation uses a compact projection of the verified
