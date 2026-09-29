@@ -634,3 +634,24 @@ def test_fleet_cognition_fails_closed_without_remote_transport(tmp_path):
             local_host_id="local-host",
             remote_inference_client=None,
         )
+
+
+def test_default_configuration_parses_fleet_discovery_policy(monkeypatch):
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_ENABLED", "1")
+    monkeypatch.setenv(
+        "SOFIA_FLEET_DISCOVERY_TARGETS",
+        "artemis.local:7443,terra.local",
+    )
+    monkeypatch.setenv(
+        "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
+        "120",
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.fleet_discovery.enabled is True
+    assert configuration.fleet_discovery.interval_seconds == 120
+    assert configuration.fleet_discovery.targets == (
+        "artemis.local:7443",
+        "terra.local",
+    )
