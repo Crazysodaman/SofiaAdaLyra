@@ -38,18 +38,33 @@ def _required_snowflake(environ: Mapping[str, str], name: str) -> int:
     return value
 
 
+def _optional_snowflake(
+    environ: Mapping[str, str],
+    name: str,
+) -> int | None:
+    raw = environ.get(name, "").strip()
+    if not raw:
+        return None
+    if not raw.isascii() or not raw.isdigit():
+        raise ValueError(f"{name} must be a positive Discord snowflake")
+    value = int(raw)
+    if not _snowflake(value):
+        raise ValueError(f"{name} must be a positive Discord snowflake")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class DiscordIdentity:
     owner_user_id: int
     bot_user_id: int
-    dm_channel_id: int
+    dm_channel_id: int | None = None
 
     def __post_init__(self) -> None:
         if not _snowflake(self.owner_user_id):
             raise ValueError("owner_user_id must be a positive Discord snowflake")
         if not _snowflake(self.bot_user_id):
             raise ValueError("bot_user_id must be a positive Discord snowflake")
-        if not _snowflake(self.dm_channel_id):
+        if self.dm_channel_id is not None and not _snowflake(self.dm_channel_id):
             raise ValueError("dm_channel_id must be a positive Discord snowflake")
         if self.owner_user_id == self.bot_user_id:
             raise ValueError("Discord owner and bot IDs must differ")
@@ -62,7 +77,7 @@ class DiscordIdentity:
         source = os.environ if environ is None else environ
         owner = _required_snowflake(source, "SOFIA_DISCORD_OWNER_ID")
         bot = _required_snowflake(source, "SOFIA_DISCORD_BOT_ID")
-        channel = _required_snowflake(source, "SOFIA_DISCORD_DM_CHANNEL_ID")
+        channel = _optional_snowflake(source, "SOFIA_DISCORD_DM_CHANNEL_ID")
         if owner == bot:
             raise ValueError("Discord owner and bot IDs must differ")
         return cls(owner_user_id=owner, bot_user_id=bot, dm_channel_id=channel)
@@ -122,10 +137,13 @@ class DiscordProvisioning:
         owner = settings.discord_owner_user_id
         bot = settings.discord_bot_user_id
         channel = settings.discord_dm_channel_id
-        if not all(_snowflake(value) for value in (owner, bot, channel)):
+        if not all(_snowflake(value) for value in (owner, bot)):
             raise ValueError(
-                "saved Discord settings require valid owner, bot, and "
-                "DM channel IDs"
+                "saved Discord settings require valid owner and bot IDs"
+            )
+        if channel is not None and not _snowflake(channel):
+            raise ValueError(
+                "saved Discord DM channel ID must be a valid snowflake"
             )
         token = ProtectedSecretStore.for_state_path(
             configuration.state_path
@@ -147,7 +165,6 @@ class DiscordProvisioning:
             raise RuntimeError("Discord transport is disabled")
         assert self.owner_user_id is not None
         assert self.bot_user_id is not None
-        assert self.dm_channel_id is not None
         return SingleUserDiscordConfig(
             owner_user_id=self.owner_user_id,
             bot_user_id=self.bot_user_id,
