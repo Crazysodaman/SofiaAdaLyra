@@ -17,6 +17,7 @@ from sofia.distributed.operations import (
     RemoteOutcome,
 )
 from sofia.distributed.remote_control import DurableRemoteControl
+from sofia.safe.operator_stop import OperatorStopStore
 
 
 class ConfiguredRemoteInferenceClient:
@@ -50,6 +51,13 @@ class ConfiguredRemoteInferenceClient:
         operation: str,
         parameters: dict[str, object],
     ) -> object:
+        if (
+            capability == "llm.manage"
+            and OperatorStopStore(self.state_path).current().active
+        ):
+            raise PermissionError(
+                "operator stop blocks remote model management"
+            )
         endpoint_lookup = DurableEndpointPolicy(
             self.base / "remote-endpoints.db"
         )
