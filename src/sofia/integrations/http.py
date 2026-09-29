@@ -13,7 +13,15 @@ class JsonHttpClient:
         base=base_url.strip().rstrip("/")
         if not base.startswith(("http://","https://")): raise ValueError("base_url must be http(s)")
         self.base_url=base; self.headers=dict(headers or {}); self.timeout=timeout
-    def request(self,method:str,path:str,*,query:Mapping[str,Any]|None=None,payload:Any=None)->Any:
+    def request(
+        self,
+        method:str,
+        path:str,
+        *,
+        query:Mapping[str,Any]|None=None,
+        payload:Any=None,
+        timeout:float|None=None,
+    )->Any:
         url=self.base_url+"/"+path.lstrip("/")
         if query:
             encoded=urlencode({k:v for k,v in query.items() if v is not None},doseq=True)
@@ -25,13 +33,22 @@ class JsonHttpClient:
             headers["Content-Type"]="application/json"
         req=Request(url,data=data,headers=headers,method=method.upper())
         try:
-            with urlopen(req,timeout=self.timeout) as resp:
+            effective_timeout=self.timeout if timeout is None else timeout
+            if (
+                isinstance(effective_timeout,bool)
+                or not isinstance(effective_timeout,(int,float))
+                or effective_timeout<=0
+            ):
+                raise ValueError("timeout must be a positive number")
+            with urlopen(req,timeout=float(effective_timeout)) as resp:
                 raw=resp.read()
         except HTTPError as exc:
             body=exc.read().decode("utf-8",errors="replace")
             raise ServiceHTTPError(f"HTTP {exc.code}: {body[:500]}") from exc
         except URLError as exc:
             raise ServiceHTTPError(f"service request failed: {exc.reason}") from exc
+        except TimeoutError as exc:
+            raise ServiceHTTPError("service request timed out") from exc
         if not raw: return None
         try: return json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError,json.JSONDecodeError) as exc:

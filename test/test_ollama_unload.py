@@ -19,6 +19,7 @@ def test_unload_uses_keep_alive_zero_without_stopping_service():
     assert kwargs["payload"]["model"]=="qwen3:14b"
     assert kwargs["payload"]["keep_alive"]==0
     assert kwargs["payload"]["stream"] is False
+    assert kwargs["timeout"]==60.0
 
 
 
@@ -35,3 +36,4 @@ def test_load_uses_configured_keep_alive_without_generating_text():
         "prompt":"",
         "stream":False,
     }
+    assert kwargs["timeout"]==600.0
