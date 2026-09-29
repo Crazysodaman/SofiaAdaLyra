@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sys
 
-from sofia.config import create_production_configuration
+from sofia.config import production_state_path
 from sofia.memory.chatgpt_export import parse_chatgpt_export_archive
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.chatgpt_import import parse_chatgpt_memory_dump
@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
         state_path = (
             Path(args.state_path)
             if args.state_path
-            else Path(create_production_configuration().state_path)
+            else Path(production_state_path())
         )
 
         if source.suffix.casefold() == ".zip":
