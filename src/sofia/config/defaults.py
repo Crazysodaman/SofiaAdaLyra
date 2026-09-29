@@ -4,6 +4,7 @@ import os
 
 from sofia.config.model import (
     CognitiveRoutingConfiguration,
+    FleetCognitionConfiguration,
     ModelLifecycleConfiguration,
     ProviderConfiguration,
     SofiaConfiguration,
@@ -40,6 +41,58 @@ def _positive_environment_int(name: str, *, default: int) -> int:
     if value <= 0:
         raise ValueError(f"{name} must be positive")
     return value
+
+
+def _nonnegative_environment_int(name: str, *, default: int = 0) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    if value < 0:
+        raise ValueError(f"{name} must be nonnegative")
+    return value
+
+
+def _environment_csv(name: str) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            value.strip()
+            for value in os.environ.get(name, "").split(",")
+            if value.strip()
+        )
+    )
+
+
+def _fleet_cognition_configuration_from_environ() -> FleetCognitionConfiguration:
+    return FleetCognitionConfiguration(
+        enabled=_environment_flag(
+            "SOFIA_COGNITION_FLEET_ENABLED",
+            default=False,
+        ),
+        local_fallback=_environment_flag(
+            "SOFIA_COGNITION_FLEET_LOCAL_FALLBACK",
+            default=True,
+        ),
+        min_ram_bytes=_nonnegative_environment_int(
+            "SOFIA_COGNITION_FLEET_MIN_RAM_BYTES",
+        ),
+        min_vram_bytes=_nonnegative_environment_int(
+            "SOFIA_COGNITION_FLEET_MIN_VRAM_BYTES",
+        ),
+        gpu_required=_environment_flag(
+            "SOFIA_COGNITION_FLEET_GPU_REQUIRED",
+            default=False,
+        ),
+        allowed_host_ids=_environment_csv(
+            "SOFIA_COGNITION_FLEET_ALLOWED_HOST_IDS"
+        ),
+        denied_host_ids=_environment_csv(
+            "SOFIA_COGNITION_FLEET_DENIED_HOST_IDS"
+        ),
+    )
 
 
 def _routing_configuration_from_environ(
@@ -292,6 +345,7 @@ def create_default_configuration(
         model_lifecycle=_model_lifecycle_configuration_from_environ(
             user_settings,
         ),
+        fleet_cognition=_fleet_cognition_configuration_from_environ(),
         environment=environment,
     )
 
