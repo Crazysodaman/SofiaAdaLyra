@@ -95,6 +95,23 @@ class JsonFleetRegistry(FleetRegistry):
             lambda: super(JsonFleetRegistry, self).transition(host_id, state)
         )
 
+    def refine_candidate_identity(
+        self,
+        host_id: str,
+        *,
+        platform: str,
+        architecture: str,
+        tags: tuple[str, ...] | None = None,
+    ) -> FleetHost:
+        return self._mutate_and_flush(
+            lambda: super(JsonFleetRegistry, self).refine_candidate_identity(
+                host_id,
+                platform=platform,
+                architecture=architecture,
+                tags=tags,
+            )
+        )
+
     def authenticate_candidate(self, host_id: str, node_id: UUID) -> FleetHost:
         return self._mutate_and_flush(
             lambda: super(JsonFleetRegistry, self).authenticate_candidate(
