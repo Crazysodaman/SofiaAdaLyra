@@ -19,6 +19,8 @@ from .agent_discovery import AgentDiscoveryTarget, MtlsAgentDiscoverySource
 from .discovery import (
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,
+    FleetDiscoveryEnrollmentReconciler,
+    FleetDiscoveryEnrollmentResult,
     FleetDiscoveryResult,
     FleetDiscoverySource,
 )
@@ -44,5 +46,6 @@ __all__=[
     "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
     "AgentDiscoveryTarget","MtlsAgentDiscoverySource",
     "FleetDiscoveryCoordinator","FleetDiscoveryEvidence",
+    "FleetDiscoveryEnrollmentReconciler","FleetDiscoveryEnrollmentResult",
     "FleetDiscoveryResult","FleetDiscoverySource",
 ]
