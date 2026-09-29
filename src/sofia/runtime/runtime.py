@@ -695,6 +695,13 @@ class SofiaRuntime:
             principal=principal,
         )
 
+        historical_conversation_evidence = (
+            self._memory_system.recall_historical_evidence(
+                user_content,
+                principal=principal,
+            )
+        )
+
         measurement_query = None
 
         if self._embodiment is not None:
@@ -723,6 +730,9 @@ class SofiaRuntime:
                 measurement_query=measurement_query,
                 core_state=self._core_state,
                 memories=memories,
+                historical_conversation_evidence=(
+                    historical_conversation_evidence
+                ),
                 operational_state=self.operational_state,
                 runtime_continuity=self._runtime_continuity,
                 filesystem_results=filesystem_results,
