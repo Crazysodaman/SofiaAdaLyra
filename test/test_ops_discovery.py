@@ -1,11 +1,19 @@
 from datetime import datetime, timezone
+from uuid import UUID
 
 import pytest
 
+from sofia.distributed.endpoint_policy import ApprovedEndpoint
+from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.ops import (
     FleetDiscoveryCoordinator,
     FleetDiscoveryEvidence,
+    FleetDiscoveryEnrollmentReconciler,
     FleetRegistry,
+    FleetEnrollmentService,
     HostLifecycle,
 )
 
@@ -113,3 +121,94 @@ def test_discovery_evidence_converts_to_existing_bootstrap_contract():
     assert candidate.installed_agent_version == "1.2.3"
     assert candidate.installed_agent_sha256 == "a" * 64
     assert candidate.installed_protocol_version == "1.0"
+
+
+def test_preapproved_discovered_identity_auto_enrolls(tmp_path):
+    registry = FleetRegistry()
+    coordinator = FleetDiscoveryCoordinator(registry)
+    node_id = UUID("11111111-2222-3333-4444-555555555555")
+    key = "b" * 64
+    observation = evidence(
+        host_id="Artemis",
+        hostname="artemis.local",
+        platform="windows",
+        architecture="amd64",
+        observed_node_id=node_id,
+        observed_public_key_sha256=key,
+        observed_endpoint_hostname="artemis.local",
+        observed_endpoint_port=7443,
+    )
+    discovery = coordinator.ingest((observation,))
+
+    identities = DurableNodeIdentityRegistry(tmp_path / "identities.db")
+    endpoints = DurableEndpointPolicy(tmp_path / "endpoints.db")
+    identities.enroll(
+        NodeEnrollment(
+            DistributedNode(node_id, "Artemis"),
+            key,
+            NOW,
+            "Sparks",
+        )
+    )
+    endpoint = NodeEndpoint(
+        "artemis.local",
+        7443,
+        NodeTransport.HTTPS,
+    )
+    endpoints.approve(
+        ApprovedEndpoint(
+            node_id,
+            endpoint,
+            "Sparks",
+        )
+    )
+    reconciled = FleetDiscoveryEnrollmentReconciler(
+        enrollment_service=FleetEnrollmentService(registry),
+        identity_registry=identities,
+        endpoint_policy=endpoints,
+    ).reconcile(discovery)
+
+    host = registry.host("Artemis")
+    assert host is not None
+    assert host.lifecycle is HostLifecycle.ENROLLED
+    assert host.trusted is True
+    assert host.node_id == node_id
+    assert reconciled.enrolled_host_ids == ("Artemis",)
+
+    identities.close()
+    endpoints.close()
+
+
+def test_unapproved_discovered_identity_stays_candidate(tmp_path):
+    registry = FleetRegistry()
+    coordinator = FleetDiscoveryCoordinator(registry)
+    node_id = UUID("11111111-2222-3333-4444-555555555555")
+    observation = evidence(
+        host_id="Artemis",
+        hostname="artemis.local",
+        platform="windows",
+        architecture="amd64",
+        observed_node_id=node_id,
+        observed_public_key_sha256="c" * 64,
+        observed_endpoint_hostname="artemis.local",
+        observed_endpoint_port=7443,
+    )
+    discovery = coordinator.ingest((observation,))
+
+    identities = DurableNodeIdentityRegistry(tmp_path / "identities.db")
+    endpoints = DurableEndpointPolicy(tmp_path / "endpoints.db")
+    reconciled = FleetDiscoveryEnrollmentReconciler(
+        enrollment_service=FleetEnrollmentService(registry),
+        identity_registry=identities,
+        endpoint_policy=endpoints,
+    ).reconcile(discovery)
+
+    host = registry.host("Artemis")
+    assert host is not None
+    assert host.lifecycle is HostLifecycle.CANDIDATE
+    assert host.trusted is False
+    assert host.node_id is None
+    assert reconciled.pending_host_ids == ("Artemis",)
+
+    identities.close()
+    endpoints.close()
