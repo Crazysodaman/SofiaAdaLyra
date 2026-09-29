@@ -6,7 +6,7 @@ import sys
 
 from sofia.clean.planner import ReleaseCleanupPlanner
 from sofia.clean.recovery import RecoverySnapshotManager
-from sofia.config import create_production_configuration
+from sofia.config import production_state_path
 
 
 def main(argv:list[str]|None=None)->int:
@@ -35,8 +35,11 @@ def main(argv:list[str]|None=None)->int:
     args=parser.parse_args(argv)
     try:
         if args.command=="snapshot":
-            configuration=create_production_configuration()
-            source=Path(args.state_path) if args.state_path else Path(configuration.state_path)
+            source=(
+                Path(args.state_path)
+                if args.state_path
+                else production_state_path()
+            )
             result=RecoverySnapshotManager(Path(args.recovery_root)).snapshot_sqlite(
                 source,
                 label=args.label,
