@@ -40,7 +40,6 @@ def test_local_runtime_service_action_uses_typed_maintenance():
         local_host_id="venus",
         local_maintenance=local,
         ollama=Ollama(),
-        llm_model="qwen3:14b",
         approval_verifier=Approval(),
     )
     result=controller.execute(
@@ -57,16 +56,16 @@ def test_llm_unload_is_separate_from_stopping_ollama_service():
         local_host_id="venus",
         local_maintenance=local,
         ollama=ollama,
-        llm_model="qwen3:14b",
         approval_verifier=Approval(),
     )
     result=controller.execute(
         ServiceTarget(ServiceKind.LLM_ENGINE,"venus","Ollama"),
         ServiceAction.UNLOAD_MODEL,
+        llm_model="vendor/custom-open:4b",
     )
-    assert ollama.unloaded==["qwen3:14b"]
+    assert ollama.unloaded==["vendor/custom-open:4b"]
     assert local.calls==[]
-    assert result.detail=="unload requested for qwen3:14b"
+    assert result.detail=="unload requested for vendor/custom-open:4b"
 
 
 def test_remote_target_never_falls_back_to_local_service_control():
@@ -74,7 +73,6 @@ def test_remote_target_never_falls_back_to_local_service_control():
         local_host_id="venus",
         local_maintenance=Local(),
         ollama=Ollama(),
-        llm_model="qwen3:14b",
         approval_verifier=Approval(),
     )
     with pytest.raises(RemoteControlUnavailable):
@@ -98,10 +96,24 @@ def test_remote_target_uses_explicit_fleet_controller():
         local_maintenance=Local(),
         remote=remote,
         ollama=Ollama(),
-        llm_model="qwen3:14b",
         approval_verifier=Approval(),
     )
     target=ServiceTarget(ServiceKind.LLM_ENGINE,"artemis","Ollama")
     result=controller.execute(target,ServiceAction.RESTART)
     assert remote.calls==[(target,ServiceAction.RESTART)]
     assert result.detail=="remote-ok"
+
+
+
+def test_llm_unload_requires_model_from_caller_not_controller_state():
+    controller=DesktopServiceController(
+        local_host_id="venus",
+        local_maintenance=Local(),
+        ollama=Ollama(),
+        approval_verifier=Approval(),
+    )
+    with pytest.raises(ValueError, match="model identity"):
+        controller.execute(
+            ServiceTarget(ServiceKind.LLM_ENGINE,"venus","Ollama"),
+            ServiceAction.UNLOAD_MODEL,
+        )
