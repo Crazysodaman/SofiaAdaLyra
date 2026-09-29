@@ -180,16 +180,60 @@ class FleetDiscoveryCoordinator:
                 rejected.append(observation.host_id)
                 continue
 
+            tags = tuple(
+                value
+                for value in (
+                    "discovered",
+                    f"source:{observation.source}",
+                    f"hostname:{observation.hostname}",
+                    (
+                        "observed-node:"
+                        f"{observation.observed_node_id}"
+                        if observation.observed_node_id is not None
+                        else None
+                    ),
+                    (
+                        "observed-key:"
+                        f"{observation.observed_public_key_sha256}"
+                        if observation.observed_public_key_sha256
+                        else None
+                    ),
+                )
+                if value is not None
+            )
             known = self.registry.host(observation.host_id)
             if known is not None:
-                if (
-                    known.platform.casefold() != observation.platform.casefold()
-                    or known.architecture.casefold()
-                    != observation.architecture.casefold()
-                ):
-                    raise ValueError(
-                        f"discovery conflicts with durable Fleet identity: "
-                        f"{observation.host_id}"
+                platform_matches = (
+                    known.platform.casefold()
+                    == observation.platform.casefold()
+                )
+                architecture_matches = (
+                    known.architecture.casefold()
+                    == observation.architecture.casefold()
+                )
+                can_refine = (
+                    known.lifecycle is HostLifecycle.CANDIDATE
+                    and not known.trusted
+                    and (
+                        known.platform.casefold() == "unknown"
+                        or platform_matches
+                    )
+                    and (
+                        known.architecture.casefold() == "unknown"
+                        or architecture_matches
+                    )
+                )
+                if not platform_matches or not architecture_matches:
+                    if not can_refine:
+                        raise ValueError(
+                            f"discovery conflicts with durable Fleet identity: "
+                            f"{observation.host_id}"
+                        )
+                    self.registry.refine_candidate_identity(
+                        observation.host_id,
+                        platform=observation.platform,
+                        architecture=observation.architecture,
+                        tags=tags,
                     )
                 existing.append(observation.host_id)
                 continue
@@ -201,27 +245,7 @@ class FleetDiscoveryCoordinator:
                 lifecycle=HostLifecycle.CANDIDATE,
                 trusted=False,
                 telemetry=None,
-                tags=tuple(
-                    value
-                    for value in (
-                        "discovered",
-                        f"source:{observation.source}",
-                        f"hostname:{observation.hostname}",
-                        (
-                            "observed-node:"
-                            f"{observation.observed_node_id}"
-                            if observation.observed_node_id is not None
-                            else None
-                        ),
-                        (
-                            "observed-key:"
-                            f"{observation.observed_public_key_sha256}"
-                            if observation.observed_public_key_sha256
-                            else None
-                        ),
-                    )
-                    if value is not None
-                ),
+                tags=tags,
                 node_id=None,
             )
             self.registry.register_candidate(candidate)
