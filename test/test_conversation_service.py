@@ -383,6 +383,7 @@ def test_conversation_tool_gate_keeps_ordinary_turns_tool_free(content):
         "is Plex running",
         "restart the service",
         "what is the system status",
+        "Can you physically sense my hand through an actual sensor?",
     ),
 )
 def test_conversation_tool_gate_allows_operational_turns(content):

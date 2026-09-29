@@ -30,7 +30,7 @@ from sofia.rel.store import RelationshipStore
 _TOOL_TARGET_RE = re.compile(
     r"\\b(?:file|folder|directory|code|codebase|repository|repo|github|"
     r"issue|pull\\s+request|process|cpu|gpu|memory|ram|disk|storage|"
-    r"system|computer|machine|host|network|service|hardware|vm|"
+    r"system|computer|machine|host|network|service|hardware|sensor|sensors|vm|"
     r"virtual\\s+machine|container|docker|ollama|sqlite|database|"
     r"home\\s+assistant|portainer|jmri|discord|fleet|remote|telemetry|"
     r"package|deployment|server)\\b",
