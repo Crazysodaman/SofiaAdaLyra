@@ -288,7 +288,7 @@ def test_default_configuration_can_enable_selected_models(monkeypatch):
     )
     monkeypatch.setenv(
         "SOFIA_COGNITION_SECONDARY_MODEL",
-        "huihui_ai/qwen3.5-abliterated:4b",
+        "huihui_ai/qwen3.5-abliterated:4B",
     )
     monkeypatch.setenv(
         "SOFIA_COGNITION_PRIMARY_CONTEXT_SIZE",
@@ -309,7 +309,7 @@ def test_default_configuration_can_enable_selected_models(monkeypatch):
     assert configuration.routing.primary.context_size == 16000
     assert (
         configuration.routing.secondary.model
-        == "huihui_ai/qwen3.5-abliterated:4b"
+        == "huihui_ai/qwen3.5-abliterated:4B"
     )
     assert configuration.routing.secondary.context_size == 8192
 
