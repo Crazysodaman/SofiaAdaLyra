@@ -74,6 +74,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_distributed_", ("pkg_net", "pkg_ops")),
     ("test_external_", ("pkg_integrate",)),
     ("test_system_", ("pkg_ops",)),
+    ("test_safe_", ("pkg_safe",)),
     ("test_filesystem_", ("pkg_dev", "pkg_safe")),
     ("test_authority", ("pkg_safe",)),
     ("test_authorization", ("pkg_safe",)),
