@@ -399,3 +399,37 @@ def test_trace_store_additively_migrates_pre_context_schema(tmp_path):
 
     assert "context_json" in columns
     assert "context_active" in columns
+
+
+def test_cross_domain_weather_and_outfit_lights_both_domains():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope("does the weather affect what outfit you're wearing?")
+    )
+
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is not (
+        MatrixRelevance.NONE
+    )
+    assert turn.relevance_for(MatrixDomain.AVATAR) is not (
+        MatrixRelevance.NONE
+    )
+
+
+def test_cross_domain_avatar_change_with_weather_requires_authority():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope("change your outfit based on the weather")
+    )
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.AUTHORITY) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert turn.relevance_for(MatrixDomain.AVATAR) is (
+        MatrixRelevance.RELEVANT
+    )
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
+        MatrixRelevance.RELEVANT
+    )
