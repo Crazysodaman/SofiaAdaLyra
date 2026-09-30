@@ -277,11 +277,6 @@ def response_quality_issue(
     user = request.messages[-1].content
     content = response.content
     if _EMOTION_SELF_REPORT.search(user):
-        if (
-            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
-            and _WARDROBE_CHECKIN_TANGENT.search(content)
-        ):
-            return "social_checkin_wardrobe_tangent"
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
         if _EMOTION_IMPLEMENTATION_LEAK.search(content):
@@ -297,6 +292,11 @@ def response_quality_issue(
             and _EMOTION_STATE_LANGUAGE.search(content) is None
         ):
             return "emotion_self_report_tangent"
+        if (
+            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
+            and _WARDROBE_CHECKIN_TANGENT.search(content)
+        ):
+            return "social_checkin_wardrobe_tangent"
     system_context = "\n".join(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
