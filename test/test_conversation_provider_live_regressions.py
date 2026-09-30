@@ -91,7 +91,14 @@ def test_weather_today_is_answered_by_environment_resolver_without_llm(
     try:
         response = application.conversation.respond("what is the weather today")
 
-        assert response.content == "I don't have current weather evidence."
+        assert response.content.startswith(
+            "I don't have current weather evidence."
+        )
+        assert (
+            "No configured or current location evidence is available "
+            "for a weather provider."
+            in response.content
+        )
         assert captured == []
     finally:
         application.shutdown()
