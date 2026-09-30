@@ -1,5 +1,6 @@
 """Message-matrix coordination contracts and shadow-mode tracing."""
 from .classifier import BaselineTurnClassifier
+from .context_plan import MatrixContextPlanner
 from .coordinator import (
     MatrixCoordinator,
     MatrixDomainEvaluator,
@@ -47,6 +48,7 @@ __all__ = [
     "HistoryPolicy",
     "MatrixConfidence",
     "MatrixCoordinator",
+    "MatrixContextPlanner",
     "MatrixDomain",
     "MatrixDomainEvaluator",
     "MatrixIntent",
