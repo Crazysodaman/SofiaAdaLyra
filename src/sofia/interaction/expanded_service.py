@@ -148,6 +148,7 @@ class ExpandedConversationService(InteractiveConversationService):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ):
         if isinstance(content, str):
             text = content.strip()
@@ -155,10 +156,15 @@ class ExpandedConversationService(InteractiveConversationService):
                     not re.search(r"\b(?:not|never|don't|if|would|could|should)\b", text, re.I)
                     and _ACTION_COMPOUND.search(text)):
                 return (
-                    self._guarded_reply(content, _COMPOSITE_ACTION)
+                    self._guarded_reply(
+                        content, _COMPOSITE_ACTION, channel=channel
+                    )
                     if principal is None
                     else self._guarded_reply(
-                        content, _COMPOSITE_ACTION, principal=principal
+                        content,
+                        _COMPOSITE_ACTION,
+                        principal=principal,
+                        channel=channel,
                     )
                 )
             if self._session is not None:
@@ -169,22 +175,38 @@ class ExpandedConversationService(InteractiveConversationService):
                         occurred_at=datetime.now(timezone.utc))
                     if action is not None and InteractionLedger(config.state_path).stopped(self._session.id):
                         return (
-                            self._guarded_reply(content, _STOPPED_ACTION)
+                            self._guarded_reply(
+                                content, _STOPPED_ACTION, channel=channel
+                            )
                             if principal is None
                             else self._guarded_reply(
-                                content, _STOPPED_ACTION, principal=principal
+                                content,
+                                _STOPPED_ACTION,
+                                principal=principal,
+                                channel=channel,
                             )
                         )
                     if context is not None and context.blocked:
                         return (
-                            self._guarded_reply(content, _BOUNDARY_ACTION)
+                            self._guarded_reply(
+                                content, _BOUNDARY_ACTION, channel=channel
+                            )
                             if principal is None
                             else self._guarded_reply(
-                                content, _BOUNDARY_ACTION, principal=principal
+                                content,
+                                _BOUNDARY_ACTION,
+                                principal=principal,
+                                channel=channel,
                             )
                         )
-        return super().respond(content) if principal is None else super().respond(
-            content, principal=principal
+        return (
+            super().respond(content, channel=channel)
+            if principal is None
+            else super().respond(
+                content,
+                principal=principal,
+                channel=channel,
+            )
         )
 
     def _build_request(self) -> CognitiveRequest:
