@@ -3,6 +3,7 @@ import sqlite3
 
 import pytest
 
+from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.cognition.matrix import (
     BaselineTurnClassifier,
     DomainContribution,
@@ -217,3 +218,45 @@ def test_latest_trace_is_scoped_by_session(tmp_path):
     assert store.latest(session_id="session-1").envelope.message_id == "one"
     assert store.latest(session_id="session-2").envelope.message_id == "two"
     assert store.latest().envelope.message_id == "two"
+
+
+def test_state_changing_avatar_request_is_action_not_read_only_avatar_query():
+    result = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("change your outfit"))
+
+    assert result.intent is MatrixIntent.ACTION_REQUEST
+    assert result.relevance_for(MatrixDomain.AUTHORITY) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.NONE
+
+
+def test_default_registry_has_one_owner_per_registered_domain():
+    registry = default_matrix_registry()
+    domains = tuple(evaluator.domain for evaluator in registry.evaluators)
+
+    assert len(domains) == len(set(domains))
+    assert set(domains) == {
+        MatrixDomain.SOCIAL,
+        MatrixDomain.EMOTION,
+        MatrixDomain.ENVIRONMENT,
+        MatrixDomain.AVATAR,
+        MatrixDomain.INTERACTION,
+        MatrixDomain.MEMORY,
+        MatrixDomain.COGNITION,
+        MatrixDomain.MACHINE,
+        MatrixDomain.OPS,
+        MatrixDomain.AUTHORITY,
+    }
+
+
+def test_machine_domain_can_strengthen_operational_relevance():
+    result = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("how is the network"))
+
+    assert result.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert result.relevance_for(MatrixDomain.MACHINE) is (
+        MatrixRelevance.REQUIRED
+    )
