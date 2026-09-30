@@ -27,6 +27,17 @@ def preview_candidate(source) -> dict:
     if len(observations) != 1:
         raise ValueError("read-only canary expects exactly one agent observation")
     observation = observations[0]
+    if (
+        not observation.capabilities_verified
+        or observation.observed_node_id is None
+        or not observation.observed_public_key_sha256
+        or not {"system.inspect", "ops.telemetry"}.issubset(
+            observation.capability_names
+        )
+    ):
+        raise ValueError(
+            "mTLS canary requires verified identity and baseline capabilities"
+        )
     # Use only an in-memory registry. Never touch production OPS state here.
     result = FleetDiscoveryCoordinator(FleetRegistry()).ingest(observations)
     return {
