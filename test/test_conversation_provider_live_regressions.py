@@ -161,3 +161,98 @@ def test_live_discord_panties_question_uses_current_avatar_projection(
         assert captured == []
     finally:
         application.shutdown()
+
+
+def test_matrix_hru_provider_context_excludes_unrelated_avatar_and_runtime_facts(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I'm feeling calm.",),
+    )
+    try:
+        response = application.conversation.respond("Hru")
+
+        assert response.content == "I'm feeling calm."
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "Fitted breathable black technical shirt" not in system_text
+        assert application.runtime.operational_state.model not in system_text
+        assert "CLOTHING: UNKNOWN" in system_text
+        assert "OPERATIONAL STATE: UNKNOWN" in system_text
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.context_active is True
+        assert trace.context is not None
+        assert trace.context.max_history_messages == 1
+    finally:
+        application.shutdown()
+
+
+def test_matrix_hru_skips_memory_retrieval(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I'm feeling calm.",),
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Hru must not retrieve MEMORY domain state")
+
+    monkeypatch.setattr(
+        application.runtime._memory_system,
+        "recall_relevant",
+        forbidden,
+    )
+    monkeypatch.setattr(
+        application.runtime._memory_system,
+        "recall_historical_evidence",
+        forbidden,
+    )
+    try:
+        response = application.conversation.respond("Hru")
+
+        assert response.content == "I'm feeling calm."
+        assert len(captured) == 1
+    finally:
+        application.shutdown()
+
+
+def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("Hexapod gait planning uses coordinated leg phases.",),
+    )
+    try:
+        response = application.conversation.respond(
+            "Tell me about hexapod gait planning."
+        )
+
+        assert "coordinated leg phases" in response.content
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "Fitted breathable black technical shirt" in system_text
+        assert application.runtime.operational_state.model in system_text
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.context_active is True
+        assert trace.context is not None
+        assert trace.context.max_history_messages == 12
+    finally:
+        application.shutdown()
