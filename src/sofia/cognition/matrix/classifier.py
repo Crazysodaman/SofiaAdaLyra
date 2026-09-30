@@ -154,6 +154,30 @@ class BaselineTurnClassifier:
                 ),
             ]
             if _AVATAR.search(text):
+                domains.append(
+                    _contribution(
+                        MatrixDomain.AVATAR,
+                        MatrixRelevance.RELEVANT,
+                        "action references avatar or presentation state",
+                    )
+                )
+            if _MODEL_STATUS.search(text):
+                domains.append(
+                    _contribution(
+                        MatrixDomain.COGNITION,
+                        MatrixRelevance.RELEVANT,
+                        "action references a cognitive model",
+                    )
+                )
+            return TurnMatrix(
+                intent=MatrixIntent.ACTION_REQUEST,
+                confidence=MatrixConfidence.MEDIUM,
+                history_policy=HistoryPolicy.BOUNDED_RECENT,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=tuple(domains),
+            )
+
+        if _AVATAR.search(text):
             return TurnMatrix(
                 intent=MatrixIntent.AVATAR_QUERY,
                 confidence=MatrixConfidence.HIGH,
@@ -186,22 +210,6 @@ class BaselineTurnClassifier:
                         "explicit prior-conversation or memory request",
                     ),
                 ),
-            )
-
-        if _MODEL_STATUS.search(text):
-                domains.append(
-                    _contribution(
-                        MatrixDomain.COGNITION,
-                        MatrixRelevance.RELEVANT,
-                        "action references a cognitive model",
-                    )
-                )
-            return TurnMatrix(
-                intent=MatrixIntent.ACTION_REQUEST,
-                confidence=MatrixConfidence.MEDIUM,
-                history_policy=HistoryPolicy.BOUNDED_RECENT,
-                response_strategy=ResponseStrategy.TOOL_ASSISTED,
-                domains=tuple(domains),
             )
 
         if _MODEL_STATUS.search(text):
