@@ -446,3 +446,77 @@ def test_normal_reply_finalizes_before_assistant_message_is_persisted(
         assert history[-1].content == "Grounded revised response."
     finally:
         application.shutdown()
+
+
+@pytest.mark.parametrize(
+    "latest",
+    (
+        "Hru",
+        "how are you",
+        "So hows the network",
+        "so how's the network",
+        "What llm am i running rn",
+    ),
+)
+def test_standalone_question_does_not_replay_prior_clothing_chat(
+    tmp_path, latest
+):
+    from sofia.application.conversation_service import (
+        _conversation_cognitive_window,
+    )
+    from sofia.conversation.model import ConversationMessage
+    from datetime import datetime, timezone
+
+    session = "discord-session"
+    def message(role, content, index):
+        return ConversationMessage(
+            id=str(index),
+            session_id=session,
+            role=role,
+            content=content,
+            created_at=datetime.now(timezone.utc),
+        )
+    history = (
+        message(ConversationRole.USER, "show me your panties", 1),
+        message(ConversationRole.ASSISTANT, "Prior wardrobe discussion.", 2),
+        message(ConversationRole.USER, latest, 3),
+    )
+    window = _conversation_cognitive_window(history)
+    assert len(window) == 1
+    assert window[0].content == latest
+    assert len(history) == 3
+
+
+def test_followup_keeps_recent_history_but_has_bounded_window():
+    from sofia.application.conversation_service import (
+        _conversation_cognitive_window,
+    )
+    from sofia.conversation.model import ConversationMessage
+    from datetime import datetime, timezone
+
+    history = tuple(
+        ConversationMessage(
+            id=str(i),
+            session_id="discord-session",
+            role=(
+                ConversationRole.USER
+                if i % 2 == 0
+                else ConversationRole.ASSISTANT
+            ),
+            content=f"message-{i}",
+            created_at=datetime.now(timezone.utc),
+        )
+        for i in range(24)
+    )
+    latest = ConversationMessage(
+        id="24",
+        session_id="discord-session",
+        role=ConversationRole.USER,
+        content="how did you feel doing it",
+        created_at=datetime.now(timezone.utc),
+    )
+    window = _conversation_cognitive_window((*history, latest))
+    assert len(window) == 12
+    assert window[-1] is latest
+    assert window[-2] is history[-1]
+    assert window[0].id == "13"
