@@ -64,6 +64,7 @@ from sofia.operational.model import (
     RuntimeContinuity,
 )
 from sofia.operational.store import OperationalStore
+from sofia.operational.status_queries import OperationalStatusQueryResolver
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
@@ -260,6 +261,7 @@ class SofiaRuntime:
         self._measurement_query_resolver = MeasurementQueryResolver()
         self._avatar_self_fact_resolver = AvatarSelfFactResolver()
         self._environment_query_resolver = EnvironmentQueryResolver()
+        self._operational_status_query_resolver = OperationalStatusQueryResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -675,6 +677,16 @@ class SofiaRuntime:
                 )
             ):
                 environment_query = "what is your weather source"
+
+        if user_content:
+            status_answer = self._operational_status_query_resolver.resolve(
+                user_content,
+                selection=CognitiveModelSelection.from_configuration(
+                    self._configuration
+                ),
+            )
+            if status_answer.recognized:
+                return CognitiveResponse(content=status_answer.content)
 
         presentation = self.avatar_projection_for(
             principal=principal,
