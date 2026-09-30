@@ -8,6 +8,7 @@ from sofia.cognition.matrix import (
     BaselineTurnClassifier,
     DomainContribution,
     HistoryPolicy,
+    MatrixContextPlanner,
     MatrixCoordinator,
     MatrixDomain,
     MatrixIntent,
@@ -250,6 +251,7 @@ def test_default_registry_has_one_owner_per_registered_domain():
         MatrixDomain.MACHINE,
         MatrixDomain.OPS,
         MatrixDomain.AUTHORITY,
+        MatrixDomain.CONTINUITY,
     }
 
 
@@ -262,3 +264,138 @@ def test_machine_domain_can_strengthen_operational_relevance():
     assert result.relevance_for(MatrixDomain.MACHINE) is (
         MatrixRelevance.REQUIRED
     )
+
+
+@pytest.mark.parametrize(
+    ("content", "history", "limit"),
+    (
+        ("Hru", HistoryPolicy.NONE, 1),
+        ("what's the weather?", HistoryPolicy.NONE, 1),
+        (
+            "how did u feel doing it",
+            HistoryPolicy.LAST_TURN,
+            3,
+        ),
+        (
+            "what did I say earlier about Artemis?",
+            HistoryPolicy.RETRIEVE_SPECIFIC,
+            1,
+        ),
+        (
+            "Tell me about hexapod gait planning.",
+            HistoryPolicy.BOUNDED_RECENT,
+            12,
+        ),
+    ),
+)
+def test_context_planner_maps_history_and_domain_projection(
+    content,
+    history,
+    limit,
+):
+    coordinator = MatrixCoordinator(
+        registry=default_matrix_registry()
+    )
+    turn = coordinator.evaluate(envelope(content))
+    plan = MatrixContextPlanner().plan(turn)
+
+    assert plan.history_policy is history
+    assert plan.max_history_messages == limit
+    assert set(plan.included_domains).isdisjoint(
+        plan.excluded_domains
+    )
+    assert set(plan.included_domains) | set(plan.excluded_domains) == set(
+        MatrixDomain
+    )
+
+
+def test_interaction_evaluator_marks_reviewed_gesture_required():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("pats your head"))
+
+    assert turn.relevance_for(MatrixDomain.INTERACTION) is (
+        MatrixRelevance.REQUIRED
+    )
+
+
+def test_interaction_evaluator_marks_reviewed_first_person_action_required():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("I hug you"))
+
+    assert turn.relevance_for(MatrixDomain.INTERACTION) is (
+        MatrixRelevance.REQUIRED
+    )
+
+
+def test_continuity_evaluator_marks_restart_question_required():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("what changed after the restart?"))
+
+    assert turn.relevance_for(MatrixDomain.CONTINUITY) is (
+        MatrixRelevance.REQUIRED
+    )
+
+
+def test_trace_round_trips_context_plan_and_activation(tmp_path):
+    store = MatrixTraceStore(tmp_path / "sofia.db")
+    coordinator = MatrixCoordinator(
+        registry=default_matrix_registry()
+    )
+    turn = coordinator.evaluate(envelope("Hru", message_id="ctx-1"))
+    context = MatrixContextPlanner().plan(turn)
+    store.record(
+        MatrixTrace(
+            envelope=envelope("Hru", message_id="ctx-1"),
+            turn=turn,
+            context=context,
+            created_at=NOW,
+            shadow=True,
+            context_active=True,
+        )
+    )
+
+    loaded = store.get("ctx-1")
+    assert loaded is not None
+    assert loaded.context == context
+    assert loaded.context_active is True
+    assert loaded.context.max_history_messages == 1
+
+
+def test_trace_store_additively_migrates_pre_context_schema(tmp_path):
+    path = tmp_path / "legacy.db"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            """
+            CREATE TABLE cognition_matrix_trace (
+                message_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                principal_id TEXT NOT NULL,
+                channel TEXT NOT NULL,
+                schema_version INTEGER NOT NULL,
+                intent TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                history_policy TEXT NOT NULL,
+                response_strategy TEXT NOT NULL,
+                domains_json TEXT NOT NULL,
+                ambiguous INTEGER NOT NULL,
+                shadow INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+
+    MatrixTraceStore(path)
+
+    with sqlite3.connect(path) as db:
+        columns = {
+            row[1]
+            for row in db.execute(
+                "PRAGMA table_info(cognition_matrix_trace)"
+            ).fetchall()
+        }
+
+    assert "context_json" in columns
+    assert "context_active" in columns
