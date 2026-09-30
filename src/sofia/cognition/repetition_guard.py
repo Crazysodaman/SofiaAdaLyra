@@ -29,6 +29,16 @@ _EMOTION_SELF_REPORT = re.compile(
     r"content|frustrated|worried|nervous))\b",
     re.IGNORECASE,
 )
+_STANDALONE_SOCIAL_CHECKIN = re.compile(
+    r"^\s*(?:hru|how\s+(?:are|r)\s+(?:you|u)|how(?:'|’)re\s+you)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+_WARDROBE_CHECKIN_TANGENT = re.compile(
+    r"\b(?:panties|underwear|trousers|gusseted|boots|"
+    r"bra|lingerie|outfit|wardrobe|clothing|crotch)\b",
+    re.IGNORECASE,
+)
+
 _EMOTION_DISCLAIMER = re.compile(
     r"\b(?:i(?:'|’)m\s+functioning\s+as\s+intended|"
     r"i\s+(?:do\s+not|don't)\s+experience\s+(?:emotions?|feelings?|"
@@ -267,6 +277,11 @@ def response_quality_issue(
     user = request.messages[-1].content
     content = response.content
     if _EMOTION_SELF_REPORT.search(user):
+        if (
+            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
+            and _WARDROBE_CHECKIN_TANGENT.search(content)
+        ):
+            return "social_checkin_wardrobe_tangent"
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
         if _EMOTION_IMPLEMENTATION_LEAK.search(content):
@@ -400,6 +415,7 @@ def grounded_quality_fallback(
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
         "repeated_emotion_self_report",
+        "social_checkin_wardrobe_tangent",
         "emotion_implementation_leak",
         "emotion_temporal_overclaim",
     ):
@@ -505,6 +521,7 @@ def build_rephrase_request(
         "generic_emotion_self_report",
         "emotion_self_report_tangent",
         "repeated_emotion_self_report",
+        "social_checkin_wardrobe_tangent",
         "emotion_implementation_leak",
         "emotion_temporal_overclaim",
     ):
