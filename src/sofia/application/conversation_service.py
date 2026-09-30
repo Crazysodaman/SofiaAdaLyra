@@ -87,15 +87,15 @@ def _conversation_tools_relevant(content: str | None) -> bool:
 # The durable store keeps full history, but a new unrelated question must not
 # inherit previous assistant prose as if it were relevant evidence.
 _STANDALONE_TURN_RE = re.compile(
-    r"^\\s*(?:so\\s+)?(?:"
-    r"hru|how\\s+(?:are|r)\\s+(?:you|u)|how(?:'|’)re\\s+you|"
-    r"how(?:'|’)s\\s+(?:the\\s+)?network|how\\s+is\\s+(?:the\\s+)?network|"
-    r"what(?:'|’)?s\\s+(?:the\\s+)?network\\s+status|"
-    r"what\\s+(?:llm|model)\\s+(?:am\\s+i|are\\s+you|is\\s+sofia)\\s+running"
-    r"(?:\\s+(?:right\\s+now|rn|currently))?|"
-    r"what\\s+(?:llm|model)\\s+is\\s+running"
-    r"(?:\\s+(?:right\\s+now|rn|currently))?"
-    r")\\s*[?!.]*\\s*$",
+    r"^\s*(?:so\s+)?(?:"
+    r"hru|how\s+(?:are|r)\s+(?:you|u)|how(?:'|’)re\s+you|"
+    r"how(?:'|’)?s\s+(?:the\s+)?network|how\s+is\s+(?:the\s+)?network|"
+    r"what(?:'|’)?s\s+(?:the\s+)?network\s+status|"
+    r"what\s+(?:llm|model)\s+(?:am\s+i|are\s+you|is\s+sofia)\s+running"
+    r"(?:\s+(?:right\s+now|rn|currently))?|"
+    r"what\s+(?:llm|model)\s+is\s+running"
+    r"(?:\s+(?:right\s+now|rn|currently))?"
+    r")\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
 _MAX_COGNITIVE_TRANSCRIPT_MESSAGES = 12
