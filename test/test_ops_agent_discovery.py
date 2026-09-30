@@ -457,11 +457,16 @@ def test_identity_and_capabilities_use_separate_pinned_connections(
 ):
     source = _source(monkeypatch)
     paths = []
+    connections = []
 
     class TrackingConnection(FakeConnection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            connections.append(self)
+
         def request(self, method, path, headers=None):
             super().request(method, path, headers=headers)
-            paths.append((id(self), path))
+            paths.append((self, path))
 
     monkeypatch.setattr(discovery_module, "HTTPSConnection", TrackingConnection)
 
@@ -472,7 +477,7 @@ def test_identity_and_capabilities_use_separate_pinned_connections(
         "/v1/identity",
         "/v1/capabilities",
     ]
-    assert paths[0][0] != paths[1][0]
+    assert paths[0][0] is not paths[1][0]
 
 
 def test_discovery_rejects_different_server_key_on_capability_request(
