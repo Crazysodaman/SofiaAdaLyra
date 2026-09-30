@@ -229,7 +229,9 @@ def test_state_changing_avatar_request_is_action_not_read_only_avatar_query():
     assert result.relevance_for(MatrixDomain.AUTHORITY) is (
         MatrixRelevance.REQUIRED
     )
-    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.NONE
+    assert result.relevance_for(MatrixDomain.AVATAR) is (
+        MatrixRelevance.RELEVANT
+    )
 
 
 def test_default_registry_has_one_owner_per_registered_domain():
