@@ -51,6 +51,31 @@ _DISCUSSION = re.compile(
 )
 
 
+def looks_like_text_interaction(content: str) -> bool:
+    """Return whether text matches the reviewed gesture grammar shape.
+
+    This is classification only. It does not resolve anatomy, willingness,
+    consent, sensation, or whether a represented interaction occurred.
+    """
+    if not isinstance(content, str):
+        return False
+    text = content.strip()
+    if (
+        not text
+        or len(text) > 160
+        or "\n" in text
+        or "`" in text
+        or '"' in text
+        or _DISCUSSION.search(text)
+    ):
+        return False
+    if text.startswith("*") and text.endswith("*") and len(text) > 2:
+        text = text[1:-1].strip()
+    if re.fullmatch(r"head pats?[.!]?", text, re.IGNORECASE):
+        return True
+    return _ACTION.fullmatch(text) is not None
+
+
 @dataclass(frozen=True)
 class Region:
     id: str
