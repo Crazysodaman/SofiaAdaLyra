@@ -38,10 +38,10 @@ _NETWORK_FORMS = frozenset({
 })
 
 _MODEL_FORM = re.compile(
-    r"^(?:what|which)\\s+(?:llm|model)(?:\\s+is|\\s+am|\\s+are)?\\s+"
-    r"(?:(?:i|you|sofia)\\s+)?running(?:\\s+(?:right\\s+now|rn|currently))?$|"
-    r"^what\\s+(?:llm|model)\\s+(?:am\\s+i|are\\s+you|is\\s+sofia)"
-    r"\\s+(?:using|running)(?:\\s+(?:right\\s+now|rn|currently))?$",
+    r"^(?:what|which)\s+(?:llm|model)(?:\s+is|\s+am|\s+are)?\s+"
+    r"(?:(?:i|you|sofia)\s+)?running(?:\s+(?:right\s+now|rn|currently))?$|"
+    r"^what\s+(?:llm|model)\s+(?:am\s+i|are\s+you|is\s+sofia)"
+    r"\s+(?:using|running)(?:\s+(?:right\s+now|rn|currently))?$",
     re.IGNORECASE,
 )
 
