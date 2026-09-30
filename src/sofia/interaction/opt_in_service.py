@@ -23,19 +23,38 @@ class OptInInteractionConversationService(ExpandedConversationService):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ):
         if not staged_offers_enabled():
-            return super().respond(content) if principal is None else super().respond(
-            content, principal=principal
-        )
+            return (
+                super().respond(content, channel=channel)
+                if principal is None
+                else super().respond(
+                    content,
+                    principal=principal,
+                    channel=channel,
+                )
+            )
         if content == OFFER:
             return respond_staged_offer(
-                self, content, principal=principal
+                self,
+                content,
+                principal=principal,
+                channel=channel,
             )
         if is_reviewed_hug_question(content):
             return respond_reviewed_hug_question(
-                self, content, principal=principal
+                self,
+                content,
+                principal=principal,
+                channel=channel,
             )
-        return super().respond(content) if principal is None else super().respond(
-            content, principal=principal
+        return (
+            super().respond(content, channel=channel)
+            if principal is None
+            else super().respond(
+                content,
+                principal=principal,
+                channel=channel,
+            )
         )
