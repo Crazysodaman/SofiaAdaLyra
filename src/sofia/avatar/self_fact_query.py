@@ -64,6 +64,12 @@ def _friendly_outfit(outfit_id: str | None) -> str:
 class AvatarSelfFactResolver:
     """Resolve a small set of direct current-presentation questions."""
 
+    _UNDERGARMENT_PRESENTATION_FORMS = frozenset({
+        "show me your panties",
+        "let me see your panties",
+        "show me your underwear",
+        "let me see your underwear",
+    })
     _CURRENT_OUTFIT_FORMS = frozenset({
         "what outfit are you wearing right now",
         "what outfit are you wearing",
@@ -133,6 +139,32 @@ class AvatarSelfFactResolver:
         normalized = _normalize(query)
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
+
+        if normalized in self._UNDERGARMENT_PRESENTATION_FORMS:
+            # Only exact projected pieces establish what is currently worn.
+            # A generic base undergarment is NOT proof of panties, and
+            # trousers/boots must never be relabeled as underwear.
+            matches = tuple(
+                item for item in presentation.item_names
+                if any(
+                    name in item.casefold()
+                    for name in ("panties", "underwear", "briefs", "knickers")
+                )
+            )
+            if matches:
+                pieces = ", ".join(matches)
+                return AvatarSelfFactAnswer(
+                    True,
+                    f"My current avatar presentation lists: {pieces}. "
+                    "That's a text description, not evidence that an image "
+                    "was rendered.",
+                )
+            return AvatarSelfFactAnswer(
+                True,
+                "My current avatar presentation doesn't identify a "
+                "specific panties item I can accurately show or describe. "
+                "I won't substitute my trousers or invent one.",
+            )
 
         if normalized in self._CURRENT_OUTFIT_FORMS:
             pieces = ", ".join(presentation.item_names)
