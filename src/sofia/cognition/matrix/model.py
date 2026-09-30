@@ -98,6 +98,14 @@ class ResponseValidationDisposition(str, Enum):
     BLOCK = "block"
 
 
+class MatrixRoute(str, Enum):
+    AUTO = "auto"
+    FAST = "fast"
+    STANDARD = "standard"
+    DEEP = "deep"
+    VERIFY = "verify"
+
+
 @dataclass(frozen=True, slots=True)
 class TurnEnvelope:
     message_id: str
@@ -213,6 +221,48 @@ class EvidenceMatrix:
     requirements: tuple[EvidenceRequirement, ...] = ()
     records: tuple[EvidenceRecord, ...] = ()
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.requirements, tuple):
+            raise TypeError("requirements must be a tuple")
+        if not isinstance(self.records, tuple):
+            raise TypeError("records must be a tuple")
+        requirement_keys = set()
+        for item in self.requirements:
+            if not isinstance(item, EvidenceRequirement):
+                raise TypeError(
+                    "requirements must contain EvidenceRequirement"
+                )
+            if item.key in requirement_keys:
+                raise ValueError("evidence requirements must be unique")
+            requirement_keys.add(item.key)
+        record_keys = set()
+        for item in self.records:
+            if not isinstance(item, EvidenceRecord):
+                raise TypeError("records must contain EvidenceRecord")
+            if item.key in record_keys:
+                raise ValueError("evidence records must be unique")
+            record_keys.add(item.key)
+
+    def state_for(self, key: str) -> EvidenceState:
+        for record in self.records:
+            if record.key == key:
+                return record.state
+        return EvidenceState.UNKNOWN
+
+    @property
+    def missing_required(self) -> tuple[EvidenceRequirement, ...]:
+        return tuple(
+            requirement
+            for requirement in self.requirements
+            if requirement.required
+            and self.state_for(requirement.key)
+            in {
+                EvidenceState.MISSING,
+                EvidenceState.STALE,
+                EvidenceState.UNKNOWN,
+            }
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ContextPlan:
@@ -263,12 +313,53 @@ class AuthorityPlan:
     requested_action: str | None = None
     reason: str = ""
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.decision, AuthorityDecision):
+            raise TypeError("decision must be AuthorityDecision")
+        if self.requested_action is not None and (
+            not isinstance(self.requested_action, str)
+            or not self.requested_action.strip()
+        ):
+            raise ValueError(
+                "requested_action must be None or a nonempty string"
+            )
+        if not isinstance(self.reason, str):
+            raise TypeError("reason must be a string")
+
+
+@dataclass(frozen=True, slots=True)
+class RoutingPlan:
+    route: MatrixRoute
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.route, MatrixRoute):
+            raise TypeError("route must be MatrixRoute")
+        if not isinstance(self.reason, str) or not self.reason.strip():
+            raise ValueError("routing reason must be nonempty")
+
 
 @dataclass(frozen=True, slots=True)
 class ResponseContract:
     require_grounded_claims: bool = True
     prohibited_claims: tuple[str, ...] = ()
     requires_execution_receipt: bool = False
+    authority_decision: AuthorityDecision = AuthorityDecision.NOT_REQUIRED
+
+    def __post_init__(self) -> None:
+        if type(self.require_grounded_claims) is not bool:
+            raise TypeError("require_grounded_claims must be bool")
+        if not isinstance(self.prohibited_claims, tuple):
+            raise TypeError("prohibited_claims must be a tuple")
+        for claim in self.prohibited_claims:
+            if not isinstance(claim, str) or not claim.strip():
+                raise ValueError(
+                    "prohibited_claims must contain nonempty strings"
+                )
+        if type(self.requires_execution_receipt) is not bool:
+            raise TypeError("requires_execution_receipt must be bool")
+        if not isinstance(self.authority_decision, AuthorityDecision):
+            raise TypeError("authority_decision must be AuthorityDecision")
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,6 +374,11 @@ class MatrixTrace:
     turn: TurnMatrix
     created_at: datetime
     context: ContextPlan | None = None
+    evidence: EvidenceMatrix | None = None
+    authority: AuthorityPlan | None = None
+    response_contract: ResponseContract | None = None
+    response_validation: ResponseValidation | None = None
+    routing: RoutingPlan | None = None
     shadow: bool = True
     context_active: bool = False
 
@@ -295,6 +391,30 @@ class MatrixTrace:
             self.context, ContextPlan
         ):
             raise TypeError("context must be ContextPlan or None")
+        if self.evidence is not None and not isinstance(
+            self.evidence, EvidenceMatrix
+        ):
+            raise TypeError("evidence must be EvidenceMatrix or None")
+        if self.authority is not None and not isinstance(
+            self.authority, AuthorityPlan
+        ):
+            raise TypeError("authority must be AuthorityPlan or None")
+        if self.response_contract is not None and not isinstance(
+            self.response_contract, ResponseContract
+        ):
+            raise TypeError(
+                "response_contract must be ResponseContract or None"
+            )
+        if self.response_validation is not None and not isinstance(
+            self.response_validation, ResponseValidation
+        ):
+            raise TypeError(
+                "response_validation must be ResponseValidation or None"
+            )
+        if self.routing is not None and not isinstance(
+            self.routing, RoutingPlan
+        ):
+            raise TypeError("routing must be RoutingPlan or None")
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
         if type(self.shadow) is not bool:
