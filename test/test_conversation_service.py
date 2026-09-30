@@ -520,3 +520,58 @@ def test_followup_keeps_recent_history_but_has_bounded_window():
     assert window[-1] is latest
     assert window[-2] is history[-1]
     assert window[0].id == "13"
+
+
+def test_conversation_records_matrix_shadow_trace_without_steering_reply(
+    tmp_path: Path,
+):
+    from sofia.cognition.matrix import (
+        HistoryPolicy,
+        MatrixDomain,
+        MatrixIntent,
+        MatrixRelevance,
+    )
+
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        response = application.conversation.respond("Hru")
+
+        assert response.content == "Test cognitive response."
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.shadow is True
+        assert trace.envelope.session_id == application.conversation.session_id
+        assert trace.turn.intent is MatrixIntent.SOCIAL_CHECKIN
+        assert trace.turn.history_policy is HistoryPolicy.NONE
+        assert trace.turn.relevance_for(MatrixDomain.SOCIAL) is (
+            MatrixRelevance.REQUIRED
+        )
+        assert application.conversation.last_matrix_error is None
+    finally:
+        application.shutdown()
+
+
+def test_matrix_shadow_failure_never_breaks_conversation(
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    def fail(_envelope):
+        raise RuntimeError("synthetic shadow failure")
+
+    monkeypatch.setattr(
+        application.conversation._matrix_coordinator,
+        "evaluate",
+        fail,
+    )
+    try:
+        response = application.conversation.respond("Hello")
+
+        assert response.content == "Test cognitive response."
+        assert application.conversation.last_matrix_error == "RuntimeError"
+    finally:
+        application.shutdown()
