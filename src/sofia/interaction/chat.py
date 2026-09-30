@@ -419,6 +419,7 @@ class InteractiveConversationService(EmotionalConversationService):
         command: str | None = None,
         stopped_gesture: bool = False,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ) -> CognitiveResponse:
         """Persist saved-user evidence and authoritative outcomes without an LLM.
 
@@ -428,6 +429,9 @@ class InteractiveConversationService(EmotionalConversationService):
         """
         if self._session is None:
             raise RuntimeError('ConversationService must be started before responding.')
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError('ConversationService channel must be a nonempty string.')
+        channel = channel.strip().casefold()
         principal = self._bind_principal(principal)
         clean = content.strip()
         if not clean:
@@ -444,6 +448,11 @@ class InteractiveConversationService(EmotionalConversationService):
                 self._after_user_message_saved(
                     message=user,
                     principal=principal,
+                )
+                self._record_shadow_matrix(
+                    message=user,
+                    principal=principal,
+                    channel=channel,
                 )
                 if command is not None or stopped_gesture:
                     configuration = getattr(self._runtime, 'configuration', None)
@@ -487,23 +496,34 @@ class InteractiveConversationService(EmotionalConversationService):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ) -> CognitiveResponse:
         """Route enforceable actions before model inference or tool orchestration."""
 
         def guarded(reply: str, **kwargs):
             if principal is None:
-                return self._guarded_reply(content, reply, **kwargs)
+                return self._guarded_reply(
+                    content,
+                    reply,
+                    channel=channel,
+                    **kwargs,
+                )
             return self._guarded_reply(
                 content,
                 reply,
                 principal=principal,
+                channel=channel,
                 **kwargs,
             )
 
         if not isinstance(content, str):
             if principal is None:
-                return super().respond(content)
-            return super().respond(content, principal=principal)
+                return super().respond(content, channel=channel)
+            return super().respond(
+                content,
+                principal=principal,
+                channel=channel,
+            )
 
         if mixed_interaction_control(content):
             return guarded(MIXED_CONTROL_REPLY)
@@ -540,8 +560,12 @@ class InteractiveConversationService(EmotionalConversationService):
                 )
 
         if principal is None:
-            return super().respond(content)
-        return super().respond(content, principal=principal)
+            return super().respond(content, channel=channel)
+        return super().respond(
+            content,
+            principal=principal,
+            channel=channel,
+        )
 
     def _should_record_legacy_affection(self, user) -> bool:
         # Old emotional cues must not turn a hypothetical, compound sentence,
