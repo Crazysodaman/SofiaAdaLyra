@@ -548,6 +548,9 @@ def test_conversation_records_matrix_shadow_trace_without_steering_reply(
         assert trace.turn.relevance_for(MatrixDomain.SOCIAL) is (
             MatrixRelevance.REQUIRED
         )
+        assert trace.context is not None
+        assert trace.context_active is True
+        assert trace.context.max_history_messages == 1
         assert application.conversation.last_matrix_error is None
     finally:
         application.shutdown()
@@ -593,5 +596,71 @@ def test_channel_propagates_through_full_conversation_stack_to_matrix_trace(
         assert trace is not None
         assert trace.envelope.channel == "discord"
         assert application.conversation.last_matrix_error is None
+    finally:
+        application.shutdown()
+
+
+def test_matrix_context_window_applies_typed_history_limits():
+    from datetime import datetime, timezone
+
+    from sofia.application.conversation_service import _matrix_context_window
+    from sofia.cognition.matrix import (
+        ContextPlan,
+        HistoryPolicy,
+        MatrixDomain,
+    )
+    from sofia.conversation.model import ConversationMessage
+
+    history = tuple(
+        ConversationMessage(
+            id=str(i),
+            session_id="matrix-session",
+            role=(
+                ConversationRole.USER
+                if i % 2 == 0
+                else ConversationRole.ASSISTANT
+            ),
+            content=f"message-{i}",
+            created_at=datetime.now(timezone.utc),
+        )
+        for i in range(10)
+    )
+    plan = ContextPlan(
+        included_domains=(MatrixDomain.INTERACTION,),
+        excluded_domains=tuple(
+            domain
+            for domain in MatrixDomain
+            if domain is not MatrixDomain.INTERACTION
+        ),
+        history_policy=HistoryPolicy.LAST_TURN,
+        max_history_messages=3,
+    )
+
+    window = _matrix_context_window(history, plan)
+
+    assert tuple(item.id for item in window) == ("7", "8", "9")
+
+
+def test_matrix_context_failure_falls_back_to_legacy_history(
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    def fail(_turn):
+        raise RuntimeError("synthetic context planning failure")
+
+    monkeypatch.setattr(
+        application.conversation._matrix_context_planner,
+        "plan",
+        fail,
+    )
+    try:
+        response = application.conversation.respond("Hello")
+
+        assert response.content == "Test cognitive response."
+        assert application.conversation.last_matrix_error == "RuntimeError"
+        assert application.conversation._current_context_plan is None
     finally:
         application.shutdown()
