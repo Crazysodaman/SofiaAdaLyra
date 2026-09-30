@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 
 from .model import (
+    ContextPlan,
     DomainContribution,
     HistoryPolicy,
     MatrixConfidence,
@@ -50,8 +51,10 @@ class MatrixTraceStore:
                     history_policy TEXT NOT NULL,
                     response_strategy TEXT NOT NULL,
                     domains_json TEXT NOT NULL,
+                    context_json TEXT,
                     ambiguous INTEGER NOT NULL,
                     shadow INTEGER NOT NULL,
+                    context_active INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
                 """
@@ -62,6 +65,22 @@ class MatrixTraceStore:
                 ON cognition_matrix_trace(session_id, created_at)
                 """
             )
+            columns = {
+                row["name"]
+                for row in db.execute(
+                    "PRAGMA table_info(cognition_matrix_trace)"
+                ).fetchall()
+            }
+            if "context_json" not in columns:
+                db.execute(
+                    "ALTER TABLE cognition_matrix_trace "
+                    "ADD COLUMN context_json TEXT"
+                )
+            if "context_active" not in columns:
+                db.execute(
+                    "ALTER TABLE cognition_matrix_trace "
+                    "ADD COLUMN context_active INTEGER NOT NULL DEFAULT 0"
+                )
 
     @staticmethod
     def _domains_json(turn: TurnMatrix) -> str:
@@ -79,6 +98,25 @@ class MatrixTraceStore:
         )
 
     @staticmethod
+    def _context_json(context: ContextPlan | None) -> str | None:
+        if context is None:
+            return None
+        return json.dumps(
+            {
+                "included_domains": [
+                    item.value for item in context.included_domains
+                ],
+                "excluded_domains": [
+                    item.value for item in context.excluded_domains
+                ],
+                "history_policy": context.history_policy.value,
+                "max_history_messages": context.max_history_messages,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
     def _trace(row: sqlite3.Row) -> MatrixTrace:
         domains_raw = json.loads(row["domains_json"])
         domains = tuple(
@@ -89,6 +127,24 @@ class MatrixTraceStore:
             )
             for item in domains_raw
         )
+        context_raw = row["context_json"]
+        context = None
+        if context_raw:
+            payload = json.loads(context_raw)
+            context = ContextPlan(
+                included_domains=tuple(
+                    MatrixDomain(item)
+                    for item in payload["included_domains"]
+                ),
+                excluded_domains=tuple(
+                    MatrixDomain(item)
+                    for item in payload["excluded_domains"]
+                ),
+                history_policy=HistoryPolicy(payload["history_policy"]),
+                max_history_messages=int(
+                    payload["max_history_messages"]
+                ),
+            )
         created_at = datetime.fromisoformat(row["created_at"])
         envelope = TurnEnvelope(
             message_id=row["message_id"],
@@ -112,7 +168,9 @@ class MatrixTraceStore:
                 schema_version=int(row["schema_version"]),
             ),
             created_at=created_at,
+            context=context,
             shadow=bool(row["shadow"]),
+            context_active=bool(row["context_active"]),
         )
 
     def record(self, trace: MatrixTrace) -> None:
@@ -124,9 +182,10 @@ class MatrixTraceStore:
                 INSERT INTO cognition_matrix_trace (
                     message_id,session_id,principal_id,channel,
                     schema_version,intent,confidence,history_policy,
-                    response_strategy,domains_json,ambiguous,shadow,created_at
+                    response_strategy,domains_json,context_json,ambiguous,
+                    shadow,context_active,created_at
                 )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     session_id=excluded.session_id,
                     principal_id=excluded.principal_id,
@@ -137,8 +196,10 @@ class MatrixTraceStore:
                     history_policy=excluded.history_policy,
                     response_strategy=excluded.response_strategy,
                     domains_json=excluded.domains_json,
+                    context_json=excluded.context_json,
                     ambiguous=excluded.ambiguous,
                     shadow=excluded.shadow,
+                    context_active=excluded.context_active,
                     created_at=excluded.created_at
                 """,
                 (
@@ -152,8 +213,10 @@ class MatrixTraceStore:
                     trace.turn.history_policy.value,
                     trace.turn.response_strategy.value,
                     self._domains_json(trace.turn),
+                    self._context_json(trace.context),
                     int(trace.turn.ambiguous),
                     int(trace.shadow),
+                    int(trace.context_active),
                     trace.created_at.isoformat(),
                 ),
             )
