@@ -171,6 +171,7 @@ class EmotionalConversationService(ConversationService):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
@@ -180,10 +181,14 @@ class EmotionalConversationService(ConversationService):
                 acquired = monotonic()
                 try:
                     if principal is None:
-                        return super().respond(content)
+                        return super().respond(
+                            content,
+                            channel=channel,
+                        )
                     return super().respond(
                         content,
                         principal=principal,
+                        channel=channel,
                     )
                 finally:
                     # Includes request construction/persistence as well as the
