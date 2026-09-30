@@ -91,6 +91,48 @@ class MtlsAgentDiscoverySource:
         )
         return context
 
+    def _read_pinned_json(
+        self,
+        target: AgentDiscoveryTarget,
+        path: str,
+    ) -> tuple[dict, str] | None:
+        """Use a fresh verified TLS connection for each agent response."""
+        connection = HTTPSConnection(
+            target.hostname,
+            target.port,
+            context=self._context(),
+            timeout=self.timeout_seconds,
+        )
+        try:
+            connection.connect()
+            if connection.sock is None:
+                return None
+            peer_cert = connection.sock.getpeercert(binary_form=True)
+            if not peer_cert:
+                return None
+            key_fingerprint = public_key_fingerprint_from_der_certificate(
+                peer_cert
+            )
+            connection.request(
+                "GET",
+                path,
+                headers={"Accept": "application/json"},
+            )
+            response = connection.getresponse()
+            if response.status != 200:
+                return None
+            try:
+                payload = json.loads(response.read().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return None
+            if not isinstance(payload, dict):
+                return None
+            return payload, key_fingerprint
+        except (OSError, ssl.SSLError):
+            return None
+        finally:
+            connection.close()
+
     def _probe(
         self,
         target: AgentDiscoveryTarget,
@@ -109,129 +151,87 @@ class MtlsAgentDiscoverySource:
                 observed_endpoint_port=target.port,
             )
 
-        connection = HTTPSConnection(
-            target.hostname,
-            target.port,
-            context=self._context(),
-            timeout=self.timeout_seconds,
-        )
+        identity_result = self._read_pinned_json(target, "/v1/identity")
+        if identity_result is None:
+            return None
+        payload, public_key_sha256 = identity_result
         try:
-            connection.connect()
-            sock = connection.sock
-            if sock is None:
-                return None
-            peer_cert = sock.getpeercert(binary_form=True)
-            if not peer_cert:
-                return None
-            public_key_sha256 = public_key_fingerprint_from_der_certificate(
-                peer_cert
-            )
-            connection.request(
-                "GET",
-                "/v1/identity",
-                headers={"Accept": "application/json"},
-            )
-            response = connection.getresponse()
-            raw = response.read()
-            if response.status != 200:
-                return None
-            try:
-                payload = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                return None
-            if not isinstance(payload, dict):
-                return None
-            try:
-                node_id = UUID(str(payload["node_id"]))
-                name = str(payload["name"]).strip()
-                protocol = FleetProtocolVersion.parse(
-                    str(payload["protocol_version"])
-                )
-                platform_name = str(
-                    payload.get("platform") or target.platform
-                ).strip()
-                architecture = str(
-                    payload.get("architecture") or target.architecture
-                ).strip()
-            except (KeyError, TypeError, ValueError):
-                return None
-            if not name or not protocol.compatible_with(self.required_protocol):
-                return None
+            node_id = UUID(str(payload["node_id"]))
+            name = str(payload["name"]).strip()
+            protocol = FleetProtocolVersion.parse(str(payload["protocol_version"]))
+            platform_name = str(payload.get("platform") or target.platform).strip()
+            architecture = str(
+                payload.get("architecture") or target.architecture
+            ).strip()
+        except (KeyError, TypeError, ValueError):
+            return None
+        if not name or not protocol.compatible_with(self.required_protocol):
+            return None
 
-            connection.request(
-                "GET",
-                "/v1/capabilities",
-                headers={"Accept": "application/json"},
+        capability_result = self._read_pinned_json(
+            target, "/v1/capabilities"
+        )
+        if capability_result is None:
+            return None
+        capability_payload, capability_key_sha256 = capability_result
+        # The server may close HTTP/1.0 between requests. Never combine
+        # results from different TLS server keys, even under the same CA.
+        if capability_key_sha256 != public_key_sha256:
+            return None
+        try:
+            if capability_payload.get("node_id") != str(node_id):
+                return None
+            capability_protocol = FleetProtocolVersion.parse(
+                str(capability_payload["protocol_version"])
             )
-            capability_response = connection.getresponse()
-            capability_raw = capability_response.read()
-            if capability_response.status != 200:
+            if capability_protocol != protocol:
                 return None
-            try:
-                capability_payload = json.loads(
-                    capability_raw.decode("utf-8")
-                )
-            except (UnicodeDecodeError, json.JSONDecodeError):
+            if not capability_protocol.compatible_with(self.required_protocol):
                 return None
-            if not isinstance(capability_payload, dict):
+            raw_capabilities = capability_payload["capabilities"]
+            if not isinstance(raw_capabilities, list) or not raw_capabilities:
                 return None
-            try:
-                if capability_payload.get("node_id") != str(node_id):
+            capability_names = []
+            for item in raw_capabilities:
+                if not isinstance(item, dict):
                     return None
-                capability_protocol = FleetProtocolVersion.parse(
-                    str(capability_payload["protocol_version"])
-                )
-                if not capability_protocol.compatible_with(
-                    self.required_protocol
+                capability_name = str(item["name"]).strip()
+                operations = item["operations"]
+                if (
+                    not capability_name
+                    or not isinstance(operations, list)
+                    or not operations
+                    or any(
+                        not isinstance(operation, str) or not operation.strip()
+                        for operation in operations
+                    )
                 ):
                     return None
-                raw_capabilities = capability_payload["capabilities"]
-                if not isinstance(raw_capabilities, list) or not raw_capabilities:
-                    return None
-                capability_names = []
-                for item in raw_capabilities:
-                    if not isinstance(item, dict):
-                        return None
-                    capability_name = str(item["name"]).strip()
-                    operations = item["operations"]
-                    if (
-                        not capability_name
-                        or not isinstance(operations, list)
-                        or not operations
-                        or any(
-                            not isinstance(operation, str)
-                            or not operation.strip()
-                            for operation in operations
-                        )
-                    ):
-                        return None
-                    capability_names.append(capability_name)
-                required = {"system.inspect", "ops.telemetry"}
-                if not required.issubset(set(capability_names)):
-                    return None
-            except (KeyError, TypeError, ValueError):
+                capability_names.append(capability_name)
+            if not {"system.inspect", "ops.telemetry"}.issubset(
+                set(capability_names)
+            ):
                 return None
-            return FleetDiscoveryEvidence(
-                host_id=name,
-                hostname=target.hostname,
-                platform=platform_name,
-                architecture=architecture,
-                observed_at=datetime.now(timezone.utc),
-                source="mtls-agent-discovery",
-                inside_approved_scope=True,
-                trusted_bootstrap_available=target.trusted_bootstrap_available,
-                installed_protocol_version=str(protocol),
-                observed_node_id=node_id,
-                observed_public_key_sha256=public_key_sha256,
-                observed_endpoint_hostname=target.hostname,
-                observed_endpoint_port=target.port,
-                capabilities_verified=True,
-                capability_names=tuple(sorted(set(capability_names))),
-            )
-        except (OSError, ssl.SSLError):
+        except (KeyError, TypeError, ValueError):
             return None
-        finally:
-            connection.close()
+
+        return FleetDiscoveryEvidence(
+            host_id=name,
+            hostname=target.hostname,
+            platform=platform_name,
+            architecture=architecture,
+            observed_at=datetime.now(timezone.utc),
+            source="mtls-agent-discovery",
+            inside_approved_scope=True,
+            trusted_bootstrap_available=target.trusted_bootstrap_available,
+            installed_protocol_version=str(protocol),
+            observed_node_id=node_id,
+            observed_public_key_sha256=public_key_sha256,
+            observed_endpoint_hostname=target.hostname,
+            observed_endpoint_port=target.port,
+            capabilities_verified=True,
+            capability_names=tuple(sorted(set(capability_names))),
+        )
 
     def discover(self) -> tuple[FleetDiscoveryEvidence, ...]:
         observations = []
