@@ -451,3 +451,64 @@ def test_explicit_agent_targets_without_mtls_credentials_fail_closed(
 
     with pytest.raises(ValueError, match="targets require"):
         create_configured_fleet_discovery_source(configuration)
+
+def test_identity_and_capabilities_use_separate_pinned_connections(
+    monkeypatch,
+):
+    source = _source(monkeypatch)
+    paths = []
+
+    class TrackingConnection(FakeConnection):
+        def request(self, method, path, headers=None):
+            super().request(method, path, headers=headers)
+            paths.append((id(self), path))
+
+    monkeypatch.setattr(discovery_module, "HTTPSConnection", TrackingConnection)
+
+    result = source.discover()
+
+    assert len(result) == 1
+    assert [item[1] for item in paths] == [
+        "/v1/identity",
+        "/v1/capabilities",
+    ]
+    assert paths[0][0] != paths[1][0]
+
+
+def test_discovery_rejects_different_server_key_on_capability_request(
+    monkeypatch,
+):
+    source = _source(monkeypatch)
+    created = []
+
+    class CertSocket:
+        def __init__(self, certificate):
+            self.certificate = certificate
+
+        def getpeercert(self, *, binary_form=False):
+            assert binary_form is True
+            return self.certificate
+
+    class ChangedCertConnection(FakeConnection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            created.append(self)
+            self.sock = CertSocket(
+                b"identity-server" if len(created) == 1
+                else b"different-capability-server"
+            )
+
+    monkeypatch.setattr(
+        discovery_module,
+        "HTTPSConnection",
+        ChangedCertConnection,
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "public_key_fingerprint_from_der_certificate",
+        lambda cert: "a" * 64 if cert == b"identity-server"
+        else "b" * 64,
+    )
+
+    assert source.discover() == ()
+    assert len(created) == 2
