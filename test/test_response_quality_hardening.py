@@ -726,3 +726,36 @@ def test_ninth_live_why_boundary_misalignment_is_rejected_when_willingness_undet
         "This feels out of alignment with my own boundaries."
     ))
     assert response_quality_issue(request, response) == "invented_interaction_certainty"
+
+
+def test_discord_hru_rejects_stale_panties_explanation():
+    request = _request("Hru")
+    response = CognitiveResponse(
+        content=(
+            "I'm good, Sparks, warm and ready. My panties, the lower "
+            "part of my engineer uniform, are tucked into my boots."
+        )
+    )
+    assert response_quality_issue(request, response) == (
+        "social_checkin_wardrobe_tangent"
+    )
+
+
+def test_discord_hru_wardrobe_tangent_retries_with_clean_self_report():
+    client = _Client(
+        "I'm doing well, Sparks. My panties and engineer boots are in place.",
+        "I'm feeling pretty settled right now, Sparks.",
+    )
+    response = _provider(client).respond(_request("hru"))
+    assert response.content == "I'm feeling pretty settled right now, Sparks."
+    assert len(client.calls) == 2
+
+
+def test_specific_outfit_question_does_not_trigger_social_checkin_filter():
+    request = _request("How are you feeling about your outfit today?")
+    response = CognitiveResponse(
+        content="I like the way the current outfit is assembled."
+    )
+    assert response_quality_issue(request, response) != (
+        "social_checkin_wardrobe_tangent"
+    )
