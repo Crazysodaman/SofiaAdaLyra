@@ -24,6 +24,7 @@ from sofia.cognition.matrix import (
     MatrixTraceStore,
     TurnEnvelope,
 )
+from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
@@ -179,7 +180,9 @@ class ConversationService:
             )
         )
         self._session: ConversationSession | None = None
-        self._matrix_coordinator = MatrixCoordinator()
+        self._matrix_coordinator = MatrixCoordinator(
+            registry=default_matrix_registry()
+        )
         self._matrix_trace_store: MatrixTraceStore | None = None
         self._last_matrix_error: str | None = None
 
