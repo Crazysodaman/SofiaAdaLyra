@@ -32,6 +32,7 @@ class ConversationResponder(Protocol):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ): ...
 
 
@@ -149,21 +150,22 @@ class DiscordConversationBridge:
         try:
             responder = self._conversation.respond
             parameters = signature(responder).parameters
+            accepts_kwargs = any(
+                item.kind is Parameter.VAR_KEYWORD
+                for item in parameters.values()
+            )
             supports_principal = (
-                "principal" in parameters
-                or any(
-                    item.kind is Parameter.VAR_KEYWORD
-                    for item in parameters.values()
-                )
+                "principal" in parameters or accepts_kwargs
             )
-            response = (
-                responder(
-                    inbound.content,
-                    principal=discord_sparks_principal(channel_id),
-                )
-                if supports_principal
-                else responder(inbound.content)
+            supports_channel = (
+                "channel" in parameters or accepts_kwargs
             )
+            kwargs = {}
+            if supports_principal:
+                kwargs["principal"] = discord_sparks_principal(channel_id)
+            if supports_channel:
+                kwargs["channel"] = "discord"
+            response = responder(inbound.content, **kwargs)
             content = getattr(response, "content", None)
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("conversation response content is empty")
