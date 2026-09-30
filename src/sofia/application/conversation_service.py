@@ -413,7 +413,6 @@ class ConversationService:
         *,
         message: ConversationMessage,
         principal: PrincipalContext | None,
-        channel: str,
     ) -> None:
         """Run all continuity hooks only after the user turn is durable."""
         learning = getattr(self, "_learning_coordinator", None)
@@ -447,6 +446,7 @@ class ConversationService:
         *,
         message: ConversationMessage,
         principal: PrincipalContext | None,
+        channel: str,
     ) -> None:
         """Record a matrix decision without changing live response behavior."""
         store = self._matrix_trace_store
