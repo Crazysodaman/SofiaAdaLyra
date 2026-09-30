@@ -414,3 +414,35 @@ def test_interaction_control_word_without_operational_target_stays_tool_free():
 def test_operational_control_still_requires_target():
     assert _conversation_tools_relevant("restart the service") is True
     assert _conversation_tools_relevant("stop") is False
+
+
+def test_normal_reply_finalizes_before_assistant_message_is_persisted(
+    tmp_path, monkeypatch
+):
+    """A rejected or rewritten interaction cannot leak into durable history."""
+    from sofia.cognition.model import CognitiveResponse
+
+    application = create_application(tmp_path)
+    application.start()
+    seen = []
+
+    def finalize(request, response, *, principal):
+        seen.append((request, response, principal))
+        return CognitiveResponse(content="Grounded revised response.")
+
+    monkeypatch.setattr(
+        application.conversation,
+        "_finalize_response",
+        finalize,
+    )
+    try:
+        result = application.conversation.respond("pats your head")
+        history = application.conversation.messages()
+
+        assert len(seen) == 1
+        assert seen[0][2] is None
+        assert result.content == "Grounded revised response."
+        assert history[-1].role is ConversationRole.ASSISTANT
+        assert history[-1].content == "Grounded revised response."
+    finally:
+        application.shutdown()
