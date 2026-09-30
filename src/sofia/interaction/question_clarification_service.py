@@ -28,6 +28,7 @@ def respond_reviewed_hug_question(
     content: str,
     *,
     principal: PrincipalContext | None = None,
+    channel: str = "conversation",
 ) -> CognitiveResponse:
     """Save exact reviewed question; never infer or issue a permission grant."""
     if not is_reviewed_hug_question(content):
@@ -54,6 +55,17 @@ def respond_reviewed_hug_question(
                 after_saved(
                     message=user,
                     principal=principal,
+                )
+            record_matrix = getattr(
+                service,
+                "_record_shadow_matrix",
+                None,
+            )
+            if record_matrix is not None:
+                record_matrix(
+                    message=user,
+                    principal=principal,
+                    channel=channel,
                 )
             blocked = _policy_gate(state_path=path, session_id=session_id)
             result = (GuardedOfferResult(status=blocked) if blocked is not None else
