@@ -19,6 +19,8 @@ from sofia.cognition.model import (
     CognitiveResponse,
 )
 from sofia.cognition.matrix import (
+    ContextPlan,
+    MatrixContextPlanner,
     MatrixCoordinator,
     MatrixTrace,
     MatrixTraceStore,
@@ -127,6 +129,18 @@ def _conversation_cognitive_window(
     return messages[-_MAX_COGNITIVE_TRANSCRIPT_MESSAGES:]
 
 
+def _matrix_context_window(
+    messages: tuple[ConversationMessage, ...],
+    plan: ContextPlan,
+) -> tuple[ConversationMessage, ...]:
+    """Apply the matrix history policy to provider-visible transcript only."""
+    if not isinstance(plan, ContextPlan):
+        raise TypeError("plan must be ContextPlan")
+    if not messages:
+        return ()
+    return messages[-plan.max_history_messages:]
+
+
 class ConversationService:
     """
     Application-level conversation boundary.
@@ -183,7 +197,10 @@ class ConversationService:
         self._matrix_coordinator = MatrixCoordinator(
             registry=default_matrix_registry()
         )
+        self._matrix_context_planner = MatrixContextPlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
+        self._current_context_plan: ContextPlan | None = None
+        self._current_matrix_message_id: str | None = None
         self._last_matrix_error: str | None = None
 
     @property
@@ -448,7 +465,9 @@ class ConversationService:
         principal: PrincipalContext | None,
         channel: str,
     ) -> None:
-        """Record a matrix decision without changing live response behavior."""
+        """Record B decisions and activate C's transcript-only context plan."""
+        self._current_context_plan = None
+        self._current_matrix_message_id = None
         store = self._matrix_trace_store
         if store is None:
             return
@@ -464,17 +483,24 @@ class ConversationService:
                 channel=channel,
             )
             turn = self._matrix_coordinator.evaluate(envelope)
+            context_plan = self._matrix_context_planner.plan(turn)
             store.record(
                 MatrixTrace(
                     envelope=envelope,
                     turn=turn,
+                    context=context_plan,
                     created_at=datetime.now(timezone.utc),
                     shadow=True,
+                    context_active=True,
                 )
             )
+            self._current_context_plan = context_plan
+            self._current_matrix_message_id = message.id
             self._last_matrix_error = None
         except Exception as exc:
-            # Shadow matrix telemetry must never make conversation unavailable.
+            # Matrix telemetry/context failure must never make chat unavailable.
+            self._current_context_plan = None
+            self._current_matrix_message_id = None
             self._last_matrix_error = type(exc).__name__
 
     def latest_matrix_trace(self) -> MatrixTrace | None:
@@ -654,9 +680,30 @@ class ConversationService:
             self._session.id
         )
 
+        current_user = next(
+            (
+                message
+                for message in reversed(messages)
+                if message.role is ConversationRole.USER
+            ),
+            None,
+        )
+        context_plan = (
+            self._current_context_plan
+            if (
+                current_user is not None
+                and current_user.id == self._current_matrix_message_id
+            )
+            else None
+        )
+        visible_messages = (
+            _matrix_context_window(messages, context_plan)
+            if context_plan is not None
+            else _conversation_cognitive_window(messages)
+        )
         cognitive_messages = tuple(
             self._to_cognitive_message(message)
-            for message in _conversation_cognitive_window(messages)
+            for message in visible_messages
         )
 
         latest_user = next(
