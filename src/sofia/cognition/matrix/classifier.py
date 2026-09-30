@@ -138,22 +138,7 @@ class BaselineTurnClassifier:
                     "action may target operational state",
                 ),
             ]
-            if _WEATHER.search(text) or _TIME_LOCATION.search(text):
-            return TurnMatrix(
-                intent=MatrixIntent.ENVIRONMENT_QUERY,
-                confidence=MatrixConfidence.HIGH,
-                history_policy=HistoryPolicy.NONE,
-                response_strategy=ResponseStrategy.DETERMINISTIC,
-                domains=(
-                    _contribution(
-                        MatrixDomain.ENVIRONMENT,
-                        MatrixRelevance.REQUIRED,
-                        "direct environment/time/location query",
-                    ),
-                ),
-            )
-
-        if _AVATAR.search(text):
+            if _AVATAR.search(text):
                 domains.append(
                     _contribution(
                         MatrixDomain.AVATAR,
@@ -175,6 +160,21 @@ class BaselineTurnClassifier:
                 history_policy=HistoryPolicy.BOUNDED_RECENT,
                 response_strategy=ResponseStrategy.TOOL_ASSISTED,
                 domains=tuple(domains),
+            )
+
+        if _WEATHER.search(text) or _TIME_LOCATION.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.ENVIRONMENT_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.DETERMINISTIC,
+                domains=(
+                    _contribution(
+                        MatrixDomain.ENVIRONMENT,
+                        MatrixRelevance.REQUIRED,
+                        "direct environment/time/location query",
+                    ),
+                ),
             )
 
         if _AVATAR.search(text):
