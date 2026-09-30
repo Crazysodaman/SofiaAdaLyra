@@ -595,16 +595,23 @@ class ConversationService:
 
         request = self._build_request()
 
+        context_plan = (
+            self._current_context_plan
+            if self._current_matrix_message_id == user_message.id
+            else None
+        )
         if principal is None:
             response = self._runtime.respond(
                 request,
                 filesystem_results=filesystem_results,
+                context_plan=context_plan,
             )
         else:
             response = self._runtime.respond(
                 request,
                 filesystem_results=filesystem_results,
                 principal=principal,
+                context_plan=context_plan,
             )
 
         # Reject unsupported interaction claims before they become history.
