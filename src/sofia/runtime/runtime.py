@@ -20,6 +20,11 @@ from sofia.authorization.model import (
 )
 from sofia.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
+from sofia.cognition.matrix import (
+    ContextPlan,
+    HistoryPolicy,
+    MatrixDomain,
+)
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleManager
 from sofia.cognition.operation import CognitiveOperation
@@ -633,6 +638,7 @@ class SofiaRuntime:
         filesystem_results: tuple[FilesystemResult, ...] = (),
         *,
         principal: PrincipalContext | None = None,
+        context_plan: ContextPlan | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -648,6 +654,25 @@ class SofiaRuntime:
             raise TypeError(
                 "SofiaRuntime principal must be a PrincipalContext or None."
             )
+
+        if context_plan is not None and not isinstance(
+            context_plan, ContextPlan
+        ):
+            raise TypeError(
+                "SofiaRuntime context_plan must be a ContextPlan or None."
+            )
+
+        selective_context = (
+            context_plan is not None
+            and context_plan.history_policy
+            in (HistoryPolicy.NONE, HistoryPolicy.RETRIEVE_SPECIFIC)
+        )
+
+        def include_domain(*domains: MatrixDomain) -> bool:
+            if not selective_context or context_plan is None:
+                return True
+            included = set(context_plan.included_domains)
+            return any(domain in included for domain in domains)
 
         if not isinstance(filesystem_results, tuple):
             raise TypeError(
@@ -738,21 +763,27 @@ class SofiaRuntime:
                     content=environment_answer.content
                 )
 
-        memories = self._memory_system.recall_relevant(
-            user_content,
-            principal=principal,
-        )
-
-        historical_conversation_evidence = (
-            self._memory_system.recall_historical_evidence(
+        if include_domain(MatrixDomain.MEMORY):
+            memories = self._memory_system.recall_relevant(
                 user_content,
                 principal=principal,
             )
-        )
+            historical_conversation_evidence = (
+                self._memory_system.recall_historical_evidence(
+                    user_content,
+                    principal=principal,
+                )
+            )
+        else:
+            memories = ()
+            historical_conversation_evidence = ()
 
         measurement_query = None
 
-        if self._embodiment is not None:
+        if (
+            self._embodiment is not None
+            and include_domain(MatrixDomain.AVATAR)
+        ):
             measurement_query = self._measurement_query_resolver.resolve(
                 query=user_content,
                 embodiment=self._embodiment,
@@ -761,6 +792,7 @@ class SofiaRuntime:
         if (
             environment_snapshot is None
             and environment_service is not None
+            and include_domain(MatrixDomain.ENVIRONMENT)
         ):
             environment_snapshot = (
                 environment_service.snapshot(
@@ -774,22 +806,64 @@ class SofiaRuntime:
                 identity=self._identity,
                 personality=self._personality,
                 constitution=self._constitution,
-                embodiment=self._embodiment,
+                embodiment=(
+                    self._embodiment
+                    if include_domain(
+                        MatrixDomain.AVATAR,
+                        MatrixDomain.INTERACTION,
+                    )
+                    else None
+                ),
                 measurement_query=measurement_query,
                 core_state=self._core_state,
                 memories=memories,
                 historical_conversation_evidence=(
                     historical_conversation_evidence
                 ),
-                operational_state=self.operational_state,
-                runtime_continuity=self._runtime_continuity,
-                filesystem_results=filesystem_results,
-                workspace_changes=self._workspace_changes,
-                operational_self_model=self.operational_self_model,
-                avatar_presentation=self.avatar_projection_for(
-                    principal=principal,
+                operational_state=(
+                    self.operational_state
+                    if include_domain(
+                        MatrixDomain.COGNITION,
+                        MatrixDomain.MACHINE,
+                        MatrixDomain.OPS,
+                        MatrixDomain.AUTHORITY,
+                        MatrixDomain.CONTINUITY,
+                    )
+                    else None
                 ),
-                environment_snapshot=environment_snapshot,
+                runtime_continuity=(
+                    self._runtime_continuity
+                    if include_domain(MatrixDomain.CONTINUITY)
+                    else None
+                ),
+                filesystem_results=filesystem_results,
+                workspace_changes=(
+                    self._workspace_changes
+                    if include_domain(MatrixDomain.CONTINUITY)
+                    else None
+                ),
+                operational_self_model=(
+                    self.operational_self_model
+                    if include_domain(
+                        MatrixDomain.COGNITION,
+                        MatrixDomain.MACHINE,
+                        MatrixDomain.OPS,
+                    )
+                    else None
+                ),
+                avatar_presentation=(
+                    self.avatar_projection_for(principal=principal)
+                    if include_domain(
+                        MatrixDomain.AVATAR,
+                        MatrixDomain.INTERACTION,
+                    )
+                    else None
+                ),
+                environment_snapshot=(
+                    environment_snapshot
+                    if include_domain(MatrixDomain.ENVIRONMENT)
+                    else None
+                ),
                 principal=principal,
             ),
             authority=Authority(
