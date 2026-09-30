@@ -268,10 +268,11 @@ class ConversationService:
             filesystem_results=(),
         )
 
+        # Proactive awareness has no authenticated user principal.
         response = self._finalize_response(
             request,
             response,
-            principal=principal,
+            principal=None,
         )
 
         assistant_message = ConversationMessage(
@@ -467,6 +468,13 @@ class ConversationService:
                 filesystem_results=filesystem_results,
                 principal=principal,
             )
+
+        # Reject unsupported interaction claims before they become history.
+        response = self._finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
 
         assistant_message = ConversationMessage(
             id=str(uuid4()),
