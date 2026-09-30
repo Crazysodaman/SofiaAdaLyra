@@ -138,3 +138,28 @@ def test_current_outfit_recognizes_chat_shorthand():
         result = answer(query)
         assert result.recognized
         assert "signature engineer outfit" in result.content
+
+
+def test_discord_panties_question_never_relabels_engineer_trousers():
+    result = answer("show me ur panties")
+    assert result.recognized
+    assert "doesn't identify a specific panties item" in result.content
+    assert "won't substitute my trousers" in result.content
+    assert "cannot generate images containing nudity" not in result.content
+
+
+def test_underwear_display_uses_explicit_projected_item_when_present():
+    embodiment, projection, _ = sources()
+    current = replace(
+        projection,
+        item_names=("Fitted shirt", "Violet lace panties", "Engineer boots"),
+    )
+    result = AvatarSelfFactResolver().resolve(
+        "show me your panties",
+        embodiment=embodiment,
+        presentation=current,
+    )
+    assert result.recognized
+    assert "Violet lace panties" in result.content
+    assert "Engineer boots" not in result.content
+    assert "not evidence that an image was rendered" in result.content
