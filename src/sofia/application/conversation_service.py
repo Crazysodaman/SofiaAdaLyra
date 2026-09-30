@@ -410,6 +410,7 @@ class ConversationService:
         *,
         message: ConversationMessage,
         principal: PrincipalContext | None,
+        channel: str,
     ) -> None:
         """Run all continuity hooks only after the user turn is durable."""
         learning = getattr(self, "_learning_coordinator", None)
@@ -457,7 +458,7 @@ class ConversationService:
                 principal_id=(
                     None if principal is None else principal.principal_id
                 ),
-                channel="conversation",
+                channel=channel,
             )
             turn = self._matrix_coordinator.evaluate(envelope)
             store.record(
@@ -489,6 +490,7 @@ class ConversationService:
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ) -> CognitiveResponse:
         """
         Persist a user message, process authorization or any
@@ -510,6 +512,12 @@ class ConversationService:
             raise TypeError(
                 "ConversationService principal must be a PrincipalContext or None."
             )
+
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError(
+                "ConversationService channel must be a nonempty string."
+            )
+        channel = channel.strip().casefold()
 
         principal = self._bind_principal(principal)
         content = content.strip()
@@ -535,6 +543,7 @@ class ConversationService:
         self._record_shadow_matrix(
             message=user_message,
             principal=principal,
+            channel=channel,
         )
 
         authorization = (
