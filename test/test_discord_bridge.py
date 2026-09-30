@@ -213,3 +213,38 @@ def test_foreign_processing_claim_prevents_second_generator(tmp_path) -> None:
 
     assert result.disposition is BridgeDisposition.IN_PROGRESS
     assert conversation.calls == 0
+
+
+def test_bridge_passes_discord_channel_when_supported(tmp_path) -> None:
+    store, bindings = setup_channel(tmp_path)
+
+    class ChannelAwareConversation:
+        session_id = "discord-session-1"
+
+        def __init__(self):
+            self.principal = None
+            self.channel = None
+
+        def respond(self, content, *, principal=None, channel="conversation"):
+            assert content == "Hello from Discord"
+            self.principal = principal
+            self.channel = channel
+            return FakeResponse("Sofía reply")
+
+    conversation = ChannelAwareConversation()
+    bridge = DiscordConversationBridge(
+        store=store,
+        bindings=bindings,
+        conversation=conversation,
+    )
+
+    result = bridge.process(
+        bot_user_id=BOT,
+        channel_id=CHANNEL,
+        message_id=MESSAGE,
+    )
+
+    assert result.disposition is BridgeDisposition.PREPARED
+    assert conversation.channel == "discord"
+    assert conversation.principal is not None
+    assert conversation.principal.audience_id == f"discord-dm:{CHANNEL}"
