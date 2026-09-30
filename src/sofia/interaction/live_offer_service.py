@@ -87,6 +87,7 @@ def respond_staged_offer(
     content: str,
     *,
     principal: PrincipalContext | None = None,
+    channel: str = "conversation",
 ) -> CognitiveResponse:
     """Persist one exact USER offer, then only an atomically releasable reply.
 
@@ -123,6 +124,17 @@ def respond_staged_offer(
                 after_saved(
                     message=user,
                     principal=principal,
+                )
+            record_matrix = getattr(
+                service,
+                "_record_shadow_matrix",
+                None,
+            )
+            if record_matrix is not None:
+                record_matrix(
+                    message=user,
+                    principal=principal,
+                    channel=channel,
                 )
             intent = parse_user_action(user.content, message_id=user.id)
             if (intent is None or intent.modality != 'offered'
