@@ -18,6 +18,12 @@ from sofia.cognition.model import (
     CognitiveRole,
     CognitiveResponse,
 )
+from sofia.cognition.matrix import (
+    MatrixCoordinator,
+    MatrixTrace,
+    MatrixTraceStore,
+    TurnEnvelope,
+)
 from sofia.filesystem.orchestrator import (
     FilesystemOrchestrator,
 )
@@ -173,6 +179,9 @@ class ConversationService:
             )
         )
         self._session: ConversationSession | None = None
+        self._matrix_coordinator = MatrixCoordinator()
+        self._matrix_trace_store: MatrixTraceStore | None = None
+        self._last_matrix_error: str | None = None
 
     @property
     def session(self) -> ConversationSession | None:
@@ -213,6 +222,11 @@ class ConversationService:
         """
 
         self._conversation_store.open()
+        # Matrix tracing is shadow-only at this stage. It records turn
+        # interpretation but cannot alter context, authority, tools, or output.
+        self._matrix_trace_store = MatrixTraceStore(
+            self._runtime.configuration.state_path
+        )
 
     def start(
         self,
@@ -424,6 +438,52 @@ class ConversationService:
                 occurred_at=message.created_at,
             )
 
+    def _record_shadow_matrix(
+        self,
+        *,
+        message: ConversationMessage,
+        principal: PrincipalContext | None,
+    ) -> None:
+        """Record a matrix decision without changing live response behavior."""
+        store = self._matrix_trace_store
+        if store is None:
+            return
+        try:
+            envelope = TurnEnvelope(
+                message_id=message.id,
+                session_id=message.session_id,
+                content=message.content,
+                created_at=message.created_at,
+                principal_id=(
+                    None if principal is None else principal.principal_id
+                ),
+                channel="conversation",
+            )
+            turn = self._matrix_coordinator.evaluate(envelope)
+            store.record(
+                MatrixTrace(
+                    envelope=envelope,
+                    turn=turn,
+                    created_at=datetime.now(timezone.utc),
+                    shadow=True,
+                )
+            )
+            self._last_matrix_error = None
+        except Exception as exc:
+            # Shadow matrix telemetry must never make conversation unavailable.
+            self._last_matrix_error = type(exc).__name__
+
+    def latest_matrix_trace(self) -> MatrixTrace | None:
+        """Return the most recent shadow decision for the active session."""
+        if self._matrix_trace_store is None:
+            return None
+        session_id = None if self._session is None else self._session.id
+        return self._matrix_trace_store.latest(session_id=session_id)
+
+    @property
+    def last_matrix_error(self) -> str | None:
+        return self._last_matrix_error
+
     def respond(
         self,
         content: str,
@@ -469,6 +529,10 @@ class ConversationService:
 
         self._conversation_store.save(user_message)
         self._after_user_message_saved(
+            message=user_message,
+            principal=principal,
+        )
+        self._record_shadow_matrix(
             message=user_message,
             principal=principal,
         )
