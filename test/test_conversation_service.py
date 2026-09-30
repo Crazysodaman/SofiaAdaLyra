@@ -575,3 +575,23 @@ def test_matrix_shadow_failure_never_breaks_conversation(
         assert application.conversation.last_matrix_error == "RuntimeError"
     finally:
         application.shutdown()
+
+
+def test_channel_propagates_through_full_conversation_stack_to_matrix_trace(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        response = application.conversation.respond(
+            "Hru",
+            channel="discord",
+        )
+
+        assert response.content == "Test cognitive response."
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.envelope.channel == "discord"
+        assert application.conversation.last_matrix_error is None
+    finally:
+        application.shutdown()
