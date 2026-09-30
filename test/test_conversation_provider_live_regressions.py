@@ -95,3 +95,69 @@ def test_weather_today_is_answered_by_environment_resolver_without_llm(
         assert captured == []
     finally:
         application.shutdown()
+
+
+def test_live_casual_network_status_does_not_invent_telemetry(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(monkeypatch, tmp_path, ())
+    try:
+        reply = application.conversation.respond("So hows the network")
+        assert "don't have a fresh, verified network-health measurement" in (
+            reply.content
+        )
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
+def test_live_model_status_uses_configured_primary_not_generated_avatar_prose(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(monkeypatch, tmp_path, ())
+    try:
+        reply = application.conversation.respond("What llm am i running rn")
+        assert application.runtime.operational_state.model in reply.content
+        assert "configured primary model" in reply.content
+        assert "This configuration alone doesn't prove" in reply.content
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
+def test_discord_hru_turn_excludes_previous_unrelated_assistant_history(
+    monkeypatch, tmp_path
+):
+    from sofia.cognition.model import CognitiveRole
+
+    application, captured = _application(
+        monkeypatch, tmp_path,
+        ("The robot is a hexapod.", "I'm feeling pretty settled today."),
+    )
+    try:
+        application.conversation.respond("Tell me about a six-legged robot.")
+        response = application.conversation.respond("Hru")
+        assert "settled" in response.content
+        assert len(captured) == 2
+        second = captured[1]
+        non_system = [
+            message.content for message in second.messages
+            if message.role in (CognitiveRole.USER, CognitiveRole.ASSISTANT)
+        ]
+        assert non_system == ["Hru"]
+        assert len(application.conversation.messages()) == 4
+    finally:
+        application.shutdown()
+
+
+def test_live_discord_panties_question_uses_current_avatar_projection(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(monkeypatch, tmp_path, ())
+    try:
+        reply = application.conversation.respond("show me ur panties")
+        assert "current avatar presentation" in reply.content
+        assert "cannot generate images containing nudity" not in reply.content
+        assert captured == []
+    finally:
+        application.shutdown()
