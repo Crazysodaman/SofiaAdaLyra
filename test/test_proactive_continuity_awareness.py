@@ -493,3 +493,37 @@ def test_awareness_instruction_forbids_canned_closer_and_relationship_labels(
     assert "Do not speculate that changed test databases" in instruction
 
     application.runtime.shutdown()
+
+
+def test_awareness_finalizes_without_undefined_principal(tmp_path, monkeypatch):
+    """Real restart awareness must pass principal=None through finalization."""
+    application = create_application(tmp_path)
+    application.runtime.start()
+    application.runtime.shutdown()
+    application.runtime.start()
+    assert application.runtime.pending_continuity_event is not None
+
+    application.conversation.open()
+    application.conversation.start()
+    seen = []
+
+    def fake_respond(request, *, filesystem_results=()):
+        return type("FakeResponse", (), {"content": "Observed a restart."})()
+
+    def finalize(request, response, *, principal):
+        seen.append((request, response, principal))
+        return response
+
+    monkeypatch.setattr(application.runtime, "respond", fake_respond)
+    monkeypatch.setattr(application.conversation, "_finalize_response", finalize)
+
+    try:
+        response = application.conversation.deliver_pending_awareness()
+        assert response is not None
+        assert response.content == "Observed a restart."
+        assert len(seen) == 1
+        assert seen[0][2] is None
+        assert application.conversation.messages()[-1].content == response.content
+        assert application.runtime.pending_continuity_event is None
+    finally:
+        application.runtime.shutdown()
