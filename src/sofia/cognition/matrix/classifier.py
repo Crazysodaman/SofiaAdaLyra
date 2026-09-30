@@ -125,7 +125,20 @@ class BaselineTurnClassifier:
                 ),
             )
 
-        if _WEATHER.search(text) or _TIME_LOCATION.search(text):
+        if _ACTION.search(text):
+            domains = [
+                _contribution(
+                    MatrixDomain.AUTHORITY,
+                    MatrixRelevance.REQUIRED,
+                    "message contains an operational action verb",
+                ),
+                _contribution(
+                    MatrixDomain.OPS,
+                    MatrixRelevance.RELEVANT,
+                    "action may target operational state",
+                ),
+            ]
+            if _WEATHER.search(text) or _TIME_LOCATION.search(text):
             return TurnMatrix(
                 intent=MatrixIntent.ENVIRONMENT_QUERY,
                 confidence=MatrixConfidence.HIGH,
@@ -140,20 +153,7 @@ class BaselineTurnClassifier:
                 ),
             )
 
-        if _ACTION.search(text):
-            domains = [
-                _contribution(
-                    MatrixDomain.AUTHORITY,
-                    MatrixRelevance.REQUIRED,
-                    "message contains an operational action verb",
-                ),
-                _contribution(
-                    MatrixDomain.OPS,
-                    MatrixRelevance.RELEVANT,
-                    "action may target operational state",
-                ),
-            ]
-            if _AVATAR.search(text):
+        if _AVATAR.search(text):
                 domains.append(
                     _contribution(
                         MatrixDomain.AVATAR,
