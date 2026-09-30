@@ -49,6 +49,20 @@ def test_read_only_canary_creates_only_in_memory_untrusted_candidate():
     assert result["persistent_changes"] is False
 
 
+def test_canary_refuses_unverified_identity_evidence():
+    from dataclasses import replace
+
+    unsafe = replace(
+        observation(),
+        capabilities_verified=False,
+        capability_names=(),
+    )
+    import pytest
+
+    with pytest.raises(ValueError, match="verified identity"):
+        canary.preview_candidate(FakeSource((unsafe,)))
+
+
 def test_canary_reports_no_agent_without_enrolling():
     result = canary.preview_candidate(FakeSource(()))
 
