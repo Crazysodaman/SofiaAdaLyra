@@ -219,6 +219,42 @@ class ContextPlan:
     included_domains: tuple[MatrixDomain, ...]
     history_policy: HistoryPolicy
     excluded_domains: tuple[MatrixDomain, ...] = ()
+    max_history_messages: int = 12
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.included_domains, tuple):
+            raise TypeError("included_domains must be a tuple")
+        if not isinstance(self.excluded_domains, tuple):
+            raise TypeError("excluded_domains must be a tuple")
+        if not isinstance(self.history_policy, HistoryPolicy):
+            raise TypeError("history_policy must be HistoryPolicy")
+        if (
+            type(self.max_history_messages) is not int
+            or self.max_history_messages < 1
+        ):
+            raise ValueError("max_history_messages must be a positive int")
+        included = set()
+        for domain in self.included_domains:
+            if not isinstance(domain, MatrixDomain):
+                raise TypeError(
+                    "included_domains must contain MatrixDomain values"
+                )
+            if domain in included:
+                raise ValueError("included_domains must be unique")
+            included.add(domain)
+        excluded = set()
+        for domain in self.excluded_domains:
+            if not isinstance(domain, MatrixDomain):
+                raise TypeError(
+                    "excluded_domains must contain MatrixDomain values"
+                )
+            if domain in excluded:
+                raise ValueError("excluded_domains must be unique")
+            excluded.add(domain)
+        if included & excluded:
+            raise ValueError(
+                "a matrix domain cannot be both included and excluded"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,14 +282,22 @@ class MatrixTrace:
     envelope: TurnEnvelope
     turn: TurnMatrix
     created_at: datetime
+    context: ContextPlan | None = None
     shadow: bool = True
+    context_active: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.envelope, TurnEnvelope):
             raise TypeError("envelope must be TurnEnvelope")
         if not isinstance(self.turn, TurnMatrix):
             raise TypeError("turn must be TurnMatrix")
+        if self.context is not None and not isinstance(
+            self.context, ContextPlan
+        ):
+            raise TypeError("context must be ContextPlan or None")
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
         if type(self.shadow) is not bool:
             raise TypeError("shadow must be bool")
+        if type(self.context_active) is not bool:
+            raise TypeError("context_active must be bool")
