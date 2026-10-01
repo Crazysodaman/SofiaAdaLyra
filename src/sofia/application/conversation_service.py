@@ -492,8 +492,15 @@ class ConversationService:
         channel: str,
     ) -> None:
         """Record B decisions and activate C's transcript-only context plan."""
-        self._current_context_plan = None
         self._current_matrix_message_id = None
+        self._current_matrix_envelope = None
+        self._current_turn_matrix = None
+        self._current_context_plan = None
+        self._current_evidence_matrix = None
+        self._current_authority_plan = None
+        self._current_response_contract = None
+        self._current_response_validation = None
+        self._current_routing_plan = None
         store = self._matrix_trace_store
         if store is None:
             return
@@ -510,23 +517,59 @@ class ConversationService:
             )
             turn = self._matrix_coordinator.evaluate(envelope)
             context_plan = self._matrix_context_planner.plan(turn)
+            evidence_requirements = self._matrix_evidence_planner.plan(turn)
+            evidence = self._matrix_evidence_resolver.resolve(
+                evidence_requirements,
+                self._runtime.matrix_evidence_availability(),
+            )
+            authority_plan = self._matrix_authority_planner.plan(
+                envelope,
+                turn,
+                self._runtime.current_authority(),
+            )
+            response_contract = self._matrix_response_planner.plan(
+                turn,
+                evidence,
+                authority_plan,
+            )
+            routing_plan = self._matrix_routing_planner.plan(
+                envelope,
+                turn,
+            )
             store.record(
                 MatrixTrace(
                     envelope=envelope,
                     turn=turn,
                     context=context_plan,
+                    evidence=evidence,
+                    authority=authority_plan,
+                    response_contract=response_contract,
+                    routing=routing_plan,
                     created_at=datetime.now(timezone.utc),
                     shadow=True,
                     context_active=True,
                 )
             )
-            self._current_context_plan = context_plan
             self._current_matrix_message_id = message.id
+            self._current_matrix_envelope = envelope
+            self._current_turn_matrix = turn
+            self._current_context_plan = context_plan
+            self._current_evidence_matrix = evidence
+            self._current_authority_plan = authority_plan
+            self._current_response_contract = response_contract
+            self._current_routing_plan = routing_plan
             self._last_matrix_error = None
         except Exception as exc:
             # Matrix telemetry/context failure must never make chat unavailable.
-            self._current_context_plan = None
             self._current_matrix_message_id = None
+            self._current_matrix_envelope = None
+            self._current_turn_matrix = None
+            self._current_context_plan = None
+            self._current_evidence_matrix = None
+            self._current_authority_plan = None
+            self._current_response_contract = None
+            self._current_response_validation = None
+            self._current_routing_plan = None
             self._last_matrix_error = type(exc).__name__
 
     def latest_matrix_trace(self) -> MatrixTrace | None:
