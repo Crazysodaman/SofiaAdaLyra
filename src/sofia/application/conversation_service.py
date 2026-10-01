@@ -635,6 +635,41 @@ class ConversationService:
                 )
             )
 
+    def _matrix_finalize_deterministic_response(
+        self,
+        response: CognitiveResponse,
+    ) -> CognitiveResponse:
+        """Validate a host-generated reply without invoking an LLM retry."""
+        if (
+            self._current_response_contract is None
+            or self._current_evidence_matrix is None
+        ):
+            return response
+
+        self._refresh_matrix_evidence(response)
+        assert self._current_response_contract is not None
+        assert self._current_evidence_matrix is not None
+        validation = self._matrix_response_validator.validate(
+            response,
+            self._current_response_contract,
+            self._current_evidence_matrix,
+        )
+        if validation.disposition is ResponseValidationDisposition.PASS:
+            self._current_response_validation = validation
+            self._record_current_matrix_trace()
+            return response
+
+        fallback = self._matrix_response_validator.fallback(
+            validation,
+            self._current_response_contract,
+        )
+        self._current_response_validation = ResponseValidation(
+            ResponseValidationDisposition.FALLBACK,
+            validation.reasons,
+        )
+        self._record_current_matrix_trace()
+        return fallback
+
     def _matrix_finalize_response(
         self,
         request: CognitiveRequest,
