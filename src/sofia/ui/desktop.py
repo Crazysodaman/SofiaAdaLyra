@@ -202,6 +202,7 @@ class _TkDesktopWorkbench:
         self._application_ready = False
         self._busy = False
         self._persistence_status = ""
+        self._matrix_status = ""
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
         self._palette = canonical_theme()
@@ -555,11 +556,12 @@ class _TkDesktopWorkbench:
         self._worker.send(content)
 
     def _ready_status(self) -> str:
-        return (
-            "Ready"
-            if not self._persistence_status
-            else f"Ready | {self._persistence_status}"
-        )
+        parts = ["Ready"]
+        if self._persistence_status:
+            parts.append(self._persistence_status)
+        if self._matrix_status:
+            parts.append(self._matrix_status)
+        return " | ".join(parts)
 
     def _poll_events(self) -> None:
         while True:
@@ -589,7 +591,8 @@ class _TkDesktopWorkbench:
                 if self._application_ready and not self._busy:
                     self._status.set(self._ready_status())
             elif kind == "sent":
-                history, palette = payload
+                history, palette, matrix_status = payload
+                self._matrix_status = str(matrix_status)
                 self._busy = False
                 self._render_history(history)
                 self._replace_input("")
