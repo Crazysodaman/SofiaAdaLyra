@@ -21,6 +21,12 @@ _SOCIAL = re.compile(
     r"\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_GENERIC_FOLLOWUP = re.compile(
+    r"^\s*(?:tell\s+me\s+(?:the\s+)?why|why|how\s+so|"
+    r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+
 _WEATHER = re.compile(
     r"\b(?:weather|temperature|forecast|humidity|outside)\b",
     re.IGNORECASE,
@@ -130,6 +136,21 @@ class BaselineTurnClassifier:
                         MatrixDomain.EMOTION,
                         MatrixRelevance.RELEVANT,
                         "current modeled emotion can inform the reply",
+                    ),
+                ),
+            )
+
+        if _GENERIC_FOLLOWUP.fullmatch(text):
+            return TurnMatrix(
+                intent=MatrixIntent.GENERAL,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.LAST_TURN,
+                response_strategy=ResponseStrategy.GENERATIVE,
+                domains=(
+                    _contribution(
+                        MatrixDomain.SOCIAL,
+                        MatrixRelevance.CONTEXTUAL,
+                        "short follow-up should stay bound to the immediately prior turn",
                     ),
                 ),
             )
