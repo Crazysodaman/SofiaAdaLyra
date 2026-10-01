@@ -18,6 +18,7 @@ from sofia.cognition.matrix import (
     EvidenceRequirement,
     EvidenceState,
     HistoryPolicy,
+    MatrixConfidence,
     MatrixContextPlanner,
     MatrixAuthorityPlanner,
     MatrixCoordinator,
