@@ -76,6 +76,8 @@ class TrayStatus:
     cognitive_last_route: str | None = None
     cognitive_last_model: str | None = None
     cognitive_last_host: str | None = None
+    cognitive_last_primary_host: str | None = None
+    cognitive_last_secondary_host: str | None = None
     matrix_last_intent: str | None = None
     matrix_last_domains: tuple[str, ...] = ()
     matrix_last_validation: str | None = None
