@@ -36,6 +36,7 @@ class CognitiveToolBinding:
     fixed_parameters: tuple[tuple[str, Any], ...] = ()
     include_principal_metadata: bool = False
     produces_execution_receipt: bool = False
+    execution_receipt_evidence_match: tuple[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -66,6 +67,24 @@ class CognitiveToolBinding:
             raise TypeError(
                 "CognitiveToolBinding produces_execution_receipt must be boolean."
             )
+
+        if self.execution_receipt_evidence_match is not None:
+            match = self.execution_receipt_evidence_match
+            if (
+                not isinstance(match, tuple)
+                or len(match) != 2
+                or not isinstance(match[0], str)
+                or not match[0].strip()
+            ):
+                raise TypeError(
+                    "CognitiveToolBinding execution_receipt_evidence_match "
+                    "must be None or a (nonempty str, value) pair."
+                )
+            if not self.produces_execution_receipt:
+                raise ValueError(
+                    "execution_receipt_evidence_match requires "
+                    "produces_execution_receipt=True."
+                )
 
         if not isinstance(self.fixed_parameters, tuple):
             raise TypeError(
@@ -175,17 +194,32 @@ class CognitiveToolDispatcher:
             )
         )
 
-    def tool_produces_execution_receipt(self, tool_name: str) -> bool:
-        """Return host-owned execution-receipt policy for one cognitive tool."""
+    def tool_result_produces_execution_receipt(
+        self,
+        tool_name: str,
+        result: CapabilityResult,
+    ) -> bool:
+        """Return whether one successful host result proves execution."""
         if not isinstance(tool_name, str):
             raise TypeError("tool_name must be a string")
+        if not isinstance(result, CapabilityResult):
+            raise TypeError("result must be a CapabilityResult")
         try:
             binding = self._bindings[tool_name]
         except KeyError as exc:
             raise CognitiveToolError(
                 f"Unknown cognitive tool: {tool_name}"
             ) from exc
-        return binding.produces_execution_receipt
+        if not binding.produces_execution_receipt:
+            return False
+        match = binding.execution_receipt_evidence_match
+        if match is None:
+            return True
+        key, expected = match
+        return (
+            isinstance(result.evidence, dict)
+            and result.evidence.get(key) == expected
+        )
 
     def dispatch(
         self,
