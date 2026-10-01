@@ -22,6 +22,8 @@ from sofia.cognition.model import (
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
+    CognitionExecutionStep,
+    CognitionExecutionTrace,
     ContextPlan,
     EvidenceMatrix,
     EvidenceRecord,
@@ -242,6 +244,8 @@ class ConversationService:
         self._current_response_contract: ResponseContract | None = None
         self._current_response_validation: ResponseValidation | None = None
         self._current_routing_plan: RoutingPlan | None = None
+        self._current_cognition_execution: CognitionExecutionTrace | None = None
+        self._matrix_execution_baseline_serial = 0
         self._last_matrix_error: str | None = None
 
     @property
@@ -527,6 +531,11 @@ class ConversationService:
         self._current_response_contract = None
         self._current_response_validation = None
         self._current_routing_plan = None
+        self._current_cognition_execution = None
+        prior_execution = self._runtime.cognition_routing_execution()
+        self._matrix_execution_baseline_serial = (
+            0 if prior_execution is None else prior_execution.serial
+        )
         store = getattr(self, "_matrix_trace_store", None)
         if store is None:
             return
@@ -604,6 +613,7 @@ class ConversationService:
             self._current_response_contract = None
             self._current_response_validation = None
             self._current_routing_plan = None
+            self._current_cognition_execution = None
             self._last_matrix_error = type(exc).__name__
 
     def _record_current_matrix_trace(self) -> None:
@@ -624,10 +634,34 @@ class ConversationService:
                 response_contract=self._current_response_contract,
                 response_validation=self._current_response_validation,
                 routing=self._current_routing_plan,
+                cognition_execution=self._current_cognition_execution,
                 created_at=datetime.now(timezone.utc),
                 shadow=False,
                 context_active=self._current_context_plan is not None,
             )
+        )
+
+    def _capture_cognition_execution(self) -> None:
+        execution = self._runtime.cognition_routing_execution()
+        if (
+            execution is None
+            or execution.serial <= self._matrix_execution_baseline_serial
+        ):
+            return
+        self._current_cognition_execution = CognitionExecutionTrace(
+            serial=execution.serial,
+            actual_route=execution.route.value,
+            steps=tuple(
+                CognitionExecutionStep(
+                    role=step.role,
+                    model=step.model,
+                    host=step.host,
+                    succeeded=step.succeeded,
+                )
+                for step in execution.steps
+            ),
+            fallback_count=execution.fallback_count,
+            verification_passes=execution.verification_passes,
         )
 
     @staticmethod
@@ -805,6 +839,8 @@ class ConversationService:
                 context_plan=self._current_context_plan,
             )
 
+        self._capture_cognition_execution()
+
         retry = self._finalize_response(
             retry_request,
             retry,
@@ -959,6 +995,8 @@ class ConversationService:
                 principal=principal,
                 context_plan=context_plan,
             )
+
+        self._capture_cognition_execution()
 
         # Reject unsupported interaction claims before they become history.
         response = self._finalize_response(
