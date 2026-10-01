@@ -306,6 +306,7 @@ def test_cognitive_system_executes_authorized_tool_and_continues():
     )
 
     assert response.content == "Tool evidence received."
+    assert response.evidence_refs == ("capability:test.inspect",)
     assert len(engine.requests) == 2
 
 
