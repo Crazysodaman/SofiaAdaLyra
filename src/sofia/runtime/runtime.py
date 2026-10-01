@@ -29,6 +29,7 @@ from sofia.cognition.matrix import (
 )
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleManager
+from sofia.cognition.routing import RoutingCognitiveEngine, RoutingExecution
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.cognitive_models import CognitiveModelSelection
@@ -402,6 +403,13 @@ class SofiaRuntime:
     @property
     def model_lifecycle(self) -> ModelLifecycleManager | None:
         return getattr(self, "_model_lifecycle", None)
+
+    def cognition_routing_execution(self) -> RoutingExecution | None:
+        """Return the most recent actual dual-engine execution, if routed."""
+        engine = self._cognitive_system.engine
+        if not isinstance(engine, RoutingCognitiveEngine):
+            return None
+        return engine.last_execution
 
     @property
     def capability_system(self) -> CapabilitySystem:
