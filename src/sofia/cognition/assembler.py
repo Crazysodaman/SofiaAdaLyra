@@ -82,6 +82,7 @@ class CognitiveContextAssembler:
             messages=messages,
             tools=tools,
             allow_tools=context.request.allow_tools,
+            route_hint=context.request.route_hint,
         )
 
     def _build_system_context(
