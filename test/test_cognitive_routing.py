@@ -724,6 +724,14 @@ def test_matrix_fast_route_hint_forces_secondary():
     assert engine.last_decision.reason == "matrix route hint: fast"
     assert len(primary.requests) == 0
     assert len(secondary.requests) == 1
+    assert engine.last_execution is not None
+    assert engine.last_execution.route is CognitiveRoute.FAST
+    assert tuple(step.role for step in engine.last_execution.steps) == (
+        "secondary",
+    )
+    assert tuple(step.succeeded for step in engine.last_execution.steps) == (
+        True,
+    )
 
 
 def test_matrix_deep_route_hint_forces_primary():
@@ -757,6 +765,16 @@ def test_matrix_verify_route_hint_uses_both_models():
     assert engine.last_decision.route is CognitiveRoute.VERIFY
     assert len(primary.requests) == 2
     assert len(secondary.requests) == 1
+    assert engine.last_execution is not None
+    assert engine.last_execution.route is CognitiveRoute.VERIFY
+    assert tuple(step.role for step in engine.last_execution.steps) == (
+        "primary",
+        "secondary",
+        "primary",
+    )
+    assert all(step.succeeded for step in engine.last_execution.steps)
+    assert engine.last_execution.verification_passes == 2
+    assert engine.last_execution.fallback_count == 0
 
 
 def test_matrix_verify_tool_request_keeps_tool_selection_primary_only():
