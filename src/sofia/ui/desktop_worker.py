@@ -160,6 +160,9 @@ class DesktopApplicationWorker:
             self._events.put(
                 ("started", (history, draft, palette))
             )
+            self._events.put(
+                ("persistence", controller.persistence_status())
+            )
             if discord_service is not None:
                 self._events.put(("discord_started", None))
             else:
