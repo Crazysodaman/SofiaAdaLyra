@@ -47,7 +47,7 @@ class QueueEngine(CognitiveEngine):
         return result
 
 
-def request(text: str, *, tools=()) -> CognitiveRequest:
+def request(text: str, *, tools=(), route_hint=None) -> CognitiveRequest:
     return CognitiveRequest(
         messages=(
             CognitiveMessage(
@@ -60,6 +60,7 @@ def request(text: str, *, tools=()) -> CognitiveRequest:
             ),
         ),
         tools=tools,
+        route_hint=route_hint,
     )
 
 
@@ -704,3 +705,86 @@ def test_default_configuration_parses_fleet_bootstrap_policy(monkeypatch):
     assert configuration.fleet_bootstrap.package_version == "1.2.3"
     assert configuration.fleet_bootstrap.package_sha256 == "a" * 64
     assert configuration.fleet_bootstrap.package_source == "approved-wheel"
+
+
+def test_matrix_fast_route_hint_forces_secondary():
+    primary = QueueEngine()
+    secondary = QueueEngine(CognitiveResponse(content="secondary-fast"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request(
+            "This wording would otherwise be arbitrary.",
+            route_hint="fast",
+        )
+    )
+
+    assert response.content == "secondary-fast"
+    assert engine.last_decision.route is CognitiveRoute.FAST
+    assert engine.last_decision.reason == "matrix route hint: fast"
+    assert len(primary.requests) == 0
+    assert len(secondary.requests) == 1
+
+
+def test_matrix_deep_route_hint_forces_primary():
+    primary = QueueEngine(CognitiveResponse(content="primary-deep"))
+    secondary = QueueEngine()
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request("hello", route_hint="deep")
+    )
+
+    assert response.content == "primary-deep"
+    assert engine.last_decision.route is CognitiveRoute.DEEP
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 0
+
+
+def test_matrix_verify_route_hint_uses_both_models():
+    primary = QueueEngine(
+        CognitiveResponse(content="draft"),
+        CognitiveResponse(content="final"),
+    )
+    secondary = QueueEngine(CognitiveResponse(content="critique"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request("hello", route_hint="verify")
+    )
+
+    assert response.content == "final"
+    assert engine.last_decision.route is CognitiveRoute.VERIFY
+    assert len(primary.requests) == 2
+    assert len(secondary.requests) == 1
+
+
+def test_matrix_verify_tool_request_keeps_tool_selection_primary_only():
+    tool = CognitiveToolDefinition(
+        name="system.inspect",
+        description="Inspect current system state.",
+        parameters={"type": "object"},
+    )
+    tool_call = CognitiveToolCall(
+        name="system.inspect",
+        arguments={},
+        call_id="call-1",
+    )
+    primary = QueueEngine(
+        CognitiveResponse(content="", tool_calls=(tool_call,))
+    )
+    secondary = QueueEngine()
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request(
+            "run the inspection",
+            tools=(tool,),
+            route_hint="verify",
+        )
+    )
+
+    assert response.tool_calls == (tool_call,)
+    assert engine.last_decision.route is CognitiveRoute.VERIFY
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 0
