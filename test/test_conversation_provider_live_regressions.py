@@ -263,3 +263,102 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
         assert trace.context.max_history_messages == 12
     finally:
         application.shutdown()
+
+
+def test_live_prefixed_outfit_question_is_deterministic(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(monkeypatch, tmp_path, ())
+    try:
+        reply = application.conversation.respond("so what are you wearing")
+
+        assert "signature engineer outfit" in reply.content
+        assert "Fitted long-sleeve technical shirt" in reply.content
+        assert "feel" not in reply.content.casefold()
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
+def test_live_tonight_lounge_outfit_question_is_deterministic(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(monkeypatch, tmp_path, ())
+    try:
+        reply = application.conversation.respond(
+            "what would tonights lounge outfit be?"
+        )
+
+        assert "relaxed lounge outfit" in reply.content
+        assert "not something I've already changed into" in reply.content
+        assert "wool" not in reply.content.casefold()
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
+def test_live_sofia_matrix_term_gets_project_architecture_context(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("Right, the Sofía matrix architecture is in the current project context.",),
+    )
+    try:
+        reply = application.conversation.respond("We added matrixs")
+
+        assert "matrix architecture" in reply.content
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "TRUSTED SOFÍA PROJECT TERM CONTEXT" in system_text
+        assert "not a mathematical or data matrix" in system_text
+    finally:
+        application.shutdown()
+
+
+def test_live_tell_me_the_why_keeps_immediate_touch_context(
+    monkeypatch, tmp_path
+):
+    from sofia.cognition.model import CognitiveRole
+
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("Because willingness is contextual rather than a fixed body-region list.",),
+    )
+    try:
+        first = application.conversation.respond(
+            "so question what can I touch"
+        )
+        assert "isn't a fixed list" in first.content
+        assert captured == []
+
+        second = application.conversation.respond("tell me the why")
+        assert "contextual" in second.content
+        assert len(captured) == 1
+
+        non_system = [
+            message.content
+            for message in captured[0].messages
+            if message.role in (
+                CognitiveRole.USER,
+                CognitiveRole.ASSISTANT,
+            )
+        ]
+        assert non_system == [
+            "so question what can I touch",
+            first.content,
+            "tell me the why",
+        ]
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.context is not None
+        assert trace.context.max_history_messages == 3
+    finally:
+        application.shutdown()
