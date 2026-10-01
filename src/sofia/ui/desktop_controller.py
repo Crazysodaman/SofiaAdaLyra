@@ -81,6 +81,48 @@ class DesktopWorkbenchController:
             )
         return f"CANONICAL DB: {Path(path)} | session: {session}"
 
+    def matrix_status(self) -> str:
+        """Return a compact status for the latest canonical matrix turn."""
+        if not self._started:
+            raise RuntimeError("desktop workbench is not started")
+
+        conversation = getattr(self._application, "conversation", None)
+        latest = getattr(conversation, "latest_matrix_trace", None)
+        if not callable(latest):
+            return "MATRIX unavailable"
+        trace = latest()
+        if trace is None:
+            return "MATRIX no-trace"
+
+        intent = trace.turn.intent.value
+        domains = ",".join(
+            item.domain.value
+            for item in trace.turn.domains
+            if item.relevance.value > 0
+        ) or "none"
+        requested_route = (
+            "none" if trace.routing is None else trace.routing.route.value
+        )
+        actual_route = "none"
+        model = "none"
+        execution = trace.cognition_execution
+        if execution is not None:
+            actual_route = execution.actual_route
+            last_step = execution.last_successful_step
+            if last_step is not None:
+                model_name = last_step.model or "unknown-model"
+                host = "" if last_step.host is None else f"@{last_step.host}"
+                model = f"{last_step.role}:{model_name}{host}"
+        validation = (
+            "pending"
+            if trace.response_validation is None
+            else trace.response_validation.disposition.value
+        )
+        return (
+            f"MATRIX {intent} [{domains}] req={requested_route} "
+            f"actual={actual_route} model={model} validation={validation}"
+        )
+
     def history(self) -> tuple[UITextMessage, ...]:
         if not self._started:
             raise RuntimeError("desktop workbench is not started")
