@@ -46,7 +46,6 @@ def test_tray_status_exposes_single_effective_model():
             game_mode=GameMode.AUTO,
         )
     )
-    app._runtime_authority=SimpleNamespace(current=lambda: None)
     app._service_state=lambda name: "running"
     app.host_id="venus"
     app.ops=SimpleNamespace(fleet=lambda: ())
@@ -94,7 +93,6 @@ def test_tray_status_exposes_primary_secondary_and_routing_mode():
             game_mode=GameMode.AUTO,
         )
     )
-    app._runtime_authority=SimpleNamespace(current=lambda: None)
     app._service_state=lambda name: "running"
     app.host_id="venus"
     app.ops=SimpleNamespace(fleet=lambda: ())
