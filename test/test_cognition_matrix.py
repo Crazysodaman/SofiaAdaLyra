@@ -33,6 +33,7 @@ from sofia.cognition.matrix import (
     MatrixRoutingPlanner,
     MatrixTrace,
     MatrixTraceStore,
+    ResponseContract,
     ResponseStrategy,
     ResponseValidationDisposition,
     TurnEnvelope,
@@ -711,3 +712,69 @@ def test_environment_evidence_keys_are_query_specific(
 
     keys = {item.key for item in matrix.requirements}
     assert expected_key in keys
+
+
+def test_avatar_action_does_not_activate_ops_by_default():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("change your outfit"))
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.AVATAR) is (
+        MatrixRelevance.RELEVANT
+    )
+    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
+
+
+def test_interaction_safety_control_is_host_allowed_and_interact_owned():
+    env = envelope("Sofía, stop interactions")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=False,
+        ),
+    )
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.INTERACTION) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
+    assert authority.decision is AuthorityDecision.ALLOWED
+
+
+def test_negative_completion_text_is_not_an_execution_claim():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "action.execution_receipt",
+                EvidenceKind.EXECUTION_RECEIPT,
+                required=False,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "action.execution_receipt",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+    contract = ResponseContract(
+        authority_decision=AuthorityDecision.REQUIRES_APPROVAL,
+    )
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="That action was not completed or executed."
+        ),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.PASS
