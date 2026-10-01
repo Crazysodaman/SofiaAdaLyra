@@ -369,6 +369,63 @@ class ResponseValidation:
 
 
 @dataclass(frozen=True, slots=True)
+class CognitionExecutionStep:
+    role: str
+    model: str | None = None
+    host: str | None = None
+    succeeded: bool = True
+
+    def __post_init__(self) -> None:
+        if self.role not in {"primary", "secondary"}:
+            raise ValueError("cognition execution role must be primary or secondary")
+        for value, label in ((self.model, "model"), (self.host, "host")):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"cognition execution {label} must be None or nonempty")
+        if type(self.succeeded) is not bool:
+            raise TypeError("cognition execution succeeded must be bool")
+
+
+@dataclass(frozen=True, slots=True)
+class CognitionExecutionTrace:
+    serial: int
+    actual_route: str
+    steps: tuple[CognitionExecutionStep, ...] = ()
+    fallback_count: int = 0
+    verification_passes: int = 0
+
+    def __post_init__(self) -> None:
+        if type(self.serial) is not int or self.serial < 1:
+            raise ValueError("cognition execution serial must be positive")
+        if self.actual_route not in {
+            "fast",
+            "standard",
+            "deep",
+            "open",
+            "verify",
+        }:
+            raise ValueError("invalid cognition execution route")
+        if not isinstance(self.steps, tuple):
+            raise TypeError("cognition execution steps must be a tuple")
+        if any(not isinstance(step, CognitionExecutionStep) for step in self.steps):
+            raise TypeError("cognition execution steps are invalid")
+        if type(self.fallback_count) is not int or self.fallback_count < 0:
+            raise ValueError("fallback_count must be a nonnegative int")
+        if type(self.verification_passes) is not int or self.verification_passes < 0:
+            raise ValueError("verification_passes must be a nonnegative int")
+
+    @property
+    def successful_steps(self) -> tuple[CognitionExecutionStep, ...]:
+        return tuple(step for step in self.steps if step.succeeded)
+
+    @property
+    def last_successful_step(self) -> CognitionExecutionStep | None:
+        values = self.successful_steps
+        return values[-1] if values else None
+
+
+@dataclass(frozen=True, slots=True)
 class MatrixTrace:
     envelope: TurnEnvelope
     turn: TurnMatrix
@@ -379,6 +436,7 @@ class MatrixTrace:
     response_contract: ResponseContract | None = None
     response_validation: ResponseValidation | None = None
     routing: RoutingPlan | None = None
+    cognition_execution: CognitionExecutionTrace | None = None
     shadow: bool = True
     context_active: bool = False
 
@@ -415,6 +473,12 @@ class MatrixTrace:
             self.routing, RoutingPlan
         ):
             raise TypeError("routing must be RoutingPlan or None")
+        if self.cognition_execution is not None and not isinstance(
+            self.cognition_execution, CognitionExecutionTrace
+        ):
+            raise TypeError(
+                "cognition_execution must be CognitionExecutionTrace or None"
+            )
         if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
             raise ValueError("created_at must be timezone-aware")
         if type(self.shadow) is not bool:
