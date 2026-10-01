@@ -1,4 +1,5 @@
 ﻿from datetime import datetime, timezone
+from pathlib import Path
 import re
 from uuid import uuid4
 
@@ -259,6 +260,11 @@ class ConversationService:
                     "coordinator must be HabitContinuityCoordinator or None"
                 )
         self._habit_continuity = coordinator
+
+    @property
+    def database_path(self) -> Path:
+        """Return the exact durable conversation database file."""
+        return self._conversation_store.database_path
 
     @property
     def session_id(self) -> str | None:
