@@ -478,7 +478,9 @@ class InteractiveConversationService(EmotionalConversationService):
                         )
                         if decision is None or decision.status != 'denied' or not fresh:
                             raise RuntimeError('Stopped gesture did not receive a durable denial.')
-                response = CognitiveResponse(content=reply)
+                response = self._matrix_finalize_deterministic_response(
+                    CognitiveResponse(content=reply)
+                )
                 self._conversation_store.save(ConversationMessage(
                     id=str(uuid4()), session_id=session_id, role=ConversationRole.ASSISTANT,
                     content=response.content, created_at=datetime.now(timezone.utc),
