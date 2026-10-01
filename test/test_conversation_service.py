@@ -690,6 +690,11 @@ def test_matrix_hru_routes_fast_and_records_validation(
         assert trace is not None
         assert trace.routing is not None
         assert trace.routing.route is MatrixRoute.FAST
+        assert trace.evidence is not None
+        assert all(
+            not item.key.startswith("environment.")
+            for item in trace.evidence.requirements
+        )
         assert trace.response_validation is not None
         assert trace.response_validation.disposition is (
             ResponseValidationDisposition.PASS
