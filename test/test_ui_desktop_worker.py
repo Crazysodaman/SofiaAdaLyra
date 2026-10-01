@@ -74,7 +74,7 @@ def test_worker_owns_real_application_for_full_lifecycle(
 
     kind, payload = events.get(timeout=30)
     assert kind == "persistence"
-    assert "LOCAL chat DB:" in payload
+    assert "CANONICAL DB:" in payload
     assert str(tmp_path / "sofia.db") in payload
 
     kind, payload = events.get(timeout=30)
@@ -158,7 +158,7 @@ def test_worker_initializes_provisioned_discord_on_same_application(
 
     kind, payload = events.get(timeout=30)
     assert kind == "persistence"
-    assert "LOCAL chat DB:" in payload
+    assert "CANONICAL DB:" in payload
     assert str(tmp_path / "sofia.db") in payload
 
     kind, payload = events.get(timeout=30)
