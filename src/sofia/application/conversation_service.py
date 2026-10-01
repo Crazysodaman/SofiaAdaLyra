@@ -34,6 +34,7 @@ from sofia.cognition.matrix import (
     MatrixResponsePlanner,
     MatrixResponseValidator,
     MatrixIntent,
+    MatrixRelevance,
     MatrixRoute,
     MatrixRoutingPlanner,
     MatrixTrace,
@@ -70,6 +71,11 @@ _TOOL_ACTION_RE = re.compile(
     r"install|remove|delete|create|write|edit|change|control)\b",
     re.IGNORECASE,
 )
+_SOFIA_MATRIX_TERM_RE = re.compile(
+    r"\b(?:matrix|matrixes|matrices|matrixs)\b",
+    re.IGNORECASE,
+)
+
 _TOOL_CONTROL_RE = re.compile(
     r"\b(?:start|stop|restart|reboot|update|upgrade|deploy|install|"
     r"remove|delete|write|edit)\b",
@@ -1049,6 +1055,33 @@ class ConversationService:
             ),
             None,
         )
+
+        if (
+            latest_user
+            and _SOFIA_MATRIX_TERM_RE.search(latest_user)
+            and self._current_turn_matrix is not None
+            and self._current_turn_matrix.relevance_for(
+                MatrixDomain.COGNITION
+            ) is not MatrixRelevance.NONE
+        ):
+            cognitive_messages = (
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "TRUSTED SOFÍA PROJECT TERM CONTEXT\n"
+                        "In this Sofía codebase, an unqualified reference to "
+                        "'matrix', 'matrixs', 'matrixes', or 'matrices' in a "
+                        "project/self-system discussion refers to Sofía's "
+                        "message/domain/context/evidence/authority/response/"
+                        "routing matrix architecture, not a mathematical or "
+                        "data matrix, unless the user explicitly asks for math, "
+                        "NumPy, linear algebra, rows/columns, or tabular data. "
+                        "Do not invent implementation status that is not "
+                        "present in trusted context."
+                    ),
+                ),
+                *cognitive_messages,
+            )
 
         allow_tools = _conversation_tools_relevant(latest_user)
         if (
