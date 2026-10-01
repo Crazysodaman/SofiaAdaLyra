@@ -1,3 +1,9 @@
+"""Deferred runtime chat authority record for roadmap step #10.
+
+The live desktop does not consume this record to move chat/state ownership.
+Any future use requires redundancy, fencing, and one-writer mobility acceptance.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
