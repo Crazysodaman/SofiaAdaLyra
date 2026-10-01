@@ -26,6 +26,7 @@ from sofia.cognition.matrix import (
     EvidenceMatrix,
     EvidenceRecord,
     EvidenceState,
+    HistoryPolicy,
     MatrixAuthorityPlanner,
     MatrixContextPlanner,
     MatrixCoordinator,
@@ -1056,6 +1057,27 @@ class ConversationService:
             ),
             None,
         )
+
+        if (
+            context_plan is not None
+            and context_plan.history_policy is HistoryPolicy.LAST_TURN
+        ):
+            cognitive_messages = (
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "TRUSTED FOLLOW-UP SCOPE\n"
+                        "The current user turn is a short follow-up. Answer "
+                        "the immediately preceding user/assistant exchange. "
+                        "Do not reinterpret it as a new unrelated topic and "
+                        "do not pivot into Sofía architecture, operations, "
+                        "diagnostics, wardrobe, or other domains unless that "
+                        "immediately preceding exchange was already about "
+                        "that domain."
+                    ),
+                ),
+                *cognitive_messages,
+            )
 
         if (
             latest_user
