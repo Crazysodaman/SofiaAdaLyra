@@ -1,8 +1,10 @@
 import pytest
 
-from sofia.ui import (
+from sofia.ui.control_center import (
     DesktopControlSettings,
     RemoteChatMode,
+)
+from sofia.ui.remote_client import (
     RemoteEndpointRequired,
     RuntimeEndpoint,
     RuntimeEndpointSelector,
