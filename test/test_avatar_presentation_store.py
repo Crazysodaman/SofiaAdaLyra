@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 
 import pytest
 
@@ -58,7 +59,7 @@ def test_store_round_trip_preserves_current_and_daily(tmp_path):
         grant=grant(),
     )
 
-    store = PresentationStore(tmp_path / "presentation.json")
+    store = PresentationStore(tmp_path / "sofia.db")
     store.save(authority)
     restored = store.load(catalog.wardrobe, outfits=outfits)
 
@@ -66,13 +67,22 @@ def test_store_round_trip_preserves_current_and_daily(tmp_path):
     assert restored.last_daily.outfit_id == "lounge.relaxed"
 
 
-def test_store_write_is_json_and_atomic_target_exists(tmp_path):
+def test_store_writes_snapshot_into_canonical_sqlite(tmp_path):
     _, _, authority = setup_authority()
-    path = tmp_path / "presentation.json"
+    path = tmp_path / "sofia.db"
     PresentationStore(path).save(authority)
-    assert path.is_file()
-    assert json.loads(path.read_text(encoding="utf-8"))["schema"] == "sofia.avatar.presentation.v1"
-    assert not path.with_suffix(".json.tmp").exists()
+
+    with sqlite3.connect(path) as db:
+        row = db.execute(
+            """
+            SELECT snapshot_json
+            FROM avatar_presentation_state
+            WHERE state_key='canonical'
+            """
+        ).fetchone()
+
+    assert row is not None
+    assert json.loads(row[0])["schema"] == "sofia.avatar.presentation.v1"
 
 
 def test_store_refuses_unsettled_transition(tmp_path):
@@ -84,12 +94,24 @@ def test_store_refuses_unsettled_transition(tmp_path):
         reason="pending",
     )
     with pytest.raises(PresentationConflict, match="unresolved"):
-        PresentationStore(tmp_path / "presentation.json").save(authority)
+        PresentationStore(tmp_path / "sofia.db").save(authority)
 
 
-def test_store_rejects_corrupt_json(tmp_path):
-    path = tmp_path / "presentation.json"
-    path.write_text("{broken", encoding="utf-8")
+def test_store_rejects_corrupt_snapshot_json(tmp_path):
+    path = tmp_path / "sofia.db"
+    store = PresentationStore(path)
+    with sqlite3.connect(path) as db:
+        db.execute(
+            """
+            INSERT INTO avatar_presentation_state (
+                state_key,
+                snapshot_json,
+                updated_at
+            )
+            VALUES ('canonical', '{broken', '2026-10-01T00:00:00+00:00')
+            """
+        )
+        db.commit()
     catalog, outfits, _ = setup_authority()
     with pytest.raises(PresentationStoreError):
-        PresentationStore(path).load(catalog.wardrobe, outfits=outfits)
+        store.load(catalog.wardrobe, outfits=outfits)
