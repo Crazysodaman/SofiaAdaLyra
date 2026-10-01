@@ -52,13 +52,6 @@ from sofia.ui.control_center import (
     tray_command_requires_confirmation,
     tray_menu_labels,
 )
-from sofia.ui.remote_client import (
-    RemoteEndpointRequired,
-    RuntimeEndpoint,
-    RuntimeEndpointSelector,
-    RuntimeEndpointState,
-)
-
 __all__ = [
     "AccessDenied","AdaptiveThemePolicy","ConflictError","DesktopWorkbenchController",
     "Entry","EntryKind","EntryStatus","ExpressionDelivery","Item","ItemKind",
@@ -69,6 +62,4 @@ __all__ = [
     "DesktopControlSettingsStore","GameMode","MASTER_SETTINGS_SECTIONS","RemoteChatMode",
     "ServiceAction","ServiceKind","ServiceTarget","TrayCommand","TrayStatus",
     "tray_command_enabled","tray_command_requires_confirmation","tray_menu_labels",
-    "RemoteEndpointRequired","RuntimeEndpoint","RuntimeEndpointSelector",
-    "RuntimeEndpointState",
 ]
