@@ -201,6 +201,7 @@ class _TkDesktopWorkbench:
         )
         self._application_ready = False
         self._busy = False
+        self._persistence_status = ""
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
         self._palette = canonical_theme()
@@ -553,6 +554,13 @@ class _TkDesktopWorkbench:
         self._status.set("Sofía is responding...")
         self._worker.send(content)
 
+    def _ready_status(self) -> str:
+        return (
+            "Ready"
+            if not self._persistence_status
+            else f"Ready | {self._persistence_status}"
+        )
+
     def _poll_events(self) -> None:
         while True:
             try:
@@ -567,7 +575,7 @@ class _TkDesktopWorkbench:
                 self._render_history(history)
                 self._replace_input(draft)
                 self._set_enabled(True)
-                self._status.set("Ready")
+                self._status.set(self._ready_status())
                 if self._adaptive_theme.get():
                     self._apply_theme(palette)
                 else:
@@ -576,6 +584,10 @@ class _TkDesktopWorkbench:
                 if self._close_requested:
                     self._begin_shutdown()
                     return
+            elif kind == "persistence":
+                self._persistence_status = str(payload)
+                if self._application_ready and not self._busy:
+                    self._status.set(self._ready_status())
             elif kind == "sent":
                 history, palette = payload
                 self._busy = False
