@@ -36,10 +36,13 @@ jobs:
         run: |
           pytest -q `
             test/test_cognition_matrix.py `
+            test/test_cognitive_activity.py `
             test/test_cognitive_routing.py `
             test/test_model_lifecycle.py `
             test/test_production_dual_cognition.py `
             test/test_ui_tray_models.py `
+            test/test_ui_desktop_controller.py `
+            test/test_ui_desktop_worker.py `
             test/test_ui_application.py `
             test/test_ui_text_client.py `
             test/test_conversation_loop.py `
