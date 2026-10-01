@@ -7,6 +7,7 @@ deliberately conservative and limited to direct self-fact questions.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from sofia.embodiment.model import Embodiment
 
 from .presentation import PresentationProjection
@@ -28,6 +29,16 @@ class AvatarSelfFactAnswer:
 
 def _normalize(query: str) -> str:
     raw = " ".join(query.strip().casefold().split()).rstrip(" ?!.")
+    raw = re.sub(
+        r"^(?:(?:okay|ok|well|so)\s+)+",
+        "",
+        raw,
+    )
+    raw = re.sub(
+        r"^(?:hey\s+)?sof[ií]a\s*[,;:]?\s+",
+        "",
+        raw,
+    )
     shorthand = {
         "u": "you",
         "r": "are",
@@ -115,6 +126,12 @@ class AvatarSelfFactResolver:
         "what outfit would you like to change into tonight",
         "what would you want to wear tonight",
         "what would you like to wear tonight",
+        "what would tonight's lounge outfit be",
+        "what would tonights lounge outfit be",
+        "what is tonight's lounge outfit",
+        "what is tonights lounge outfit",
+        "what would your lounge outfit be tonight",
+        "what lounge outfit would you wear tonight",
     })
 
     def resolve(
