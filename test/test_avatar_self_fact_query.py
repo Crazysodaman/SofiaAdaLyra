@@ -174,6 +174,30 @@ def test_current_outfit_recognizes_conversational_prefix():
     assert "feels" not in result.content.casefold()
 
 
+def test_nightwear_why_uses_grounded_current_presentation_reason():
+    embodiment, projection, _ = sources()
+    lounge = replace(
+        projection,
+        outfit_id="lounge.relaxed",
+        item_names=("Oversized lounge T-shirt", "Relaxed lounge sweatpants"),
+        reason="headless_daily_context:late_lounge,season_unknown",
+    )
+
+    result = AvatarSelfFactResolver().resolve(
+        "why not night wear since its night (5:10 am)",
+        embodiment=embodiment,
+        presentation=lounge,
+        available_outfit_ids=("engineer.signature", "lounge.relaxed"),
+    )
+
+    assert result.recognized
+    assert "relaxed lounge outfit" in result.content
+    assert "trusted local clock" in result.content
+    assert "temperature" not in result.content.casefold()
+    assert "warmth" not in result.content.casefold()
+    assert "metric" not in result.content.casefold()
+
+
 def test_tonight_lounge_outfit_live_wording_is_deterministic():
     for query in (
         "what would tonights lounge outfit be?",
