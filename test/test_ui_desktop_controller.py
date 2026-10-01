@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import sqlite3
 
 from sofia.cognition.model import CognitiveResponse
 from sofia.ui.desktop_controller import DesktopWorkbenchController
@@ -101,6 +102,47 @@ def test_failed_send_preserves_exact_draft():
         controller.send("recover this exact text")
 
     assert controller.draft_text() == "recover this exact text"
+
+
+def test_local_send_fails_closed_when_database_does_not_contain_rendered_turn(
+    tmp_path: Path,
+):
+    database_path = tmp_path / "sofia.db"
+    with sqlite3.connect(database_path) as database:
+        database.execute(
+            "CREATE TABLE conversation_messages "
+            "(id TEXT PRIMARY KEY, session_id TEXT, role TEXT, "
+            "content TEXT, created_at TEXT)"
+        )
+        database.commit()
+
+    app = FakeApplication()
+    app.chat_storage_mode = "local"
+    app.chat_state_path = database_path
+    app.text_ui._history = (
+        *app.text_ui._history,
+        UITextMessage(
+            message_id="user-rendered",
+            session_id="session-1",
+            actor="user",
+            content="must persist",
+            created_at=datetime.now(timezone.utc),
+        ),
+        UITextMessage(
+            message_id="assistant-rendered",
+            session_id="session-1",
+            actor="sofia",
+            content="rendered response",
+            created_at=datetime.now(timezone.utc),
+        ),
+    )
+    controller = DesktopWorkbenchController(app)
+    controller.start()
+
+    with pytest.raises(RuntimeError, match="not durable"):
+        controller.send("must persist")
+
+    assert controller.draft_text() == "must persist"
 
 
 def test_shutdown_preserves_current_draft():

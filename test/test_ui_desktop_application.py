@@ -68,6 +68,9 @@ def test_desktop_controller_uses_real_application_text_ui(
         == "Hello from the Windows workbench."
     )
     assert history[-1].actor == "sofia"
+    status = controller.persistence_status()
+    assert "last send durable: 2 messages" in status
+    assert str(tmp_path / "sofia.db") in status
 
     controller.shutdown()
 

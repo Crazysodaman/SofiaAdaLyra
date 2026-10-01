@@ -201,6 +201,9 @@ class DesktopApplicationWorker:
                         palette = canonical_theme()
                     matrix_status = controller.matrix_status()
                     self._events.put(
+                        ("persistence", controller.persistence_status())
+                    )
+                    self._events.put(
                         ("sent", (history, palette, matrix_status))
                     )
                 except Exception as exc:

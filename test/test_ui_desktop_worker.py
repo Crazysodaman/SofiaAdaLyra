@@ -84,6 +84,11 @@ def test_worker_owns_real_application_for_full_lifecycle(
     worker.send("Hello from one worker thread.")
 
     kind, payload = events.get(timeout=30)
+    assert kind == "persistence"
+    assert "last send durable: 2 messages" in payload
+    assert str(tmp_path / "sofia.db") in payload
+
+    kind, payload = events.get(timeout=30)
     assert kind == "sent"
     history, palette, matrix_status = payload
     assert history[-2].actor == "user"

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 from typing import Protocol
 
 from sofia.cognition.model import CognitiveResponse
@@ -41,6 +42,7 @@ class DesktopWorkbenchController:
         self._application = application
         self._started = False
         self._theme_policy = AdaptiveThemePolicy()
+        self._last_persistence_receipt: str | None = None
 
     @property
     def started(self) -> bool:
@@ -79,7 +81,10 @@ class DesktopWorkbenchController:
             raise RuntimeError(
                 "local desktop application did not expose chat_state_path"
             )
-        return f"CANONICAL DB: {Path(path)} | session: {session}"
+        status = f"CANONICAL DB: {Path(path)} | session: {session}"
+        if self._last_persistence_receipt is not None:
+            status += f" | {self._last_persistence_receipt}"
+        return status
 
     def matrix_status(self) -> str:
         """Return a compact status for the latest canonical matrix turn."""
@@ -199,7 +204,100 @@ class DesktopWorkbenchController:
             raise ValueError("content must not be blank")
 
         self._application.text_ui.save_draft(content)
-        return self._application.text_ui.send()
+        before_ids = {
+            message.message_id
+            for message in self._application.text_ui.history()
+        }
+        response = self._application.text_ui.send()
+        try:
+            self._verify_send_persisted(
+                content=content,
+                before_ids=before_ids,
+            )
+        except Exception:
+            # UITextClient clears the draft after conversation.respond() returns.
+            # If the independent durability check fails, put the exact text back
+            # so the desktop never pretends a possibly-unpersisted turn is done.
+            self._application.text_ui.save_draft(content)
+            raise
+        return response
+
+    def _verify_send_persisted(
+        self,
+        *,
+        content: str,
+        before_ids: set[str],
+    ) -> None:
+        """Prove the just-rendered turn is committed to canonical SQLite.
+
+        This deliberately uses a fresh SQLite connection rather than trusting
+        the ConversationStore's open connection or the UI history projection.
+        A successful desktop send therefore carries an independent durability
+        receipt for the exact configured database file.
+        """
+        mode = getattr(self._application, "chat_storage_mode", None)
+        if mode is None:
+            # Lightweight protocol fakes used by controller unit tests do not
+            # model storage authority. Real desktop applications always do.
+            return
+        if mode != "local":
+            raise RuntimeError(
+                "desktop chat persistence verification requires local mode"
+            )
+
+        raw_path = getattr(self._application, "chat_state_path", None)
+        if raw_path is None:
+            raise RuntimeError(
+                "desktop chat persistence verification has no database path"
+            )
+        path = Path(raw_path)
+        history = self._application.text_ui.history()
+        new_messages = tuple(
+            message
+            for message in history
+            if message.message_id not in before_ids
+        )
+        user_messages = tuple(
+            message
+            for message in new_messages
+            if message.actor == "user" and message.content == content.strip()
+        )
+        assistant_messages = tuple(
+            message
+            for message in new_messages
+            if message.actor == "sofia"
+        )
+        if not user_messages or not assistant_messages:
+            raise RuntimeError(
+                "desktop send did not produce a complete persisted turn"
+            )
+
+        expected_ids = {
+            user_messages[-1].message_id,
+            assistant_messages[-1].message_id,
+        }
+        try:
+            with sqlite3.connect(str(path), timeout=5.0) as database:
+                rows = database.execute(
+                    "SELECT id FROM conversation_messages "
+                    "WHERE id IN (?, ?)",
+                    tuple(expected_ids),
+                ).fetchall()
+        except sqlite3.Error as exc:
+            raise RuntimeError(
+                f"desktop could not independently verify canonical chat DB: {path}"
+            ) from exc
+
+        persisted_ids = {str(row[0]) for row in rows}
+        missing = expected_ids - persisted_ids
+        if missing:
+            raise RuntimeError(
+                "desktop send was not durable in canonical chat DB "
+                f"{path}; missing {len(missing)} message(s)"
+            )
+        self._last_persistence_receipt = (
+            f"last send durable: 2 messages @ {path}"
+        )
 
     def shutdown(self, *, current_draft: str | None = None) -> None:
         if not self._started:
