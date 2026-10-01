@@ -200,6 +200,7 @@ class CognitiveRequest:
 class CognitiveResponse:
     content: str
     tool_calls: tuple[CognitiveToolCall, ...] = ()
+    evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.content, str):
@@ -218,3 +219,20 @@ class CognitiveResponse:
                     "CognitiveResponse tool_calls must contain "
                     "CognitiveToolCall instances."
                 )
+
+        if not isinstance(self.evidence_refs, tuple):
+            raise TypeError(
+                "CognitiveResponse evidence_refs must be a tuple."
+            )
+
+        for ref in self.evidence_refs:
+            if not isinstance(ref, str) or not ref.strip():
+                raise ValueError(
+                    "CognitiveResponse evidence_refs must contain "
+                    "nonempty strings."
+                )
+
+        if len(set(self.evidence_refs)) != len(self.evidence_refs):
+            raise ValueError(
+                "CognitiveResponse evidence_refs must not contain duplicates."
+            )
