@@ -19,12 +19,25 @@ from sofia.cognition.model import (
     CognitiveResponse,
 )
 from sofia.cognition.matrix import (
+    AuthorityPlan,
     ContextPlan,
+    EvidenceMatrix,
+    MatrixAuthorityPlanner,
     MatrixContextPlanner,
     MatrixCoordinator,
+    MatrixEvidencePlanner,
+    MatrixEvidenceResolver,
+    MatrixResponsePlanner,
+    MatrixResponseValidator,
+    MatrixRoute,
+    MatrixRoutingPlanner,
     MatrixTrace,
     MatrixTraceStore,
+    ResponseContract,
+    ResponseValidation,
+    RoutingPlan,
     TurnEnvelope,
+    TurnMatrix,
 )
 from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.filesystem.orchestrator import (
@@ -198,9 +211,22 @@ class ConversationService:
             registry=default_matrix_registry()
         )
         self._matrix_context_planner = MatrixContextPlanner()
+        self._matrix_evidence_planner = MatrixEvidencePlanner()
+        self._matrix_evidence_resolver = MatrixEvidenceResolver()
+        self._matrix_authority_planner = MatrixAuthorityPlanner()
+        self._matrix_response_planner = MatrixResponsePlanner()
+        self._matrix_response_validator = MatrixResponseValidator()
+        self._matrix_routing_planner = MatrixRoutingPlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
-        self._current_context_plan: ContextPlan | None = None
         self._current_matrix_message_id: str | None = None
+        self._current_matrix_envelope: TurnEnvelope | None = None
+        self._current_turn_matrix: TurnMatrix | None = None
+        self._current_context_plan: ContextPlan | None = None
+        self._current_evidence_matrix: EvidenceMatrix | None = None
+        self._current_authority_plan: AuthorityPlan | None = None
+        self._current_response_contract: ResponseContract | None = None
+        self._current_response_validation: ResponseValidation | None = None
+        self._current_routing_plan: RoutingPlan | None = None
         self._last_matrix_error: str | None = None
 
     @property
