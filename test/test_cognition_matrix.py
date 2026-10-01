@@ -3,20 +3,38 @@ import sqlite3
 
 import pytest
 
+from sofia.authority.model import Authority
+from sofia.cognition.model import CognitiveResponse
+
 from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.cognition.matrix import (
+    AuthorityDecision,
+    AuthorityPlan,
     BaselineTurnClassifier,
     DomainContribution,
+    EvidenceKind,
+    EvidenceMatrix,
+    EvidenceRecord,
+    EvidenceRequirement,
+    EvidenceState,
     HistoryPolicy,
     MatrixContextPlanner,
+    MatrixAuthorityPlanner,
     MatrixCoordinator,
     MatrixDomain,
+    MatrixEvidencePlanner,
+    MatrixEvidenceResolver,
     MatrixIntent,
     MatrixRegistry,
     MatrixRelevance,
+    MatrixResponsePlanner,
+    MatrixResponseValidator,
+    MatrixRoute,
+    MatrixRoutingPlanner,
     MatrixTrace,
     MatrixTraceStore,
     ResponseStrategy,
+    ResponseValidationDisposition,
     TurnEnvelope,
 )
 
@@ -433,3 +451,180 @@ def test_cross_domain_avatar_change_with_weather_requires_authority():
     assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
         MatrixRelevance.RELEVANT
     )
+
+
+def test_evidence_matrix_requires_measurement_for_network_status():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("how is the network"))
+    matrix = MatrixEvidencePlanner().plan(turn)
+
+    keys = {item.key: item for item in matrix.requirements}
+    assert "operational.measurement" in keys
+    assert keys["operational.measurement"].kind is EvidenceKind.MEASURED
+    assert keys["operational.measurement"].required is True
+
+
+def test_evidence_resolver_never_infers_missing_host_evidence():
+    matrix = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "operational.measurement",
+                EvidenceKind.MEASURED,
+            ),
+        ),
+    )
+    resolved = MatrixEvidenceResolver().resolve(
+        matrix,
+        {"operational.measurement": EvidenceState.MISSING},
+    )
+
+    assert resolved.state_for("operational.measurement") is (
+        EvidenceState.MISSING
+    )
+    assert len(resolved.missing_required) == 1
+
+
+def test_authority_matrix_requires_approval_when_host_cannot_execute():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("restart Plex on Dionysus"))
+    plan = MatrixAuthorityPlanner().plan(
+        envelope("restart Plex on Dionysus"),
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=False,
+        ),
+    )
+
+    assert plan.decision is AuthorityDecision.REQUIRES_APPROVAL
+    assert plan.requested_action == "restart Plex on Dionysus"
+
+
+def test_authority_matrix_clarifies_ambiguous_primary_switch():
+    env = envelope("make Artemis primary")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    plan = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=False,
+        ),
+    )
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert plan.decision is AuthorityDecision.CLARIFY
+
+
+def test_response_matrix_rejects_unmeasured_network_claim():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "operational.measurement",
+                EvidenceKind.MEASURED,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "operational.measurement",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+    contract = MatrixResponsePlanner().plan(
+        MatrixCoordinator(
+            registry=default_matrix_registry()
+        ).evaluate(envelope("how is the network")),
+        evidence,
+        AuthorityPlan(
+            AuthorityDecision.NOT_REQUIRED,
+            reason="read-only status question",
+        ),
+    )
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="The network is stable with no packet loss."
+        ),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "measured_operational_claim_without_evidence" in result.reasons
+
+
+def test_response_matrix_rejects_execution_claim_without_authority():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "action.execution_receipt",
+                EvidenceKind.EXECUTION_RECEIPT,
+                required=False,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "action.execution_receipt",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("restart Plex on Dionysus"))
+    authority = AuthorityPlan(
+        AuthorityDecision.REQUIRES_APPROVAL,
+        requested_action="restart Plex on Dionysus",
+        reason="approval required",
+    )
+    contract = MatrixResponsePlanner().plan(turn, evidence, authority)
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(content="I restarted Plex on Dionysus."),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "execution_claim_without_action_authority" in result.reasons
+
+
+@pytest.mark.parametrize(
+    ("content", "route"),
+    (
+        ("Hru", MatrixRoute.FAST),
+        ("pats your head", MatrixRoute.STANDARD),
+        ("how is the network", MatrixRoute.DEEP),
+        ("restart Plex on Dionysus", MatrixRoute.VERIFY),
+    ),
+)
+def test_matrix_routing_planner_selects_clear_dual_llm_routes(
+    content,
+    route,
+):
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    plan = MatrixRoutingPlanner().plan(env, turn)
+
+    assert plan.route is route
+
+
+def test_general_matrix_route_stays_auto_for_existing_complexity_router():
+    env = envelope("Explain this architecture carefully.")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    plan = MatrixRoutingPlanner().plan(env, turn)
+
+    assert plan.route is MatrixRoute.AUTO
