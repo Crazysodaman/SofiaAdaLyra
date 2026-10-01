@@ -88,7 +88,7 @@ class DesktopControlSettings:
     close_to_tray: bool = True
     start_with_windows: bool = False
     game_mode: GameMode = GameMode.AUTO
-    remote_chat_mode: RemoteChatMode = RemoteChatMode.FLEET_AUTO
+    remote_chat_mode: RemoteChatMode = RemoteChatMode.LOCAL
     pinned_chat_endpoint: str | None = None
     runtime_service_name: str = "SofiaAdaLyra"
     llm_service_name: str = "Ollama"
@@ -168,6 +168,11 @@ class DesktopControlSettingsStore:
     def save(self, settings: DesktopControlSettings, *, at: datetime) -> None:
         if not isinstance(settings, DesktopControlSettings):
             raise TypeError("DesktopControlSettings required")
+        if settings.remote_chat_mode is not RemoteChatMode.LOCAL:
+            raise ValueError(
+                "desktop chat authority is local-only until shared state "
+                "mobility/fencing is implemented"
+            )
         if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
             raise ValueError("timezone-aware timestamp required")
         moment = at.astimezone(timezone.utc)
