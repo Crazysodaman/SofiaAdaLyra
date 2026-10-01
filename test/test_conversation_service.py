@@ -823,7 +823,11 @@ def test_matrix_network_no_evidence_is_recorded_without_fake_health(
         )
         assert trace.response_validation is not None
         assert trace.response_validation.disposition is (
-            ResponseValidationDisposition.PASS
+            ResponseValidationDisposition.FALLBACK
+        )
+        assert (
+            "measured_operational_claim_without_evidence"
+            in trace.response_validation.reasons
         )
     finally:
         application.shutdown()
