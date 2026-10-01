@@ -1,4 +1,7 @@
-from sofia.config import create_default_configuration
+from sofia.config import (
+    create_default_configuration,
+    create_production_configuration,
+)
 from sofia.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
@@ -99,6 +102,35 @@ def test_explicit_environment_override_beats_saved_setting(
 
     assert configuration.environment.nws_enabled is False
 
+
+
+def test_production_saved_weather_setting_beats_stale_environment_override(
+    tmp_path,
+    monkeypatch,
+):
+    state = tmp_path / "production" / "sofia.db"
+    _clear_environment_overrides(monkeypatch)
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            location_label="Home",
+            location_timezone="America/Chicago",
+            location_latitude=32.5,
+            location_longitude=-97.1,
+            location_subject=LocationSubject.USER,
+            nws_enabled=True,
+            nws_location_subject=LocationSubject.USER,
+        )
+    )
+    monkeypatch.setenv("SOFIA_ENVIRONMENT_NWS_ENABLED", "0")
+
+    configuration = create_production_configuration(
+        state_path=state,
+    )
+
+    assert configuration.environment.nws_enabled is True
+    assert "environment.nws.read" in (
+        configuration.standing_allowed_capabilities
+    )
 
 
 def test_saved_owner_settings_can_enable_cognitive_routing(
