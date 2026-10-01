@@ -58,6 +58,10 @@ _ACTION = re.compile(
     r"delete|deploy|migrate|move|update|upgrade|write|edit|change|control)\b",
     re.IGNORECASE,
 )
+_PRIMARY_ACTION = re.compile(
+    r"\b(?:make|set|switch)\s+[A-Za-z0-9_.-]+\s+primary\b",
+    re.IGNORECASE,
+)
 
 
 def _contribution(
@@ -125,7 +129,7 @@ class BaselineTurnClassifier:
                 ),
             )
 
-        if _ACTION.search(text):
+        if _ACTION.search(text) or _PRIMARY_ACTION.search(text):
             domains = [
                 _contribution(
                     MatrixDomain.AUTHORITY,
