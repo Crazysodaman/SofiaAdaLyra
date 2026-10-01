@@ -37,6 +37,7 @@ from sofia.cognition.matrix import (
     MatrixTraceStore,
     ResponseContract,
     ResponseValidation,
+    ResponseValidationDisposition,
     RoutingPlan,
     TurnEnvelope,
     TurnMatrix,
@@ -574,6 +575,148 @@ class ConversationService:
             self._current_routing_plan = None
             self._last_matrix_error = type(exc).__name__
 
+    def _record_current_matrix_trace(self) -> None:
+        store = self._matrix_trace_store
+        if (
+            store is None
+            or self._current_matrix_envelope is None
+            or self._current_turn_matrix is None
+        ):
+            return
+        store.record(
+            MatrixTrace(
+                envelope=self._current_matrix_envelope,
+                turn=self._current_turn_matrix,
+                context=self._current_context_plan,
+                evidence=self._current_evidence_matrix,
+                authority=self._current_authority_plan,
+                response_contract=self._current_response_contract,
+                response_validation=self._current_response_validation,
+                routing=self._current_routing_plan,
+                created_at=datetime.now(timezone.utc),
+                shadow=False,
+                context_active=self._current_context_plan is not None,
+            )
+        )
+
+    def _refresh_matrix_evidence(
+        self,
+        response: CognitiveResponse,
+    ) -> None:
+        if self._current_evidence_matrix is None:
+            return
+        self._current_evidence_matrix = self._matrix_evidence_resolver.resolve(
+            self._current_evidence_matrix,
+            self._runtime.matrix_evidence_availability(response=response),
+        )
+        if (
+            self._current_turn_matrix is not None
+            and self._current_authority_plan is not None
+        ):
+            self._current_response_contract = (
+                self._matrix_response_planner.plan(
+                    self._current_turn_matrix,
+                    self._current_evidence_matrix,
+                    self._current_authority_plan,
+                )
+            )
+
+    def _matrix_finalize_response(
+        self,
+        request: CognitiveRequest,
+        response: CognitiveResponse,
+        *,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse:
+        """Apply F after domain-specific finalization and before persistence."""
+        if (
+            self._current_response_contract is None
+            or self._current_evidence_matrix is None
+        ):
+            return response
+
+        self._refresh_matrix_evidence(response)
+        assert self._current_response_contract is not None
+        assert self._current_evidence_matrix is not None
+
+        validation = self._matrix_response_validator.validate(
+            response,
+            self._current_response_contract,
+            self._current_evidence_matrix,
+        )
+        self._current_response_validation = validation
+        if validation.disposition is ResponseValidationDisposition.PASS:
+            self._record_current_matrix_trace()
+            return response
+
+        correction = CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content=(
+                "MATRIX RESPONSE CORRECTION: The previous draft is rejected "
+                "and must not become conversation history. Rewrite once using "
+                "only supplied evidence and host authority. Do not claim an "
+                "action executed without authority and an execution receipt. "
+                "Do not invent current measurements or current weather. "
+                "Validation reasons: "
+                + ", ".join(validation.reasons)
+            ),
+        )
+        retry_request = CognitiveRequest(
+            messages=(correction, *request.messages),
+            tools=(),
+            allow_tools=False,
+            route_hint="verify",
+        )
+        if principal is None:
+            retry = self._runtime.respond(
+                retry_request,
+                filesystem_results=(),
+                context_plan=self._current_context_plan,
+            )
+        else:
+            retry = self._runtime.respond(
+                retry_request,
+                filesystem_results=(),
+                principal=principal,
+                context_plan=self._current_context_plan,
+            )
+
+        retry = self._finalize_response(
+            retry_request,
+            retry,
+            principal=principal,
+        )
+        if response.evidence_refs and not retry.evidence_refs:
+            retry = CognitiveResponse(
+                content=retry.content,
+                tool_calls=retry.tool_calls,
+                evidence_refs=response.evidence_refs,
+            )
+
+        self._refresh_matrix_evidence(retry)
+        assert self._current_response_contract is not None
+        assert self._current_evidence_matrix is not None
+        retry_validation = self._matrix_response_validator.validate(
+            retry,
+            self._current_response_contract,
+            self._current_evidence_matrix,
+        )
+        if retry_validation.disposition is ResponseValidationDisposition.PASS:
+            self._current_response_validation = retry_validation
+            self._record_current_matrix_trace()
+            return retry
+
+        fallback = self._matrix_response_validator.fallback(
+            retry_validation,
+            self._current_response_contract,
+        )
+        self._current_response_validation = ResponseValidation(
+            ResponseValidationDisposition.FALLBACK,
+            retry_validation.reasons,
+        )
+        self._record_current_matrix_trace()
+        return fallback
+
     def latest_matrix_trace(self) -> MatrixTrace | None:
         """Return the most recent shadow decision for the active session."""
         if self._matrix_trace_store is None:
@@ -687,6 +830,11 @@ class ConversationService:
 
         # Reject unsupported interaction claims before they become history.
         response = self._finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
+        response = self._matrix_finalize_response(
             request,
             response,
             principal=principal,
