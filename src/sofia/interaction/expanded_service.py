@@ -107,6 +107,7 @@ def _without_prescribed_gesture_reactions(request: CognitiveRequest) -> Cognitiv
         messages=tuple(projected),
         tools=request.tools,
         allow_tools=request.allow_tools,
+        route_hint=request.route_hint,
     )
 
 
@@ -245,4 +246,5 @@ class ExpandedConversationService(InteractiveConversationService):
             ),
             tools=(),
             allow_tools=False,
+            route_hint=request.route_hint,
         )
