@@ -51,6 +51,7 @@ from sofia.ops.discovery import (
 )
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
@@ -93,6 +94,7 @@ class SofiaApplication:
     def __init__(self, configuration: SofiaConfiguration) -> None:
         self._configuration = configuration
         verify_production_component_schemas(configuration.state_path)
+        migrate_legacy_fleet_sidecars(configuration.state_path)
         self._runtime: SofiaRuntime = compose(configuration)
         self._evolution = SofiaEvolutionService(
             configuration=configuration,
@@ -514,12 +516,11 @@ class SofiaApplication:
                             if bootstrap_coordinator is None
                             else bootstrap_coordinator.reconcile(result)
                         )
-                        base = Path(self._configuration.state_path).parent
                         identities = DurableNodeIdentityRegistry(
-                            base / "remote-identities.db"
+                            self._configuration.state_path
                         )
                         endpoints = DurableEndpointPolicy(
-                            base / "remote-endpoints.db"
+                            self._configuration.state_path
                         )
                         try:
                             reconciled = FleetDiscoveryEnrollmentReconciler(
