@@ -718,11 +718,26 @@ class SofiaRuntime:
                 raise TypeError(
                     "matrix evidence response must be CognitiveResponse or None"
                 )
-            if response.evidence_refs:
+            operational_refs = tuple(
+                ref
+                for ref in response.evidence_refs
+                if ref.startswith(
+                    (
+                        "capability:system.inspect",
+                        "capability:process.inspect",
+                        "capability:network.inspect",
+                        "capability:hardware.inspect",
+                        "capability:service.inspect",
+                        "capability:ops.",
+                        "capability:telemetry.",
+                    )
+                )
+            )
+            if operational_refs:
                 availability["operational.measurement"] = EvidenceRecord(
                     "operational.measurement",
                     EvidenceState.AVAILABLE,
-                    response.evidence_refs[0],
+                    operational_refs[0],
                 )
 
         return availability
