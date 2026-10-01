@@ -6,7 +6,7 @@ actions; it does not invent service names, hosts, or authority.
 from __future__ import annotations
 
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -164,6 +164,23 @@ class DesktopControlSettingsStore:
             runtime_service_name=row[5],
             llm_service_name=row[6],
         )
+
+    def enforce_canonical_local_chat(
+        self,
+        *,
+        at: datetime,
+    ) -> DesktopControlSettings:
+        """Migrate any legacy split-chat setting onto the canonical state DB."""
+        settings = self.load()
+        if settings.remote_chat_mode is RemoteChatMode.LOCAL:
+            return settings
+        migrated = replace(
+            settings,
+            remote_chat_mode=RemoteChatMode.LOCAL,
+            pinned_chat_endpoint=None,
+        )
+        self.save(migrated, at=at)
+        return migrated
 
     def save(self, settings: DesktopControlSettings, *, at: datetime) -> None:
         if not isinstance(settings, DesktopControlSettings):
