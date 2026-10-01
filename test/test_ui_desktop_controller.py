@@ -171,12 +171,12 @@ def test_controller_reports_local_chat_database_and_session(tmp_path: Path):
 
     status = controller.persistence_status()
 
-    assert "LOCAL chat DB:" in status
+    assert "CANONICAL DB:" in status
     assert str(tmp_path / "sofia.db") in status
     assert "session: session-1" in status
 
 
-def test_controller_reports_remote_chat_authority_without_claiming_local_chat_db(
+def test_controller_rejects_remote_chat_authority(
     tmp_path: Path,
 ):
     app = FakeApplication()
@@ -186,9 +186,5 @@ def test_controller_reports_remote_chat_authority_without_claiming_local_chat_db
     controller = DesktopWorkbenchController(app)
     controller.start()
 
-    status = controller.persistence_status()
-
-    assert "REMOTE authoritative chat" in status
-    assert "session: session-1" in status
-    assert "local UI state:" in status
-    assert "LOCAL chat DB:" not in status
+    with pytest.raises(RuntimeError, match="canonical local state database"):
+        controller.persistence_status()
