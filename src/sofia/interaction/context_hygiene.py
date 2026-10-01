@@ -63,4 +63,5 @@ def without_legacy_auto_affection(request: CognitiveRequest) -> CognitiveRequest
         messages=tuple(cleaned),
         tools=request.tools,
         allow_tools=request.allow_tools,
+        route_hint=request.route_hint,
     )
