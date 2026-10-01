@@ -23,6 +23,8 @@ from sofia.cognition.matrix import (
     AuthorityPlan,
     ContextPlan,
     EvidenceMatrix,
+    EvidenceRecord,
+    EvidenceState,
     MatrixAuthorityPlanner,
     MatrixContextPlanner,
     MatrixCoordinator,
@@ -607,21 +609,73 @@ class ConversationService:
             )
         )
 
+    @staticmethod
+    def _matrix_request_evidence(
+        request: CognitiveRequest | None,
+    ) -> dict[str, EvidenceRecord | EvidenceState]:
+        if request is None:
+            return {}
+        if not isinstance(request, CognitiveRequest):
+            raise TypeError("request must be CognitiveRequest or None")
+
+        system_text = "\n".join(
+            message.content
+            for message in request.messages
+            if message.role is CognitiveRole.SYSTEM
+        )
+        availability: dict[str, EvidenceRecord | EvidenceState] = {}
+
+        if any(
+            marker in system_text
+            for marker in (
+                "TRUSTED INTERACTION INTERPRETATION",
+                "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
+                "TRUSTED BODY INTERACTION CONTROL",
+                "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP",
+                "TRUSTED REPRESENTATIONAL PRESENTATION REQUEST",
+            )
+        ):
+            availability["interaction.interpretation"] = EvidenceRecord(
+                "interaction.interpretation",
+                EvidenceState.AVAILABLE,
+                "request:host-interaction-projection",
+            )
+
+        if any(
+            marker in system_text
+            for marker in (
+                "CURRENT MODELED EMOTIONAL STATE",
+                "MODELED EMOTIONAL CONTEXT",
+            )
+        ):
+            availability["emotion.current"] = EvidenceRecord(
+                "emotion.current",
+                EvidenceState.AVAILABLE,
+                "request:host-emotion-projection",
+            )
+
+        return availability
+
     def _refresh_matrix_evidence(
         self,
         response: CognitiveResponse,
+        request: CognitiveRequest | None = None,
     ) -> None:
         if self._current_evidence_matrix is None:
             return
+        availability = self._runtime.matrix_evidence_availability(
+            required_keys=tuple(
+                item.key
+                for item in self._current_evidence_matrix.requirements
+            ),
+            response=response,
+        )
+        availability.update(
+            self._matrix_request_evidence(request)
+        )
         self._current_evidence_matrix = self._matrix_evidence_resolver.resolve(
             self._current_evidence_matrix,
-            self._runtime.matrix_evidence_availability(
-                required_keys=tuple(
-                    item.key
-                    for item in self._current_evidence_matrix.requirements
-                ),
-                response=response,
-            ),
+            availability,
         )
         if (
             self._current_turn_matrix is not None
@@ -684,7 +738,7 @@ class ConversationService:
         ):
             return response
 
-        self._refresh_matrix_evidence(response)
+        self._refresh_matrix_evidence(response, request)
         assert self._current_response_contract is not None
         assert self._current_evidence_matrix is not None
 
@@ -742,7 +796,7 @@ class ConversationService:
                 evidence_refs=response.evidence_refs,
             )
 
-        self._refresh_matrix_evidence(retry)
+        self._refresh_matrix_evidence(retry, retry_request)
         assert self._current_response_contract is not None
         assert self._current_evidence_matrix is not None
         retry_validation = self._matrix_response_validator.validate(
