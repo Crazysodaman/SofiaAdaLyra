@@ -204,6 +204,7 @@ class CognitiveSystem:
                 messages=tuple(messages),
                 tools=request.tools,
                 allow_tools=request.allow_tools,
+                route_hint=request.route_hint,
             )
 
             response = self._respond_with_engine(request)
