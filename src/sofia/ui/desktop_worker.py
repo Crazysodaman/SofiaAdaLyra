@@ -17,7 +17,7 @@ from sofia.discord.live import (
 )
 from sofia.discord.provisioning import DiscordProvisioning
 from sofia.ui.desktop_controller import DesktopWorkbenchController
-from sofia.ui.remote_application import create_desktop_application
+from sofia.ui.desktop_application import create_desktop_application
 from sofia.ui.theme import canonical_theme
 
 
