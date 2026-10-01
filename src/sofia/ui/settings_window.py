@@ -105,7 +105,9 @@ def run_settings_window() -> int:
     runtime_store = RuntimeUserSettingsStore(config.state_path)
     secrets = ProtectedSecretStore.for_state_path(config.state_path)
     activity = HostActivityStore(config.state_path)
-    current = store.load()
+    current = store.enforce_canonical_local_chat(
+        at=datetime.now(timezone.utc),
+    )
     runtime = runtime_store.load()
 
     root = tk.Tk()
