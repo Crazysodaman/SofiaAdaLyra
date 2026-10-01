@@ -1244,8 +1244,19 @@ class SofiaRuntime:
             stopped_at=stopped_at,
         )
 
+        # Runtime owns these persistent SQLite resources. Closing them here is
+        # part of the STOPPED transition, not a test-only cleanup detail.
+        # This is especially important on Windows, where an open SQLite handle
+        # prevents state-file replacement, recovery, and disposable test cleanup.
         self._clear_runtime_state()
         self._state = RuntimeState.STOPPED
+        try:
+            self._memory_system.close()
+        finally:
+            try:
+                self._filesystem_observation_store.close()
+            finally:
+                self._operational_store.close()
 
     def _clear_runtime_state(self) -> None:
         self._constitution = None

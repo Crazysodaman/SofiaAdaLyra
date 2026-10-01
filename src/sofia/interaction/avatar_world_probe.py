@@ -11,7 +11,7 @@ state. Model text is not proof of emotions, contact or avatar animation.
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack, nullcontext
+from contextlib import nullcontext
 from dataclasses import replace
 import json
 import os
@@ -86,19 +86,13 @@ def _build_offer_scene_request(self) -> CognitiveRequest:
 
 
 def _shutdown_disposable_app(app: SofiaApplication) -> None:
-    """Close all disposable SQLite owners before Windows removes the DB.
+    """Use the real application/runtime shutdown ownership path.
 
-    Runtime shutdown records stop evidence but currently does not close its
-    memory, operational and filesystem-observation stores. These are owned by
-    this isolated probe's composition, not by any production runtime. ExitStack
-    closes every store even if shutdown or a preceding close raises.
+    Disposable probes intentionally do not carry a second SQLite cleanup path.
+    If production shutdown leaks a handle, the Windows unlink tests must expose
+    it rather than masking it here.
     """
-    runtime = app.runtime
-    with ExitStack() as cleanup:
-        cleanup.callback(runtime._memory_system.close)
-        cleanup.callback(runtime._operational_store.close)
-        cleanup.callback(runtime._filesystem_observation_store.close)
-        app.shutdown()
+    app.shutdown()
 
 
 def main(argv: list[str] | None = None) -> int:
