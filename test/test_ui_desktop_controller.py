@@ -119,23 +119,30 @@ def test_local_send_fails_closed_when_database_does_not_contain_rendered_turn(
     app = FakeApplication()
     app.chat_storage_mode = "local"
     app.chat_state_path = database_path
-    app.text_ui._history = (
-        *app.text_ui._history,
-        UITextMessage(
-            message_id="user-rendered",
-            session_id="session-1",
-            actor="user",
-            content="must persist",
-            created_at=datetime.now(timezone.utc),
-        ),
-        UITextMessage(
-            message_id="assistant-rendered",
-            session_id="session-1",
-            actor="sofia",
-            content="rendered response",
-            created_at=datetime.now(timezone.utc),
-        ),
-    )
+    original_send = app.text_ui.send
+
+    def render_without_persisting():
+        response = original_send()
+        app.text_ui._history = (
+            *app.text_ui._history,
+            UITextMessage(
+                message_id="user-rendered",
+                session_id="session-1",
+                actor="user",
+                content="must persist",
+                created_at=datetime.now(timezone.utc),
+            ),
+            UITextMessage(
+                message_id="assistant-rendered",
+                session_id="session-1",
+                actor="sofia",
+                content="rendered response",
+                created_at=datetime.now(timezone.utc),
+            ),
+        )
+        return response
+
+    app.text_ui.send = render_without_persisting
     controller = DesktopWorkbenchController(app)
     controller.start()
 
