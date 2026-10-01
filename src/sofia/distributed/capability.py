@@ -185,6 +185,14 @@ def _registration(
             remote_capability is not None
             and remote_capability.endswith(".manage")
         ),
+        execution_receipt_evidence_match=(
+            ("outcome", "reported_success")
+            if (
+                remote_capability is not None
+                and remote_capability.endswith(".manage")
+            )
+            else None
+        ),
     )
     return RemoteToolRegistration(cap,handler,binding)
 
