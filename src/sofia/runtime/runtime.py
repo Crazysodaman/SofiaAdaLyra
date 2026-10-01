@@ -676,6 +676,10 @@ class SofiaRuntime:
                 "operational.measurement",
                 "action.execution_receipt",
                 "environment.current",
+                "environment.weather.current",
+                "environment.clock.current",
+                "environment.location.current",
+                "environment.calendar.current",
             }
 
         all_static: dict[str, EvidenceRecord | EvidenceState] = {
@@ -726,26 +730,96 @@ class SofiaRuntime:
             if key in wanted
         }
 
+        environment_keys = {
+            "environment.current",
+            "environment.weather.current",
+            "environment.location.current",
+            "environment.calendar.current",
+        }
         snapshot = (
             self._environment_service.snapshot(refresh_providers=False)
-            if "environment.current" in wanted
+            if wanted & environment_keys
             else None
         )
+
+        if "environment.clock.current" in wanted:
+            availability["environment.clock.current"] = EvidenceRecord(
+                "environment.clock.current",
+                EvidenceState.AVAILABLE,
+                "runtime:clock",
+            )
+
         if snapshot is not None:
             if (
                 snapshot.weather is not None
                 and snapshot.weather_freshness
                 is EnvironmentFreshness.CURRENT
             ):
-                availability["environment.current"] = EvidenceRecord(
-                    "environment.current",
-                    EvidenceState.AVAILABLE,
-                    f"environment:{snapshot.weather.source_id}",
+                weather_state: EvidenceRecord | EvidenceState = (
+                    EvidenceRecord(
+                        "environment.weather.current",
+                        EvidenceState.AVAILABLE,
+                        f"environment:{snapshot.weather.source_id}",
+                    )
                 )
             elif snapshot.weather_freshness is EnvironmentFreshness.STALE:
-                availability["environment.current"] = EvidenceState.STALE
+                weather_state = EvidenceState.STALE
             else:
-                availability["environment.current"] = EvidenceState.MISSING
+                weather_state = EvidenceState.MISSING
+
+            if "environment.weather.current" in wanted:
+                availability["environment.weather.current"] = weather_state
+
+            if "environment.current" in wanted:
+                availability["environment.current"] = (
+                    EvidenceRecord(
+                        "environment.current",
+                        EvidenceState.AVAILABLE,
+                        "environment:snapshot",
+                    )
+                )
+
+            if "environment.location.current" in wanted:
+                if (
+                    snapshot.current_location is not None
+                    and snapshot.current_location_freshness
+                    is EnvironmentFreshness.CURRENT
+                ):
+                    availability["environment.location.current"] = (
+                        EvidenceRecord(
+                            "environment.location.current",
+                            EvidenceState.AVAILABLE,
+                            (
+                                "environment:"
+                                + snapshot.current_location.source_id
+                            ),
+                        )
+                    )
+                elif (
+                    snapshot.current_location_freshness
+                    is EnvironmentFreshness.STALE
+                ):
+                    availability["environment.location.current"] = (
+                        EvidenceState.STALE
+                    )
+                else:
+                    availability["environment.location.current"] = (
+                        EvidenceState.MISSING
+                    )
+
+            if "environment.calendar.current" in wanted:
+                availability["environment.calendar.current"] = (
+                    EvidenceRecord(
+                        "environment.calendar.current",
+                        EvidenceState.AVAILABLE,
+                        "runtime:calendar",
+                    )
+                    if (
+                        snapshot.season is not None
+                        or snapshot.daylight is not None
+                    )
+                    else EvidenceState.MISSING
+                )
 
         if response is not None and "operational.measurement" in wanted:
             if not isinstance(response, CognitiveResponse):
