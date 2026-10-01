@@ -21,6 +21,7 @@ from sofia.machine.observation import (
 )
 from sofia.machine.persistence import (
     MachineInventoryPersistence,
+    SQLiteMachineInventoryPersistence,
     deserialize_inventory,
     serialize_inventory,
 )
@@ -330,6 +331,39 @@ def test_file_persistence_creates_parent_directory(
     ).save(inventory)
 
     assert path.is_file()
+
+
+def test_sqlite_persistence_round_trip_uses_canonical_database(
+    tmp_path,
+) -> None:
+    inventory = MachineInventory()
+    inventory.record(_observation())
+    state = tmp_path / "sofia.db"
+
+    SQLiteMachineInventoryPersistence(state).save(inventory)
+    restored = SQLiteMachineInventoryPersistence(state).load()
+
+    assert restored.get("machine-1") == inventory.get("machine-1")
+    assert restored.history("machine-1") == inventory.history("machine-1")
+
+
+def test_legacy_machine_inventory_json_migrates_and_retires(
+    tmp_path,
+) -> None:
+    inventory = MachineInventory()
+    inventory.record(_observation())
+    legacy = tmp_path / "machine-inventory.json"
+    MachineInventoryPersistence(legacy).save(inventory)
+
+    state = tmp_path / "sofia.db"
+    restored = SQLiteMachineInventoryPersistence(
+        state,
+        legacy_path=legacy,
+    ).load()
+
+    assert restored.get("machine-1") == inventory.get("machine-1")
+    assert not legacy.exists()
+    assert (tmp_path / "machine-inventory.json.migrated").is_file()
 
 
 def test_malformed_schema_is_rejected() -> None:
