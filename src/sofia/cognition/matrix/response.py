@@ -19,11 +19,18 @@ from .model import (
 
 
 _EXECUTION_CLAIM = re.compile(
-    r"\b(?:i\s+(?:have\s+)?(?:restarted|rebooted|started|stopped|installed|"
-    r"uninstalled|deleted|removed|deployed|migrated|updated|upgraded|changed|"
-    r"modified|executed)|(?:done|completed|finished)\b|"
-    r"(?:has|have)\s+been\s+(?:restarted|rebooted|started|stopped|installed|"
-    r"deleted|removed|deployed|migrated|updated|changed|modified))",
+    r"(?:"
+    r"\bi\s+(?:have\s+)?(?:just\s+)?"
+    r"(?:restarted|rebooted|started|stopped|installed|uninstalled|deleted|"
+    r"removed|deployed|migrated|updated|upgraded|changed|modified|executed)\b"
+    r"|\b[A-Za-z0-9_. -]{1,60}\s+(?:has|have)\s+been\s+"
+    r"(?:restarted|rebooted|started|stopped|installed|deleted|removed|"
+    r"deployed|migrated|updated|upgraded|changed|modified)\b"
+    r"|^\s*(?:done|completed|finished)[.!]?\s*$"
+    r"|\b(?:restart|update|upgrade|migration|deployment|installation|"
+    r"removal|change)\s+(?:is|was|has\s+been)\s+"
+    r"(?:complete|completed|done)\b"
+    r")",
     re.IGNORECASE,
 )
 _NETWORK_MEASUREMENT_CLAIM = re.compile(
