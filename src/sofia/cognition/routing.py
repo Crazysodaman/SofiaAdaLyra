@@ -31,6 +31,32 @@ class RoutingDecision:
     reason: str
 
 
+@dataclass(frozen=True)
+class RoutingExecutionStep:
+    role: str
+    model: str | None
+    host: str | None
+    succeeded: bool
+
+
+@dataclass(frozen=True)
+class RoutingExecution:
+    serial: int
+    route: CognitiveRoute
+    steps: tuple[RoutingExecutionStep, ...]
+    fallback_count: int
+    verification_passes: int
+
+    @property
+    def successful_steps(self) -> tuple[RoutingExecutionStep, ...]:
+        return tuple(step for step in self.steps if step.succeeded)
+
+    @property
+    def last_successful_step(self) -> RoutingExecutionStep | None:
+        values = self.successful_steps
+        return values[-1] if values else None
+
+
 class CognitiveEngineRegistry:
     """Small role registry for interchangeable cognitive engines."""
 
@@ -277,6 +303,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         self.policy = policy or CognitiveRoutingPolicy()
         self.verify_enabled = verify_enabled
         self.last_decision: RoutingDecision | None = None
+        self.last_execution: RoutingExecution | None = None
+        self._execution_serial = 0
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         decision = self.policy.decide(request)
@@ -284,13 +312,18 @@ class RoutingCognitiveEngine(CognitiveEngine):
         started = perf_counter()
         fallback_count = 0
         verification_passes = 0
+        steps: list[RoutingExecutionStep] = []
 
         try:
             # Requests with tools exposed always use the primary engine for
             # tool selection. A secondary engine may review a completed text
             # response, but it never becomes a fallback tool-selection engine.
             if request.tools:
-                primary_response = self.registry.primary.respond(request)
+                primary_response = self._invoke(
+                    "primary",
+                    request,
+                    steps,
+                )
                 if (
                     decision.route is CognitiveRoute.VERIFY
                     and self.verify_enabled
@@ -300,6 +333,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         self._review_existing_response(
                             request,
                             primary_response,
+                            steps=steps,
                         )
                     )
                     return response
@@ -307,25 +341,38 @@ class RoutingCognitiveEngine(CognitiveEngine):
 
             if decision.route is CognitiveRoute.VERIFY and self.verify_enabled:
                 response, fallback_count, verification_passes = (
-                    self._verified_response(request)
+                    self._verified_response(
+                        request,
+                        steps=steps,
+                    )
                 )
             elif decision.route in {
                 CognitiveRoute.FAST,
                 CognitiveRoute.OPEN,
             }:
                 response, fallback_count = self._respond_with_fallback(
-                    preferred=self.registry.secondary,
-                    fallback=self.registry.primary,
+                    preferred_role="secondary",
+                    fallback_role="primary",
                     request=request,
+                    steps=steps,
                 )
             else:
                 response, fallback_count = self._respond_with_fallback(
-                    preferred=self.registry.primary,
-                    fallback=self.registry.secondary,
+                    preferred_role="primary",
+                    fallback_role="secondary",
                     request=request,
+                    steps=steps,
                 )
             return response
         finally:
+            self._execution_serial += 1
+            self.last_execution = RoutingExecution(
+                serial=self._execution_serial,
+                route=decision.route,
+                steps=tuple(steps),
+                fallback_count=fallback_count,
+                verification_passes=verification_passes,
+            )
             emit_performance(
                 "router",
                 elapsed_ms=(perf_counter() - started) * 1000,
@@ -336,14 +383,70 @@ class RoutingCognitiveEngine(CognitiveEngine):
             )
 
     @staticmethod
-    def _respond_with_fallback(
-        *,
-        preferred: CognitiveEngine,
-        fallback: CognitiveEngine,
+    def _engine_model(engine: CognitiveEngine) -> str | None:
+        configuration = getattr(engine, "configuration", None)
+        model = getattr(configuration, "model", None)
+        if isinstance(model, str) and model.strip():
+            return model
+        provider = getattr(engine, "provider", None)
+        model = getattr(provider, "model", None)
+        if isinstance(model, str) and model.strip():
+            return model
+        local = getattr(engine, "local", None)
+        if isinstance(local, CognitiveEngine):
+            return RoutingCognitiveEngine._engine_model(local)
+        return None
+
+    @staticmethod
+    def _engine_host(engine: CognitiveEngine) -> str | None:
+        host = getattr(engine, "last_host_id", None)
+        if isinstance(host, str) and host.strip():
+            return host
+        local = getattr(engine, "local", None)
+        if isinstance(local, CognitiveEngine):
+            return RoutingCognitiveEngine._engine_host(local)
+        return None
+
+    def _invoke(
+        self,
+        role: str,
         request: CognitiveRequest,
+        steps: list[RoutingExecutionStep],
+    ) -> CognitiveResponse:
+        engine = self.registry.get(role)
+        model = self._engine_model(engine)
+        try:
+            response = engine.respond(request)
+        except CognitiveEngineError:
+            steps.append(
+                RoutingExecutionStep(
+                    role=role,
+                    model=model,
+                    host=self._engine_host(engine),
+                    succeeded=False,
+                )
+            )
+            raise
+        steps.append(
+            RoutingExecutionStep(
+                role=role,
+                model=model,
+                host=self._engine_host(engine),
+                succeeded=True,
+            )
+        )
+        return response
+
+    def _respond_with_fallback(
+        self,
+        *,
+        preferred_role: str,
+        fallback_role: str,
+        request: CognitiveRequest,
+        steps: list[RoutingExecutionStep],
     ) -> tuple[CognitiveResponse, int]:
         try:
-            response = preferred.respond(request)
+            response = self._invoke(preferred_role, request, steps)
             if not response.tool_calls and len(response.content.strip()) <= 1:
                 raise CognitiveEngineError(
                     "preferred cognitive engine returned an incomplete response"
@@ -351,21 +454,27 @@ class RoutingCognitiveEngine(CognitiveEngine):
             return response, 0
         except CognitiveEngineError as preferred_error:
             try:
-                return fallback.respond(request), 1
+                return self._invoke(fallback_role, request, steps), 1
             except CognitiveEngineError as fallback_error:
                 raise fallback_error from preferred_error
 
     def _verified_response(
         self,
         request: CognitiveRequest,
+        *,
+        steps: list[RoutingExecutionStep],
     ) -> tuple[CognitiveResponse, int, int]:
         fallback_count = 0
 
         try:
-            primary_response = self.registry.primary.respond(request)
+            primary_response = self._invoke("primary", request, steps)
         except CognitiveEngineError as primary_error:
             try:
-                secondary_response = self.registry.secondary.respond(request)
+                secondary_response = self._invoke(
+                    "secondary",
+                    request,
+                    steps,
+                )
             except CognitiveEngineError as secondary_error:
                 raise secondary_error from primary_error
             return secondary_response, 1, 0
@@ -379,6 +488,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
             request,
             primary_response,
             fallback_count=fallback_count,
+            steps=steps,
         )
 
     def _review_existing_response(
@@ -387,13 +497,18 @@ class RoutingCognitiveEngine(CognitiveEngine):
         primary_response: CognitiveResponse,
         *,
         fallback_count: int = 0,
+        steps: list[RoutingExecutionStep],
     ) -> tuple[CognitiveResponse, int, int]:
         critique_request = self._build_critique_request(
             request,
             primary_response,
         )
         try:
-            critique = self.registry.secondary.respond(critique_request)
+            critique = self._invoke(
+                "secondary",
+                critique_request,
+                steps,
+            )
         except CognitiveEngineError:
             return primary_response, fallback_count + 1, 0
 
@@ -403,7 +518,11 @@ class RoutingCognitiveEngine(CognitiveEngine):
             critique,
         )
         try:
-            final_response = self.registry.primary.respond(synthesis_request)
+            final_response = self._invoke(
+                "primary",
+                synthesis_request,
+                steps,
+            )
         except CognitiveEngineError:
             return primary_response, fallback_count + 1, 1
 
