@@ -713,3 +713,17 @@ def test_cognitive_system_uses_fallback_after_llm_provider_failure():
     )
 
     assert response.content == "Hello, Sparks."
+
+def test_cognitive_request_validates_matrix_route_hint():
+    request = CognitiveRequest(
+        messages=(),
+        route_hint="FAST",
+    )
+
+    assert request.route_hint == "fast"
+
+    with pytest.raises(ValueError, match="route_hint"):
+        CognitiveRequest(
+            messages=(),
+            route_hint="turbo",
+        )
