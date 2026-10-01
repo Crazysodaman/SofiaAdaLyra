@@ -199,8 +199,9 @@ class DesktopApplicationWorker:
                         palette = controller.theme_palette()
                     except Exception:
                         palette = canonical_theme()
+                    matrix_status = controller.matrix_status()
                     self._events.put(
-                        ("sent", (history, palette))
+                        ("sent", (history, palette, matrix_status))
                     )
                 except Exception as exc:
                     self._events.put(("send_error", exc))
