@@ -6,16 +6,12 @@ authority does not move independently of the state plane.
 """
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
 from sofia.config import SofiaConfiguration
-from sofia.ui.control_center import (
-    DesktopControlSettingsStore,
-    RemoteChatMode,
-)
+from sofia.ui.control_center import DesktopControlSettingsStore
 
 
 def _ensure_state(path: Path) -> None:
@@ -31,15 +27,7 @@ def _enforce_single_database_mode(
     """Migrate legacy remote-chat UI settings back to canonical local state."""
     _ensure_state(configuration.state_path)
     store = DesktopControlSettingsStore(configuration.state_path)
-    settings = store.load()
-    if settings.remote_chat_mode is RemoteChatMode.LOCAL:
-        return
-    store.save(
-        replace(
-            settings,
-            remote_chat_mode=RemoteChatMode.LOCAL,
-            pinned_chat_endpoint=None,
-        ),
+    store.enforce_canonical_local_chat(
         at=datetime.now(timezone.utc),
     )
 
