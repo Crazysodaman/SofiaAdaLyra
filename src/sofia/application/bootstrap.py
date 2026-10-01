@@ -105,6 +105,12 @@ class SofiaApplication:
         self._model_lock = RLock()
         self._channel_conversations: list[ConversationService] = []
         conversation_store = ConversationStore(configuration.state_path)
+        if conversation_store.database_path.resolve() != Path(
+            configuration.state_path
+        ).resolve():
+            raise SofiaApplicationError(
+                "canonical conversation store does not match configuration.state_path"
+            )
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime,
             conversation_store=conversation_store,
@@ -158,6 +164,18 @@ class SofiaApplication:
             client_id="local-text",
             principal=local_sparks_principal(),
         )
+
+    @property
+    def chat_storage_mode(self) -> str:
+        return "local"
+
+    @property
+    def chat_state_path(self) -> Path:
+        return Path(self._configuration.state_path)
+
+    @property
+    def local_state_path(self) -> Path:
+        return Path(self._configuration.state_path)
 
     @property
     def runtime(self) -> SofiaRuntime:
