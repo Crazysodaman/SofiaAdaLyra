@@ -13,6 +13,7 @@ from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_b
 from sofia.capability.system import CapabilitySystem
 from sofia.codebase.codebase import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
+from sofia.cognition.activity import CognitiveModelActivityStore
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.llm_engine import LLMCognitiveEngine
@@ -276,9 +277,14 @@ def _create_cognitive_engine(
             primary=primary_engine,
             secondary=secondary_engine,
         )
+        activity_store = CognitiveModelActivityStore(
+            configuration.state_path
+        )
+        activity_store.clear_stale_busy()
         return RoutingCognitiveEngine(
             registry=registry,
             verify_enabled=routing.verify_enabled,
+            activity_store=activity_store,
         )
 
     if configuration.provider.provider == "test":
