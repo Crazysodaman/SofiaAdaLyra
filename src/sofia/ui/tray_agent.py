@@ -19,7 +19,6 @@ from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     ModelLifecycleManager,
 )
-from sofia.distributed.capability import create_configured_remote_fleet_service
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
@@ -37,7 +36,6 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.state.component_schema import verify_production_component_schemas
-from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -54,9 +52,7 @@ from .control_center import (
     TrayStatus,
 )
 from .process_lock import TrayProcessAlreadyRunning, TrayProcessLock
-from .fleet_service_control import FleetRemoteServiceController
 from .service_control import DesktopServiceController
-from .runtime_authority import RuntimeAuthorityState, RuntimeChatAuthorityStore
 from .windows_tray import WindowsTrayAgent
 
 
@@ -82,9 +78,6 @@ class TrayAgentApplication:
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
         self.activity_store = HostActivityStore(self.config.state_path)
         self.ops = OpsToolService(self.config.state_path)
-        self._runtime_authority = RuntimeChatAuthorityStore(
-            SQLiteStatePlane(self.config.state_path)
-        )
         self.host_id = _local_host_id()
         self.events: Queue[TrayCommand] = Queue()
         self._chat_process: subprocess.Popen | None = None
@@ -96,18 +89,10 @@ class TrayAgentApplication:
         self._operator_stop = OperatorStopStore(
             self.config.state_path
         )
-        self._remote_fleet_service = create_configured_remote_fleet_service(
-            self.config.state_path
-        )
-        self._remote_service_controller = (
-            None
-            if self._remote_fleet_service is None
-            else FleetRemoteServiceController(self._remote_fleet_service)
-        )
         self._service = DesktopServiceController(
             local_host_id=self.host_id,
             approval_verifier=self._execution_approvals,
-            remote=self._remote_service_controller,
+            remote=None,
         )
         self._system_backend = create_local_system_backend()
         by_name = {
@@ -211,21 +196,11 @@ class TrayAgentApplication:
             item.role: item.state.value
             for item in lifecycle_statuses
         }
-        authority = self._runtime_authority.current()
-        remote_runtime = (
-            authority is not None
-            and authority.state is RuntimeAuthorityState.READY
-            and authority.host_id != self.host_id
-        )
-        runtime_state = (
-            "running"
-            if remote_runtime
-            else self._service_state(settings.runtime_service_name)
+        runtime_state = self._service_state(
+            settings.runtime_service_name
         )
         runtime_host = (
-            authority.host_id
-            if remote_runtime
-            else (self.host_id if runtime_state == "running" else None)
+            self.host_id if runtime_state == "running" else None
         )
         llm_state = self._service_state(settings.llm_service_name)
         hosts = self.ops.fleet()
@@ -363,19 +338,7 @@ class TrayAgentApplication:
             if kind is ServiceKind.LLM_ENGINE
             else settings.runtime_service_name
         )
-        authority = self._runtime_authority.current()
-        target_host_id = self.host_id
-        if (
-            kind is ServiceKind.SOFIA_RUNTIME
-            and authority is not None
-            and authority.state is RuntimeAuthorityState.READY
-        ):
-            target_host_id = authority.host_id
-        target = ServiceTarget(kind, target_host_id, service_name)
-
-        if target.host_id != self.host_id:
-            self._service.execute(target, action)
-            return
+        target = ServiceTarget(kind, self.host_id, service_name)
 
         if action is ServiceAction.INSTALL_MODEL:
             if model_role is None:
@@ -513,8 +476,6 @@ class TrayAgentApplication:
                 running = self.handle(command)
         finally:
             self.tray.stop()
-            if self._remote_service_controller is not None:
-                self._remote_service_controller.close()
         return 0
 
 
