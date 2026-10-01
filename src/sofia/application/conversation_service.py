@@ -19,6 +19,7 @@ from sofia.cognition.model import (
     CognitiveResponse,
 )
 from sofia.cognition.matrix import (
+    AuthorityDecision,
     AuthorityPlan,
     ContextPlan,
     EvidenceMatrix,
@@ -29,6 +30,7 @@ from sofia.cognition.matrix import (
     MatrixEvidenceResolver,
     MatrixResponsePlanner,
     MatrixResponseValidator,
+    MatrixIntent,
     MatrixRoute,
     MatrixRoutingPlanner,
     MatrixTrace,
@@ -791,9 +793,31 @@ class ConversationService:
             None,
         )
 
+        allow_tools = _conversation_tools_relevant(latest_user)
+        if (
+            self._current_turn_matrix is not None
+            and self._current_turn_matrix.intent is MatrixIntent.ACTION_REQUEST
+            and self._current_authority_plan is not None
+            and self._current_authority_plan.decision
+            in {
+                AuthorityDecision.REQUIRES_APPROVAL,
+                AuthorityDecision.DENIED,
+                AuthorityDecision.CLARIFY,
+            }
+        ):
+            allow_tools = False
+
+        route_hint = None
+        if (
+            self._current_routing_plan is not None
+            and self._current_routing_plan.route is not MatrixRoute.AUTO
+        ):
+            route_hint = self._current_routing_plan.route.value
+
         return CognitiveRequest(
             messages=cognitive_messages,
-            allow_tools=_conversation_tools_relevant(latest_user),
+            allow_tools=allow_tools,
+            route_hint=route_hint,
         )
 
     @staticmethod
