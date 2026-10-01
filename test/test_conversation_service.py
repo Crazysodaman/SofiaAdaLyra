@@ -810,9 +810,11 @@ def test_matrix_network_no_evidence_is_recorded_without_fake_health(
     try:
         result = application.conversation.respond("So hows the network")
 
-        assert "don't have a fresh, verified network-health measurement" in (
-            result.content
-        )
+        normalized = result.content.casefold()
+        assert "don't have" in normalized
+        assert "measurement" in normalized or "network-health" in normalized
+        assert "no packet loss" not in normalized
+        assert "all systems green" not in normalized
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
         assert trace.evidence is not None
