@@ -326,13 +326,14 @@ def create_default_configuration(
     )
 
     environment_values = user_settings.environment_mapping()
-    environment_values.update(
-        {
-            key: value
-            for key, value in os.environ.items()
-            if key.startswith("SOFIA_ENVIRONMENT_")
-        }
-    )
+    if runtime_mode != "production":
+        environment_values.update(
+            {
+                key: value
+                for key, value in os.environ.items()
+                if key.startswith("SOFIA_ENVIRONMENT_")
+            }
+        )
     environment = environment_configuration_from_environ(
         environment_values
     )
