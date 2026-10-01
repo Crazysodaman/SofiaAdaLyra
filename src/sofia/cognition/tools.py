@@ -35,6 +35,7 @@ class CognitiveToolBinding:
     requested_scope: Any = None
     fixed_parameters: tuple[tuple[str, Any], ...] = ()
     include_principal_metadata: bool = False
+    produces_execution_receipt: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(
@@ -59,6 +60,11 @@ class CognitiveToolBinding:
         if not isinstance(self.include_principal_metadata, bool):
             raise TypeError(
                 "CognitiveToolBinding include_principal_metadata must be boolean."
+            )
+
+        if not isinstance(self.produces_execution_receipt, bool):
+            raise TypeError(
+                "CognitiveToolBinding produces_execution_receipt must be boolean."
             )
 
         if not isinstance(self.fixed_parameters, tuple):
@@ -168,6 +174,18 @@ class CognitiveToolDispatcher:
                 binding.capability_name
             )
         )
+
+    def tool_produces_execution_receipt(self, tool_name: str) -> bool:
+        """Return host-owned execution-receipt policy for one cognitive tool."""
+        if not isinstance(tool_name, str):
+            raise TypeError("tool_name must be a string")
+        try:
+            binding = self._bindings[tool_name]
+        except KeyError as exc:
+            raise CognitiveToolError(
+                f"Unknown cognitive tool: {tool_name}"
+            ) from exc
+        return binding.produces_execution_receipt
 
     def dispatch(
         self,
