@@ -196,6 +196,12 @@ class CognitiveSystem:
                     evidence_refs.append(
                         f"capability:{result.capability}"
                     )
+                    if self.tool_dispatcher.tool_produces_execution_receipt(
+                        tool_call.name
+                    ):
+                        evidence_refs.append(
+                            f"execution-receipt:{result.capability}"
+                        )
 
                 messages.append(
                     CognitiveMessage(
