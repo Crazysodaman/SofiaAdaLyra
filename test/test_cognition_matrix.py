@@ -417,6 +417,7 @@ def test_trace_store_additively_migrates_pre_context_schema(tmp_path):
 
     assert "context_json" in columns
     assert "context_active" in columns
+    assert "extensions_json" in columns
 
 
 def test_cross_domain_weather_and_outfit_lights_both_domains():
@@ -628,3 +629,61 @@ def test_general_matrix_route_stays_auto_for_existing_complexity_router():
     plan = MatrixRoutingPlanner().plan(env, turn)
 
     assert plan.route is MatrixRoute.AUTO
+
+
+def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
+    store = MatrixTraceStore(tmp_path / "sofia.db")
+    env = envelope("restart Plex on Dionysus", message_id="dg-1")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    context = MatrixContextPlanner().plan(turn)
+    evidence = MatrixEvidenceResolver().resolve(
+        MatrixEvidencePlanner().plan(turn),
+        {
+            "action.execution_receipt": EvidenceState.MISSING,
+        },
+    )
+    authority = AuthorityPlan(
+        AuthorityDecision.REQUIRES_APPROVAL,
+        requested_action=env.content,
+        reason="approval required",
+    )
+    contract = MatrixResponsePlanner().plan(
+        turn,
+        evidence,
+        authority,
+    )
+    routing = MatrixRoutingPlanner().plan(env, turn)
+    validation = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="I can propose it, but it still requires approval."
+        ),
+        contract,
+        evidence,
+    )
+
+    store.record(
+        MatrixTrace(
+            envelope=env,
+            turn=turn,
+            context=context,
+            evidence=evidence,
+            authority=authority,
+            response_contract=contract,
+            response_validation=validation,
+            routing=routing,
+            created_at=NOW,
+            shadow=False,
+            context_active=True,
+        )
+    )
+
+    loaded = store.get("dg-1")
+    assert loaded is not None
+    assert loaded.shadow is False
+    assert loaded.evidence == evidence
+    assert loaded.authority == authority
+    assert loaded.response_contract == contract
+    assert loaded.response_validation == validation
+    assert loaded.routing == routing
