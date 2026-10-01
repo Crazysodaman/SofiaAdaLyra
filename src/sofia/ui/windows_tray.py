@@ -396,6 +396,26 @@ class WindowsTrayAgent:
                         0,
                         f"Last model: {status.cognitive_last_model} @ {model_host}",
                     )
+                if status.cognitive_last_primary_host is not None:
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        (
+                            "Last primary host: "
+                            f"{status.cognitive_last_primary_host}"
+                        ),
+                    )
+                if status.cognitive_last_secondary_host is not None:
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        (
+                            "Last secondary host: "
+                            f"{status.cognitive_last_secondary_host}"
+                        ),
+                    )
                 if status.matrix_last_intent is not None:
                     domains = (
                         ",".join(status.matrix_last_domains)
