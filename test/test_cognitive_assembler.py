@@ -459,3 +459,24 @@ def test_assembler_rejects_invalid_tools() -> None:
             context,
             tools=("invalid",),  # type: ignore[arg-type]
         )
+
+def test_assembler_preserves_matrix_route_hint() -> None:
+    context = CognitiveContext(
+        request=CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Hru",
+                ),
+            ),
+            route_hint="fast",
+        ),
+        identity=create_identity(),
+        personality=create_personality(),
+        constitution=create_constitution(),
+        memories=(),
+    )
+
+    assembled = CognitiveContextAssembler().assemble(context)
+
+    assert assembled.route_hint == "fast"
