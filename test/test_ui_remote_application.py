@@ -53,3 +53,6 @@ def test_pinned_remote_settings_select_thin_client_without_starting_local_runtim
     monkeypatch.setenv("SOFIA_REMOTE_CHAT_SERVER_PIN","a"*64)
     app=create_desktop_application(config)
     assert isinstance(app,RemoteDesktopApplication)
+    assert app.chat_storage_mode == "remote"
+    assert app.chat_state_path is None
+    assert app.local_state_path == config.state_path
