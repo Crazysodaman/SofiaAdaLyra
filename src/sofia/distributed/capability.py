@@ -17,6 +17,7 @@ from .endpoint_policy_durable import DurableEndpointPolicy
 from .https_transport import PinnedHttpsRemoteTransport
 from .operations import RemoteOperationRequest
 from .remote_control import DurableRemoteControl
+from .state_paths import migrate_legacy_fleet_sidecars
 
 @dataclass(frozen=True)
 class RemoteToolRegistration:
@@ -35,7 +36,7 @@ class RemoteFleetToolService:
         max_inventory_age:timedelta=timedelta(minutes=5),
     )->None:
         self._state_path=Path(state_path)
-        self._base=self._state_path.parent
+        migrate_legacy_fleet_sidecars(self._state_path)
         self._ca_file=Path(ca_file)
         self._client_certificate=Path(client_certificate)
         self._client_private_key=Path(client_private_key)
@@ -46,7 +47,7 @@ class RemoteFleetToolService:
     def _control_session(self, *, timeout_seconds: float = 10.0):
         """Open durable Fleet state only for the lifetime of one tool call."""
         endpoint_lookup=DurableEndpointPolicy(
-            self._base/"remote-endpoints.db"
+            self._state_path
         )
         transport=PinnedHttpsRemoteTransport(
             endpoint_lookup.get,
@@ -57,10 +58,10 @@ class RemoteFleetToolService:
         )
         control=DurableRemoteControl(
             transport=transport,
-            identity_path=self._base/"remote-identities.db",
-            endpoint_path=self._base/"remote-endpoints.db",
-            authorization_path=self._base/"remote-grants.db",
-            ledger_path=self._base/"remote-ledger.db",
+            identity_path=self._state_path,
+            endpoint_path=self._state_path,
+            authorization_path=self._state_path,
+            ledger_path=self._state_path,
             max_inventory_age=self._max_inventory_age,
         )
         try:
