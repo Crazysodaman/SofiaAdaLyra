@@ -15,12 +15,23 @@ _CONTROL = re.compile(
     r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
+_TOUCH_SCOPE = re.compile(
+    r"^\s*(?:so\s+)?(?:question\s+)?what\s+can\s+i\s+touch\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+
 
 
 class InteractionMatrixEvaluator:
     domain = MatrixDomain.INTERACTION
 
     def evaluate(self, envelope, turn):
+        if _TOUCH_SCOPE.fullmatch(envelope.content):
+            return DomainContribution(
+                self.domain,
+                MatrixRelevance.REQUIRED,
+                "open-ended represented touch scope question",
+            )
         if _CONTROL.fullmatch(envelope.content):
             return DomainContribution(
                 self.domain,
