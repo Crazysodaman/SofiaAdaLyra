@@ -522,7 +522,7 @@ def test_followup_keeps_recent_history_but_has_bounded_window():
     assert window[0].id == "13"
 
 
-def test_conversation_records_matrix_shadow_trace_without_steering_reply(
+def test_conversation_records_active_matrix_trace_before_persistence(
     tmp_path: Path,
 ):
     from sofia.cognition.matrix import (
@@ -541,7 +541,7 @@ def test_conversation_records_matrix_shadow_trace_without_steering_reply(
 
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
-        assert trace.shadow is True
+        assert trace.shadow is False
         assert trace.envelope.session_id == application.conversation.session_id
         assert trace.turn.intent is MatrixIntent.SOCIAL_CHECKIN
         assert trace.turn.history_policy is HistoryPolicy.NONE
