@@ -599,6 +599,42 @@ def test_response_matrix_rejects_execution_claim_without_authority():
     assert "execution_claim_without_action_authority" in result.reasons
 
 
+def test_response_matrix_accepts_execution_claim_with_authority_and_receipt():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "action.execution_receipt",
+                EvidenceKind.EXECUTION_RECEIPT,
+                required=False,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "action.execution_receipt",
+                EvidenceState.AVAILABLE,
+                "execution-receipt:local.service.restart",
+            ),
+        ),
+    )
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("restart Plex on Dionysus"))
+    authority = AuthorityPlan(
+        AuthorityDecision.ALLOWED,
+        requested_action="restart Plex on Dionysus",
+        reason="host authority permits execution",
+    )
+    contract = MatrixResponsePlanner().plan(turn, evidence, authority)
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(content="I restarted Plex on Dionysus."),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.PASS
+
+
 @pytest.mark.parametrize(
     ("content", "route"),
     (
