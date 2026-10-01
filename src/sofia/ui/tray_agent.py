@@ -260,8 +260,16 @@ class TrayAgentApplication:
         last_model = None
         last_host = None
         last_route = None
+        last_primary_host = None
+        last_secondary_host = None
         if execution is not None:
             last_route = execution.actual_route
+            for step in execution.successful_steps:
+                host = step.host or self.host_id
+                if step.role == "primary":
+                    last_primary_host = host
+                elif step.role == "secondary":
+                    last_secondary_host = host
             last_step = execution.last_successful_step
             if last_step is not None:
                 last_model = last_step.model
@@ -375,6 +383,8 @@ class TrayAgentApplication:
             cognitive_last_route=last_route,
             cognitive_last_model=last_model,
             cognitive_last_host=last_host,
+            cognitive_last_primary_host=last_primary_host,
+            cognitive_last_secondary_host=last_secondary_host,
             matrix_last_intent=matrix_intent,
             matrix_last_domains=matrix_domains,
             matrix_last_validation=matrix_validation,
