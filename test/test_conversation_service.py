@@ -812,3 +812,34 @@ def test_interaction_stop_completes_active_matrix_trace_without_llm(
         )
     finally:
         application.shutdown()
+
+
+def test_touch_scope_question_is_host_grounded_and_persisted(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        response = application.conversation.respond(
+            "so question what can I touch"
+        )
+
+        assert "isn't a fixed list" in response.content
+        assert "no touch happened just by asking" in response.content
+
+        history = application.conversation.messages()
+        assert history[-2].content == "so question what can I touch"
+        assert history[-1].content == response.content
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.shadow is False
+        assert trace.turn.relevance_for(MatrixDomain.INTERACTION) is (
+            MatrixRelevance.REQUIRED
+        )
+        assert trace.response_validation is not None
+        assert trace.response_validation.disposition is (
+            ResponseValidationDisposition.PASS
+        )
+    finally:
+        application.shutdown()
