@@ -29,6 +29,7 @@ from sofia.cognition.matrix import (
     MatrixAuthorityPlanner,
     MatrixContextPlanner,
     MatrixCoordinator,
+    MatrixDomain,
     MatrixEvidencePlanner,
     MatrixEvidenceResolver,
     MatrixResponsePlanner,
