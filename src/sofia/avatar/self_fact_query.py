@@ -75,6 +75,12 @@ def _friendly_outfit(outfit_id: str | None) -> str:
 class AvatarSelfFactResolver:
     """Resolve a small set of direct current-presentation questions."""
 
+    _DAYPART_OUTFIT_REASON = re.compile(
+        r"^why\b.*\b(?:night\s*wear|nightwear|lounge\s*wear|loungewear|"
+        r"lounge\s+outfit|wear)\b.*\b(?:night|late|am|pm|morning|evening)\b",
+        re.IGNORECASE,
+    )
+
     _UNDERGARMENT_PRESENTATION_FORMS = frozenset({
         "show me your panties",
         "let me see your panties",
@@ -189,6 +195,28 @@ class AvatarSelfFactResolver:
             return AvatarSelfFactAnswer(
                 True,
                 f"I'm in my {outfit} right now.{piece_text}",
+            )
+
+        if self._DAYPART_OUTFIT_REASON.search(normalized):
+            pieces = ", ".join(presentation.item_names)
+            piece_text = f" The pieces are: {pieces}." if pieces else ""
+            if "late_lounge" in presentation.reason:
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        f"You're right: my current contextual presentation is my "
+                        f"{outfit} because the trusted local clock is in the "
+                        f"late-lounge window.{piece_text}"
+                    ),
+                )
+            return AvatarSelfFactAnswer(
+                True,
+                (
+                    f"My authoritative current presentation is my {outfit}. "
+                    "This presentation does not contain a grounded late-lounge "
+                    "selection reason, so I won't invent a weather, temperature, "
+                    "or emotion explanation for it."
+                ),
             )
 
         if normalized in self._PUBLIC_PRESENTATION_FORMS:
