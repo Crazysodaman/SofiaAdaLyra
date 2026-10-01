@@ -72,6 +72,9 @@ def test_application_text_ui_uses_canonical_conversation(
         history[0].session_id
         == application.conversation.session_id
     )
+    trace = application.conversation.latest_matrix_trace()
+    assert trace is not None
+    assert trace.envelope.channel == "desktop"
 
     application.shutdown()
 
