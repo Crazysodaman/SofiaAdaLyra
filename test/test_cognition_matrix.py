@@ -687,3 +687,27 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
     assert loaded.response_contract == contract
     assert loaded.response_validation == validation
     assert loaded.routing == routing
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_key"),
+    (
+        ("what's the weather?", "environment.weather.current"),
+        ("what time is it?", "environment.clock.current"),
+        ("where am I?", "environment.location.current"),
+        ("what season is it?", "environment.calendar.current"),
+    ),
+)
+def test_environment_evidence_keys_are_query_specific(
+    content,
+    expected_key,
+):
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    matrix = MatrixEvidencePlanner().plan(turn, env)
+
+    keys = {item.key for item in matrix.requirements}
+    assert expected_key in keys
