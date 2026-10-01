@@ -163,3 +163,25 @@ def test_underwear_display_uses_explicit_projected_item_when_present():
     assert "Violet lace panties" in result.content
     assert "Engineer boots" not in result.content
     assert "not evidence that an image was rendered" in result.content
+
+
+def test_current_outfit_recognizes_conversational_prefix():
+    result = answer("so what are you wearing")
+
+    assert result.recognized
+    assert "signature engineer outfit" in result.content
+    assert "Fitted long-sleeve technical shirt" in result.content
+    assert "feels" not in result.content.casefold()
+
+
+def test_tonight_lounge_outfit_live_wording_is_deterministic():
+    for query in (
+        "what would tonights lounge outfit be?",
+        "what would tonight's lounge outfit be?",
+    ):
+        result = answer(query)
+        assert result.recognized
+        assert "relaxed lounge outfit" in result.content
+        assert "not something I've already changed into" in result.content
+        assert "wool" not in result.content.casefold()
+        assert "feel" not in result.content.casefold()
