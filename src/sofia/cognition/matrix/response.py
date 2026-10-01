@@ -106,14 +106,15 @@ class MatrixResponseValidator:
         if measured_missing and _NETWORK_MEASUREMENT_CLAIM.search(content):
             reasons.append("measured_operational_claim_without_evidence")
 
-        environment_missing = (
-            any(
-                requirement.key == "environment.current"
-                and requirement.required
-                and evidence.state_for(requirement.key)
-                is not EvidenceState.AVAILABLE
-                for requirement in evidence.requirements
-            )
+        environment_missing = any(
+            requirement.key in {
+                "environment.current",
+                "environment.weather.current",
+            }
+            and requirement.required
+            and evidence.state_for(requirement.key)
+            is not EvidenceState.AVAILABLE
+            for requirement in evidence.requirements
         )
         if environment_missing and _UNSUPPORTED_WEATHER_CLAIM.search(content):
             reasons.append("current_weather_claim_without_evidence")
