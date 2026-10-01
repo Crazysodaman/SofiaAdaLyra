@@ -13,6 +13,7 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.tools import CognitiveToolDispatcher
+from sofia.capability.model import CapabilityResultKind
 
 
 class CognitiveSystemError(Exception):
@@ -152,10 +153,17 @@ class CognitiveSystem:
         )
 
         response = self._respond_with_engine(request)
+        evidence_refs: list[str] = []
 
         for _ in range(self.max_tool_rounds):
             if not response.tool_calls:
-                return response
+                if not evidence_refs:
+                    return response
+                return CognitiveResponse(
+                    content=response.content,
+                    tool_calls=response.tool_calls,
+                    evidence_refs=tuple(dict.fromkeys(evidence_refs)),
+                )
 
             if self.tool_dispatcher is None:
                 raise CognitiveSystemError(
@@ -183,6 +191,11 @@ class CognitiveSystem:
                     raise CognitiveSystemError(
                         "Cognitive tool dispatch failed."
                     ) from exc
+
+                if result.kind is CapabilityResultKind.SUCCESS:
+                    evidence_refs.append(
+                        f"capability:{result.capability}"
+                    )
 
                 messages.append(
                     CognitiveMessage(
