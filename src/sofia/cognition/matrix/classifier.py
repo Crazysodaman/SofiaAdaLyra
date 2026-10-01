@@ -62,6 +62,11 @@ _PRIMARY_ACTION = re.compile(
     r"\b(?:make|set|switch)\s+[A-Za-z0-9_.-]+\s+primary\b",
     re.IGNORECASE,
 )
+_INTERACTION_CONTROL = re.compile(
+    r"^\s*(?:sof[ií]a,\s*)?(?:stop|pause|resume)\s+"
+    r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
 
 
 def _contribution(
@@ -134,15 +139,22 @@ class BaselineTurnClassifier:
                 _contribution(
                     MatrixDomain.AUTHORITY,
                     MatrixRelevance.REQUIRED,
-                    "message contains an operational action verb",
-                ),
-                _contribution(
-                    MatrixDomain.OPS,
-                    MatrixRelevance.RELEVANT,
-                    "action may target operational state",
+                    "message requests a state-changing action",
                 ),
             ]
-            if _AVATAR.search(text):
+            avatar_action = _AVATAR.search(text) is not None
+            interaction_control = (
+                _INTERACTION_CONTROL.fullmatch(text) is not None
+            )
+            if not avatar_action and not interaction_control:
+                domains.append(
+                    _contribution(
+                        MatrixDomain.OPS,
+                        MatrixRelevance.RELEVANT,
+                        "action may target operational state",
+                    )
+                )
+            if avatar_action:
                 domains.append(
                     _contribution(
                         MatrixDomain.AVATAR,
