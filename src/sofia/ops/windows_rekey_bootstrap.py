@@ -25,6 +25,7 @@ from sofia.distributed.identity import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.distributed.pki import bootstrap_pair
+from sofia.distributed.state_paths import canonical_fleet_state_paths
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
 
 from .bootstrap import (
@@ -105,7 +106,9 @@ def _enroll_fresh_controller(
     state_path.parent.mkdir(parents=True, exist_ok=True)
     server_pin = public_key_fingerprint_from_pem_certificate(server_certificate)
 
-    identities = DurableNodeIdentityRegistry(state_path.parent / "remote-identities.db")
+    identities = DurableNodeIdentityRegistry(
+        canonical_fleet_state_paths(state_path)["identity"]
+    )
     try:
         identities.enroll(
             NodeEnrollment(
@@ -118,7 +121,9 @@ def _enroll_fresh_controller(
     finally:
         identities.close()
 
-    endpoints = DurableEndpointPolicy(state_path.parent / "remote-endpoints.db")
+    endpoints = DurableEndpointPolicy(
+        canonical_fleet_state_paths(state_path)["endpoint"]
+    )
     try:
         endpoints.approve(
             ApprovedEndpoint(

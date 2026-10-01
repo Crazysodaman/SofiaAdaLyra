@@ -4,6 +4,10 @@ from sofia.config import (
     create_default_configuration,
 )
 from sofia.config.model import ProviderConfiguration
+from sofia.config.model_catalog import (
+    DEFAULT_PROVIDER_CONTEXT_SIZE,
+    DEFAULT_PROVIDER_MODEL,
+)
 
 
 def test_default_configuration_uses_repository_paths():
@@ -40,8 +44,8 @@ def test_default_configuration_uses_ollama():
 
     assert configuration.provider == ProviderConfiguration(
         provider="ollama",
-        model="qwen3:14b",
-        context_size=20000,
+        model=DEFAULT_PROVIDER_MODEL,
+        context_size=DEFAULT_PROVIDER_CONTEXT_SIZE,
         thinking=False,
     )
 

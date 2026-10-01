@@ -19,16 +19,11 @@ from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.operations import RemoteOperationRequest
 from sofia.distributed.remote_control import DurableRemoteControl
+from sofia.distributed.state_paths import canonical_fleet_state_paths
 
 
 def _paths(state_path: Path) -> dict[str, Path]:
-    base = state_path.parent
-    return {
-        "identity": base / "remote-identities.db",
-        "endpoint": base / "remote-endpoints.db",
-        "grant": base / "remote-grants.db",
-        "ledger": base / "remote-request-ledger.db",
-    }
+    return canonical_fleet_state_paths(state_path)
 
 
 def _state_path(raw: str | None) -> Path:

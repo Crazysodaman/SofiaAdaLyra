@@ -1,11 +1,8 @@
-"""Deferred pinned-mTLS runtime-mobility transport.
+"""Deferred pinned-mTLS transport for a remote Sofía desktop conversation.
 
 Retained for roadmap step #10 acceptance work. The live desktop does not use
 this transport to choose conversation/state authority; production desktop chat
 currently stays on the canonical configured sofia.db.
-"""
-
-"""Pinned mutual-TLS transport for a remote Sofía desktop conversation.
 
 The server wraps an already-started canonical conversation service. It does not
 create another Sofía runtime. A pinned client certificate is the current

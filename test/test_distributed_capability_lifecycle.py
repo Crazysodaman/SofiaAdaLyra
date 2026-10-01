@@ -75,7 +75,7 @@ def test_remote_fleet_service_opens_and_closes_durable_state_per_tool_call(
 
     assert service.nodes() == ()
     assert events == [
-        ("endpoint:open", "remote-endpoints.db"),
+        ("endpoint:open", "sofia.db"),
         ("transport:create", None),
         ("control:open", None),
         ("control:close", None),

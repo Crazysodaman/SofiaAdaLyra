@@ -48,7 +48,10 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
     assert default.routing is not None
     assert default.routing.secondary is not None
 
-    provider = engine.registry.secondary.provider
+    # The runtime supplies the cognitive toolbox, so this turn is routed DEEP
+    # to the authoritative primary engine. Stub that provider to prove the
+    # canonical prompt and context budget reach Ollama without a live model.
+    provider = engine.registry.primary.provider
     assert isinstance(provider, OllamaProvider)
 
     client = CapturingOllamaClient()
@@ -75,12 +78,9 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         assert response.content == "Captured."
         assert len(client.requests) == 1
         sent = client.requests[0]
-        assert sent["model"] == default.routing.secondary.model
-        assert (
-            sent["options"]["num_ctx"]
-            == default.routing.secondary.context_size
-        )
-        assert sent["think"] is False
+        assert sent["model"] == default.provider.model
+        assert sent["options"]["num_ctx"] == default.provider.context_size
+        assert sent["think"] is default.provider.thinking
         assert sent["messages"][0]["role"] == "system"
         system = sent["messages"][0]["content"]
 

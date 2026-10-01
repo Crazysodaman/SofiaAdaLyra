@@ -127,12 +127,8 @@ def test_fresh_controller_enrollment_uses_new_server_pin_and_endpoint(local_tmp_
         approved_by="Sparks",
     )
 
-    identities = DurableNodeIdentityRegistry(
-        state_path.parent / "remote-identities.db"
-    )
-    endpoints = DurableEndpointPolicy(
-        state_path.parent / "remote-endpoints.db"
-    )
+    identities = DurableNodeIdentityRegistry(state_path)
+    endpoints = DurableEndpointPolicy(state_path)
     try:
         enrollment = identities.get(NODE_ID)
         endpoint = endpoints.get(NODE_ID)

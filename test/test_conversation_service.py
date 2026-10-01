@@ -804,7 +804,7 @@ def test_allowed_receipt_backed_action_claim_persists(
     monkeypatch.setattr(application.runtime, "respond", respond)
     try:
         result = application.conversation.respond(
-            "restart Plex on Dionysus"
+            "restart the plex service on Dionysus"
         )
 
         assert result.content == "I restarted Plex on Dionysus."

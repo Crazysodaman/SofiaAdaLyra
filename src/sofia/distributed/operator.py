@@ -12,16 +12,12 @@ from sofia.distributed.endpoint_policy import ApprovedEndpoint
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.state_paths import canonical_fleet_state_paths
 from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
 
 def _paths(state_path:Path)->dict[str,Path]:
-    base=state_path.parent
-    return {
-        "identity":base/"remote-identities.db",
-        "endpoint":base/"remote-endpoints.db",
-        "grant":base/"remote-grants.db",
-    }
+    return canonical_fleet_state_paths(state_path)
 
 def enroll_node(state_path:Path,*,node_id:UUID,name:str,server_certificate:Path,approved_by:str="Sparks")->NodeEnrollment:
     pin=public_key_fingerprint_from_pem_certificate(server_certificate)
