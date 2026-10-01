@@ -174,7 +174,14 @@ def test_invalid_physical_sensation_is_retried_before_persistence():
         def __init__(self):
             self.calls = []
 
-        def respond(self, request, *, filesystem_results=(), principal=None):
+        def respond(
+            self,
+            request,
+            *,
+            filesystem_results=(),
+            principal=None,
+            context_plan=None,
+        ):
             self.calls.append(request)
             return CognitiveResponse(
                 content="*My ears flick.* Thanks, Sparks."
@@ -213,7 +220,14 @@ def test_invalid_physical_sensation_is_retried_before_persistence():
 )
 def test_repeated_invalid_interaction_reply_uses_grounded_fallback(draft):
     class Runtime:
-        def respond(self, request, *, filesystem_results=(), principal=None):
+        def respond(
+            self,
+            request,
+            *,
+            filesystem_results=(),
+            principal=None,
+            context_plan=None,
+        ):
             return CognitiveResponse(content=draft)
 
     service = object.__new__(InteractiveConversationService)
