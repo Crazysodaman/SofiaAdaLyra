@@ -140,6 +140,9 @@ class SofiaApplication:
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
         )
+        self._conversation_service.set_pre_response_hook(
+            self._refresh_trusted_live_state_before_response
+        )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
         )
@@ -246,6 +249,9 @@ class SofiaApplication:
         service.set_habit_continuity(
             self._habit_continuity
         )
+        service.set_pre_response_hook(
+            self._refresh_trusted_live_state_before_response
+        )
         try:
             service.open()
             service.start(session_id=session_id)
@@ -265,6 +271,26 @@ class SofiaApplication:
         """Return the live AVATAR design/composition studio after startup."""
         return self._wardrobe_studio
 
+    def _refresh_trusted_live_state_before_response(
+        self,
+        *,
+        content: str,
+        principal,
+        channel: str,
+    ) -> None:
+        """Refresh host-owned contextual presentation before any user turn.
+
+        This samples trusted local/user time from ENVIRONMENT without forcing a
+        provider refresh. Weather questions still use their dedicated evidence
+        path; this hook exists so AVATAR state cannot remain stale between the
+        background presentation ticks.
+        """
+        _ = content, principal, channel
+        self._evaluate_contextual_presentation(
+            now=datetime.now(timezone.utc),
+            refresh_environment=False,
+        )
+
     def _evaluate_contextual_presentation(
         self,
         *,
@@ -279,9 +305,24 @@ class SofiaApplication:
             now=now,
             refresh_providers=refresh_environment,
         )
-        # Season is location-dependent. Never guess it just to force an outfit.
+        operation_id = (
+            "contextual-presentation:"
+            + now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S")
+            + f":r{routine.authority.current.revision}"
+        )
+        # Season is location-dependent and must never be guessed. Daypart does
+        # not require season, though, so the reviewed all-season lounge/default
+        # presets remain available from the trusted user/host local clock.
         if environment.season is None:
-            return None
+            local_now = (
+                environment.user_local_time
+                or environment.host_local_time
+                or now
+            )
+            return routine.evaluate_daypart_fallback(
+                now=local_now,
+                operation_id=operation_id,
+            )
 
         host_environment = HostEnvironmentEvidence.from_environment_snapshot(
             environment,
@@ -302,11 +343,6 @@ class SofiaApplication:
 
         context = host_environment.planner_context(
             emotion_influences=emotion_influences,
-        )
-        operation_id = (
-            "contextual-presentation:"
-            + now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S")
-            + f":r{routine.authority.current.revision}"
         )
         return routine.evaluate(
             context,
