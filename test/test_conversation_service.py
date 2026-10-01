@@ -17,6 +17,12 @@ from sofia.conversation.model import (
     ConversationRole,
 )
 from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.llm_engine import LLMCognitiveEngine
+from sofia.cognition.providers.test_provider import TestLLMProvider
+from sofia.cognition.routing import (
+    CognitiveEngineRegistry,
+    RoutingCognitiveEngine,
+)
 from sofia.cognition.matrix import (
     AuthorityDecision,
     EvidenceState,
@@ -175,6 +181,89 @@ def test_conversation_service_persists_user_and_assistant_messages(
     assert messages[1].content == "Test cognitive response."
 
     application.shutdown()
+
+
+def _dual_test_router():
+    primary = LLMCognitiveEngine(
+        configuration=ProviderConfiguration(
+            provider="test-llm",
+            model="primary-test-model",
+        ),
+        provider=TestLLMProvider(
+            CognitiveResponse(content="primary response")
+        ),
+    )
+    secondary = LLMCognitiveEngine(
+        configuration=ProviderConfiguration(
+            provider="test-llm",
+            model="secondary-test-model",
+        ),
+        provider=TestLLMProvider(
+            CognitiveResponse(content="secondary response")
+        ),
+    )
+    return RoutingCognitiveEngine(
+        CognitiveEngineRegistry(
+            primary=primary,
+            secondary=secondary,
+        )
+    )
+
+
+def test_fast_matrix_trace_records_actual_secondary_model_execution(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    application.runtime.cognitive_system.engine = _dual_test_router()
+    try:
+        response = application.conversation.respond("Hru")
+
+        assert response.content == "secondary response"
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.cognition_execution is not None
+        assert trace.cognition_execution.actual_route == "fast"
+        assert tuple(
+            step.role for step in trace.cognition_execution.successful_steps
+        ) == ("secondary",)
+        assert (
+            trace.cognition_execution.last_successful_step.model
+            == "secondary-test-model"
+        )
+    finally:
+        application.shutdown()
+
+
+def test_verify_matrix_trace_proves_primary_secondary_primary_execution(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    application.runtime.cognitive_system.engine = _dual_test_router()
+    try:
+        response = application.conversation.respond(
+            "Please verify your answer before replying."
+        )
+
+        assert response.content == "primary response"
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.cognition_execution is not None
+        assert trace.cognition_execution.actual_route == "verify"
+        assert tuple(
+            step.role for step in trace.cognition_execution.successful_steps
+        ) == ("primary", "secondary", "primary")
+        assert trace.cognition_execution.verification_passes == 2
+        assert tuple(
+            step.model for step in trace.cognition_execution.successful_steps
+        ) == (
+            "primary-test-model",
+            "secondary-test-model",
+            "primary-test-model",
+        )
+    finally:
+        application.shutdown()
 
 
 def test_conversation_service_can_respond_from_worker_thread(
