@@ -520,7 +520,10 @@ class ConversationService:
             )
             turn = self._matrix_coordinator.evaluate(envelope)
             context_plan = self._matrix_context_planner.plan(turn)
-            evidence_requirements = self._matrix_evidence_planner.plan(turn)
+            evidence_requirements = self._matrix_evidence_planner.plan(
+                turn,
+                envelope,
+            )
             evidence = self._matrix_evidence_resolver.resolve(
                 evidence_requirements,
                 self._runtime.matrix_evidence_availability(
