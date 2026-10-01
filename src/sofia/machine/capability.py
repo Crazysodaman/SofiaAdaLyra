@@ -139,6 +139,7 @@ def create_machine_tool_bindings()->tuple[CognitiveToolBinding,...]:
             definition=CognitiveToolDefinition(name=tool,description=desc,
                 parameters={"type":"object","properties":props or {},"required":list(required),"additionalProperties":False}),
             capability_name=cap,
+            produces_execution_receipt=(cap == "machine.refresh.local"),
         )
     return (
         b("list_known_machines","machine.list","List machines in Sofía's durable local inventory. Read-only."),
