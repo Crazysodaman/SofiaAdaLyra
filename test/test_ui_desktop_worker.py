@@ -85,13 +85,16 @@ def test_worker_owns_real_application_for_full_lifecycle(
 
     kind, payload = events.get(timeout=30)
     assert kind == "sent"
-    history, palette = payload
+    history, palette, matrix_status = payload
     assert history[-2].actor == "user"
     assert history[-2].content == (
         "Hello from one worker thread."
     )
     assert history[-1].actor == "sofia"
     assert palette.background.startswith("#")
+    assert matrix_status.startswith("MATRIX ")
+    assert "req=" in matrix_status
+    assert "validation=" in matrix_status
 
     worker.shutdown("")
 
