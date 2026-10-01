@@ -392,12 +392,22 @@ class InteractiveConversationService(EmotionalConversationService):
             retry = self._runtime.respond(
                 retry_request,
                 filesystem_results=(),
+                context_plan=getattr(
+                    self,
+                    "_current_context_plan",
+                    None,
+                ),
             )
         else:
             retry = self._runtime.respond(
                 retry_request,
                 filesystem_results=(),
                 principal=principal,
+                context_plan=getattr(
+                    self,
+                    "_current_context_plan",
+                    None,
+                ),
             )
         if _interaction_response_is_grounded(retry.content):
             return retry
