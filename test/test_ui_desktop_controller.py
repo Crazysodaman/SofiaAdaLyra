@@ -208,6 +208,13 @@ def test_controller_reports_latest_matrix_execution_status():
         ),
         cognition_execution=SimpleNamespace(
             actual_route="fast",
+            successful_steps=(
+                SimpleNamespace(
+                    role="secondary",
+                    model="vendor/secondary:4b",
+                    host="artemis",
+                ),
+            ),
             last_successful_step=SimpleNamespace(
                 role="secondary",
                 model="vendor/secondary:4b",
@@ -230,5 +237,6 @@ def test_controller_reports_latest_matrix_execution_status():
     assert "[social]" in status
     assert "req=fast" in status
     assert "actual=fast" in status
+    assert "path=secondary" in status
     assert "secondary:vendor/secondary:4b@artemis" in status
     assert "validation=pass" in status
