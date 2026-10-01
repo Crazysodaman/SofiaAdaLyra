@@ -111,3 +111,102 @@ def test_tray_status_exposes_primary_secondary_and_routing_mode():
     assert status.llm_secondary_residency == "busy"
     assert status.cognitive_auto_manage is True
     assert status.cognitive_idle_unload_seconds == 600
+    assert status.llm_primary_host == "venus"
+    assert status.llm_secondary_host == "venus"
+
+
+def test_tray_status_exposes_last_matrix_and_actual_dual_llm_execution():
+    app=object.__new__(TrayAgentApplication)
+    app._current_model_selection=lambda: _selection(
+        "vendor/primary:9b",
+        "vendor/open:4b",
+    )
+    app._current_model_lifecycle_policy=lambda: ModelLifecycleConfiguration(
+        enabled=True,
+        idle_unload_seconds=600,
+    )
+    app._current_model_statuses=lambda selection, policy: (
+        ModelLifecycleStatus(
+            CognitiveModelRole.PRIMARY,
+            "ollama",
+            "vendor/primary:9b",
+            ModelResidency.READY,
+        ),
+        ModelLifecycleStatus(
+            CognitiveModelRole.SECONDARY,
+            "ollama",
+            "vendor/open:4b",
+            ModelResidency.UNLOADED,
+        ),
+    )
+    app.settings_store=SimpleNamespace(
+        load=lambda: SimpleNamespace(
+            runtime_service_name="SofiaAdaLyra",
+            llm_service_name="Ollama",
+            game_mode=GameMode.AUTO,
+        )
+    )
+    app._service_state=lambda name: "running"
+    app.host_id="venus"
+    app.ops=SimpleNamespace(fleet=lambda: ())
+    app._last_error=None
+
+    execution = SimpleNamespace(
+        actual_route="verify",
+        successful_steps=(
+            SimpleNamespace(
+                role="primary",
+                model="vendor/primary:9b",
+                host="venus",
+            ),
+            SimpleNamespace(
+                role="secondary",
+                model="vendor/open:4b",
+                host="artemis",
+            ),
+            SimpleNamespace(
+                role="primary",
+                model="vendor/primary:9b",
+                host="venus",
+            ),
+        ),
+        last_successful_step=SimpleNamespace(
+            role="primary",
+            model="vendor/primary:9b",
+            host="venus",
+        ),
+    )
+    matrix = SimpleNamespace(
+        turn=SimpleNamespace(
+            intent=SimpleNamespace(value="action_request"),
+            domains=(
+                SimpleNamespace(
+                    domain=SimpleNamespace(value="ops"),
+                    relevance=SimpleNamespace(value=3),
+                ),
+                SimpleNamespace(
+                    domain=SimpleNamespace(value="authority"),
+                    relevance=SimpleNamespace(value=3),
+                ),
+            ),
+        ),
+        response_validation=SimpleNamespace(
+            disposition=SimpleNamespace(value="pass"),
+        ),
+    )
+    execution_trace = SimpleNamespace(cognition_execution=execution)
+    app._matrix_trace_store=SimpleNamespace(
+        latest=lambda: matrix,
+        latest_with_execution=lambda: execution_trace,
+    )
+
+    status=app.status()
+
+    assert status.cognitive_last_route == "verify"
+    assert status.cognitive_last_model == "vendor/primary:9b"
+    assert status.cognitive_last_host == "venus"
+    assert status.llm_primary_host == "venus"
+    assert status.llm_secondary_host == "artemis"
+    assert status.matrix_last_intent == "action_request"
+    assert status.matrix_last_domains == ("ops", "authority")
+    assert status.matrix_last_validation == "pass"
