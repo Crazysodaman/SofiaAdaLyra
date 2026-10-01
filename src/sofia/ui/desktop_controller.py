@@ -105,9 +105,13 @@ class DesktopWorkbenchController:
         )
         actual_route = "none"
         model = "none"
+        path = "none"
         execution = trace.cognition_execution
         if execution is not None:
             actual_route = execution.actual_route
+            path = ">".join(
+                step.role for step in execution.successful_steps
+            ) or "none"
             last_step = execution.last_successful_step
             if last_step is not None:
                 model_name = last_step.model or "unknown-model"
@@ -120,7 +124,8 @@ class DesktopWorkbenchController:
         )
         return (
             f"MATRIX {intent} [{domains}] req={requested_route} "
-            f"actual={actual_route} model={model} validation={validation}"
+            f"actual={actual_route} path={path} model={model} "
+            f"validation={validation}"
         )
 
     def history(self) -> tuple[UITextMessage, ...]:
