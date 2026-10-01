@@ -37,7 +37,7 @@ _TIME_LOCATION = re.compile(
 )
 _AVATAR = re.compile(
     r"\b(?:wearing|outfit|clothes|clothing|panties|underwear|bra|lingerie|"
-    r"hair|tail|ears|appearance|look\s+like|body|height|weight|lounge|socks?|boots?|shoes?|bare\s*foot|barefoot)\b",
+    r"hair|tail|ears|appearance|look\s+like|body|height|weight|lounge|loungewear|night\s*wear|nightwear|wear\b|socks?|boots?|shoes?|bare\s*foot|barefoot)\b",
     re.IGNORECASE,
 )
 _INTERACTION_FOLLOWUP = re.compile(
