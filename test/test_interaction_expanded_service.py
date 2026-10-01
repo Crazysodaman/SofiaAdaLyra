@@ -46,9 +46,9 @@ def test_stopped_social_action_is_handled_before_model(monkeypatch, tmp_path):
     service._session = SimpleNamespace(id='session-1')
     service._runtime = SimpleNamespace(configuration=SimpleNamespace(state_path=db))
     monkeypatch.setattr(ExpandedConversationService, '_guarded_reply',
-                        lambda self, content, reply: reply)
+                        lambda self, content, reply, **kwargs: reply)
     monkeypatch.setattr(InteractiveConversationService, 'respond',
-                        lambda self, content: pytest.fail('Blocked action reached model.'))
+                        lambda self, content, **kwargs: pytest.fail('Blocked action reached model.'))
     reply = service.respond('I hug you')
     assert 'paused' in reply
     assert ledger.accepted('stop-1') is None
@@ -57,6 +57,6 @@ def test_stopped_social_action_is_handled_before_model(monkeypatch, tmp_path):
 def test_compound_social_actions_not_projected_as_completed(monkeypatch):
     service = object.__new__(ExpandedConversationService)
     monkeypatch.setattr(ExpandedConversationService, '_guarded_reply',
-                        lambda self, content, reply: reply)
+                        lambda self, content, reply, **kwargs: reply)
     reply = service.respond('I hug you and kiss your cheek')
     assert 'not treated any as completed' in reply

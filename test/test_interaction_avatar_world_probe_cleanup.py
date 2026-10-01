@@ -10,6 +10,12 @@ from sofia.interaction.avatar_world_probe import _shutdown_disposable_app
 
 def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch, tmp_path):
     monkeypatch.setenv('SOFIA_IDLE_REFLECTIONS', '0')
+    monkeypatch.setenv('SOFIA_COGNITION_MODEL_AUTO_MANAGE', '0')
+    monkeypatch.setattr(
+        SofiaApplication,
+        '_evaluate_contextual_presentation',
+        lambda self, *, now, refresh_environment: None,
+    )
     monkeypatch.setattr(
         OllamaProvider, '_respond_once',
         lambda self, request: CognitiveResponse(content='Isolated test response.'),

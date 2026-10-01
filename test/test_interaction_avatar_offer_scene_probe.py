@@ -62,6 +62,12 @@ def test_offer_scene_rejects_nonoffer_and_missing_authority():
 
 def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_path):
     monkeypatch.setenv('SOFIA_IDLE_REFLECTIONS', '0')
+    monkeypatch.setenv('SOFIA_COGNITION_MODEL_AUTO_MANAGE', '0')
+    monkeypatch.setattr(
+        avatar_world_probe.SofiaApplication,
+        '_evaluate_contextual_presentation',
+        lambda self, *, now, refresh_environment: None,
+    )
     captured = []
     monkeypatch.setattr(OllamaProvider, '_respond_once',
                         lambda self, request: (captured.append(request) or

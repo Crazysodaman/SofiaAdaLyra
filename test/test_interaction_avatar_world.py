@@ -91,6 +91,12 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
     monkeypatch, tmp_path, text, kind,
 ):
     monkeypatch.setenv('SOFIA_IDLE_REFLECTIONS', '0')
+    monkeypatch.setenv('SOFIA_COGNITION_MODEL_AUTO_MANAGE', '0')
+    monkeypatch.setattr(
+        SofiaApplication,
+        '_evaluate_contextual_presentation',
+        lambda self, *, now, refresh_environment: None,
+    )
     captured = []
 
     def fake_ollama_once(self, request):

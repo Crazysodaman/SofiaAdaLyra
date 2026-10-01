@@ -120,7 +120,7 @@ def test_default_off_uses_unchanged_parent_route(monkeypatch, live_candidate):
     service, path, _, provider, _ = live_candidate
     monkeypatch.delenv('SOFIA_INTERACT_STAGED_OFFERS', raising=False)
     monkeypatch.setattr(ExpandedConversationService, 'respond',
-                        lambda self, content: 'existing:' + content)
+                        lambda self, content, **kwargs: 'existing:' + content)
     assert service.respond(OFFER) == 'existing:' + OFFER
     assert service.respond('Could I hug you?') == 'existing:Could I hug you?'
     assert not _turns(path) and provider.calls == []
@@ -187,7 +187,7 @@ def test_unreviewed_phrase_uses_parent_not_staged_route(monkeypatch, live_candid
     service, path, _, provider, _ = live_candidate
     monkeypatch.setenv('SOFIA_INTERACT_STAGED_OFFERS', '1')
     monkeypatch.setattr(ExpandedConversationService, 'respond',
-                        lambda self, content: 'existing:' + content)
+                        lambda self, content, **kwargs: 'existing:' + content)
     for text in (
         'Could I hug you and check your sensors?',
         'Could I physically hug you?',

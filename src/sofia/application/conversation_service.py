@@ -532,7 +532,16 @@ class ConversationService:
         self._current_response_validation = None
         self._current_routing_plan = None
         self._current_cognition_execution = None
-        prior_execution = self._runtime.cognition_routing_execution()
+        execution_reader = getattr(
+            self._runtime,
+            "cognition_routing_execution",
+            None,
+        )
+        prior_execution = (
+            execution_reader()
+            if callable(execution_reader)
+            else None
+        )
         self._matrix_execution_baseline_serial = (
             0 if prior_execution is None else prior_execution.serial
         )
@@ -642,7 +651,14 @@ class ConversationService:
         )
 
     def _capture_cognition_execution(self) -> None:
-        execution = self._runtime.cognition_routing_execution()
+        execution_reader = getattr(
+            self._runtime,
+            "cognition_routing_execution",
+            None,
+        )
+        if not callable(execution_reader):
+            return
+        execution = execution_reader()
         if (
             execution is None
             or execution.serial <= self._matrix_execution_baseline_serial

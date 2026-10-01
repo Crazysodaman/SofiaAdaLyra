@@ -52,9 +52,9 @@ def test_attested_boundary_prevents_model_narration(monkeypatch, state):
         exact_content='I do not want head pats.', reviewer_id='human-reviewed',
         prior_id=None, at=NOW)
     monkeypatch.setattr(ExpandedConversationService, '_guarded_reply',
-                        lambda self, content, reply: reply)
+                        lambda self, content, reply, **kwargs: reply)
     monkeypatch.setattr(InteractiveConversationService, 'respond',
-                        lambda self, content: pytest.fail('Blocked action reached model.'))
+                        lambda self, content, **kwargs: pytest.fail('Blocked action reached model.'))
     response = service.respond('I pat your head')
     assert 'recorded interaction boundary' in response
     assert InteractionLedger(db).accepted('user-msg') is None
@@ -89,7 +89,7 @@ def test_unverified_boundary_fails_closed(monkeypatch, state):
         region_id='head', active=True, source_id='unknown-source',
         prior_id=None, at=NOW)
     monkeypatch.setattr(ExpandedConversationService, '_guarded_reply',
-                        lambda self, content, reply: reply)
+                        lambda self, content, reply, **kwargs: reply)
     monkeypatch.setattr(InteractiveConversationService, 'respond',
-                        lambda self, content: pytest.fail('Unverified restriction was ignored.'))
+                        lambda self, content, **kwargs: pytest.fail('Unverified restriction was ignored.'))
     assert 'boundary' in service.respond('I pat your head')

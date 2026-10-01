@@ -25,6 +25,12 @@ def test_real_application_projects_saved_user_action_to_ollama(
     monkeypatch, tmp_path, text, region, gesture, kind,
 ):
     monkeypatch.setenv('SOFIA_IDLE_REFLECTIONS', '0')
+    monkeypatch.setenv('SOFIA_COGNITION_MODEL_AUTO_MANAGE', '0')
+    monkeypatch.setattr(
+        SofiaApplication,
+        '_evaluate_contextual_presentation',
+        lambda self, *, now, refresh_environment: None,
+    )
     captured = []
 
     def fake_ollama_once(self, request):
