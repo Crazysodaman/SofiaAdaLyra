@@ -3,13 +3,23 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.cognition.engine import CognitiveEngine
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
     ModelResidency,
     ModelUnavailableError,
+)
+from sofia.cognition.routing import (
+    CognitiveEngineRegistry,
+    CognitiveRoute,
+    RoutingCognitiveEngine,
 )
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import (
@@ -302,3 +312,89 @@ def test_ensure_available_accepts_installed_unloaded_model_without_preload():
     assert status.state is ModelResidency.UNLOADED
     assert backend.loads==[]
     assert backend.resident==set()
+
+
+class ChatWakeDelegate(CognitiveEngine):
+    """Test double for Ollama chat, which wakes the addressed model."""
+
+    def __init__(self, *, backend: Backend, model: str, content: str):
+        self.backend = backend
+        self.configuration = ProviderConfiguration(
+            provider="ollama",
+            model=model,
+        )
+        self.content = content
+        self.calls = 0
+
+    def respond(self, request):
+        self.calls += 1
+        self.backend.resident.add(self.configuration.model)
+        return CognitiveResponse(content=self.content)
+
+
+def test_verify_route_wakes_and_uses_both_lifecycle_managed_models():
+    primary_name = "vendor/primary:any"
+    secondary_name = "vendor/secondary:any"
+    backend = Backend(
+        installed=(primary_name, secondary_name),
+        running=(),
+    )
+    manager = ModelLifecycleManager(
+        selection=_selection(primary_name, secondary_name),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+    )
+    primary_delegate = ChatWakeDelegate(
+        backend=backend,
+        model=primary_name,
+        content="primary",
+    )
+    secondary_delegate = ChatWakeDelegate(
+        backend=backend,
+        model=secondary_name,
+        content="secondary critique",
+    )
+    primary = LifecycleManagedCognitiveEngine(
+        delegate=primary_delegate,
+        lifecycle=manager,
+        role=CognitiveModelRole.PRIMARY,
+    )
+    secondary = LifecycleManagedCognitiveEngine(
+        delegate=secondary_delegate,
+        lifecycle=manager,
+        role=CognitiveModelRole.SECONDARY,
+    )
+    router = RoutingCognitiveEngine(
+        CognitiveEngineRegistry(
+            primary=primary,
+            secondary=secondary,
+        )
+    )
+
+    response = router.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="verify this",
+                ),
+            ),
+            allow_tools=False,
+            route_hint="verify",
+        )
+    )
+
+    assert response.content == "primary"
+    assert router.last_decision is not None
+    assert router.last_decision.route is CognitiveRoute.VERIFY
+    assert primary_delegate.calls == 2
+    assert secondary_delegate.calls == 1
+    assert backend.resident == {primary_name, secondary_name}
+    assert router.last_execution is not None
+    assert tuple(
+        step.role for step in router.last_execution.successful_steps
+    ) == ("primary", "secondary", "primary")
+    assert tuple(
+        step.model for step in router.last_execution.successful_steps
+    ) == (primary_name, secondary_name, primary_name)
+    assert router.last_execution.verification_passes == 2
