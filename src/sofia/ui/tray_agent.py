@@ -19,6 +19,7 @@ from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     ModelLifecycleManager,
 )
+from sofia.cognition.matrix import MatrixTraceStore
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
@@ -90,6 +91,9 @@ class TrayAgentApplication:
             self.config.state_path
         )
         self._operator_stop = OperatorStopStore(
+            self.config.state_path
+        )
+        self._matrix_trace_store = MatrixTraceStore(
             self.config.state_path
         )
         self._service = DesktopServiceController(
@@ -199,6 +203,12 @@ class TrayAgentApplication:
             item.role: item.state.value
             for item in lifecycle_statuses
         }
+        try:
+            matrix_trace = self._matrix_trace_store.latest()
+            execution_trace = self._matrix_trace_store.latest_with_execution()
+        except Exception:
+            matrix_trace = None
+            execution_trace = None
         runtime_state = self._service_state(
             settings.runtime_service_name
         )
@@ -215,6 +225,67 @@ class TrayAgentApplication:
         )
         if self._last_error is not None:
             attention += 1
+
+        execution = (
+            None
+            if execution_trace is None
+            else execution_trace.cognition_execution
+        )
+        primary_execution_host = None
+        secondary_execution_host = None
+        last_model = None
+        last_host = None
+        last_route = None
+        if execution is not None:
+            last_route = execution.actual_route
+            for step in execution.successful_steps:
+                host = step.host or self.host_id
+                if step.role == "primary":
+                    primary_execution_host = host
+                elif step.role == "secondary":
+                    secondary_execution_host = host
+            last_step = execution.last_successful_step
+            if last_step is not None:
+                last_model = last_step.model
+                last_host = last_step.host or self.host_id
+
+        primary_residency = lifecycle_by_role.get(
+            CognitiveModelRole.PRIMARY
+        )
+        secondary_residency = lifecycle_by_role.get(
+            CognitiveModelRole.SECONDARY
+        )
+        local_resident_states = {"ready", "busy"}
+        primary_host = primary_execution_host
+        if (
+            primary_host is None
+            and primary_residency in local_resident_states
+            and llm_state == "running"
+        ):
+            primary_host = self.host_id
+        secondary_host = secondary_execution_host
+        if (
+            secondary_host is None
+            and secondary_residency in local_resident_states
+            and llm_state == "running"
+        ):
+            secondary_host = self.host_id
+
+        matrix_intent = None
+        matrix_domains = ()
+        matrix_validation = None
+        if matrix_trace is not None:
+            matrix_intent = matrix_trace.turn.intent.value
+            matrix_domains = tuple(
+                item.domain.value
+                for item in matrix_trace.turn.domains
+                if item.relevance.value > 0
+            )
+            if matrix_trace.response_validation is not None:
+                matrix_validation = (
+                    matrix_trace.response_validation.disposition.value
+                )
+
         return TrayStatus(
             runtime_host=runtime_host,
             runtime_state=runtime_state,
@@ -231,16 +302,20 @@ class TrayAgentApplication:
                 else selection.secondary.model
             ),
             cognitive_routing_enabled=selection.routing_enabled,
-            llm_primary_residency=lifecycle_by_role.get(
-                CognitiveModelRole.PRIMARY
-            ),
-            llm_secondary_residency=lifecycle_by_role.get(
-                CognitiveModelRole.SECONDARY
-            ),
+            llm_primary_residency=primary_residency,
+            llm_secondary_residency=secondary_residency,
             cognitive_auto_manage=lifecycle_policy.enabled,
             cognitive_idle_unload_seconds=(
                 lifecycle_policy.idle_unload_seconds
             ),
+            llm_primary_host=primary_host,
+            llm_secondary_host=secondary_host,
+            cognitive_last_route=last_route,
+            cognitive_last_model=last_model,
+            cognitive_last_host=last_host,
+            matrix_last_intent=matrix_intent,
+            matrix_last_domains=matrix_domains,
+            matrix_last_validation=matrix_validation,
         )
 
     @staticmethod
