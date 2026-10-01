@@ -523,7 +523,12 @@ class ConversationService:
             evidence_requirements = self._matrix_evidence_planner.plan(turn)
             evidence = self._matrix_evidence_resolver.resolve(
                 evidence_requirements,
-                self._runtime.matrix_evidence_availability(),
+                self._runtime.matrix_evidence_availability(
+                    required_keys=tuple(
+                        item.key
+                        for item in evidence_requirements.requirements
+                    )
+                ),
             )
             authority_plan = self._matrix_authority_planner.plan(
                 envelope,
@@ -607,7 +612,13 @@ class ConversationService:
             return
         self._current_evidence_matrix = self._matrix_evidence_resolver.resolve(
             self._current_evidence_matrix,
-            self._runtime.matrix_evidence_availability(response=response),
+            self._runtime.matrix_evidence_availability(
+                required_keys=tuple(
+                    item.key
+                    for item in self._current_evidence_matrix.requirements
+                ),
+                response=response,
+            ),
         )
         if (
             self._current_turn_matrix is not None
