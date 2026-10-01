@@ -181,6 +181,10 @@ def _registration(
             parameters={"type":"object","properties":properties or {},"required":list(required),"additionalProperties":False},
         ),
         capability_name=capability_name,
+        produces_execution_receipt=(
+            remote_capability is not None
+            and remote_capability.endswith(".manage")
+        ),
     )
     return RemoteToolRegistration(cap,handler,binding)
 
