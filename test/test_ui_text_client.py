@@ -181,3 +181,29 @@ def test_blank_send_is_rejected_before_conversation_call(
 
     assert conversation.responded_with == []
     drafts.close()
+
+
+def test_desktop_client_propagates_channel_when_responder_supports_it(
+    tmp_path: Path,
+):
+    class ChannelAwareConversation(FakeConversation):
+        def __init__(self):
+            super().__init__()
+            self.channel = None
+
+        def respond(
+            self,
+            content: str,
+            *,
+            channel: str = "conversation",
+        ) -> CognitiveResponse:
+            self.channel = channel
+            return super().respond(content)
+
+    conversation = ChannelAwareConversation()
+    ui, _, drafts = client(tmp_path, conversation)
+
+    ui.send("desktop hello")
+
+    assert conversation.channel == "desktop"
+    drafts.close()
