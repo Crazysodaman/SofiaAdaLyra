@@ -119,12 +119,27 @@ class SQLiteTelemetryHistory:
             rows.append((host_id, telemetry))
             self.append(host_id, telemetry)
 
-        for host_id, telemetry in rows:
-            latest = self.latest(host_id)
-            if latest is None:
-                raise RuntimeError(
-                    "legacy OPS telemetry migration did not verify"
+        with sqlite3.connect(self.path, timeout=10.0) as db:
+            for host_id, telemetry in rows:
+                payload = self._payload(host_id, telemetry)
+                encoded = json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
                 )
+                present = db.execute("""
+                    SELECT 1
+                    FROM ops_telemetry_history
+                    WHERE host_id=? AND observed_at=? AND payload_json=?
+                """,(
+                    host_id,
+                    telemetry.observed_at.isoformat(),
+                    encoded,
+                )).fetchone()
+                if present is None:
+                    raise RuntimeError(
+                        "legacy OPS telemetry migration did not verify"
+                    )
 
         destination = legacy_path.with_name(
             legacy_path.name + ".migrated"
