@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 import sqlite3
@@ -27,7 +28,7 @@ class RelationshipStore:
             if state_plane is not None
             else None
         )
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS rel_contact (
@@ -111,7 +112,7 @@ class RelationshipStore:
             occurred_at=contact.occurred_at,
         )
 
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             row = db.execute(
                 "SELECT occurred_at FROM rel_contact WHERE principal_id=?",
@@ -143,7 +144,7 @@ class RelationshipStore:
     def get(self, principal_id: str) -> RelationshipContact | None:
         if not isinstance(principal_id, str) or not principal_id.strip():
             raise ValueError("principal_id must be nonempty")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             row = db.execute("""
                 SELECT principal_id,audience_id,display_name,evidence_ref,occurred_at
                 FROM rel_contact WHERE principal_id=?

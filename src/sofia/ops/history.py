@@ -1,5 +1,6 @@
 """Durable append-only fleet telemetry history."""
 from __future__ import annotations
+from contextlib import closing
 from dataclasses import asdict
 from datetime import datetime
 import json,os
@@ -36,7 +37,7 @@ class SQLiteTelemetryHistory:
     ) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS ops_telemetry_history (
@@ -71,7 +72,7 @@ class SQLiteTelemetryHistory:
             sort_keys=True,
             separators=(",", ":"),
         )
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT OR IGNORE INTO ops_telemetry_history(
@@ -86,7 +87,7 @@ class SQLiteTelemetryHistory:
             db.commit()
 
     def latest(self, host_id: str) -> HostTelemetry | None:
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             row = db.execute("""
                 SELECT payload_json
                 FROM ops_telemetry_history
@@ -119,7 +120,7 @@ class SQLiteTelemetryHistory:
             rows.append((host_id, telemetry))
             self.append(host_id, telemetry)
 
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             for host_id, telemetry in rows:
                 payload = self._payload(host_id, telemetry)
                 encoded = json.dumps(

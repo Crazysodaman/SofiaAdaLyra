@@ -1,4 +1,5 @@
 ﻿import json
+from contextlib import closing
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -524,7 +525,7 @@ class SQLiteMachineInventoryPersistence:
     ) -> None:
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self._path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self._path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS machine_inventory_state (
@@ -548,7 +549,7 @@ class SQLiteMachineInventoryPersistence:
             sort_keys=True,
             separators=(",", ":"),
         )
-        with sqlite3.connect(self._path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self._path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT INTO machine_inventory_state(
@@ -566,7 +567,7 @@ class SQLiteMachineInventoryPersistence:
             db.commit()
 
     def load(self) -> MachineInventory:
-        with sqlite3.connect(self._path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self._path, timeout=10.0)) as db, db:
             row = db.execute("""
                 SELECT snapshot_json
                 FROM machine_inventory_state

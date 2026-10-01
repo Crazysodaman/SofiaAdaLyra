@@ -1,5 +1,6 @@
 """Durable document freshness/invalidation state separate from source content."""
 from __future__ import annotations
+from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
 import json,os
@@ -58,7 +59,7 @@ class SQLiteKnowledgeLifecycle:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._status: dict[str, DocumentStatus] = {}
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_document_lifecycle (
@@ -130,7 +131,7 @@ class SQLiteKnowledgeLifecycle:
             self._write(status)
 
     def _write(self, status: DocumentStatus) -> None:
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT INTO knowledge_document_lifecycle(

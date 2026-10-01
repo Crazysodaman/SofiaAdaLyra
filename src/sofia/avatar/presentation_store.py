@@ -1,6 +1,7 @@
 """Durable SQLite persistence for headless AVATAR presentation state."""
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -30,7 +31,7 @@ class PresentationStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with sqlite3.connect(self.path, timeout=10.0) as db:
+            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
                 db.execute("PRAGMA busy_timeout = 10000")
                 db.execute(self._SCHEMA)
                 db.commit()
@@ -54,7 +55,7 @@ class PresentationStore:
             ensure_ascii=False,
         )
         try:
-            with sqlite3.connect(self.path, timeout=10.0) as db:
+            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
                 db.execute("PRAGMA busy_timeout = 10000")
                 db.execute(
                     """
@@ -87,7 +88,7 @@ class PresentationStore:
         outfits: dict[str, tuple[str, ...]],
     ) -> PresentationAuthority:
         try:
-            with sqlite3.connect(self.path, timeout=10.0) as db:
+            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
                 row = db.execute(
                     """
                     SELECT snapshot_json
@@ -127,7 +128,7 @@ class PresentationStore:
 
     def snapshot_json(self) -> str | None:
         try:
-            with sqlite3.connect(self.path, timeout=10.0) as db:
+            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
                 row = db.execute(
                     """
                     SELECT snapshot_json

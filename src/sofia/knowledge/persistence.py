@@ -1,4 +1,5 @@
 from __future__ import annotations
+from contextlib import closing
 import json,os
 from pathlib import Path
 from datetime import datetime
@@ -43,7 +44,7 @@ class SQLiteKnowledgeStore(KnowledgeStore):
         super().__init__()
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_document (
@@ -105,7 +106,7 @@ class SQLiteKnowledgeStore(KnowledgeStore):
         super().register_document(document)
         if old is not None:
             return
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT INTO knowledge_document(
@@ -128,7 +129,7 @@ class SQLiteKnowledgeStore(KnowledgeStore):
         super().record_fact(fact)
         if old is not None:
             return
-        with sqlite3.connect(self.path, timeout=10.0) as db:
+        with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
             db.execute("""
                 INSERT INTO knowledge_fact(
