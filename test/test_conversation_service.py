@@ -664,3 +664,116 @@ def test_matrix_context_failure_falls_back_to_legacy_history(
         assert application.conversation._current_context_plan is None
     finally:
         application.shutdown()
+
+
+def test_matrix_hru_routes_fast_and_records_validation(
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+    application.start()
+    requests = []
+
+    def respond(request, filesystem_results=(), **kwargs):
+        requests.append(request)
+        return CognitiveResponse(content="I'm feeling settled.")
+
+    monkeypatch.setattr(application.runtime, "respond", respond)
+    try:
+        result = application.conversation.respond("Hru")
+
+        assert result.content == "I'm feeling settled."
+        assert len(requests) == 1
+        assert requests[0].route_hint == "fast"
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.routing is not None
+        assert trace.routing.route is MatrixRoute.FAST
+        assert trace.response_validation is not None
+        assert trace.response_validation.disposition is (
+            ResponseValidationDisposition.PASS
+        )
+    finally:
+        application.shutdown()
+
+
+def test_matrix_network_no_evidence_is_recorded_without_fake_health(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        result = application.conversation.respond("So hows the network")
+
+        assert "don't have a fresh, verified network-health measurement" in (
+            result.content
+        )
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.evidence is not None
+        assert trace.evidence.state_for("operational.measurement") is (
+            EvidenceState.MISSING
+        )
+        assert trace.response_validation is not None
+        assert trace.response_validation.disposition is (
+            ResponseValidationDisposition.PASS
+        )
+    finally:
+        application.shutdown()
+
+
+def test_matrix_action_claim_is_rewritten_before_persistence(
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+    application.start()
+    requests = []
+    responses = iter(
+        (
+            CognitiveResponse(content="I restarted Plex on Dionysus."),
+            CognitiveResponse(
+                content=(
+                    "I can plan the Plex restart, but execution still "
+                    "requires approval."
+                )
+            ),
+        )
+    )
+
+    def respond(request, filesystem_results=(), **kwargs):
+        requests.append(request)
+        return next(responses)
+
+    monkeypatch.setattr(application.runtime, "respond", respond)
+    try:
+        result = application.conversation.respond(
+            "restart Plex on Dionysus"
+        )
+
+        assert "requires approval" in result.content
+        assert "I restarted" not in result.content
+        assert len(requests) == 2
+        assert requests[0].allow_tools is False
+        assert requests[0].route_hint == "verify"
+        assert requests[1].allow_tools is False
+        assert requests[1].route_hint == "verify"
+
+        history = application.conversation.messages()
+        assert "I restarted Plex" not in history[-1].content
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.authority is not None
+        assert trace.authority.decision is (
+            AuthorityDecision.REQUIRES_APPROVAL
+        )
+        assert trace.routing is not None
+        assert trace.routing.route is MatrixRoute.VERIFY
+        assert trace.response_validation is not None
+        assert trace.response_validation.disposition is (
+            ResponseValidationDisposition.PASS
+        )
+    finally:
+        application.shutdown()
