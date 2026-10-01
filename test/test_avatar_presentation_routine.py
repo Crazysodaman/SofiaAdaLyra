@@ -51,6 +51,36 @@ def test_late_night_context_changes_daily_outfit_to_lounge(tmp_path):
     assert authority.last_daily.outfit_id == "lounge.relaxed"
 
 
+def test_daypart_fallback_uses_lounge_without_season_evidence(tmp_path):
+    authority, routine = setup(tmp_path)
+    result = routine.evaluate_daypart_fallback(
+        now=datetime(2026, 9, 25, 5, 10, tzinfo=timezone.utc),
+        operation_id="daypart.0510",
+    )
+
+    assert result.changed
+    assert authority.current.outfit_id == "lounge.relaxed"
+    assert "late_lounge" in authority.current.reason
+    assert "season_unknown" in authority.current.reason
+
+
+def test_daypart_fallback_returns_to_engineer_after_lounge_window(tmp_path):
+    authority, routine = setup(tmp_path)
+    routine.evaluate_daypart_fallback(
+        now=datetime(2026, 9, 25, 5, 10, tzinfo=timezone.utc),
+        operation_id="daypart.night",
+    )
+
+    result = routine.evaluate_daypart_fallback(
+        now=datetime(2026, 9, 25, 8, 0, tzinfo=timezone.utc),
+        operation_id="daypart.day",
+    )
+
+    assert result.changed
+    assert authority.current.outfit_id == "engineer.signature"
+    assert "daytime_default" in authority.current.reason
+
+
 def test_daytime_context_keeps_engineer_without_churn(tmp_path):
     authority, routine = setup(tmp_path)
     context = WardrobeContext(
