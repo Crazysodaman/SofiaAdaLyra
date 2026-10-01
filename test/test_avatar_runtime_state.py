@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
@@ -41,20 +42,29 @@ def test_legacy_revision_one_hex_bootstrap_is_migrated_and_persisted(tmp_path):
             style_tags=("canonical", "engineer"),
         ),
     )
-    store = PresentationStore(tmp_path / "avatar-presentation.json")
-    store.save(legacy)
+    legacy_path = tmp_path / "avatar-presentation.json"
+    legacy_path.write_text(
+        json.dumps(legacy.snapshot()),
+        encoding="utf-8",
+    )
 
+    state_path = tmp_path / "sofia.db"
     bundle = load_or_bootstrap_presentation(
         embodiment=embodiment(),
-        state_path=tmp_path / "sofia.db",
+        state_path=state_path,
     )
     assert bundle.authority.current.revision == 1
     assert bundle.authority.current.appearance.hair_color == "deep crimson"
     assert bundle.authority.current.appearance.tail_color == "dark violet"
 
-    restored = store.load(catalog.wardrobe, outfits=outfits)
+    restored = PresentationStore(state_path).load(
+        catalog.wardrobe,
+        outfits=outfits,
+    )
     assert restored.current.appearance.hair_color == "deep crimson"
     assert restored.current.appearance.tail_color == "dark violet"
+    assert not legacy_path.exists()
+    assert (tmp_path / "avatar-presentation.json.migrated").is_file()
 
 
 def test_later_explicit_hex_appearance_is_not_rewritten(tmp_path):
@@ -86,7 +96,11 @@ def test_later_explicit_hex_appearance_is_not_rewritten(tmp_path):
         operation_id="appearance.custom",
         renderer_unavailable=True,
     )
-    PresentationStore(tmp_path / "avatar-presentation.json").save(authority)
+    legacy_path = tmp_path / "avatar-presentation.json"
+    legacy_path.write_text(
+        json.dumps(authority.snapshot()),
+        encoding="utf-8",
+    )
 
     bundle = load_or_bootstrap_presentation(
         embodiment=embodiment(),
