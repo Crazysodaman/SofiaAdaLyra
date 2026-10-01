@@ -1,5 +1,6 @@
 from pathlib import Path
 from queue import Queue
+import sqlite3
 
 from sofia.config.model import (
     ProviderConfiguration,
@@ -72,6 +73,11 @@ def test_worker_owns_real_application_for_full_lifecycle(
     assert palette.background.startswith("#")
 
     kind, payload = events.get(timeout=30)
+    assert kind == "persistence"
+    assert "LOCAL chat DB:" in payload
+    assert str(tmp_path / "sofia.db") in payload
+
+    kind, payload = events.get(timeout=30)
     assert kind == "discord_disabled"
     assert payload is None
 
@@ -92,6 +98,14 @@ def test_worker_owns_real_application_for_full_lifecycle(
     kind, payload = events.get(timeout=30)
     assert kind == "shutdown_complete"
     assert payload is None
+
+    with sqlite3.connect(tmp_path / "sofia.db") as db:
+        rows = db.execute(
+            "SELECT role, content FROM conversation_messages "
+            "ORDER BY created_at ASC"
+        ).fetchall()
+    assert ("user", "Hello from one worker thread.") in rows
+    assert any(role == "assistant" for role, _ in rows)
 
 
 def test_worker_initializes_provisioned_discord_on_same_application(
@@ -141,6 +155,11 @@ def test_worker_initializes_provisioned_discord_on_same_application(
     assert isinstance(history, tuple)
     assert isinstance(draft, str)
     assert palette.background.startswith("#")
+
+    kind, payload = events.get(timeout=30)
+    assert kind == "persistence"
+    assert "LOCAL chat DB:" in payload
+    assert str(tmp_path / "sofia.db") in payload
 
     kind, payload = events.get(timeout=30)
     assert kind == "discord_started"
