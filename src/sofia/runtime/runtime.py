@@ -22,6 +22,8 @@ from sofia.capability.system import CapabilitySystem
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix import (
     ContextPlan,
+    EvidenceRecord,
+    EvidenceState,
     HistoryPolicy,
     MatrixDomain,
 )
@@ -46,6 +48,7 @@ from sofia.continuity.model import (
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import AvatarStore
+from sofia.environment.model import EnvironmentFreshness
 from sofia.environment.prompt import environment_details_relevant
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
@@ -632,6 +635,98 @@ class SofiaRuntime:
                 "Sofía runtime failed during startup."
             ) from exc
 
+    def current_authority(self) -> Authority:
+        """Return the host authority used for a current cognitive operation."""
+        return Authority(
+            can_inspect_filesystem=(
+                self._filesystem_authorization is not None
+                and self._filesystem_inspector.authorized
+            ),
+            allowed_capabilities=(
+                self._configuration.standing_allowed_capabilities
+            ),
+        )
+
+    def matrix_evidence_availability(
+        self,
+        *,
+        response: CognitiveResponse | None = None,
+    ) -> dict[str, EvidenceRecord | EvidenceState]:
+        """Project host-owned evidence availability for the matrix layer."""
+        availability: dict[str, EvidenceRecord | EvidenceState] = {
+            "avatar.canonical": EvidenceRecord(
+                "avatar.canonical",
+                (
+                    EvidenceState.AVAILABLE
+                    if self._embodiment is not None
+                    else EvidenceState.MISSING
+                ),
+                (
+                    "runtime:embodiment"
+                    if self._embodiment is not None
+                    else None
+                ),
+            ),
+            "memory.retrieval": EvidenceRecord(
+                "memory.retrieval",
+                EvidenceState.AVAILABLE,
+                "runtime:memory-system",
+            ),
+            "cognition.configuration": EvidenceRecord(
+                "cognition.configuration",
+                EvidenceState.AVAILABLE,
+                "runtime:cognitive-configuration",
+            ),
+            "continuity.current": EvidenceRecord(
+                "continuity.current",
+                (
+                    EvidenceState.AVAILABLE
+                    if self._runtime_continuity is not None
+                    else EvidenceState.MISSING
+                ),
+                (
+                    "runtime:continuity"
+                    if self._runtime_continuity is not None
+                    else None
+                ),
+            ),
+            "interaction.interpretation": EvidenceState.UNKNOWN,
+            "emotion.current": EvidenceState.UNKNOWN,
+            "operational.measurement": EvidenceState.MISSING,
+            "action.execution_receipt": EvidenceState.MISSING,
+        }
+
+        snapshot = self._environment_service.snapshot(
+            refresh_providers=False,
+        )
+        if (
+            snapshot.weather is not None
+            and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+        ):
+            availability["environment.current"] = EvidenceRecord(
+                "environment.current",
+                EvidenceState.AVAILABLE,
+                f"environment:{snapshot.weather.source_id}",
+            )
+        elif snapshot.weather_freshness is EnvironmentFreshness.STALE:
+            availability["environment.current"] = EvidenceState.STALE
+        else:
+            availability["environment.current"] = EvidenceState.MISSING
+
+        if response is not None:
+            if not isinstance(response, CognitiveResponse):
+                raise TypeError(
+                    "matrix evidence response must be CognitiveResponse or None"
+                )
+            if response.evidence_refs:
+                availability["operational.measurement"] = EvidenceRecord(
+                    "operational.measurement",
+                    EvidenceState.AVAILABLE,
+                    response.evidence_refs[0],
+                )
+
+        return availability
+
     def respond(
         self,
         request: CognitiveRequest,
@@ -866,13 +961,7 @@ class SofiaRuntime:
                 ),
                 principal=principal,
             ),
-            authority=Authority(
-                can_inspect_filesystem=(
-                    self._filesystem_authorization is not None
-                    and self._filesystem_inspector.authorized
-                ),
-                allowed_capabilities=self._configuration.standing_allowed_capabilities,
-            ),
+            authority=self.current_authority(),
         )
 
         return self._cognitive_system.respond(
