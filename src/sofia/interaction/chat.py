@@ -386,6 +386,7 @@ class InteractiveConversationService(EmotionalConversationService):
             messages=(correction, *request.messages),
             tools=(),
             allow_tools=False,
+        route_hint=request.route_hint,
         )
         if principal is None:
             retry = self._runtime.respond(
@@ -623,6 +624,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 ),
                 tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         config = getattr(self._runtime, 'configuration', None)
         state_path = config.state_path if config is not None else None
@@ -639,6 +641,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=instruction),
                           *request.messages), tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         embodiment = self._runtime.embodiment
         if self._runtime.personality is None or embodiment is None:
@@ -663,6 +666,7 @@ class InteractiveConversationService(EmotionalConversationService):
                                            content=interaction_prompt(decision)), *request.messages),
                 tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         discussion = body_discussion_prompt(content=user.content, engine=engine)
         if discussion is not None:
@@ -670,6 +674,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=discussion),
                           *request.messages), tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         experience_followup = (
             representational_experience_followup_prompt(
@@ -688,6 +693,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 ),
                 tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         followup = interaction_followup_prompt(
             content=user.content, messages=messages, engine=engine,
@@ -697,6 +703,7 @@ class InteractiveConversationService(EmotionalConversationService):
                 messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=followup),
                           *request.messages), tools=(),
                 allow_tools=False,
+            route_hint=request.route_hint,
             )
         if state_path is not None:
             observation = lab_observation_prompt(content=user.content, state_path=state_path)
@@ -705,6 +712,7 @@ class InteractiveConversationService(EmotionalConversationService):
                     messages=(CognitiveMessage(role=CognitiveRole.SYSTEM, content=observation),
                               *request.messages), tools=(),
                 allow_tools=False,
+                route_hint=request.route_hint,
                 )
         if _LAB_COMMAND.match(user.content.strip()) is None:
             return request
@@ -721,4 +729,5 @@ class InteractiveConversationService(EmotionalConversationService):
                                        content=world_prompt(result, world=world)),
                       *request.messages), tools=(),
                 allow_tools=False,
+        route_hint=request.route_hint,
         )
