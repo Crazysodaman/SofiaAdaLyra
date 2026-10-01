@@ -11,6 +11,8 @@ from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
     BaselineTurnClassifier,
+    CognitionExecutionStep,
+    CognitionExecutionTrace,
     DomainContribution,
     EvidenceKind,
     EvidenceMatrix,
@@ -693,6 +695,32 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
         authority,
     )
     routing = MatrixRoutingPlanner().plan(env, turn)
+    execution = CognitionExecutionTrace(
+        serial=7,
+        actual_route="verify",
+        steps=(
+            CognitionExecutionStep(
+                "primary",
+                "primary-model",
+                "venus",
+                True,
+            ),
+            CognitionExecutionStep(
+                "secondary",
+                "secondary-model",
+                "artemis",
+                True,
+            ),
+            CognitionExecutionStep(
+                "primary",
+                "primary-model",
+                "venus",
+                True,
+            ),
+        ),
+        fallback_count=0,
+        verification_passes=2,
+    )
     validation = MatrixResponseValidator().validate(
         CognitiveResponse(
             content="I can propose it, but it still requires approval."
@@ -711,6 +739,7 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
             response_contract=contract,
             response_validation=validation,
             routing=routing,
+            cognition_execution=execution,
             created_at=NOW,
             shadow=False,
             context_active=True,
@@ -725,6 +754,8 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
     assert loaded.response_contract == contract
     assert loaded.response_validation == validation
     assert loaded.routing == routing
+    assert loaded.cognition_execution == execution
+    assert store.latest_with_execution() == loaded
 
 
 @pytest.mark.parametrize(
