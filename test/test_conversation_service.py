@@ -8,6 +8,7 @@ from sofia.application import (
     SofiaApplication,
 )
 from sofia.application.conversation_service import _conversation_tools_relevant
+from sofia.authority.model import Authority
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -757,6 +758,73 @@ def test_runtime_promotes_host_execution_receipt_evidence(
         assert record.state is EvidenceState.AVAILABLE
         assert record.source_ref == (
             "execution-receipt:local.service.restart"
+        )
+
+        unreceipted = application.runtime.matrix_evidence_availability(
+            required_keys=("action.execution_receipt",),
+            response=CognitiveResponse(
+                content="Completed.",
+                evidence_refs=("capability:local.service.restart",),
+            ),
+        )
+        assert unreceipted["action.execution_receipt"] is (
+            EvidenceState.MISSING
+        )
+    finally:
+        application.shutdown()
+
+
+def test_allowed_receipt_backed_action_claim_persists(
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = create_application(tmp_path)
+    application.start()
+    requests = []
+
+    monkeypatch.setattr(
+        application.runtime,
+        "current_authority",
+        lambda: Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=True,
+        ),
+    )
+
+    def respond(request, filesystem_results=(), **kwargs):
+        requests.append(request)
+        return CognitiveResponse(
+            content="I restarted Plex on Dionysus.",
+            evidence_refs=(
+                "execution-receipt:local.service.restart",
+            ),
+        )
+
+    monkeypatch.setattr(application.runtime, "respond", respond)
+    try:
+        result = application.conversation.respond(
+            "restart Plex on Dionysus"
+        )
+
+        assert result.content == "I restarted Plex on Dionysus."
+        assert requests[0].allow_tools is True
+        assert requests[0].route_hint == "verify"
+
+        history = application.conversation.messages()
+        assert history[-1].content == "I restarted Plex on Dionysus."
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.authority is not None
+        assert trace.authority.decision is AuthorityDecision.ALLOWED
+        assert trace.evidence is not None
+        assert trace.evidence.state_for(
+            "action.execution_receipt"
+        ) is EvidenceState.AVAILABLE
+        assert trace.response_validation is not None
+        assert trace.response_validation.disposition is (
+            ResponseValidationDisposition.PASS
         )
     finally:
         application.shutdown()
