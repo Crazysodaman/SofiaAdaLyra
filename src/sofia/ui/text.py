@@ -27,6 +27,7 @@ class ConversationPort(Protocol):
         content: str,
         *,
         principal: PrincipalContext | None = None,
+        channel: str = "conversation",
     ): ...
 
 
@@ -49,6 +50,7 @@ class UITextClient:
         drafts: UIDraftStore,
         client_id: str,
         principal: PrincipalContext | None = None,
+        channel: str = "desktop",
     ) -> None:
         try:
             inspect.getattr_static(conversation, "session_id")
@@ -64,10 +66,13 @@ class UITextClient:
             raise ValueError("client_id must be nonempty")
         if principal is not None and not isinstance(principal, PrincipalContext):
             raise TypeError("principal must be a PrincipalContext or None")
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError("channel must be a nonempty string")
         self._conversation = conversation
         self._drafts = drafts
         self._client_id = client_id
         self._principal = principal
+        self._channel = channel.strip().casefold()
 
     @property
     def client_id(self) -> str:
@@ -140,12 +145,21 @@ class UITextClient:
         if not content.strip():
             raise ValueError("content must not be blank")
 
-        if self._principal is None:
-            response = self._conversation.respond(content)
-        else:
-            response = self._conversation.respond(
-                content,
-                principal=self._principal,
-            )
+        responder = self._conversation.respond
+        parameters = inspect.signature(responder).parameters
+        accepts_kwargs = any(
+            item.kind is inspect.Parameter.VAR_KEYWORD
+            for item in parameters.values()
+        )
+        kwargs = {}
+        if self._principal is not None:
+            if "principal" not in parameters and not accepts_kwargs:
+                raise TypeError(
+                    "conversation responder does not accept principal context"
+                )
+            kwargs["principal"] = self._principal
+        if "channel" in parameters or accepts_kwargs:
+            kwargs["channel"] = self._channel
+        response = responder(content, **kwargs)
         self.clear_draft()
         return response
