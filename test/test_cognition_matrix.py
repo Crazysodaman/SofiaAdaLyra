@@ -778,3 +778,35 @@ def test_negative_completion_text_is_not_an_execution_claim():
     )
 
     assert result.disposition is ResponseValidationDisposition.PASS
+
+
+def test_tell_me_the_why_uses_last_turn_history():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("tell me the why"))
+
+    assert turn.history_policy is HistoryPolicy.LAST_TURN
+    assert turn.confidence is MatrixConfidence.HIGH
+
+
+def test_sofia_matrixs_reference_activates_cognition_domain():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("We added matrixs"))
+
+    assert turn.relevance_for(MatrixDomain.COGNITION) is (
+        MatrixRelevance.RELEVANT
+    )
+
+
+def test_footwear_preference_activates_avatar_not_emotion_or_ops():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope("I would like both, some nights bare foot, some with socks.")
+    )
+
+    assert turn.relevance_for(MatrixDomain.AVATAR) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
