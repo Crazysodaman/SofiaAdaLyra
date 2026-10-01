@@ -1,4 +1,5 @@
 """INTERACT contribution to the message matrix."""
+import re
 from sofia.cognition.matrix.model import (
     DomainContribution,
     MatrixDomain,
@@ -9,10 +10,23 @@ from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.core import looks_like_text_interaction
 
 
+_CONTROL = re.compile(
+    r"^\s*(?:sof[ií]a,\s*)?(?:stop|pause|resume)\s+"
+    r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+
+
 class InteractionMatrixEvaluator:
     domain = MatrixDomain.INTERACTION
 
     def evaluate(self, envelope, turn):
+        if _CONTROL.fullmatch(envelope.content):
+            return DomainContribution(
+                self.domain,
+                MatrixRelevance.REQUIRED,
+                "host-defined represented-interaction safety control",
+            )
         if turn.intent is MatrixIntent.INTERACTION_FOLLOWUP:
             return DomainContribution(
                 self.domain,
