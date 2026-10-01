@@ -25,6 +25,13 @@ _EXPLICIT_PRIMARY_KIND = re.compile(
 )
 
 
+_INTERACTION_SAFETY_CONTROL = re.compile(
+    r"^\s*(?:sof[ií]a,\s*)?(?:stop|pause|resume)\s+"
+    r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+
+
 class MatrixAuthorityPlanner:
     """Translate an action request into a plan without granting authority."""
 
@@ -48,6 +55,17 @@ class MatrixAuthorityPlanner:
             )
 
         text = envelope.content.strip()
+
+        if _INTERACTION_SAFETY_CONTROL.fullmatch(text):
+            return AuthorityPlan(
+                AuthorityDecision.ALLOWED,
+                requested_action=text,
+                reason=(
+                    "host-defined representational interaction safety "
+                    "control is directly enforceable"
+                ),
+            )
+
         if (
             _AMBIGUOUS_PRIMARY.search(text)
             and _EXPLICIT_PRIMARY_KIND.search(text) is None
