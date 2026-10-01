@@ -650,10 +650,35 @@ class SofiaRuntime:
     def matrix_evidence_availability(
         self,
         *,
+        required_keys: tuple[str, ...] | None = None,
         response: CognitiveResponse | None = None,
     ) -> dict[str, EvidenceRecord | EvidenceState]:
-        """Project host-owned evidence availability for the matrix layer."""
-        availability: dict[str, EvidenceRecord | EvidenceState] = {
+        """Project only host-owned evidence requested by the matrix layer."""
+        if required_keys is not None:
+            if not isinstance(required_keys, tuple):
+                raise TypeError("required_keys must be a tuple or None")
+            if any(
+                not isinstance(key, str) or not key.strip()
+                for key in required_keys
+            ):
+                raise ValueError(
+                    "required_keys must contain nonempty strings"
+                )
+            wanted = set(required_keys)
+        else:
+            wanted = {
+                "avatar.canonical",
+                "memory.retrieval",
+                "cognition.configuration",
+                "continuity.current",
+                "interaction.interpretation",
+                "emotion.current",
+                "operational.measurement",
+                "action.execution_receipt",
+                "environment.current",
+            }
+
+        all_static: dict[str, EvidenceRecord | EvidenceState] = {
             "avatar.canonical": EvidenceRecord(
                 "avatar.canonical",
                 (
@@ -695,25 +720,34 @@ class SofiaRuntime:
             "operational.measurement": EvidenceState.MISSING,
             "action.execution_receipt": EvidenceState.MISSING,
         }
+        availability = {
+            key: value
+            for key, value in all_static.items()
+            if key in wanted
+        }
 
-        snapshot = self._environment_service.snapshot(
-            refresh_providers=False,
+        snapshot = (
+            self._environment_service.snapshot(refresh_providers=False)
+            if "environment.current" in wanted
+            else None
         )
-        if (
-            snapshot.weather is not None
-            and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
-        ):
-            availability["environment.current"] = EvidenceRecord(
-                "environment.current",
-                EvidenceState.AVAILABLE,
-                f"environment:{snapshot.weather.source_id}",
-            )
-        elif snapshot.weather_freshness is EnvironmentFreshness.STALE:
-            availability["environment.current"] = EvidenceState.STALE
-        else:
-            availability["environment.current"] = EvidenceState.MISSING
+        if snapshot is not None:
+            if (
+                snapshot.weather is not None
+                and snapshot.weather_freshness
+                is EnvironmentFreshness.CURRENT
+            ):
+                availability["environment.current"] = EvidenceRecord(
+                    "environment.current",
+                    EvidenceState.AVAILABLE,
+                    f"environment:{snapshot.weather.source_id}",
+                )
+            elif snapshot.weather_freshness is EnvironmentFreshness.STALE:
+                availability["environment.current"] = EvidenceState.STALE
+            else:
+                availability["environment.current"] = EvidenceState.MISSING
 
-        if response is not None:
+        if response is not None and "operational.measurement" in wanted:
             if not isinstance(response, CognitiveResponse):
                 raise TypeError(
                     "matrix evidence response must be CognitiveResponse or None"
