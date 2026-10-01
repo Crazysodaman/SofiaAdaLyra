@@ -2,6 +2,7 @@
 
 from sofia.application import ConversationLoop, SofiaApplication
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.cognition.matrix import MatrixTraceStore
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -86,9 +87,10 @@ def create_personality(
 def test_conversation_loop_processes_user_input(
     tmp_path: Path,
 ):
+    state_path = tmp_path / "sofia.db"
     application = create_application(
         create_personality(tmp_path),
-        tmp_path / "sofia.db",
+        state_path,
     )
 
     inputs = iter(
@@ -109,6 +111,9 @@ def test_conversation_loop_processes_user_input(
     loop.run()
 
     assert outputs
+    trace = MatrixTraceStore(state_path).latest()
+    assert trace is not None
+    assert trace.envelope.channel == "terminal"
 
 
 def test_conversation_loop_ignores_empty_input(
