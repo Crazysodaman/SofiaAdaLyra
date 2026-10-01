@@ -134,6 +134,7 @@ def test_restart_and_resume_preserves_cognitive_history(
         request,
         *,
         filesystem_results: tuple[FilesystemResult, ...] = (),
+        context_plan=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(

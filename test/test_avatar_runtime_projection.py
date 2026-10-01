@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from sofia.application import SofiaApplication
 from sofia.avatar.presentation import (
     AppearanceState,
@@ -62,7 +64,16 @@ def private_grant() -> PrivatePresentationGrant:
     return PrivatePresentationGrant(True, True, True, True, False)
 
 
-def test_application_bootstraps_headless_avatar_and_persists_it(tmp_path):
+def test_application_bootstraps_headless_avatar_and_persists_it(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # This test owns bootstrap/persistence, not contextual daypart selection.
+    monkeypatch.setattr(
+        SofiaApplication,
+        "_evaluate_contextual_presentation",
+        lambda self, *, now, refresh_environment: None,
+    )
     config = configuration(tmp_path)
     app = SofiaApplication(config)
     app.start()

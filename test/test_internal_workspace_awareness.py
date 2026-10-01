@@ -42,7 +42,10 @@ def _runtime(tmp_path, changes, *, restarted=True):
         previous_started_at=NOW if restarted else None,
     )
     runtime = object.__new__(SofiaRuntime)
-    runtime._configuration = SimpleNamespace(state_path=tmp_path / "state" / "sofia.db")
+    runtime._configuration = SimpleNamespace(
+        state_path=tmp_path / "state" / "sofia.db",
+        fleet_discovery=None,
+    )
     runtime._workspace_changes = changes
     runtime._runtime_continuity = continuity
     runtime._pending_continuity_event = create_continuity_event(continuity, changes)

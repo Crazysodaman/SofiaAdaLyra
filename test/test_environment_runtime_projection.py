@@ -188,7 +188,10 @@ def test_runtime_answers_direct_weather_unknown_without_inventing_it(tmp_path):
         )
     )
 
-    assert response.content == "I don't have current weather evidence."
+    assert response.content == (
+        "I don't have current weather evidence. "
+        "No configured weather provider produced evidence for the effective location."
+    )
     assert provider.requests == []
     app.shutdown()
 
