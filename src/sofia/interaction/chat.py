@@ -97,6 +97,17 @@ _EXPERIENCE_FOLLOWUP = re.compile(
     r"(?:doing\s+)?(?:it|that|this)\s*[?.!]*\s*$",
     re.IGNORECASE,
 )
+_TOUCH_SCOPE_QUERY = re.compile(
+    r"^\s*(?:so\s+)?(?:question\s+)?what\s+can\s+i\s+touch\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+_TOUCH_SCOPE_REPLY = (
+    "There isn't a fixed list of represented body regions that are automatically "
+    "allowed or forbidden. You can ask about a specific virtual touch or region, "
+    "and I'll respond from the current context and my own willingness for that "
+    "moment. A question isn't permission and no touch happened just by asking."
+)
+
 _PRESENTATION_REQUEST = re.compile(
     r"^\s*(?:show|let\s+me\s+see)\s+(?:me\s+)?(?:your|ur)\s+"
     r"(?:panties|underwear|bra|lingerie|outfit|clothes)\s*[?.!]*\s*$",
@@ -537,6 +548,9 @@ class InteractiveConversationService(EmotionalConversationService):
                 principal=principal,
                 channel=channel,
             )
+
+        if _TOUCH_SCOPE_QUERY.fullmatch(content.strip()):
+            return guarded(_TOUCH_SCOPE_REPLY)
 
         if mixed_interaction_control(content):
             return guarded(MIXED_CONTROL_REPLY)
