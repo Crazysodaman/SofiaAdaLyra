@@ -122,6 +122,10 @@ def _with_execution_approval(
         capability_name=registration.binding.capability_name,
         requested_scope=registration.binding.requested_scope,
         fixed_parameters=registration.binding.fixed_parameters,
+        include_principal_metadata=(
+            registration.binding.include_principal_metadata
+        ),
+        produces_execution_receipt=True,
     )
     return IntegrationToolRegistration(
         capability=registration.capability,
