@@ -1,8 +1,8 @@
-"""Remote desktop-chat endpoint selection.
+"""Deferred runtime-mobility endpoint selection.
 
-The desktop client may be local to the active runtime or follow Fleet authority.
-Actual network transport/authentication is a later adapter; this module prevents
-the renderer from assuming that the runtime must live on the same machine.
+This module is retained for roadmap step #10 redundancy/fencing/runtime mobility
+experiments. It is not part of the live desktop composition: current production
+desktop chat is bound to the one canonical local state database.
 """
 from __future__ import annotations
 
