@@ -210,6 +210,7 @@ class ConversationService:
         )
         self._learning_coordinator = None
         self._habit_continuity = None
+        self._pre_response_hook = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -268,6 +269,12 @@ class ConversationService:
                     "coordinator must be HabitContinuityCoordinator or None"
                 )
         self._habit_continuity = coordinator
+
+    def set_pre_response_hook(self, hook) -> None:
+        """Install one application-owned hook that refreshes trusted live state."""
+        if hook is not None and not callable(hook):
+            raise TypeError("pre-response hook must be callable or None")
+        self._pre_response_hook = hook
 
     @property
     def database_path(self) -> Path:
@@ -885,6 +892,14 @@ class ConversationService:
         if not content:
             raise ValueError(
                 "ConversationService content must not be empty."
+            )
+
+        pre_response_hook = self._pre_response_hook
+        if pre_response_hook is not None:
+            pre_response_hook(
+                content=content,
+                principal=principal,
+                channel=channel,
             )
 
         user_message = ConversationMessage(
