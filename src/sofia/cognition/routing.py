@@ -144,6 +144,14 @@ class CognitiveRoutingPolicy:
         if not isinstance(request, CognitiveRequest):
             raise TypeError("request must be a CognitiveRequest")
 
+        if request.route_hint is not None:
+            route = CognitiveRoute(request.route_hint)
+            return RoutingDecision(
+                route=route,
+                score=10,
+                reason=f"matrix route hint: {request.route_hint}",
+            )
+
         text = self._latest_user_text(request)
         normalized = text.casefold()
         word_count = len(text.split())
