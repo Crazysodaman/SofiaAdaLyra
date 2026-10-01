@@ -8,15 +8,27 @@ from pathlib import Path
 import sqlite3
 
 from .model import (
+    AuthorityDecision,
+    AuthorityPlan,
     ContextPlan,
     DomainContribution,
+    EvidenceKind,
+    EvidenceMatrix,
+    EvidenceRecord,
+    EvidenceRequirement,
+    EvidenceState,
     HistoryPolicy,
     MatrixConfidence,
     MatrixDomain,
     MatrixIntent,
     MatrixRelevance,
+    MatrixRoute,
     MatrixTrace,
+    ResponseContract,
     ResponseStrategy,
+    ResponseValidation,
+    ResponseValidationDisposition,
+    RoutingPlan,
     TurnEnvelope,
     TurnMatrix,
 )
@@ -52,6 +64,7 @@ class MatrixTraceStore:
                     response_strategy TEXT NOT NULL,
                     domains_json TEXT NOT NULL,
                     context_json TEXT,
+                    extensions_json TEXT,
                     ambiguous INTEGER NOT NULL,
                     shadow INTEGER NOT NULL,
                     context_active INTEGER NOT NULL DEFAULT 0,
@@ -80,6 +93,11 @@ class MatrixTraceStore:
                 db.execute(
                     "ALTER TABLE cognition_matrix_trace "
                     "ADD COLUMN context_active INTEGER NOT NULL DEFAULT 0"
+                )
+            if "extensions_json" not in columns:
+                db.execute(
+                    "ALTER TABLE cognition_matrix_trace "
+                    "ADD COLUMN extensions_json TEXT"
                 )
 
     @staticmethod
@@ -117,6 +135,89 @@ class MatrixTraceStore:
         )
 
     @staticmethod
+    def _extensions_json(trace: MatrixTrace) -> str | None:
+        if (
+            trace.evidence is None
+            and trace.authority is None
+            and trace.response_contract is None
+            and trace.response_validation is None
+            and trace.routing is None
+        ):
+            return None
+
+        evidence = None
+        if trace.evidence is not None:
+            evidence = {
+                "requirements": [
+                    {
+                        "key": item.key,
+                        "kind": item.kind.value,
+                        "required": item.required,
+                    }
+                    for item in trace.evidence.requirements
+                ],
+                "records": [
+                    {
+                        "key": item.key,
+                        "state": item.state.value,
+                        "source_ref": item.source_ref,
+                    }
+                    for item in trace.evidence.records
+                ],
+            }
+
+        authority = None
+        if trace.authority is not None:
+            authority = {
+                "decision": trace.authority.decision.value,
+                "requested_action": trace.authority.requested_action,
+                "reason": trace.authority.reason,
+            }
+
+        contract = None
+        if trace.response_contract is not None:
+            contract = {
+                "require_grounded_claims": (
+                    trace.response_contract.require_grounded_claims
+                ),
+                "prohibited_claims": list(
+                    trace.response_contract.prohibited_claims
+                ),
+                "requires_execution_receipt": (
+                    trace.response_contract.requires_execution_receipt
+                ),
+                "authority_decision": (
+                    trace.response_contract.authority_decision.value
+                ),
+            }
+
+        validation = None
+        if trace.response_validation is not None:
+            validation = {
+                "disposition": trace.response_validation.disposition.value,
+                "reasons": list(trace.response_validation.reasons),
+            }
+
+        routing = None
+        if trace.routing is not None:
+            routing = {
+                "route": trace.routing.route.value,
+                "reason": trace.routing.reason,
+            }
+
+        return json.dumps(
+            {
+                "evidence": evidence,
+                "authority": authority,
+                "response_contract": contract,
+                "response_validation": validation,
+                "routing": routing,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+
+    @staticmethod
     def _trace(row: sqlite3.Row) -> MatrixTrace:
         domains_raw = json.loads(row["domains_json"])
         domains = tuple(
@@ -145,6 +246,82 @@ class MatrixTraceStore:
                     payload["max_history_messages"]
                 ),
             )
+        evidence = None
+        authority = None
+        response_contract = None
+        response_validation = None
+        routing = None
+
+        extensions_raw = row["extensions_json"]
+        if extensions_raw:
+            extensions = json.loads(extensions_raw)
+
+            evidence_payload = extensions.get("evidence")
+            if evidence_payload is not None:
+                evidence = EvidenceMatrix(
+                    requirements=tuple(
+                        EvidenceRequirement(
+                            key=item["key"],
+                            kind=EvidenceKind(item["kind"]),
+                            required=bool(item["required"]),
+                        )
+                        for item in evidence_payload["requirements"]
+                    ),
+                    records=tuple(
+                        EvidenceRecord(
+                            key=item["key"],
+                            state=EvidenceState(item["state"]),
+                            source_ref=item.get("source_ref"),
+                        )
+                        for item in evidence_payload["records"]
+                    ),
+                )
+
+            authority_payload = extensions.get("authority")
+            if authority_payload is not None:
+                authority = AuthorityPlan(
+                    decision=AuthorityDecision(
+                        authority_payload["decision"]
+                    ),
+                    requested_action=authority_payload.get(
+                        "requested_action"
+                    ),
+                    reason=authority_payload.get("reason", ""),
+                )
+
+            contract_payload = extensions.get("response_contract")
+            if contract_payload is not None:
+                response_contract = ResponseContract(
+                    require_grounded_claims=bool(
+                        contract_payload["require_grounded_claims"]
+                    ),
+                    prohibited_claims=tuple(
+                        contract_payload["prohibited_claims"]
+                    ),
+                    requires_execution_receipt=bool(
+                        contract_payload["requires_execution_receipt"]
+                    ),
+                    authority_decision=AuthorityDecision(
+                        contract_payload["authority_decision"]
+                    ),
+                )
+
+            validation_payload = extensions.get("response_validation")
+            if validation_payload is not None:
+                response_validation = ResponseValidation(
+                    disposition=ResponseValidationDisposition(
+                        validation_payload["disposition"]
+                    ),
+                    reasons=tuple(validation_payload["reasons"]),
+                )
+
+            routing_payload = extensions.get("routing")
+            if routing_payload is not None:
+                routing = RoutingPlan(
+                    route=MatrixRoute(routing_payload["route"]),
+                    reason=routing_payload["reason"],
+                )
+
         created_at = datetime.fromisoformat(row["created_at"])
         envelope = TurnEnvelope(
             message_id=row["message_id"],
@@ -169,6 +346,11 @@ class MatrixTraceStore:
             ),
             created_at=created_at,
             context=context,
+            evidence=evidence,
+            authority=authority,
+            response_contract=response_contract,
+            response_validation=response_validation,
+            routing=routing,
             shadow=bool(row["shadow"]),
             context_active=bool(row["context_active"]),
         )
@@ -182,10 +364,10 @@ class MatrixTraceStore:
                 INSERT INTO cognition_matrix_trace (
                     message_id,session_id,principal_id,channel,
                     schema_version,intent,confidence,history_policy,
-                    response_strategy,domains_json,context_json,ambiguous,
-                    shadow,context_active,created_at
+                    response_strategy,domains_json,context_json,
+                    extensions_json,ambiguous,shadow,context_active,created_at
                 )
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(message_id) DO UPDATE SET
                     session_id=excluded.session_id,
                     principal_id=excluded.principal_id,
@@ -197,6 +379,7 @@ class MatrixTraceStore:
                     response_strategy=excluded.response_strategy,
                     domains_json=excluded.domains_json,
                     context_json=excluded.context_json,
+                    extensions_json=excluded.extensions_json,
                     ambiguous=excluded.ambiguous,
                     shadow=excluded.shadow,
                     context_active=excluded.context_active,
@@ -214,6 +397,7 @@ class MatrixTraceStore:
                     trace.turn.response_strategy.value,
                     self._domains_json(trace.turn),
                     self._context_json(trace.context),
+                    self._extensions_json(trace),
                     int(trace.turn.ambiguous),
                     int(trace.shadow),
                     int(trace.context_active),
