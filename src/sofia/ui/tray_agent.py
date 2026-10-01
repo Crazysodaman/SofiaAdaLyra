@@ -15,6 +15,10 @@ from uuid import uuid4
 from sofia.config import create_production_configuration
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import ModelLifecycleConfiguration
+from sofia.cognition.activity import (
+    CognitiveActivityState,
+    CognitiveModelActivityStore,
+)
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     ModelLifecycleManager,
@@ -94,6 +98,9 @@ class TrayAgentApplication:
             self.config.state_path
         )
         self._matrix_trace_store = MatrixTraceStore(
+            self.config.state_path
+        )
+        self._cognitive_activity_store = CognitiveModelActivityStore(
             self.config.state_path
         )
         self._service = DesktopServiceController(
@@ -209,6 +216,25 @@ class TrayAgentApplication:
         except Exception:
             matrix_trace = None
             execution_trace = None
+        activity_store = getattr(
+            self,
+            "_cognitive_activity_store",
+            None,
+        )
+        try:
+            primary_activity = (
+                None
+                if activity_store is None
+                else activity_store.get("primary")
+            )
+            secondary_activity = (
+                None
+                if activity_store is None
+                else activity_store.get("secondary")
+            )
+        except Exception:
+            primary_activity = None
+            secondary_activity = None
         runtime_state = self._service_state(
             settings.runtime_service_name
         )
@@ -231,19 +257,11 @@ class TrayAgentApplication:
             if execution_trace is None
             else execution_trace.cognition_execution
         )
-        primary_execution_host = None
-        secondary_execution_host = None
         last_model = None
         last_host = None
         last_route = None
         if execution is not None:
             last_route = execution.actual_route
-            for step in execution.successful_steps:
-                host = step.host or self.host_id
-                if step.role == "primary":
-                    primary_execution_host = host
-                elif step.role == "secondary":
-                    secondary_execution_host = host
             last_step = execution.last_successful_step
             if last_step is not None:
                 last_model = last_step.model
@@ -255,19 +273,59 @@ class TrayAgentApplication:
         secondary_residency = lifecycle_by_role.get(
             CognitiveModelRole.SECONDARY
         )
-        local_resident_states = {"ready", "busy"}
-        primary_host = primary_execution_host
         if (
-            primary_host is None
-            and primary_residency in local_resident_states
+            primary_activity is not None
+            and primary_activity.model == selection.primary.model
+            and primary_activity.state is CognitiveActivityState.BUSY
+        ):
+            primary_residency = "busy"
+        if (
+            secondary_activity is not None
+            and selection.secondary is not None
+            and secondary_activity.model == selection.secondary.model
+            and secondary_activity.state is CognitiveActivityState.BUSY
+        ):
+            secondary_residency = "busy"
+
+        fleet_enabled = bool(
+            getattr(
+                getattr(self.config, "fleet_cognition", None),
+                "enabled",
+                False,
+            )
+        )
+        local_resident_states = {"ready", "busy"}
+        primary_host = None
+        if (
+            primary_activity is not None
+            and primary_activity.state is CognitiveActivityState.BUSY
+            and primary_activity.host is not None
+        ):
+            primary_host = primary_activity.host
+        elif (
+            primary_residency in local_resident_states
             and llm_state == "running"
+            and (
+                primary_residency != "busy"
+                or not fleet_enabled
+            )
         ):
             primary_host = self.host_id
-        secondary_host = secondary_execution_host
+
+        secondary_host = None
         if (
-            secondary_host is None
-            and secondary_residency in local_resident_states
+            secondary_activity is not None
+            and secondary_activity.state is CognitiveActivityState.BUSY
+            and secondary_activity.host is not None
+        ):
+            secondary_host = secondary_activity.host
+        elif (
+            secondary_residency in local_resident_states
             and llm_state == "running"
+            and (
+                secondary_residency != "busy"
+                or not fleet_enabled
+            )
         ):
             secondary_host = self.host_id
 
