@@ -61,6 +61,7 @@ class ConversationLoop:
                     principal=local_sparks_principal(
                         "local:terminal"
                     ),
+                    channel="terminal",
                 )
 
                 self._output(
