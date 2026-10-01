@@ -586,4 +586,5 @@ def build_rephrase_request(
         messages=(*request.messages[:-1], instruction, request.messages[-1]),
         tools=(),
         allow_tools=False,
+        route_hint=request.route_hint,
     )
