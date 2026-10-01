@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -158,3 +159,36 @@ def test_shutdown_before_start_is_noop():
     controller.shutdown()
 
     assert app.shutdown_calls == 0
+
+
+def test_controller_reports_local_chat_database_and_session(tmp_path: Path):
+    app = FakeApplication()
+    app.chat_storage_mode = "local"
+    app.chat_state_path = tmp_path / "sofia.db"
+    app.local_state_path = tmp_path / "sofia.db"
+    controller = DesktopWorkbenchController(app)
+    controller.start()
+
+    status = controller.persistence_status()
+
+    assert "LOCAL chat DB:" in status
+    assert str(tmp_path / "sofia.db") in status
+    assert "session: session-1" in status
+
+
+def test_controller_reports_remote_chat_authority_without_claiming_local_chat_db(
+    tmp_path: Path,
+):
+    app = FakeApplication()
+    app.chat_storage_mode = "remote"
+    app.chat_state_path = None
+    app.local_state_path = tmp_path / "sofia.db"
+    controller = DesktopWorkbenchController(app)
+    controller.start()
+
+    status = controller.persistence_status()
+
+    assert "REMOTE authoritative chat" in status
+    assert "session: session-1" in status
+    assert "local UI state:" in status
+    assert "LOCAL chat DB:" not in status
