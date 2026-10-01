@@ -41,6 +41,20 @@ class RemoteDesktopApplication:
         self._started = False
 
     @property
+    def chat_storage_mode(self) -> str:
+        return "remote"
+
+    @property
+    def chat_state_path(self):
+        """Remote runtime owns authoritative conversation persistence."""
+        return None
+
+    @property
+    def local_state_path(self) -> Path:
+        """Local DB contains UI/control state and drafts, not remote chat history."""
+        return Path(self._configuration.state_path)
+
+    @property
     def text_ui(self) -> UITextClient:
         return self._text_ui
 
