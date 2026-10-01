@@ -22,9 +22,19 @@ from sofia.interaction.chat import (
 AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
 
 
-def _service(monkeypatch, content, *, personality=True, avatar=True):
+def _service(
+    monkeypatch,
+    content,
+    *,
+    personality=True,
+    avatar=True,
+    route_hint=None,
+):
     original_user = CognitiveMessage(role=CognitiveRole.USER, content=content)
-    original = CognitiveRequest(messages=(original_user,))
+    original = CognitiveRequest(
+        messages=(original_user,),
+        route_hint=route_hint,
+    )
     monkeypatch.setattr(EmotionalConversationService, "_build_request", lambda self: original)
     user = SimpleNamespace(id="message-1", session_id="session-1",
                            role=ConversationRole.USER, content=content,
@@ -281,3 +291,15 @@ def test_how_did_u_feel_followup_is_grounded_from_prior_presentation():
     assert "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP" in prompt
     assert "Prior assistant-generated wording is not authoritative" in prompt
     assert "must not be reused as proof" in prompt
+
+
+def test_interaction_projection_preserves_matrix_route_hint(monkeypatch):
+    service, _ = _service(
+        monkeypatch,
+        "*pats your head*",
+        route_hint="standard",
+    )
+
+    result = service._build_request()
+
+    assert result.route_hint == "standard"
