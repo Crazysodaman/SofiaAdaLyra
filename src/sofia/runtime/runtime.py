@@ -848,6 +848,19 @@ class SofiaRuntime:
                     operational_refs[0],
                 )
 
+        if response is not None and "action.execution_receipt" in wanted:
+            execution_refs = tuple(
+                ref
+                for ref in response.evidence_refs
+                if ref.startswith("execution-receipt:")
+            )
+            if execution_refs:
+                availability["action.execution_receipt"] = EvidenceRecord(
+                    "action.execution_receipt",
+                    EvidenceState.AVAILABLE,
+                    execution_refs[0],
+                )
+
         return availability
 
     def respond(
