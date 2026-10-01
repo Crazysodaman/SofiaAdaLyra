@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from time import perf_counter
 
+from sofia.cognition.activity import CognitiveModelActivityStore
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -288,6 +289,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
         *,
         policy: CognitiveRoutingPolicy | None = None,
         verify_enabled: bool = True,
+        activity_store: CognitiveModelActivityStore | None = None,
     ) -> None:
         if not isinstance(registry, CognitiveEngineRegistry):
             raise TypeError("registry must be a CognitiveEngineRegistry")
@@ -298,10 +300,18 @@ class RoutingCognitiveEngine(CognitiveEngine):
             raise TypeError("policy must be a CognitiveRoutingPolicy or None")
         if type(verify_enabled) is not bool:
             raise TypeError("verify_enabled must be a bool")
+        if (
+            activity_store is not None
+            and not isinstance(activity_store, CognitiveModelActivityStore)
+        ):
+            raise TypeError(
+                "activity_store must be CognitiveModelActivityStore or None"
+            )
 
         self.registry = registry
         self.policy = policy or CognitiveRoutingPolicy()
         self.verify_enabled = verify_enabled
+        self.activity_store = activity_store
         self.last_decision: RoutingDecision | None = None
         self.last_execution: RoutingExecution | None = None
         self._execution_serial = 0
@@ -415,23 +425,44 @@ class RoutingCognitiveEngine(CognitiveEngine):
     ) -> CognitiveResponse:
         engine = self.registry.get(role)
         model = self._engine_model(engine)
+        if self.activity_store is not None and model is not None:
+            self.activity_store.mark_busy(
+                role=role,
+                model=model,
+            )
         try:
             response = engine.respond(request)
         except CognitiveEngineError:
+            host = self._engine_host(engine)
+            if self.activity_store is not None and model is not None:
+                self.activity_store.mark_finished(
+                    role=role,
+                    model=model,
+                    host=host,
+                    succeeded=False,
+                )
             steps.append(
                 RoutingExecutionStep(
                     role=role,
                     model=model,
-                    host=self._engine_host(engine),
+                    host=host,
                     succeeded=False,
                 )
             )
             raise
+        host = self._engine_host(engine)
+        if self.activity_store is not None and model is not None:
+            self.activity_store.mark_finished(
+                role=role,
+                model=model,
+                host=host,
+                succeeded=True,
+            )
         steps.append(
             RoutingExecutionStep(
                 role=role,
                 model=model,
-                host=self._engine_host(engine),
+                host=host,
                 succeeded=True,
             )
         )
