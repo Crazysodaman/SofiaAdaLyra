@@ -124,8 +124,6 @@ def run_settings_window() -> int:
 
     start_windows = tk.BooleanVar(value=current.start_with_windows)
     game_mode = tk.StringVar(value=current.game_mode.value)
-    remote_mode = tk.StringVar(value=current.remote_chat_mode.value)
-    pinned_endpoint = tk.StringVar(value=current.pinned_chat_endpoint or "")
     runtime_service = tk.StringVar(value=current.runtime_service_name)
     llm_service = tk.StringVar(value=current.llm_service_name)
 
@@ -262,24 +260,19 @@ def run_settings_window() -> int:
     ).pack(anchor="w", pady=4)
 
     chat = frames["Chat"]
-    ttk.Label(chat, text="Desktop chat routing").pack(anchor="w")
-    ttk.Combobox(
+    ttk.Label(chat, text="Canonical conversation database").pack(anchor="w")
+    ttk.Label(
         chat,
-        textvariable=remote_mode,
-        values=tuple(value.value for value in RemoteChatMode),
-        state="readonly",
-    ).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(chat, text="Pinned runtime endpoint").pack(anchor="w")
-    ttk.Entry(
-        chat,
-        textvariable=pinned_endpoint,
-    ).pack(anchor="w", fill="x", pady=(2, 8))
+        text=str(config.state_path),
+        wraplength=720,
+    ).pack(anchor="w", pady=(2, 8))
     ttk.Label(
         chat,
         text=(
-            "Fleet-auto follows the authoritative ready Sofía runtime. "
-            "Pinned mode uses the configured mTLS endpoint. Local keeps "
-            "the desktop on this machine."
+            "Desktop chat uses this one canonical Sofía state database. "
+            "Fleet may place LLM work on another host, but chat/state authority "
+            "does not move independently until state mobility and fencing are "
+            "implemented."
         ),
         wraplength=720,
     ).pack(anchor="w")
@@ -668,10 +661,8 @@ def run_settings_window() -> int:
                 close_to_tray=current.close_to_tray,
                 start_with_windows=bool(start_windows.get()),
                 game_mode=selected_game_mode,
-                remote_chat_mode=RemoteChatMode(remote_mode.get()),
-                pinned_chat_endpoint=(
-                    pinned_endpoint.get().strip() or None
-                ),
+                remote_chat_mode=RemoteChatMode.LOCAL,
+                pinned_chat_endpoint=None,
                 runtime_service_name=runtime_service.get().strip(),
                 llm_service_name=llm_service.get().strip(),
             )
