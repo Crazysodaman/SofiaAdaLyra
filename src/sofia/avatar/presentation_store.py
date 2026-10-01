@@ -1,11 +1,10 @@
-"""Durable JSON persistence for headless AVATAR presentation state."""
+"""Durable SQLite persistence for headless AVATAR presentation state."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Any
-
-from sofia.state.atomic_file import atomic_write_text
+import sqlite3
 
 from .presentation import PresentationAuthority, PresentationError
 from .wardrobe import Wardrobe
@@ -16,28 +15,70 @@ class PresentationStoreError(RuntimeError):
 
 
 class PresentationStore:
-    """Atomically persist one settled PresentationAuthority snapshot."""
+    """Persist one settled PresentationAuthority in canonical sofia.db."""
+
+    _KEY = "canonical"
+    _SCHEMA = """
+        CREATE TABLE IF NOT EXISTS avatar_presentation_state (
+            state_key TEXT PRIMARY KEY,
+            snapshot_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with sqlite3.connect(self.path, timeout=10.0) as db:
+                db.execute("PRAGMA busy_timeout = 10000")
+                db.execute(self._SCHEMA)
+                db.commit()
+        except sqlite3.Error as exc:
+            raise PresentationStoreError(
+                "failed to initialize presentation state"
+            ) from exc
+
+    @property
+    def database_path(self) -> Path:
+        return self.path
 
     def save(self, authority: PresentationAuthority) -> None:
         if not isinstance(authority, PresentationAuthority):
             raise TypeError("PresentationStore requires PresentationAuthority")
         payload = authority.snapshot()
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
         try:
-            atomic_write_text(
-                self.path,
-                json.dumps(
-                    payload,
-                    sort_keys=True,
-                    indent=2,
-                    ensure_ascii=False,
+            with sqlite3.connect(self.path, timeout=10.0) as db:
+                db.execute("PRAGMA busy_timeout = 10000")
+                db.execute(
+                    """
+                    INSERT INTO avatar_presentation_state (
+                        state_key,
+                        snapshot_json,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(state_key) DO UPDATE SET
+                        snapshot_json=excluded.snapshot_json,
+                        updated_at=excluded.updated_at
+                    """,
+                    (
+                        self._KEY,
+                        encoded,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
                 )
-                + "\n",
-            )
-        except OSError as exc:
-            raise PresentationStoreError("failed to save presentation state") from exc
+                db.commit()
+        except sqlite3.Error as exc:
+            raise PresentationStoreError(
+                "failed to save presentation state"
+            ) from exc
 
     def load(
         self,
@@ -46,13 +87,33 @@ class PresentationStore:
         outfits: dict[str, tuple[str, ...]],
     ) -> PresentationAuthority:
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8-sig"))
-        except FileNotFoundError as exc:
-            raise PresentationStoreError("presentation state does not exist") from exc
-        except (OSError, json.JSONDecodeError) as exc:
-            raise PresentationStoreError("failed to load presentation state") from exc
+            with sqlite3.connect(self.path, timeout=10.0) as db:
+                row = db.execute(
+                    """
+                    SELECT snapshot_json
+                    FROM avatar_presentation_state
+                    WHERE state_key=?
+                    """,
+                    (self._KEY,),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise PresentationStoreError(
+                "failed to load presentation state"
+            ) from exc
+        if row is None:
+            raise PresentationStoreError(
+                "presentation state does not exist"
+            )
+        try:
+            raw = json.loads(row[0])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise PresentationStoreError(
+                "failed to decode presentation state"
+            ) from exc
         if not isinstance(raw, dict):
-            raise PresentationStoreError("presentation state must be a JSON object")
+            raise PresentationStoreError(
+                "presentation state must be a JSON object"
+            )
         try:
             return PresentationAuthority.restore(
                 wardrobe,
@@ -60,7 +121,26 @@ class PresentationStore:
                 snapshot=raw,
             )
         except (PresentationError, TypeError, ValueError) as exc:
-            raise PresentationStoreError("presentation state is invalid") from exc
+            raise PresentationStoreError(
+                "presentation state is invalid"
+            ) from exc
+
+    def snapshot_json(self) -> str | None:
+        try:
+            with sqlite3.connect(self.path, timeout=10.0) as db:
+                row = db.execute(
+                    """
+                    SELECT snapshot_json
+                    FROM avatar_presentation_state
+                    WHERE state_key=?
+                    """,
+                    (self._KEY,),
+                ).fetchone()
+        except sqlite3.Error as exc:
+            raise PresentationStoreError(
+                "failed to inspect presentation state"
+            ) from exc
+        return None if row is None else str(row[0])
 
     def exists(self) -> bool:
-        return self.path.is_file()
+        return self.snapshot_json() is not None
