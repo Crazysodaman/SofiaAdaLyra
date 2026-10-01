@@ -144,6 +144,7 @@ class CognitiveRequest:
     messages: tuple[CognitiveMessage, ...]
     tools: tuple[CognitiveToolDefinition, ...] = ()
     allow_tools: bool = True
+    route_hint: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.messages, tuple):
@@ -174,6 +175,25 @@ class CognitiveRequest:
             raise TypeError(
                 "CognitiveRequest allow_tools must be a bool."
             )
+
+        if self.route_hint is not None:
+            if not isinstance(self.route_hint, str):
+                raise TypeError(
+                    "CognitiveRequest route_hint must be a string or None."
+                )
+            normalized = self.route_hint.strip().casefold()
+            if normalized not in {
+                "fast",
+                "standard",
+                "deep",
+                "open",
+                "verify",
+            }:
+                raise ValueError(
+                    "CognitiveRequest route_hint must be one of "
+                    "fast, standard, deep, open, verify, or None."
+                )
+            object.__setattr__(self, "route_hint", normalized)
 
 
 @dataclass(frozen=True)
