@@ -273,8 +273,8 @@ class ConversationService:
         """
 
         self._conversation_store.open()
-        # Matrix tracing is shadow-only at this stage. It records turn
-        # interpretation but cannot alter context, authority, tools, or output.
+        # Matrix traces begin as provisional planning evidence and are replaced
+        # with the active validation result before normal response persistence.
         self._matrix_trace_store = MatrixTraceStore(
             self._runtime.configuration.state_path
         )
@@ -496,7 +496,7 @@ class ConversationService:
         principal: PrincipalContext | None,
         channel: str,
     ) -> None:
-        """Record B decisions and activate C's transcript-only context plan."""
+        """Plan the turn matrix and persist a provisional pre-response trace."""
         self._current_matrix_message_id = None
         self._current_matrix_envelope = None
         self._current_turn_matrix = None
@@ -821,7 +821,7 @@ class ConversationService:
         return fallback
 
     def latest_matrix_trace(self) -> MatrixTrace | None:
-        """Return the most recent shadow decision for the active session."""
+        """Return the most recent matrix decision for the active session."""
         if self._matrix_trace_store is None:
             return None
         session_id = None if self._session is None else self._session.id
