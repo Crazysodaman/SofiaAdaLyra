@@ -9,10 +9,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from hashlib import sha256
+import json
 import re
 
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from .wardrobe_piece_catalog import PieceSpec, generated_piece_specs
+from .wardrobe_bikini_catalog import (
+    generated_bikini_outfits,
+    generated_bikini_piece_specs,
+)
 from .wardrobe_outfit_catalog import generated_seasonal_outfits
 from .wardrobe_routine import Activity, OutfitPlan, Season, Weather
 
@@ -40,6 +46,7 @@ class GarmentBlueprint:
     category: str = "legacy"
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
+    description: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.garment, Garment) or self.garment.asset_ref is not None:
@@ -75,6 +82,49 @@ class GarmentBlueprint:
             raise WardrobeError("private_only must be boolean")
         if self.private_only != self.garment.private_only:
             raise WardrobeError("blueprint privacy must match garment privacy")
+        if not self.description:
+            object.__setattr__(
+                self,
+                "description",
+                (
+                    f"{self.garment.name} in {self.primary_hex}; "
+                    f"{self.material}. {self.construction[0]}"
+                ),
+            )
+        if (
+            not isinstance(self.description, str)
+            or not self.description.strip()
+            or len(self.description) > 1200
+        ):
+            raise WardrobeError("garment description must be bounded nonempty text")
+
+    @property
+    def design_signature(self) -> str:
+        """Stable visual-design fingerprint that intentionally excludes item_id."""
+        payload = {
+            "name": self.garment.name,
+            "description": self.description,
+            "layer": self.garment.layer.name,
+            "slots": self.garment.slots,
+            "coverage": self.garment.coverage,
+            "tail_clearance": self.garment.tail_clearance,
+            "ear_clearance": self.garment.ear_clearance,
+            "primary_hex": self.primary_hex,
+            "accent_hexes": self.accent_hexes,
+            "material": self.material,
+            "construction": self.construction,
+            "fit_anchors": self.fit_anchors,
+            "category": self.category,
+            "style_tags": self.style_tags,
+            "private_only": self.private_only,
+        }
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        return sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +160,11 @@ class WardrobePrebuild:
             raise WardrobeError("invalid garment blueprints")
         if len({bp.garment.item_id for bp in self.blueprints}) != len(self.blueprints):
             raise WardrobeError("duplicate garment blueprint")
+        signatures = [bp.design_signature for bp in self.blueprints]
+        if len(set(signatures)) != len(signatures):
+            raise WardrobeError(
+                "duplicate garment visual design signature"
+            )
         if not isinstance(self.presets, tuple) or not self.presets or any(
             not isinstance(plan, OutfitPlan) for plan in self.presets
         ):
@@ -186,11 +241,24 @@ class WardrobePrebuild:
                 "normal": normal,
                 "adult_private": private,
             }
+        signatures = [bp.design_signature for bp in self.blueprints]
+        unique_signatures = set(signatures)
         return {
             "generated_piece_count": sum(
                 values["normal"] + values["adult_private"]
                 for values in rows.values()
             ),
+            "total_piece_count": len(self.blueprints),
+            "outfit_count": len(self.presets),
+            "bikini_outfit_count": sum(
+                1 for plan in self.presets
+                if plan.outfit_id.startswith("swim.bikini.")
+            ),
+            "unique_design_signature_count": len(unique_signatures),
+            "duplicate_design_signature_count": (
+                len(signatures) - len(unique_signatures)
+            ),
+            "all_designs_unique": len(signatures) == len(unique_signatures),
             "categories": rows,
             "adult_private_requires_authorization": True,
             "assets_verified": False,
@@ -205,6 +273,8 @@ class WardrobePrebuild:
                 {
                     "item_id": bp.garment.item_id,
                     "name": bp.garment.name,
+                    "description": bp.description,
+                    "design_signature": bp.design_signature,
                     "layer": bp.garment.layer.name.lower(),
                     "slots": list(bp.garment.slots),
                     "coverage": list(bp.garment.coverage),
@@ -251,6 +321,7 @@ def _bp(
     accents: tuple[str, ...] = (), tail: bool = False, ears: bool = False,
     canonical: bool = False, category: str = "legacy",
     style_tags: tuple[str, ...] = (), private_only: bool = False,
+    description: str | None = None,
 ) -> GarmentBlueprint:
     return GarmentBlueprint(
         Garment(
@@ -267,6 +338,11 @@ def _bp(
         category=category,
         style_tags=style_tags,
         private_only=private_only,
+        description=(
+            description
+            if description is not None
+            else f"{name} in {color}; {material}. {construction[0]}"
+        ),
     )
 
 
@@ -287,6 +363,7 @@ def _generated_blueprint(spec: PieceSpec) -> GarmentBlueprint:
         category=spec.category,
         style_tags=spec.style_tags,
         private_only=spec.private_only,
+        description=spec.description,
     )
 
 
@@ -396,7 +473,10 @@ def build_starter_wardrobe() -> WardrobePrebuild:
     )
     blueprints = base_blueprints + tuple(
         _generated_blueprint(spec)
-        for spec in generated_piece_specs()
+        for spec in (
+            *generated_piece_specs(),
+            *generated_bikini_piece_specs(),
+        )
     )
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
     under = ("underlayer.top", "underlayer.bottom")
@@ -425,7 +505,11 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         ), frozenset(Activity), ALL_SEASONS,
             style_tags=("covered", "fallback", "asset_not_yet_verified")),
     )
-    presets = base_presets + generated_seasonal_outfits()
+    presets = (
+        base_presets
+        + generated_seasonal_outfits()
+        + generated_bikini_outfits()
+    )
     inputs = (
         StyleInput("engineer.signature", RequestStatus.USER_REQUESTED,
                    "chat.2026-09-22.request.engineer", "Signature engineer wardrobe requested; not a confirmed like."),
