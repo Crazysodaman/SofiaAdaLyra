@@ -34,7 +34,7 @@ TEST_CAPABILITY = Capability(
 )
 
 
-def create_dispatcher():
+def create_dispatcher(*, produces_execution_receipt: bool = False):
     capability_system = CapabilitySystem(
         authorization_checker=lambda request: True,
     )
@@ -68,6 +68,7 @@ def create_dispatcher():
                     },
                 ),
                 capability_name="test.inspect",
+                produces_execution_receipt=produces_execution_receipt,
             ),
         ),
     )
@@ -308,6 +309,56 @@ def test_cognitive_system_executes_authorized_tool_and_continues():
     assert response.content == "Tool evidence received."
     assert response.evidence_refs == ("capability:test.inspect",)
     assert len(engine.requests) == 2
+
+
+def test_cognitive_system_emits_execution_receipt_only_for_marked_tool():
+    dispatcher = create_dispatcher(produces_execution_receipt=True)
+
+    class ToolCallingEngine(CognitiveEngine):
+        def __init__(self):
+            self.requests = []
+
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                return CognitiveResponse(
+                    content="",
+                    tool_calls=(
+                        CognitiveToolCall(
+                            name="inspect_test",
+                            arguments={"value": "changed"},
+                            call_id="execute-1",
+                        ),
+                    ),
+                )
+            return CognitiveResponse(content="Execution completed.")
+
+    system = CognitiveSystem(
+        engine=ToolCallingEngine(),
+        tool_dispatcher=dispatcher,
+    )
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Execute the approved test action.",
+                        ),
+                    ),
+                ),
+            ),
+            authority=Authority(
+                allowed_capabilities=("test.inspect",),
+            ),
+        )
+    )
+
+    assert response.evidence_refs == (
+        "capability:test.inspect",
+        "execution-receipt:test.inspect",
+    )
 
 
 def test_cognitive_system_does_not_expose_unauthorized_tool():
