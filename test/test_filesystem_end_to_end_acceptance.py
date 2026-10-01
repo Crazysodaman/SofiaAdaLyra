@@ -3,7 +3,7 @@
 import pytest
 
 from sofia.application import SofiaApplication
-from sofia.cognition.model import CognitiveRole
+from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -125,13 +125,7 @@ def test_filesystem_request_is_unauthorized_before_explicit_authorization(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Filesystem request processed."
-            },
-        )()
+        return CognitiveResponse(content="Filesystem request processed.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -182,13 +176,7 @@ def test_explicit_own_files_authorization_does_not_execute_inspection(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Authorization recorded."
-            },
-        )()
+        return CognitiveResponse(content="Authorization recorded.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -230,13 +218,7 @@ def test_authorization_enables_actual_own_files_inspection(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Inspection completed."
-            },
-        )()
+        return CognitiveResponse(content="Inspection completed.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -291,13 +273,7 @@ def test_authorized_file_read_returns_real_repository_content(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "File inspection completed."
-            },
-        )()
+        return CognitiveResponse(content="File inspection completed.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -347,13 +323,7 @@ def test_authorization_does_not_expand_filesystem_scope(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Scope checked."
-            },
-        )()
+        return CognitiveResponse(content="Scope checked.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -402,13 +372,7 @@ def test_filesystem_evidence_reaches_cognitive_request(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Evidence received."
-            },
-        )()
+        return CognitiveResponse(content="Evidence received.")
 
     monkeypatch.setattr(
         application.runtime,
@@ -494,13 +458,7 @@ def test_restart_requires_authorization_again(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Restart authorization checked."
-            },
-        )()
+        return CognitiveResponse(content="Restart authorization checked.")
 
     monkeypatch.setattr(
         resumed.runtime,

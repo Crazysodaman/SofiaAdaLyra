@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import sqlite3
 
 from sofia.application import SofiaApplication
 from sofia.avatar.presentation import (
@@ -81,7 +82,13 @@ def test_application_bootstraps_headless_avatar_and_persists_it(
     authority = app.runtime.avatar_presentation
     assert isinstance(authority, PresentationAuthority)
     assert authority.current.outfit_id == "engineer.signature"
-    assert (tmp_path / "avatar-presentation.json").is_file()
+    assert not (tmp_path / "avatar-presentation.json").exists()
+    with sqlite3.connect(config.state_path) as database:
+        row = database.execute(
+            "SELECT snapshot_json FROM avatar_presentation_state "
+            "WHERE state_key='canonical'"
+        ).fetchone()
+    assert row is not None
 
     authority.propose_outfit(
         operation_id="op.lounge",
