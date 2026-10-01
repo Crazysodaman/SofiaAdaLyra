@@ -18,6 +18,7 @@ from sofia.distributed.operations import (
 )
 from sofia.distributed.remote_control import DurableRemoteControl
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 
 
 class ConfiguredRemoteInferenceClient:
@@ -33,7 +34,7 @@ class ConfiguredRemoteInferenceClient:
         max_inventory_age: timedelta = timedelta(minutes=5),
     ) -> None:
         self.state_path = Path(state_path)
-        self.base = self.state_path.parent
+        migrate_legacy_fleet_sidecars(self.state_path)
         self.ca_file = Path(ca_file)
         self.client_certificate = Path(client_certificate)
         self.client_private_key = Path(client_private_key)
@@ -59,7 +60,7 @@ class ConfiguredRemoteInferenceClient:
                 "operator stop blocks remote model management"
             )
         endpoint_lookup = DurableEndpointPolicy(
-            self.base / "remote-endpoints.db"
+            self.state_path
         )
         timeout_seconds = 10.0
         if capability == "llm.manage":
@@ -77,10 +78,10 @@ class ConfiguredRemoteInferenceClient:
         )
         control = DurableRemoteControl(
             transport=transport,
-            identity_path=self.base / "remote-identities.db",
-            endpoint_path=self.base / "remote-endpoints.db",
-            authorization_path=self.base / "remote-grants.db",
-            ledger_path=self.base / "remote-ledger.db",
+            identity_path=self.state_path,
+            endpoint_path=self.state_path,
+            authorization_path=self.state_path,
+            ledger_path=self.state_path,
             max_inventory_age=self.max_inventory_age,
         )
         try:
@@ -214,7 +215,7 @@ class ConfiguredRemoteInferenceClient:
         request: CognitiveRequest,
     ) -> CognitiveResponse:
         endpoint_lookup = DurableEndpointPolicy(
-            self.base / "remote-endpoints.db"
+            self.state_path
         )
         transport = PinnedHttpsRemoteTransport(
             endpoint_lookup.get,
@@ -224,10 +225,10 @@ class ConfiguredRemoteInferenceClient:
         )
         control = DurableRemoteInferenceControl(
             transport=transport,
-            identity_path=self.base / "remote-identities.db",
-            endpoint_path=self.base / "remote-endpoints.db",
-            authorization_path=self.base / "remote-grants.db",
-            ledger_path=self.base / "remote-inference-ledger.db",
+            identity_path=self.state_path,
+            endpoint_path=self.state_path,
+            authorization_path=self.state_path,
+            ledger_path=self.state_path,
             max_inventory_age=self.max_inventory_age,
         )
         try:
