@@ -108,7 +108,6 @@ def test_tray_unloads_every_current_configured_model_role():
             runtime_service_name="SofiaAdaLyra",
         )
     )
-    app._runtime_authority = SimpleNamespace(current=lambda: None)
     app._current_model_selection = lambda: CognitiveModelSelection(
         routing_enabled=True,
         primary=ProviderConfiguration(
