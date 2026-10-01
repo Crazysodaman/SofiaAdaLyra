@@ -344,6 +344,7 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
                 },
             ),
             capability_name=capability,
+            produces_execution_receipt=(capability != "dev.status"),
         )
 
     approval = {"approval_id": {"type": "string"}}
