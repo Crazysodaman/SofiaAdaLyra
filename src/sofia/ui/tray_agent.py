@@ -76,6 +76,9 @@ class TrayAgentApplication:
         _ensure_state(self.config.state_path)
         verify_production_component_schemas(self.config.state_path)
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
+        self.settings_store.enforce_canonical_local_chat(
+            at=datetime.now(timezone.utc),
+        )
         self.activity_store = HostActivityStore(self.config.state_path)
         self.ops = OpsToolService(self.config.state_path)
         self.host_id = _local_host_id()
