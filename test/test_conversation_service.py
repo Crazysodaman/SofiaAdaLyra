@@ -15,6 +15,15 @@ from sofia.config.model import (
 from sofia.conversation.model import (
     ConversationRole,
 )
+from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.matrix import (
+    AuthorityDecision,
+    EvidenceState,
+    MatrixDomain,
+    MatrixRelevance,
+    MatrixRoute,
+    ResponseValidationDisposition,
+)
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -723,6 +732,31 @@ def test_matrix_network_no_evidence_is_recorded_without_fake_health(
         assert trace.response_validation is not None
         assert trace.response_validation.disposition is (
             ResponseValidationDisposition.PASS
+        )
+    finally:
+        application.shutdown()
+
+
+def test_runtime_promotes_host_execution_receipt_evidence(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        evidence = application.runtime.matrix_evidence_availability(
+            required_keys=("action.execution_receipt",),
+            response=CognitiveResponse(
+                content="Completed.",
+                evidence_refs=(
+                    "execution-receipt:local.service.restart",
+                ),
+            ),
+        )
+
+        record = evidence["action.execution_receipt"]
+        assert record.state is EvidenceState.AVAILABLE
+        assert record.source_ref == (
+            "execution-receipt:local.service.restart"
         )
     finally:
         application.shutdown()
