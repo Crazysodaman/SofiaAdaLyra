@@ -289,7 +289,11 @@ class TrayAgentApplication:
 
         fleet_enabled = bool(
             getattr(
-                getattr(self.config, "fleet_cognition", None),
+                getattr(
+                    getattr(self, "config", None),
+                    "fleet_cognition",
+                    None,
+                ),
                 "enabled",
                 False,
             )
