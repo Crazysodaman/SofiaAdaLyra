@@ -7,6 +7,7 @@ preservation explicit around sends and shutdown.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Protocol
 
 from sofia.cognition.model import CognitiveResponse
@@ -61,6 +62,39 @@ class DesktopWorkbenchController:
         self._application.start(session_id=session_id)
         self._started = True
         return self.history()
+
+    def persistence_status(self) -> str:
+        """Describe where this desktop session's authoritative chat is stored."""
+        if not self._started:
+            raise RuntimeError("desktop workbench is not started")
+
+        mode = getattr(self._application, "chat_storage_mode", "unknown")
+        session = self.session_id
+        if mode == "local":
+            path = getattr(self._application, "chat_state_path", None)
+            if path is None:
+                raise RuntimeError(
+                    "local desktop application did not expose chat_state_path"
+                )
+            return f"LOCAL chat DB: {Path(path)} | session: {session}"
+
+        if mode == "remote":
+            local_state = getattr(
+                self._application,
+                "local_state_path",
+                None,
+            )
+            suffix = (
+                f" | local UI state: {Path(local_state)}"
+                if local_state is not None
+                else ""
+            )
+            return (
+                f"REMOTE authoritative chat | session: {session}"
+                + suffix
+            )
+
+        return f"Chat storage mode: {mode} | session: {session}"
 
     def history(self) -> tuple[UITextMessage, ...]:
         if not self._started:
