@@ -12,7 +12,7 @@ from .discovery import create_machine_discovery
 from .hardware import HardwareDiscovery,create_hardware_discovery
 from .inventory import MachineInventory
 from .location_state import StatePlaneMachineLocationRegistry
-from .persistence import MachineInventoryPersistence
+from .persistence import SQLiteMachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
 from sofia.state.plane import StatePlane
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -40,7 +40,10 @@ class MachineToolService:
         *,
         state_plane:StatePlane|None=None,
     )->None:
-        self.persistence=MachineInventoryPersistence(state_path.parent/"machine-inventory.json")
+        self.persistence=SQLiteMachineInventoryPersistence(
+            state_path,
+            legacy_path=state_path.parent/"machine-inventory.json",
+        )
         plane=state_plane or SQLiteStatePlane(state_path)
         self.location_registry=StatePlaneMachineLocationRegistry(
             plane,
