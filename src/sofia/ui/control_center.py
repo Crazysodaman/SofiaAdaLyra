@@ -71,6 +71,14 @@ class TrayStatus:
     llm_secondary_residency: str | None = None
     cognitive_auto_manage: bool = False
     cognitive_idle_unload_seconds: int | None = None
+    llm_primary_host: str | None = None
+    llm_secondary_host: str | None = None
+    cognitive_last_route: str | None = None
+    cognitive_last_model: str | None = None
+    cognitive_last_host: str | None = None
+    matrix_last_intent: str | None = None
+    matrix_last_domains: tuple[str, ...] = ()
+    matrix_last_validation: str | None = None
 
     @property
     def configured_llm_models(self) -> tuple[str, ...]:
