@@ -10,6 +10,8 @@ import sqlite3
 from .model import (
     AuthorityDecision,
     AuthorityPlan,
+    CognitionExecutionStep,
+    CognitionExecutionTrace,
     ContextPlan,
     DomainContribution,
     EvidenceKind,
@@ -142,6 +144,7 @@ class MatrixTraceStore:
             and trace.response_contract is None
             and trace.response_validation is None
             and trace.routing is None
+            and trace.cognition_execution is None
         ):
             return None
 
@@ -205,6 +208,26 @@ class MatrixTraceStore:
                 "reason": trace.routing.reason,
             }
 
+        cognition_execution = None
+        if trace.cognition_execution is not None:
+            cognition_execution = {
+                "serial": trace.cognition_execution.serial,
+                "actual_route": trace.cognition_execution.actual_route,
+                "steps": [
+                    {
+                        "role": step.role,
+                        "model": step.model,
+                        "host": step.host,
+                        "succeeded": step.succeeded,
+                    }
+                    for step in trace.cognition_execution.steps
+                ],
+                "fallback_count": trace.cognition_execution.fallback_count,
+                "verification_passes": (
+                    trace.cognition_execution.verification_passes
+                ),
+            }
+
         return json.dumps(
             {
                 "evidence": evidence,
@@ -212,6 +235,7 @@ class MatrixTraceStore:
                 "response_contract": contract,
                 "response_validation": validation,
                 "routing": routing,
+                "cognition_execution": cognition_execution,
             },
             separators=(",", ":"),
             sort_keys=True,
@@ -251,6 +275,7 @@ class MatrixTraceStore:
         response_contract = None
         response_validation = None
         routing = None
+        cognition_execution = None
 
         extensions_raw = row["extensions_json"]
         if extensions_raw:
@@ -322,6 +347,28 @@ class MatrixTraceStore:
                     reason=routing_payload["reason"],
                 )
 
+            execution_payload = extensions.get("cognition_execution")
+            if execution_payload is not None:
+                cognition_execution = CognitionExecutionTrace(
+                    serial=int(execution_payload["serial"]),
+                    actual_route=execution_payload["actual_route"],
+                    steps=tuple(
+                        CognitionExecutionStep(
+                            role=item["role"],
+                            model=item.get("model"),
+                            host=item.get("host"),
+                            succeeded=bool(item["succeeded"]),
+                        )
+                        for item in execution_payload.get("steps", ())
+                    ),
+                    fallback_count=int(
+                        execution_payload.get("fallback_count", 0)
+                    ),
+                    verification_passes=int(
+                        execution_payload.get("verification_passes", 0)
+                    ),
+                )
+
         created_at = datetime.fromisoformat(row["created_at"])
         envelope = TurnEnvelope(
             message_id=row["message_id"],
@@ -351,6 +398,7 @@ class MatrixTraceStore:
             response_contract=response_contract,
             response_validation=response_validation,
             routing=routing,
+            cognition_execution=cognition_execution,
             shadow=bool(row["shadow"]),
             context_active=bool(row["context_active"]),
         )
@@ -439,6 +487,42 @@ class MatrixTraceStore:
                     (session_id,),
                 ).fetchone()
         return None if row is None else self._trace(row)
+
+    def latest_with_execution(
+        self,
+        *,
+        session_id: str | None = None,
+        limit: int = 100,
+    ) -> MatrixTrace | None:
+        """Return the newest trace that records an actual cognitive execution."""
+        if type(limit) is not int or limit < 1:
+            raise ValueError("limit must be a positive int")
+        with closing(self._connect()) as db:
+            if session_id is None:
+                rows = db.execute(
+                    """
+                    SELECT * FROM cognition_matrix_trace
+                    WHERE extensions_json IS NOT NULL
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            else:
+                if not isinstance(session_id, str) or not session_id.strip():
+                    raise ValueError("session_id must be nonempty")
+                rows = db.execute(
+                    """
+                    SELECT * FROM cognition_matrix_trace
+                    WHERE session_id=? AND extensions_json IS NOT NULL
+                    ORDER BY created_at DESC LIMIT ?
+                    """,
+                    (session_id, limit),
+                ).fetchall()
+        for row in rows:
+            trace = self._trace(row)
+            if trace.cognition_execution is not None:
+                return trace
+        return None
 
     def count(self) -> int:
         with closing(self._connect()) as db:
