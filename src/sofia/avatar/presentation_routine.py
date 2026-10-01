@@ -48,6 +48,78 @@ class HeadlessPresentationRoutine:
         self.store = store
         self.planner = planner
 
+    def evaluate_daypart_fallback(
+        self,
+        *,
+        now,
+        operation_id: str,
+    ) -> PresentationRoutineResult:
+        """Apply only all-season canonical daypart choices when season is unknown.
+
+        Missing location/season evidence must not block a clock-grounded lounge
+        transition. This fallback deliberately uses only the reviewed all-season
+        canonical lounge/engineer presets and does not infer weather or season.
+        """
+        if (
+            not hasattr(now, "tzinfo")
+            or now.tzinfo is None
+            or now.utcoffset() is None
+        ):
+            raise TypeError("now must be timezone-aware")
+        current = self.authority.current
+        if current.private_only or current.attire is AttireMode.NUDE:
+            return PresentationRoutineResult(
+                changed=False,
+                deferred_private=True,
+                proposal=None,
+                state=current,
+                reason="private_presentation_active",
+            )
+
+        late_lounge = now.hour >= 21 or now.hour < 6
+        target = "lounge.relaxed" if late_lounge else "engineer.signature"
+        if target not in self.authority.available_outfit_ids:
+            return PresentationRoutineResult(
+                changed=False,
+                deferred_private=False,
+                proposal=None,
+                state=current,
+                reason="daypart_fallback_outfit_unavailable",
+            )
+        if self.authority.last_daily.outfit_id == target:
+            return PresentationRoutineResult(
+                changed=False,
+                deferred_private=False,
+                proposal=None,
+                state=current,
+                reason="daypart_fallback_already_current",
+            )
+
+        reason = (
+            "headless_daily_context:late_lounge,season_unknown"
+            if late_lounge
+            else "headless_daily_context:daytime_default,season_unknown"
+        )
+        self.authority.propose_outfit(
+            operation_id=operation_id,
+            expected_revision=current.revision,
+            outfit_id=target,
+            reason=reason,
+            daily=True,
+        )
+        state = self.authority.commit_text(
+            operation_id=operation_id,
+            renderer_unavailable=True,
+        )
+        self.store.save(self.authority)
+        return PresentationRoutineResult(
+            changed=True,
+            deferred_private=False,
+            proposal=None,
+            state=state,
+            reason="daypart_fallback_changed",
+        )
+
     def evaluate(
         self,
         context: WardrobeContext,
