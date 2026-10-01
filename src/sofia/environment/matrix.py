@@ -8,7 +8,8 @@ from sofia.cognition.matrix.model import (
 
 _ENVIRONMENT = re.compile(
     r"\b(?:weather|temperature|forecast|humidity|outside|time|timezone|"
-    r"location|season|daylight|sunrise|sunset|night|morning|evening|late)\b|"r"\b\d{1,2}:\d{2}\s*(?:am|pm)\b",
+    r"location|season|daylight|sunrise|sunset|night|morning|evening|late)\b|"
+    r"\b\d{1,2}:\d{2}\s*(?:am|pm)\b",
     re.IGNORECASE,
 )
 
