@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from sofia.cognition.activity import CognitiveActivityState
 from sofia.cognition.model_lifecycle import (
     CognitiveModelRole,
     ModelLifecycleStatus,
@@ -210,3 +211,62 @@ def test_tray_status_exposes_last_matrix_and_actual_dual_llm_execution():
     assert status.matrix_last_intent == "action_request"
     assert status.matrix_last_domains == ("ops", "authority")
     assert status.matrix_last_validation == "pass"
+
+
+def test_tray_busy_state_comes_from_canonical_runtime_activity():
+    app=object.__new__(TrayAgentApplication)
+    app._current_model_selection=lambda: _selection(
+        "vendor/primary:9b",
+        "vendor/open:4b",
+    )
+    app._current_model_lifecycle_policy=lambda: ModelLifecycleConfiguration(
+        enabled=True,
+        idle_unload_seconds=600,
+    )
+    app._current_model_statuses=lambda selection, policy: (
+        ModelLifecycleStatus(
+            CognitiveModelRole.PRIMARY,
+            "ollama",
+            "vendor/primary:9b",
+            ModelResidency.READY,
+        ),
+        ModelLifecycleStatus(
+            CognitiveModelRole.SECONDARY,
+            "ollama",
+            "vendor/open:4b",
+            ModelResidency.UNLOADED,
+        ),
+    )
+    app.settings_store=SimpleNamespace(
+        load=lambda: SimpleNamespace(
+            runtime_service_name="SofiaAdaLyra",
+            llm_service_name="Ollama",
+            game_mode=GameMode.AUTO,
+        )
+    )
+    app._service_state=lambda name: "running"
+    app.host_id="venus"
+    app.ops=SimpleNamespace(fleet=lambda: ())
+    app._last_error=None
+    app._matrix_trace_store=SimpleNamespace(
+        latest=lambda: None,
+        latest_with_execution=lambda: None,
+    )
+    app._cognitive_activity_store=SimpleNamespace(
+        get=lambda role: (
+            SimpleNamespace(
+                model="vendor/open:4b",
+                state=CognitiveActivityState.BUSY,
+                host="artemis",
+            )
+            if role == "secondary"
+            else None
+        )
+    )
+
+    status=app.status()
+
+    assert status.llm_primary_residency == "ready"
+    assert status.llm_primary_host == "venus"
+    assert status.llm_secondary_residency == "busy"
+    assert status.llm_secondary_host == "artemis"
