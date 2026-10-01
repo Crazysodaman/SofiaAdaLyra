@@ -207,7 +207,9 @@ def test_tray_status_exposes_last_matrix_and_actual_dual_llm_execution():
     assert status.cognitive_last_model == "vendor/primary:9b"
     assert status.cognitive_last_host == "venus"
     assert status.llm_primary_host == "venus"
-    assert status.llm_secondary_host == "artemis"
+    assert status.llm_secondary_host is None
+    assert status.cognitive_last_primary_host == "venus"
+    assert status.cognitive_last_secondary_host == "artemis"
     assert status.matrix_last_intent == "action_request"
     assert status.matrix_last_domains == ("ops", "authority")
     assert status.matrix_last_validation == "pass"
