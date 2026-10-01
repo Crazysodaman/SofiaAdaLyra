@@ -34,7 +34,11 @@ TEST_CAPABILITY = Capability(
 )
 
 
-def create_dispatcher(*, produces_execution_receipt: bool = False):
+def create_dispatcher(
+    *,
+    produces_execution_receipt: bool = False,
+    execution_receipt_evidence_match=None,
+):
     capability_system = CapabilitySystem(
         authorization_checker=lambda request: True,
     )
@@ -69,6 +73,9 @@ def create_dispatcher(*, produces_execution_receipt: bool = False):
                 ),
                 capability_name="test.inspect",
                 produces_execution_receipt=produces_execution_receipt,
+                execution_receipt_evidence_match=(
+                    execution_receipt_evidence_match
+                ),
             ),
         ),
     )
@@ -359,6 +366,38 @@ def test_cognitive_system_emits_execution_receipt_only_for_marked_tool():
         "capability:test.inspect",
         "execution-receipt:test.inspect",
     )
+
+
+def test_execution_receipt_evidence_match_blocks_unconfirmed_result():
+    dispatcher = create_dispatcher(
+        produces_execution_receipt=True,
+        execution_receipt_evidence_match=(
+            "received",
+            {"value": "confirmed"},
+        ),
+    )
+
+    unconfirmed = dispatcher.dispatch(
+        CognitiveToolCall(
+            name="inspect_test",
+            arguments={"value": "unknown"},
+        )
+    )
+    confirmed = dispatcher.dispatch(
+        CognitiveToolCall(
+            name="inspect_test",
+            arguments={"value": "confirmed"},
+        )
+    )
+
+    assert dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test",
+        unconfirmed,
+    ) is False
+    assert dispatcher.tool_result_produces_execution_receipt(
+        "inspect_test",
+        confirmed,
+    ) is True
 
 
 def test_cognitive_system_does_not_expose_unauthorized_tool():
