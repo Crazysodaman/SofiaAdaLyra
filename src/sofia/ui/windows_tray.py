@@ -357,11 +357,12 @@ class WindowsTrayAgent:
                 )
                 primary_label = status.llm_model or "not configured"
                 primary_state = status.llm_primary_residency or "unknown"
+                primary_host = status.llm_primary_host or "unknown"
                 append(
                     llm,
                     MF_STRING | MF_GRAYED,
                     0,
-                    f"Primary: {primary_label} [{primary_state}]",
+                    f"Primary: {primary_label} [{primary_state}] @ {primary_host}",
                 )
                 if status.cognitive_routing_enabled:
                     secondary_label = (
@@ -370,12 +371,48 @@ class WindowsTrayAgent:
                     secondary_state = (
                         status.llm_secondary_residency or "unknown"
                     )
+                    secondary_host = (
+                        status.llm_secondary_host or "unknown"
+                    )
                     append(
                         llm,
                         MF_STRING | MF_GRAYED,
                         0,
-                        f"Secondary: {secondary_label} [{secondary_state}]",
+                        f"Secondary: {secondary_label} [{secondary_state}] @ {secondary_host}",
                     )
+
+                if status.cognitive_last_route is not None:
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        f"Last route: {status.cognitive_last_route}",
+                    )
+                if status.cognitive_last_model is not None:
+                    model_host = status.cognitive_last_host or "unknown"
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        f"Last model: {status.cognitive_last_model} @ {model_host}",
+                    )
+                if status.matrix_last_intent is not None:
+                    domains = (
+                        ",".join(status.matrix_last_domains)
+                        if status.matrix_last_domains
+                        else "none"
+                    )
+                    validation = status.matrix_last_validation or "pending"
+                    append(
+                        llm,
+                        MF_STRING | MF_GRAYED,
+                        0,
+                        (
+                            f"Matrix: {status.matrix_last_intent} "
+                            f"[{domains}] {validation}"
+                        ),
+                    )
+
                 residency_label = (
                     f"Auto residency: on, unload after "
                     f"{status.cognitive_idle_unload_seconds}s"
