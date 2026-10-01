@@ -63,8 +63,8 @@ from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
 from sofia.knowledge.access import KnowledgeAccessStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
-from sofia.knowledge.lifecycle import KnowledgeLifecycle
-from sofia.knowledge.persistence import JsonKnowledgeStore
+from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
+from sofia.knowledge.persistence import SQLiteKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
@@ -386,11 +386,13 @@ def compose(
         configuration
     )
 
-    knowledge_store = JsonKnowledgeStore(
-        state_path.parent / "knowledge.json"
+    knowledge_store = SQLiteKnowledgeStore(
+        state_path,
+        legacy_path=state_path.parent / "knowledge.json",
     )
-    knowledge_lifecycle = KnowledgeLifecycle(
-        state_path.parent / "knowledge-lifecycle.json"
+    knowledge_lifecycle = SQLiteKnowledgeLifecycle(
+        state_path,
+        legacy_path=state_path.parent / "knowledge-lifecycle.json",
     )
     knowledge_service = KnowledgeService(
         filesystem_root,
