@@ -1,5 +1,9 @@
 """Message-matrix coordination contracts and shadow-mode tracing."""
 from .classifier import BaselineTurnClassifier
+from .routing_plan import MatrixRoutingPlanner
+from .response import MatrixResponsePlanner, MatrixResponseValidator
+from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
+from .authority import MatrixAuthorityPlanner
 from .context_plan import MatrixContextPlanner
 from .coordinator import (
     MatrixCoordinator,
@@ -23,11 +27,13 @@ from .model import (
     MatrixDomain,
     MatrixIntent,
     MatrixRelevance,
+    MatrixRoute,
     MatrixTrace,
     ResponseContract,
     ResponseStrategy,
     ResponseValidation,
     ResponseValidationDisposition,
+    RoutingPlan,
     TurnEnvelope,
     TurnMatrix,
 )
@@ -54,6 +60,14 @@ __all__ = [
     "MatrixIntent",
     "MatrixRegistry",
     "MatrixRelevance",
+    "MatrixAuthorityPlanner",
+    "MatrixEvidencePlanner",
+    "MatrixEvidenceResolver",
+    "MatrixResponsePlanner",
+    "MatrixResponseValidator",
+    "MatrixRoutingPlanner",
+    "MatrixRoute",
+    "RoutingPlan",
     "MatrixTrace",
     "MatrixTraceStore",
     "ResponseContract",
