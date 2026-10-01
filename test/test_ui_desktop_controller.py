@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -188,3 +189,46 @@ def test_controller_rejects_remote_chat_authority(
 
     with pytest.raises(RuntimeError, match="canonical local state database"):
         controller.persistence_status()
+
+
+def test_controller_reports_latest_matrix_execution_status():
+    app = FakeApplication()
+    trace = SimpleNamespace(
+        turn=SimpleNamespace(
+            intent=SimpleNamespace(value="social_checkin"),
+            domains=(
+                SimpleNamespace(
+                    domain=SimpleNamespace(value="social"),
+                    relevance=SimpleNamespace(value=3),
+                ),
+            ),
+        ),
+        routing=SimpleNamespace(
+            route=SimpleNamespace(value="fast"),
+        ),
+        cognition_execution=SimpleNamespace(
+            actual_route="fast",
+            last_successful_step=SimpleNamespace(
+                role="secondary",
+                model="vendor/secondary:4b",
+                host="artemis",
+            ),
+        ),
+        response_validation=SimpleNamespace(
+            disposition=SimpleNamespace(value="pass"),
+        ),
+    )
+    app.conversation = SimpleNamespace(
+        latest_matrix_trace=lambda: trace
+    )
+    controller = DesktopWorkbenchController(app)
+    controller.start()
+
+    status = controller.matrix_status()
+
+    assert "social_checkin" in status
+    assert "[social]" in status
+    assert "req=fast" in status
+    assert "actual=fast" in status
+    assert "secondary:vendor/secondary:4b@artemis" in status
+    assert "validation=pass" in status
