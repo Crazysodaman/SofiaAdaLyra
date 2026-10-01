@@ -32,6 +32,11 @@ class ConversationStore:
 
         self.open()
 
+    @property
+    def database_path(self) -> Path:
+        """Return the exact SQLite file backing this conversation store."""
+        return self._database_path
+
     def open(self) -> None:
         """
         Open the SQLite connection and initialize the database.
