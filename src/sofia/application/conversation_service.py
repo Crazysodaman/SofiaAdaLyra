@@ -504,7 +504,7 @@ class ConversationService:
         self._current_response_contract = None
         self._current_response_validation = None
         self._current_routing_plan = None
-        store = self._matrix_trace_store
+        store = getattr(self, "_matrix_trace_store", None)
         if store is None:
             return
         try:
@@ -584,7 +584,7 @@ class ConversationService:
             self._last_matrix_error = type(exc).__name__
 
     def _record_current_matrix_trace(self) -> None:
-        store = self._matrix_trace_store
+        store = getattr(self, "_matrix_trace_store", None)
         if (
             store is None
             or self._current_matrix_envelope is None
@@ -641,8 +641,8 @@ class ConversationService:
     ) -> CognitiveResponse:
         """Validate a host-generated reply without invoking an LLM retry."""
         if (
-            self._current_response_contract is None
-            or self._current_evidence_matrix is None
+            getattr(self, "_current_response_contract", None) is None
+            or getattr(self, "_current_evidence_matrix", None) is None
         ):
             return response
 
