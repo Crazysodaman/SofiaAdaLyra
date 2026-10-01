@@ -70,31 +70,16 @@ class DesktopWorkbenchController:
 
         mode = getattr(self._application, "chat_storage_mode", "unknown")
         session = self.session_id
-        if mode == "local":
-            path = getattr(self._application, "chat_state_path", None)
-            if path is None:
-                raise RuntimeError(
-                    "local desktop application did not expose chat_state_path"
-                )
-            return f"LOCAL chat DB: {Path(path)} | session: {session}"
-
-        if mode == "remote":
-            local_state = getattr(
-                self._application,
-                "local_state_path",
-                None,
+        if mode != "local":
+            raise RuntimeError(
+                "desktop chat must use the canonical local state database"
             )
-            suffix = (
-                f" | local UI state: {Path(local_state)}"
-                if local_state is not None
-                else ""
+        path = getattr(self._application, "chat_state_path", None)
+        if path is None:
+            raise RuntimeError(
+                "local desktop application did not expose chat_state_path"
             )
-            return (
-                f"REMOTE authoritative chat | session: {session}"
-                + suffix
-            )
-
-        return f"Chat storage mode: {mode} | session: {session}"
+        return f"CANONICAL DB: {Path(path)} | session: {session}"
 
     def history(self) -> tuple[UITextMessage, ...]:
         if not self._started:
