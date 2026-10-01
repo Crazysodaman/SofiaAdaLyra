@@ -3,7 +3,7 @@
 import pytest
 
 from sofia.application import SofiaApplication
-from sofia.cognition.model import CognitiveRole
+from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -141,13 +141,7 @@ def test_restart_and_resume_preserves_cognitive_history(
             filesystem_results
         )
 
-        return type(
-            "CapturedResponse",
-            (),
-            {
-                "content": "Continuity confirmed."
-            },
-        )()
+        return CognitiveResponse(content="Continuity confirmed.")
 
     monkeypatch.setattr(
         second_application.runtime,
