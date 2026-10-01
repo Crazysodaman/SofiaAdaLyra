@@ -30,6 +30,7 @@ class ClosetCategory:
 class PieceSpec:
     item_id: str
     name: str
+    description: str
     category: str
     layer: Layer
     slots: tuple[str, ...]
@@ -103,6 +104,67 @@ _PALETTE: tuple[str, ...] = (
     "#5B2333", "#2C1B47", "#30343F", "#6A1B4D", "#1E4D5C",
 )
 
+_NORMAL_STYLE_DETAILS: tuple[str, ...] = (
+    "clean straight seams with restrained hardware",
+    "soft relaxed shaping with easy everyday proportions",
+    "reinforced utility seams with compact functional detailing",
+    "precise technical paneling with low-profile fasteners",
+    "soft drape and rounded comfort-focused shaping",
+    "streamlined athletic contouring with flexible edge binding",
+    "fine-gauge knit texture with softly finished edges",
+    "vertical rib structure with subtle stretch definition",
+    "layer-aware cut lines designed to sit cleanly under outer pieces",
+    "minimal seam count with a deliberately uncluttered silhouette",
+    "generous volume balanced by controlled cuffs and hems",
+    "close tailored shaping with articulated movement allowance",
+    "sealed-looking panel lines and storm-ready trim language",
+    "insulated-looking quilting or brushed texture cues",
+    "reduced bulk with narrow hems and airy construction cues",
+    "streetwear proportions with graphic seam placement",
+    "angular cyber detailing with small luminous-accent style cues",
+    "crimson-edged seam emphasis against a dark main field",
+    "violet piping and panel breaks used as the dominant accent",
+    "teal micro-accents concentrated at closures and trim points",
+    "charcoal tonal blocking with matte-on-matte contrast",
+    "comfortable weekend proportions with simple finished edges",
+    "workshop-inspired reinforcement zones and practical attachment cues",
+    "travel-oriented low-bulk construction with secure pocket language",
+    "clean evening lines with slightly sharper tailoring and finish",
+)
+
+_PRIVATE_STYLE_DETAILS: tuple[str, ...] = (
+    "lace-inspired edgework with floral geometric trim cues",
+    "smooth satin-like sheen with softly rounded seam transitions",
+    "fine mesh-inspired panel language layered with opaque structural bands",
+    "multiple narrow strap lines arranged in a deliberate geometric pattern",
+    "strategic cutout-style negative-space panels bounded by finished edges",
+    "open-back styling with the front structure carrying most of the visual weight",
+    "deep angular neckline styling balanced by stable side structure",
+    "very simple linework with minimal trim and hardware",
+    "garter-inspired attachment detailing used as a fashion motif",
+    "fishnet-inspired open-grid texture cues paired with solid binding",
+    "velvet-like matte depth with plush-looking edge finish",
+    "high-gloss panel treatment contrasted against matte binding",
+    "harness-inspired crossing bands arranged as decorative structure",
+    "ribbon-like tie accents with small bow or knot details",
+    "corset-inspired vertical seam channels without implying rigid construction",
+    "boudoir-inspired soft drape, scalloped trim, and decorative edging",
+    "translucent-style panel cues combined with opaque boundary trim",
+    "high-cut leg-line styling with clean continuous edge binding",
+    "side-tie styling with paired knot or bow details",
+    "open-back styling with narrow support bands and a clean front",
+    "halter-style neck routing with a defined central front line",
+    "choker-linked styling that visually connects neckline and garment trim",
+    "ruched gathering concentrated at selected seams for texture",
+    "silk-like fluid sheen with narrow polished hems",
+    "midnight-themed dark tonal blocking with violet and teal micro-accents",
+)
+
+_STYLE_DETAILS = {
+    **dict(zip(NORMAL_STYLES, _NORMAL_STYLE_DETAILS, strict=True)),
+    **dict(zip(PRIVATE_STYLES, _PRIVATE_STYLE_DETAILS, strict=True)),
+}
+
 
 def _piece(
     category: ClosetCategory,
@@ -116,20 +178,27 @@ def _piece(
     color = _PALETTE[(index - 1) % len(_PALETTE)]
     accent = _PALETTE[index % len(_PALETTE)]
     coverage = () if private_only else category.coverage
+    detail = _STYLE_DETAILS[style]
     material = (
-        "soft stretch lace, satin, mesh or fashion textile"
+        f"soft stretch fashion textile tuned for {style.replace('-', ' ')} styling"
         if private_only
-        else "reviewed opaque textile appropriate to the garment category"
+        else f"opaque wearable textile tuned for {style.replace('-', ' ')} styling"
+    )
+    description = (
+        f"{style.replace('-', ' ').title()} {noun} in {color} with {accent} accents; "
+        f"{detail}. Built around the {category.label.casefold()} slot pattern."
     )
     construction = (
         (
             "Adult/private wardrobe design metadata; no renderer asset is implied.",
+            f"Distinct design cue: {detail}.",
             "Private-only classification is independent of emotion, attraction or consent.",
             "Fit must preserve fox-ear/tail clearance where the mapped rig slot requires it.",
         )
         if private_only
         else (
             "Mix-and-match wardrobe design metadata; no renderer asset is implied.",
+            f"Distinct design cue: {detail}.",
             "Normal/public eligibility still depends on full outfit coverage and verified assets.",
             "Fit must preserve fox-ear/tail clearance where the mapped rig slot requires it.",
         )
@@ -137,6 +206,7 @@ def _piece(
     return PieceSpec(
         item_id=f"closet.{visibility}.{category.category_id.split('.', 1)[1]}.{index:02d}",
         name=f"{style.replace('-', ' ').title()} {noun.title()}",
+        description=description,
         category=category.category_id,
         layer=category.layer,
         slots=category.slots,
