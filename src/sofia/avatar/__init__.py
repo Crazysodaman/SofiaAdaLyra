@@ -100,6 +100,18 @@ from .presentation_routine import HeadlessPresentationRoutine, PresentationRouti
 
 __all__ += ["HeadlessPresentationRoutine", "PresentationRoutineResult"]
 
+from .wardrobe_matrix import (
+    WardrobeMatrixCell,
+    WardrobeSlotMatrix,
+    build_wardrobe_matrix,
+)
+
+__all__ += [
+    "WardrobeMatrixCell",
+    "WardrobeSlotMatrix",
+    "build_wardrobe_matrix",
+]
+
 from .self_fact_query import AvatarSelfFactAnswer, AvatarSelfFactResolver
 
 __all__ += ["AvatarSelfFactAnswer", "AvatarSelfFactResolver"]
