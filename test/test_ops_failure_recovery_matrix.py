@@ -181,3 +181,38 @@ def test_matrix_rejects_untyped_inputs():
             failure=FleetFailure.AGENT_LOSS,
             evidence=FleetRecoveryEvidence(),
         )
+
+
+def test_every_declared_fleet_matrix_cell_returns_a_typed_disposition():
+    matrix = FleetFailureRecoveryMatrix()
+
+    for host in FleetHostState:
+        for workload in FleetWorkloadState:
+            for failure in FleetFailure:
+                decision = matrix.evaluate(
+                    host_state=host,
+                    workload_state=workload,
+                    failure=failure,
+                    evidence=FleetRecoveryEvidence(),
+                )
+
+                assert decision.host_state is host
+                assert decision.workload_state is workload
+                assert decision.failure is failure
+                assert isinstance(decision.disposition, RecoveryDisposition)
+                assert decision.reason.strip()
+
+
+def test_empty_recovery_evidence_can_never_propose_standby_promotion():
+    matrix = FleetFailureRecoveryMatrix()
+
+    for host in FleetHostState:
+        for workload in FleetWorkloadState:
+            for failure in FleetFailure:
+                decision = matrix.evaluate(
+                    host_state=host,
+                    workload_state=workload,
+                    failure=failure,
+                    evidence=FleetRecoveryEvidence(),
+                )
+                assert decision.disposition is not RecoveryDisposition.PROMOTE_STANDBY
