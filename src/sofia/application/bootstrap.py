@@ -8,6 +8,7 @@ from pathlib import Path
 from threading import RLock
 
 from sofia.avatar.influence import wardrobe_emotion_influences
+from sofia.avatar.clothing_action import ClothingActionService
 from sofia.avatar.interact_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -162,6 +163,7 @@ class SofiaApplication:
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._presentation_routine: HeadlessPresentationRoutine | None = None
         self._wardrobe_studio: WardrobeStudio | None = None
+        self._clothing_action_service: ClothingActionService | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
@@ -252,6 +254,15 @@ class SofiaApplication:
         service.set_pre_response_hook(
             self._refresh_trusted_live_state_before_response
         )
+        clothing_actions = getattr(
+            self,
+            "_clothing_action_service",
+            None,
+        )
+        if clothing_actions is not None:
+            service.set_clothing_action_handler(
+                clothing_actions.handle
+            )
         try:
             service.open()
             service.start(session_id=session_id)
@@ -413,6 +424,12 @@ class SofiaApplication:
             self._wardrobe_studio = WardrobeStudio(
                 bundle.catalog,
                 authority=bundle.authority,
+            )
+            self._clothing_action_service = ClothingActionService(
+                bundle
+            )
+            self._conversation_service.set_clothing_action_handler(
+                self._clothing_action_service.handle
             )
             self._presentation_routine = HeadlessPresentationRoutine(
                 authority=bundle.authority,
@@ -813,6 +830,8 @@ class SofiaApplication:
             self._presentation_bundle = None
             self._presentation_routine = None
             self._wardrobe_studio = None
+            self._clothing_action_service = None
+            self._conversation_service.set_clothing_action_handler(None)
             self._conversation_service.close()
             ui_draft_store = getattr(
                 self,

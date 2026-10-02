@@ -8,7 +8,10 @@ from sofia.cognition.matrix.model import (
 
 _AVATAR = re.compile(
     r"\b(?:wearing|outfit|clothes|clothing|panties|underwear|bra|lingerie|"
-    r"hair|tail|ears|appearance|look\s+like|body|height|weight|lounge|loungewear|night\s*wear|nightwear|wear\b|socks?|boots?|shoes?|bare\s*foot|barefoot)\b",
+    r"bikini|swimwear|garment|jacket|shirt|trousers|pants|gloves?|"
+    r"hair|tail|ears|appearance|look\s+like|body|height|weight|lounge|"
+    r"loungewear|night\s*wear|nightwear|wear\b|undress|take\s+off|"
+    r"put\s+on|swap|socks?|boots?|shoes?|bare\s*foot|barefoot)\b",
     re.IGNORECASE,
 )
 

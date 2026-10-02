@@ -213,6 +213,7 @@ class ConversationService:
         self._learning_coordinator = None
         self._habit_continuity = None
         self._pre_response_hook = None
+        self._clothing_action_handler = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -279,6 +280,12 @@ class ConversationService:
         if hook is not None and not callable(hook):
             raise TypeError("pre-response hook must be callable or None")
         self._pre_response_hook = hook
+
+    def set_clothing_action_handler(self, handler) -> None:
+        """Install the host-owned AVATAR wardrobe state-action boundary."""
+        if handler is not None and not callable(handler):
+            raise TypeError("clothing action handler must be callable or None")
+        self._clothing_action_handler = handler
 
     @property
     def database_path(self) -> Path:
@@ -972,6 +979,56 @@ class ConversationService:
             principal=principal,
             channel=channel,
         )
+
+        clothing_handler = self._clothing_action_handler
+        if clothing_handler is not None:
+            history = self._conversation_store.list_messages(
+                self._session.id
+            )
+            previous_user = next(
+                (
+                    message
+                    for message in reversed(history[:-1])
+                    if message.role is ConversationRole.USER
+                ),
+                None,
+            )
+            clothing_reply = clothing_handler(
+                content=content,
+                previous_user_content=(
+                    None
+                    if previous_user is None
+                    else previous_user.content
+                ),
+                operation_id=f"avatar.clothing.{user_message.id}",
+            )
+            if clothing_reply is not None:
+                if (
+                    not isinstance(clothing_reply, str)
+                    or not clothing_reply.strip()
+                ):
+                    raise RuntimeError(
+                        "clothing action handler returned invalid response text"
+                    )
+                response = CognitiveResponse(
+                    content=clothing_reply.strip()
+                )
+                assistant_message = ConversationMessage(
+                    id=str(uuid4()),
+                    session_id=self._session.id,
+                    role=ConversationRole.ASSISTANT,
+                    content=response.content,
+                    created_at=datetime.now(timezone.utc),
+                )
+                self._conversation_store.save(assistant_message)
+                self._session = self._conversation_store.get_session(
+                    self._session.id
+                )
+                if self._session is None:
+                    raise RuntimeError(
+                        "ConversationService lost its active session."
+                    )
+                return response
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(

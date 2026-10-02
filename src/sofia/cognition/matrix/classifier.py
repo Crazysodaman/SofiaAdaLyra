@@ -64,6 +64,18 @@ _ACTION = re.compile(
     r"delete|deploy|migrate|move|update|upgrade|write|edit|change|control)\b",
     re.IGNORECASE,
 )
+_CLOTHING_ACTION = re.compile(
+    r"^\s*(?:please\s+)?(?:wear|change\s+into|"
+    r"change\s+(?:your\s+)?outfit\s+(?:to|into)|put\s+on|"
+    r"take\s+off|take\s+.+?\s+off|remove|swap|switch|undress|"
+    r"get\s+undressed)\b",
+    re.IGNORECASE,
+)
+_ACTION_FOLLOWUP = re.compile(
+    r"^\s*(?:do\s+it|go\s+ahead|yes[, ]+do\s+it|"
+    r"please\s+do\s+it|ok(?:ay)?[, ]+do\s+it)\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
 _PRIMARY_ACTION = re.compile(
     r"\b(?:make|set|switch)\s+[A-Za-z0-9_.-]+\s+primary\b",
     re.IGNORECASE,
@@ -140,6 +152,26 @@ class BaselineTurnClassifier:
                 ),
             )
 
+        if _ACTION_FOLLOWUP.fullmatch(text):
+            return TurnMatrix(
+                intent=MatrixIntent.ACTION_REQUEST,
+                confidence=MatrixConfidence.MEDIUM,
+                history_policy=HistoryPolicy.LAST_TURN,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=(
+                    _contribution(
+                        MatrixDomain.AUTHORITY,
+                        MatrixRelevance.REQUIRED,
+                        "short action follow-up requires prior-turn authority context",
+                    ),
+                    _contribution(
+                        MatrixDomain.AVATAR,
+                        MatrixRelevance.CONTEXTUAL,
+                        "prior action may target avatar presentation state",
+                    ),
+                ),
+            )
+
         if _GENERIC_FOLLOWUP.fullmatch(text):
             return TurnMatrix(
                 intent=MatrixIntent.GENERAL,
@@ -155,7 +187,11 @@ class BaselineTurnClassifier:
                 ),
             )
 
-        if _ACTION.search(text) or _PRIMARY_ACTION.search(text):
+        if (
+            _CLOTHING_ACTION.search(text)
+            or _ACTION.search(text)
+            or _PRIMARY_ACTION.search(text)
+        ):
             domains = [
                 _contribution(
                     MatrixDomain.AUTHORITY,
@@ -163,7 +199,10 @@ class BaselineTurnClassifier:
                     "message requests a state-changing action",
                 ),
             ]
-            avatar_action = _AVATAR.search(text) is not None
+            avatar_action = (
+                _AVATAR.search(text) is not None
+                or _CLOTHING_ACTION.search(text) is not None
+            )
             interaction_control = (
                 _INTERACTION_CONTROL.fullmatch(text) is not None
             )
