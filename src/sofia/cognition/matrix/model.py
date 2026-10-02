@@ -312,6 +312,15 @@ class ContextPlan:
                 "a matrix domain cannot be both included and excluded"
             )
 
+    def allows(self, domain: MatrixDomain) -> bool:
+        """Return whether a domain is explicitly eligible for projection."""
+        if not isinstance(domain, MatrixDomain):
+            raise TypeError("domain must be MatrixDomain")
+        return (
+            domain in self.included_domains
+            and domain not in self.excluded_domains
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class AuthorityPlan:
