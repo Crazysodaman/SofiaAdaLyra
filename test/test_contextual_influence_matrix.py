@@ -28,6 +28,9 @@ def influence() -> ContinuityInfluence:
         primary_emotion="fondness",
         primary_intensity=0.62,
         active_emotions=("fondness",),
+        daypart_evidence_refs=("runtime.clock", "environment.location:configured"),
+        season_evidence_refs=("runtime.clock", "environment.location:configured"),
+        weather_evidence_refs=("environment.weather:matrix-weather",),
     )
 
 
@@ -185,3 +188,40 @@ def test_outreach_salience_does_not_gain_direct_seasonal_pressure():
 
     assert plan.mode_for(InfluenceSignal.SEASON) is InfluenceMode.NONE
     assert plan.mode_for(InfluenceSignal.WEATHER) is InfluenceMode.BOUNDED_BIAS
+
+
+def test_active_influences_expose_provenance_and_freshness_diagnostics():
+    plan = ContextualInfluenceMatrix().plan(
+        InfluenceSurface.AUTO_OUTFIT,
+        influence(),
+    )
+
+    weather = plan.decision_for(InfluenceSignal.WEATHER)
+    assert weather.evidence_refs == ("environment.weather:matrix-weather",)
+    assert weather.freshness == "current"
+
+    daypart_decision = plan.decision_for(InfluenceSignal.DAYPART)
+    assert "runtime.clock" in daypart_decision.evidence_refs
+    assert daypart_decision.freshness == "current"
+
+    season_decision = plan.decision_for(InfluenceSignal.SEASON)
+    assert "environment.location:configured" in season_decision.evidence_refs
+    assert season_decision.freshness == "grounded"
+
+
+@pytest.mark.parametrize(
+    ("signal", "field"),
+    (
+        (InfluenceSignal.WEATHER, "weather_evidence_refs"),
+        (InfluenceSignal.DAYPART, "daypart_evidence_refs"),
+        (InfluenceSignal.SEASON, "season_evidence_refs"),
+    ),
+)
+def test_environment_influence_fails_closed_without_provenance(signal, field):
+    unsupported = replace(influence(), **{field: ()})
+    plan = ContextualInfluenceMatrix().plan(
+        InfluenceSurface.AUTO_OUTFIT,
+        unsupported,
+    )
+
+    assert plan.mode_for(signal) is InfluenceMode.NONE
