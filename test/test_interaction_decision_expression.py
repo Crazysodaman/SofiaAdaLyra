@@ -262,3 +262,38 @@ def test_probe_sample_count_accepts_bounded_values(value, expected):
 def test_probe_sample_count_rejects_unbounded_or_invalid_values(value):
     with pytest.raises(argparse.ArgumentTypeError):
         _sample_count(value)
+
+
+
+def test_willingness_prompt_allows_emotion_but_forbids_ambient_context():
+    intent = parse_user_action(OFFER, message_id='synthetic-offer')
+    assert intent is not None
+    frame = from_reviewed_action(user_text=OFFER, intent=intent)
+
+    request = choice_request(_static('offer', OFFER), frame)
+    instruction = request.messages[-2].content
+
+    assert 'CONTEXTUAL INFLUENCE POLICY FOR WILLINGNESS' in instruction
+    assert 'emotion may influence' in instruction
+    assert 'weather, daypart, season must not change' in instruction
+    assert 'Explicit boundaries, stop state' in instruction
+    assert "Do not infer any contextual signal from the user's wording" in instruction
+
+
+def test_expression_prompt_allows_ambient_style_without_reopening_choice():
+    intent = parse_user_action(OFFER, message_id='synthetic-offer')
+    assert intent is not None
+    frame = from_reviewed_action(user_text=OFFER, intent=intent)
+
+    request = expression_request(
+        _static('offer', OFFER),
+        frame,
+        CandidateChoice('accept', 'Current-turn candidate.'),
+    )
+    instruction = request.messages[-2].content
+
+    assert 'CONTEXTUAL INFLUENCE POLICY FOR EXPRESSION' in instruction
+    assert 'emotion may boundedly shape' in instruction
+    assert 'weather, daypart, season may affect expression style only' in instruction
+    assert 'must not change the already validated conversational choice' in instruction
+    assert 'ambient context into consent' in instruction

@@ -12,6 +12,12 @@ import json
 import re
 from typing import Protocol
 
+from sofia.cognition.matrix import (
+    ContextualInfluenceMatrix,
+    InfluenceMode,
+    InfluenceSignal,
+    InfluenceSurface,
+)
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
 )
@@ -67,6 +73,57 @@ _GENERIC_REDIRECT = re.compile(
 
 class TextProvider(Protocol):
     def respond(self, request: CognitiveRequest) -> CognitiveResponse: ...
+
+
+def _choice_influence_instruction() -> str:
+    """Project the reviewed M3 willingness policy into provider instructions."""
+    surface = InfluenceSurface.INTERACTION_WILLINGNESS
+    allowed = tuple(
+        signal.value
+        for signal in InfluenceSignal
+        if ContextualInfluenceMatrix.policy_mode(surface, signal)
+        is not InfluenceMode.NONE
+    )
+    forbidden = tuple(
+        signal.value
+        for signal in InfluenceSignal
+        if ContextualInfluenceMatrix.policy_mode(surface, signal)
+        is InfluenceMode.NONE
+    )
+    return (
+        "CONTEXTUAL INFLUENCE POLICY FOR WILLINGNESS: "
+        + ", ".join(allowed)
+        + " may influence the conversational choice only as a bounded current-turn bias when trusted context supplies it. "
+        + ", ".join(forbidden)
+        + " must not change accept/decline/clarify/boundary willingness. "
+        "Explicit boundaries, stop state and the reviewed interaction classification always win. "
+        "Do not infer any contextual signal from the user's wording."
+    )
+
+
+def _expression_influence_instruction() -> str:
+    """Project the reviewed M3 expression policy after a choice is fixed."""
+    surface = InfluenceSurface.INTERACTION_EXPRESSION
+    expression_only = tuple(
+        signal.value
+        for signal in InfluenceSignal
+        if ContextualInfluenceMatrix.policy_mode(surface, signal)
+        is InfluenceMode.EXPRESSION_ONLY
+    )
+    bounded = tuple(
+        signal.value
+        for signal in InfluenceSignal
+        if ContextualInfluenceMatrix.policy_mode(surface, signal)
+        is InfluenceMode.BOUNDED_BIAS
+    )
+    return (
+        "CONTEXTUAL INFLUENCE POLICY FOR EXPRESSION: "
+        + ", ".join(bounded)
+        + " may boundedly shape present-turn expression when trusted context supplies it. "
+        + ", ".join(expression_only)
+        + " may affect expression style only. They must not change the already validated conversational choice. "
+        "Do not infer these signals from the user's wording and do not turn ambient context into consent, history or sensation."
+    )
 
 
 @dataclass(frozen=True)
@@ -174,6 +231,7 @@ def choice_request(base: CognitiveRequest, frame: ReviewedFrame) -> CognitiveReq
         'do not mistake the offer for actual physical contact. For a described '
         'gesture, recognition does not establish Sofía\'s consent or sensation. '
         'Use the conversation and actual boundaries, not an automatic yes/no. '
+        + _choice_influence_instruction() + ' '
         'A choice never performs a hug, touch, sensor read or animation. '
         'Output ONLY one JSON object with exactly two string keys: choice and reason. '
         'The reason is a brief diagnostic explanation, not a fact about sensations '
@@ -233,7 +291,9 @@ def expression_request(base: CognitiveRequest, frame: ReviewedFrame,
             'her represented avatar world and express that choice naturally. '
             'Modeled emotional tone and optional textual stage directions may be '
             'used as present-turn representational fiction when they fit; they '
-            'are not biological sensation or verified animation. Use only the '
+            'are not biological sensation or verified animation. '
+            + _expression_influence_instruction() + ' '
+            'Use only the '
             'current turn and canonical supplied context for history and durable '
             'preferences. Do not invent prior similar interactions, lifelong or '
             'stable preferences, body sensitivity, felt touch, real sensing, '

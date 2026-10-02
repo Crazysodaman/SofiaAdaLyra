@@ -197,6 +197,18 @@ class ContextualInfluenceMatrix:
     """Project trusted context into a bounded behavior influence plan."""
 
     _DAYPARTS = frozenset({"morning", "afternoon", "evening", "night"})
+
+    @staticmethod
+    def policy_mode(
+        surface: InfluenceSurface,
+        signal: InfluenceSignal,
+    ) -> InfluenceMode:
+        """Return the reviewed surface policy before evidence availability."""
+        if not isinstance(surface, InfluenceSurface):
+            raise TypeError("surface must be InfluenceSurface")
+        if not isinstance(signal, InfluenceSignal):
+            raise TypeError("signal must be InfluenceSignal")
+        return _POLICY[surface][signal]
     _SEASONS = frozenset({"winter", "spring", "summer", "autumn"})
 
     def plan(
