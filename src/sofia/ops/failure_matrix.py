@@ -235,12 +235,19 @@ class FleetFailureRecoveryMatrix:
                     requires_source_fenced=True,
                     requires_witness_quorum=True,
                 )
+            missing = []
+            if not evidence.state_verified:
+                missing.append("state verification")
+            if not evidence.source_fenced:
+                missing.append("source fence")
+            if not evidence.witness_quorum:
+                missing.append("witness quorum")
             return self._decision(
                 host_state,
                 workload_state,
                 failure,
                 RecoveryDisposition.FAIL_CLOSED,
-                "standby promotion lacks verified state, source fencing, or witness quorum",
+                "standby promotion lacks required " + ", ".join(missing),
                 requires_state_verified=True,
                 requires_source_fenced=True,
                 requires_witness_quorum=True,
