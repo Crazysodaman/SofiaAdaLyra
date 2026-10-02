@@ -10,6 +10,10 @@ from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from .migration import MigrationCoordinator,MigrationPlan,MigrationStage
 from .orchestrator import MigrationExecutionError,MigrationOutcomeUncertain,MigrationReceipt,WorkloadOrchestrator
 from .failover import FailoverCoordinator,FailureDomain,PromotionDenied,PromotionEvidence,PromotionGuard
+from .failure_matrix import (
+    FleetFailure,FleetFailureRecoveryMatrix,FleetHostState,FleetRecoveryDecision,
+    FleetRecoveryEvidence,FleetWorkloadState,RecoveryDisposition,
+)
 from .desired import DesiredHostState,DesiredWorkloadPlacement,Drift,detect_drift
 from .maintenance import MaintenanceOperation,MaintenancePolicy,MaintenanceRequest
 from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentService,MachineNodeBinding
@@ -43,7 +47,9 @@ __all__=[
     "FleetRemovalApproval","TelemetryHistory","AuthorityLease","LeaseTable","SplitBrainRisk",
     "ManagedWorkload","StateMode","WorkloadInstance","WorkloadPhase","MigrationCoordinator",
     "MigrationPlan","MigrationStage","FailureDomain","PromotionDenied","PromotionEvidence",
-    "PromotionGuard","DesiredHostState","DesiredWorkloadPlacement","Drift","detect_drift",
+    "PromotionGuard","FleetFailure","FleetFailureRecoveryMatrix","FleetHostState",
+    "FleetRecoveryDecision","FleetRecoveryEvidence","FleetWorkloadState","RecoveryDisposition",
+    "DesiredHostState","DesiredWorkloadPlacement","Drift","detect_drift",
     "MaintenanceOperation","MaintenancePolicy","MaintenanceRequest","AuthenticatedPeerEvidence",
     "FleetEnrollmentService","MachineNodeBinding","BackupEvidence","HostUpdateAssignment",
     "RecoveryDenied","RecoveryGuard","RestoreVerification","UpdatePlanner","UpdateRing",
