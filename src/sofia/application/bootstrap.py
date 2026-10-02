@@ -426,7 +426,10 @@ class SofiaApplication:
                 authority=bundle.authority,
             )
             self._clothing_action_service = ClothingActionService(
-                bundle
+                bundle,
+                adult_verified=(
+                    self._configuration.avatar_private_adult_verified
+                ),
             )
             self._conversation_service.set_clothing_action_handler(
                 self._clothing_action_service.handle

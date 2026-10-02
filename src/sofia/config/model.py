@@ -296,6 +296,7 @@ class SofiaConfiguration:
     environment: EnvironmentConfiguration = field(
         default_factory=EnvironmentConfiguration
     )
+    avatar_private_adult_verified: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider, ProviderConfiguration):
@@ -389,4 +390,9 @@ class SofiaConfiguration:
             raise TypeError(
                 "SofiaConfiguration environment must be an "
                 "EnvironmentConfiguration."
+            )
+
+        if type(self.avatar_private_adult_verified) is not bool:
+            raise TypeError(
+                "SofiaConfiguration avatar_private_adult_verified must be boolean."
             )

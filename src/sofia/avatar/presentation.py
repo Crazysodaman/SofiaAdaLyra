@@ -275,9 +275,9 @@ class PresentationAuthority:
         if type(private_only) is not bool:
             raise PresentationError("private_only must be boolean")
         selected = self._wardrobe.selection(item_ids)
-        if selected.private_only != private_only:
+        if selected.private_only and not private_only:
             raise PresentationDenied(
-                "registered outfit privacy must match its garment selection"
+                "private-only garments require a private presentation"
             )
         if not private_only and not selected.covered_default:
             raise PresentationDenied(
@@ -476,6 +476,7 @@ class PresentationAuthority:
                 {
                     "outfit_id": outfit_id,
                     "item_ids": list(item_ids),
+                    "private_only": outfit_id in self._private_outfits,
                 }
                 for outfit_id, item_ids in sorted(
                     self._dynamic_outfits.items()
@@ -501,8 +502,8 @@ class PresentationAuthority:
         dynamic_raw = snapshot.get("dynamic_outfits", [])
         if not isinstance(dynamic_raw, list):
             raise PresentationError("dynamic_outfits must be a list")
-        combined = dict(outfits)
-        dynamic: dict[str, tuple[str, ...]] = {}
+        dynamic_rows: list[tuple[str, tuple[str, ...], bool]] = []
+        catalog_ids = set(outfits)
         for row in dynamic_raw:
             if not isinstance(row, dict):
                 raise PresentationError("invalid dynamic outfit entry")
@@ -515,22 +516,34 @@ class PresentationAuthority:
                 or any(not isinstance(item, str) for item in item_ids)
             ):
                 raise PresentationError("invalid dynamic outfit garments")
-            if outfit_id in combined:
+            if outfit_id in catalog_ids:
                 raise PresentationError(
                     "dynamic outfit collides with catalog outfit"
                 )
             values = tuple(item_ids)
-            combined[outfit_id] = values
-            dynamic[outfit_id] = values
+            private_value = row.get("private_only")
+            if private_value is None:
+                private_value = wardrobe.selection(values).private_only
+            if type(private_value) is not bool:
+                raise PresentationError(
+                    "dynamic outfit privacy must be boolean"
+                )
+            dynamic_rows.append((outfit_id, values, private_value))
+            catalog_ids.add(outfit_id)
 
         daily_appearance = cls._appearance_from_dict(daily_data.get("appearance"))
         authority = cls(
             wardrobe,
-            outfits=combined,
+            outfits=outfits,
             canonical_daily_outfit_id=canonical,
             initial_appearance=daily_appearance,
         )
-        authority._dynamic_outfits = dynamic
+        for outfit_id, values, private_only in dynamic_rows:
+            authority.register_outfit(
+                outfit_id=outfit_id,
+                item_ids=values,
+                private_only=private_only,
+            )
         current = authority._state_from_dict(current_data)
         daily = authority._state_from_dict(daily_data)
         if daily.attire is not AttireMode.CLOTHED or daily.private_only:

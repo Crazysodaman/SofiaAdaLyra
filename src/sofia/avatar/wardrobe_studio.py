@@ -61,12 +61,7 @@ class WardrobeStudio:
         if type(register) is not bool:
             raise WardrobeError("register must be boolean")
         selected = self.catalog.wardrobe.selection(item_ids)
-        if private_only:
-            if not selected.private_only:
-                raise WardrobeError(
-                    "private composition requires at least one private-only piece"
-                )
-        else:
+        if not private_only:
             if selected.private_only:
                 raise WardrobeError(
                     "public composition cannot contain private-only pieces"

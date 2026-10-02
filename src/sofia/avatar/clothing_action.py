@@ -13,7 +13,14 @@ from enum import Enum
 import re
 from threading import RLock
 
-from .presentation import PresentationState
+from sofia.safe.operator_stop import OperatorStopStore
+from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
+from .presentation import (
+    PrivatePresentationGrant,
+    PresentationState,
+)
 from .runtime_state import PresentationRuntimeBundle
 from .wardrobe import (
     WardrobeConflict,
@@ -94,14 +101,9 @@ class WardrobeAutonomyPolicy:
             raise TypeError("candidate_item_ids must be a tuple")
         if type(private_only) is not bool:
             raise TypeError("private_only must be bool")
-        if private_only or intent.kind is ClothingActionKind.UNDRESS:
-            return WardrobeAutonomyDecision(
-                False,
-                "private presentation requires separate verified authority",
-            )
         return WardrobeAutonomyDecision(
             True,
-            "valid public wardrobe change accepted by host autonomy policy",
+            "valid wardrobe change accepted by host autonomy policy",
         )
 
 
@@ -240,6 +242,8 @@ class ClothingActionService:
         bundle: PresentationRuntimeBundle,
         *,
         autonomy: WardrobeAutonomyPolicy | None = None,
+        adult_verified: bool = False,
+        operator_stop_store: OperatorStopStore | None = None,
     ) -> None:
         if not isinstance(bundle, PresentationRuntimeBundle):
             raise TypeError("bundle must be PresentationRuntimeBundle")
@@ -250,9 +254,23 @@ class ClothingActionService:
             raise TypeError(
                 "autonomy must be WardrobeAutonomyPolicy or None"
             )
+        if type(adult_verified) is not bool:
+            raise TypeError("adult_verified must be bool")
+        if operator_stop_store is not None and not isinstance(
+            operator_stop_store,
+            OperatorStopStore,
+        ):
+            raise TypeError(
+                "operator_stop_store must be OperatorStopStore or None"
+            )
         self.bundle = bundle
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
         self.parser = ClothingActionParser()
+        self._adult_verified = adult_verified
+        self._operator_stop_store = (
+            operator_stop_store
+            or OperatorStopStore(bundle.store.database_path)
+        )
         self._lock = RLock()
         self._blueprints = {
             blueprint.garment.item_id: blueprint
@@ -269,6 +287,7 @@ class ClothingActionService:
         content: str,
         previous_user_content: str | None,
         operation_id: str,
+        principal: PrincipalContext | None = None,
     ) -> str | None:
         """Serialize one wardrobe action across all conversation channels."""
         with self._lock:
@@ -276,6 +295,7 @@ class ClothingActionService:
                 content=content,
                 previous_user_content=previous_user_content,
                 operation_id=operation_id,
+                principal=principal,
             )
 
     def _handle_locked(
@@ -297,6 +317,8 @@ class ClothingActionService:
             )
         if not isinstance(operation_id, str) or not operation_id.strip():
             raise ValueError("operation_id must be nonempty")
+        if principal is not None and not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be PrincipalContext or None")
 
         intent = self.parser.parse(content)
         if intent is None and self.parser.is_followup(content):
@@ -314,27 +336,37 @@ class ClothingActionService:
             return self._hypothetical_reply(intent)
 
         if intent.kind is ClothingActionKind.UNDRESS:
-            return self._decline_private()
+            grant = self._private_grant(principal)
+            if grant is None:
+                return self._decline_private()
+            return self._commit_nude(
+                operation_id=operation_id,
+                grant=grant,
+            )
 
         if intent.kind is ClothingActionKind.WEAR:
             return self._wear(
                 intent,
                 operation_id=operation_id,
+                principal=principal,
             )
         if intent.kind is ClothingActionKind.REMOVE:
             return self._remove(
                 intent,
                 operation_id=operation_id,
+                principal=principal,
             )
         if intent.kind is ClothingActionKind.ADD:
             return self._add(
                 intent,
                 operation_id=operation_id,
+                principal=principal,
             )
         if intent.kind is ClothingActionKind.SWAP:
             return self._swap(
                 intent,
                 operation_id=operation_id,
+                principal=principal,
             )
         raise RuntimeError("unsupported clothing action kind")
 
@@ -348,16 +380,70 @@ class ClothingActionService:
             )
         return (
             "You can ask. I don't treat the request itself as a completed "
-            "wardrobe change; I decide at execution time and only claim it "
-            "after the wardrobe matrix validates and the new presentation is "
-            "committed."
+            "wardrobe change. I only claim a change after the current autonomy, "
+            "authority, and wardrobe-matrix checks accept it and the new "
+            "presentation is committed."
         )
 
     def _decline_private(self) -> str:
         return (
             "I'm keeping my current outfit. A nude/private presentation "
-            "requires a separate verified private-presentation grant, and this "
-            "runtime does not currently have one. My wardrobe state is unchanged."
+            "requires verified adult host authority, an authenticated private "
+            "Sparks session, explicit current opt-in, and no active operator "
+            "stop. Those requirements are not all satisfied, so my wardrobe "
+            "state is unchanged."
+        )
+
+    def _private_grant(
+        self,
+        principal: PrincipalContext | None,
+    ) -> PrivatePresentationGrant | None:
+        stop_active = self._operator_stop_store.current().active
+        grant = PrivatePresentationGrant(
+            adult_verified=self._adult_verified,
+            owner_verified=(
+                principal is not None
+                and principal.principal_id == SPARKS_PRINCIPAL_ID
+            ),
+            private_session=(
+                principal is not None
+                and principal.audience_kind is AudienceKind.PRIVATE
+            ),
+            explicit_current_opt_in=True,
+            external_stop_active=stop_active,
+        )
+        try:
+            grant.require()
+        except PermissionError:
+            return None
+        return grant
+
+    def _commit_nude(
+        self,
+        *,
+        operation_id: str,
+        grant: PrivatePresentationGrant,
+    ) -> str:
+        current = self.bundle.authority.current
+        self.bundle.authority.propose_nude(
+            operation_id=operation_id,
+            expected_revision=current.revision,
+            reason="user_clothing_action:undress",
+            grant=grant,
+        )
+        state = self.bundle.authority.commit_text(
+            operation_id=operation_id,
+            renderer_unavailable=True,
+            grant=grant,
+        )
+        self.bundle.store.save(self.bundle.authority)
+        self._verify_persisted(state)
+        if self.bundle.current_matrix().item_ids:
+            raise RuntimeError("nude presentation matrix must contain no garments")
+        return (
+            "I changed my AVATAR presentation to no clothing. The state is "
+            "committed and persisted; this is headless presentation state, not "
+            "a claim that a renderer displayed it."
         )
 
     def _wear(
@@ -365,6 +451,7 @@ class ClothingActionService:
         intent: ClothingActionIntent,
         *,
         operation_id: str,
+        principal: PrincipalContext | None,
     ) -> str:
         target = intent.target or ""
         plan = self._resolve_outfit(target)
@@ -375,6 +462,7 @@ class ClothingActionService:
                 candidate_item_ids=plan.item_ids,
                 outfit_id=plan.outfit_id,
                 lead=f"I changed into {plan.display_name or plan.outfit_id}.",
+                principal=principal,
             )
 
         garment = self._resolve_blueprint(
@@ -397,6 +485,7 @@ class ClothingActionService:
         intent: ClothingActionIntent,
         *,
         operation_id: str,
+        principal: PrincipalContext | None,
     ) -> str:
         target = intent.target or ""
         current = self.bundle.authority.current
@@ -420,6 +509,7 @@ class ClothingActionService:
             candidate_item_ids=candidate,
             outfit_id=None,
             lead=f"I took off my {blueprint.garment.name}.",
+            principal=principal,
         )
 
     def _add(
@@ -427,6 +517,7 @@ class ClothingActionService:
         intent: ClothingActionIntent,
         *,
         operation_id: str,
+        principal: PrincipalContext | None,
     ) -> str:
         target = intent.target or ""
         plan = self._resolve_outfit(target)
@@ -437,6 +528,7 @@ class ClothingActionService:
                 candidate_item_ids=plan.item_ids,
                 outfit_id=plan.outfit_id,
                 lead=f"I changed into {plan.display_name or plan.outfit_id}.",
+                principal=principal,
             )
         blueprint = self._resolve_blueprint(
             target,
@@ -451,6 +543,7 @@ class ClothingActionService:
             intent,
             garment_id=blueprint.garment.item_id,
             operation_id=operation_id,
+            principal=principal,
         )
 
     def _add_blueprint(
@@ -459,6 +552,7 @@ class ClothingActionService:
         *,
         garment_id: str,
         operation_id: str,
+        principal: PrincipalContext | None,
     ) -> str:
         current = self.bundle.authority.current
         if garment_id in current.item_ids:
@@ -472,6 +566,7 @@ class ClothingActionService:
             candidate_item_ids=candidate,
             outfit_id=None,
             lead=f"I put on my {name}.",
+            principal=principal,
         )
 
     def _swap(
@@ -479,6 +574,7 @@ class ClothingActionService:
         intent: ClothingActionIntent,
         *,
         operation_id: str,
+        principal: PrincipalContext | None,
     ) -> str:
         target = intent.target or ""
         current = self.bundle.authority.current
@@ -535,6 +631,7 @@ class ClothingActionService:
                 f"I swapped my {worn.garment.name} for my "
                 f"{replacement.garment.name}."
             ),
+            principal=principal,
         )
 
     def _resolve_outfit(self, target: str):
@@ -610,6 +707,7 @@ class ClothingActionService:
         candidate_item_ids: tuple[str, ...],
         outfit_id: str | None,
         lead: str,
+        principal: PrincipalContext | None,
     ) -> str:
         current = self.bundle.authority.current
         if candidate_item_ids == current.item_ids:
@@ -628,7 +726,9 @@ class ClothingActionService:
                 f"valid in the wardrobe matrix: {exc}."
             )
 
-        if selected.private_only or not selected.covered_default:
+        needs_private = selected.private_only or not selected.covered_default
+        grant = self._private_grant(principal) if needs_private else None
+        if needs_private and grant is None:
             return self._decline_private()
 
         decision = self.autonomy.decide(
@@ -648,7 +748,7 @@ class ClothingActionService:
             self.bundle.authority.register_outfit(
                 outfit_id=outfit_id,
                 item_ids=selected.item_ids,
-                private_only=False,
+                private_only=needs_private,
             )
 
         self.bundle.authority.propose_outfit(
@@ -656,12 +756,13 @@ class ClothingActionService:
             expected_revision=current.revision,
             outfit_id=outfit_id,
             reason=f"user_clothing_action:{intent.kind.value}",
-            private_only=False,
+            private_only=needs_private,
             daily=False,
         )
         state = self.bundle.authority.commit_text(
             operation_id=operation_id,
             renderer_unavailable=True,
+            grant=grant,
         )
         self.bundle.store.save(self.bundle.authority)
         self._verify_persisted(state)

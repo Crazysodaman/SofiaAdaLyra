@@ -425,6 +425,10 @@ def create_default_configuration(
         fleet_discovery=_fleet_discovery_configuration_from_environ(),
         fleet_bootstrap=_fleet_bootstrap_configuration_from_environ(),
         environment=environment,
+        avatar_private_adult_verified=_environment_flag(
+            "SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED",
+            default=False,
+        ),
     )
 
 

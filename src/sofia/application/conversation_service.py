@@ -1001,6 +1001,7 @@ class ConversationService:
                     else previous_user.content
                 ),
                 operation_id=f"avatar.clothing.{user_message.id}",
+                principal=principal,
             )
             if clothing_reply is not None:
                 if (
