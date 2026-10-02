@@ -289,6 +289,12 @@ class MemorySystem:
             for _, _, memory in scored[:limit]
         )
 
+    def open(self) -> None:
+        """Reopen persistent stores after a runtime STOPPED transition."""
+        self._store.open()
+        if self._candidate_store is not None:
+            self._candidate_store.open()
+
     def close(self) -> None:
         """Close all persistent memory stores owned by this system."""
         self._store.close()
