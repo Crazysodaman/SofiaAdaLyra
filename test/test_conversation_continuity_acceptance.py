@@ -4,6 +4,7 @@ import pytest
 
 from sofia.application import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
+from sofia.cognition.matrix import HistoryPolicy
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -129,6 +130,7 @@ def test_restart_and_resume_preserves_cognitive_history(
 
     captured_requests = []
     captured_filesystem_results = []
+    captured_context_plans = []
 
     def capture_request(
         request,
@@ -140,6 +142,7 @@ def test_restart_and_resume_preserves_cognitive_history(
         captured_filesystem_results.append(
             filesystem_results
         )
+        captured_context_plans.append(context_plan)
 
         return CognitiveResponse(content="Continuity confirmed.")
 
@@ -191,27 +194,29 @@ def test_restart_and_resume_preserves_cognitive_history(
         for message in request.messages
         if message.role is not CognitiveRole.SYSTEM
     )
-    assert len(conversation_messages) == 6
-
+    assert len(conversation_messages) == 1
     assert conversation_messages[0].role is CognitiveRole.USER
-    assert conversation_messages[0].content == "My name is Sparks."
+    assert conversation_messages[0].content == "What did I say earlier?"
 
-    assert conversation_messages[1].role is CognitiveRole.ASSISTANT
-    assert conversation_messages[1].content == "Test cognitive response."
+    # Durable continuity and provider-visible context are separate concerns.
+    # The complete conversation remains in SQLite, while a specific-memory
+    # query uses the Matrix RETRIEVE_SPECIFIC policy instead of replaying the
+    # entire transcript back into the cognitive engine.
+    durable_after_response = second_application.conversation.messages()
+    assert len(durable_after_response) == len(persisted_messages) + 3
+    assert durable_after_response[:len(persisted_messages)] == persisted_messages
+    assert durable_after_response[-2].role.value == "user"
+    assert durable_after_response[-2].content == "What did I say earlier?"
+    assert durable_after_response[-1].role.value == "assistant"
+    assert durable_after_response[-1].content == "Continuity confirmed."
 
-    assert conversation_messages[2].role is CognitiveRole.USER
+    assert len(captured_context_plans) == 2
+    assert captured_context_plans[1] is not None
     assert (
-        conversation_messages[2].content
-        == "Remember that this conversation is a continuity test."
+        captured_context_plans[1].history_policy
+        is HistoryPolicy.RETRIEVE_SPECIFIC
     )
-
-    assert conversation_messages[3].role is CognitiveRole.ASSISTANT
-    assert conversation_messages[3].content == "Test cognitive response."
-
-    assert conversation_messages[4].role is CognitiveRole.ASSISTANT
-    assert conversation_messages[4].content == "Continuity confirmed."
-    assert conversation_messages[5].role is CognitiveRole.USER
-    assert conversation_messages[5].content == "What did I say earlier?"
+    assert captured_context_plans[1].max_history_messages == 1
 
     second_application.shutdown()
 

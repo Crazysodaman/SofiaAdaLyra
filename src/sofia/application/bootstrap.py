@@ -427,8 +427,12 @@ class SofiaApplication:
             )
             self._clothing_action_service = ClothingActionService(
                 bundle,
-                adult_verified=(
-                    self._configuration.avatar_private_adult_verified
+                adult_verified=bool(
+                    getattr(
+                        self._configuration,
+                        "avatar_private_adult_verified",
+                        False,
+                    )
                 ),
             )
             self._conversation_service.set_clothing_action_handler(
