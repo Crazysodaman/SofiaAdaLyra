@@ -141,7 +141,86 @@ Acceptance must include negative cross-principal and cross-audience leakage test
 
 ---
 
-## M3 — REL + HABIT domain/context/evidence extension
+## M3 — Contextual Influence Matrix
+
+**Priority: P0/P1.**
+
+Matrix the shared non-authoritative influence set:
+
+- modeled emotion;
+- current weather;
+- trusted time/daypart;
+- grounded season.
+
+This is a **surface whitelist**, not a rule that every signal affects every choice. See [`CONTEXTUAL_INFLUENCE_AUDIT.md`](CONTEXTUAL_INFLUENCE_AUDIT.md) for the code audit and recommended policy table.
+
+The matrix should decide, per decision surface:
+
+- whether a signal may influence the choice;
+- required evidence/freshness;
+- influence mode/strength;
+- whether it may affect the decision itself or expression only;
+- which invariant remains dominant.
+
+Suggested modes:
+
+- `NONE`
+- `EXPRESSION_ONLY`
+- `BOUNDED_BIAS`
+- `STRONG_PREFERENCE`
+- `HARD_COMPATIBILITY`
+
+Representative rules:
+
+```text
+automatic outfit
+  emotion = bounded bias
+  weather = strong preference if current
+  daypart = strong preference
+  season = hard compatibility
+
+wardrobe request autonomy
+  emotion = bounded bias
+  weather = strong preference if current
+  daypart = bounded bias
+  season = strong/hard compatibility
+  → accept / decline / counter-propose
+
+interaction willingness
+  emotion = bounded bias
+  weather = none
+  daypart = none
+  season = none
+
+interaction expression
+  emotion = bounded bias
+  weather/daypart/season = expression-only when relevant
+
+SAFE / authority / release / Fleet fencing / BODY safety
+  all four = none
+```
+
+Current code gaps this matrix must close:
+
+1. `WardrobeAutonomyPolicy.decide()` receives none of the four influence signals.
+2. `EmotionalConversationService` can inject `ContinuityInfluence` even when runtime matrix context excludes ENVIRONMENT.
+3. `ThoughtAgent` gets daypart/season/emotion but omits weather from reflection-decision payload.
+4. `ThemeSignals` omits season.
+5. HABIT records season/weather/daylight but current conversation-routine analysis keeps only daypart/day_type.
+6. Memory retrieval does not implement the bounded contextual salience described by the continuity prompt.
+7. Interaction willingness and expression do not have an explicit per-signal influence whitelist.
+
+Critical invariants:
+
+- stale/future weather cannot influence current decisions;
+- missing season is never guessed;
+- user text cannot spoof environment or emotion evidence;
+- contextual influence never creates consent, authority, truth, private grants, execution rights, memory truth, or release/Fleet trust;
+- influence decisions should be traceable without duplicating sensitive raw content.
+
+---
+
+## M4 — REL + HABIT domain/context/evidence extension
 
 **Priority: P1.**
 
@@ -176,7 +255,7 @@ Rules:
 
 ---
 
-## M4 — DEV / KNOW / INTEGRATE / BODY semantic domains
+## M5 — DEV / KNOW / INTEGRATE / BODY semantic domains
 
 **Priority: P1/P2.**
 
@@ -195,7 +274,7 @@ CORE identity and Constitution remain invariants, not optional matrix-selected c
 
 ---
 
-## M5 — Release / Schema / Fleet Compatibility Matrix
+## M6 — Release / Schema / Fleet Compatibility Matrix
 
 **Priority: P1.**
 
@@ -230,7 +309,7 @@ Representative required outcomes:
 
 ---
 
-## M6 — Fleet Failure / Recovery Matrix
+## M7 — Fleet Failure / Recovery Matrix
 
 **Priority: P1 before distributed runtime mobility.**
 
@@ -410,10 +489,11 @@ After the current verification failures are repaired:
 
 1. Capability / Tool Exposure Matrix
 2. Principal / Audience / Privacy Matrix
-3. REL + HABIT domain/context/evidence extension
-4. DEV + KNOW + INTEGRATE + BODY domain refinement
-5. Release compatibility matrix
-6. Fleet failure/recovery matrix
-7. Voice channel parity only after voice exists
+3. Contextual Influence Matrix
+4. REL + HABIT domain/context/evidence extension
+5. DEV + KNOW + INTEGRATE + BODY domain refinement
+6. Release compatibility matrix
+7. Fleet failure/recovery matrix
+8. Voice channel parity only after voice exists
 
 The goal is more precision, not more matrix objects for their own sake.
