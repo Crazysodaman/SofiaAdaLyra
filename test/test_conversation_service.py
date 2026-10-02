@@ -1030,3 +1030,131 @@ def test_touch_scope_question_is_host_grounded_and_persisted(
         )
     finally:
         application.shutdown()
+
+
+@pytest.mark.parametrize(
+    "history_policy",
+    (
+        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.LAST_TURN,
+        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.TOPIC_WINDOW,
+        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.BOUNDED_RECENT,
+    ),
+)
+def test_matrix_context_window_filters_excluded_domains_across_history_policies(
+    history_policy,
+):
+    from datetime import datetime, timezone
+
+    from sofia.application.conversation_service import _matrix_context_window
+    from sofia.cognition.matrix import ContextPlan, MatrixDomain
+    from sofia.conversation.model import ConversationMessage
+
+    now = datetime(2026, 10, 2, 23, 0, tzinfo=timezone.utc)
+    history = (
+        ConversationMessage(
+            id="env-u",
+            session_id="domain-filter",
+            role=ConversationRole.USER,
+            content="what's the weather?",
+            created_at=now,
+        ),
+        ConversationMessage(
+            id="env-a",
+            session_id="domain-filter",
+            role=ConversationRole.ASSISTANT,
+            content="Weather answer",
+            created_at=now,
+        ),
+        ConversationMessage(
+            id="social-u",
+            session_id="domain-filter",
+            role=ConversationRole.USER,
+            content="hru",
+            created_at=now,
+        ),
+        ConversationMessage(
+            id="social-a",
+            session_id="domain-filter",
+            role=ConversationRole.ASSISTANT,
+            content="Social answer",
+            created_at=now,
+        ),
+        ConversationMessage(
+            id="current-u",
+            session_id="domain-filter",
+            role=ConversationRole.USER,
+            content="tell me more",
+            created_at=now,
+        ),
+    )
+    plan = ContextPlan(
+        included_domains=(MatrixDomain.SOCIAL,),
+        excluded_domains=tuple(
+            domain
+            for domain in MatrixDomain
+            if domain is not MatrixDomain.SOCIAL
+        ),
+        history_policy=history_policy,
+        max_history_messages=5,
+    )
+    traced_domains = {
+        "env-u": (MatrixDomain.ENVIRONMENT,),
+        "social-u": (MatrixDomain.SOCIAL,),
+    }
+
+    visible = _matrix_context_window(
+        history,
+        plan,
+        domain_lookup=lambda message_id: traced_domains.get(message_id, ()),
+        current_message_id="current-u",
+    )
+
+    assert tuple(message.id for message in visible) == (
+        "social-u",
+        "social-a",
+        "current-u",
+    )
+
+
+def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
+    from datetime import datetime, timezone
+
+    from sofia.application.conversation_service import _inherit_last_turn_domains
+    from sofia.cognition.matrix import (
+        MatrixContextPlanner,
+        MatrixCoordinator,
+        MatrixDomain,
+        MatrixRelevance,
+        TurnEnvelope,
+    )
+    from sofia.cognition.matrix.defaults import default_matrix_registry
+
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    now = datetime(2026, 10, 2, 23, 0, tzinfo=timezone.utc)
+    prior = coordinator.evaluate(
+        TurnEnvelope(
+            message_id="prior",
+            session_id="followup",
+            content="Move Gaia's left leg",
+            created_at=now,
+            principal_id="sparks",
+            channel="desktop",
+        )
+    )
+    followup = coordinator.evaluate(
+        TurnEnvelope(
+            message_id="followup",
+            session_id="followup",
+            content="tell me more",
+            created_at=now,
+            principal_id="sparks",
+            channel="desktop",
+        )
+    )
+
+    merged = _inherit_last_turn_domains(followup, prior)
+    plan = MatrixContextPlanner().plan(merged)
+
+    assert merged.relevance_for(MatrixDomain.BODY) is MatrixRelevance.CONTEXTUAL
+    assert merged.relevance_for(MatrixDomain.SOCIAL) is not MatrixRelevance.NONE
+    assert plan.allows(MatrixDomain.BODY) is True
