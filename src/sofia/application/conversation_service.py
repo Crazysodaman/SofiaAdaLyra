@@ -575,7 +575,10 @@ class ConversationService:
             for item in self._relationship_store.history(
                 principal.principal_id
             )
-            if item.evidence_ref != current_message_id
+            if (
+                item.evidence_ref != current_message_id
+                and item.audience_id == principal.audience_id
+            )
         )
         result["relationship.prior_contact"] = (
             EvidenceRecord(
@@ -654,7 +657,10 @@ class ConversationService:
                 for item in self._relationship_store.history(
                     principal.principal_id
                 )
-                if item.evidence_ref != current_user.id
+                if (
+                    item.evidence_ref != current_user.id
+                    and item.audience_id == principal.audience_id
+                )
             )
             if history:
                 previous = history[-1]
