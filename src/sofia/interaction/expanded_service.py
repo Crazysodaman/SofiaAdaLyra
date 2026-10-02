@@ -107,6 +107,7 @@ def _without_prescribed_gesture_reactions(request: CognitiveRequest) -> Cognitiv
         messages=tuple(projected),
         tools=request.tools,
         allow_tools=request.allow_tools,
+        capability_allowlist=request.capability_allowlist,
         route_hint=request.route_hint,
     )
 
