@@ -14,6 +14,8 @@ def default_matrix_registry() -> MatrixRegistry:
     from sofia.interaction.matrix import InteractionMatrixEvaluator
     from sofia.machine.matrix import MachineMatrixEvaluator
     from sofia.memory.matrix import MemoryMatrixEvaluator
+    from sofia.rel.matrix import RelationshipMatrixEvaluator
+    from sofia.habits.matrix import HabitMatrixEvaluator
     from sofia.ops.matrix import OpsMatrixEvaluator
     from sofia.social.matrix import SocialMatrixEvaluator
 
@@ -28,6 +30,8 @@ def default_matrix_registry() -> MatrixRegistry:
             AvatarMatrixEvaluator(),
             InteractionMatrixEvaluator(),
             MemoryMatrixEvaluator(),
+            RelationshipMatrixEvaluator(),
+            HabitMatrixEvaluator(),
             CognitionMatrixEvaluator(),
             MachineMatrixEvaluator(),
             OpsMatrixEvaluator(),

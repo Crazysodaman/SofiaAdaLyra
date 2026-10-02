@@ -473,6 +473,174 @@ class ConversationService:
                 occurred_at=message.created_at,
             )
 
+    def _matrix_person_scoped_evidence(
+        self,
+        *,
+        principal: PrincipalContext | None,
+        current_message_id: str,
+    ) -> dict[str, EvidenceRecord]:
+        """Resolve REL/HABIT evidence only from authenticated scoped stores."""
+        result: dict[str, EvidenceRecord] = {}
+        if principal is None:
+            return result
+
+        history = tuple(
+            item
+            for item in self._relationship_store.history(
+                principal.principal_id
+            )
+            if item.evidence_ref != current_message_id
+        )
+        result["relationship.prior_contact"] = (
+            EvidenceRecord(
+                "relationship.prior_contact",
+                EvidenceState.MISSING,
+            )
+            if not history
+            else EvidenceRecord(
+                "relationship.prior_contact",
+                EvidenceState.AVAILABLE,
+                history[-1].evidence_ref,
+            )
+        )
+
+        habit = getattr(self, "_habit_continuity", None)
+        patterns = ()
+        if habit is not None:
+            patterns = habit.patterns.patterns(
+                principal_id=principal.principal_id,
+                audience_id=principal.audience_id,
+            )
+        strongest = (
+            None
+            if not patterns
+            else max(
+                patterns,
+                key=lambda item: (
+                    item.confidence,
+                    item.last_seen,
+                    item.pattern_id,
+                ),
+            )
+        )
+        result["habit.patterns"] = (
+            EvidenceRecord(
+                "habit.patterns",
+                EvidenceState.MISSING,
+            )
+            if strongest is None
+            else EvidenceRecord(
+                "habit.patterns",
+                EvidenceState.AVAILABLE,
+                f"habit-pattern:{strongest.pattern_id}",
+            )
+        )
+        return result
+
+    def _matrix_person_scoped_context_messages(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> tuple[CognitiveMessage, ...]:
+        """Project bounded REL/HABIT context under the matrix privacy plan."""
+        if (
+            current_user is None
+            or self._session is None
+            or self._current_context_plan is None
+            or self._current_privacy_plan is None
+        ):
+            return ()
+
+        principal = self._social_store.get(self._session.id)
+        if principal is None:
+            return ()
+
+        included = set(self._current_context_plan.included_domains)
+        privacy = self._current_privacy_plan
+        messages: list[CognitiveMessage] = []
+
+        if (
+            MatrixDomain.REL in included
+            and privacy.allow_relationship_scope
+        ):
+            history = tuple(
+                item
+                for item in self._relationship_store.history(
+                    principal.principal_id
+                )
+                if item.evidence_ref != current_user.id
+            )
+            if history:
+                previous = history[-1]
+                messages.append(
+                    CognitiveMessage(
+                        role=CognitiveRole.SYSTEM,
+                        content=(
+                            "TRUSTED RELATIONSHIP CONTACT EVIDENCE\n"
+                            "This is principal-bound observed contact evidence, "
+                            "not a feeling, preference, or permission grant.\n"
+                            f"Previous observed contact: {previous.occurred_at.isoformat()}\n"
+                            f"Evidence ref: {previous.evidence_ref}\n"
+                            "The current user turn is the current contact and is "
+                            "intentionally excluded from 'previous contact'. "
+                            "Do not invent contact during unobserved time."
+                        ),
+                    )
+                )
+
+        if (
+            MatrixDomain.HABIT in included
+            and privacy.allow_audience_scope
+        ):
+            habit = getattr(self, "_habit_continuity", None)
+            if habit is not None:
+                patterns = habit.patterns.patterns(
+                    principal_id=principal.principal_id,
+                    audience_id=principal.audience_id,
+                )
+                ranked = tuple(sorted(
+                    patterns,
+                    key=lambda item: (
+                        -item.confidence,
+                        -item.support_count,
+                        item.pattern_id,
+                    ),
+                ))[:8]
+                if ranked:
+                    lines = [
+                        "TRUSTED HABIT PATTERN EVIDENCE",
+                        (
+                            "These are principal/audience-scoped learned "
+                            "patterns, not commands or guaranteed facts. "
+                            "Tentative patterns must not be described as "
+                            "established routines."
+                        ),
+                    ]
+                    for item in ranked:
+                        context = ", ".join(
+                            f"{key}={value}"
+                            for key, value in sorted(item.context.items())
+                            if key != "observation_kind"
+                        ) or "no-context"
+                        lines.append(
+                            "- "
+                            f"id={item.pattern_id}; "
+                            f"category={item.category.value}; "
+                            f"cadence={item.cadence.value}; "
+                            f"lifecycle={item.lifecycle.value}; "
+                            f"confidence={item.confidence:.4f}; "
+                            f"support={item.support_count}; "
+                            f"context={context}"
+                        )
+                    messages.append(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="\n".join(lines),
+                        )
+                    )
+
+        return tuple(messages)
+
     def _record_shadow_matrix(
         self,
         *,
@@ -526,14 +694,21 @@ class ConversationService:
                 turn,
                 envelope,
             )
+            availability = self._runtime.matrix_evidence_availability(
+                required_keys=tuple(
+                    item.key
+                    for item in evidence_requirements.requirements
+                )
+            )
+            availability.update(
+                self._matrix_person_scoped_evidence(
+                    principal=principal,
+                    current_message_id=message.id,
+                )
+            )
             evidence = self._matrix_evidence_resolver.resolve(
                 evidence_requirements,
-                self._runtime.matrix_evidence_availability(
-                    required_keys=tuple(
-                        item.key
-                        for item in evidence_requirements.requirements
-                    )
-                ),
+                availability,
             )
             authority_plan = self._matrix_authority_planner.plan(
                 envelope,
@@ -1147,6 +1322,14 @@ class ConversationService:
             self._to_cognitive_message(message)
             for message in visible_messages
         )
+        scoped_context = self._matrix_person_scoped_context_messages(
+            current_user=current_user,
+        )
+        if scoped_context:
+            cognitive_messages = (
+                *scoped_context,
+                *cognitive_messages,
+            )
 
         latest_user = next(
             (

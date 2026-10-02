@@ -123,6 +123,20 @@ class MatrixEvidencePlanner:
             is not MatrixRelevance.NONE
         ):
             require("memory.retrieval", EvidenceKind.REMEMBERED)
+        rel_relevance = turn.relevance_for(MatrixDomain.REL)
+        if rel_relevance is not MatrixRelevance.NONE:
+            require(
+                "relationship.prior_contact",
+                EvidenceKind.REMEMBERED,
+                required=rel_relevance is MatrixRelevance.REQUIRED,
+            )
+        habit_relevance = turn.relevance_for(MatrixDomain.HABIT)
+        if habit_relevance is not MatrixRelevance.NONE:
+            require(
+                "habit.patterns",
+                EvidenceKind.REMEMBERED,
+                required=habit_relevance is MatrixRelevance.REQUIRED,
+            )
         if (
             turn.relevance_for(MatrixDomain.COGNITION)
             is not MatrixRelevance.NONE
