@@ -133,6 +133,18 @@ class MemoryStore:
             for row in rows
         )
 
+    def open(self) -> None:
+        """Reopen durable SQLite persistence after an owned shutdown."""
+        with self._lock:
+            if self._connection is not None or self._database_path is None:
+                return
+            self._connection = sqlite3.connect(
+                str(self._database_path),
+                timeout=5.0,
+                check_same_thread=False,
+            )
+            self._initialize_database()
+
     def close(self) -> None:
         """
         Close the SQLite connection when persistence is enabled.
