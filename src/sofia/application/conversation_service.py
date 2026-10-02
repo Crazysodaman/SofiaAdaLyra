@@ -64,6 +64,12 @@ from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
 
 
+_SOFIA_MATRIX_TERM_RE = re.compile(
+    r"\b(?:matrix|matrixes|matrices|matrixs)\b",
+    re.IGNORECASE,
+)
+
+
 # The durable store keeps full history, but a new unrelated question must not
 # inherit previous assistant prose as if it were relevant evidence.
 _STANDALONE_TURN_RE = re.compile(
