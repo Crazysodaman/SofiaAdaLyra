@@ -209,3 +209,47 @@ def test_tonight_lounge_outfit_live_wording_is_deterministic():
         assert "not something I've already changed into" in result.content
         assert "wool" not in result.content.casefold()
         assert "feel" not in result.content.casefold()
+
+
+def test_bikini_outfit_ids_are_presented_with_human_display_names():
+    embodiment, current, _ = sources()
+    bikini = replace(
+        current,
+        outfit_id="swim.bikini.04",
+        item_names=(
+            "Midnight Asymmetric Bikini Top",
+            "Midnight Asymmetric Bikini Bottom",
+        ),
+    )
+    result = AvatarSelfFactResolver().resolve(
+        "what are you wearing",
+        embodiment=embodiment,
+        presentation=bikini,
+        available_outfit_ids=("swim.bikini.04",),
+    )
+
+    assert result.recognized
+    assert "Midnight Asymmetric Bikini" in result.content
+    assert "swim bikini 04" not in result.content
+
+
+def test_dynamic_outfit_ids_do_not_leak_into_ordinary_conversation():
+    embodiment, current, _ = sources()
+    dynamic = replace(
+        current,
+        outfit_id="dynamic.chat.clothing2c5daa1f427f46068c26ae48f93a7069",
+        item_names=(
+            "Fitted long-sleeve technical shirt",
+            "Articulated utility trousers",
+        ),
+    )
+    result = AvatarSelfFactResolver().resolve(
+        "what are you wearing",
+        embodiment=embodiment,
+        presentation=dynamic,
+    )
+
+    assert result.recognized
+    assert "custom outfit variation" in result.content
+    assert "dynamic chat" not in result.content
+    assert "clothing2c5daa" not in result.content
