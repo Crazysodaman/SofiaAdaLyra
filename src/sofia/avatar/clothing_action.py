@@ -304,6 +304,7 @@ class ClothingActionService:
         content: str,
         previous_user_content: str | None,
         operation_id: str,
+        principal: PrincipalContext | None = None,
     ) -> str | None:
         """Return a deterministic reply when this is a clothing action."""
         if not isinstance(content, str):
@@ -478,6 +479,7 @@ class ClothingActionService:
             intent,
             garment_id=garment.garment.item_id,
             operation_id=operation_id,
+            principal=principal,
         )
 
     def _remove(
