@@ -126,6 +126,32 @@ def test_baseline_turn_classifier(
     assert result.relevance_for(required_domain) is MatrixRelevance.REQUIRED
 
 
+@pytest.mark.parametrize(
+    "content",
+    (
+        "take off your jacket",
+        "change into bikini 4",
+        "swap your boots",
+        "undress",
+    ),
+)
+def test_clothing_state_changes_are_avatar_action_requests(content):
+    result = BaselineTurnClassifier().classify(envelope(content))
+
+    assert result.intent is MatrixIntent.ACTION_REQUEST
+    assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+    assert result.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
+
+
+def test_do_it_is_action_followup_with_prior_turn_context():
+    result = BaselineTurnClassifier().classify(envelope("do it"))
+
+    assert result.intent is MatrixIntent.ACTION_REQUEST
+    assert result.history_policy is HistoryPolicy.LAST_TURN
+    assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+
+
 def test_general_turn_keeps_bounded_recent_context():
     result = BaselineTurnClassifier().classify(
         envelope("Tell me about hexapod gait planning.")
