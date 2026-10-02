@@ -1,6 +1,9 @@
 """Authoritative natural-language clothing action acceptance tests."""
+from datetime import datetime, timezone
+
 from sofia.avatar.clothing_action import (
     ClothingActionService,
+    WardrobeAutonomyContext,
     WardrobeAutonomyDecision,
     WardrobeAutonomyPolicy,
 )
@@ -8,7 +11,20 @@ from sofia.avatar.presentation import AppearanceState, AttireMode, PresentationA
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.runtime_state import PresentationRuntimeBundle
 from sofia.avatar.wardrobe import Layer
+from sofia.avatar.wardrobe_routine import (
+    Activity,
+    EmotionStyleInfluence,
+    Season,
+    WardrobeContext,
+    Weather,
+    WeatherObservation,
+)
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.cognition.matrix import (
+    ContextualInfluenceMatrix,
+    InfluenceSurface,
+)
+from sofia.personality.influence import ContinuityInfluence
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.principals import local_sparks_principal
 
@@ -41,6 +57,78 @@ def persisted_authority(runtime_bundle):
             plan.outfit_id: plan.item_ids
             for plan in runtime_bundle.catalog.presets
         },
+    )
+
+
+def autonomy_context(
+    *,
+    hour: int = 14,
+    season: Season = Season.AUTUMN,
+    weather: Weather | None = None,
+    emotion: str | None = None,
+    intensity: float = 0.0,
+) -> WardrobeAutonomyContext:
+    now = datetime(2026, 10, 2, hour, 0, tzinfo=timezone.utc)
+    refs = () if emotion is None else ("emotion:test-context",)
+    continuity = ContinuityInfluence(
+        daypart=(
+            "morning"
+            if 5 <= hour < 12
+            else "afternoon"
+            if 12 <= hour < 17
+            else "evening"
+            if 17 <= hour < 22
+            else "night"
+        ),
+        season=season.value,
+        daylight="day" if 7 <= hour < 19 else "night",
+        weather_condition=None if weather is None else weather.value,
+        temperature_c=None,
+        weather_freshness="missing" if weather is None else "current",
+        location_freshness="current",
+        primary_emotion_evidence_refs=refs,
+        emotional_tone="steady" if emotion is None else "warm",
+        primary_emotion=emotion,
+        primary_intensity=intensity,
+        active_emotions=() if emotion is None else (emotion,),
+    )
+    emotion_influences = ()
+    if emotion is not None:
+        tags = (
+            ("soft", "cozy")
+            if emotion == "fondness"
+            else ("contextual",)
+        )
+        emotion_influences = (
+            EmotionStyleInfluence(
+                emotion=emotion,
+                intensity=intensity,
+                style_tags=tags,
+                evidence_refs=refs,
+            ),
+        )
+    wardrobe = WardrobeContext(
+        now=now,
+        season=season,
+        activity=Activity.CONVERSATION,
+        weather=(
+            None
+            if weather is None
+            else WeatherObservation(
+                condition=weather,
+                observed_at=now,
+                source_id="weather.test",
+            )
+        ),
+        emotion_influences=emotion_influences,
+    )
+    return WardrobeAutonomyContext(
+        continuity=continuity,
+        influence_plan=ContextualInfluenceMatrix().plan(
+            InfluenceSurface.WARDROBE_REQUEST_AUTONOMY,
+            continuity,
+        ),
+        wardrobe_context=wardrobe,
     )
 
 
@@ -200,6 +288,124 @@ def test_autonomy_policy_can_decline_public_change_without_mutation(tmp_path):
     assert runtime_bundle.authority.current == original
     assert persisted_authority(runtime_bundle).current == original
 
+
+
+def test_contextual_autonomy_counter_proposes_for_wrong_season(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    original = runtime_bundle.authority.current
+    context = autonomy_context(season=Season.WINTER)
+    service = ClothingActionService(
+        runtime_bundle,
+        context_provider=lambda: context,
+    )
+
+    reply = service.handle(
+        content="change into light engineer outfit",
+        previous_user_content=None,
+        operation_id="test.context.season",
+    )
+
+    assert reply is not None
+    assert "current season" in reply
+    assert "I'd rather wear" in reply
+    assert runtime_bundle.authority.current == original
+
+
+def test_contextual_autonomy_counter_proposes_for_incompatible_weather(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    original = runtime_bundle.authority.current
+    context = autonomy_context(
+        season=Season.SUMMER,
+        weather=Weather.COLD,
+    )
+    service = ClothingActionService(
+        runtime_bundle,
+        context_provider=lambda: context,
+    )
+
+    reply = service.handle(
+        content="wear bikini 4",
+        previous_user_content=None,
+        operation_id="test.context.weather",
+    )
+
+    assert reply is not None
+    assert "fresh weather evidence" in reply
+    assert "I'd rather wear" in reply
+    assert runtime_bundle.authority.current == original
+
+
+def test_contextual_autonomy_counter_proposes_during_lounge_window(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    original = runtime_bundle.authority.current
+    context = autonomy_context(
+        hour=23,
+        season=Season.AUTUMN,
+    )
+    service = ClothingActionService(
+        runtime_bundle,
+        context_provider=lambda: context,
+    )
+
+    reply = service.handle(
+        content="wear signature engineer outfit",
+        previous_user_content=None,
+        operation_id="test.context.daypart",
+    )
+
+    assert reply is not None
+    assert "lounge window" in reply
+    assert "I'd rather wear" in reply
+    assert runtime_bundle.authority.current == original
+
+
+def test_contextual_autonomy_can_counter_propose_from_strong_modeled_emotion(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    original = runtime_bundle.authority.current
+    context = autonomy_context(
+        hour=14,
+        season=Season.AUTUMN,
+        emotion="fondness",
+        intensity=0.90,
+    )
+    service = ClothingActionService(
+        runtime_bundle,
+        context_provider=lambda: context,
+    )
+
+    reply = service.handle(
+        content="wear signature engineer outfit",
+        previous_user_content=None,
+        operation_id="test.context.emotion",
+    )
+
+    assert reply is not None
+    assert "modeled emotional style preference" in reply
+    assert "I'd rather wear" in reply
+    assert runtime_bundle.authority.current == original
+
+
+def test_contextual_autonomy_still_accepts_compatible_requested_outfit(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    context = autonomy_context(
+        hour=14,
+        season=Season.SUMMER,
+        weather=Weather.HOT,
+    )
+    service = ClothingActionService(
+        runtime_bundle,
+        context_provider=lambda: context,
+    )
+
+    reply = service.handle(
+        content="wear bikini 4",
+        previous_user_content=None,
+        operation_id="test.context.accept",
+    )
+
+    assert reply is not None
+    assert "Midnight Asymmetric Bikini" in reply
+    assert runtime_bundle.authority.current.outfit_id == "swim.bikini.04"
 
 def test_unrelated_text_is_not_a_clothing_action(tmp_path):
     service = ClothingActionService(bundle(tmp_path))

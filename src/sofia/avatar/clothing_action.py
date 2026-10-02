@@ -1,6 +1,6 @@
 """Authoritative natural-language AVATAR clothing actions.
 
-The parser recognizes a deliberately small, reviewable set of clothing commands.
+The parser recognizes a deliberately small, reviewable set of clothing requests.
 The service never treats model prose as proof of a change. It validates a
 candidate wardrobe selection, passes it through an autonomy policy, commits the
 PresentationAuthority, persists canonical state, verifies the persisted revision,
@@ -8,11 +8,19 @@ and only then returns text describing the committed result.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import Enum
 import re
 from threading import RLock
 
+from sofia.cognition.matrix import (
+    ContextualInfluencePlan,
+    InfluenceMode,
+    InfluenceSignal,
+    InfluenceSurface,
+)
+from sofia.personality.influence import ContinuityInfluence
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.model import PrincipalContext
 
@@ -27,6 +35,7 @@ from .wardrobe import (
     WardrobeError,
     normalize_slots,
 )
+from .wardrobe_routine import OutfitPlan, OutfitPlanner, WardrobeContext
 
 
 def _normalize(value: str) -> str:
@@ -71,12 +80,53 @@ class ClothingActionIntent:
 class WardrobeAutonomyDecision:
     accepted: bool
     reason: str
+    alternative_outfit_id: str | None = None
 
     def __post_init__(self) -> None:
         if type(self.accepted) is not bool:
             raise TypeError("accepted must be bool")
         if not isinstance(self.reason, str) or not self.reason.strip():
             raise ValueError("autonomy reason must be nonempty")
+        if self.alternative_outfit_id is not None and (
+            not isinstance(self.alternative_outfit_id, str)
+            or not self.alternative_outfit_id.strip()
+        ):
+            raise ValueError(
+                "alternative_outfit_id must be None or nonempty"
+            )
+        if self.accepted and self.alternative_outfit_id is not None:
+            raise ValueError(
+                "accepted wardrobe decisions cannot counter-propose"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class WardrobeAutonomyContext:
+    """Trusted non-authoritative context for one clothing request."""
+
+    continuity: ContinuityInfluence
+    influence_plan: ContextualInfluencePlan
+    wardrobe_context: WardrobeContext | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.continuity, ContinuityInfluence):
+            raise TypeError("continuity must be ContinuityInfluence")
+        if not isinstance(self.influence_plan, ContextualInfluencePlan):
+            raise TypeError("influence_plan must be ContextualInfluencePlan")
+        if (
+            self.influence_plan.surface
+            is not InfluenceSurface.WARDROBE_REQUEST_AUTONOMY
+        ):
+            raise ValueError(
+                "wardrobe autonomy context requires wardrobe request surface"
+            )
+        if self.wardrobe_context is not None and not isinstance(
+            self.wardrobe_context,
+            WardrobeContext,
+        ):
+            raise TypeError(
+                "wardrobe_context must be WardrobeContext or None"
+            )
 
 
 class WardrobeAutonomyPolicy:
@@ -104,6 +154,113 @@ class WardrobeAutonomyPolicy:
         return WardrobeAutonomyDecision(
             True,
             "valid wardrobe change accepted by host autonomy policy",
+        )
+
+    def decide_contextual(
+        self,
+        *,
+        intent: ClothingActionIntent,
+        candidate_item_ids: tuple[str, ...],
+        private_only: bool,
+        candidate_plan: OutfitPlan | None,
+        alternative_plan: OutfitPlan | None,
+        context: WardrobeAutonomyContext | None,
+    ) -> WardrobeAutonomyDecision:
+        """Apply bounded context while preserving legacy policy overrides."""
+        if type(self).decide is not WardrobeAutonomyPolicy.decide:
+            return self.decide(
+                intent=intent,
+                candidate_item_ids=candidate_item_ids,
+                private_only=private_only,
+            )
+
+        baseline = self.decide(
+            intent=intent,
+            candidate_item_ids=candidate_item_ids,
+            private_only=private_only,
+        )
+        if (
+            not baseline.accepted
+            or context is None
+            or candidate_plan is None
+        ):
+            return baseline
+
+        wardrobe = context.wardrobe_context
+        plan = context.influence_plan
+
+        if (
+            wardrobe is not None
+            and plan.mode_for(InfluenceSignal.SEASON)
+            is InfluenceMode.HARD_COMPATIBILITY
+            and wardrobe.season not in candidate_plan.seasons
+        ):
+            return self._counter(
+                "that outfit is not compatible with the grounded current season",
+                alternative_plan,
+            )
+
+        if (
+            wardrobe is not None
+            and plan.mode_for(InfluenceSignal.WEATHER)
+            is InfluenceMode.STRONG_PREFERENCE
+            and candidate_plan.weather
+            and wardrobe.effective_weather is not None
+            and wardrobe.effective_weather not in candidate_plan.weather
+        ):
+            return self._counter(
+                "the fresh weather evidence makes that outfit a poor fit right now",
+                alternative_plan,
+            )
+
+        if (
+            wardrobe is not None
+            and plan.mode_for(InfluenceSignal.DAYPART)
+            is InfluenceMode.BOUNDED_BIAS
+            and wardrobe.lounge_window
+            and not candidate_plan.lounge
+            and alternative_plan is not None
+            and alternative_plan.lounge
+        ):
+            return self._counter(
+                "the current late-day lounge window makes a lounge outfit feel more appropriate",
+                alternative_plan,
+            )
+
+        if (
+            wardrobe is not None
+            and plan.mode_for(InfluenceSignal.EMOTION)
+            is InfluenceMode.BOUNDED_BIAS
+            and alternative_plan is not None
+            and alternative_plan.outfit_id != candidate_plan.outfit_id
+        ):
+            strong_tags = {
+                tag
+                for influence in wardrobe.emotion_influences
+                if influence.intensity >= 0.75
+                for tag in influence.style_tags
+            }
+            if (
+                strong_tags
+                and not (strong_tags & set(candidate_plan.style_tags))
+                and (strong_tags & set(alternative_plan.style_tags))
+            ):
+                return self._counter(
+                    "my current modeled emotional style preference leans toward another valid outfit",
+                    alternative_plan,
+                )
+
+        return baseline
+
+    @staticmethod
+    def _counter(
+        reason: str,
+        alternative_plan: OutfitPlan | None,
+    ) -> WardrobeAutonomyDecision:
+        return WardrobeAutonomyDecision(
+            False,
+            reason,
+            None if alternative_plan is None else alternative_plan.outfit_id,
         )
 
 
@@ -242,6 +399,9 @@ class ClothingActionService:
         bundle: PresentationRuntimeBundle,
         *,
         autonomy: WardrobeAutonomyPolicy | None = None,
+        context_provider: Callable[
+            [], WardrobeAutonomyContext | None
+        ] | None = None,
         adult_verified: bool = False,
         operator_stop_store: OperatorStopStore | None = None,
     ) -> None:
@@ -254,6 +414,10 @@ class ClothingActionService:
             raise TypeError(
                 "autonomy must be WardrobeAutonomyPolicy or None"
             )
+        if context_provider is not None and not callable(context_provider):
+            raise TypeError(
+                "context_provider must be callable or None"
+            )
         if type(adult_verified) is not bool:
             raise TypeError("adult_verified must be bool")
         if operator_stop_store is not None and not isinstance(
@@ -265,6 +429,7 @@ class ClothingActionService:
             )
         self.bundle = bundle
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
+        self.context_provider = context_provider
         self.parser = ClothingActionParser()
         self._grant_resolver = PrivatePresentationGrantResolver(
             state_path=bundle.store.database_path,
@@ -280,6 +445,14 @@ class ClothingActionService:
             plan.outfit_id: plan.item_ids
             for plan in bundle.catalog.presets
         }
+        self._plans = {
+            plan.outfit_id: plan
+            for plan in bundle.catalog.presets
+        }
+        self._planner = OutfitPlanner(
+            bundle.catalog.wardrobe,
+            bundle.catalog.presets,
+        )
 
     def handle(
         self,
@@ -718,15 +891,61 @@ class ClothingActionService:
         if needs_private and grant is None:
             return self._decline_private()
 
-        decision = self.autonomy.decide(
+        autonomy_context = (
+            None
+            if self.context_provider is None
+            else self.context_provider()
+        )
+        candidate_plan = (
+            None if outfit_id is None else self._plans.get(outfit_id)
+        )
+        alternative_plan = None
+        if (
+            autonomy_context is not None
+            and autonomy_context.wardrobe_context is not None
+        ):
+            try:
+                proposal = self._planner.suggest(
+                    autonomy_context.wardrobe_context
+                )
+            except (WardrobeError, WardrobeConflict):
+                proposal = None
+            proposed_plan = (
+                None
+                if proposal is None
+                else self._plans.get(proposal.outfit_id)
+            )
+            if (
+                proposed_plan is not None
+                and (
+                    candidate_plan is None
+                    or proposed_plan.outfit_id != candidate_plan.outfit_id
+                )
+            ):
+                alternative_plan = proposed_plan
+
+        decision = self.autonomy.decide_contextual(
             intent=intent,
             candidate_item_ids=selected.item_ids,
             private_only=selected.private_only,
+            candidate_plan=candidate_plan,
+            alternative_plan=alternative_plan,
+            context=autonomy_context,
         )
         if not decision.accepted:
+            alternative = ""
+            if decision.alternative_outfit_id is not None:
+                plan = self._plans.get(decision.alternative_outfit_id)
+                label = (
+                    decision.alternative_outfit_id
+                    if plan is None or not plan.display_name
+                    else plan.display_name
+                )
+                alternative = f" I'd rather wear {label} instead."
             return (
                 "I'm keeping my current outfit. "
                 f"My wardrobe decision was: {decision.reason}."
+                + alternative
             )
 
         if outfit_id is None:

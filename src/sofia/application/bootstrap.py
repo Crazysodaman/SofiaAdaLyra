@@ -8,7 +8,10 @@ from pathlib import Path
 from threading import RLock
 
 from sofia.avatar.influence import wardrobe_emotion_influences
-from sofia.avatar.clothing_action import ClothingActionService
+from sofia.avatar.clothing_action import (
+    ClothingActionService,
+    WardrobeAutonomyContext,
+)
 from sofia.avatar.interact_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -33,6 +36,10 @@ from sofia.application.fleet_runtime import (
 from sofia.application.memory_review import MemoryReviewService
 from sofia.application.conversation_learning import ConversationLearningCoordinator
 from sofia.application.release_runtime import create_release_manager
+from sofia.cognition.matrix import (
+    ContextualInfluenceMatrix,
+    InfluenceSurface,
+)
 from sofia.composition.root import compose
 from sofia.config.model import SofiaConfiguration
 from sofia.conversation.store import ConversationStore
@@ -302,6 +309,50 @@ class SofiaApplication:
             refresh_environment=False,
         )
 
+    def _wardrobe_autonomy_context(
+        self,
+    ) -> WardrobeAutonomyContext | None:
+        """Project fresh trusted context for one user wardrobe request."""
+        service = self._conversation_service
+        if (
+            not isinstance(service, EmotionalConversationService)
+            or self._runtime.personality is None
+        ):
+            return None
+
+        now = datetime.now(timezone.utc)
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        current_emotion = service.current_emotional_state(now=now)
+        continuity = ContinuityInfluence.from_state(
+            emotion=current_emotion,
+            environment=environment,
+        )
+        influence_plan = ContextualInfluenceMatrix().plan(
+            InfluenceSurface.WARDROBE_REQUEST_AUTONOMY,
+            continuity,
+        )
+
+        wardrobe_context = None
+        if environment.season is not None:
+            host_environment = HostEnvironmentEvidence.from_environment_snapshot(
+                environment,
+                activity=Activity.CONVERSATION,
+            )
+            wardrobe_context = host_environment.planner_context(
+                emotion_influences=wardrobe_emotion_influences(
+                    continuity
+                ),
+            )
+
+        return WardrobeAutonomyContext(
+            continuity=continuity,
+            influence_plan=influence_plan,
+            wardrobe_context=wardrobe_context,
+        )
+
     def _evaluate_contextual_presentation(
         self,
         *,
@@ -428,6 +479,7 @@ class SofiaApplication:
             )
             self._clothing_action_service = ClothingActionService(
                 bundle,
+                context_provider=self._wardrobe_autonomy_context,
                 adult_verified=bool(
                     getattr(
                         self._configuration,
