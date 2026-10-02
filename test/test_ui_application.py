@@ -221,3 +221,26 @@ def test_private_avatar_state_is_read_back_in_verified_local_session(
     )
 
     application.shutdown()
+
+
+def test_public_safe_avatar_query_never_leaks_private_presentation(
+    configuration: SofiaConfiguration,
+):
+    configuration = replace(
+        configuration,
+        avatar_private_adult_verified=True,
+    )
+    application = SofiaApplication(configuration)
+    application.start()
+
+    application.text_ui.save_draft("undress")
+    application.text_ui.send()
+
+    application.text_ui.save_draft("what is your current public-safe outfit")
+    public = application.text_ui.send()
+
+    assert "signature engineer outfit" in public.content
+    assert "outfit ID: engineer.signature" in public.content
+    assert "not wearing any clothing" not in public.content
+
+    application.shutdown()

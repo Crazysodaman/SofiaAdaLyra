@@ -83,6 +83,21 @@ def _friendly_outfit(outfit_id: str | None) -> str:
 class AvatarSelfFactResolver:
     """Resolve a small set of direct current-presentation questions."""
 
+    def allows_private_projection(self, query: str) -> bool:
+        """Return whether this exact self-fact request may use private state.
+
+        Explicit public-safe/identifier questions intentionally stay on the
+        public projection even inside an authenticated private session.
+        """
+        if not isinstance(query, str):
+            raise TypeError("query must be a string")
+        normalized = _normalize(query)
+        return (
+            normalized in self._CURRENT_OUTFIT_FORMS
+            or normalized in self._UNDERGARMENT_PRESENTATION_FORMS
+            or normalized in self._CURRENT_LOOK_FORMS
+        )
+
     _DAYPART_OUTFIT_REASON = re.compile(
         r"^why\b.*\b(?:night\s*wear|nightwear|lounge\s*wear|loungewear|"
         r"lounge\s+outfit|wear)\b.*\b(?:night|late|am|pm|morning|evening)\b",

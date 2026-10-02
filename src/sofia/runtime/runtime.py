@@ -981,24 +981,27 @@ class SofiaRuntime:
                 available_outfit_ids=self._avatar_presentation.available_outfit_ids,
             )
             if self_fact.recognized:
-                private_grant = self._private_presentation_grants.resolve(
-                    principal=principal,
-                    explicit_current_opt_in=True,
-                )
-                if private_grant is not None:
-                    private_presentation = self.avatar_projection_for(
+                if self._avatar_self_fact_resolver.allows_private_projection(
+                    user_content
+                ):
+                    private_grant = self._private_presentation_grants.resolve(
                         principal=principal,
-                        private_grant=private_grant,
+                        explicit_current_opt_in=True,
                     )
-                    if private_presentation is not None:
-                        self_fact = self._avatar_self_fact_resolver.resolve(
-                            user_content,
-                            embodiment=self._embodiment,
-                            presentation=private_presentation,
-                            available_outfit_ids=(
-                                self._avatar_presentation.available_outfit_ids
-                            ),
+                    if private_grant is not None:
+                        private_presentation = self.avatar_projection_for(
+                            principal=principal,
+                            private_grant=private_grant,
                         )
+                        if private_presentation is not None:
+                            self_fact = self._avatar_self_fact_resolver.resolve(
+                                user_content,
+                                embodiment=self._embodiment,
+                                presentation=private_presentation,
+                                available_outfit_ids=(
+                                    self._avatar_presentation.available_outfit_ids
+                                ),
+                            )
                 return CognitiveResponse(content=self_fact.content)
 
         environment_snapshot = None
