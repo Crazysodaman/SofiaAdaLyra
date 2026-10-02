@@ -109,13 +109,99 @@ def _conversation_cognitive_window(
 def _matrix_context_window(
     messages: tuple[ConversationMessage, ...],
     plan: ContextPlan,
+    *,
+    domain_lookup=None,
+    current_message_id: str | None = None,
 ) -> tuple[ConversationMessage, ...]:
-    """Apply the matrix history policy to provider-visible transcript only."""
+    """Apply typed history limits and domain eligibility to provider context.
+
+    When matrix trace lookup is available, prior user/assistant exchanges are
+    retained only when the originating user turn overlaps the current
+    ContextPlan. The current user message is always retained.
+    """
     if not isinstance(plan, ContextPlan):
         raise TypeError("plan must be ContextPlan")
     if not messages:
         return ()
-    return messages[-plan.max_history_messages:]
+
+    bounded = messages[-plan.max_history_messages:]
+    if (
+        domain_lookup is None
+        or plan.history_policy in {
+            HistoryPolicy.NONE,
+            HistoryPolicy.RETRIEVE_SPECIFIC,
+        }
+    ):
+        return bounded
+
+    current_id = current_message_id or bounded[-1].id
+    visible: list[ConversationMessage] = []
+    prior_user_allowed = False
+
+    for message in bounded:
+        if message.role is ConversationRole.USER:
+            if message.id == current_id:
+                prior_user_allowed = True
+            else:
+                domains = tuple(domain_lookup(message.id))
+                prior_user_allowed = any(
+                    plan.allows(domain)
+                    for domain in domains
+                )
+            if prior_user_allowed:
+                visible.append(message)
+            continue
+
+        if (
+            message.role is ConversationRole.ASSISTANT
+            and prior_user_allowed
+        ):
+            visible.append(message)
+
+    return tuple(visible)
+
+
+def _inherit_last_turn_domains(
+    turn: TurnMatrix,
+    prior_turn: TurnMatrix | None,
+) -> TurnMatrix:
+    """Carry prior semantic domains into an explicit LAST_TURN follow-up.
+
+    Inherited domains are contextual only. They provide topic continuity
+    without manufacturing evidence, authority, or action permission.
+    """
+    if not isinstance(turn, TurnMatrix):
+        raise TypeError("turn must be TurnMatrix")
+    if prior_turn is not None and not isinstance(prior_turn, TurnMatrix):
+        raise TypeError("prior_turn must be TurnMatrix or None")
+    if (
+        prior_turn is None
+        or turn.history_policy is not HistoryPolicy.LAST_TURN
+    ):
+        return turn
+
+    domains = {item.domain: item for item in turn.domains}
+    for item in prior_turn.domains:
+        if item.domain in domains:
+            continue
+        domains[item.domain] = type(item)(
+            domain=item.domain,
+            relevance=MatrixRelevance.CONTEXTUAL,
+            reason="inherited from the immediately preceding matrix turn",
+        )
+
+    return TurnMatrix(
+        intent=turn.intent,
+        confidence=turn.confidence,
+        history_policy=turn.history_policy,
+        response_strategy=turn.response_strategy,
+        domains=tuple(
+            domains[key]
+            for key in sorted(domains, key=lambda domain: domain.value)
+        ),
+        ambiguous=turn.ambiguous,
+        schema_version=turn.schema_version,
+    )
 
 
 class ConversationService:
@@ -555,12 +641,12 @@ class ConversationService:
         if principal is None:
             return ()
 
-        included = set(self._current_context_plan.included_domains)
+        context_plan = self._current_context_plan
         privacy = self._current_privacy_plan
         messages: list[CognitiveMessage] = []
 
         if (
-            MatrixDomain.REL in included
+            context_plan.allows(MatrixDomain.REL)
             and privacy.allow_relationship_scope
         ):
             history = tuple(
@@ -589,7 +675,7 @@ class ConversationService:
                 )
 
         if (
-            MatrixDomain.HABIT in included
+            context_plan.allows(MatrixDomain.HABIT)
             and privacy.allow_audience_scope
         ):
             habit = getattr(self, "_habit_continuity", None)
@@ -641,6 +727,25 @@ class ConversationService:
 
         return tuple(messages)
 
+    def _matrix_domains_for_message(
+        self,
+        message_id: str,
+    ) -> tuple[MatrixDomain, ...]:
+        """Return traced semantic domains for a prior user message."""
+        if not isinstance(message_id, str) or not message_id.strip():
+            raise ValueError("message_id must be nonempty")
+        store = getattr(self, "_matrix_trace_store", None)
+        if store is None:
+            return ()
+        trace = store.get(message_id)
+        if trace is None:
+            return ()
+        return tuple(
+            item.domain
+            for item in trace.turn.domains
+            if item.relevance is not MatrixRelevance.NONE
+        )
+
     def _record_shadow_matrix(
         self,
         *,
@@ -689,6 +794,11 @@ class ConversationService:
                 channel=channel,
             )
             turn = self._matrix_coordinator.evaluate(envelope)
+            prior_trace = store.latest(session_id=message.session_id)
+            turn = _inherit_last_turn_domains(
+                turn,
+                None if prior_trace is None else prior_trace.turn,
+            )
             context_plan = self._matrix_context_planner.plan(turn)
             evidence_requirements = self._matrix_evidence_planner.plan(
                 turn,
@@ -1314,7 +1424,14 @@ class ConversationService:
             else None
         )
         visible_messages = (
-            _matrix_context_window(messages, context_plan)
+            _matrix_context_window(
+                messages,
+                context_plan,
+                domain_lookup=self._matrix_domains_for_message,
+                current_message_id=(
+                    None if current_user is None else current_user.id
+                ),
+            )
             if context_plan is not None
             else _conversation_cognitive_window(messages)
         )
