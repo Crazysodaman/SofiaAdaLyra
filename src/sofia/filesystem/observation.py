@@ -394,6 +394,16 @@ class FilesystemObservationStore:
             entries=entries,
         )
 
+    def open(self) -> None:
+        """Reopen the durable observation connection after runtime shutdown."""
+        if self._connection is not None:
+            return
+        self._connection = sqlite3.connect(
+            self._state_path,
+            check_same_thread=False,
+        )
+        self._connection.execute("PRAGMA busy_timeout=10000")
+
     def close(self) -> None:
         if self._connection is None:
             return
