@@ -948,17 +948,12 @@ class SofiaRuntime:
                     "privacy plan does not match authenticated runtime principal"
                 )
 
-        selective_context = (
-            context_plan is not None
-            and context_plan.history_policy
-            in (HistoryPolicy.NONE, HistoryPolicy.RETRIEVE_SPECIFIC)
-        )
+        selective_context = context_plan is not None
 
         def include_domain(*domains: MatrixDomain) -> bool:
             if not selective_context or context_plan is None:
                 return True
-            included = set(context_plan.included_domains)
-            return any(domain in included for domain in domains)
+            return any(context_plan.allows(domain) for domain in domains)
 
         if not isinstance(filesystem_results, tuple):
             raise TypeError(
@@ -1004,6 +999,7 @@ class SofiaRuntime:
         )
         if (
             user_content
+            and include_domain(MatrixDomain.AVATAR)
             and self._embodiment is not None
             and presentation is not None
             and self._avatar_presentation is not None
@@ -1060,6 +1056,7 @@ class SofiaRuntime:
         if (
             environment_service is not None
             and environment_query
+            and include_domain(MatrixDomain.ENVIRONMENT)
             and self._environment_query_resolver.might_match(
                 environment_query
             )
