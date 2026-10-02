@@ -138,6 +138,11 @@ class MatrixEvidencePlanner:
                 required=habit_relevance is MatrixRelevance.REQUIRED,
             )
         if (
+            turn.relevance_for(MatrixDomain.VOICE)
+            is not MatrixRelevance.NONE
+        ):
+            require("voice.runtime.current", EvidenceKind.CURRENT)
+        if (
             turn.relevance_for(MatrixDomain.COGNITION)
             is not MatrixRelevance.NONE
         ):

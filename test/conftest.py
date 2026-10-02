@@ -52,6 +52,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "state": ("pkg_core",),
     "system": ("pkg_ops",),
     "ui": ("pkg_ui",),
+    "voice": ("pkg_voice",),
     "verify": ("pkg_verify",),
 }
 
@@ -71,6 +72,7 @@ FILENAME_PACKAGE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("test_act_", ("pkg_act",)),
     ("test_action_", ("pkg_act",)),
     ("test_ui_", ("pkg_ui",)),
+    ("test_voice_", ("pkg_voice",)),
     ("test_distributed_", ("pkg_net", "pkg_ops")),
     ("test_external_", ("pkg_integrate",)),
     ("test_system_", ("pkg_ops",)),

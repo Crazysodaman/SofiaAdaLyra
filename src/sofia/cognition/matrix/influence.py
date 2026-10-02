@@ -29,6 +29,7 @@ class InfluenceSurface(str, Enum):
     UI_THEME = "ui_theme"
     INTERACTION_WILLINGNESS = "interaction_willingness"
     INTERACTION_EXPRESSION = "interaction_expression"
+    VOICE_EXPRESSION = "voice_expression"
     HABIT_LEARNING = "habit_learning"
     MEMORY_RERANK = "memory_rerank"
     SOCIAL_GOAL_PRIORITY = "social_goal_priority"
@@ -155,6 +156,12 @@ _POLICY: dict[InfluenceSurface, dict[InfluenceSignal, InfluenceMode]] = {
         InfluenceSignal.EMOTION: InfluenceMode.BOUNDED_BIAS,
         InfluenceSignal.WEATHER: InfluenceMode.EXPRESSION_ONLY,
         InfluenceSignal.DAYPART: InfluenceMode.EXPRESSION_ONLY,
+        InfluenceSignal.SEASON: InfluenceMode.EXPRESSION_ONLY,
+    },
+    InfluenceSurface.VOICE_EXPRESSION: {
+        InfluenceSignal.EMOTION: InfluenceMode.BOUNDED_BIAS,
+        InfluenceSignal.WEATHER: InfluenceMode.EXPRESSION_ONLY,
+        InfluenceSignal.DAYPART: InfluenceMode.BOUNDED_BIAS,
         InfluenceSignal.SEASON: InfluenceMode.EXPRESSION_ONLY,
     },
     InfluenceSurface.HABIT_LEARNING: {

@@ -33,6 +33,7 @@ markers = [
     "pkg_social: PKG-SOCIAL principals, audiences and isolation",
     "pkg_net: PKG-NET networking, distributed transport and remote trust",
     "pkg_ui: PKG-UI clients, Discord transport and desktop/workbench surfaces",
+    "pkg_voice: PKG-VOICE speech input/output, runtime capability and prosody",
     "pkg_run: PKG-RUN lifecycle, supervision, heartbeat and periodic work",
     "pkg_ops: PKG-OPS fleet, machine, telemetry and maintenance operations",
     "pkg_act: PKG-ACT actions, goals, delivery and proactive outreach",

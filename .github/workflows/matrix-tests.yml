@@ -37,6 +37,9 @@ jobs:
           pytest -q `
             test/test_cognition_matrix.py `
             test/test_contextual_influence_matrix.py `
+            test/test_voice_matrix.py `
+            test/test_voice_runtime_matrix.py `
+            test/test_voice_prosody_matrix.py `
             test/test_rel_habit_matrix.py `
             test/test_semantic_domain_matrix.py `
             test/test_release_compatibility_matrix.py `

@@ -89,7 +89,8 @@ _SPECIALIZED_ACTION_DOMAIN = re.compile(
     r"\b(?:code|codebase|source\s+code|repository|repo|git|github|pytest|"
     r"documentation|docs|document|pdf|knowledge|manual|"
     r"home\s+assistant|jmri|portainer|docker|containers?|hyper[- ]?v|"
-    r"virtual\s+machines?|\bvms?\b|gaia|hexapod|ssc[- ]?32|servos?|"
+    r"virtual\s+machines?|\bvms?\b|voice|speech|microphone|\bmic\b|"
+    r"audio|tts|stt|push[- ]?to[- ]?talk|gaia|hexapod|ssc[- ]?32|servos?|"
     r"gait|kinematics|physical\s+embodiment|hardware\s+e[- ]?stop)\b",
     re.IGNORECASE,
 )

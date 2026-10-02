@@ -31,6 +31,7 @@ class MatrixDomain(str, Enum):
     ENVIRONMENT = "environment"
     AVATAR = "avatar"
     INTERACTION = "interaction"
+    VOICE = "voice"
     MEMORY = "memory"
     REL = "rel"
     HABIT = "habit"

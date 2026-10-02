@@ -433,16 +433,22 @@ def test_default_registry_has_one_owner_per_registered_domain():
         MatrixDomain.SOCIAL,
         MatrixDomain.EMOTION,
         MatrixDomain.ENVIRONMENT,
+        MatrixDomain.CONTINUITY,
         MatrixDomain.AVATAR,
         MatrixDomain.INTERACTION,
+        MatrixDomain.VOICE,
         MatrixDomain.MEMORY,
+        MatrixDomain.REL,
+        MatrixDomain.HABIT,
+        MatrixDomain.DEV,
+        MatrixDomain.KNOW,
+        MatrixDomain.INTEGRATE,
+        MatrixDomain.BODY,
         MatrixDomain.COGNITION,
         MatrixDomain.MACHINE,
         MatrixDomain.OPS,
         MatrixDomain.AUTHORITY,
-        MatrixDomain.CONTINUITY,
     }
-
 
 def test_machine_domain_can_strengthen_operational_relevance():
     result = MatrixCoordinator(

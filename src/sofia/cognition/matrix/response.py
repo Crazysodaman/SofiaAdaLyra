@@ -46,6 +46,12 @@ _UNSUPPORTED_WEATHER_CLAIM = re.compile(
     r"temperature\s+(?:is|at)\s+-?\d+)",
     re.IGNORECASE,
 )
+_VOICE_RUNTIME_CLAIM = re.compile(
+    r"(?:\b(?:voice|speech|microphone|mic|speaker|tts|stt)\b"
+    r".{0,48}\b(?:working|ready|available|healthy|running|enabled|connected)\b"
+    r"|\bi\s+can\s+(?:hear|listen|speak|talk)\b)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class MatrixResponsePlanner:
@@ -126,6 +132,16 @@ class MatrixResponseValidator:
         if environment_missing and _UNSUPPORTED_WEATHER_CLAIM.search(content):
             reasons.append("current_weather_claim_without_evidence")
 
+        voice_runtime_missing = any(
+            requirement.key == "voice.runtime.current"
+            and requirement.required
+            and evidence.state_for(requirement.key)
+            is not EvidenceState.AVAILABLE
+            for requirement in evidence.requirements
+        )
+        if voice_runtime_missing and _VOICE_RUNTIME_CLAIM.search(content):
+            reasons.append("voice_runtime_claim_without_evidence")
+
         if (
             contract.requires_execution_receipt
             and _EXECUTION_CLAIM.search(content)
@@ -191,6 +207,13 @@ class MatrixResponseValidator:
             return CognitiveResponse(
                 content=(
                     "I don't have current weather evidence for that claim."
+                )
+            )
+        if "voice_runtime_claim_without_evidence" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I don't have current voice-runtime evidence proving that "
+                    "listening or speech output is working."
                 )
             )
         return CognitiveResponse(

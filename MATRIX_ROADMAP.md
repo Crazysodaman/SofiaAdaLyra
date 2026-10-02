@@ -57,6 +57,7 @@ Current matrix domains:
 - ENVIRONMENT
 - AVATAR
 - INTERACTION
+- VOICE
 - MEMORY
 - REL
 - HABIT
@@ -70,7 +71,7 @@ Current matrix domains:
 - AUTHORITY
 - CONTINUITY
 
-Existing behavior-matrix suites also cover AVATAR, EMOTION, ENVIRONMENT cross-package behavior, and INTERACT.
+Existing behavior-matrix suites also cover AVATAR, EMOTION, ENVIRONMENT cross-package behavior, INTERACT, and the VOICE runtime/prosody foundation.
 
 ---
 
@@ -376,6 +377,29 @@ This matrix is a prerequisite for claiming general workload migration, state fai
 
 ---
 
+## M8 — Voice Runtime / Prosody Matrix Foundation
+
+**Status: foundation implemented 2026-10-02.**
+
+VOICE now has two bounded matrices:
+
+- runtime/capability matrix for microphone, speaker, STT, TTS, user enable/disable controls, requested input mode, and text fallbacks;
+- prosody matrix for evidence-linked emotion, subtle trusted daypart influence, urgency, and expression-only weather/season context.
+
+The cognition matrix now has a first-class VOICE domain. Voice-status claims require current `voice.runtime.current` evidence, and voice-control language is treated as VOICE-owned action planning rather than generic OPS.
+
+Critical invariants:
+
+- missing microphone/STT evidence cannot become a listening claim;
+- missing speaker/TTS evidence cannot become a speech-output claim;
+- modeled emotion must be evidence-linked before it may alter numeric prosody;
+- weather and season may color expression context but do not directly alter numeric pitch/rate/volume/energy/pause controls;
+- urgency affects delivery clarity only and never grants authority;
+- explicit listening/output disable controls win over healthy devices or engines;
+- actual STT/TTS engines and Desktop/Discord live channel parity remain implementation work.
+
+---
+
 # Cross-matrix suites
 
 ## Relationship / habit / environment / emotion
@@ -516,6 +540,6 @@ After the current verification failures are repaired:
 5. DEV + KNOW + INTEGRATE + BODY domain refinement
 6. Release compatibility matrix
 7. Fleet failure/recovery matrix
-8. Voice channel parity only after voice exists
+8. Voice live STT/TTS adapters + Desktop/Discord channel parity (matrix foundation complete)
 
 The goal is more precision, not more matrix objects for their own sake.
