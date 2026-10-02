@@ -85,6 +85,18 @@ _INTERACTION_CONTROL = re.compile(
     r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
+_SPECIALIZED_ACTION_DOMAIN = re.compile(
+    r"\b(?:code|codebase|source\s+code|repository|repo|git|github|pytest|"
+    r"documentation|docs|document|pdf|knowledge|manual|"
+    r"home\s+assistant|jmri|portainer|docker|containers?|hyper[- ]?v|"
+    r"virtual\s+machines?|\bvms?\b|gaia|hexapod|ssc[- ]?32|servos?|"
+    r"gait|kinematics|physical\s+embodiment|hardware\s+e[- ]?stop)\b",
+    re.IGNORECASE,
+)
+_SPECIALIZED_CONTROL_VERB = re.compile(
+    r"\b(?:turn|set)\b",
+    re.IGNORECASE,
+)
 
 
 def _contribution(
@@ -191,6 +203,10 @@ class BaselineTurnClassifier:
             _CLOTHING_ACTION.search(text)
             or _ACTION.search(text)
             or _PRIMARY_ACTION.search(text)
+            or (
+                _SPECIALIZED_ACTION_DOMAIN.search(text)
+                and _SPECIALIZED_CONTROL_VERB.search(text)
+            )
         ):
             domains = [
                 _contribution(
@@ -206,7 +222,14 @@ class BaselineTurnClassifier:
             interaction_control = (
                 _INTERACTION_CONTROL.fullmatch(text) is not None
             )
-            if not avatar_action and not interaction_control:
+            specialized_action = (
+                _SPECIALIZED_ACTION_DOMAIN.search(text) is not None
+            )
+            if (
+                not avatar_action
+                and not interaction_control
+                and not specialized_action
+            ):
                 domains.append(
                     _contribution(
                         MatrixDomain.OPS,

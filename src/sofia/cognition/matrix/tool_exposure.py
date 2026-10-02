@@ -219,7 +219,10 @@ class MatrixToolExposurePlanner:
                 if _MODEL_UNLOAD.search(text):
                     _add(capabilities, "remote.ollama.unload")
             if _CODE.search(text):
-                if re.search(r"\bbuild\b", text, re.IGNORECASE):
+                if (
+                    re.search(r"\bbuild\b", text, re.IGNORECASE)
+                    or _WRITE.search(text)
+                ):
                     _add(capabilities, "dev.build")
                 if re.search(r"\bapply\b", text, re.IGNORECASE):
                     _add(capabilities, "dev.apply")
