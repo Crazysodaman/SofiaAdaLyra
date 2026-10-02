@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import re
 from sofia.embodiment.model import Embodiment
 
-from .presentation import PresentationProjection
+from .presentation import AttireMode, PresentationProjection
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +198,12 @@ class AvatarSelfFactResolver:
             )
 
         if normalized in self._CURRENT_OUTFIT_FORMS:
+            if presentation.attire is AttireMode.NUDE:
+                return AvatarSelfFactAnswer(
+                    True,
+                    "I'm not wearing any clothing in my current private AVATAR "
+                    "presentation.",
+                )
             pieces = ", ".join(presentation.item_names)
             piece_text = f" The pieces are: {pieces}." if pieces else ""
             return AvatarSelfFactAnswer(

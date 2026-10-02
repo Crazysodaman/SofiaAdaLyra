@@ -14,13 +14,13 @@ import re
 from threading import RLock
 
 from sofia.safe.operator_stop import OperatorStopStore
-from sofia.social.model import AudienceKind, PrincipalContext
-from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.social.model import PrincipalContext
 
 from .presentation import (
     PrivatePresentationGrant,
     PresentationState,
 )
+from .private_grant import PrivatePresentationGrantResolver
 from .runtime_state import PresentationRuntimeBundle
 from .wardrobe import (
     WardrobeConflict,
@@ -266,10 +266,10 @@ class ClothingActionService:
         self.bundle = bundle
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
         self.parser = ClothingActionParser()
-        self._adult_verified = adult_verified
-        self._operator_stop_store = (
-            operator_stop_store
-            or OperatorStopStore(bundle.store.database_path)
+        self._grant_resolver = PrivatePresentationGrantResolver(
+            state_path=bundle.store.database_path,
+            adult_verified=adult_verified,
+            operator_stop_store=operator_stop_store,
         )
         self._lock = RLock()
         self._blueprints = {
@@ -399,25 +399,10 @@ class ClothingActionService:
         self,
         principal: PrincipalContext | None,
     ) -> PrivatePresentationGrant | None:
-        stop_active = self._operator_stop_store.current().active
-        grant = PrivatePresentationGrant(
-            adult_verified=self._adult_verified,
-            owner_verified=(
-                principal is not None
-                and principal.principal_id == SPARKS_PRINCIPAL_ID
-            ),
-            private_session=(
-                principal is not None
-                and principal.audience_kind is AudienceKind.PRIVATE
-            ),
+        return self._grant_resolver.resolve(
+            principal=principal,
             explicit_current_opt_in=True,
-            external_stop_active=stop_active,
         )
-        try:
-            grant.require()
-        except PermissionError:
-            return None
-        return grant
 
     def _commit_nude(
         self,

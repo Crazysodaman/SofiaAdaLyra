@@ -4,11 +4,13 @@ from sofia.avatar.clothing_action import (
     WardrobeAutonomyDecision,
     WardrobeAutonomyPolicy,
 )
-from sofia.avatar.presentation import AppearanceState, PresentationAuthority
+from sofia.avatar.presentation import AppearanceState, AttireMode, PresentationAuthority
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.runtime_state import PresentationRuntimeBundle
 from sofia.avatar.wardrobe import Layer
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.safe.operator_stop import OperatorStopStore
+from sofia.social.principals import local_sparks_principal
 
 
 def bundle(tmp_path):
@@ -207,3 +209,87 @@ def test_unrelated_text_is_not_a_clothing_action(tmp_path):
         previous_user_content=None,
         operation_id="test.unrelated",
     ) is None
+
+
+def test_verified_private_sparks_session_can_commit_and_restore_nude_state(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(
+        runtime_bundle,
+        adult_verified=True,
+    )
+
+    reply = service.handle(
+        content="undress",
+        previous_user_content=None,
+        operation_id="test.private.nude",
+        principal=local_sparks_principal(),
+    )
+
+    assert reply is not None
+    assert "no clothing" in reply
+    assert runtime_bundle.authority.current.attire is AttireMode.NUDE
+    assert runtime_bundle.authority.current.private_only is True
+    assert runtime_bundle.current_matrix().item_ids == ()
+
+    persisted = persisted_authority(runtime_bundle)
+    assert persisted.current.attire is AttireMode.NUDE
+    assert persisted.current.item_ids == ()
+
+
+def test_operator_stop_blocks_private_presentation_even_when_adult_verified(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    stop = OperatorStopStore(runtime_bundle.store.database_path)
+    stop.set(
+        active=True,
+        updated_by="Sparks",
+        reason="test stop",
+    )
+    service = ClothingActionService(
+        runtime_bundle,
+        adult_verified=True,
+        operator_stop_store=stop,
+    )
+    original = runtime_bundle.authority.current
+
+    reply = service.handle(
+        content="undress",
+        previous_user_content=None,
+        operation_id="test.private.stopped",
+        principal=local_sparks_principal(),
+    )
+
+    assert reply is not None
+    assert "keeping my current outfit" in reply
+    assert runtime_bundle.authority.current == original
+
+
+def test_private_partial_outfit_with_public_garments_persists_privacy_metadata(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(
+        runtime_bundle,
+        adult_verified=True,
+    )
+    principal = local_sparks_principal()
+
+    service.handle(
+        content="change into bikini 4",
+        previous_user_content=None,
+        operation_id="test.private.partial.base",
+        principal=principal,
+    )
+    reply = service.handle(
+        content="take off your bikini top",
+        previous_user_content=None,
+        operation_id="test.private.partial.remove",
+        principal=principal,
+    )
+
+    assert reply is not None
+    current = runtime_bundle.authority.current
+    assert current.private_only is True
+    assert "closet.swim.bikini.04.top" not in current.item_ids
+    assert current.item_ids == ("closet.swim.bikini.04.bottom",)
+
+    persisted = persisted_authority(runtime_bundle)
+    assert persisted.current.private_only is True
+    assert persisted.current.item_ids == current.item_ids

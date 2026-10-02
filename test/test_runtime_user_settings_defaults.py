@@ -39,6 +39,7 @@ def _clear_environment_overrides(monkeypatch):
         "SOFIA_COGNITION_MODEL_AUTO_INSTALL",
         "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
         "SOFIA_COGNITION_MODEL_KEEP_ALIVE",
+        "SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED",
     )
     for name in names:
         monkeypatch.delenv(name, raising=False)
@@ -261,3 +262,20 @@ def test_fresh_production_style_configuration_uses_dual_cognition_defaults(
     )
     assert configuration.model_lifecycle.enabled is True
     assert configuration.model_lifecycle.auto_install_missing is True
+
+
+def test_private_avatar_adult_verification_defaults_off_and_requires_host_flag(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-avatar-private"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+
+    configuration = create_default_configuration()
+    assert configuration.avatar_private_adult_verified is False
+
+    monkeypatch.setenv("SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED", "1")
+    configuration = create_default_configuration()
+    assert configuration.avatar_private_adult_verified is True

@@ -1,4 +1,5 @@
 from pathlib import Path
+from dataclasses import replace
 
 import pytest
 
@@ -196,4 +197,27 @@ def test_text_ui_undress_followup_never_claims_uncommitted_private_change(
 
     assert "keeping my current outfit" in followup.content
     assert application.runtime.avatar_presentation.current == original
+    application.shutdown()
+
+
+def test_private_avatar_state_is_read_back_in_verified_local_session(
+    configuration: SofiaConfiguration,
+):
+    configuration = replace(
+        configuration,
+        avatar_private_adult_verified=True,
+    )
+    application = SofiaApplication(configuration)
+    application.start()
+
+    application.text_ui.save_draft("undress")
+    changed = application.text_ui.send()
+    assert "no clothing" in changed.content
+
+    application.text_ui.save_draft("what are you wearing?")
+    current = application.text_ui.send()
+    assert current.content == (
+        "I'm not wearing any clothing in my current private AVATAR presentation."
+    )
+
     application.shutdown()
