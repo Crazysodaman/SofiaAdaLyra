@@ -144,7 +144,10 @@ class CognitiveSystem:
             and self.tool_dispatcher is not None
         ):
             tools = self.tool_dispatcher.definitions_for_authority(
-                operation.authority
+                operation.authority,
+                allowed_capabilities=(
+                    operation.context.request.capability_allowlist
+                ),
             )
 
         request = self.context_assembler.assemble(
@@ -186,6 +189,9 @@ class CognitiveSystem:
                     result = self.tool_dispatcher.dispatch(
                         tool_call,
                         principal=operation.context.principal,
+                        allowed_capabilities=(
+                            operation.context.request.capability_allowlist
+                        ),
                     )
                 except Exception as exc:
                     raise CognitiveSystemError(
@@ -224,6 +230,7 @@ class CognitiveSystem:
                 messages=tuple(messages),
                 tools=request.tools,
                 allow_tools=request.allow_tools,
+                capability_allowlist=request.capability_allowlist,
                 route_hint=request.route_hint,
             )
 

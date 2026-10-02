@@ -1,6 +1,7 @@
 """Message-matrix coordination contracts and shadow-mode tracing."""
 from .classifier import BaselineTurnClassifier
 from .routing_plan import MatrixRoutingPlanner
+from .tool_exposure import MatrixToolExposurePlanner
 from .response import MatrixResponsePlanner, MatrixResponseValidator
 from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
@@ -36,6 +37,7 @@ from .model import (
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
+    ToolExposurePlan,
     TurnEnvelope,
     TurnMatrix,
 )
@@ -70,8 +72,10 @@ __all__ = [
     "MatrixResponsePlanner",
     "MatrixResponseValidator",
     "MatrixRoutingPlanner",
+    "MatrixToolExposurePlanner",
     "MatrixRoute",
     "RoutingPlan",
+    "ToolExposurePlan",
     "MatrixTrace",
     "MatrixTraceStore",
     "ResponseContract",

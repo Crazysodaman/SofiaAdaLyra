@@ -82,6 +82,7 @@ class CognitiveContextAssembler:
             messages=messages,
             tools=tools,
             allow_tools=context.request.allow_tools,
+            capability_allowlist=context.request.capability_allowlist,
             route_hint=context.request.route_hint,
         )
 

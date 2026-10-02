@@ -144,6 +144,7 @@ class CognitiveRequest:
     messages: tuple[CognitiveMessage, ...]
     tools: tuple[CognitiveToolDefinition, ...] = ()
     allow_tools: bool = True
+    capability_allowlist: tuple[str, ...] | None = None
     route_hint: str | None = None
 
     def __post_init__(self) -> None:
@@ -175,6 +176,24 @@ class CognitiveRequest:
             raise TypeError(
                 "CognitiveRequest allow_tools must be a bool."
             )
+
+        if self.capability_allowlist is not None:
+            if not isinstance(self.capability_allowlist, tuple):
+                raise TypeError(
+                    "CognitiveRequest capability_allowlist must be a tuple or None."
+                )
+            seen = set()
+            for capability in self.capability_allowlist:
+                if not isinstance(capability, str) or not capability.strip():
+                    raise ValueError(
+                        "CognitiveRequest capability_allowlist must contain "
+                        "nonempty strings."
+                    )
+                if capability in seen:
+                    raise ValueError(
+                        "CognitiveRequest capability_allowlist must be unique."
+                    )
+                seen.add(capability)
 
         if self.route_hint is not None:
             if not isinstance(self.route_hint, str):

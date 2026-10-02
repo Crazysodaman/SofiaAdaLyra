@@ -172,6 +172,8 @@ class CognitiveToolDispatcher:
     def definitions_for_authority(
         self,
         authority: Authority,
+        *,
+        allowed_capabilities: tuple[str, ...] | None = None,
     ) -> tuple[CognitiveToolDefinition, ...]:
         """
         Return only tool definitions authorized for the current
@@ -186,11 +188,30 @@ class CognitiveToolDispatcher:
                 "CognitiveToolDispatcher authority must be an Authority."
             )
 
+        if allowed_capabilities is not None:
+            if not isinstance(allowed_capabilities, tuple):
+                raise TypeError(
+                    "allowed_capabilities must be a tuple or None"
+                )
+            allowed = set()
+            for capability in allowed_capabilities:
+                if not isinstance(capability, str) or not capability.strip():
+                    raise ValueError(
+                        "allowed_capabilities must contain nonempty strings"
+                    )
+                allowed.add(capability)
+        else:
+            allowed = None
+
         return tuple(
             binding.definition
             for binding in self._bindings.values()
             if authority.can_use_capability(
                 binding.capability_name
+            )
+            and (
+                allowed is None
+                or binding.capability_name in allowed
             )
         )
 
@@ -226,6 +247,7 @@ class CognitiveToolDispatcher:
         tool_call: CognitiveToolCall,
         *,
         principal: PrincipalContext | None = None,
+        allowed_capabilities: tuple[str, ...] | None = None,
     ) -> CapabilityResult:
         if not isinstance(
             tool_call,
@@ -242,6 +264,23 @@ class CognitiveToolDispatcher:
             raise CognitiveToolError(
                 f"Unknown cognitive tool: {tool_call.name}"
             ) from exc
+
+        if allowed_capabilities is not None:
+            if not isinstance(allowed_capabilities, tuple):
+                raise TypeError(
+                    "allowed_capabilities must be a tuple or None"
+                )
+            allowed = set()
+            for capability in allowed_capabilities:
+                if not isinstance(capability, str) or not capability.strip():
+                    raise ValueError(
+                        "allowed_capabilities must contain nonempty strings"
+                    )
+                allowed.add(capability)
+            if binding.capability_name not in allowed:
+                raise CognitiveToolError(
+                    f"Tool {tool_call.name!r} was not exposed for this turn."
+                )
 
         parameters = dict(tool_call.arguments)
 

@@ -328,6 +328,37 @@ class AuthorityPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolExposurePlan:
+    """Relevant capability exposure for one turn.
+
+    This is a relevance decision only. It never grants capability authority.
+    The CapabilityGateway remains the final execution boundary.
+    """
+
+    capabilities: tuple[str, ...] = ()
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capabilities, tuple):
+            raise TypeError("tool exposure capabilities must be a tuple")
+        seen = set()
+        for capability in self.capabilities:
+            if not isinstance(capability, str) or not capability.strip():
+                raise ValueError(
+                    "tool exposure capabilities must contain nonempty strings"
+                )
+            if capability in seen:
+                raise ValueError("tool exposure capabilities must be unique")
+            seen.add(capability)
+        if not isinstance(self.reason, str) or not self.reason.strip():
+            raise ValueError("tool exposure reason must be nonempty")
+
+    @property
+    def allow_tools(self) -> bool:
+        return bool(self.capabilities)
+
+
+@dataclass(frozen=True, slots=True)
 class RoutingPlan:
     route: MatrixRoute
     reason: str
@@ -433,6 +464,7 @@ class MatrixTrace:
     context: ContextPlan | None = None
     evidence: EvidenceMatrix | None = None
     authority: AuthorityPlan | None = None
+    tool_exposure: ToolExposurePlan | None = None
     response_contract: ResponseContract | None = None
     response_validation: ResponseValidation | None = None
     routing: RoutingPlan | None = None
@@ -457,6 +489,12 @@ class MatrixTrace:
             self.authority, AuthorityPlan
         ):
             raise TypeError("authority must be AuthorityPlan or None")
+        if self.tool_exposure is not None and not isinstance(
+            self.tool_exposure, ToolExposurePlan
+        ):
+            raise TypeError(
+                "tool_exposure must be ToolExposurePlan or None"
+            )
         if self.response_contract is not None and not isinstance(
             self.response_contract, ResponseContract
         ):
