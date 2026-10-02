@@ -110,6 +110,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     runtime.start = lambda: calls.append("runtime:start")
     runtime.shutdown = lambda: calls.append("runtime:shutdown")
     runtime.set_avatar_presentation = lambda authority: None
+    runtime.set_avatar_matrix_builder = lambda builder: None
 
     presentation_bundle = SimpleNamespace(
         authority=object(),
@@ -137,6 +138,10 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         "sofia.application.bootstrap.HeadlessPresentationRoutine",
         lambda **kwargs: None,
     )
+    monkeypatch.setattr(
+        "sofia.application.bootstrap.ClothingActionService",
+        lambda *args, **kwargs: SimpleNamespace(handle=lambda **kwargs: None),
+    )
 
     def open_conversation():
         assert not runtime.workspace_changes.has_changes
@@ -148,6 +153,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         start=lambda *, session_id: calls.append("conversation:start"),
         deliver_pending_awareness=lambda: calls.append("awareness") or None,
         close=lambda: calls.append("conversation:close"),
+        set_clothing_action_handler=lambda handler: None,
     )
     app = object.__new__(SofiaApplication)
     app._runtime = runtime

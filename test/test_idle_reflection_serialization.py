@@ -13,7 +13,7 @@ def test_conversation_and_idle_thought_share_a_model_lock(monkeypatch):
     background_entered = Event()
     calls = []
 
-    def respond(_self, _content):
+    def respond(_self, _content, **_kwargs):
         calls.append("conversation:start")
         entered.set()
         assert release.wait(timeout=3)

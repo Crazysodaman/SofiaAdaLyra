@@ -64,6 +64,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         start=lambda: events.append("runtime:start"),
         shutdown=lambda: events.append("runtime:shutdown"),
         set_avatar_presentation=lambda authority: None,
+        set_avatar_matrix_builder=lambda builder: None,
     )
     conversation = SimpleNamespace(
         events=events,
@@ -71,6 +72,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         start=lambda *, session_id: events.append("conversation:start"),
         deliver_pending_awareness=lambda: events.append("awareness") or None,
         close=lambda: events.append("conversation:close"),
+        set_clothing_action_handler=lambda handler: None,
     )
     presentation_bundle = SimpleNamespace(
         authority=object(),
@@ -99,6 +101,11 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         bootstrap,
         "HeadlessPresentationRoutine",
         lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "ClothingActionService",
+        lambda *args, **kwargs: SimpleNamespace(handle=lambda **kwargs: None),
     )
     app = object.__new__(bootstrap.SofiaApplication)
     app._runtime = runtime

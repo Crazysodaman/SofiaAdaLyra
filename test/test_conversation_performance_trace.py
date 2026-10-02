@@ -8,7 +8,7 @@ from sofia.application.emotional_conversation import EmotionalConversationServic
 
 def test_conversation_trace_is_content_free(monkeypatch, capsys):
     monkeypatch.setenv("SOFIA_PERF_TRACE", "1")
-    monkeypatch.setattr(ConversationService, "respond", lambda _self, _content: "ok")
+    monkeypatch.setattr(ConversationService, "respond", lambda _self, _content, **_kwargs: "ok")
     service = object.__new__(EmotionalConversationService)
     service._model_lock = RLock()
     service._active_user_requests = 0
@@ -36,7 +36,7 @@ def test_reflection_trace_is_content_free(monkeypatch, capsys):
 
 def test_contention_produces_nonzero_wait_without_data_leak(monkeypatch, capsys):
     monkeypatch.setenv("SOFIA_PERF_TRACE", "1")
-    monkeypatch.setattr(ConversationService, "respond", lambda _self, _content: "ok")
+    monkeypatch.setattr(ConversationService, "respond", lambda _self, _content, **_kwargs: "ok")
     service = object.__new__(EmotionalConversationService)
     service._model_lock = RLock()
     service._active_user_requests = 0

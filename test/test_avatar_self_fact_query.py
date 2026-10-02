@@ -4,6 +4,7 @@ from dataclasses import replace
 
 from sofia.avatar.presentation import (
     AppearanceState,
+    AttireMode,
     AudienceScope,
     PresentationAuthority,
 )
@@ -315,10 +316,7 @@ def test_panties_question_in_nude_private_state_reports_no_clothing():
     embodiment, projection, _ = sources()
     nude = replace(
         projection,
-        attire=__import__(
-            "sofia.avatar.presentation",
-            fromlist=["AttireMode"],
-        ).AttireMode.NUDE,
+        attire=AttireMode.NUDE,
         outfit_id=None,
         item_ids=(),
         item_names=(),
