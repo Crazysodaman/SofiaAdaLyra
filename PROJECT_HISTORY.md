@@ -1518,6 +1518,10 @@ truthful completion response
 
 Future richer autonomy may also support a counter-proposal/alternative outfit.
 
+The intended autonomy decision is context-aware. Trusted current **weather**, **time/daypart**, and **modeled emotion** should influence whether Sofía accepts the requested outfit, declines it, or counter-proposes another option. Those inputs are influences only: they do not become authority, consent, or private-presentation grants. Stale or unknown weather must not be treated as current evidence.
+
+At this checkpoint the current `WardrobeAutonomyPolicy.decide()` contract does **not yet receive those environment/emotion inputs**, so this behavior is a documented implementation gap rather than a completed capability.
+
 The default public wardrobe policy currently accepts valid public requests, which is why the existing feature already behaves successfully in normal cases. That default acceptance must never be interpreted as the user having direct state authority.
 
 Imperative grammar is not authority.
