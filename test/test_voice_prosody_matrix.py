@@ -3,7 +3,25 @@ from sofia.cognition.matrix import InfluenceMode,InfluenceSignal,InfluenceSurfac
 from sofia.personality.influence import ContinuityInfluence
 from sofia.voice import VoiceProsodyMatrix,VoiceUrgency
 def influence(**x):
-    v=dict(daypart="evening",season="autumn",daylight="night",weather_condition="rainy",temperature_c=12.0,weather_freshness="current",location_freshness="current",primary_emotion_evidence_refs=("emotion:event-1",),emotional_tone="warm",primary_emotion="fondness",primary_intensity=.62,active_emotions=("fondness",));v.update(x);return ContinuityInfluence(**v)
+    v=dict(
+        daypart="evening",
+        season="autumn",
+        daylight="night",
+        weather_condition="rainy",
+        temperature_c=12.0,
+        weather_freshness="current",
+        location_freshness="current",
+        primary_emotion_evidence_refs=("emotion:event-1",),
+        emotional_tone="warm",
+        primary_emotion="fondness",
+        primary_intensity=.62,
+        active_emotions=("fondness",),
+        daypart_evidence_refs=("runtime.clock", "environment.location:test"),
+        season_evidence_refs=("runtime.clock", "environment.location:test"),
+        weather_evidence_refs=("environment.weather:test",),
+    )
+    v.update(x)
+    return ContinuityInfluence(**v)
 def numeric(p): return (p.rate_scale,p.pitch_semitones,p.energy_scale,p.volume_scale,p.pause_scale)
 def test_voice_surface_bounds_context_strengths():
     m=VoiceProsodyMatrix().plan(influence()).influence_plan;assert m.surface is InfluenceSurface.VOICE_EXPRESSION;assert m.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.BOUNDED_BIAS;assert m.mode_for(InfluenceSignal.DAYPART) is InfluenceMode.BOUNDED_BIAS;assert m.mode_for(InfluenceSignal.WEATHER) is InfluenceMode.EXPRESSION_ONLY;assert m.mode_for(InfluenceSignal.SEASON) is InfluenceMode.EXPRESSION_ONLY
