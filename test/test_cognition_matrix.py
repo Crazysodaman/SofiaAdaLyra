@@ -925,15 +925,6 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
     assert store.latest_with_execution() == loaded
 
 
-@pytest.mark.parametrize(
-    ("content", "expected_key"),
-    (
-        ("what's the weather?", "environment.weather.current"),
-        ("what time is it?", "environment.clock.current"),
-        ("where am I?", "environment.location.current"),
-        ("what season is it?", "environment.calendar.current"),
-    ),
-)
 def test_trace_round_trips_privacy_projection(tmp_path):
     from sofia.social.model import AudienceKind, PrincipalContext
 
@@ -991,6 +982,15 @@ def test_trace_round_trips_tool_exposure_plan(tmp_path):
     assert loaded.tool_exposure.capabilities == ("hardware.inspect",)
 
 
+@pytest.mark.parametrize(
+    ("content", "expected_key"),
+    (
+        ("what's the weather?", "environment.weather.current"),
+        ("what time is it?", "environment.clock.current"),
+        ("where am I?", "environment.location.current"),
+        ("what season is it?", "environment.calendar.current"),
+    ),
+)
 def test_environment_evidence_keys_are_query_specific(
     content,
     expected_key,
