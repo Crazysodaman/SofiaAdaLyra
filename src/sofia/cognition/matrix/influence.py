@@ -54,6 +54,7 @@ class InfluenceDecision:
     mode: InfluenceMode
     reason: str
     evidence_refs: tuple[str, ...] = ()
+    freshness: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.signal, InfluenceSignal):
@@ -67,6 +68,20 @@ class InfluenceDecision:
         for ref in self.evidence_refs:
             if not isinstance(ref, str) or not ref.strip():
                 raise ValueError("evidence_refs must contain nonempty strings")
+        if self.freshness is not None and (
+            not isinstance(self.freshness, str)
+            or not self.freshness.strip()
+        ):
+            raise ValueError("freshness must be None or nonempty")
+        if self.mode is not InfluenceMode.NONE:
+            if not self.evidence_refs:
+                raise ValueError(
+                    "active contextual influence requires provenance"
+                )
+            if self.freshness is None:
+                raise ValueError(
+                    "active contextual influence requires freshness/grounding"
+                )
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,48 +287,68 @@ class ContextualInfluenceMatrix:
                 requested,
                 "evidence-linked modeled emotion is available as bounded context",
                 influence.primary_emotion_evidence_refs,
+                "modeled-current",
             )
 
         if signal is InfluenceSignal.WEATHER:
             if (
                 influence.weather_freshness != "current"
                 or not influence.weather_condition
+                or not influence.weather_evidence_refs
             ):
                 return InfluenceDecision(
                     signal,
                     InfluenceMode.NONE,
-                    "current weather evidence is unavailable or not fresh",
+                    "current weather evidence is unavailable, unprovenanced, or not fresh",
+                    influence.weather_evidence_refs,
+                    influence.weather_freshness,
                 )
             return InfluenceDecision(
                 signal,
                 requested,
                 "fresh current weather may influence this surface",
+                influence.weather_evidence_refs,
+                influence.weather_freshness,
             )
 
         if signal is InfluenceSignal.DAYPART:
-            if influence.daypart not in self._DAYPARTS:
+            if (
+                influence.daypart not in self._DAYPARTS
+                or not influence.daypart_evidence_refs
+            ):
                 return InfluenceDecision(
                     signal,
                     InfluenceMode.NONE,
-                    "trusted local daypart is unavailable",
+                    "trusted, provenanced local daypart is unavailable",
+                    influence.daypart_evidence_refs,
+                    None,
                 )
             return InfluenceDecision(
                 signal,
                 requested,
                 "trusted local daypart may influence this surface",
+                influence.daypart_evidence_refs,
+                "current",
             )
 
         if signal is InfluenceSignal.SEASON:
-            if influence.season not in self._SEASONS:
+            if (
+                influence.season not in self._SEASONS
+                or not influence.season_evidence_refs
+            ):
                 return InfluenceDecision(
                     signal,
                     InfluenceMode.NONE,
-                    "grounded season is unavailable",
+                    "grounded, provenanced season is unavailable",
+                    influence.season_evidence_refs,
+                    None,
                 )
             return InfluenceDecision(
                 signal,
                 requested,
                 "grounded season may influence this surface",
+                influence.season_evidence_refs,
+                "grounded",
             )
 
         raise RuntimeError("unhandled contextual influence signal")
