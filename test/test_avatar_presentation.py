@@ -219,7 +219,12 @@ def test_restore_accepts_legacy_dynamic_snapshot_without_private_flag():
         catalog.wardrobe,
         outfits=outfits,
         canonical_daily_outfit_id="engineer.signature",
-        initial_appearance=appearance(),
+        initial_appearance=AppearanceState(
+            hairstyle="long layered",
+            hair_color="#8B1E3F",
+            tail_color="#3A245C",
+            style_tags=("cyberpunk", "engineer"),
+        ),
     )
     authority.register_outfit(
         outfit_id="dynamic.chat.legacy",

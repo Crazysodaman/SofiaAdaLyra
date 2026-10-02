@@ -40,6 +40,11 @@ def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
     for category, counts in summary["categories"].items():
         if category in {"closet.bra", "closet.panty"}:
             assert counts == {"normal": 0, "adult_private": 25}
+        elif category in {
+            "closet.swim.bikini_top",
+            "closet.swim.bikini_bottom",
+        }:
+            assert counts == {"normal": 6, "adult_private": 0}
         else:
             assert counts == {"normal": 25, "adult_private": 25}
 
