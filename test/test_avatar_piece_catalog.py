@@ -36,7 +36,7 @@ def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
     assert summary["generated_piece_count"] == 962
     assert summary["adult_private_requires_authorization"] is True
     assert summary["assets_verified"] is False
-    assert len(summary["categories"]) == 20
+    assert len(summary["categories"]) == 22
     for category, counts in summary["categories"].items():
         if category in {"closet.bra", "closet.panty"}:
             assert counts == {"normal": 0, "adult_private": 25}
