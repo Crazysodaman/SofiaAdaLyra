@@ -1,6 +1,6 @@
 # Sofía Ada Lyra — Matrix Roadmap
 
-**Status:** current planning record  
+**Status:** implementation record; M1-M7 implemented, acceptance gate active  
 **Updated:** 2026-10-02  
 **Branch policy:** main only
 
@@ -58,6 +58,12 @@ Current matrix domains:
 - AVATAR
 - INTERACTION
 - MEMORY
+- REL
+- HABIT
+- DEV
+- KNOW
+- INTEGRATE
+- BODY
 - COGNITION
 - MACHINE
 - OPS
@@ -68,7 +74,23 @@ Existing behavior-matrix suites also cover AVATAR, EMOTION, ENVIRONMENT cross-pa
 
 ---
 
-# Next matrix work
+## 2026-10-02 implementation snapshot
+
+- **M1 Capability / Tool Exposure:** implemented and production-wired; channel-parity acceptance coverage added.
+- **M2 Principal / Audience / Privacy:** implemented and production-wired; authenticated principal/audience remains authoritative over user prose.
+- **M3 Contextual Influence:** typed signals, surfaces, modes, freshness/evidence rules, and non-authoritative boundaries implemented.
+- **Context Matrix cleanup:** domain filtering now applies to every history policy; excluded EMOTION/ENVIRONMENT projections no longer re-enter through emotional conversation; LAST_TURN follow-ups inherit prior semantic domains as contextual relevance only.
+- **M4 REL / HABIT:** first-class domains, evaluators, scoped evidence/context, and tests implemented.
+- **M5 DEV / KNOW / INTEGRATE / BODY:** first-class semantic domains and evaluator/test coverage implemented.
+- **M6 Release Compatibility:** compatibility/trust matrix implemented with rollback, schema, Fleet protocol, digest, signature, lineage, and anti-rollback checks.
+- **M7 Fleet Failure / Recovery:** typed host/workload/failure/disposition matrix implemented with exhaustive state-space acceptance coverage.
+- **CI:** `Matrix Tests` now exercises M1-M7 plus cross-matrix behavior and context projection tests. A green CI run is the closure condition.
+
+The detailed sections below remain the design/acceptance contract. Items written in future tense describe the contract that the current implementation is expected to satisfy, not unstarted work.
+
+---
+
+# Matrix implementation contracts
 
 ## M1 — Capability / Tool Exposure Matrix
 
