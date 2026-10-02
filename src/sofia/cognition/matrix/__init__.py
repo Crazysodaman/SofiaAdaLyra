@@ -3,6 +3,14 @@ from .classifier import BaselineTurnClassifier
 from .routing_plan import MatrixRoutingPlanner
 from .privacy import MatrixPrivacyPlanner
 from .tool_exposure import MatrixToolExposurePlanner
+from .influence import (
+    ContextualInfluenceMatrix,
+    ContextualInfluencePlan,
+    InfluenceDecision,
+    InfluenceMode,
+    InfluenceSignal,
+    InfluenceSurface,
+)
 from .response import MatrixResponsePlanner, MatrixResponseValidator
 from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
@@ -53,6 +61,8 @@ __all__ = [
     "CognitionExecutionStep",
     "CognitionExecutionTrace",
     "ContextPlan",
+    "ContextualInfluenceMatrix",
+    "ContextualInfluencePlan",
     "DomainContribution",
     "EvidenceKind",
     "EvidenceMatrix",
@@ -60,6 +70,10 @@ __all__ = [
     "EvidenceRequirement",
     "EvidenceState",
     "HistoryPolicy",
+    "InfluenceDecision",
+    "InfluenceMode",
+    "InfluenceSignal",
+    "InfluenceSurface",
     "MatrixConfidence",
     "MatrixCoordinator",
     "MatrixContextPlanner",
