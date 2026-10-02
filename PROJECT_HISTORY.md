@@ -1435,3 +1435,93 @@ They are now:
 
 The matrix system should be expanded selectively around **tool exposure, privacy, REL/HABIT context, release compatibility, and Fleet failure behavior**, not multiplied indiscriminately.
 
+
+
+# 25. Roadmap synchronization — 2026-10-02
+
+The focused matrix plan is now maintained in [`MATRIX_ROADMAP.md`](MATRIX_ROADMAP.md) and summarized in [`ROADMAP.md`](ROADMAP.md).
+
+The current matrix expansion order is:
+
+1. Capability / Tool Exposure Matrix
+2. Principal / Audience / Privacy Matrix
+3. REL + HABIT domain/context/evidence extension
+4. DEV + KNOW + INTEGRATE + BODY semantic domain refinement
+5. Release / Schema / Fleet Compatibility Matrix
+6. Fleet Failure / Recovery Matrix
+7. Voice parity after voice exists
+
+The current package/test ownership roster is treated as **21 families**:
+
+```text
+CORE
+INTERACT
+MEM
+SOCIAL
+NET
+UI
+RUN
+OPS
+ACT
+REL
+AVATAR
+DEV
+BODY
+EVOLVE
+CLEAN
+KNOW
+INTEGRATE
+ENVIRONMENT
+HABIT
+SAFE
+VERIFY
+```
+
+Older 20-package roadmap references are historical and are superseded for current planning.
+
+## AVATAR clothing-request autonomy clarification
+
+Natural-language clothing forms such as:
+
+- `wear X`
+- `put on X`
+- `change your outfit to X`
+- `take off X`
+
+are treated semantically as **requests/suggestions**, not direct commands over Sofía's canonical AVATAR state.
+
+The current implementation already preserves the critical authority separation through `ClothingActionService` and `WardrobeAutonomyPolicy`:
+
+```text
+user request/suggestion
+    ↓
+parse candidate change
+    ↓
+wardrobe validation
+    ↓
+privacy/grant checks
+    ↓
+wardrobe autonomy decision
+    ├─ accept
+    └─ decline
+    ↓
+accepted transition only
+    ↓
+commit
+    ↓
+persist
+    ↓
+verify
+    ↓
+truthful completion response
+```
+
+Future richer autonomy may also support a counter-proposal/alternative outfit.
+
+The default public wardrobe policy currently accepts valid public requests, which is why the existing feature already behaves successfully in normal cases. That default acceptance must never be interpreted as the user having direct state authority.
+
+Imperative grammar is not authority.
+
+A user request or LLM statement is not proof that a wardrobe change occurred. Only the committed and verified AVATAR presentation transition may be described as completed.
+
+Private presentation remains separately grant-gated, and refusal leaves canonical wardrobe state unchanged.
