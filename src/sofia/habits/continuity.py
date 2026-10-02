@@ -126,7 +126,7 @@ class HabitContinuityCoordinator:
         ):
             if observation.kind != "conversation.user_message":
                 continue
-            context = {
+            daily_context = {
                 key: value
                 for key, value in observation.context.items()
                 if key in {"daypart", "day_type"}
@@ -135,11 +135,57 @@ class HabitContinuityCoordinator:
                 observation,
                 category=HabitCategory.CONVERSATION_ROUTINE,
                 cadence=CadenceKind.DAILY,
-                pattern_context=context,
+                pattern_context=daily_context,
                 now=current,
             )
             if pattern is not None:
                 count += 1
+
+            # Season is recorded as a separate cadence rather than folded into
+            # the daily signature. This lets repeated evidence support a real
+            # seasonal pattern without weakening or fragmenting the established
+            # daypart/day-type routine.
+            season = observation.context.get("season")
+            daypart = observation.context.get("daypart")
+            if season and daypart:
+                seasonal = self.engine.observe_support(
+                    observation,
+                    category=HabitCategory.CONVERSATION_ROUTINE,
+                    cadence=CadenceKind.SEASONAL,
+                    pattern_context={
+                        "season": season,
+                        "daypart": daypart,
+                    },
+                    now=current,
+                )
+                if seasonal is not None:
+                    count += 1
+
+            # Ambient observations are correlations, never routine truth.
+            # Weather is already freshness-gated when the observation is
+            # recorded. Daylight is deterministic environment evidence.
+            weather = observation.context.get("weather")
+            daylight = observation.context.get("daylight")
+            for key, value in (
+                ("weather", weather),
+                ("daylight", daylight),
+            ):
+                if not value:
+                    continue
+                correlation_context = {
+                    key: value,
+                }
+                if daypart:
+                    correlation_context["daypart"] = daypart
+                correlated = self.engine.observe_support(
+                    observation,
+                    category=HabitCategory.ENVIRONMENT_CORRELATION,
+                    cadence=CadenceKind.TIME_OF_DAY,
+                    pattern_context=correlation_context,
+                    now=current,
+                )
+                if correlated is not None:
+                    count += 1
         return count
 
     def decay_patterns(
