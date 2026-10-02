@@ -403,5 +403,6 @@ class EmotionalConversationService(ConversationService):
                                       content="\n\n".join(projections)), *request.messages),
             tools=request.tools,
             allow_tools=request.allow_tools,
+            capability_allowlist=request.capability_allowlist,
             route_hint=request.route_hint,
         )
