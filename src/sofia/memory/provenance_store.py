@@ -37,6 +37,7 @@ class DurableMemoryCandidateStore:
         if not target.parent.exists():
             raise FileNotFoundError("memory database parent directory must exist")
 
+        self._database_path = target
         self._lock = RLock()
         self._db: sqlite3.Connection | None = sqlite3.connect(
             target,
@@ -370,6 +371,19 @@ class DurableMemoryCandidateStore:
         raise ValueError(
             f"candidate must be {expected.value} before {target.value}"
         )
+
+    def open(self) -> None:
+        """Reopen the candidate store after an owned runtime shutdown."""
+        with self._lock:
+            if self._db is not None:
+                return
+            self._db = sqlite3.connect(
+                self._database_path,
+                timeout=3.0,
+                check_same_thread=False,
+            )
+            self._db.execute("PRAGMA foreign_keys = ON")
+            self._db.execute("PRAGMA busy_timeout = 3000")
 
     def close(self) -> None:
         with self._lock:
