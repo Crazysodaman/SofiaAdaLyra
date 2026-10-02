@@ -282,7 +282,7 @@ def test_panties_detail_question_uses_matrix_and_never_invents_color():
     )
 
     assert result.recognized
-    assert "does not identify a specific matching undergarment" in result.content
+    assert "doesn't identify a specific panties item" in result.content
     assert "sky-blue" not in result.content
     assert "floral" not in result.content
 

@@ -314,14 +314,26 @@ class AvatarSelfFactResolver:
                     True,
                     "My current avatar presentation lists: "
                     + ", ".join(name_matches)
-                    + ". The wardrobe matrix metadata was not supplied, so I "
-                    "won't invent its color or construction details.",
+                    + ". That's a text description, not evidence that an image "
+                    "was rendered. The wardrobe matrix metadata was not supplied, "
+                    "so I won't invent its color or construction details.",
                 )
+            panties_specific = re.search(
+                r"\b(?:panties|panty|knickers)\b",
+                normalized,
+            ) is not None
+            missing = (
+                "doesn't identify a specific panties item or other matching "
+                "undergarment"
+                if panties_specific
+                else "does not identify a specific matching undergarment"
+            )
             return AvatarSelfFactAnswer(
                 True,
-                "My current AVATAR wardrobe matrix does not identify a "
-                "specific matching undergarment I can accurately describe. "
-                "I won't substitute another garment or invent one.",
+                "My current AVATAR wardrobe matrix "
+                + missing
+                + " I can accurately describe. I won't substitute another "
+                "garment or invent one.",
             )
 
         if self._is_current_outfit_query(normalized):
