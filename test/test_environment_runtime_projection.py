@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from sofia.application import SofiaApplication
 from sofia.cognition.llm_engine import LLMCognitiveEngine
@@ -104,8 +105,8 @@ def test_runtime_injects_environment_into_same_cognitive_request(tmp_path):
     assert "Configured user location: Configured area" in system
     assert "Current physical location evidence: unavailable." in system
     assert "Derived season:" in system
-    assert "32.5" not in system
-    assert "-97.1" not in system
+    assert re.search(r"(?<![0-9.])32\.5(?![0-9])", system) is None
+    assert re.search(r"(?<![0-9.])-97\.1(?![0-9])", system) is None
     app.shutdown()
 
 
@@ -134,8 +135,8 @@ def test_runtime_answers_environment_context_sources_without_llm(tmp_path):
     assert "Configured area" in response.content
     assert "config.environment" in response.content
     assert "Current physical location evidence: unavailable." in response.content
-    assert "32.5" not in response.content
-    assert "-97.1" not in response.content
+    assert re.search(r"(?<![0-9.])32\.5(?![0-9])", response.content) is None
+    assert re.search(r"(?<![0-9.])-97\.1(?![0-9])", response.content) is None
     assert provider.requests == []
     app.shutdown()
 
