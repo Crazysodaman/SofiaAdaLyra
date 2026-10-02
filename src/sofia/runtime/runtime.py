@@ -542,6 +542,14 @@ class SofiaRuntime:
             )
 
         self._state = RuntimeState.STARTING
+
+        # STOPPED releases all owned SQLite handles. Starting the same runtime
+        # object must symmetrically reopen those resources before continuity,
+        # observation, or memory work touches them.
+        self._operational_store.open()
+        self._filesystem_observation_store.open()
+        self._memory_system.open()
+
         environment_service = getattr(self, "_environment_service", None)
         if environment_service is not None:
             environment_service.invalidate()
