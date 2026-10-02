@@ -582,6 +582,13 @@ class PresentationAuthority:
             expected = self._outfits[state.outfit_id]
             if expected != state.item_ids:
                 raise PresentationError("snapshot outfit items do not match catalog")
+            if (
+                state.outfit_id in self._private_outfits
+                and not state.private_only
+            ):
+                raise PresentationDenied(
+                    "private-registered outfit cannot restore as public"
+                )
 
     @staticmethod
     def _state_dict(state: PresentationState) -> dict[str, Any]:
