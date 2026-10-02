@@ -157,6 +157,13 @@ class _Relationship:
             ),
             RelationshipContact(
                 principal_id="sparks",
+                audience_id="shared-room",
+                evidence_ref="shared-message",
+                occurred_at=NOW - timedelta(days=1),
+                display_name="Sparks",
+            ),
+            RelationshipContact(
+                principal_id="sparks",
                 audience_id="owner-private",
                 evidence_ref="current-message",
                 occurred_at=NOW,
@@ -243,3 +250,19 @@ def test_rel_habit_evidence_is_principal_scoped_and_excludes_current_contact():
 
     assert evidence["relationship.prior_contact"].source_ref == "prior-message"
     assert evidence["habit.patterns"].source_ref == "habit-pattern:habit-1"
+
+
+def test_shared_audience_does_not_receive_private_history_or_private_avatar_scope():
+    shared = PrincipalContext(
+        principal_id="sparks",
+        audience_id="shared-room",
+        audience_kind=AudienceKind.SHARED,
+        display_name="Sparks",
+    )
+
+    plan = MatrixPrivacyPlanner().plan(shared)
+
+    assert plan.allow_audience_scope is True
+    assert plan.allow_relationship_scope is True
+    assert plan.allow_historical_private_scope is False
+    assert plan.allow_private_presentation_candidate is False
