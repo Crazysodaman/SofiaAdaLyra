@@ -193,7 +193,8 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     snapshot = environment_snapshot()
     content = "I touch your chest"
     original = CognitiveRequest(
-        messages=(CognitiveMessage(role=CognitiveRole.USER, content=content),)
+        messages=(CognitiveMessage(role=CognitiveRole.USER, content=content),),
+        allow_tools=False,
     )
     monkeypatch.setattr(
         ConversationService,
