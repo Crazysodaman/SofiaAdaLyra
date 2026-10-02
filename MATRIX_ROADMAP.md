@@ -348,6 +348,11 @@ parse requested presentation
     ↓
 validate candidate wardrobe
     ↓
+trusted current context
+    ├─ weather / freshness
+    ├─ time / daypart
+    └─ modeled emotion
+    ↓
 privacy/grant checks
     ↓
 Sofía wardrobe autonomy decision
@@ -367,6 +372,9 @@ Important:
 - imperative grammar does not equal authority;
 - the user's request itself never proves that the outfit changed;
 - Sofía may decline or offer another outfit;
+- weather, time/daypart, and modeled emotion may influence accept/decline/counter-propose, but none of them grants authority or consent;
+- stale/unknown weather must not be treated as current influence evidence;
+- counter-proposals should explain the context-backed reason when useful, without pretending the influence is a hard rule;
 - refusal leaves canonical state untouched;
 - private presentation requires the separate private grant path;
 - only a persisted/verified transition may be described as completed;
