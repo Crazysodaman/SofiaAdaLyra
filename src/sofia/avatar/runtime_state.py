@@ -19,12 +19,17 @@ class PresentationRuntimeBundle:
     store: PresentationStore
     catalog: WardrobePrebuild
 
+    def matrix_for(self, item_ids: tuple[str, ...]) -> WardrobeSlotMatrix:
+        """Project one audience-safe garment selection into matrix state."""
+        if not isinstance(item_ids, tuple) or any(
+            not isinstance(item_id, str) for item_id in item_ids
+        ):
+            raise TypeError("item_ids must be a tuple of strings")
+        return build_wardrobe_matrix(self.catalog, item_ids)
+
     def current_matrix(self) -> WardrobeSlotMatrix:
         """Project current authoritative presentation into slot/layer state."""
-        return build_wardrobe_matrix(
-            self.catalog,
-            self.authority.current.item_ids,
-        )
+        return self.matrix_for(self.authority.current.item_ids)
 
 
 def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:

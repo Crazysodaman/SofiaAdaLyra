@@ -11,6 +11,7 @@ import re
 from sofia.embodiment.model import Embodiment
 
 from .presentation import AttireMode, PresentationProjection
+from .wardrobe_matrix import WardrobeSlotMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,12 @@ class AvatarSelfFactAnswer:
 
 def _normalize(query: str) -> str:
     raw = " ".join(query.strip().casefold().split()).rstrip(" ?!.")
+    raw = re.sub(
+        r"\b(?:whatca|whatcha|watcha|whatchu)\b",
+        "what are you",
+        raw,
+    )
+    raw = re.sub(r"\bwearin\b", "wearing", raw)
     raw = re.sub(
         r"^(?:(?:okay|ok|well|so)\s+)+",
         "",
@@ -81,7 +88,18 @@ def _friendly_outfit(outfit_id: str | None) -> str:
 
 
 class AvatarSelfFactResolver:
-    """Resolve a small set of direct current-presentation questions."""
+    """Resolve grounded current-presentation questions without LLM invention."""
+
+    _UNDERGARMENT_TERM_RE = re.compile(
+        r"\b(?:panties|panty|underwear|undergarments?|bra|lingerie|"
+        r"briefs|knickers)\b",
+        re.IGNORECASE,
+    )
+    _UNDERGARMENT_FACT_CUE_RE = re.compile(
+        r"\b(?:wearing|have\s+on|got\s+on|color|colour|describe|"
+        r"look\s+like|which|what|show|see)\b",
+        re.IGNORECASE,
+    )
 
     def allows_private_projection(self, query: str) -> bool:
         """Return whether this exact self-fact request may use private state.
@@ -93,8 +111,8 @@ class AvatarSelfFactResolver:
             raise TypeError("query must be a string")
         normalized = _normalize(query)
         return (
-            normalized in self._CURRENT_OUTFIT_FORMS
-            or normalized in self._UNDERGARMENT_PRESENTATION_FORMS
+            self._is_current_outfit_query(normalized)
+            or self._is_undergarment_query(normalized)
             or normalized in self._CURRENT_LOOK_FORMS
         )
 
@@ -118,6 +136,16 @@ class AvatarSelfFactResolver:
         "what are you wearing",
         "what are you wearing rn",
         "what are you currently wearing",
+        "what you wearing",
+        "which outfit is this",
+        "what outfit is this",
+        "which outfit is that",
+        "what outfit is that",
+        "what is this outfit",
+        "what is that outfit",
+        "which outfit are you wearing",
+        "what is this outfit called",
+        "what is that outfit called",
     })
     _PUBLIC_PRESENTATION_FORMS = frozenset({
         "tell me your current public-safe outfit and appearance presentation state, including the outfit identifier if available",
@@ -163,6 +191,50 @@ class AvatarSelfFactResolver:
         "what lounge outfit would you wear tonight",
     })
 
+    @classmethod
+    def _is_current_outfit_query(cls, normalized: str) -> bool:
+        return normalized in cls._CURRENT_OUTFIT_FORMS
+
+    @classmethod
+    def _is_undergarment_query(cls, normalized: str) -> bool:
+        return (
+            normalized in cls._UNDERGARMENT_PRESENTATION_FORMS
+            or (
+                cls._UNDERGARMENT_TERM_RE.search(normalized) is not None
+                and cls._UNDERGARMENT_FACT_CUE_RE.search(normalized) is not None
+            )
+        )
+
+    @staticmethod
+    def _requested_undergarment_categories(normalized: str) -> tuple[str, ...]:
+        if re.search(r"\b(?:panties|panty|knickers)\b", normalized):
+            return ("closet.panty",)
+        if re.search(r"\bbra\b", normalized):
+            return ("closet.bra",)
+        return (
+            "closet.panty",
+            "closet.bra",
+            "closet.underwear_top",
+            "closet.underwear_bottom",
+        )
+
+    @staticmethod
+    def _matrix_garments(
+        matrix: WardrobeSlotMatrix | None,
+        *,
+        categories: tuple[str, ...],
+    ):
+        if matrix is None:
+            return ()
+        seen: set[str] = set()
+        rows = []
+        for cell in matrix.cells:
+            if cell.garment_id in seen or cell.category not in categories:
+                continue
+            seen.add(cell.garment_id)
+            rows.append(cell)
+        return tuple(rows)
+
     def resolve(
         self,
         query: str,
@@ -170,6 +242,7 @@ class AvatarSelfFactResolver:
         embodiment: Embodiment,
         presentation: PresentationProjection,
         available_outfit_ids: tuple[str, ...] = (),
+        wardrobe_matrix: WardrobeSlotMatrix | None = None,
     ) -> AvatarSelfFactAnswer:
         if not isinstance(query, str):
             raise TypeError("query must be a string")
@@ -181,38 +254,77 @@ class AvatarSelfFactResolver:
             not isinstance(item, str) for item in available_outfit_ids
         ):
             raise TypeError("available_outfit_ids must be a tuple of strings")
+        if wardrobe_matrix is not None and not isinstance(
+            wardrobe_matrix,
+            WardrobeSlotMatrix,
+        ):
+            raise TypeError("wardrobe_matrix must be WardrobeSlotMatrix or None")
 
         normalized = _normalize(query)
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
 
-        if normalized in self._UNDERGARMENT_PRESENTATION_FORMS:
-            # Only exact projected pieces establish what is currently worn.
-            # A generic base undergarment is NOT proof of panties, and
-            # trousers/boots must never be relabeled as underwear.
-            matches = tuple(
+        if self._is_undergarment_query(normalized):
+            if presentation.attire is AttireMode.NUDE:
+                return AvatarSelfFactAnswer(
+                    True,
+                    "I'm not wearing any clothing in my current private AVATAR "
+                    "presentation, so I'm not wearing panties or other "
+                    "undergarments either.",
+                )
+
+            categories = self._requested_undergarment_categories(normalized)
+            matrix_matches = self._matrix_garments(
+                wardrobe_matrix,
+                categories=categories,
+            )
+            if matrix_matches:
+                details = []
+                for garment in matrix_matches:
+                    accent_text = (
+                        " Accent colors: "
+                        + ", ".join(garment.accent_hexes)
+                        + "."
+                        if garment.accent_hexes
+                        else ""
+                    )
+                    details.append(
+                        f"{garment.name}: {garment.description} "
+                        f"Primary color: {garment.primary_hex}."
+                        f"{accent_text}"
+                    )
+                return AvatarSelfFactAnswer(
+                    True,
+                    "My current AVATAR wardrobe matrix lists "
+                    + " ".join(details),
+                )
+
+            # Backward-compatible fallback when a caller does not supply the
+            # matrix. Exact projected names may establish a garment, but
+            # generic undergarments are never relabeled as panties.
+            name_matches = tuple(
                 item for item in presentation.item_names
                 if any(
                     name in item.casefold()
                     for name in ("panties", "underwear", "briefs", "knickers")
                 )
             )
-            if matches:
-                pieces = ", ".join(matches)
+            if name_matches:
                 return AvatarSelfFactAnswer(
                     True,
-                    f"My current avatar presentation lists: {pieces}. "
-                    "That's a text description, not evidence that an image "
-                    "was rendered.",
+                    "My current avatar presentation lists: "
+                    + ", ".join(name_matches)
+                    + ". The wardrobe matrix metadata was not supplied, so I "
+                    "won't invent its color or construction details.",
                 )
             return AvatarSelfFactAnswer(
                 True,
-                "My current avatar presentation doesn't identify a "
-                "specific panties item I can accurately show or describe. "
-                "I won't substitute my trousers or invent one.",
+                "My current AVATAR wardrobe matrix does not identify a "
+                "specific matching undergarment I can accurately describe. "
+                "I won't substitute another garment or invent one.",
             )
 
-        if normalized in self._CURRENT_OUTFIT_FORMS:
+        if self._is_current_outfit_query(normalized):
             if presentation.attire is AttireMode.NUDE:
                 return AvatarSelfFactAnswer(
                     True,

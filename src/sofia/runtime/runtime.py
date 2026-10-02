@@ -272,6 +272,7 @@ class SofiaRuntime:
         self._embodiment: Embodiment | None = None
         self._core_state: SofiaCoreState | None = None
         self._avatar_presentation: PresentationAuthority | None = None
+        self._avatar_matrix_builder = None
         self._measurement_query_resolver = MeasurementQueryResolver()
         self._avatar_self_fact_resolver = AvatarSelfFactResolver()
         self._environment_query_resolver = EnvironmentQueryResolver()
@@ -383,6 +384,18 @@ class SofiaRuntime:
                 grant=private_grant,
             )
         return self._avatar_presentation.projection(AudienceScope.PUBLIC)
+
+    def set_avatar_matrix_builder(self, builder) -> None:
+        """Attach the catalog-backed matrix projector used for self-facts."""
+        if builder is not None and not callable(builder):
+            raise TypeError("avatar matrix builder must be callable or None")
+        self._avatar_matrix_builder = builder
+
+    def _avatar_matrix_for(self, presentation: PresentationProjection):
+        builder = self._avatar_matrix_builder
+        if builder is None:
+            return None
+        return builder(presentation.item_ids)
 
     def set_avatar_presentation(self, authority: PresentationAuthority) -> None:
         if self._state is not RuntimeState.READY:
@@ -979,6 +992,7 @@ class SofiaRuntime:
                 embodiment=self._embodiment,
                 presentation=presentation,
                 available_outfit_ids=self._avatar_presentation.available_outfit_ids,
+                wardrobe_matrix=self._avatar_matrix_for(presentation),
             )
             if self_fact.recognized:
                 if self._avatar_self_fact_resolver.allows_private_projection(
@@ -1000,6 +1014,9 @@ class SofiaRuntime:
                                 presentation=private_presentation,
                                 available_outfit_ids=(
                                     self._avatar_presentation.available_outfit_ids
+                                ),
+                                wardrobe_matrix=self._avatar_matrix_for(
+                                    private_presentation
                                 ),
                             )
                 return CognitiveResponse(content=self_fact.content)

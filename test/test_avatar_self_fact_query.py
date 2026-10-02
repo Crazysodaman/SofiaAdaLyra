@@ -9,6 +9,7 @@ from sofia.avatar.presentation import (
 )
 from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
 from sofia.embodiment.store import AvatarStore
 from pathlib import Path
 
@@ -253,3 +254,86 @@ def test_dynamic_outfit_ids_do_not_leak_into_ordinary_conversation():
     assert "custom outfit variation" in result.content
     assert "dynamic chat" not in result.content
     assert "clothing2c5daa" not in result.content
+
+
+def test_current_outfit_recognizes_live_typo_and_followup_wording():
+    for query in (
+        "whatca wearing?",
+        "whatcha wearing?",
+        "which outfit is this?",
+    ):
+        result = answer(query)
+        assert result.recognized
+        assert "signature engineer outfit" in result.content
+
+
+def test_panties_detail_question_uses_matrix_and_never_invents_color():
+    embodiment, projection, _ = sources()
+    catalog = build_starter_wardrobe()
+    result = AvatarSelfFactResolver().resolve(
+        "so what color panties describe the panties u have on",
+        embodiment=embodiment,
+        presentation=projection,
+        wardrobe_matrix=build_wardrobe_matrix(
+            catalog,
+            projection.item_ids,
+        ),
+    )
+
+    assert result.recognized
+    assert "does not identify a specific matching undergarment" in result.content
+    assert "sky-blue" not in result.content
+    assert "floral" not in result.content
+
+
+def test_panties_detail_question_reports_exact_matrix_metadata_when_present():
+    embodiment, projection, _ = sources()
+    catalog = build_starter_wardrobe()
+    panty = catalog.pieces(category="closet.panty", private_only=True)[0]
+    private_projection = replace(
+        projection,
+        item_ids=(panty.garment.item_id,),
+        item_names=(panty.garment.name,),
+        private_fallback_used=False,
+    )
+    matrix = build_wardrobe_matrix(catalog, private_projection.item_ids)
+
+    result = AvatarSelfFactResolver().resolve(
+        "what color panties do you have on describe them",
+        embodiment=embodiment,
+        presentation=private_projection,
+        wardrobe_matrix=matrix,
+    )
+
+    assert result.recognized
+    assert panty.garment.name in result.content
+    assert panty.description in result.content
+    assert panty.primary_hex in result.content
+
+
+def test_panties_question_in_nude_private_state_reports_no_clothing():
+    embodiment, projection, _ = sources()
+    nude = replace(
+        projection,
+        attire=__import__(
+            "sofia.avatar.presentation",
+            fromlist=["AttireMode"],
+        ).AttireMode.NUDE,
+        outfit_id=None,
+        item_ids=(),
+        item_names=(),
+        private_fallback_used=False,
+    )
+    result = AvatarSelfFactResolver().resolve(
+        "what color panties do you have on",
+        embodiment=embodiment,
+        presentation=nude,
+        wardrobe_matrix=build_wardrobe_matrix(
+            build_starter_wardrobe(),
+            (),
+        ),
+    )
+
+    assert result.recognized
+    assert "not wearing any clothing" in result.content
+    assert "not wearing panties" in result.content

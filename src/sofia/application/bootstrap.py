@@ -420,6 +420,7 @@ class SofiaApplication:
                 state_path=self._configuration.state_path,
             )
             self._runtime.set_avatar_presentation(bundle.authority)
+            self._runtime.set_avatar_matrix_builder(bundle.matrix_for)
             self._presentation_bundle = bundle
             self._wardrobe_studio = WardrobeStudio(
                 bundle.catalog,
@@ -834,6 +835,7 @@ class SofiaApplication:
         except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
+            self._runtime.set_avatar_matrix_builder(None)
             self._presentation_bundle = None
             self._presentation_routine = None
             self._wardrobe_studio = None

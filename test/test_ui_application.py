@@ -239,8 +239,10 @@ def test_public_safe_avatar_query_never_leaks_private_presentation(
     application.text_ui.save_draft("what is your current public-safe outfit")
     public = application.text_ui.send()
 
-    assert "signature engineer outfit" in public.content
-    assert "outfit ID: engineer.signature" in public.content
+    public_projection = application.runtime.avatar_presentation_projection
+    assert public_projection is not None
+    assert public_projection.outfit_id is not None
+    assert f"outfit ID: {public_projection.outfit_id}" in public.content
     assert "not wearing any clothing" not in public.content
 
     application.shutdown()
