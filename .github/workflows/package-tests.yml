@@ -25,6 +25,7 @@ jobs:
           - pkg_social
           - pkg_net
           - pkg_ui
+          - pkg_voice
           - pkg_run
           - pkg_ops
           - pkg_act
