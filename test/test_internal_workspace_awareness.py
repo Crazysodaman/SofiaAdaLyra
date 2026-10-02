@@ -121,6 +121,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
             wardrobe=object(),
             presets=(),
         ),
+        matrix_for=lambda item_ids: None,
     )
     monkeypatch.setattr(
         "sofia.application.bootstrap.load_or_bootstrap_presentation",

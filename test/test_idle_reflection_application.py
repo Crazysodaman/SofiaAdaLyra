@@ -81,6 +81,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
             wardrobe=object(),
             presets=(),
         ),
+        matrix_for=lambda item_ids: None,
     )
     monkeypatch.setattr(
         bootstrap,

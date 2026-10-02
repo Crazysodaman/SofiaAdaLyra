@@ -335,3 +335,38 @@ def test_panties_question_in_nude_private_state_reports_no_clothing():
     assert result.recognized
     assert "not wearing any clothing" in result.content
     assert "not wearing panties" in result.content
+
+
+def test_body_description_is_grounded_in_canonical_embodiment_not_metaphor():
+    result = answer("describe your body")
+
+    assert result.recognized
+    assert "human-form avatar" in result.content
+    assert "fox ears" in result.content
+    assert "fox tail" in result.content
+    assert "67 in" in result.content
+    assert "135 lb" in result.content
+    assert "bust 33 in" in result.content
+    assert "underbust 30 in" in result.content
+    assert "waist 26 in" in result.content
+    assert "hips 37 in" in result.content
+    assert "warm ivory skin" in result.content
+    assert "deep crimson hair" in result.content
+    assert "dark violet tail" in result.content
+    assert "legs & feet" not in result.content.casefold()
+    assert "ground me" not in result.content.casefold()
+    assert "language model" not in result.content.casefold()
+
+
+def test_body_description_recognizes_common_build_wording():
+    for query in (
+        "what does your body look like?",
+        "what's your build?",
+        "describe your figure",
+        "tell me about your body",
+    ):
+        result = answer(query)
+        assert result.recognized
+        assert "67 in" in result.content
+        assert "26 in" in result.content
+        assert "37 in" in result.content

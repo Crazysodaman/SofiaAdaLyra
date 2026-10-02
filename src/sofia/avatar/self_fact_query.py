@@ -170,6 +170,24 @@ class AvatarSelfFactResolver:
         "describe your current appearance",
         "what do you look like",
     })
+    _BODY_DESCRIPTION_FORMS = frozenset({
+        "describe your body",
+        "describe your body to me",
+        "what does your body look like",
+        "what's your body like",
+        "what is your body like",
+        "what kind of body do you have",
+        "what is your build",
+        "what's your build",
+        "describe your build",
+        "describe your figure",
+        "what does your figure look like",
+        "what is your body type",
+        "what's your body type",
+        "tell me about your body",
+        "tell me what your body looks like",
+        "how is your body built",
+    })
     _FORM_OR_AVATAR_FORMS = frozenset({
         "do you have a physical form or avatar",
         "do you have a physical form or an avatar",
@@ -204,6 +222,28 @@ class AvatarSelfFactResolver:
                 and cls._UNDERGARMENT_FACT_CUE_RE.search(normalized) is not None
             )
         )
+
+    @classmethod
+    def _is_body_description_query(cls, normalized: str) -> bool:
+        if normalized in cls._BODY_DESCRIPTION_FORMS:
+            return True
+        return (
+            re.search(r"\b(?:body|build|figure|physique)\b", normalized)
+            is not None
+            and re.search(
+                r"\b(?:describe|look\s+like|what|tell\s+me|built)\b",
+                normalized,
+            )
+            is not None
+        )
+
+    @staticmethod
+    def _measurement_text(embodiment: Embodiment, name: str) -> str:
+        measurement = embodiment.get_measurement(name)
+        value = measurement.value
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        return f"{value} {measurement.unit}"
 
     @staticmethod
     def _requested_undergarment_categories(normalized: str) -> tuple[str, ...]:
@@ -330,10 +370,10 @@ class AvatarSelfFactResolver:
             )
             return AvatarSelfFactAnswer(
                 True,
-                "My current AVATAR wardrobe matrix "
+                "My current avatar presentation's wardrobe matrix "
                 + missing
-                + " I can accurately describe. I won't substitute another "
-                "garment or invent one.",
+                + " I can accurately describe. I won't substitute my trousers "
+                "or another garment, and I won't invent one.",
             )
 
         if self._is_current_outfit_query(normalized):
@@ -406,6 +446,31 @@ class AvatarSelfFactResolver:
             return AvatarSelfFactAnswer(
                 True,
                 f"My tail is {presentation.appearance.tail_color}.",
+            )
+
+        if self._is_body_description_query(normalized):
+            features = ", ".join(embodiment.physical_self.additional_features)
+            skin = appearance.get("skin_color", "unspecified")
+            height = self._measurement_text(embodiment, "height")
+            weight = self._measurement_text(embodiment, "weight")
+            bust = self._measurement_text(embodiment, "bust")
+            underbust = self._measurement_text(embodiment, "underbust")
+            waist = self._measurement_text(embodiment, "waist")
+            hips = self._measurement_text(embodiment, "hips")
+            feature_text = f", with {features}" if features else ""
+            return AvatarSelfFactAnswer(
+                True,
+                (
+                    f"My canonical representational body is a "
+                    f"{embodiment.physical_self.form}-form avatar{feature_text}. "
+                    f"I'm {height} tall and {weight}. My stored body measurements "
+                    f"are bust {bust}, underbust {underbust}, waist {waist}, and "
+                    f"hips {hips}. My appearance record specifies {skin} skin, "
+                    f"{presentation.appearance.hairstyle} "
+                    f"{presentation.appearance.hair_color} hair, and a "
+                    f"{presentation.appearance.tail_color} tail. Those are "
+                    "authoritative AVATAR facts, not a biological-body claim."
+                ),
             )
 
         if normalized in self._CURRENT_LOOK_FORMS:
