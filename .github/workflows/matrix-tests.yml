@@ -36,6 +36,17 @@ jobs:
         run: |
           pytest -q `
             test/test_cognition_matrix.py `
+            test/test_contextual_influence_matrix.py `
+            test/test_rel_habit_matrix.py `
+            test/test_semantic_domain_matrix.py `
+            test/test_release_compatibility_matrix.py `
+            test/test_ops_failure_recovery_matrix.py `
+            test/test_avatar_behavior_matrix.py `
+            test/test_emotional_behavior_matrix.py `
+            test/test_environment_behavior_matrix.py `
+            test/test_interaction_behavior_matrix.py `
+            test/test_habit_contextual_matrix.py `
+            test/test_emotional_conversation_integration.py `
             test/test_cognitive_activity.py `
             test/test_cognitive_routing.py `
             test/test_model_lifecycle.py `
@@ -47,6 +58,9 @@ jobs:
             test/test_ui_text_client.py `
             test/test_conversation_loop.py `
             test/test_discord_bridge.py `
+            test/test_conversation_service.py::test_matrix_context_window_applies_typed_history_limits `
+            test/test_conversation_service.py::test_matrix_context_window_filters_excluded_domains_across_history_policies `
+            test/test_conversation_service.py::test_last_turn_followup_inherits_prior_semantic_domains_as_context_only `
             test/test_conversation_service.py::test_conversation_records_active_matrix_trace_before_persistence `
             test/test_conversation_service.py::test_channel_propagates_through_full_conversation_stack_to_matrix_trace `
             test/test_conversation_service.py::test_matrix_context_failure_falls_back_to_legacy_history `
