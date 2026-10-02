@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum
 import re
+from threading import RLock
 
 from .presentation import PresentationState
 from .runtime_state import PresentationRuntimeBundle
@@ -252,6 +253,7 @@ class ClothingActionService:
         self.bundle = bundle
         self.autonomy = autonomy or WardrobeAutonomyPolicy()
         self.parser = ClothingActionParser()
+        self._lock = RLock()
         self._blueprints = {
             blueprint.garment.item_id: blueprint
             for blueprint in bundle.catalog.blueprints
@@ -262,6 +264,21 @@ class ClothingActionService:
         }
 
     def handle(
+        self,
+        *,
+        content: str,
+        previous_user_content: str | None,
+        operation_id: str,
+    ) -> str | None:
+        """Serialize one wardrobe action across all conversation channels."""
+        with self._lock:
+            return self._handle_locked(
+                content=content,
+                previous_user_content=previous_user_content,
+                operation_id=operation_id,
+            )
+
+    def _handle_locked(
         self,
         *,
         content: str,
