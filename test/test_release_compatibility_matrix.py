@@ -186,3 +186,34 @@ def test_unpinned_optional_artifact_is_visible_as_warning():
     artifact = check(result, "artifact")
     assert artifact.required is False
     assert artifact.state is CompatibilityState.UNKNOWN
+
+
+def test_anti_rollback_failure_is_rejected():
+    result = ReleaseCompatibilityMatrix().evaluate(
+        manifest(),
+        observed(anti_rollback_verified=False),
+    )
+
+    assert not result.accepted
+    assert check(result, "anti_rollback").state is CompatibilityState.FAIL
+
+
+def test_compatible_rollback_release_is_accepted_with_verified_lineage():
+    rollback_manifest = manifest(
+        release_id="sofia-0.0.9",
+        application_version="0.0.9",
+    )
+    rollback_observed = observed(
+        application_version="0.0.9",
+        lineage_verified=True,
+        anti_rollback_verified=True,
+    )
+
+    result = ReleaseCompatibilityMatrix().evaluate(
+        rollback_manifest,
+        rollback_observed,
+    )
+
+    assert result.accepted
+    assert check(result, "lineage").state is CompatibilityState.PASS
+    assert check(result, "anti_rollback").state is CompatibilityState.PASS
