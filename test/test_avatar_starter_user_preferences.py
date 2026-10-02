@@ -16,7 +16,7 @@ def test_both_likes_are_in_enriched_clothing_data():
     records = [entry for entry in catalog.inputs if entry.status is RequestStatus.USER_LIKED]
     assert {entry.subject_id for entry in records} == {"engineer.signature", "lounge.relaxed"}
     assert {entry.source_id for entry in records} == SPARKS_LIKED_OUTFIT_SOURCE_IDS
-    assert len(catalog.presets) == 304
+    assert len(catalog.presets) == 310
     assert len([
         plan for plan in catalog.presets
         if plan.outfit_id.startswith("seasonal.")
