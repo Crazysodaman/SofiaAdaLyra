@@ -37,6 +37,9 @@ class ContinuityInfluence:
     primary_emotion: str | None
     primary_intensity: float
     active_emotions: tuple[str, ...]
+    daypart_evidence_refs: tuple[str, ...] = ()
+    season_evidence_refs: tuple[str, ...] = ()
+    weather_evidence_refs: tuple[str, ...] = ()
 
     @classmethod
     def from_state(
@@ -84,6 +87,33 @@ class ContinuityInfluence:
             else environment.current_location_freshness.value
         )
         primary = emotion.active[0] if emotion.active else None
+        effective_location = (
+            None if environment is None else environment.effective_location
+        )
+        location_ref = (
+            None
+            if effective_location is None
+            else f"environment.location:{effective_location.source_id}"
+        )
+        clock_refs = (
+            ()
+            if environment is None or environment.user_local_time is None
+            else tuple(
+                ref
+                for ref in ("runtime.clock", location_ref)
+                if ref is not None
+            )
+        )
+        season_refs = (
+            clock_refs
+            if season is not None
+            else ()
+        )
+        weather_refs = (
+            ()
+            if environment is None or environment.weather is None
+            else (f"environment.weather:{environment.weather.source_id}",)
+        )
         return cls(
             daypart=daypart(local),
             season=season,
@@ -99,6 +129,9 @@ class ContinuityInfluence:
             primary_emotion=None if primary is None else primary.name,
             primary_intensity=0.0 if primary is None else primary.intensity,
             active_emotions=tuple(item.name for item in emotion.active),
+            daypart_evidence_refs=clock_refs,
+            season_evidence_refs=season_refs,
+            weather_evidence_refs=weather_refs,
         )
 
     def prompt(self) -> str:
