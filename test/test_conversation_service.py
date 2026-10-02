@@ -25,6 +25,7 @@ from sofia.cognition.routing import (
 from sofia.cognition.matrix import (
     AuthorityDecision,
     EvidenceState,
+    HistoryPolicy,
     MatrixDomain,
     MatrixRelevance,
     MatrixRoute,
@@ -1035,9 +1036,9 @@ def test_touch_scope_question_is_host_grounded_and_persisted(
 @pytest.mark.parametrize(
     "history_policy",
     (
-        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.LAST_TURN,
-        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.TOPIC_WINDOW,
-        __import__("sofia.cognition.matrix", fromlist=["HistoryPolicy"]).HistoryPolicy.BOUNDED_RECENT,
+        HistoryPolicy.LAST_TURN,
+        HistoryPolicy.TOPIC_WINDOW,
+        HistoryPolicy.BOUNDED_RECENT,
     ),
 )
 def test_matrix_context_window_filters_excluded_domains_across_history_policies(
