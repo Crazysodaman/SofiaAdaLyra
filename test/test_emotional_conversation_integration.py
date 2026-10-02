@@ -145,3 +145,65 @@ def test_emotional_projection_preserves_parent_tool_gate(monkeypatch, tmp_path):
     assert result.allow_tools is False
     assert result.tools == ()
 
+
+
+@pytest.mark.parametrize(
+    "history_policy_name",
+    ("LAST_TURN", "TOPIC_WINDOW", "BOUNDED_RECENT"),
+)
+def test_emotional_projection_does_not_reinject_excluded_environment(
+    monkeypatch,
+    tmp_path,
+    history_policy_name,
+):
+    from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
+
+    class EnvironmentMustNotBeRead:
+        def snapshot(self, **_kwargs):
+            raise AssertionError(
+                "ENVIRONMENT was excluded by the matrix but was read anyway"
+            )
+
+    service, original = _service(monkeypatch, tmp_path)
+    service._runtime.environment_service = EnvironmentMustNotBeRead()
+    history_policy = getattr(HistoryPolicy, history_policy_name)
+    service._current_context_plan = ContextPlan(
+        included_domains=(MatrixDomain.EMOTION,),
+        excluded_domains=tuple(
+            domain
+            for domain in MatrixDomain
+            if domain is not MatrixDomain.EMOTION
+        ),
+        history_policy=history_policy,
+        max_history_messages=3,
+    )
+
+    result = service._build_request()
+
+    assert result is not original
+    assert "MODELED EMOTIONAL CONTEXT" in result.messages[0].content
+    assert "Weather condition:" in result.messages[0].content
+    assert "Weather condition: unknown" in result.messages[0].content
+
+
+def test_emotional_projection_is_absent_when_emotion_domain_is_excluded(
+    monkeypatch,
+    tmp_path,
+):
+    from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
+
+    service, original = _service(monkeypatch, tmp_path)
+    service._current_context_plan = ContextPlan(
+        included_domains=(MatrixDomain.SOCIAL,),
+        excluded_domains=tuple(
+            domain
+            for domain in MatrixDomain
+            if domain is not MatrixDomain.SOCIAL
+        ),
+        history_policy=HistoryPolicy.BOUNDED_RECENT,
+        max_history_messages=12,
+    )
+
+    result = service._build_request()
+
+    assert result is original
