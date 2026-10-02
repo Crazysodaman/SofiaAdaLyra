@@ -210,3 +210,30 @@ def test_stale_revision_and_reused_operation_are_rejected():
             outfit_id="engineer.signature",
             reason="replay",
         )
+
+
+def test_restore_accepts_legacy_dynamic_snapshot_without_private_flag():
+    catalog = build_starter_wardrobe()
+    outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
+    authority = PresentationAuthority(
+        catalog.wardrobe,
+        outfits=outfits,
+        canonical_daily_outfit_id="engineer.signature",
+        initial_appearance=appearance(),
+    )
+    authority.register_outfit(
+        outfit_id="dynamic.chat.legacy",
+        item_ids=outfits["engineer.light"],
+        private_only=False,
+    )
+    snapshot = authority.snapshot()
+    for row in snapshot["dynamic_outfits"]:
+        row.pop("private_only", None)
+
+    restored = PresentationAuthority.restore(
+        catalog.wardrobe,
+        outfits=outfits,
+        snapshot=snapshot,
+    )
+
+    assert "dynamic.chat.legacy" in restored.available_outfit_ids
