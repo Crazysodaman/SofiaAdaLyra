@@ -11,6 +11,7 @@ from sofia.environment.model import (
     DaylightState,
     EnvironmentFreshness,
     EnvironmentSnapshot,
+    Season,
     WeatherObservation,
 )
 from sofia.personality.emotion import (
@@ -40,6 +41,7 @@ def _environment(
     daylight=DaylightState.NIGHT,
     weather: str | None = None,
     freshness=EnvironmentFreshness.UNKNOWN,
+    season: Season | None = None,
 ):
     observation = None
     if weather is not None:
@@ -54,6 +56,7 @@ def _environment(
         utc_time=NOW,
         host_local_time=NOW,
         host_timezone_label="UTC",
+        season=season,
         daylight=DaylightObservation(
             state=daylight
         ),
@@ -201,3 +204,36 @@ def test_canonical_theme_is_stable_manual_fallback():
     assert palette.secondary == "#00C2FF"
     assert palette.tertiary == "#39FF14"
     assert palette.drivers == ("manual",)
+
+
+
+def test_season_adds_bounded_theme_driver():
+    signals = theme_signals_from_sources(
+        environment=_environment(season=Season.AUTUMN),
+        presentation=None,
+        emotion=None,
+    )
+
+    palette = AdaptiveThemePolicy().select(signals)
+
+    assert signals.season is Season.AUTUMN
+    assert "season:autumn" in palette.drivers
+    assert palette.tertiary == "#B98B5A"
+
+
+def test_current_weather_can_override_low_strength_seasonal_accent():
+    signals = theme_signals_from_sources(
+        environment=_environment(
+            season=Season.AUTUMN,
+            weather="Light rain",
+            freshness=EnvironmentFreshness.CURRENT,
+        ),
+        presentation=None,
+        emotion=None,
+    )
+
+    palette = AdaptiveThemePolicy().select(signals)
+
+    assert "season:autumn" in palette.drivers
+    assert "rain" in palette.drivers
+    assert palette.tertiary == "#6AAE9B"

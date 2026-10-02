@@ -15,6 +15,7 @@ from sofia.environment.model import (
     DaylightState,
     EnvironmentFreshness,
     EnvironmentSnapshot,
+    Season,
 )
 from sofia.personality.emotion import CurrentEmotionalState
 
@@ -42,6 +43,7 @@ _NAMED_APPEARANCE_COLORS = {
 class ThemeSignals:
     local_time: datetime
     daylight: DaylightState | None = None
+    season: Season | None = None
     weather_condition: str | None = None
     outfit_id: str | None = None
     appearance_tags: tuple[str, ...] = ()
@@ -62,6 +64,10 @@ class ThemeSignals:
             self.daylight, DaylightState
         ):
             raise TypeError("daylight must be DaylightState or None")
+        if self.season is not None and not isinstance(
+            self.season, Season
+        ):
+            raise TypeError("season must be Season or None")
         if self.weather_condition is not None and not isinstance(
             self.weather_condition, str
         ):
@@ -187,6 +193,7 @@ def theme_signals_from_sources(
     return ThemeSignals(
         local_time=local_time,
         daylight=daylight,
+        season=environment.season,
         weather_condition=weather_condition,
         outfit_id=(
             presentation.outfit_id
@@ -305,6 +312,16 @@ class AdaptiveThemePolicy:
             primary = "#665A7A"
             secondary = "#7DA8B8"
             drivers.append("fallback")
+
+        if signals.season is not None:
+            seasonal_tertiary = {
+                Season.SPRING: "#7BCB8D",
+                Season.SUMMER: "#53D8B7",
+                Season.AUTUMN: "#B98B5A",
+                Season.WINTER: "#8EB8D8",
+            }
+            tertiary = seasonal_tertiary[signals.season]
+            drivers.append(f"season:{signals.season.value}")
 
         weather = (signals.weather_condition or "").casefold()
         if any(word in weather for word in ("thunder", "storm")):

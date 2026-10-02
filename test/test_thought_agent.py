@@ -6,6 +6,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall, CognitiveRole
 from sofia.personality.emotion import EmotionalJournal
+from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ThoughtAgent, ThoughtGenerationError
 
@@ -112,3 +113,80 @@ def test_future_event_and_naive_clock_are_rejected_before_model_call(tmp_path):
         agent.reflect(event=event, now=NOW - timedelta(seconds=1))
     with pytest.raises(ValueError, match="timezone-aware"):
         agent.reflect(event=event, now=NOW.replace(tzinfo=None))
+
+
+
+def test_current_weather_reaches_reflection_decision_payload(tmp_path):
+    store, event = _setup(tmp_path)
+    requests = []
+
+    def generate(request):
+        requests.append(request)
+        return CognitiveResponse(content=_output(share="later"))
+
+    influence = ContinuityInfluence(
+        daypart="evening",
+        season="autumn",
+        daylight="night",
+        weather_condition="rainy",
+        temperature_c=11.5,
+        weather_freshness="current",
+        location_freshness="current",
+        primary_emotion_evidence_refs=("emotion:reflection",),
+        emotional_tone="warm",
+        primary_emotion="fondness",
+        primary_intensity=0.5,
+        active_emotions=("fondness",),
+    )
+
+    ThoughtAgent(
+        generate=generate,
+        reflections=store,
+    ).reflect(
+        event=event,
+        now=NOW + timedelta(minutes=2),
+        influence=influence,
+    )
+
+    payload = requests[0].messages[0].content
+    assert '"weather_condition": "rainy"' in payload
+    assert '"temperature_c": 11.5' in payload
+    assert '"weather_freshness": "current"' in payload
+
+
+def test_stale_weather_reaches_reflection_only_as_freshness_diagnostic(tmp_path):
+    store, event = _setup(tmp_path)
+    requests = []
+
+    def generate(request):
+        requests.append(request)
+        return CognitiveResponse(content=_output(share="later"))
+
+    influence = ContinuityInfluence(
+        daypart="evening",
+        season="autumn",
+        daylight="night",
+        weather_condition=None,
+        temperature_c=None,
+        weather_freshness="stale",
+        location_freshness="current",
+        primary_emotion_evidence_refs=(),
+        emotional_tone="neutral",
+        primary_emotion=None,
+        primary_intensity=0.0,
+        active_emotions=(),
+    )
+
+    ThoughtAgent(
+        generate=generate,
+        reflections=store,
+    ).reflect(
+        event=event,
+        now=NOW + timedelta(minutes=2),
+        influence=influence,
+    )
+
+    payload = requests[0].messages[0].content
+    assert '"weather_condition": null' in payload
+    assert '"temperature_c": null' in payload
+    assert '"weather_freshness": "stale"' in payload
