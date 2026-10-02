@@ -9,6 +9,7 @@ from time import monotonic
 
 from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.cognition.matrix import MatrixDomain
 from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
@@ -344,6 +345,13 @@ class EmotionalConversationService(ConversationService):
             self.emotional_journal.observe_contact(
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
+        context_plan = getattr(self, "_current_context_plan", None)
+        if (
+            context_plan is not None
+            and not context_plan.allows(MatrixDomain.EMOTION)
+        ):
+            return request
+
         now = datetime.now(timezone.utc)
         scope = self.relationship_scope
         current_state = self.emotional_journal.current_state(
@@ -351,10 +359,18 @@ class EmotionalConversationService(ConversationService):
             subject=subject,
             scope=scope,
         )
-        environment_service = getattr(
-            self._runtime,
-            "environment_service",
-            None,
+        environment_allowed = (
+            context_plan is None
+            or context_plan.allows(MatrixDomain.ENVIRONMENT)
+        )
+        environment_service = (
+            getattr(
+                self._runtime,
+                "environment_service",
+                None,
+            )
+            if environment_allowed
+            else None
         )
         environment = (
             environment_service.snapshot(
