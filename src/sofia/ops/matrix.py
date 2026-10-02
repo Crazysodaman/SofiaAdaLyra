@@ -16,11 +16,22 @@ _OPERATIONAL = re.compile(
     re.IGNORECASE,
 )
 
+# First-class INTEGRATE owns these adapter targets. OPS may still own generic
+# host/service/process lifecycle around them, but it must not claim the adapter
+# request merely because words such as "docker" or "vm" sound operational.
+_INTEGRATION_TARGET = re.compile(
+    r"\b(?:home\s+assistant|jmri|portainer|docker|containers?|"
+    r"hyper[- ]?v|virtual\s+machines?|vms?)\b",
+    re.IGNORECASE,
+)
+
 
 class OpsMatrixEvaluator:
     domain = MatrixDomain.OPS
 
     def evaluate(self, envelope, turn):
+        if _INTEGRATION_TARGET.search(envelope.content):
+            return None
         if turn.intent is MatrixIntent.OPERATIONAL_QUERY:
             return DomainContribution(
                 self.domain,
