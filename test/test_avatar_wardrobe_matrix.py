@@ -1,7 +1,7 @@
 """AVATAR wardrobe uniqueness, bikini catalog, and slot-matrix coverage."""
 from dataclasses import replace
 
-from sofia.avatar.wardrobe import Layer, SLOTS
+from sofia.avatar.wardrobe import LEAF_SLOTS, Layer
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
 
@@ -81,7 +81,7 @@ def test_slot_matrix_contains_every_slot_and_layer_plus_visual_metadata():
     matrix = build_wardrobe_matrix(pack, plan.item_ids)
     grid = matrix.as_dict()
 
-    assert set(grid) == set(SLOTS)
+    assert set(grid) == set(LEAF_SLOTS)
     expected_layers = {layer.name.lower() for layer in Layer}
     assert all(set(row) == expected_layers for row in grid.values())
 
@@ -102,3 +102,52 @@ def test_slot_matrix_contains_every_slot_and_layer_plus_visual_metadata():
 
     assert grid["head"]["base"] is None
     assert grid["torso"]["outer"] is None
+    assert "feet" not in grid
+    assert "hands" not in grid
+    assert "ears" not in grid
+
+
+def test_matrix_expands_broad_bilateral_slots_to_left_and_right_leaf_cells():
+    pack = build_starter_wardrobe()
+    plan = pack.preset("engineer.signature")
+    matrix = build_wardrobe_matrix(pack, plan.item_ids)
+    grid = matrix.as_dict()
+
+    left_foot = grid["left_foot"]["base"]
+    right_foot = grid["right_foot"]["base"]
+    left_hand = grid["left_hand"]["base"]
+    right_hand = grid["right_hand"]["base"]
+
+    assert left_foot is not None
+    assert right_foot is not None
+    assert left_foot["garment_id"] == "engineer.boots"
+    assert right_foot["garment_id"] == "engineer.boots"
+
+    assert left_hand is not None
+    assert right_hand is not None
+    assert left_hand["garment_id"] == "engineer.gloves"
+    assert right_hand["garment_id"] == "engineer.gloves"
+
+
+def test_matrix_expands_ears_shoulders_and_leg_segments_without_broad_cells():
+    pack = build_starter_wardrobe()
+    plan = pack.preset("seasonal.winter.normal.01")
+    matrix = build_wardrobe_matrix(pack, plan.item_ids)
+    grid = matrix.as_dict()
+
+    assert "shoulders" not in grid
+    assert "upper_arms" not in grid
+    assert "legs" not in grid
+    assert "calves" not in grid
+    assert "ankles" not in grid
+
+    assert "left_shoulder" in grid
+    assert "right_shoulder" in grid
+    assert "left_upper_arm" in grid
+    assert "right_upper_arm" in grid
+    assert "left_leg" in grid
+    assert "right_leg" in grid
+    assert "left_calf" in grid
+    assert "right_calf" in grid
+    assert "left_ankle" in grid
+    assert "right_ankle" in grid

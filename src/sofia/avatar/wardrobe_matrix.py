@@ -3,14 +3,14 @@
 The matrix is derived from validated wardrobe metadata plus the authoritative
 presentation item IDs. It does not invent renderer geometry or claim a visual
 asset exists. Every known AVATAR slot and every clothing layer is represented,
-including empty cells, so partial changes can be reasoned about deterministically.
+including empty cells. Broad authoring slots are expanded into left/right leaf slots so partial changes can be reasoned about deterministically.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .wardrobe import Layer, SLOTS, WardrobeError
+from .wardrobe import LEAF_SLOTS, Layer, WardrobeError, normalize_slots
 
 if TYPE_CHECKING:
     from .wardrobe_catalog import WardrobePrebuild
@@ -45,8 +45,8 @@ class WardrobeSlotMatrix:
         slot: str,
         layer: Layer,
     ) -> WardrobeMatrixCell | None:
-        if slot not in SLOTS:
-            raise WardrobeError("unknown wardrobe matrix slot")
+        if slot not in LEAF_SLOTS:
+            raise WardrobeError("unknown wardrobe matrix leaf slot")
         if not isinstance(layer, Layer):
             raise WardrobeError("unknown wardrobe matrix layer")
         return next(
@@ -83,7 +83,7 @@ class WardrobeSlotMatrix:
                 )
                 for layer in Layer
             }
-            for slot in sorted(SLOTS)
+            for slot in sorted(LEAF_SLOTS)
         }
 
 
@@ -110,7 +110,7 @@ def build_wardrobe_matrix(
             raise WardrobeError(
                 "matrix garment is missing authoritative blueprint metadata"
             ) from exc
-        for slot in garment.slots:
+        for slot in normalize_slots(garment.slots):
             cells.append(
                 WardrobeMatrixCell(
                     slot=slot,
@@ -130,7 +130,7 @@ def build_wardrobe_matrix(
     return WardrobeSlotMatrix(
         item_ids=selection.item_ids,
         cells=tuple(cells),
-        coverage=selection.coverage,
+        coverage=frozenset(normalize_slots(selection.coverage)),
         covered_default=selection.covered_default,
         private_only=selection.private_only,
     )

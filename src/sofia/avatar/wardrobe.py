@@ -12,14 +12,60 @@ from enum import IntEnum
 import re
 
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
-SLOTS = frozenset({
-    "torso", "pelvis", "legs", "feet", "hands", "head", "ears", "tail", "neck",
-    "shoulders", "upper_arms", "forearms", "wrists", "fingers", "waist", "back",
-    "thighs", "calves", "ankles", "hair",
-    "left_hand", "right_hand", "left_forearm", "right_forearm",
-    "left_wrist", "right_wrist", "left_foot", "right_foot",
+BILATERAL_SLOT_EXPANSIONS: dict[str, tuple[str, str]] = {
+    "legs": ("left_leg", "right_leg"),
+    "feet": ("left_foot", "right_foot"),
+    "hands": ("left_hand", "right_hand"),
+    "ears": ("left_ear", "right_ear"),
+    "shoulders": ("left_shoulder", "right_shoulder"),
+    "upper_arms": ("left_upper_arm", "right_upper_arm"),
+    "forearms": ("left_forearm", "right_forearm"),
+    "wrists": ("left_wrist", "right_wrist"),
+    "fingers": ("left_fingers", "right_fingers"),
+    "thighs": ("left_thigh", "right_thigh"),
+    "calves": ("left_calf", "right_calf"),
+    "ankles": ("left_ankle", "right_ankle"),
+}
+
+SINGLETON_SLOTS = frozenset({
+    "torso", "pelvis", "head", "tail", "neck", "waist", "back", "hair",
 })
+
+LEAF_SLOTS = frozenset({
+    *SINGLETON_SLOTS,
+    *(
+        leaf
+        for pair in BILATERAL_SLOT_EXPANSIONS.values()
+        for leaf in pair
+    ),
+})
+
+# Garment metadata remains backward-compatible with the original broad slot
+# vocabulary while allowing new designs to author leaf slots directly.
+SLOTS = frozenset({
+    *SINGLETON_SLOTS,
+    *BILATERAL_SLOT_EXPANSIONS,
+    *LEAF_SLOTS,
+})
+
 COVERED_DEFAULT = frozenset({"torso", "pelvis"})
+
+
+def normalize_slots(slots: tuple[str, ...] | frozenset[str]) -> tuple[str, ...]:
+    """Expand authoring shorthand into deterministic matrix leaf slots."""
+    if not isinstance(slots, (tuple, frozenset)):
+        raise WardrobeError("slots must be a tuple or frozenset")
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for slot in slots:
+        if slot not in SLOTS:
+            raise WardrobeError("unknown wardrobe slot")
+        expanded = BILATERAL_SLOT_EXPANSIONS.get(slot, (slot,))
+        for leaf in expanded:
+            if leaf not in seen:
+                normalized.append(leaf)
+                seen.add(leaf)
+    return tuple(normalized)
 
 
 class WardrobeError(ValueError):
