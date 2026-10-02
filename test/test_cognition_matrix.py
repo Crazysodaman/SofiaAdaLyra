@@ -34,8 +34,10 @@ from sofia.cognition.matrix import (
     MatrixResponseValidator,
     MatrixRoute,
     MatrixRoutingPlanner,
+    MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
+    ToolExposurePlan,
     ResponseContract,
     ResponseStrategy,
     ResponseValidationDisposition,
@@ -150,6 +152,90 @@ def test_do_it_is_action_followup_with_prior_turn_context():
     assert result.history_policy is HistoryPolicy.LAST_TURN
     assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
     assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+
+
+def test_tool_exposure_keeps_social_and_avatar_turns_tool_free():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+
+    for content in ("Hru", "what are you wearing", "wear the engineer jacket"):
+        env = envelope(content)
+        turn = coordinator.evaluate(env)
+        authority = MatrixAuthorityPlanner().plan(
+            env,
+            turn,
+            Authority(
+                can_respond=True,
+                can_propose_actions=True,
+                can_execute_actions=True,
+            ),
+        )
+        plan = planner.plan(env, turn, authority)
+        assert plan.capabilities == ()
+        assert plan.allow_tools is False
+
+
+def test_tool_exposure_selects_only_relevant_read_capability():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("check current CPU usage")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+
+    plan = planner.plan(env, turn, authority)
+
+    assert plan.capabilities == ("hardware.inspect",)
+    assert plan.allow_tools is True
+
+
+def test_tool_exposure_fails_closed_for_unapproved_action():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("restart the Plex service")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(can_respond=True, can_propose_actions=True),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert authority.decision is AuthorityDecision.REQUIRES_APPROVAL
+    assert plan.capabilities == ()
+    assert plan.allow_tools is False
+
+
+def test_tool_exposure_allows_only_service_family_for_allowed_restart():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("restart the Plex service on Dionysus")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=True,
+        ),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "service.inspect" in plan.capabilities
+    assert "local.service.restart" in plan.capabilities
+    assert "remote.service.restart" in plan.capabilities
+    assert "dev.build" not in plan.capabilities
+    assert "github.pull_request.merge" not in plan.capabilities
+
+
+def test_tool_exposure_plan_validates_unique_capabilities():
+    with pytest.raises(ValueError, match="unique"):
+        ToolExposurePlan(
+            ("hardware.inspect", "hardware.inspect"),
+            "duplicate test",
+        )
 
 
 def test_general_turn_keeps_bounded_recent_context():
@@ -793,6 +879,31 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
         ("what season is it?", "environment.calendar.current"),
     ),
 )
+def test_trace_round_trips_tool_exposure_plan(tmp_path):
+    store = MatrixTraceStore(tmp_path / "sofia.db")
+    env = envelope("check current CPU usage", message_id="tool-exposure-1")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+    exposure = MatrixToolExposurePlanner().plan(env, turn, authority)
+
+    store.record(
+        MatrixTrace(
+            envelope=env,
+            turn=turn,
+            authority=authority,
+            tool_exposure=exposure,
+            created_at=env.created_at,
+        )
+    )
+
+    loaded = store.latest(session_id=env.session_id)
+    assert loaded is not None
+    assert loaded.tool_exposure is not None
+    assert loaded.tool_exposure.capabilities == ("hardware.inspect",)
+
+
 def test_environment_evidence_keys_are_query_specific(
     content,
     expected_key,

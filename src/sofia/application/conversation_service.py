@@ -41,12 +41,14 @@ from sofia.cognition.matrix import (
     MatrixRelevance,
     MatrixRoute,
     MatrixRoutingPlanner,
+    MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
     ResponseContract,
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
+    ToolExposurePlan,
     TurnEnvelope,
     TurnMatrix,
 )
@@ -58,68 +60,6 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
-
-
-_TOOL_TARGET_RE = re.compile(
-    r"\b(?:file|folder|directory|code|codebase|repository|repo|github|"
-    r"issue|pull\s+request|process|cpu|gpu|memory|ram|disk|storage|"
-    r"system|computer|machine|host|network|services?|hardware|sensor|sensors|vm|"
-    r"virtual\s+machine|container|docker|ollama|sqlite|database|"
-    r"home\s+assistant|portainer|jmri|discord|fleet|remote|telemetry|"
-    r"package|deployment|server)\b",
-    re.IGNORECASE,
-)
-_TOOL_ACTION_RE = re.compile(
-    r"\b(?:inspect|check|show|list|read|search|find|query|get|status|"
-    r"state|running|run|start|stop|restart|reboot|update|upgrade|deploy|"
-    r"install|remove|delete|create|write|edit|change|control)\b",
-    re.IGNORECASE,
-)
-_SOFIA_MATRIX_TERM_RE = re.compile(
-    r"\b(?:matrix|matrixes|matrices|matrixs)\b",
-    re.IGNORECASE,
-)
-
-_TOOL_CONTROL_RE = re.compile(
-    r"\b(?:start|stop|restart|reboot|update|upgrade|deploy|install|"
-    r"remove|delete|write|edit)\b",
-    re.IGNORECASE,
-)
-_TOOL_QUESTION_RE = re.compile(
-    r"^\s*(?:what|which|how|is|are|do|does|can|could|would|will)\b",
-    re.IGNORECASE,
-)
-_RUNNING_APP_RE = re.compile(
-    r"\b(?:is|are)\s+[A-Za-z0-9_.-]+\s+running\b|"
-    r"\bwhat(?:\'s|\s+is)\s+running\b",
-    re.IGNORECASE,
-)
-
-
-def _conversation_tools_relevant(content: str | None) -> bool:
-    """Expose operational tools only when the current user turn needs them.
-
-    Ordinary social/environment/avatar conversation stays tool-free. This keeps
-    provider-side response-quality repair available and avoids sending the full
-    operational toolbox/context on turns such as hru or timezone follow-ups.
-    Host authorization still independently governs every exposed capability.
-    """
-    if content is None:
-        return False
-    if not isinstance(content, str):
-        raise TypeError("conversation tool relevance content must be a string or None")
-    text = content.strip()
-    if not text:
-        return False
-    if _RUNNING_APP_RE.search(text):
-        return True
-    if _TOOL_TARGET_RE.search(text) is None:
-        return False
-    return (
-        _TOOL_ACTION_RE.search(text) is not None
-        or _TOOL_CONTROL_RE.search(text) is not None
-        or _TOOL_QUESTION_RE.search(text) is not None
-    )
 
 
 # The durable store keeps full history, but a new unrelated question must not
@@ -235,6 +175,7 @@ class ConversationService:
         self._matrix_response_planner = MatrixResponsePlanner()
         self._matrix_response_validator = MatrixResponseValidator()
         self._matrix_routing_planner = MatrixRoutingPlanner()
+        self._matrix_tool_exposure_planner = MatrixToolExposurePlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
         self._current_matrix_message_id: str | None = None
         self._current_matrix_envelope: TurnEnvelope | None = None
@@ -242,6 +183,7 @@ class ConversationService:
         self._current_context_plan: ContextPlan | None = None
         self._current_evidence_matrix: EvidenceMatrix | None = None
         self._current_authority_plan: AuthorityPlan | None = None
+        self._current_tool_exposure_plan: ToolExposurePlan | None = None
         self._current_response_contract: ResponseContract | None = None
         self._current_response_validation: ResponseValidation | None = None
         self._current_routing_plan: RoutingPlan | None = None
@@ -535,6 +477,7 @@ class ConversationService:
         self._current_context_plan = None
         self._current_evidence_matrix = None
         self._current_authority_plan = None
+        self._current_tool_exposure_plan = None
         self._current_response_contract = None
         self._current_response_validation = None
         self._current_routing_plan = None
@@ -586,6 +529,11 @@ class ConversationService:
                 turn,
                 self._runtime.current_authority(),
             )
+            tool_exposure_plan = self._matrix_tool_exposure_planner.plan(
+                envelope,
+                turn,
+                authority_plan,
+            )
             response_contract = self._matrix_response_planner.plan(
                 turn,
                 evidence,
@@ -602,6 +550,7 @@ class ConversationService:
                     context=context_plan,
                     evidence=evidence,
                     authority=authority_plan,
+                    tool_exposure=tool_exposure_plan,
                     response_contract=response_contract,
                     routing=routing_plan,
                     created_at=datetime.now(timezone.utc),
@@ -615,6 +564,7 @@ class ConversationService:
             self._current_context_plan = context_plan
             self._current_evidence_matrix = evidence
             self._current_authority_plan = authority_plan
+            self._current_tool_exposure_plan = tool_exposure_plan
             self._current_response_contract = response_contract
             self._current_routing_plan = routing_plan
             self._last_matrix_error = None
@@ -626,6 +576,7 @@ class ConversationService:
             self._current_context_plan = None
             self._current_evidence_matrix = None
             self._current_authority_plan = None
+            self._current_tool_exposure_plan = None
             self._current_response_contract = None
             self._current_response_validation = None
             self._current_routing_plan = None
@@ -647,6 +598,7 @@ class ConversationService:
                 context=self._current_context_plan,
                 evidence=self._current_evidence_matrix,
                 authority=self._current_authority_plan,
+                tool_exposure=self._current_tool_exposure_plan,
                 response_contract=self._current_response_contract,
                 response_validation=self._current_response_validation,
                 routing=self._current_routing_plan,
@@ -1233,19 +1185,13 @@ class ConversationService:
                 *cognitive_messages,
             )
 
-        allow_tools = _conversation_tools_relevant(latest_user)
-        if (
-            self._current_turn_matrix is not None
-            and self._current_turn_matrix.intent is MatrixIntent.ACTION_REQUEST
-            and self._current_authority_plan is not None
-            and self._current_authority_plan.decision
-            in {
-                AuthorityDecision.REQUIRES_APPROVAL,
-                AuthorityDecision.DENIED,
-                AuthorityDecision.CLARIFY,
-            }
-        ):
-            allow_tools = False
+        exposure = self._current_tool_exposure_plan
+        allow_tools = exposure.allow_tools if exposure is not None else False
+        capability_allowlist = (
+            exposure.capabilities
+            if exposure is not None and exposure.allow_tools
+            else ()
+        )
 
         route_hint = None
         if (
@@ -1257,6 +1203,7 @@ class ConversationService:
         return CognitiveRequest(
             messages=cognitive_messages,
             allow_tools=allow_tools,
+            capability_allowlist=capability_allowlist,
             route_hint=route_hint,
         )
 

@@ -7,7 +7,6 @@ from sofia.application import (
     ConversationService,
     SofiaApplication,
 )
-from sofia.application.conversation_service import _conversation_tools_relevant
 from sofia.authority.model import Authority
 from sofia.config.model import (
     ProviderConfiguration,
@@ -460,59 +459,35 @@ def test_filesystem_request_without_authorization_remains_denied(
 
     application.shutdown()
 
-@pytest.mark.parametrize(
-    "content",
-    (
-        "hru",
-        "Central timezone",
-        "what is the weather today",
-        "what are you wearing",
-        "I missed you",
-    ),
-)
-def test_conversation_tool_gate_keeps_ordinary_turns_tool_free(content):
-    assert _conversation_tools_relevant(content) is False
-
-
-@pytest.mark.parametrize(
-    "content",
-    (
-        "check current CPU usage",
-        "list running services",
-        "is Plex running",
-        "restart the service",
-        "what is the system status",
-        "Can you physically sense my hand through an actual sensor?",
-    ),
-)
-def test_conversation_tool_gate_allows_operational_turns(content):
-    assert _conversation_tools_relevant(content) is True
-
-
-def test_live_conversation_request_preserves_tool_relevance_gate(tmp_path: Path):
+def test_live_conversation_request_uses_matrix_tool_exposure(tmp_path: Path):
     application = create_application(tmp_path)
     application.start()
     try:
         application.conversation.respond("hru")
         social_request = application.conversation._build_request()
         assert social_request.allow_tools is False
+        assert social_request.capability_allowlist == ()
 
         application.conversation.respond("check current CPU usage")
         operational_request = application.conversation._build_request()
         assert operational_request.allow_tools is True
+        assert operational_request.capability_allowlist == (
+            "hardware.inspect",
+        )
     finally:
         application.shutdown()
 
 
-
-
-def test_interaction_control_word_without_operational_target_stays_tool_free():
-    assert _conversation_tools_relevant("Sofía, stop interactions") is False
-
-
-def test_operational_control_still_requires_target():
-    assert _conversation_tools_relevant("restart the service") is True
-    assert _conversation_tools_relevant("stop") is False
+def test_unapproved_operational_action_is_tool_free(tmp_path: Path):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        application.conversation.respond("restart the service")
+        request = application.conversation._build_request()
+        assert request.allow_tools is False
+        assert request.capability_allowlist == ()
+    finally:
+        application.shutdown()
 
 
 def test_normal_reply_finalizes_before_assistant_message_is_persisted(

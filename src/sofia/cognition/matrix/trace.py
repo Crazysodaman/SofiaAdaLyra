@@ -31,6 +31,7 @@ from .model import (
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
+    ToolExposurePlan,
     TurnEnvelope,
     TurnMatrix,
 )
@@ -141,6 +142,7 @@ class MatrixTraceStore:
         if (
             trace.evidence is None
             and trace.authority is None
+            and trace.tool_exposure is None
             and trace.response_contract is None
             and trace.response_validation is None
             and trace.routing is None
@@ -175,6 +177,13 @@ class MatrixTraceStore:
                 "decision": trace.authority.decision.value,
                 "requested_action": trace.authority.requested_action,
                 "reason": trace.authority.reason,
+            }
+
+        tool_exposure = None
+        if trace.tool_exposure is not None:
+            tool_exposure = {
+                "capabilities": list(trace.tool_exposure.capabilities),
+                "reason": trace.tool_exposure.reason,
             }
 
         contract = None
@@ -232,6 +241,7 @@ class MatrixTraceStore:
             {
                 "evidence": evidence,
                 "authority": authority,
+                "tool_exposure": tool_exposure,
                 "response_contract": contract,
                 "response_validation": validation,
                 "routing": routing,
@@ -272,6 +282,7 @@ class MatrixTraceStore:
             )
         evidence = None
         authority = None
+        tool_exposure = None
         response_contract = None
         response_validation = None
         routing = None
@@ -312,6 +323,15 @@ class MatrixTraceStore:
                         "requested_action"
                     ),
                     reason=authority_payload.get("reason", ""),
+                )
+
+            tool_exposure_payload = extensions.get("tool_exposure")
+            if tool_exposure_payload is not None:
+                tool_exposure = ToolExposurePlan(
+                    capabilities=tuple(
+                        tool_exposure_payload.get("capabilities", ())
+                    ),
+                    reason=tool_exposure_payload["reason"],
                 )
 
             contract_payload = extensions.get("response_contract")
@@ -395,6 +415,7 @@ class MatrixTraceStore:
             context=context,
             evidence=evidence,
             authority=authority,
+            tool_exposure=tool_exposure,
             response_contract=response_contract,
             response_validation=response_validation,
             routing=routing,

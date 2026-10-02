@@ -213,6 +213,35 @@ def test_codebase_tool_requires_explicit_capability_authority(
     }
 
 
+def test_dispatcher_filters_authorized_tools_by_matrix_relevance(tmp_path: Path):
+    dispatcher = create_default_dispatcher(tmp_path)
+    authority = Authority(
+        can_inspect_filesystem=True,
+        allowed_capabilities=("codebase.inspect",),
+    )
+
+    definitions = dispatcher.definitions_for_authority(
+        authority,
+        allowed_capabilities=("codebase.inspect",),
+    )
+
+    assert {item.name for item in definitions} == {"inspect_codebase"}
+
+
+def test_dispatcher_rejects_authorized_but_unexposed_tool(tmp_path: Path):
+    dispatcher = create_default_dispatcher(tmp_path)
+    call = CognitiveToolCall(
+        name="inspect_codebase",
+        arguments={},
+    )
+
+    with pytest.raises(CognitiveToolError, match="not exposed"):
+        dispatcher.dispatch(
+            call,
+            allowed_capabilities=("filesystem.inspect",),
+        )
+
+
 def test_dispatcher_rejects_unknown_tool():
     dispatcher = create_dispatcher()
 
