@@ -63,6 +63,26 @@ def test_same_layer_different_slots_allowed():
     assert w.selection(("shirt", "pants")).covered_default
 
 
+def test_legacy_broad_slot_conflicts_with_native_leaf_slot_on_same_layer():
+    broad = garment("broad", slots=("feet",), coverage=("feet",))
+    leaf = garment("leaf", slots=("left_foot",), coverage=("left_foot",))
+    w = Wardrobe((broad, leaf))
+    with pytest.raises(WardrobeConflict):
+        w.selection(("broad", "leaf"))
+
+
+def test_native_leaf_ear_slots_still_require_clearance():
+    w = Wardrobe((
+        garment(
+            "earpiece",
+            slots=("left_ear", "right_ear"),
+            coverage=(),
+        ),
+    ))
+    with pytest.raises(WardrobeConflict, match="ear"):
+        w.selection(("earpiece",))
+
+
 @pytest.mark.parametrize("ids", [("missing",), ("shirt", "shirt"), ["shirt"]])
 def test_unknown_duplicate_or_non_tuple_selection_denied(ids):
     with pytest.raises((WardrobeConflict, WardrobeError)):

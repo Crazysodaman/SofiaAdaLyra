@@ -151,3 +151,15 @@ def test_matrix_expands_ears_shoulders_and_leg_segments_without_broad_cells():
     assert "right_calf" in grid
     assert "left_ankle" in grid
     assert "right_ankle" in grid
+
+
+def test_builtin_catalog_uses_native_leaf_slots_not_legacy_bilateral_shorthand():
+    pack = build_starter_wardrobe()
+    legacy_bilateral = {
+        "legs", "feet", "hands", "ears", "shoulders", "upper_arms",
+        "forearms", "wrists", "fingers", "thighs", "calves", "ankles",
+    }
+
+    for blueprint in pack.blueprints:
+        assert not (legacy_bilateral & set(blueprint.garment.slots))
+        assert not (legacy_bilateral & set(blueprint.garment.coverage))

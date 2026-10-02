@@ -187,16 +187,25 @@ class Wardrobe:
                 raise WardrobeError("unknown garment ID") from error
         occupied: set[tuple[Layer, str]] = set()
         for garment in selected:
-            for slot in garment.slots:
+            for slot in normalize_slots(garment.slots):
                 key = (garment.layer, slot)
                 if key in occupied:
                     raise WardrobeConflict("two garments occupy one layer and slot")
                 occupied.add(key)
-        covers = frozenset(slot for g in selected for slot in g.coverage)
-        # A garment occupying ears/tail must actually accommodate them.
-        if any("tail" in g.slots and not g.tail_clearance for g in selected):
+        covers = frozenset(
+            slot
+            for garment in selected
+            for slot in normalize_slots(garment.coverage)
+        )
+        # Clearance policy is evaluated after slot normalization so legacy
+        # broad authoring names and native leaf-slot garments behave identically.
+        if any("tail" in normalize_slots(g.slots) and not g.tail_clearance for g in selected):
             raise WardrobeConflict("tail region requires explicit clearance")
-        if any("ears" in g.slots and not g.ear_clearance for g in selected):
+        if any(
+            ({"left_ear", "right_ear"} & set(normalize_slots(g.slots)))
+            and not g.ear_clearance
+            for g in selected
+        ):
             raise WardrobeConflict("ear region requires explicit clearance")
         return Outfit(
             item_ids,
