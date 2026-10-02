@@ -1529,3 +1529,46 @@ Imperative grammar is not authority.
 A user request or LLM statement is not proof that a wardrobe change occurred. Only the committed and verified AVATAR presentation transition may be described as completed.
 
 Private presentation remains separately grant-gated, and refusal leaves canonical wardrobe state unchanged.
+
+
+# 26. Contextual influence audit — 2026-10-02
+
+A whole-code-path audit was performed for the influence set:
+
+```text
+modeled emotion
+current weather
+trusted time/daypart
+grounded season
+```
+
+The result is recorded in [`CONTEXTUAL_INFLUENCE_AUDIT.md`](CONTEXTUAL_INFLUENCE_AUDIT.md).
+
+The project now treats these four signals as one **Contextual Influence Matrix** rather than four independent policy systems.
+
+The matrix is a whitelist per decision surface. It decides whether each signal may affect:
+
+- the decision itself;
+- expression only;
+- bounded salience;
+- a strong preference;
+- hard compatibility;
+- or nothing.
+
+Important current findings:
+
+- automatic outfit selection already uses all four with good separation of strength;
+- user-requested wardrobe autonomy currently uses none of the four and needs the same trusted context;
+- general continuity influence is injected broadly and can bypass selective ENVIRONMENT context projection;
+- reflection receives emotion/daypart/season but omits weather from its decision payload;
+- outreach salience uses emotion/daypart/daylight/current weather, while ACT policy independently enforces quiet hours/limits;
+- desktop adaptive theme uses time/daylight/weather/emotion but not season;
+- HABIT observations record daypart/season/daylight/current weather, while current routine analysis keeps only daypart/day_type;
+- memory retrieval is not yet contextually reranked despite continuity guidance saying context may shape memory salience;
+- interaction willingness needs explicit separation: emotion may be a bounded influence, while weather/daypart/season must not directly decide consent/willingness.
+
+The non-negotiable invariant is:
+
+> Context may shape personality and preference. It may not shape truth or authority.
+
+Therefore emotion/weather/time/season must never independently change SAFE policy, action authorization, private grants, execution receipts, release verification, Fleet trust/fencing, DEV correctness, EVOLVE approval, or BODY safety.
