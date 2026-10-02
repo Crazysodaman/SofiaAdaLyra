@@ -328,6 +328,69 @@ class AuthorityPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class PrivacyProjectionPlan:
+    """Trusted principal/audience projection eligibility for one turn.
+
+    This plan never creates identity, private grants, consent, or authority.
+    It only narrows which already-scoped state may be considered.
+    """
+
+    principal_id: str | None
+    audience_id: str | None
+    audience_kind: str | None
+    allow_relationship_scope: bool
+    allow_audience_scope: bool
+    allow_historical_private_scope: bool
+    allow_private_presentation_candidate: bool
+    reason: str
+
+    def __post_init__(self) -> None:
+        for name in (
+            "allow_relationship_scope",
+            "allow_audience_scope",
+            "allow_historical_private_scope",
+            "allow_private_presentation_candidate",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be bool")
+        if not isinstance(self.reason, str) or not self.reason.strip():
+            raise ValueError("privacy projection reason must be nonempty")
+
+        if self.principal_id is None:
+            if any(
+                value is not None
+                for value in (
+                    self.audience_id,
+                    self.audience_kind,
+                )
+            ):
+                raise ValueError(
+                    "unbound privacy projection cannot carry audience identity"
+                )
+            if any(
+                (
+                    self.allow_relationship_scope,
+                    self.allow_audience_scope,
+                    self.allow_historical_private_scope,
+                    self.allow_private_presentation_candidate,
+                )
+            ):
+                raise ValueError(
+                    "unbound privacy projection cannot permit scoped state"
+                )
+            return
+
+        if not isinstance(self.principal_id, str) or not self.principal_id.strip():
+            raise ValueError("principal_id must be None or nonempty")
+        if not isinstance(self.audience_id, str) or not self.audience_id.strip():
+            raise ValueError("bound privacy projection requires audience_id")
+        if self.audience_kind not in {"private", "shared", "system"}:
+            raise ValueError(
+                "bound privacy projection requires a known audience_kind"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class ToolExposurePlan:
     """Relevant capability exposure for one turn.
 
@@ -464,6 +527,7 @@ class MatrixTrace:
     context: ContextPlan | None = None
     evidence: EvidenceMatrix | None = None
     authority: AuthorityPlan | None = None
+    privacy: PrivacyProjectionPlan | None = None
     tool_exposure: ToolExposurePlan | None = None
     response_contract: ResponseContract | None = None
     response_validation: ResponseValidation | None = None
@@ -489,6 +553,12 @@ class MatrixTrace:
             self.authority, AuthorityPlan
         ):
             raise TypeError("authority must be AuthorityPlan or None")
+        if self.privacy is not None and not isinstance(
+            self.privacy, PrivacyProjectionPlan
+        ):
+            raise TypeError(
+                "privacy must be PrivacyProjectionPlan or None"
+            )
         if self.tool_exposure is not None and not isinstance(
             self.tool_exposure, ToolExposurePlan
         ):
