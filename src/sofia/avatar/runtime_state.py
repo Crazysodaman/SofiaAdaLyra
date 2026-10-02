@@ -10,6 +10,7 @@ from sofia.embodiment.model import Embodiment
 from .presentation import AppearanceState, PresentationAuthority
 from .presentation_store import PresentationStore
 from .wardrobe_catalog import WardrobePrebuild, build_starter_wardrobe
+from .wardrobe_matrix import WardrobeSlotMatrix, build_wardrobe_matrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +18,13 @@ class PresentationRuntimeBundle:
     authority: PresentationAuthority
     store: PresentationStore
     catalog: WardrobePrebuild
+
+    def current_matrix(self) -> WardrobeSlotMatrix:
+        """Project current authoritative presentation into slot/layer state."""
+        return build_wardrobe_matrix(
+            self.catalog,
+            self.authority.current.item_ids,
+        )
 
 
 def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:
