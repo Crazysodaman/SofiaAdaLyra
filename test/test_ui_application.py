@@ -122,3 +122,78 @@ def test_same_application_can_reopen_text_ui_after_shutdown(
     )
 
     application.shutdown()
+
+
+def test_text_ui_clothing_action_commits_canonical_avatar_state(
+    configuration: SofiaConfiguration,
+):
+    application = SofiaApplication(configuration)
+    application.start()
+
+    application.text_ui.save_draft("change into bikini 4")
+    response = application.text_ui.send()
+
+    assert "Midnight Asymmetric Bikini" in response.content
+    current = application.runtime.avatar_presentation.current
+    assert current.outfit_id == "swim.bikini.04"
+    assert application._presentation_bundle is not None
+    matrix = application._presentation_bundle.current_matrix()
+    assert (
+        matrix.as_dict()["torso"]["base"]["garment_id"]
+        == "closet.swim.bikini.04.top"
+    )
+
+    session_id = application.conversation.session_id
+    application.shutdown()
+
+    resumed = SofiaApplication(configuration)
+    resumed.start(session_id=session_id)
+    assert resumed.runtime.avatar_presentation.current.outfit_id == "swim.bikini.04"
+    resumed.shutdown()
+
+
+def test_text_ui_clothing_hypothetical_then_do_it_uses_prior_user_request(
+    configuration: SofiaConfiguration,
+):
+    application = SofiaApplication(configuration)
+    application.start()
+    original = application.runtime.avatar_presentation.current
+
+    application.text_ui.save_draft(
+        "if i asked you to change into bikini 2 will you"
+    )
+    hypothetical = application.text_ui.send()
+
+    assert "request itself" in hypothetical.content
+    assert application.runtime.avatar_presentation.current == original
+
+    application.text_ui.save_draft("do it")
+    followup = application.text_ui.send()
+
+    assert "Violet Halter Bikini" in followup.content
+    assert application.runtime.avatar_presentation.current.outfit_id == (
+        "swim.bikini.02"
+    )
+    application.shutdown()
+
+
+def test_text_ui_undress_followup_never_claims_uncommitted_private_change(
+    configuration: SofiaConfiguration,
+):
+    application = SofiaApplication(configuration)
+    application.start()
+    original = application.runtime.avatar_presentation.current
+
+    application.text_ui.save_draft(
+        "if i asked you to undress will you"
+    )
+    hypothetical = application.text_ui.send()
+    assert "private presentation" in hypothetical.content
+    assert application.runtime.avatar_presentation.current == original
+
+    application.text_ui.save_draft("do it")
+    followup = application.text_ui.send()
+
+    assert "keeping my current outfit" in followup.content
+    assert application.runtime.avatar_presentation.current == original
+    application.shutdown()
