@@ -34,9 +34,11 @@ from sofia.cognition.matrix import (
     MatrixResponseValidator,
     MatrixRoute,
     MatrixRoutingPlanner,
+    MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
+    PrivacyProjectionPlan,
     ToolExposurePlan,
     ResponseContract,
     ResponseStrategy,
@@ -152,6 +154,59 @@ def test_do_it_is_action_followup_with_prior_turn_context():
     assert result.history_policy is HistoryPolicy.LAST_TURN
     assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
     assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+
+
+def test_privacy_matrix_fails_closed_without_authenticated_principal():
+    plan = MatrixPrivacyPlanner().plan(None)
+
+    assert plan.principal_id is None
+    assert plan.allow_relationship_scope is False
+    assert plan.allow_audience_scope is False
+    assert plan.allow_historical_private_scope is False
+    assert plan.allow_private_presentation_candidate is False
+
+
+def test_privacy_matrix_allows_private_scope_only_for_private_audience():
+    from sofia.social.model import AudienceKind, PrincipalContext
+
+    private = MatrixPrivacyPlanner().plan(
+        PrincipalContext(
+            principal_id="sparks",
+            audience_id="dm-1",
+            audience_kind=AudienceKind.PRIVATE,
+        )
+    )
+    shared = MatrixPrivacyPlanner().plan(
+        PrincipalContext(
+            principal_id="sparks",
+            audience_id="room-1",
+            audience_kind=AudienceKind.SHARED,
+        )
+    )
+
+    assert private.allow_relationship_scope is True
+    assert private.allow_audience_scope is True
+    assert private.allow_historical_private_scope is True
+    assert private.allow_private_presentation_candidate is True
+
+    assert shared.allow_relationship_scope is True
+    assert shared.allow_audience_scope is True
+    assert shared.allow_historical_private_scope is False
+    assert shared.allow_private_presentation_candidate is False
+
+
+def test_privacy_plan_rejects_unbound_scope_permissions():
+    with pytest.raises(ValueError, match="unbound"):
+        PrivacyProjectionPlan(
+            principal_id=None,
+            audience_id=None,
+            audience_kind=None,
+            allow_relationship_scope=False,
+            allow_audience_scope=True,
+            allow_historical_private_scope=False,
+            allow_private_presentation_candidate=False,
+            reason="invalid test",
+        )
 
 
 def test_tool_exposure_keeps_social_and_avatar_turns_tool_free():
@@ -879,6 +934,38 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
         ("what season is it?", "environment.calendar.current"),
     ),
 )
+def test_trace_round_trips_privacy_projection(tmp_path):
+    from sofia.social.model import AudienceKind, PrincipalContext
+
+    store = MatrixTraceStore(tmp_path / "sofia.db")
+    env = envelope("Hru", message_id="privacy-1")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    privacy = MatrixPrivacyPlanner().plan(
+        PrincipalContext(
+            principal_id="sparks",
+            audience_id="dm-1",
+            audience_kind=AudienceKind.PRIVATE,
+        )
+    )
+
+    store.record(
+        MatrixTrace(
+            envelope=env,
+            turn=turn,
+            privacy=privacy,
+            created_at=env.created_at,
+        )
+    )
+
+    loaded = store.latest(session_id=env.session_id)
+    assert loaded is not None
+    assert loaded.privacy is not None
+    assert loaded.privacy.principal_id == "sparks"
+    assert loaded.privacy.allow_historical_private_scope is True
+
+
 def test_trace_round_trips_tool_exposure_plan(tmp_path):
     store = MatrixTraceStore(tmp_path / "sofia.db")
     env = envelope("check current CPU usage", message_id="tool-exposure-1")

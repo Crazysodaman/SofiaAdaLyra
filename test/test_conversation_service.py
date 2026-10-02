@@ -740,6 +740,21 @@ def test_matrix_context_failure_falls_back_to_legacy_history(
         application.shutdown()
 
 
+def test_matrix_trace_records_privacy_projection_for_bound_principal(tmp_path: Path):
+    application = create_application(tmp_path)
+    application.start()
+    try:
+        application.conversation.respond("Hru")
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.privacy is not None
+        assert trace.privacy.allow_audience_scope is True
+        assert trace.privacy.principal_id
+        assert trace.privacy.audience_id
+    finally:
+        application.shutdown()
+
+
 def test_matrix_hru_routes_fast_and_records_validation(
     tmp_path: Path,
     monkeypatch,

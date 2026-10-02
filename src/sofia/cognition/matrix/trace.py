@@ -31,6 +31,7 @@ from .model import (
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
+    PrivacyProjectionPlan,
     ToolExposurePlan,
     TurnEnvelope,
     TurnMatrix,
@@ -142,6 +143,7 @@ class MatrixTraceStore:
         if (
             trace.evidence is None
             and trace.authority is None
+            and trace.privacy is None
             and trace.tool_exposure is None
             and trace.response_contract is None
             and trace.response_validation is None
@@ -177,6 +179,25 @@ class MatrixTraceStore:
                 "decision": trace.authority.decision.value,
                 "requested_action": trace.authority.requested_action,
                 "reason": trace.authority.reason,
+            }
+
+        privacy = None
+        if trace.privacy is not None:
+            privacy = {
+                "principal_id": trace.privacy.principal_id,
+                "audience_id": trace.privacy.audience_id,
+                "audience_kind": trace.privacy.audience_kind,
+                "allow_relationship_scope": (
+                    trace.privacy.allow_relationship_scope
+                ),
+                "allow_audience_scope": trace.privacy.allow_audience_scope,
+                "allow_historical_private_scope": (
+                    trace.privacy.allow_historical_private_scope
+                ),
+                "allow_private_presentation_candidate": (
+                    trace.privacy.allow_private_presentation_candidate
+                ),
+                "reason": trace.privacy.reason,
             }
 
         tool_exposure = None
@@ -241,6 +262,7 @@ class MatrixTraceStore:
             {
                 "evidence": evidence,
                 "authority": authority,
+                "privacy": privacy,
                 "tool_exposure": tool_exposure,
                 "response_contract": contract,
                 "response_validation": validation,
@@ -282,6 +304,7 @@ class MatrixTraceStore:
             )
         evidence = None
         authority = None
+        privacy = None
         tool_exposure = None
         response_contract = None
         response_validation = None
@@ -323,6 +346,29 @@ class MatrixTraceStore:
                         "requested_action"
                     ),
                     reason=authority_payload.get("reason", ""),
+                )
+
+            privacy_payload = extensions.get("privacy")
+            if privacy_payload is not None:
+                privacy = PrivacyProjectionPlan(
+                    principal_id=privacy_payload.get("principal_id"),
+                    audience_id=privacy_payload.get("audience_id"),
+                    audience_kind=privacy_payload.get("audience_kind"),
+                    allow_relationship_scope=bool(
+                        privacy_payload["allow_relationship_scope"]
+                    ),
+                    allow_audience_scope=bool(
+                        privacy_payload["allow_audience_scope"]
+                    ),
+                    allow_historical_private_scope=bool(
+                        privacy_payload["allow_historical_private_scope"]
+                    ),
+                    allow_private_presentation_candidate=bool(
+                        privacy_payload[
+                            "allow_private_presentation_candidate"
+                        ]
+                    ),
+                    reason=privacy_payload["reason"],
                 )
 
             tool_exposure_payload = extensions.get("tool_exposure")
@@ -415,6 +461,7 @@ class MatrixTraceStore:
             context=context,
             evidence=evidence,
             authority=authority,
+            privacy=privacy,
             tool_exposure=tool_exposure,
             response_contract=response_contract,
             response_validation=response_validation,

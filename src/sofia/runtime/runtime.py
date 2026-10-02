@@ -27,6 +27,7 @@ from sofia.cognition.matrix import (
     EvidenceState,
     HistoryPolicy,
     MatrixDomain,
+    PrivacyProjectionPlan,
 )
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleManager
@@ -904,6 +905,7 @@ class SofiaRuntime:
         *,
         principal: PrincipalContext | None = None,
         context_plan: ContextPlan | None = None,
+        privacy_plan: PrivacyProjectionPlan | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -926,6 +928,25 @@ class SofiaRuntime:
             raise TypeError(
                 "SofiaRuntime context_plan must be a ContextPlan or None."
             )
+        if privacy_plan is not None and not isinstance(
+            privacy_plan, PrivacyProjectionPlan
+        ):
+            raise TypeError(
+                "SofiaRuntime privacy_plan must be a PrivacyProjectionPlan or None."
+            )
+        if privacy_plan is not None:
+            if principal is None and privacy_plan.principal_id is not None:
+                raise ValueError(
+                    "privacy plan is bound but runtime principal is absent"
+                )
+            if principal is not None and (
+                privacy_plan.principal_id != principal.principal_id
+                or privacy_plan.audience_id != principal.audience_id
+                or privacy_plan.audience_kind != principal.audience_kind.value
+            ):
+                raise ValueError(
+                    "privacy plan does not match authenticated runtime principal"
+                )
 
         selective_context = (
             context_plan is not None
@@ -995,8 +1016,14 @@ class SofiaRuntime:
                 wardrobe_matrix=self._avatar_matrix_for(presentation),
             )
             if self_fact.recognized:
-                if self._avatar_self_fact_resolver.allows_private_projection(
-                    user_content
+                if (
+                    self._avatar_self_fact_resolver.allows_private_projection(
+                        user_content
+                    )
+                    and (
+                        privacy_plan is None
+                        or privacy_plan.allow_private_presentation_candidate
+                    )
                 ):
                     private_grant = self._private_presentation_grants.resolve(
                         principal=principal,
@@ -1054,16 +1081,31 @@ class SofiaRuntime:
                 )
 
         if include_domain(MatrixDomain.MEMORY):
-            memories = self._memory_system.recall_relevant(
-                user_content,
-                principal=principal,
+            audience_scope_allowed = (
+                privacy_plan is None
+                or privacy_plan.allow_audience_scope
             )
-            historical_conversation_evidence = (
-                self._memory_system.recall_historical_evidence(
+            if audience_scope_allowed:
+                memories = self._memory_system.recall_relevant(
                     user_content,
                     principal=principal,
                 )
+            else:
+                memories = ()
+
+            historical_private_allowed = (
+                privacy_plan is None
+                or privacy_plan.allow_historical_private_scope
             )
+            if audience_scope_allowed and historical_private_allowed:
+                historical_conversation_evidence = (
+                    self._memory_system.recall_historical_evidence(
+                        user_content,
+                        principal=principal,
+                    )
+                )
+            else:
+                historical_conversation_evidence = ()
         else:
             memories = ()
             historical_conversation_evidence = ()

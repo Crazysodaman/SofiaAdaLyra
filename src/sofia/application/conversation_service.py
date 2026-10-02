@@ -41,6 +41,7 @@ from sofia.cognition.matrix import (
     MatrixRelevance,
     MatrixRoute,
     MatrixRoutingPlanner,
+    MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
@@ -48,6 +49,7 @@ from sofia.cognition.matrix import (
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
+    PrivacyProjectionPlan,
     ToolExposurePlan,
     TurnEnvelope,
     TurnMatrix,
@@ -175,6 +177,7 @@ class ConversationService:
         self._matrix_response_planner = MatrixResponsePlanner()
         self._matrix_response_validator = MatrixResponseValidator()
         self._matrix_routing_planner = MatrixRoutingPlanner()
+        self._matrix_privacy_planner = MatrixPrivacyPlanner()
         self._matrix_tool_exposure_planner = MatrixToolExposurePlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
         self._current_matrix_message_id: str | None = None
@@ -183,6 +186,7 @@ class ConversationService:
         self._current_context_plan: ContextPlan | None = None
         self._current_evidence_matrix: EvidenceMatrix | None = None
         self._current_authority_plan: AuthorityPlan | None = None
+        self._current_privacy_plan: PrivacyProjectionPlan | None = None
         self._current_tool_exposure_plan: ToolExposurePlan | None = None
         self._current_response_contract: ResponseContract | None = None
         self._current_response_validation: ResponseValidation | None = None
@@ -477,6 +481,7 @@ class ConversationService:
         self._current_context_plan = None
         self._current_evidence_matrix = None
         self._current_authority_plan = None
+        self._current_privacy_plan = None
         self._current_tool_exposure_plan = None
         self._current_response_contract = None
         self._current_response_validation = None
@@ -529,6 +534,7 @@ class ConversationService:
                 turn,
                 self._runtime.current_authority(),
             )
+            privacy_plan = self._matrix_privacy_planner.plan(principal)
             tool_exposure_plan = self._matrix_tool_exposure_planner.plan(
                 envelope,
                 turn,
@@ -550,6 +556,7 @@ class ConversationService:
                     context=context_plan,
                     evidence=evidence,
                     authority=authority_plan,
+                    privacy=privacy_plan,
                     tool_exposure=tool_exposure_plan,
                     response_contract=response_contract,
                     routing=routing_plan,
@@ -564,6 +571,7 @@ class ConversationService:
             self._current_context_plan = context_plan
             self._current_evidence_matrix = evidence
             self._current_authority_plan = authority_plan
+            self._current_privacy_plan = privacy_plan
             self._current_tool_exposure_plan = tool_exposure_plan
             self._current_response_contract = response_contract
             self._current_routing_plan = routing_plan
@@ -576,6 +584,7 @@ class ConversationService:
             self._current_context_plan = None
             self._current_evidence_matrix = None
             self._current_authority_plan = None
+            self._current_privacy_plan = None
             self._current_tool_exposure_plan = None
             self._current_response_contract = None
             self._current_response_validation = None
@@ -598,6 +607,7 @@ class ConversationService:
                 context=self._current_context_plan,
                 evidence=self._current_evidence_matrix,
                 authority=self._current_authority_plan,
+                privacy=self._current_privacy_plan,
                 tool_exposure=self._current_tool_exposure_plan,
                 response_contract=self._current_response_contract,
                 response_validation=self._current_response_validation,
@@ -805,6 +815,7 @@ class ConversationService:
                 retry_request,
                 filesystem_results=(),
                 context_plan=self._current_context_plan,
+                privacy_plan=self._current_privacy_plan,
             )
         else:
             retry = self._runtime.respond(
@@ -812,6 +823,7 @@ class ConversationService:
                 filesystem_results=(),
                 principal=principal,
                 context_plan=self._current_context_plan,
+                privacy_plan=self._current_privacy_plan,
             )
 
         self._capture_cognition_execution()
@@ -1013,6 +1025,7 @@ class ConversationService:
                 request,
                 filesystem_results=filesystem_results,
                 context_plan=context_plan,
+                privacy_plan=self._current_privacy_plan,
             )
         else:
             response = self._runtime.respond(
@@ -1020,6 +1033,7 @@ class ConversationService:
                 filesystem_results=filesystem_results,
                 principal=principal,
                 context_plan=context_plan,
+                privacy_plan=self._current_privacy_plan,
             )
 
         self._capture_cognition_execution()
