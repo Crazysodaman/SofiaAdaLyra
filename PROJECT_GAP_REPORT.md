@@ -951,6 +951,21 @@ M8 Voice runtime/prosody matrix foundation is also implemented; actual live STT/
 37. Additional live integration canaries.
 38. General web/mobile later.
 
+## Live behavior defects
+
+39. 🟡 **Authoritative grounding regression in direct/follow-up conversation.**
+    Direct factual questions and short follow-ups can still bypass deterministic
+    state lanes and reach the LLM, allowing invented or contradictory claims.
+    The observed live cases include bare `Weather`, bare `Time`,
+    Fahrenheit/Celsius follow-ups becoming a fake conversational mode,
+    hardware/benchmark claims without measurement evidence, outfit follow-ups
+    contradicting persisted AVATAR presentation state, and "what's on your
+    mind?" inventing unrecorded thoughts instead of using the Reflection
+    Journal. Fix requires deterministic routing plus response validation and
+    regression coverage across Desktop/Discord/Terminal. Current repairs are
+    in progress on `main`; do not mark closed until the focused and full gates
+    pass.
+
 ---
 
 # Bottom line
