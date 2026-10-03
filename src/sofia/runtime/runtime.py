@@ -891,7 +891,10 @@ class SofiaRuntime:
                         "capability:network.inspect",
                         "capability:hardware.inspect",
                         "capability:service.inspect",
+                        "capability:machine.",
                         "capability:ops.",
+                        "capability:storage.",
+                        "capability:remote.",
                         "capability:telemetry.",
                     )
                 )
