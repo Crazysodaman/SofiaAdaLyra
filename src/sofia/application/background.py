@@ -213,7 +213,6 @@ class ApplicationBackgroundCoordinator:
             IdleReflectionWorker(
                 service=service,
                 state_path=state_path,
-                poll_seconds=poll_seconds,
                 idle_seconds=idle_seconds,
             )
             if reflection_enabled
