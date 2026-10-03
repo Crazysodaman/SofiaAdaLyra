@@ -7,7 +7,11 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .presentation import PresentationAuthority, PresentationError
+from .presentation import (
+    PresentationAuthority,
+    PresentationDenied,
+    PresentationError,
+)
 from .wardrobe import Wardrobe
 
 
@@ -121,7 +125,12 @@ class PresentationStore:
                 outfits=outfits,
                 snapshot=raw,
             )
-        except (PresentationError, TypeError, ValueError) as exc:
+        except (
+            PresentationDenied,
+            PresentationError,
+            TypeError,
+            ValueError,
+        ) as exc:
             raise PresentationStoreError(
                 "presentation state is invalid"
             ) from exc
