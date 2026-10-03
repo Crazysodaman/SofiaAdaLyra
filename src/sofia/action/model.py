@@ -37,6 +37,7 @@ class Action:
         if not isinstance(self.parameters, tuple):
             raise TypeError("Action parameters must be a tuple.")
 
+        parameter_names: list[str] = []
         for parameter in self.parameters:
             if (
                 not isinstance(parameter, tuple)
@@ -48,6 +49,16 @@ class Action:
                     "Each Action parameter must be a "
                     "(name, value) tuple of strings."
                 )
+            if not parameter[0].strip():
+                raise ValueError(
+                    "Action parameter names must be non-empty strings."
+                )
+            parameter_names.append(parameter[0])
+
+        if len(set(parameter_names)) != len(parameter_names):
+            raise ValueError(
+                "Action parameter names must be unique."
+            )
 
         if not isinstance(self.risk, ActionRisk):
             raise TypeError("Action risk must be an ActionRisk.")
@@ -64,7 +75,7 @@ class ActionProposal:
     rationale: str
     expected_outcome: str
     risk_explanation: str
-    id: UUID = None
+    id: UUID | None = None
     status: ActionStatus = ActionStatus.PROPOSED
 
     def __post_init__(self) -> None:
