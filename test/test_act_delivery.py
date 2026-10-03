@@ -11,6 +11,8 @@ from sofia.act import (
     Policy,
     SendResult,
 )
+from sofia.act.outreach import OutreachCategory
+from sofia.act.system_notice import SystemNoticeQueue
 
 T0 = datetime(2026, 9, 25, 14, tzinfo=timezone.utc)
 
@@ -369,3 +371,42 @@ def test_delivery_result_validation():
         SendResult(DeliveryOutcome.FAILED, receipt_id="receipt")
     with pytest.raises(ValueError):
         DeliveryLimits(max_attempts_per_message=0)
+
+
+def test_social_system_notice_counts_toward_outbox_social_limits(state):
+    notices = SystemNoticeQueue(state)
+    notices.enqueue(
+        notice_id="reflection-1",
+        recipient_id="sparks",
+        channel="discord_dm",
+        destination="dm-123",
+        evidence_id="reflection-evidence-1",
+        content="social reflection",
+        created_at=T0 - timedelta(minutes=2),
+        expires_at=T0 + timedelta(hours=1),
+        category=OutreachCategory.SOCIAL,
+        salience=0.8,
+    )
+    delivered = notices.deliver_one(
+        sender=lambda payload: SendResult(
+            DeliveryOutcome.DELIVERED,
+            receipt_id="notice-receipt-1",
+        ),
+        policy=enabled_policy(),
+        now=T0,
+    )
+    assert delivered is not None
+    assert delivered.outcome is DeliveryOutcome.DELIVERED
+
+    outbox = ActOutbox(state)
+    bind(outbox)
+    result = outbox.claim(
+        message_id="m1",
+        attempt_id="a-social-after-notice",
+        policy=enabled_policy(),
+        limits=DeliveryLimits(),
+        now=T0 + timedelta(minutes=1),
+    )
+
+    assert result.status == "policy_blocked"
+    assert result.outreach_decision.value == "too_soon"
