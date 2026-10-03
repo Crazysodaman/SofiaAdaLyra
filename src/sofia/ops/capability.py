@@ -19,6 +19,7 @@ from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
 from .reconcile import MaintenanceReceiptStore
 from .repair_plan import FleetRepairPlanner
+from .reconciliation_journal import FleetReconciliationJournal
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from .workload_store import WorkloadInstanceStore
 from sofia.state.plane import StatePlane
@@ -47,6 +48,7 @@ class OpsToolService:
         self.repair_planner=FleetRepairPlanner()
         self.desired_state=DesiredFleetStateStore(state_path)
         self.workloads=WorkloadInstanceStore(state_path)
+        self.reconciliation_journal=FleetReconciliationJournal(state_path)
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -149,6 +151,34 @@ class OpsToolService:
             } for proposal in proposals),
         }
 
+    def observe_reconciliation(self,*,now)->tuple:
+        drifts=detect_drift(
+            self.registry,
+            self.workloads.instances(),
+            self.desired_state.hosts(),
+            self.desired_state.workloads(),
+        )
+        proposals=self.repair_planner.propose_all(drifts)
+        return self.reconciliation_journal.observe(
+            proposals,
+            now=now,
+        )
+
+    def active_reconciliation(self)->tuple[dict[str,Any],...]:
+        return tuple({
+            "proposal_key":item.proposal_key,
+            "drift_kind":item.drift_kind,
+            "subject_id":item.subject_id,
+            "expected":item.expected,
+            "observed":item.observed,
+            "proposal_kind":item.proposal_kind,
+            "reason":item.reason,
+            "first_seen":item.first_seen.isoformat(),
+            "last_seen":item.last_seen.isoformat(),
+            "active":item.active,
+            "authorized":False,
+        } for item in self.reconciliation_journal.active())
+
     def reconciliation_preview(self)->dict[str,Any]:
         drifts=detect_drift(
             self.registry,
@@ -233,7 +263,7 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -244,6 +274,7 @@ class OpsCapabilitySet:
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
             "ops.drift.propose":"Compare desired state and return conservative non-authoritative repair proposals. Read-only.",
             "ops.reconcile.preview":"Preview canonical durable Fleet desired/observed drift and non-authoritative repair proposals. Read-only.",
+            "ops.reconcile.active":"Read active deduplicated Fleet reconciliation observations. Read-only.",
             "ops.migration.plan":"Construct a migration plan without executing it. Read-only planning.",
             "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
         }
@@ -257,6 +288,7 @@ class OpsCapabilitySet:
         if name=="ops.drift.detect": return self.service.drift(p)
         if name=="ops.drift.propose": return self.service.drift_with_proposals(p)
         if name=="ops.reconcile.preview": return self.service.reconciliation_preview()
+        if name=="ops.reconcile.active": return self.service.active_reconciliation()
         if name=="ops.migration.plan": return self.service.migration_plan(p)
         if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
         raise ValueError("unsupported OPS capability")
@@ -286,6 +318,7 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
            "desired_workloads":{"type":"array","items":{"type":"object"}},
            "instances":{"type":"array","items":{"type":"object"}}}),
         b("preview_fleet_reconciliation","ops.reconcile.preview","Preview canonical durable Fleet drift and repair proposals. Read-only."),
+        b("list_active_fleet_reconciliation","ops.reconcile.active","Read active deduplicated Fleet reconciliation observations. Read-only."),
         b("plan_workload_migration","ops.migration.plan","Construct a workload migration plan without executing it.",
           {"migration_id":{"type":"string"},"workload":workload,"source_host_id":{"type":"string"},
            "target_host_id":{"type":"string"},"state_mode":{"type":"string"},
