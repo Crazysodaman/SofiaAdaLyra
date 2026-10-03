@@ -82,6 +82,7 @@ class EnvironmentQueryResolver:
             "what's the time",
             "what is the current time",
             "current time",
+            "time",
         }
     )
     _DATE_FORMS = frozenset(
@@ -115,6 +116,7 @@ class EnvironmentQueryResolver:
             "how's the weather",
             "hows the weather",
             "how is the weather",
+            "weather",
         }
     )
     _LOCATION_FORMS = frozenset(
@@ -254,6 +256,23 @@ class EnvironmentQueryResolver:
             "what source are you using",
         }
     )
+    _TEMPERATURE_UNIT_FORMS = frozenset(
+        {
+            "use f not c",
+            "use f instead of c",
+            "f not c",
+            "fahrenheit not celsius",
+            "use fahrenheit",
+            "use fahrenheit not celsius",
+            "use fahrenheit instead of celsius",
+            "show fahrenheit",
+            "show temperatures in fahrenheit",
+            "why are you using celsius",
+            "don't use celsius",
+            "do not use celsius",
+        }
+    )
+
     _CONTEXT_SOURCE_FORMS = frozenset(
         {
             "explain your current environment context sources",
@@ -311,6 +330,7 @@ class EnvironmentQueryResolver:
             | cls._SEASON_FORMS
             | cls._DAYLIGHT_FORMS
             | cls._CONTEXT_SOURCE_FORMS
+            | cls._TEMPERATURE_UNIT_FORMS
         )
 
     def resolve(
@@ -327,6 +347,16 @@ class EnvironmentQueryResolver:
             )
 
         normalized = _normalize(query)
+
+        if normalized in self._TEMPERATURE_UNIT_FORMS:
+            return EnvironmentQueryAnswer(
+                True,
+                (
+                    "Temperature display for environment answers is Fahrenheit "
+                    "(°F). I won't treat 'F' as a conversation mode or invent a "
+                    "separate F-mode."
+                ),
+            )
 
         if normalized in self._CONTEXT_SOURCE_FORMS:
             sources = [
