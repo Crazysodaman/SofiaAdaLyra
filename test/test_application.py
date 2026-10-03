@@ -352,3 +352,27 @@ def test_failed_application_start_rolls_back_runtime_and_can_retry(
         assert application.conversation.session is not None
     finally:
         application.shutdown()
+
+
+
+def test_disabled_act_does_not_register_background_delivery_work(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.delenv("SOFIA_ACT_DELIVERY_ENABLED", raising=False)
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    application.start()
+    try:
+        coordinator = application.background_coordinator
+        assert coordinator is not None
+        assert coordinator._act_delivery is None
+        assert "reflection_outreach" not in coordinator._tasks
+    finally:
+        application.shutdown()
