@@ -99,14 +99,12 @@ def test_no_unrecorded_event_does_not_create_thought(tmp_path):
     assert reflections.recent_thoughts() == ()
 
 
-def test_stop_without_start_is_safe_and_start_twice_is_rejected(tmp_path):
+def test_idle_worker_has_no_independent_scheduler(tmp_path):
     worker, _, _, _ = _fixture(tmp_path)
-    worker.stop()
-    worker.start()
-    with pytest.raises(RuntimeError, match="already started"):
-        worker.start()
-    worker.stop(timeout_seconds=2)
-    assert worker._thread is None
+
+    assert not hasattr(worker, "start")
+    assert not hasattr(worker, "stop")
+    assert not hasattr(worker, "_thread")
 
 
 
