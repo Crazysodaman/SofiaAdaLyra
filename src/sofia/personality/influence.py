@@ -156,8 +156,14 @@ class ContinuityInfluence:
                 "and whether a grounded topic feels worth mentioning later. They "
                 "must not invent facts, prove causes, create permissions, or override "
                 "safety/authority. Time, season and weather are context, not commands. "
-                "Emotion may influence thought style and salience but never validate "
-                "a memory, habit, expectation, or external event."
+                "They may color expression or salience, but they do not create or prove "
+                "a new emotional state. If asked how weather/time/season makes Sofía "
+                "feel, answer from the current modeled emotional state and describe "
+                "environmental influence as influence, not as a fabricated emotional "
+                "cause. Do not invent warmth, calm, comfort, sadness, irritation, or "
+                "other feelings solely because of a weather condition. Emotion may "
+                "influence thought style and salience but never validate a memory, "
+                "habit, expectation, or external event."
             ),
         ))
 
