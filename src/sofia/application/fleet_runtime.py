@@ -74,35 +74,44 @@ def configure_fleet_enrollment_notices(
                 expires_at=observed + timedelta(days=7),
             )
         except Exception as exc:
-            plane = getattr(ops_service.registry, "state_plane", None)
-            if plane is None:
+            # Enrollment authority and availability must not depend on either
+            # notification delivery or best-effort notification-failure audit.
+            try:
+                plane = getattr(ops_service.registry, "state_plane", None)
+                if plane is None:
+                    return
+                key = StateKey(
+                    namespace="ops-fleet-notice-failure",
+                    key=notice_id,
+                )
+                existing = plane.read(key)
+                payload = json.dumps(
+                    {
+                        "host_id": host.host_id,
+                        "node_id": str(enrollment.node.node_id),
+                        "error_type": type(exc).__name__,
+                        "observed_at": observed.isoformat(),
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                plane.write(
+                    StateRecord(
+                        key=key,
+                        state_class=StateClass.SHARED_AUTHORITATIVE,
+                        revision=(
+                            1 if existing is None else existing.revision + 1
+                        ),
+                        value=payload,
+                        updated_at=observed,
+                        source="ops:fleet-enrollment-notice",
+                    ),
+                    expected_revision=(
+                        None if existing is None else existing.revision
+                    ),
+                )
+            except Exception:
                 return
-            key = StateKey(
-                namespace="ops-fleet-notice-failure",
-                key=notice_id,
-            )
-            existing = plane.read(key)
-            payload = json.dumps(
-                {
-                    "host_id": host.host_id,
-                    "node_id": str(enrollment.node.node_id),
-                    "error_type": type(exc).__name__,
-                    "observed_at": observed.isoformat(),
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-            plane.write(
-                StateRecord(
-                    key=key,
-                    state_class=StateClass.SHARED_AUTHORITATIVE,
-                    revision=1 if existing is None else existing.revision + 1,
-                    value=payload,
-                    updated_at=observed,
-                    source="ops:fleet-enrollment-notice",
-                ),
-                expected_revision=None if existing is None else existing.revision,
-            )
 
     ops_service.enrollment.set_enrolled_notifier(enrolled)
     return True
