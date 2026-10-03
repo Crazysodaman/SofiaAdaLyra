@@ -35,7 +35,7 @@ jobs:
           .\.lockvenv\Scripts\python.exe -m pip install --upgrade pip
           .\.lockvenv\Scripts\python.exe -m pip install .
           .\.lockvenv\Scripts\python.exe -m pip freeze --exclude-editable |
-            Where-Object { $_ -notmatch '^sofia-ada-lyra==' } |
+            Where-Object { $_ -notmatch '^sofia-ada-lyra(?:==|\\s+@)' } |
             Sort-Object |
             Set-Content -Encoding utf8 requirements.lock.windows-py312.raw.txt
           .\.lockvenv\Scripts\python.exe -m sofia.dev.dependency_lock requirements.lock.windows-py312.raw.txt requirements.lock.windows-py312.txt
