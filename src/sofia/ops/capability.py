@@ -9,7 +9,7 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 
 from .activity import HostActivityStore
-from .desired import DesiredHostState,DesiredWorkloadPlacement,detect_drift
+from .desired import Drift,DesiredHostState,DesiredWorkloadPlacement,detect_drift
 from .enrollment import FleetEnrollmentService
 from .history import SQLiteTelemetryHistory
 from .migration import MigrationPlan
@@ -123,8 +123,11 @@ class OpsToolService:
     def drift_with_proposals(self,p:dict[str,Any])->dict[str,Any]:
         drifts=self.drift(p)
         typed=tuple(
-            __import__("sofia.ops.desired",fromlist=["Drift"]).Drift(
-                item["kind"],item["subject_id"],item["expected"],item["observed"]
+            Drift(
+                item["kind"],
+                item["subject_id"],
+                item["expected"],
+                item["observed"],
             )
             for item in drifts
         )
