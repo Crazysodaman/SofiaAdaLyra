@@ -518,3 +518,40 @@ def test_live_weather_affect_turn_uses_primary_and_no_emotional_history_dump(
         assert trace.cognition_execution.successful_steps[0].role == "primary"
     finally:
         application.shutdown()
+
+
+
+def test_live_social_turn_keeps_recent_gesture_avoidance_without_new_emotion(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "*My ears perk with a quick grin.* Hey.",
+            "Nerd? Accurate. *My tail goes still for a beat.*",
+        ),
+    )
+    try:
+        first = application.conversation.respond("waves at you")
+        assert "ears perk" in first.content
+
+        second = application.conversation.respond("hey nerd")
+        assert "Nerd? Accurate." in second.content
+        assert len(captured) == 2
+
+        second_system = "\n".join(
+            message.content
+            for message in captured[1].messages
+            if message.role.value == "system"
+        )
+        assert "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in second_system
+        assert "No specific expression cue is required this turn." in second_system
+        assert "let the fox ears perk with attention" in second_system
+
+        plan = application.conversation.current_expression_plan
+        assert plan is not None
+        assert plan.primary is None
+        assert "ear-perk" in plan.avoid_recent
+    finally:
+        application.shutdown()
