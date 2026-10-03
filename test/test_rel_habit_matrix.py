@@ -163,6 +163,13 @@ class _Relationship:
                 display_name="Sparks",
             ),
             RelationshipContact(
+                principal_id="other-principal",
+                audience_id="owner-private",
+                evidence_ref="other-principal-message",
+                occurred_at=NOW - timedelta(hours=12),
+                display_name="Other",
+            ),
+            RelationshipContact(
                 principal_id="sparks",
                 audience_id="owner-private",
                 evidence_ref="current-message",
@@ -215,6 +222,7 @@ def test_scoped_projection_uses_previous_relationship_contact_not_current_turn()
 
     assert "TRUSTED RELATIONSHIP CONTACT EVIDENCE" in text
     assert "prior-message" in text
+    assert "other-principal-message" not in text
     assert "current-message" not in text
     assert (NOW - timedelta(days=3)).isoformat() in text
 
