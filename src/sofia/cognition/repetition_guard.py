@@ -393,7 +393,7 @@ def naturalize_embodied_semantics(
         for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
-    if "CURRENT EMBODIED EXPRESSION PLAN" not in system_context:
+    if "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" not in system_context:
         return response
     content = response.content
     for pattern, replacement in _NATURAL_EXPRESSION_REPLACEMENTS:
@@ -461,19 +461,19 @@ def response_quality_issue(
     ):
         return "ungrounded_ongoing_self_activity"
     if (
-        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in system_context
         and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
         and _INTERNAL_EXPRESSION_SEMANTIC.search(content)
     ):
         return "internal_expression_semantic_leak"
     if (
-        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in system_context
         and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
         and _EXPRESSION_STYLE_META_LEAK.search(content)
     ):
         return "expression_style_meta_leak"
     if (
-        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in system_context
         and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
         and _GENERIC_ASSISTANT_POSTURE.search(content)
     ):
