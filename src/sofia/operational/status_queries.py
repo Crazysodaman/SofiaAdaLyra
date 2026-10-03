@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
+from sofia.authority.model import Authority
 from sofia.config.cognitive_models import CognitiveModelSelection
 
 
@@ -37,6 +38,14 @@ _NETWORK_FORMS = frozenset({
     "hows network",
 })
 
+_DEV_SELF_CAPABILITY_FORM = re.compile(
+    r"^(?:are\s+(?:you|u)\s+able\s+to|can\s+(?:you|u))\s+"
+    r"(?:make|create|write|change|modify|edit)\s+(?:new\s+)?"
+    r"(?:code|your\s+(?:own\s+)?code|code\s+for\s+(?:yourself|your\s+self))"
+    r"(?:\s+for\s+(?:yourself|your\s+self))?$",
+    re.IGNORECASE,
+)
+
 _MODEL_FORM = re.compile(
     r"^(?:what|which)\s+(?:llm|model)(?:\s+is|\s+am|\s+are)?\s+"
     r"(?:(?:i|you|sofia)\s+)?running(?:\s+(?:right\s+now|rn|currently))?$|"
@@ -52,14 +61,64 @@ class OperationalStatusQueryResolver:
         query: str,
         *,
         selection: CognitiveModelSelection,
+        capability_names: tuple[str, ...] = (),
+        authority: Authority | None = None,
     ) -> OperationalStatusAnswer:
         if not isinstance(query, str):
             raise TypeError("query must be str")
         if not isinstance(selection, CognitiveModelSelection):
             raise TypeError("selection must be CognitiveModelSelection")
+        if not isinstance(capability_names, tuple) or any(
+            not isinstance(item, str) or not item.strip()
+            for item in capability_names
+        ):
+            raise TypeError(
+                "capability_names must be a tuple of nonempty strings"
+            )
+        if authority is not None and not isinstance(authority, Authority):
+            raise TypeError("authority must be Authority or None")
         normalized = _normalize(query)
         if normalized.startswith("so "):
             normalized = normalized[3:].lstrip()
+
+        if _DEV_SELF_CAPABILITY_FORM.fullmatch(normalized):
+            registered = set(capability_names)
+            dev_capabilities = tuple(
+                name
+                for name in (
+                    "codebase.inspect",
+                    "dev.status",
+                    "dev.build",
+                    "dev.apply",
+                    "dev.commit",
+                    "dev.push",
+                    "dev.rollback",
+                )
+                if name in registered
+            )
+            if not dev_capabilities:
+                return OperationalStatusAnswer(
+                    True,
+                    (
+                        "I don't have registered DEV capabilities proving I can "
+                        "modify my code in this runtime."
+                    ),
+                )
+            return OperationalStatusAnswer(
+                True,
+                (
+                    "Yes. This runtime has registered DEV capabilities for "
+                    "inspecting and changing the Sofía codebase"
+                    + (
+                        ": " + ", ".join(dev_capabilities) + "."
+                        if dev_capabilities
+                        else "."
+                    )
+                    + " A specific edit still has to pass the current Matrix, "
+                    "authority, and Capability Gateway checks; having the "
+                    "capability does not grant itself permission."
+                ),
+            )
 
         if normalized in _NETWORK_FORMS:
             return OperationalStatusAnswer(
