@@ -10,7 +10,6 @@ from sofia.action.model import (
     ActionRisk,
     ActionStatus,
 )
-from sofia.authority.model import Authority
 from sofia.cognition.operation import CognitiveOperation
 
 
