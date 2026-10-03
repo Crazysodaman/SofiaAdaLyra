@@ -32,6 +32,15 @@ _WEATHER = re.compile(
     r"\b(?:weather|temperature|forecast|humidity|outside)\b",
     re.IGNORECASE,
 )
+_ENVIRONMENT_FEELING = re.compile(
+    r"\b(?:weather|rain|storm|snow|temperature|season|daylight|"
+    r"morning|afternoon|evening|night)\b.*"
+    r"\b(?:make\s+you\s+feel|affect\s+your\s+(?:mood|feelings?)|"
+    r"how\s+do\s+you\s+feel)\b"
+    r"|\bhow\s+do\s+you\s+feel\b.*"
+    r"\b(?:weather|rain|storm|snow|temperature|season|daylight)\b",
+    re.IGNORECASE,
+)
 _TIME_LOCATION = re.compile(
     r"\b(?:what\s+time|time\s+is\s+it|where\s+am\s+i|location|timezone|season)\b",
     re.IGNORECASE,
@@ -271,6 +280,26 @@ class BaselineTurnClassifier:
                 history_policy=HistoryPolicy.BOUNDED_RECENT,
                 response_strategy=ResponseStrategy.TOOL_ASSISTED,
                 domains=tuple(domains),
+            )
+
+        if _ENVIRONMENT_FEELING.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.GENERAL,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.GENERATIVE,
+                domains=(
+                    _contribution(
+                        MatrixDomain.ENVIRONMENT,
+                        MatrixRelevance.REQUIRED,
+                        "environment + modeled-emotion question",
+                    ),
+                    _contribution(
+                        MatrixDomain.EMOTION,
+                        MatrixRelevance.REQUIRED,
+                        "answer must use current modeled emotional state",
+                    ),
+                ),
             )
 
         if (
