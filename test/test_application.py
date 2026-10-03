@@ -420,3 +420,32 @@ def test_disabled_idle_reflection_does_not_expose_worker(
         assert application.idle_reflection_worker is None
     finally:
         application.shutdown()
+
+
+
+def test_interrupted_start_rolls_back_before_propagating_keyboard_interrupt(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    def interrupt_after_runtime_start(*args, **kwargs):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(
+        bootstrap,
+        "load_or_bootstrap_presentation",
+        interrupt_after_runtime_start,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        application.start()
+
+    assert application.runtime.state is RuntimeState.STOPPED
+    assert application.conversation.session is None
