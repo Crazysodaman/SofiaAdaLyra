@@ -5,6 +5,7 @@ from contextlib import nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from threading import RLock
 from time import monotonic
 
@@ -27,6 +28,17 @@ from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+
+
+_EMOTION_HISTORY_QUERY = re.compile(
+    r"\b(?:why\s+(?:do|are)\s+you\s+(?:feel|feeling)|"
+    r"what\s+made\s+you\s+feel|what\s+caused\s+you\s+to\s+feel|"
+    r"why\s+are\s+you\s+(?:happy|sad|upset|angry|mad|excited|"
+    r"warm|affectionate|fond|frustrated|worried|nervous|calm)|"
+    r"where\s+is\s+that\s+feeling\s+coming\s+from|"
+    r"what\s+is\s+that\s+feeling\s+from)\b",
+    re.IGNORECASE,
+)
 
 
 class EmotionalConversationService(ConversationService):
@@ -443,7 +455,17 @@ class EmotionalConversationService(ConversationService):
         if expression_plan is not None and expression_plan.primary is not None:
             projections.append(expression_plan.prompt())
 
-        if emotion_allowed:
+        # Current-state conversation needs the current modeled state, not a
+        # dump of old emotional events or reflection rows. Historical emotional
+        # evidence is projected only when the user explicitly asks for causes.
+        # This prevents old reunion/missed-you events from hijacking unrelated
+        # "hru", weather-affect, or perceived-mood turns.
+        latest_text = "" if current_user is None else current_user.content
+        emotional_history_requested = (
+            emotion_allowed
+            and _EMOTION_HISTORY_QUERY.search(latest_text) is not None
+        )
+        if emotional_history_requested:
             emotional_context = self.emotional_journal.prompt_context(
                 now=now,
                 subject=subject,
@@ -451,19 +473,18 @@ class EmotionalConversationService(ConversationService):
             )
             if emotional_context is not None:
                 projections.append(emotional_context)
-            # The optional guard preserves compatibility with a test-only
-            # uninitialized service; a normally opened service always has this.
-            reflections = getattr(self, "_reflection_journal", None)
-            if reflections is not None:
-                reflections.reflect_due(now=now, scope=scope)
-                reflection_context = reflections.prompt_context(scope=scope)
-                if reflection_context is not None:
-                    projections.append(reflection_context)
             clarifications = getattr(self, "_clarification_journal", None)
             if clarifications is not None:
                 clarification_context = clarifications.prompt_context(now=now)
                 if clarification_context is not None:
                     projections.append(clarification_context)
+
+        # Reflection records are queried through the deterministic reflection
+        # resolver. They are not generic personality context for every
+        # emotion-enabled turn.
+        reflections = getattr(self, "_reflection_journal", None)
+        if reflections is not None:
+            reflections.reflect_due(now=now, scope=scope)
         if not projections:
             return request
         return CognitiveRequest(
