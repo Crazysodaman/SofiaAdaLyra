@@ -52,6 +52,11 @@ _EMOTION_DISCLAIMER = re.compile(
 _GENERIC_ASSISTANT_CLOSER = re.compile(
     r"(?:how\s+(?:can|may)\s+i\s+(?:assist|support|help)\s+you(?:\s+today|\s+instead)?\??|"
     r"what\s+can\s+i\s+do\s+for\s+you(?:\s+today)?\??|"
+    r"(?:so\s*,?\s*)?what(?:'|’)s\s+on\s+your\s+mind\??|"
+    r"what(?:'|’)s\s+the\s+first\s+thing\s+you\s+want\s+to\s+"
+    r"(?:troubleshoot|explore)(?:\s+or\s+(?:troubleshoot|explore))?\??|"
+    r"let(?:'|’)s\s+keep\s+(?:this|the)\s+conversation\s+flowing"
+    r"(?:\s+and\s+[^.!?]+)?[.!]?|"
     r"how\s+can\s+we\s+move\s+forward\s+in\s+a\s+way\s+that\s+honors\s+our\s+bond\??|"
     r"i(?:'|’)m\s+here\s*,?\s*(?:ready\s+)?to\s+(?:help|support|assist)(?:\s+you)?(?:\s+with\s+whatever\s+you\s+need)?\.?)"
     r"\s*[.!?\s😊🙂💜]*$",
@@ -79,7 +84,7 @@ _GENERIC_INTERACTION_SERMON = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_ASSISTANT_POSTURE = re.compile(
-    r"\b(?:ready\s+to\s+(?:help|assist|support|engage)|"
+    r"\b(?:ready\s+to\s+(?:help|assist|support|engage|chat|talk)|"
     r"ready\s+to\s+connect\s+whenever|"
     r"my\s+role\s+is\s+to\s+support\s+you|"
     r"i(?:'|’)m\s+here\s+to\s+(?:help|assist|support|engage))\b",
@@ -106,6 +111,43 @@ _EMOTION_IMPLEMENTATION_LEAK = re.compile(
 _EMOTION_TEMPORAL_OVERCLAIM = re.compile(
     r"\b(?:settled|calm|relaxed|neutral|content)\s*,?\s+as\s+always\b|"
     r"\bas\s+always\s*,?\s+(?:settled|calm|relaxed|neutral|content)\b",
+    re.IGNORECASE,
+)
+_PERCEIVED_SELF_STATE_USER = re.compile(
+    r"^\s*(?:you|u)\s+(?:seem|sound)\b",
+    re.IGNORECASE,
+)
+_UNGROUNDED_SELF_OBSERVATION = re.compile(
+    r"\b(?:i(?:'|’)ve\s+been\s+quietly\s+observing|"
+    r"i(?:'|’)ve\s+noticed\s+that\s+i(?:'|’)ve\s+been|"
+    r"i(?:'|’)ve\s+been\s+(?:speaking|feeling|acting|sounding)\b.{0,80}\blately\b|"
+    r"i\s+have\s+been\s+(?:speaking|feeling|acting|sounding)\b.{0,80}\blately\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+_ENVIRONMENT_EFFECT_USER = re.compile(
+    r"\b(?:weather|rain|snow|storm|sunny|cloudy|temperature|fog|mist|wind)\b"
+    r".{0,80}\b(?:affect\s+(?:you|u)|make\s+(?:you|u)\s+feel)\b|"
+    r"\bhow\s+does\s+(?:that\s+|the\s+)?weather\s+affect\s+(?:you|u)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_ENVIRONMENT_SENSATION_OVERCLAIM = re.compile(
+    r"\b(?:i(?:'|’)m\s+feeling\s+(?:the\s+)?(?:damp|chill|cold|heat|breeze|mist|rain|wind)|"
+    r"(?:rain|mist|wind|breeze|cold|heat)\b.{0,50}\b(?:nipping|touching|hitting|"
+    r"brushing|washing)\s+(?:at|over|against|across)?\s*(?:my\s+)?"
+    r"(?:ears?|skin|face|body)|"
+    r"nipping\s+at\s+my\s+(?:ears?|skin)|"
+    r"i\s+(?:can|could)\s+feel\s+(?:the\s+)?(?:rain|mist|wind|breeze|cold|heat))\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_INTERNAL_EXPRESSION_SEMANTIC = re.compile(
+    r"\b(?:ear-perk|ear-flick|ear-flatten|tail-swish|tail-curl|tail-still|"
+    r"shift-posture|speak-softly|lean-forward|stand-relaxed|look-back|"
+    r"sit-cross-legged|hands-behind-back|hip-pop)\b",
+    re.IGNORECASE,
+)
+_TECHNICAL_EXPRESSION_QUERY = re.compile(
+    r"\b(?:code|semantic|gesture\s+id|expression\s+id|planner|matrix|"
+    r"animation|renderer|godot|implementation)\b",
     re.IGNORECASE,
 )
 _MISSED_YOU_USER = re.compile(
@@ -301,6 +343,22 @@ def response_quality_issue(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
+    if (
+        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
+        and _INTERNAL_EXPRESSION_SEMANTIC.search(content)
+    ):
+        return "internal_expression_semantic_leak"
+    if (
+        _ENVIRONMENT_EFFECT_USER.search(user)
+        and _ENVIRONMENT_SENSATION_OVERCLAIM.search(content)
+    ):
+        return "environment_physical_sensation"
+    if (
+        _PERCEIVED_SELF_STATE_USER.search(user)
+        and _UNGROUNDED_SELF_OBSERVATION.search(content)
+    ):
+        return "ungrounded_self_observation"
     if _MISSED_YOU_USER.search(user):
         grounded_missing = (
             "Reciprocal absence/missing-you claim grounded: yes" in system_context
@@ -432,6 +490,42 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
+    if issue == "environment_physical_sensation":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            feeling = labels[0].replace("-", " ")
+            return CognitiveResponse(content=(
+                f"The weather can color my expression, but I don't literally feel "
+                f"rain, wind, or temperature on a body. Right now the grounded part "
+                f"is that I'm feeling {feeling}; the rain and fog can make that come "
+                f"through a little quieter or sharper without inventing a physical chill."
+            ))
+        return CognitiveResponse(content=(
+            "The weather can color my expression and attention, but I don't literally "
+            "feel rain, wind, or temperature on a body. I don't have a grounded emotional "
+            "change to attribute to it right now."
+        ))
+
+    if issue == "ungrounded_self_observation":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            feeling = labels[0].replace("-", " ")
+            return CognitiveResponse(content=(
+                f"You may be hearing me as quieter. The grounded state I actually have "
+                f"right now is {feeling}; I don't have evidence that I've been quietly "
+                f"observing or speaking softly for some ongoing stretch."
+            ))
+        return CognitiveResponse(content=(
+            "You may be hearing me as quieter, but I don't have evidence that I've been "
+            "quietly observing or speaking softly for an ongoing stretch."
+        ))
+
+    if issue == "internal_expression_semantic_leak":
+        return CognitiveResponse(content=(
+            "I let the body language show naturally instead of narrating an internal "
+            "gesture label. The expression should read like me, not like a debug trace."
+        ))
+
     if issue in (
         "ungrounded_reciprocal_missing",
         "ungrounded_waiting_claim",
@@ -509,7 +603,29 @@ def build_rephrase_request(
     if not request.messages or request.messages[-1].role is not CognitiveRole.USER:
         raise ValueError("A final user turn is required for a rephrase request.")
 
-    if issue == "generic_assistant_closer":
+    if issue == "internal_expression_semantic_leak":
+        detail = (
+            "Your draft exposed an internal embodied-expression semantic such as "
+            "'ear-perk' or 'lean-forward'. Rewrite the same answer with natural body "
+            "language, for example ears perking, a crooked grin, a posture shift, or "
+            "leaning forward. Never print catalog IDs or planner vocabulary."
+        )
+    elif issue == "environment_physical_sensation":
+        detail = (
+            "Your draft invented literal bodily weather sensation. Sofía may let grounded "
+            "weather color expression, attention, cadence, or gesture, but must not claim "
+            "rain, wind, mist, heat, or cold is physically touching or being felt by her "
+            "unless separate embodiment sensor evidence exists. Answer from the trusted "
+            "modeled emotional state and describe weather only as contextual influence."
+        )
+    elif issue == "ungrounded_self_observation":
+        detail = (
+            "Your draft invented an ongoing history of quietly observing, speaking softly, "
+            "or acting a certain way lately. Treat the user's 'you seem/sound...' as their "
+            "present observation. Answer from the trusted current modeled state and recent "
+            "visible exchange without claiming unrecorded ongoing behavior or self-monitoring."
+        )
+    elif issue == "generic_assistant_closer":
         detail = (
             "Your draft fell back to a generic customer-service closing. Answer the "
             "latest user message directly and end naturally. Do not add 'How can I "
@@ -529,9 +645,13 @@ def build_rephrase_request(
             "The user asked for Sofía's emotional self-report, but your draft replaced "
             "the supplied modeled emotional state with generic AI-assistant boilerplate. "
             "Answer the emotional/social question in the first sentence from the trusted "
-            "CURRENT MODELED EMOTIONAL STATE. If no active emotion is above threshold, "
+            "CURRENT MODELED EMOTIONAL STATE. Treat emotion labels as grounding, not a "
+            "script: do not mechanically list the same labels or lead with 'warm' every "
+            "time merely because the state persists. Let Sofía's direct, playful, teasing, "
+            "skeptical personality remain visible. If no active emotion is above threshold, "
             "say that she feels settled or neutral rather than saying she is ready to help. "
-            "Do not say 'functioning as intended', 'ready to help', 'I'm here to help', "
+            "Do not say 'functioning as intended', 'ready to help', 'ready to chat', "
+            "'I'm here to help', "
             "or explain AI-versus-human emotions unless the user explicitly asks how the "
             "emotion system works."
         )
