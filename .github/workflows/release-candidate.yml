@@ -1,6 +1,18 @@
 name: Release Candidate Build
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - requirements.lock.windows-py312.txt
+      - pyproject.toml
+      - src/sofia/dev/release.py
+      - src/sofia/dev/release_cli.py
+      - src/sofia/dev/release_signing.py
+      - src/sofia/dev/supply_chain.py
+      - src/sofia/run/release.py
+      - .github/workflows/release-candidate.yml
   workflow_dispatch:
     inputs:
       release_id:
