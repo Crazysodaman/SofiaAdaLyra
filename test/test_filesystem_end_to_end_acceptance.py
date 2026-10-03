@@ -615,3 +615,57 @@ def test_ambiguous_conversation_channel_cannot_authorize(
         assert application.runtime.filesystem_inspector.authorized is False
     finally:
         application.shutdown()
+
+
+
+def test_explicit_local_revocation_removes_live_filesystem_authorization(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    try:
+        application.conversation.respond(
+            "you are allowed to inspect your own files",
+            principal=local_sparks_principal(),
+            channel="desktop",
+        )
+        assert application.runtime.filesystem_authorization is not None
+        assert application.runtime.filesystem_inspector.authorized is True
+
+        application.conversation.respond(
+            "you are not allowed to inspect your own files",
+            principal=local_sparks_principal(),
+            channel="desktop",
+        )
+
+        assert application.runtime.filesystem_authorization is None
+        assert application.runtime.filesystem_inspector.authorized is False
+    finally:
+        application.shutdown()
+
+
+def test_untrusted_channel_cannot_revoke_live_filesystem_authorization(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    try:
+        application.conversation.respond(
+            "you are allowed to inspect your own files",
+            principal=local_sparks_principal(),
+            channel="desktop",
+        )
+        assert application.runtime.filesystem_authorization is not None
+
+        application.conversation.respond(
+            "you are not allowed to inspect your own files",
+            principal=local_sparks_principal("remote-chat:test"),
+            channel="remote",
+        )
+
+        assert application.runtime.filesystem_authorization is not None
+        assert application.runtime.filesystem_inspector.authorized is True
+    finally:
+        application.shutdown()
