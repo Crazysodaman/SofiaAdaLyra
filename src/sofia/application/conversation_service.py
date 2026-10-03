@@ -46,6 +46,7 @@ from sofia.cognition.matrix import (
     MatrixTrace,
     MatrixTraceStore,
     ResponseContract,
+    ResponseStrategy,
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
@@ -1586,6 +1587,30 @@ class ConversationService:
             if exposure is not None and exposure.allow_tools
             else ()
         )
+
+        if (
+            allow_tools
+            and self._current_turn_matrix is not None
+            and self._current_turn_matrix.response_strategy
+            is ResponseStrategy.TOOL_ASSISTED
+        ):
+            cognitive_messages = (
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "TRUSTED READ-ONLY TOOL REQUIREMENT\n"
+                        "The current user turn explicitly asks to inspect, list, "
+                        "or measure current operational state. Current evidence is "
+                        "required. Use the provided read-only host tool or tools "
+                        "before answering. Do not answer from model priors, do not "
+                        "claim that Sofía lacks host access while an exposed tool "
+                        "can provide the requested evidence, and do not substitute "
+                        "filesystem inspection for network/system/hardware/storage "
+                        "or Fleet capabilities."
+                    ),
+                ),
+                *cognitive_messages,
+            )
 
         route_hint = None
         if (
