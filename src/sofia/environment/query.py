@@ -68,9 +68,9 @@ def _forecast_timezone(snapshot: EnvironmentSnapshot):
 def _forecast_period_text(period) -> str:
     parts = [period.condition]
     if period.high_c is not None:
-        parts.append(f"high {_fahrenheit(period.high_c):.1f} °F")
+        parts.append(f"high {_fahrenheit(period.high_c):.0f} °F")
     if period.low_c is not None:
-        parts.append(f"low {_fahrenheit(period.low_c):.1f} °F")
+        parts.append(f"low {_fahrenheit(period.low_c):.0f} °F")
     if period.precipitation_probability is not None:
         parts.append(
             "precipitation "
@@ -635,11 +635,11 @@ class EnvironmentQueryResolver:
             parts = [weather.condition]
             if weather.temperature_c is not None:
                 parts.append(
-                    f"{_fahrenheit(weather.temperature_c):.1f} °F"
+                    f"{_fahrenheit(weather.temperature_c):.0f} °F"
                 )
             if weather.feels_like_c is not None:
                 parts.append(
-                    f"feels like {_fahrenheit(weather.feels_like_c):.1f} °F"
+                    f"feels like {_fahrenheit(weather.feels_like_c):.0f} °F"
                 )
             if weather.humidity_percent is not None:
                 parts.append(
@@ -647,7 +647,7 @@ class EnvironmentQueryResolver:
                 )
             if weather.wind_kph is not None:
                 parts.append(
-                    f"wind {_mph(weather.wind_kph):.1f} mph"
+                    f"wind {_mph(weather.wind_kph):.0f} mph"
                 )
             location = (
                 f" for {weather.location_label}"
@@ -905,7 +905,7 @@ class EnvironmentQueryResolver:
             parts = []
             if indoor.temperature_c is not None:
                 parts.append(
-                    f"temperature {_fahrenheit(indoor.temperature_c):.1f} °F"
+                    f"temperature {_fahrenheit(indoor.temperature_c):.0f} °F"
                 )
             if indoor.humidity_percent is not None:
                 parts.append(
