@@ -96,7 +96,16 @@ _MODEL_STATUS = re.compile(
 )
 _OPS_STATUS = re.compile(
     r"\b(?:network|fleet|telemetry|cpu|gpu|ram|memory\s+usage|disk|"
-    r"storage|service|process|host|machine|server|ollama)\b",
+    r"storage|service|services|process|processes|host|machine|machines|"
+    r"server|ollama|virtualization)\b",
+    re.IGNORECASE,
+)
+_HOST_HARDWARE_BUNDLE = re.compile(
+    r"\b(?:cpu|gpu|ram|hardware|virtualization|network\s+adapters?)\b",
+    re.IGNORECASE,
+)
+_READ_ONLY_OPERATION = re.compile(
+    r"^\s*(?:please\s+)?(?:inspect|list|show|check|summarize)\b",
     re.IGNORECASE,
 )
 _ACTION = re.compile(
@@ -382,6 +391,33 @@ class BaselineTurnClassifier:
                 ),
             )
 
+        # Host-resource language such as "CPU, GPU, memory, storage" is
+        # operational even though the word "memory" also exists in the
+        # autobiographical-memory vocabulary.
+        if _HOST_HARDWARE_BUNDLE.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.OPERATIONAL_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=(
+                    ResponseStrategy.TOOL_ASSISTED
+                    if _READ_ONLY_OPERATION.search(text)
+                    else ResponseStrategy.HYBRID
+                ),
+                domains=(
+                    _contribution(
+                        MatrixDomain.MACHINE,
+                        MatrixRelevance.REQUIRED,
+                        "host hardware/resource inspection requires current machine evidence",
+                    ),
+                    _contribution(
+                        MatrixDomain.OPS,
+                        MatrixRelevance.RELEVANT,
+                        "host operational state may contextualize hardware evidence",
+                    ),
+                ),
+            )
+
         if _AVATAR.search(text):
             return TurnMatrix(
                 intent=MatrixIntent.AVATAR_QUERY,
@@ -437,7 +473,11 @@ class BaselineTurnClassifier:
                 intent=MatrixIntent.OPERATIONAL_QUERY,
                 confidence=MatrixConfidence.MEDIUM,
                 history_policy=HistoryPolicy.NONE,
-                response_strategy=ResponseStrategy.HYBRID,
+                response_strategy=(
+                    ResponseStrategy.TOOL_ASSISTED
+                    if _READ_ONLY_OPERATION.search(text)
+                    else ResponseStrategy.HYBRID
+                ),
                 domains=(
                     _contribution(
                         MatrixDomain.OPS,
