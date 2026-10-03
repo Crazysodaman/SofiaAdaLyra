@@ -250,3 +250,11 @@ def test_exact_registered_capability_remains_executable():
 
     assert result.kind is CapabilityResultKind.SUCCESS
     assert result.evidence == {"observed": True}
+
+
+def test_capability_system_uses_canonical_exported_resolution_error():
+    from sofia.capability import CapabilityResolutionError as ExportedResolutionError
+    from sofia.capability.model import CapabilityResolutionError as ModelResolutionError
+
+    assert CapabilityResolutionError is ExportedResolutionError
+    assert CapabilityResolutionError is ModelResolutionError
