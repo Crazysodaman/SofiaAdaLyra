@@ -416,6 +416,9 @@ class EmotionalConversationService(ConversationService):
                 emotional_tone="neutral",
                 primary_emotion=None,
                 primary_intensity=0.0,
+                foreground_emotion_evidence_refs=(),
+                foreground_emotion=None,
+                foreground_intensity=0.0,
                 active_emotions=(),
             )
         self._current_contextual_influence = influence
@@ -461,7 +464,17 @@ class EmotionalConversationService(ConversationService):
         # older journal history requires an explicit causal/history question.
         # This preserves evidence-linked emotion without letting old reunion or
         # missed-you rows hijack unrelated "hru", weather, or mood turns.
-        latest_text = "" if current_user is None else current_user.content
+        request_user = (
+            request.messages[-1]
+            if request.messages
+            and request.messages[-1].role is CognitiveRole.USER
+            else None
+        )
+        latest_text = (
+            current_user.content
+            if current_user is not None
+            else ("" if request_user is None else request_user.content)
+        )
         history_requested = (
             emotion_allowed
             and _CONTEXT_HISTORY_QUERY.search(latest_text) is not None
