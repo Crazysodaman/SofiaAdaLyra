@@ -542,3 +542,43 @@ def test_future_tense_wave_is_retried_as_present_reciprocal_gesture():
 
     assert response.content == good
     assert len(client.calls) == 2
+
+
+
+def test_quality_retry_failure_uses_grounded_fallback_instead_of_bad_draft():
+    bad = "The rain is kissing me and brushing across my skin."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CONTINUITY INFLUENCE CONTEXT\nWeather condition: Rain",
+        ),
+        _message(CognitiveRole.USER, "how does that weather affect you?"),
+    ))
+    client = _Client(bad, RuntimeError("synthetic retry failure"))
+
+    response = _provider(client).respond(request)
+
+    assert "don't literally feel rain" in response.content
+    assert "kissing me" not in response.content.casefold()
+    assert len(client.calls) == 2
+
+
+def test_second_quality_failure_controls_final_fallback():
+    first = " ".join(
+        ["The weather can color my delivery without creating a new feeling."] * 12
+    )
+    second = "The rain is kissing me and brushing across my skin."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CONTINUITY INFLUENCE CONTEXT\nWeather condition: Rain",
+        ),
+        _message(CognitiveRole.USER, "how does that weather affect you?"),
+    ))
+    client = _Client(first, second)
+
+    response = _provider(client).respond(request)
+
+    assert "don't literally feel rain" in response.content
+    assert "monologue" not in response.content.casefold()
+    assert len(client.calls) == 2
