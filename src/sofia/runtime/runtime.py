@@ -79,6 +79,8 @@ from sofia.operational.store import OperationalStore
 from sofia.operational.status_queries import OperationalStatusQueryResolver
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.model import PersonalityProfile
+from sofia.personality.reflection import ReflectionJournal
+from sofia.personality.reflection_query import ReflectionQueryResolver
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
 from sofia.self_model.model import (
@@ -88,7 +90,7 @@ from sofia.self_model.model import (
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
-from sofia.social.model import PrincipalContext
+from sofia.social.model import PrincipalContext, SocialScope
 from sofia.state.plane import StatePlane
 from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
 
@@ -280,6 +282,7 @@ class SofiaRuntime:
         self._avatar_self_fact_resolver = AvatarSelfFactResolver()
         self._environment_query_resolver = EnvironmentQueryResolver()
         self._operational_status_query_resolver = OperationalStatusQueryResolver()
+        self._reflection_query_resolver = ReflectionQueryResolver()
 
         self._runtime_id: UUID | None = None
         self._started_at: datetime | None = None
@@ -1021,6 +1024,32 @@ class SofiaRuntime:
             ):
                 environment_query = "what is your weather source"
 
+        reflection_answer = None
+        if (
+            user_content
+            and self._reflection_query_resolver.might_match(user_content)
+        ):
+            reflection_journal = ReflectionJournal(
+                self._configuration.state_path
+            )
+            thoughts = list(
+                reflection_journal.recent_thoughts(
+                    limit=3,
+                    scope=SocialScope.global_scope(),
+                )
+            )
+            if principal is not None:
+                thoughts.extend(
+                    reflection_journal.recent_thoughts(
+                        limit=3,
+                        scope=principal.relationship_scope,
+                    )
+                )
+            reflection_answer = self._reflection_query_resolver.resolve(
+                user_content,
+                thoughts=tuple(thoughts),
+            )
+
         if user_content:
             status_answer = self._operational_status_query_resolver.resolve(
                 user_content,
@@ -1079,7 +1108,24 @@ class SofiaRuntime:
                                     private_presentation
                                 ),
                             )
+                if (
+                    reflection_answer is not None
+                    and reflection_answer.recognized
+                ):
+                    return CognitiveResponse(
+                        content=(
+                            reflection_answer.content
+                            + "\n\n"
+                            + self_fact.content
+                        )
+                    )
                 return CognitiveResponse(content=self_fact.content)
+
+        if (
+            reflection_answer is not None
+            and reflection_answer.recognized
+        ):
+            return CognitiveResponse(content=reflection_answer.content)
 
         environment_snapshot = None
         environment_details_needed = environment_details_relevant(
