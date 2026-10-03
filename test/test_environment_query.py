@@ -594,3 +594,19 @@ def test_temperature_unit_followup_cannot_become_fake_f_mode(query):
     assert "Fahrenheit" in answer.content
     assert "Celsius" in answer.content
     assert "mode" not in answer.content.casefold()
+
+
+def test_user_reported_local_time_preserves_am_pm_without_fake_conversion():
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration()
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        "I was asleep and its 2:10 am for me",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "2:10 AM" in answer.content
+    assert "PM" not in answer.content
+    assert "does not prove a timezone or UTC conversion" in answer.content
