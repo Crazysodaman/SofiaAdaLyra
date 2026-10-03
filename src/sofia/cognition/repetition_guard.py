@@ -119,8 +119,22 @@ _PERCEIVED_SELF_STATE_USER = re.compile(
     r"^\s*(?:you|u)\s+(?:seem|sound)\b",
     re.IGNORECASE,
 )
+_BIOLOGICAL_EMOTION_SENSATION = re.compile(
+    r"\b(?:warmth|fondness|affection|sadness|joy|excitement|feeling)\b"
+    r".{0,60}\b(?:spread|curl|ache|flutter|burn|tighten|settle)\b"
+    r".{0,40}\b(?:chest|heart|skin|stomach|body)\b|"
+    r"\b(?:chest|heart|skin|stomach|body)\b.{0,50}\b"
+    r"(?:warm|ache|flutter|tight|tingle|buzz)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_INCOMPLETE_TAIL = re.compile(
+    r"\b(?:you(?:'|’)ve\s+been|i(?:'|’)ve\s+been|i\s+have\s+been|"
+    r"going\s+to|because|although|unless|while)\s*$",
+    re.IGNORECASE,
+)
 _UNGROUNDED_SELF_OBSERVATION = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+quietly\s+observing|"
+    r"i(?:'|’)ve\s+been\s+thinking\s+about\s+it|"
     r"i(?:'|’)ve\s+noticed\s+that\s+i(?:'|’)ve\s+been|"
     r"i(?:'|’)ve\s+been\s+(?:speaking|feeling|acting|sounding)\b.{0,80}\blately\b|"
     r"i\s+have\s+been\s+(?:speaking|feeling|acting|sounding)\b.{0,80}\blately\b)",
@@ -392,6 +406,8 @@ def response_quality_issue(
 
     user = request.messages[-1].content
     content = response.content
+    if len(_normalized(content)) >= 20 and _INCOMPLETE_TAIL.search(content.strip()):
+        return "incomplete_generation"
     if _EMOTION_SELF_REPORT.search(user):
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
@@ -401,6 +417,8 @@ def response_quality_issue(
             return "emotion_temporal_overclaim"
         if _EMOTION_DISCLAIMER.search(content):
             return "emotion_disclaimer"
+        if _BIOLOGICAL_EMOTION_SENSATION.search(content):
+            return "emotion_physical_sensation"
         if _GENERIC_ASSISTANT_POSTURE.search(content):
             return "generic_emotion_self_report"
         if (
@@ -445,6 +463,11 @@ def response_quality_issue(
         and _ENVIRONMENT_SENSATION_OVERCLAIM.search(content)
     ):
         return "environment_physical_sensation"
+    if (
+        _PERCEIVED_SELF_STATE_USER.search(user)
+        and _BIOLOGICAL_EMOTION_SENSATION.search(content)
+    ):
+        return "emotion_physical_sensation"
     if (
         _PERCEIVED_SELF_STATE_USER.search(user)
         and _UNGROUNDED_SELF_OBSERVATION.search(content)
@@ -581,6 +604,25 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
+    if issue == "incomplete_generation":
+        return CognitiveResponse(content=(
+            "That draft cut off mid-thought. I need to answer the current turn cleanly "
+            "instead of persisting a fragment."
+        ))
+
+    if issue == "emotion_physical_sensation":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            feeling = labels[0].replace("-", " ")
+            return CognitiveResponse(content=(
+                f"The grounded part is that I'm feeling {feeling}. I'll express that "
+                "without inventing a heartbeat, chest sensation, or other biology."
+            ))
+        return CognitiveResponse(content=(
+            "I'll describe the grounded emotional state without inventing biological "
+            "sensations in a chest, heart, skin, or body."
+        ))
+
     if issue == "environment_physical_sensation":
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         if labels:
@@ -611,7 +653,18 @@ def grounded_quality_fallback(
             "quietly observing or speaking softly for an ongoing stretch."
         ))
 
-    if issue == "internal_expression_semantic_leak":
+    if issue == "incomplete_generation":
+        detail = (
+            "Your draft ended mid-sentence or on an unfinished clause. Rewrite the full "
+            "answer from the same grounded context and finish the thought cleanly."
+        )
+    elif issue == "emotion_physical_sensation":
+        detail = (
+            "Your draft turned modeled emotion into unsupported biological sensation in "
+            "a chest, heart, skin, stomach, or body. Keep the emotional meaning and "
+            "representational expression, but do not invent physiology or literal body sensation."
+        )
+    elif issue == "internal_expression_semantic_leak":
         return CognitiveResponse(content=(
             "I let the body language show naturally instead of narrating an internal "
             "gesture label. The expression should read like me, not like a debug trace."
