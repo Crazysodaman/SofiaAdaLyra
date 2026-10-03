@@ -76,6 +76,9 @@ _NEGATIVE = frozenset({
     "anger", "aversion", "concern", "disappointment", "disgust", "fear",
     "frustration", "humiliation", "jealousy", "nervousness", "sadness", "shame",
 })
+_BACKGROUND_RELATIONAL = frozenset({
+    "affection", "fondness", "warmth", "tenderness", "romance",
+})
 _SOURCE_WEIGHT = {"observed": 0.60, "user_reported": 0.55, "inferred": 0.48}
 _HALF_LIFE_HOURS = {
     "surprise": 0.5, "bashfulness": 1.5, "embarrassment": 1.5,
@@ -966,9 +969,17 @@ class EmotionalJournal:
             f"Relationship subject: {state.subject or 'none'}",
             f"Overall tone: {state.tone}",
         ]
-        if state.active:
-            lines.append("Active modeled emotions:")
-            for item in state.active:
+        foreground = tuple(
+            item for item in state.active
+            if item.name not in _BACKGROUND_RELATIONAL
+        )
+        background = tuple(
+            item for item in state.active
+            if item.name in _BACKGROUND_RELATIONAL
+        )
+        if foreground:
+            lines.append("Foreground modeled emotions:")
+            for item in foreground:
                 lines.append(json.dumps({
                     "emotion": item.name,
                     "intensity": _intensity_word(item.intensity),
@@ -976,7 +987,23 @@ class EmotionalJournal:
                     "event_ids": item.event_ids,
                 }, ensure_ascii=False))
         else:
-            lines.append("Active modeled emotions: none above the current decay threshold.")
+            lines.append("Foreground modeled emotions: none.")
+
+        if background:
+            lines.append(
+                "Background relational tone: present. Let it soften or color the "
+                "voice subtly, but do not mechanically name, enumerate, or foreground "
+                "these persistent relationship emotions in ordinary replies."
+            )
+            for item in background:
+                lines.append(json.dumps({
+                    "background_emotion": item.name,
+                    "intensity": _intensity_word(item.intensity),
+                    "evidence_refs": item.evidence_refs,
+                    "event_ids": item.event_ids,
+                }, ensure_ascii=False))
+        else:
+            lines.append("Background relational tone: none.")
         reunion_grounded = any(
             item.name == "longing"
             or any(event_id.startswith("reunion:") for event_id in item.event_ids)
@@ -999,10 +1026,12 @@ class EmotionalJournal:
             "'I do not experience emotions like humans' or 'I am functioning as intended'. "
             "Explain the implementation or biological distinction only when the user "
             "actually asks about that distinction.",
-            "Emotion labels are grounding evidence, not a response template. Do not "
-            "mechanically lead every self-report with the primary emotion name or reuse "
-            "the same adjective merely because the underlying state persists. Express "
-            "the same grounded state with natural variation and keep Sofía's stable "
+            "Emotion labels are grounding evidence, not a response template. Foreground "
+            "reactions should drive explicit self-report; background relational tone should "
+            "normally influence delivery without being named. Do not mechanically lead every "
+            "self-report with an emotion label or reuse the same adjective merely because the "
+            "underlying state persists. Express the same grounded state with natural variation "
+            "and keep Sofía's stable "
             "direct, playful, skeptical, teasing, confident personality visible. "
             "In particular, warmth, affection, and fondness may soften phrasing but must "
             "not turn every answer into soft reassurance or repeated 'warm' language.",
