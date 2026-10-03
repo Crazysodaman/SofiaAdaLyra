@@ -11,6 +11,7 @@ from sofia.ops.bootstrap import (
     InstallAuthority,
 )
 from sofia.ops.capability import OpsToolService
+from sofia.ops.reconciliation_journal import FleetReconciliationRecord
 from sofia.ops.discovery import FleetDiscoveryBootstrapCoordinator
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.state.model import StateClass, StateKey, StateRecord
@@ -253,6 +254,56 @@ def create_fleet_bootstrap_plan_notifier(
             )
         except Exception:
             # Bootstrap authority cannot depend on notification delivery.
+            return
+
+    return notify
+
+
+
+def create_fleet_reconciliation_notifier(
+    *,
+    act_service: SofiaActService,
+):
+    """Notify Sparks once for each newly observed Fleet drift proposal."""
+    if not isinstance(act_service, SofiaActService):
+        raise TypeError("act_service must be a SofiaActService")
+    destination = os.environ.get(
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+        "",
+    ).strip()
+    if not destination:
+        return None
+    if (
+        "/" in destination
+        or not destination.replace("_", "").replace("-", "").isalnum()
+    ):
+        raise ValueError(
+            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
+        )
+
+    def notify(record: FleetReconciliationRecord) -> None:
+        if not isinstance(record, FleetReconciliationRecord):
+            raise TypeError("record must be FleetReconciliationRecord")
+        content = (
+            f"Fleet drift observed for {record.subject_id}: "
+            f"{record.drift_kind} expected {record.expected}, "
+            f"observed {record.observed or 'missing'}. "
+            f"Reviewed proposal: {record.proposal_kind}. "
+            "This is a proposal only; no repair has been authorized or executed."
+        )
+        try:
+            act_service.queue_system_notice(
+                notice_id=f"fleet-reconcile:{record.proposal_key}",
+                recipient_id=SPARKS_PRINCIPAL_ID,
+                channel="home_assistant",
+                destination=destination,
+                evidence_id=record.proposal_key,
+                content=content,
+                created_at=record.first_seen,
+                expires_at=record.first_seen + timedelta(days=7),
+            )
+        except Exception:
+            # Notification availability never changes Fleet authority.
             return
 
     return notify
