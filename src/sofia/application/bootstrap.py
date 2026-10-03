@@ -275,9 +275,13 @@ class SofiaApplication:
         channels share identity, memory, environment, avatar state, cognition,
         and the application-owned inference lock.
         """
-        if self._runtime.state.value != "ready":
+        if (
+            self._runtime.state.value != "ready"
+            or self._conversation_service.session is None
+        ):
             raise SofiaApplicationError(
-                "Sofía must be started before opening a channel conversation."
+                "Sofía application must be fully started before opening "
+                "a channel conversation."
             )
         conversation_store = ConversationStore(
             self._configuration.state_path
