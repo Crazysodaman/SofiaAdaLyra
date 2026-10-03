@@ -55,6 +55,7 @@ def test_expression_plan_uses_existing_conversation_expression_matrix():
         "ear-perk",
         "shift-posture",
         "pause",
+        "grin",
     }
     assert "emotion" in plan.active_signals
     assert "daypart" in plan.active_signals
@@ -126,4 +127,6 @@ def test_expression_prompt_preserves_representation_and_authority_boundary():
     assert "represented avatar expression only" in prompt
     assert "not evidence of physical sensation" in prompt
     assert "cannot override" in prompt
-    assert "recently used semantics to avoid repeating" in prompt
+    assert "recently used expression families to avoid repeating" in prompt
+    assert "preferred natural expression" in prompt
+    assert "semantic ids" in prompt
