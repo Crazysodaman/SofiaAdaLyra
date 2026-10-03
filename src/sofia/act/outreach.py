@@ -80,6 +80,11 @@ class Candidate:
             raise TypeError("category must be OutreachCategory")
         if not isinstance(self.importance, Importance):
             raise TypeError("importance must be Importance")
+        if not isinstance(self.salience, (int, float)) or isinstance(
+            self.salience,
+            bool,
+        ):
+            raise TypeError("salience must be numeric")
         if not 0.0 <= self.salience <= 1.0:
             raise ValueError("salience must be in [0,1]")
 
@@ -253,13 +258,12 @@ def evaluate(
         elapsed = moment - _utc(history.last_delivered_at)
         if elapsed < timedelta(0):
             return Decision.CLOCK_UNCERTAIN
-        if elapsed < policy.min_interval and not critical_operational:
+        if elapsed < policy.min_interval:
             return Decision.TOO_SOON
 
     if (
         history.delivered_day_utc == moment.date().isoformat()
         and history.delivered_today >= policy.max_daily
-        and not critical_operational
     ):
         return Decision.DAILY_LIMIT
 
@@ -300,13 +304,12 @@ def evaluate(
         elapsed = moment - _utc(category_last)
         if elapsed < timedelta(0):
             return Decision.CLOCK_UNCERTAIN
-        if elapsed < category_interval and not critical_operational:
+        if elapsed < category_interval:
             return Decision.TOO_SOON
 
     if (
         history.delivered_day_utc == moment.date().isoformat()
         and category_count >= category_limit
-        and not critical_operational
     ):
         return Decision.DAILY_LIMIT
 
