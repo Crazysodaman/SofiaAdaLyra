@@ -157,3 +157,64 @@ def test_denial_is_represented_explicitly():
     )
 
     assert authorization.decision is AuthorizationDecision.DENY
+
+
+def test_filesystem_authorization_rejects_empty_operations():
+    with pytest.raises(ValueError, match="must not be empty"):
+        FilesystemAuthorization(
+            actor="Sparks",
+            role="creator",
+            domain=AuthorizationDomain.FILESYSTEM,
+            scope=Path("/sofia"),
+            operations=(),
+            target=None,
+            decision=AuthorizationDecision.ALLOW,
+            reason="Explicit authorization from Sparks.",
+        )
+
+
+def test_filesystem_authorization_rejects_duplicate_operations():
+    with pytest.raises(ValueError, match="duplicates"):
+        FilesystemAuthorization(
+            actor="Sparks",
+            role="creator",
+            domain=AuthorizationDomain.FILESYSTEM,
+            scope=Path("/sofia"),
+            operations=(
+                FilesystemAuthorizationOperation.READ_FILE,
+                FilesystemAuthorizationOperation.READ_FILE,
+            ),
+            target=None,
+            decision=AuthorizationDecision.ALLOW,
+            reason="Explicit authorization from Sparks.",
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("actor", " Sparks"),
+        ("role", "creator "),
+        ("reason", " Explicit authorization from Sparks."),
+    ),
+)
+def test_filesystem_authorization_requires_canonical_text_fields(
+    field,
+    value,
+):
+    kwargs = dict(
+        actor="Sparks",
+        role="creator",
+        domain=AuthorizationDomain.FILESYSTEM,
+        scope=Path("/sofia"),
+        operations=(
+            FilesystemAuthorizationOperation.READ_FILE,
+        ),
+        target=None,
+        decision=AuthorizationDecision.ALLOW,
+        reason="Explicit authorization from Sparks.",
+    )
+    kwargs[field] = value
+
+    with pytest.raises(ValueError, match="canonical"):
+        FilesystemAuthorization(**kwargs)
