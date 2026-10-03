@@ -1442,6 +1442,17 @@ class ConversationService:
             )
 
         request = self._build_request()
+        if authorization is not None:
+            # Authorization statements only change the host-owned grant state.
+            # They must never expose or execute cognitive tools in the same
+            # turn using the authority that was just granted.
+            request = CognitiveRequest(
+                messages=request.messages,
+                tools=(),
+                allow_tools=False,
+                capability_allowlist=(),
+                route_hint=request.route_hint,
+            )
 
         context_plan = (
             self._current_context_plan
