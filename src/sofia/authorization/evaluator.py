@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.authorization.model import (
     AuthorizationDecision,
     AuthorizationDomain,
@@ -29,6 +31,11 @@ class FilesystemAuthorizationEvaluator:
         "you have permission to check your own files",
         "you have permission to inspect your own files",
     )
+
+    _TRUSTED_LOCAL_CHANNELS = frozenset({
+        "desktop",
+        "terminal",
+    })
 
     _READ_ONLY_OPERATIONS = (
         FilesystemAuthorizationOperation.LIST_DIRECTORY,
@@ -79,30 +86,52 @@ class FilesystemAuthorizationEvaluator:
     def evaluate(
         self,
         content: str,
+        *,
+        principal: PrincipalContext | None,
+        channel: str,
     ) -> FilesystemAuthorization | None:
-        """
-        Return an authorization record when content contains an
-        explicit supported authorization statement.
+        """Evaluate one explicit authorization statement.
 
-        Return None when no authorization statement is present.
+        Authorization is fail-closed. Text alone is never identity evidence:
+        the caller must supply the authenticated private local Sparks principal
+        and an explicitly trusted local interactive channel.
         """
 
         if not isinstance(content, str):
             raise TypeError(
                 "Filesystem authorization content must be a string."
             )
+        if principal is not None and not isinstance(
+            principal,
+            PrincipalContext,
+        ):
+            raise TypeError(
+                "Filesystem authorization principal must be "
+                "a PrincipalContext or None."
+            )
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError(
+                "Filesystem authorization channel must be a non-empty string."
+            )
+
+        normalized_channel = channel.strip().casefold()
+        if (
+            principal is None
+            or principal.principal_id != SPARKS_PRINCIPAL_ID
+            or principal.audience_kind is not AudienceKind.PRIVATE
+            or not principal.audience_id.startswith("local:")
+            or normalized_channel not in self._TRUSTED_LOCAL_CHANNELS
+        ):
+            return None
 
         normalized = " ".join(
-            content.strip().lower().split()
-        )
+            content.strip().casefold().split()
+        ).rstrip(".!?")
 
         if not normalized:
             return None
 
-        if not any(
-            phrase in normalized
-            for phrase in self._AUTHORIZATION_PHRASES
-        ):
+        if normalized not in self._AUTHORIZATION_PHRASES:
             return None
 
         return FilesystemAuthorization(
@@ -114,7 +143,7 @@ class FilesystemAuthorizationEvaluator:
             target=None,
             decision=AuthorizationDecision.ALLOW,
             reason=(
-                "Explicit filesystem authorization from "
-                f"{self._actor} through the local application."
+                "Explicit filesystem authorization from authenticated "
+                f"{self._actor} through a trusted local application channel."
             ),
         )
