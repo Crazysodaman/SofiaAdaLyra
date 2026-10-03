@@ -238,6 +238,7 @@ class ApplicationBackgroundCoordinator:
         self._stop_event = Event()
         self._thread: Thread | None = None
         self.last_error: str | None = None
+        self.last_heartbeat_error: str | None = None
 
     def set_act_delivery(
         self,
@@ -432,18 +433,40 @@ class ApplicationBackgroundCoordinator:
             "reflection_disabled" if opportunity is None else opportunity.status
         )
 
+    def _publish_heartbeat(
+        self,
+        *,
+        now: datetime,
+        healthy: bool,
+    ) -> None:
+        callback = self._heartbeat
+        if callback is None:
+            self.last_heartbeat_error = None
+            return
+        try:
+            callback(now, healthy)
+        except Exception as exc:
+            self.last_heartbeat_error = type(exc).__name__
+        else:
+            self.last_heartbeat_error = None
+
     def _loop(self) -> None:
         while not self._stop_event.wait(self.poll_seconds):
             now = datetime.now(timezone.utc)
             try:
                 self.run_once(now=now)
-                self.last_error = None
-                if self._heartbeat is not None:
-                    self._heartbeat(now, True)
             except Exception as exc:
                 self.last_error = type(exc).__name__
-                if self._heartbeat is not None:
-                    self._heartbeat(now, False)
+                self._publish_heartbeat(
+                    now=now,
+                    healthy=False,
+                )
+            else:
+                self.last_error = None
+                self._publish_heartbeat(
+                    now=now,
+                    healthy=True,
+                )
 
     def start(self) -> None:
         if self._thread is not None:
