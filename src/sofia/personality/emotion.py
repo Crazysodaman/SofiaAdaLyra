@@ -1066,9 +1066,30 @@ class EmotionalJournal:
     def prompt_context(
         self, *, now: datetime, subject: str | None = None,
         scope: SocialScope | None = None,
+        evidence_refs: tuple[str, ...] | None = None,
     ) -> str | None:
-        """Present only one requested ownership scope as emotional evidence."""
+        """Present scoped emotional evidence, optionally narrowed by provenance."""
+        if evidence_refs is not None:
+            if (
+                not isinstance(evidence_refs, tuple)
+                or any(
+                    not isinstance(ref, str) or not ref.strip()
+                    for ref in evidence_refs
+                )
+            ):
+                raise TypeError(
+                    "evidence_refs must be None or a tuple of nonempty strings"
+                )
+            allowed_refs = frozenset(evidence_refs)
+        else:
+            allowed_refs = None
+
         events = self.recent(now=now, subject=subject, scope=scope)
+        if allowed_refs is not None:
+            events = tuple(
+                event for event in events
+                if event.evidence_ref in allowed_refs
+            )
         if not events:
             return None
         lines = [
