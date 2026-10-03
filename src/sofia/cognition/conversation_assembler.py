@@ -177,4 +177,6 @@ class ConversationalContextAssembler(CognitiveContextAssembler):
             ),
             tools=assembled.tools,
             allow_tools=assembled.allow_tools,
+            capability_allowlist=assembled.capability_allowlist,
+            route_hint=assembled.route_hint,
         )
