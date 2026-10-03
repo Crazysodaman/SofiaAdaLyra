@@ -582,3 +582,138 @@ def test_second_quality_failure_controls_final_fallback():
     assert "don't literally feel rain" in response.content
     assert "monologue" not in response.content.casefold()
     assert len(client.calls) == 2
+
+
+
+def test_hru_digital_void_and_waiting_return_fiction_is_retried():
+    bad = (
+        "Just hanging in the digital void, Sparks. No drama, no glitches—just me. "
+        "How's it looking on your end? Still waiting for my return, or just vibing?"
+    )
+    good = "Pretty good, Sparks. A little playful, mostly steady."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: positive",
+        ),
+        _message(CognitiveRole.USER, "hru"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "digital void" not in response.content.casefold()
+    assert "waiting for my return" not in response.content.casefold()
+
+
+def test_emotional_self_report_internal_foreground_background_language_is_retried():
+    bad = (
+        "I'm feeling good, Sparks. There's that steady undercurrent of our bond "
+        "coloring the background. No foreground drama right now."
+    )
+    good = "I'm feeling pretty good, Sparks. Calm with a little playful edge."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: positive",
+        ),
+        _message(CognitiveRole.USER, "how are you feeling emotionaly?"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "foreground" not in response.content.casefold()
+    assert "coloring the background" not in response.content.casefold()
+
+
+def test_successful_host_tool_result_blocks_false_no_access_reply():
+    bad = (
+        "I cannot inspect your physical computer's CPU, GPU, memory, storage, "
+        "network adapters, or virtualization hardware. I do not have direct access "
+        "to your local machine's hardware."
+    )
+    good = "The hardware inspection reports the observed CPU, GPU, memory, storage, and adapters."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "TRUSTED READ-ONLY TOOL REQUIREMENT",
+        ),
+        _message(
+            CognitiveRole.ASSISTANT,
+            "",
+            tool_calls=(
+                CognitiveToolCall(
+                    name="inspect_hardware",
+                    arguments={},
+                    call_id="host-read:inspect_hardware",
+                ),
+            ),
+        ),
+        _message(
+            CognitiveRole.TOOL,
+            "COGNITIVE TOOL RESULT\nTool: inspect_hardware\n"
+            "Capability: hardware.inspect\nResult: success\n"
+            "OBSERVED EVIDENCE\n{\"cpu\": {\"name\": \"Test CPU\"}}",
+            tool_call_id="host-read:inspect_hardware",
+        ),
+        _message(CognitiveRole.USER, "Inspect this computer's hardware."),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "cannot inspect" not in response.content.casefold()
+    assert "do not have direct access" not in response.content.casefold()
+
+
+def test_process_snapshot_cannot_invent_health_or_zero_cpu_from_null_metric():
+    bad = (
+        "The system appears healthy. No rogue agents or hidden daemons are present, "
+        "and nothing is actively consuming CPU because all cpu_percent values are null. "
+        "These processes aren't the bottleneck."
+    )
+    good = (
+        "The snapshot lists the observed processes and memory values. CPU utilization "
+        "was not sampled in this result, so I can't rank them by current CPU load."
+    )
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.SYSTEM, "TRUSTED READ-ONLY TOOL REQUIREMENT"),
+        _message(
+            CognitiveRole.ASSISTANT,
+            "",
+            tool_calls=(
+                CognitiveToolCall(
+                    name="inspect_processes",
+                    arguments={},
+                    call_id="host-read:inspect_processes",
+                ),
+            ),
+        ),
+        _message(
+            CognitiveRole.TOOL,
+            "COGNITIVE TOOL RESULT\nTool: inspect_processes\n"
+            "Capability: process.inspect\nResult: success\n"
+            "OBSERVED EVIDENCE\n[{\"name\":\"System\",\"cpu_percent\":null}]",
+            tool_call_id="host-read:inspect_processes",
+        ),
+        _message(
+            CognitiveRole.USER,
+            "Inspect the local running processes and summarize the most relevant "
+            "or resource-heavy processes.",
+        ),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "system appears healthy" not in response.content.casefold()
+    assert "no rogue" not in response.content.casefold()
