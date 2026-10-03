@@ -47,14 +47,19 @@ class OllamaProvider(LLMProvider):
         try:
             alternate = self._respond_once(build_rephrase_request(request, issue=issue))
         except LLMProviderError:
-            return response
+            fallback = grounded_quality_fallback(request, issue=issue)
+            return fallback if fallback is not None else response
         alternate = naturalize_embodied_semantics(request, alternate)
         alternate = trim_generic_assistant_closer(request, alternate)
+        alternate_issue = None
         if alternate.content.strip() and not alternate.tool_calls:
             alternate_issue = response_quality_issue(request, alternate)
             if alternate_issue is None:
                 return alternate
-        fallback = grounded_quality_fallback(request, issue=issue)
+        fallback = grounded_quality_fallback(
+            request,
+            issue=alternate_issue or issue,
+        )
         if fallback is not None:
             return fallback
         return response
