@@ -1,6 +1,8 @@
 ﻿from pathlib import Path
 
 from sofia.application import SofiaApplication
+from sofia.authorization.evaluator import FilesystemAuthorizationEvaluator
+from sofia.social.principals import local_sparks_principal
 from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
@@ -102,34 +104,34 @@ def create_application(
     )
 
 
-def test_authorization_statement_grants_scoped_filesystem_access(
+def authorize_runtime(application: SofiaApplication) -> None:
+    authorization = FilesystemAuthorizationEvaluator(
+        scope=application.runtime.configuration.filesystem_root,
+    ).evaluate(
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
+    )
+    assert authorization is not None
+    application.runtime.authorize_filesystem(authorization)
+
+
+
+def test_orchestrator_cannot_grant_filesystem_authorization(
     tmp_path: Path,
 ):
     application = create_application(tmp_path)
-
     application.start()
+    orchestrator = FilesystemOrchestrator(application.runtime)
 
-    orchestrator = FilesystemOrchestrator(
-        application.runtime
-    )
-
-    results = orchestrator.process(
-        "you are allowed to check your own files"
-    )
-
-    assert results == ()
-
-    assert (
-        application.runtime.filesystem_authorization
-        is not None
-    )
-
-    assert (
-        application.runtime.filesystem_inspector.authorized
-        is True
-    )
-
-    application.shutdown()
+    try:
+        assert orchestrator.process(
+            "you are allowed to check your own files"
+        ) == ()
+        assert application.runtime.filesystem_authorization is None
+        assert application.runtime.filesystem_inspector.authorized is False
+    finally:
+        application.shutdown()
 
 
 def test_check_your_files_lists_repository(
@@ -153,9 +155,7 @@ def test_check_your_files_lists_repository(
         is FilesystemResultKind.UNAUTHORIZED
     )
 
-    orchestrator.process(
-        "you are allowed to check your own files"
-    )
+    authorize_runtime(application)
 
     results = orchestrator.process(
         "check your files"
@@ -185,9 +185,7 @@ def test_read_file_is_authorized_after_explicit_grant(
         application.runtime
     )
 
-    orchestrator.process(
-        "you are allowed to check your own files"
-    )
+    authorize_runtime(application)
 
     results = orchestrator.process(
         "read src/sofia/filesystem/model.py"
@@ -218,9 +216,7 @@ def test_outside_scope_remains_unauthorized(
         application.runtime
     )
 
-    orchestrator.process(
-        "you are allowed to check your own files"
-    )
+    authorize_runtime(application)
 
     results = orchestrator.process(
         "read C:\\outside\\secret.txt"
@@ -235,24 +231,20 @@ def test_outside_scope_remains_unauthorized(
     application.shutdown()
 
 
-def test_authorization_does_not_execute_inspection(
+def test_authorization_text_is_not_an_orchestrator_operation(
     tmp_path: Path,
 ):
     application = create_application(tmp_path)
-
     application.start()
+    orchestrator = FilesystemOrchestrator(application.runtime)
 
-    orchestrator = FilesystemOrchestrator(
-        application.runtime
-    )
-
-    results = orchestrator.process(
-        "you are allowed to check your own files"
-    )
-
-    assert results == ()
-
-    application.shutdown()
+    try:
+        assert orchestrator.process(
+            "you are allowed to check your own files"
+        ) == ()
+        assert application.runtime.filesystem_authorization is None
+    finally:
+        application.shutdown()
 
 
 def test_shutdown_revokes_filesystem_authorization(
@@ -266,9 +258,7 @@ def test_shutdown_revokes_filesystem_authorization(
         application.runtime
     )
 
-    orchestrator.process(
-        "you are allowed to check your own files"
-    )
+    authorize_runtime(application)
 
     assert (
         application.runtime.filesystem_inspector.authorized
