@@ -44,6 +44,7 @@ from sofia.cognition.matrix import (
 from sofia.composition.root import compose
 from sofia.config.defaults import create_production_configuration
 from sofia.config.model import SofiaConfiguration
+from sofia.config.reviewed_projection import apply_reviewed_configuration
 from sofia.config.user_settings import (
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
@@ -402,6 +403,10 @@ class SofiaApplication:
 
         refreshed_configuration = create_production_configuration(
             state_path=self._configuration.state_path
+        )
+        refreshed_configuration = apply_reviewed_configuration(
+            refreshed_configuration,
+            self._runtime.state_plane,
         )
         refreshed_service = create_environment_service(
             refreshed_configuration
