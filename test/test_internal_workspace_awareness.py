@@ -1,6 +1,7 @@
 """Internal SQLite writes are not workspace news; real changes remain visible."""
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import RLock
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -162,6 +163,11 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     app._conversation_service = conversation
     app._channel_conversations = []
     app._idle_worker = None
+    app._model_lock = RLock()
+    app._tts = SimpleNamespace(
+        start=lambda: None,
+        stop=lambda: None,
+    )
     assert app.start() is None
     assert calls[:4] == ["runtime:start", "conversation:open", "conversation:start", "awareness"]
     app.shutdown()
