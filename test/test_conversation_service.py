@@ -210,7 +210,7 @@ def _dual_test_router():
     )
 
 
-def test_fast_matrix_trace_records_actual_secondary_model_execution(
+def test_social_matrix_trace_records_actual_primary_model_execution(
     tmp_path: Path,
 ):
     application = create_application(tmp_path)
@@ -219,17 +219,17 @@ def test_fast_matrix_trace_records_actual_secondary_model_execution(
     try:
         response = application.conversation.respond("Hru")
 
-        assert response.content == "secondary response"
+        assert response.content == "primary response"
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
         assert trace.cognition_execution is not None
-        assert trace.cognition_execution.actual_route == "fast"
+        assert trace.cognition_execution.actual_route == "standard"
         assert tuple(
             step.role for step in trace.cognition_execution.successful_steps
-        ) == ("secondary",)
+        ) == ("primary",)
         assert (
             trace.cognition_execution.last_successful_step.model
-            == "secondary-test-model"
+            == "primary-test-model"
         )
     finally:
         application.shutdown()
@@ -762,7 +762,7 @@ def test_matrix_trace_records_privacy_projection_for_bound_principal(tmp_path: P
         application.shutdown()
 
 
-def test_matrix_hru_routes_fast_and_records_validation(
+def test_matrix_hru_routes_standard_and_records_validation(
     tmp_path: Path,
     monkeypatch,
 ):
@@ -780,12 +780,12 @@ def test_matrix_hru_routes_fast_and_records_validation(
 
         assert result.content == "I'm feeling settled."
         assert len(requests) == 1
-        assert requests[0].route_hint == "fast"
+        assert requests[0].route_hint == "standard"
 
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
         assert trace.routing is not None
-        assert trace.routing.route is MatrixRoute.FAST
+        assert trace.routing.route is MatrixRoute.STANDARD
         assert trace.evidence is not None
         assert all(
             not item.key.startswith("environment.")
