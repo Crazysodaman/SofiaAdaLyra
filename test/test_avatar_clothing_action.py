@@ -91,6 +91,13 @@ def autonomy_context(
         primary_emotion=emotion,
         primary_intensity=intensity,
         active_emotions=() if emotion is None else (emotion,),
+        daypart_evidence_refs=("runtime.clock",),
+        season_evidence_refs=("runtime.clock",),
+        weather_evidence_refs=(
+            ()
+            if weather is None
+            else ("environment.weather:weather.test",)
+        ),
     )
     emotion_influences = ()
     if emotion is not None:
