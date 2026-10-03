@@ -76,6 +76,7 @@ from sofia.operational.model import (
 )
 from sofia.operational.store import OperationalStore
 from sofia.operational.status_queries import OperationalStatusQueryResolver
+from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
@@ -906,6 +907,7 @@ class SofiaRuntime:
         principal: PrincipalContext | None = None,
         context_plan: ContextPlan | None = None,
         privacy_plan: PrivacyProjectionPlan | None = None,
+        contextual_influence: ContinuityInfluence | None = None,
     ):
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
@@ -934,6 +936,15 @@ class SofiaRuntime:
             raise TypeError(
                 "SofiaRuntime privacy_plan must be a PrivacyProjectionPlan or None."
             )
+        if contextual_influence is not None and not isinstance(
+            contextual_influence,
+            ContinuityInfluence,
+        ):
+            raise TypeError(
+                "SofiaRuntime contextual_influence must be "
+                "a ContinuityInfluence or None."
+            )
+
         if privacy_plan is not None:
             if principal is None and privacy_plan.principal_id is not None:
                 raise ValueError(
@@ -1086,6 +1097,7 @@ class SofiaRuntime:
                 memories = self._memory_system.recall_relevant(
                     user_content,
                     principal=principal,
+                    influence=contextual_influence,
                 )
             else:
                 memories = ()
