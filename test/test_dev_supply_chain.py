@@ -15,6 +15,7 @@ from sofia.dev.supply_chain import (
     verify_release_evidence,
 )
 from sofia.safe.release_ed25519 import Ed25519ReleaseSignatureVerifier
+from sofia.run.release import directory_sha256
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -120,6 +121,10 @@ def test_construct_and_verify_release_evidence(tmp_path):
         canonical_dependency_lock(lock)
     ).hexdigest()
     assert result.artifact_path.is_file()
+    assert (result.artifact_path.parent / "requirements.lock").is_file()
+    assert result.manifest.artifact_sha256 == directory_sha256(
+        result.artifact_path.parent
+    )
 
 
 def test_verifier_rejects_tampered_artifact(tmp_path):
