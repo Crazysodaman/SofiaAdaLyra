@@ -20,11 +20,15 @@ from sofia.state.sqlite_plane import SQLiteStatePlane
 
 def _read_digest(path: Path) -> str:
     value = path.read_text(encoding="utf-8").strip()
-    if len(value) != 64 or any(
-        char not in "0123456789abcdef" for char in value
-    ):
-        raise ValueError(f"{path} does not contain a lowercase SHA-256 digest")
-    return value
+    if len(value) != 64:
+        raise ValueError(f"{path} does not contain a 64-character SHA-256 digest")
+    try:
+        int(value, 16)
+    except ValueError as exc:
+        raise ValueError(
+            f"{path} does not contain a hexadecimal SHA-256 digest"
+        ) from exc
+    return value.casefold()
 
 
 def _construct(args) -> int:
