@@ -126,7 +126,7 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
             # surface so verified sensors/hardware can be inspected when needed.
             assert request.tools
             tool_names = {tool.name for tool in request.tools}
-            assert "tool_catalog" in tool_names
+            assert "inspect_hardware" in tool_names
             assert len(tool_names) == len(request.tools)
         assert request.messages[-1].role is CognitiveRole.USER
         assert request.messages[-1].content == text
