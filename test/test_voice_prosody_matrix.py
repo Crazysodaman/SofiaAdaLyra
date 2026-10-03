@@ -15,7 +15,10 @@ def influence(**x):
         emotional_tone="warm",
         primary_emotion="fondness",
         primary_intensity=.62,
-        active_emotions=("fondness",),
+        active_emotions=("fondness", "curiosity"),
+        foreground_emotion_evidence_refs=("emotion:event-2",),
+        foreground_emotion="curiosity",
+        foreground_intensity=.55,
         daypart_evidence_refs=("runtime.clock", "environment.location:test"),
         season_evidence_refs=("runtime.clock", "environment.location:test"),
         weather_evidence_refs=("environment.weather:test",),
@@ -26,13 +29,13 @@ def numeric(p): return (p.rate_scale,p.pitch_semitones,p.energy_scale,p.volume_s
 def test_voice_surface_bounds_context_strengths():
     m=VoiceProsodyMatrix().plan(influence()).influence_plan;assert m.surface is InfluenceSurface.VOICE_EXPRESSION;assert m.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.BOUNDED_BIAS;assert m.mode_for(InfluenceSignal.DAYPART) is InfluenceMode.BOUNDED_BIAS;assert m.mode_for(InfluenceSignal.WEATHER) is InfluenceMode.EXPRESSION_ONLY;assert m.mode_for(InfluenceSignal.SEASON) is InfluenceMode.EXPRESSION_ONLY
 def test_evidence_linked_excitement_increases_rate_and_energy():
-    a=VoiceProsodyMatrix().plan(influence(daypart="afternoon",primary_emotion="excitement",primary_intensity=.8)).profile;b=VoiceProsodyMatrix().plan(influence(daypart="afternoon",primary_emotion=None,primary_intensity=0,primary_emotion_evidence_refs=(),active_emotions=())).profile;assert a.rate_scale>b.rate_scale and a.energy_scale>b.energy_scale
+    a=VoiceProsodyMatrix().plan(influence(daypart="afternoon",foreground_emotion="excitement",foreground_intensity=.8,foreground_emotion_evidence_refs=("emotion:event-excitement",))).profile;b=VoiceProsodyMatrix().plan(influence(daypart="afternoon",foreground_emotion=None,foreground_intensity=0,foreground_emotion_evidence_refs=())).profile;assert a.rate_scale>b.rate_scale and a.energy_scale>b.energy_scale
 def test_unsupported_emotion_cannot_change_numeric_prosody():
-    a=VoiceProsodyMatrix().plan(influence(daypart="afternoon",primary_emotion="excitement",primary_intensity=1,primary_emotion_evidence_refs=())).profile;b=VoiceProsodyMatrix().plan(influence(daypart="afternoon",primary_emotion=None,primary_intensity=0,primary_emotion_evidence_refs=(),active_emotions=())).profile;assert numeric(a)==numeric(b)
+    a=VoiceProsodyMatrix().plan(influence(daypart="afternoon",foreground_emotion="excitement",foreground_intensity=1,foreground_emotion_evidence_refs=())).profile;b=VoiceProsodyMatrix().plan(influence(daypart="afternoon",foreground_emotion=None,foreground_intensity=0,foreground_emotion_evidence_refs=())).profile;assert numeric(a)==numeric(b)
 def test_night_delivery_is_subtle_not_a_personality_rewrite():
-    b=influence(primary_emotion=None,primary_intensity=0,primary_emotion_evidence_refs=(),active_emotions=());n=VoiceProsodyMatrix().plan(replace(b,daypart="night")).profile;a=VoiceProsodyMatrix().plan(replace(b,daypart="afternoon")).profile;assert n.rate_scale<a.rate_scale and n.volume_scale<a.volume_scale and n.pause_scale>a.pause_scale and n.rate_scale>=.95
+    b=influence(foreground_emotion=None,foreground_intensity=0,foreground_emotion_evidence_refs=());n=VoiceProsodyMatrix().plan(replace(b,daypart="night")).profile;a=VoiceProsodyMatrix().plan(replace(b,daypart="afternoon")).profile;assert n.rate_scale<a.rate_scale and n.volume_scale<a.volume_scale and n.pause_scale>a.pause_scale and n.rate_scale>=.95
 def test_urgent_delivery_overrides_night_softening_for_clarity():
-    p=VoiceProsodyMatrix().plan(influence(daypart="night",primary_emotion="calm",primary_intensity=.8),urgency=VoiceUrgency.URGENT).profile;assert p.rate_scale>=1.10 and p.energy_scale>=1.16 and p.volume_scale>=1.06 and p.pause_scale<=.84
+    p=VoiceProsodyMatrix().plan(influence(daypart="night",foreground_emotion="calm",foreground_intensity=.8,foreground_emotion_evidence_refs=("emotion:event-calm",)),urgency=VoiceUrgency.URGENT).profile;assert p.rate_scale>=1.10 and p.energy_scale>=1.16 and p.volume_scale>=1.06 and p.pause_scale<=.84
 def test_weather_and_season_are_expression_only_not_numeric_prosody_controls():
     a=VoiceProsodyMatrix().plan(influence(daypart="afternoon")).profile;b=VoiceProsodyMatrix().plan(influence(daypart="afternoon",weather_condition="clear",season="summer")).profile;assert numeric(a)==numeric(b);assert a.ambient_context!=b.ambient_context
 def test_stale_weather_and_missing_season_are_not_invented_as_ambient_context():
