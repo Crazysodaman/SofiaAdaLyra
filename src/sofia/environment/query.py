@@ -353,8 +353,7 @@ class EnvironmentQueryResolver:
                 True,
                 (
                     "Temperature display for environment answers is Fahrenheit "
-                    "(°F). I won't treat 'F' as a conversation mode or invent a "
-                    "separate F-mode."
+                    "(°F), not Celsius (°C)."
                 ),
             )
 
