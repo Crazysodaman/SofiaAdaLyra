@@ -23,6 +23,8 @@ from sofia.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
+from sofia.social.principals import local_sparks_principal
+from sofia.social.store import SocialSessionStore
 from sofia.cognition.matrix import (
     AuthorityDecision,
     EvidenceState,
