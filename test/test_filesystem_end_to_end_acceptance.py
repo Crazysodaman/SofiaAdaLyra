@@ -119,6 +119,8 @@ def test_filesystem_request_is_unauthorized_before_explicit_authorization(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -170,6 +172,8 @@ def test_explicit_own_files_authorization_does_not_execute_inspection(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -213,6 +217,8 @@ def test_authorization_enables_actual_own_files_inspection(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -268,6 +274,8 @@ def test_authorized_file_read_returns_real_repository_content(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -318,6 +326,8 @@ def test_authorization_does_not_expand_filesystem_scope(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -366,6 +376,8 @@ def test_filesystem_evidence_reaches_cognitive_request(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -453,6 +465,8 @@ def test_restart_requires_authorization_again(
         *,
         filesystem_results=(),
         context_plan=None,
+        privacy_plan=None,
+        contextual_influence=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
