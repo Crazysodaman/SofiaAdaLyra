@@ -737,3 +737,40 @@ def test_emotional_self_report_does_not_reflexively_end_with_you_question():
     assert response.content == good
     assert len(client.calls) == 2
     assert not response.content.rstrip().endswith("?")
+
+
+
+def test_failed_host_tool_result_is_reported_not_replaced_with_ai_no_access_boilerplate():
+    bad = (
+        "I am an AI model and do not have direct access to your local computer "
+        "or network stack."
+    )
+    good = "The network.inspect capability returned unauthorized for this turn."
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.SYSTEM, "TRUSTED READ-ONLY TOOL REQUIREMENT"),
+        _message(
+            CognitiveRole.ASSISTANT,
+            "",
+            tool_calls=(
+                CognitiveToolCall(
+                    name="inspect_network",
+                    arguments={},
+                    call_id="host-read:inspect_network",
+                ),
+            ),
+        ),
+        _message(
+            CognitiveRole.TOOL,
+            "COGNITIVE TOOL RESULT\nTool: inspect_network\n"
+            "Capability: network.inspect\nResult: unauthorized",
+            tool_call_id="host-read:inspect_network",
+        ),
+        _message(CognitiveRole.USER, "Inspect the local network."),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "AI model" not in response.content
