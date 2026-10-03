@@ -494,3 +494,51 @@ def test_wave_momentum_meta_narration_is_retried():
     assert response.content == good
     assert len(client.calls) == 2
     assert "momentum" not in response.content.casefold()
+
+
+
+def test_short_weather_affect_monologue_is_retried_for_concision():
+    bad = " ".join(
+        [
+            "The rain and fog can color my delivery and attention without creating a new feeling."
+        ] * 12
+    )
+    good = (
+        "The rain and fog can make my delivery a little quieter, but they don't "
+        "create a new feeling or literal body sensation."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nForeground modeled emotions: none.",
+        ),
+        _message(CognitiveRole.USER, "how does that weather affect you?"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert len(response.content.split()) < 90
+
+
+def test_future_tense_wave_is_retried_as_present_reciprocal_gesture():
+    bad = "I'll give you a warm, friendly wave and keep the momentum going."
+    good = "*I wave back with a quick grin.*"
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT\n"
+                "A fitting brief expression, if useful: flash a crooked grin"
+            ),
+        ),
+        _message(CognitiveRole.USER, "waves at you"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
