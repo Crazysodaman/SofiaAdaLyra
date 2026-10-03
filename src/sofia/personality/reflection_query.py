@@ -32,6 +32,26 @@ def _normalize(query: str) -> str:
     ).rstrip(" ?!.")
 
 
+def _conversational_reflection(content: str) -> str:
+    """Render a stored reflection naturally without inventing new thought content."""
+    text = " ".join(content.strip().split())
+    workspace = re.fullmatch(
+        r"Workspace comparison observed (\d+) added, (\d+) modified, and "
+        r"(\d+) removed paths\. Cause, authorship, and significance are not established\.",
+        text,
+        re.IGNORECASE,
+    )
+    if workspace is not None:
+        added, modified, removed = workspace.groups()
+        return (
+            "the recent workspace changes. I recorded "
+            f"{added} added, {modified} modified, and {removed} removed paths, "
+            "but I don't have grounded evidence yet for who caused them or how "
+            "significant they are"
+        )
+    return text.rstrip(".")
+
+
 class ReflectionQueryResolver:
     _QUERY_RE = re.compile(
         r"\b(?:"
@@ -83,14 +103,37 @@ class ReflectionQueryResolver:
                 reverse=True,
             )[:3]
         )
+        latest = recent[0]
+        latest_text = _conversational_reflection(latest.content)
+
+        # Ordinary "what are you thinking about?" is conversational. Report
+        # the newest actually recorded reflection without dumping audit rows or
+        # timestamps unless the user explicitly asked for records/history.
+        normalized = _normalize(query)
+        detail_requested = any(
+            token in normalized
+            for token in (
+                "list",
+                "records",
+                "recorded reflections",
+                "reflection history",
+                "timestamps",
+                "when did",
+            )
+        )
+        if not detail_requested:
+            return ReflectionQueryAnswer(
+                True,
+                f"Mostly {latest_text}.",
+            )
+
         if len(recent) == 1:
-            item = recent[0]
             return ReflectionQueryAnswer(
                 True,
                 (
-                    "My latest recorded reflection is: "
-                    f"{item.content} "
-                    f"(recorded {item.created_at.isoformat()})."
+                    "My latest recorded reflection is "
+                    f"{latest.content} "
+                    f"(recorded {latest.created_at.isoformat()})."
                 ),
             )
 
