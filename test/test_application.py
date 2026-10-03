@@ -398,3 +398,25 @@ def test_channel_open_requires_full_application_start(
             application.open_channel_conversation()
     finally:
         application.shutdown()
+
+
+
+def test_disabled_idle_reflection_does_not_expose_worker(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.delenv("SOFIA_IDLE_REFLECTIONS", raising=False)
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    application.start()
+    try:
+        assert application.background_coordinator is not None
+        assert application.idle_reflection_worker is None
+    finally:
+        application.shutdown()
