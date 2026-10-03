@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 from types import SimpleNamespace
 
 import pytest
@@ -6,9 +8,11 @@ import pytest
 from sofia.application.act_service import SofiaActService
 from sofia.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator,
+    create_fleet_reconciliation_notifier,
 )
 from sofia.config.model import FleetBootstrapConfiguration
 from sofia.ops import InstallAuthority
+from sofia.ops.reconciliation_journal import FleetReconciliationRecord
 
 
 def _act(tmp_path):
@@ -92,3 +96,54 @@ def test_background_bootstrap_rejects_reusable_operator_approval(tmp_path):
             configuration=configuration,
             act_service=_act(tmp_path),
         )
+
+
+def test_fleet_reconciliation_notice_is_durable_and_non_authoritative(
+    monkeypatch,
+    tmp_path,
+):
+    state = tmp_path / "state.db"
+    with sqlite3.connect(state):
+        pass
+    act = SofiaActService(state)
+    monkeypatch.setenv(
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+        "notify_sofia",
+    )
+    notifier = create_fleet_reconciliation_notifier(
+        act_service=act,
+    )
+    assert notifier is not None
+
+    now = datetime(2026, 10, 3, 16, 0, tzinfo=timezone.utc)
+    record = FleetReconciliationRecord(
+        proposal_key="fleet-repair:test",
+        drift_kind="workload_placement",
+        subject_id="plex",
+        expected="artemis",
+        observed="venus",
+        proposal_kind="workload_migration",
+        reason="review migration",
+        first_seen=now,
+        last_seen=now,
+        active=True,
+    )
+
+    notifier(record)
+    notifier(record)
+
+    with sqlite3.connect(state) as db:
+        rows = db.execute(
+            """
+            SELECT notice_id,evidence_id,content,status
+            FROM act_system_notice
+            """
+        ).fetchall()
+
+    assert len(rows) == 1
+    notice_id, evidence_id, content, status = rows[0]
+    assert notice_id == "fleet-reconcile:fleet-repair:test"
+    assert evidence_id == "fleet-repair:test"
+    assert "proposal only" in content
+    assert "no repair has been authorized or executed" in content
+    assert status == "queued"
