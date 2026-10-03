@@ -74,21 +74,24 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert "bootstrap-receipt.json" in script
     assert "Get-CimInstance Win32_Process" in script
     assert '$_ .CommandLine' not in script
-    assert 'sofia.distributed.agent_main' in script
-    assert 'agent_canary.py' in script
-    assert '$Owner.CommandLine.Contains($Runner)' in script
-    assert '$_.CommandLine.Contains($Root)' in script
-    assert '$StartedAgent.HasExited -and -not $RunnerProcesses' in script
-    assert '$AgentPid = [int]$Listener.OwningProcess' in script
-    assert 'creating_dispatcher' in script
-    assert 'creating_server' in script
-    assert 'status("listening")' in script
+    assert 'SofiaAdaLyraFleetAgent' in script
+    assert 'sofia.distributed.windows_agent_service_admin' in script
+    assert ' install --config $ConfigPath' in script
+    assert ' start 2>&1' in script
+    assert ' validate --config $ConfigPath' in script
+    assert 'Get-CimInstance Win32_Service' in script
+    assert '[int]$_.OwningProcess -eq $ServicePid' in script
+    assert '$AgentPid = [int]$AgentService.ProcessId' in script
+    assert 'service_name = $ServiceName' in script
+    assert 'service_state = [string]$AgentService.State' in script
+    assert 'pip install --disable-pip-version-check cryptography pywin32' in script
     assert "Stop-Process -Id $ManagedProcess.ProcessId" in script
-    assert "Stop-Process -Id $StartedAgent.Id" in script
     assert "foreach ($Attempt in 1..5)" in script
-    assert "function Read-TextSafe" in script
-    assert "$StartedAgent.Refresh()" in script
-    assert "foreach ($Attempt in 1..15)" in script
+    assert "foreach ($Attempt in 1..20)" in script
+    assert "Start-Process -FilePath $AgentPython" not in script
+    # Legacy canary text remains only in cleanup for upgrading older installs.
+    assert '$Runner = Join-Path $Root "agent_canary.py"' not in script
+    assert "$StartedAgent" not in script
     assert "Wait-Process -Id" not in script
     assert "icacls.exe" in script
     assert 'Remove-Item (Join-Path $Stage "certs\\artemis-server-key.pem")' in script
