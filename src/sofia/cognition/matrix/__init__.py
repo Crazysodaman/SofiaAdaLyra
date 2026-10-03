@@ -12,6 +12,7 @@ from .influence import (
     InfluenceSurface,
 )
 from .response import MatrixResponsePlanner, MatrixResponseValidator
+from .expression_plan import EmbodiedExpressionPlan, EmbodiedExpressionPlanner, recent_expression_ids
 from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
 from .context_plan import MatrixContextPlanner
@@ -69,6 +70,8 @@ __all__ = [
     "EvidenceRecord",
     "EvidenceRequirement",
     "EvidenceState",
+    "EmbodiedExpressionPlan",
+    "EmbodiedExpressionPlanner",
     "HistoryPolicy",
     "InfluenceDecision",
     "InfluenceMode",
@@ -102,5 +105,6 @@ __all__ = [
     "ResponseValidationDisposition",
     "TurnClassifier",
     "TurnEnvelope",
+    "recent_expression_ids",
     "TurnMatrix",
 ]
