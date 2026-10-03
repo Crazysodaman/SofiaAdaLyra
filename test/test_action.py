@@ -154,7 +154,8 @@ def test_authorized_operation_can_approve_proposal():
     operation = make_operation(can_execute_actions=True)
     proposal = make_proposal()
 
-    approved = action_system.approve(operation, proposal)
+    issued = action_system.propose(operation, proposal)
+    approved = action_system.approve(operation, issued)
 
     assert approved.id == proposal.id
     assert approved.status is ActionStatus.APPROVED
@@ -167,7 +168,8 @@ def test_approved_action_can_execute():
     operation = make_operation(can_execute_actions=True)
     proposal = make_proposal()
 
-    approved = action_system.approve(operation, proposal)
+    issued = action_system.propose(operation, proposal)
+    approved = action_system.approve(operation, issued)
     result = action_system.execute(operation, approved)
 
     assert result.proposal_id == proposal.id
@@ -193,7 +195,8 @@ def test_fail_closed_executor_never_reports_execution():
     operation = make_operation(can_execute_actions=True)
     proposal = make_proposal()
 
-    approved = action_system.approve(operation, proposal)
+    issued = action_system.propose(operation, proposal)
+    approved = action_system.approve(operation, issued)
 
     with pytest.raises(
         ActionExecutorError,
@@ -250,3 +253,89 @@ def test_self_improvement_proposal_passes_boundary():
 def test_action_system_requires_executor():
     with pytest.raises(TypeError):
         ActionSystem(executor=object())
+
+
+def test_approval_requires_proposal_issued_by_same_action_system():
+    system = ActionSystem(TestActionExecutor())
+    operation = make_operation(can_execute_actions=True)
+    proposal = make_proposal()
+
+    with pytest.raises(
+        ActionSystemError,
+        match="not issued by this ActionSystem",
+    ):
+        system.approve(operation, proposal)
+
+
+def test_forged_approved_status_cannot_execute():
+    system = ActionSystem(TestActionExecutor())
+    operation = make_operation(can_execute_actions=True)
+    proposal = make_proposal()
+    forged = ActionProposal(
+        action=proposal.action,
+        rationale=proposal.rationale,
+        expected_outcome=proposal.expected_outcome,
+        risk_explanation=proposal.risk_explanation,
+        id=proposal.id,
+        status=ActionStatus.APPROVED,
+    )
+
+    with pytest.raises(
+        ActionSystemError,
+        match="not issued by this ActionSystem",
+    ):
+        system.execute(operation, forged)
+
+
+def test_propose_rejects_preapproved_proposal():
+    system = ActionSystem(TestActionExecutor())
+    operation = make_operation()
+    proposal = make_proposal()
+    forged = ActionProposal(
+        action=proposal.action,
+        rationale=proposal.rationale,
+        expected_outcome=proposal.expected_outcome,
+        risk_explanation=proposal.risk_explanation,
+        id=proposal.id,
+        status=ActionStatus.APPROVED,
+    )
+
+    with pytest.raises(
+        ActionSystemError,
+        match="Only newly proposed",
+    ):
+        system.propose(operation, forged)
+
+
+def test_action_approval_is_single_use():
+    executor = TestActionExecutor()
+    system = ActionSystem(executor)
+    operation = make_operation(can_execute_actions=True)
+    proposal = system.propose(operation, make_proposal())
+    approved = system.approve(operation, proposal)
+
+    first = system.execute(operation, approved)
+
+    assert first.status is ActionStatus.EXECUTED
+    with pytest.raises(
+        ActionSystemError,
+        match="not issued by this ActionSystem",
+    ):
+        system.execute(operation, approved)
+    assert executor.executed == [approved]
+
+
+def test_action_parameter_names_must_be_nonempty_and_unique():
+    with pytest.raises(ValueError, match="non-empty"):
+        Action(
+            name="test.action",
+            description="A test action.",
+            parameters=(("", "value"),),
+        )
+
+    with pytest.raises(ValueError, match="unique"):
+        Action(
+            name="test.action",
+            description="A test action.",
+            parameters=(("value", "one"), ("value", "two")),
+        )
