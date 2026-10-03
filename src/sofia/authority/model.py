@@ -58,6 +58,11 @@ class Authority:
                     "Authority allowed_capabilities must not contain "
                     "empty capability names."
                 )
+            if capability != capability.strip():
+                raise ValueError(
+                    "Authority allowed_capabilities must contain canonical "
+                    "capability names without surrounding whitespace."
+                )
 
         if len(set(self.allowed_capabilities)) != len(
             self.allowed_capabilities
@@ -90,6 +95,12 @@ class Authority:
         if not normalized:
             raise ValueError(
                 "Authority capability_name must not be empty."
+            )
+
+        if capability_name != normalized:
+            raise ValueError(
+                "Authority capability_name must not contain surrounding "
+                "whitespace."
             )
 
         if normalized in self.allowed_capabilities:
