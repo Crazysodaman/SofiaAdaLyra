@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
 import sofia.application.act_runtime as act_runtime
-from sofia.act.delivery import DeliveryOutcome
+from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
 from sofia.application.act_service import SofiaActService
+from sofia.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
@@ -80,3 +81,88 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
             {"message": "Production wiring test."},
         ),
     ]
+
+
+
+def test_application_act_skips_blocked_message_and_delivers_later_eligible_one(
+    tmp_path,
+):
+    state_path = tmp_path / "state.db"
+    with sqlite3.connect(state_path) as db:
+        db.execute(
+            """
+            CREATE TABLE conversation_messages (
+                id TEXT PRIMARY KEY,
+                role TEXT NOT NULL
+            )
+            """
+        )
+        db.execute(
+            """
+            CREATE TABLE interact_queued_messages (
+                id TEXT PRIMARY KEY,
+                goal_id TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                status TEXT NOT NULL
+            )
+            """
+        )
+        for message_id, minute in (("blocked", 0), ("eligible", 1)):
+            db.execute(
+                "INSERT INTO interact_queued_messages VALUES (?,?,?,?,?,?)",
+                (
+                    message_id,
+                    "goal-1",
+                    f"evidence-{message_id}",
+                    f"message {message_id}",
+                    (NOW - timedelta(minutes=10 - minute)).isoformat(),
+                    "queued",
+                ),
+            )
+
+    outbox = ActOutbox(state_path)
+    outbox.bind(
+        message_id="blocked",
+        recipient_id="person:other",
+        channel="home_assistant",
+        destination="mobile_app_sparks",
+        expires_at=NOW + timedelta(hours=1),
+        at=NOW - timedelta(minutes=2),
+    )
+    outbox.bind(
+        message_id="eligible",
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="home_assistant",
+        destination="mobile_app_sparks",
+        expires_at=NOW + timedelta(hours=1),
+        at=NOW - timedelta(minutes=1),
+    )
+
+    sent = []
+    service = SofiaActService(state_path)
+    service.configure_delivery(
+        sender=lambda payload: (
+            sent.append(payload.message_id)
+            or SendResult(
+                DeliveryOutcome.DELIVERED,
+                receipt_id=f"receipt:{payload.message_id}",
+            )
+        ),
+        policy=Policy(
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            enabled=True,
+            min_interval=timedelta(0),
+            max_daily=10,
+            social_min_interval=timedelta(0),
+            social_max_daily=10,
+        ),
+        channel="home_assistant",
+        destination="mobile_app_sparks",
+    )
+
+    result = service.deliver_one(now=NOW)
+
+    assert result is not None
+    assert sent == ["eligible"]
