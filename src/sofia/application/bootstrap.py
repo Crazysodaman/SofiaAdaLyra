@@ -1099,6 +1099,9 @@ class SofiaApplication:
                 lifecycle_worker.start()
                 self._model_lifecycle_worker = lifecycle_worker
             return response
+        except KeyboardInterrupt:
+            self._rollback_failed_start()
+            raise
         except (
             SofiaApplicationError,
             SofiaRuntimeError,
