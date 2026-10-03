@@ -237,7 +237,8 @@ class AvatarSelfFactResolver:
         normalized: str,
     ) -> bool:
         return (
-            cls._CURRENT_OUTFIT_STATE_FOLLOWUP_RE.search(normalized)
+            not cls._is_current_outfit_query(normalized)
+            and cls._CURRENT_OUTFIT_STATE_FOLLOWUP_RE.search(normalized)
             is not None
         )
 
