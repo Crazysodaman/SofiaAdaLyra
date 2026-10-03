@@ -29,9 +29,10 @@ jobs:
       - name: Resolve production runtime dependencies
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install .
-          python -m pip freeze --exclude-editable |
+          python -m venv .lockvenv
+          .\.lockvenv\Scripts\python.exe -m pip install --upgrade pip
+          .\.lockvenv\Scripts\python.exe -m pip install .
+          .\.lockvenv\Scripts\python.exe -m pip freeze --exclude-editable |
             Where-Object { $_ -notmatch '^sofia-ada-lyra==' } |
             Sort-Object |
             Set-Content -Encoding utf8 requirements.lock.windows-py312.txt
