@@ -866,7 +866,7 @@ def run_settings_window() -> int:
                 else "No stored token"
             )
             status.set(
-                "Saved. Restart Sofía to apply runtime/integration changes."
+                "Saved. Environment changes apply on the next turn; other runtime/integration changes may still require a restart."
             )
         except Exception as exc:
             messagebox.showerror(
