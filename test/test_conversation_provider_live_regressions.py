@@ -10,6 +10,8 @@ from sofia.config.defaults import create_default_configuration
 
 def _application(monkeypatch, tmp_path, responses):
     monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", "0")
+    monkeypatch.setenv("SOFIA_COGNITION_MODEL_AUTO_MANAGE", "0")
+    monkeypatch.setenv("SOFIA_COGNITION_MODEL_AUTO_INSTALL", "0")
     captured = []
     remaining = iter(responses)
 
@@ -95,8 +97,7 @@ def test_weather_today_is_answered_by_environment_resolver_without_llm(
             "I don't have current weather evidence."
         )
         assert (
-            "No configured or current location evidence is available "
-            "for a weather provider."
+            "No configured weather provider produced evidence for the effective location."
             in response.content
         )
         assert captured == []
@@ -110,7 +111,7 @@ def test_live_casual_network_status_does_not_invent_telemetry(
     application, captured = _application(monkeypatch, tmp_path, ())
     try:
         reply = application.conversation.respond("So hows the network")
-        assert "don't have a fresh, verified network-health measurement" in (
+        assert "don't have the required current measurement evidence" in (
             reply.content
         )
         assert captured == []
