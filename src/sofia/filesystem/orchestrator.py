@@ -13,9 +13,10 @@ class FilesystemOrchestrator:
     Translate supported natural-language filesystem requests into
     bounded filesystem capability operations.
 
-    The orchestrator does not perform filesystem operations directly.
-    It coordinates authorization and delegates actual inspection to
-    SofiaRuntime's filesystem capability.
+    The orchestrator does not grant authorization and does not perform
+    filesystem operations directly. Authorization is established only at
+    an authenticated application boundary; this parser delegates bounded
+    inspection requests to SofiaRuntime's filesystem capability.
     """
 
     _READ_PATTERN = re.compile(
