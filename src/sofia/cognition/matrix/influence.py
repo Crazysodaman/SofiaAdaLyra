@@ -246,6 +246,7 @@ class ContextualInfluenceMatrix:
         policy = _POLICY[surface]
         decisions = tuple(
             self._decision(
+                surface=surface,
                 signal=signal,
                 requested=policy[signal],
                 influence=influence,
@@ -260,6 +261,7 @@ class ContextualInfluenceMatrix:
     def _decision(
         self,
         *,
+        surface: InfluenceSurface,
         signal: InfluenceSignal,
         requested: InfluenceMode,
         influence: ContinuityInfluence,
@@ -272,21 +274,49 @@ class ContextualInfluenceMatrix:
             )
 
         if signal is InfluenceSignal.EMOTION:
+            expression_surface = surface in {
+                InfluenceSurface.CONVERSATION_EXPRESSION,
+                InfluenceSurface.INTERACTION_EXPRESSION,
+                InfluenceSurface.VOICE_EXPRESSION,
+            }
+            emotion = (
+                influence.foreground_emotion
+                if expression_surface
+                else influence.primary_emotion
+            )
+            intensity = (
+                influence.foreground_intensity
+                if expression_surface
+                else influence.primary_intensity
+            )
+            evidence_refs = (
+                influence.foreground_emotion_evidence_refs
+                if expression_surface
+                else influence.primary_emotion_evidence_refs
+            )
             if (
-                influence.primary_emotion is None
-                or influence.primary_intensity <= 0.0
-                or not influence.primary_emotion_evidence_refs
+                emotion is None
+                or intensity <= 0.0
+                or not evidence_refs
             ):
                 return InfluenceDecision(
                     signal,
                     InfluenceMode.NONE,
-                    "no evidence-linked modeled emotion is available",
+                    (
+                        "no evidence-linked foreground emotion is available"
+                        if expression_surface
+                        else "no evidence-linked modeled emotion is available"
+                    ),
                 )
             return InfluenceDecision(
                 signal,
                 requested,
-                "evidence-linked modeled emotion is available as bounded context",
-                influence.primary_emotion_evidence_refs,
+                (
+                    "evidence-linked foreground emotion is available for expression"
+                    if expression_surface
+                    else "evidence-linked modeled emotion is available as bounded context"
+                ),
+                evidence_refs,
                 "modeled-current",
             )
 
