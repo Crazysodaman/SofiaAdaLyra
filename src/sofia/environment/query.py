@@ -46,6 +46,10 @@ def _fahrenheit(celsius: float) -> float:
     return (celsius * 9.0 / 5.0) + 32.0
 
 
+def _mph(kph: float) -> float:
+    return kph * 0.621371192237334
+
+
 def _forecast_timezone(snapshot: EnvironmentSnapshot):
     timezone_name = snapshot.timezone
     if (
@@ -124,6 +128,7 @@ class EnvironmentQueryResolver:
             "hows the weather",
             "how is the weather",
             "weather",
+            "current weather",
         }
     )
     _LOCATION_FORMS = frozenset(
@@ -639,6 +644,10 @@ class EnvironmentQueryResolver:
             if weather.humidity_percent is not None:
                 parts.append(
                     f"humidity {weather.humidity_percent:.0f}%"
+                )
+            if weather.wind_kph is not None:
+                parts.append(
+                    f"wind {_mph(weather.wind_kph):.1f} mph"
                 )
             location = (
                 f" for {weather.location_label}"
