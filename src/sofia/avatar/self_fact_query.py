@@ -120,6 +120,7 @@ class AvatarSelfFactResolver:
         return (
             self._is_current_outfit_query(normalized)
             or self._is_current_outfit_state_followup(normalized)
+            or self._is_presentation_reason_query(normalized)
             or self._is_undergarment_query(normalized)
             or normalized in self._CURRENT_LOOK_FORMS
         )
@@ -127,6 +128,12 @@ class AvatarSelfFactResolver:
     _DAYPART_OUTFIT_REASON = re.compile(
         r"^why\b.*\b(?:night\s*wear|nightwear|lounge\s*wear|loungewear|"
         r"lounge\s+outfit|wear)\b.*\b(?:night|late|am|pm|morning|evening)\b",
+        re.IGNORECASE,
+    )
+    _PRESENTATION_REASON_RE = re.compile(
+        r"^why\s+(?:(?:did\s+you\s+(?:pick|choose))|"
+        r"(?:are\s+you\s+wearing))\s+(?:that|it)$"
+        r"|^why\s+(?:that|this)\s+(?:one|outfit|choice)$",
         re.IGNORECASE,
     )
 
@@ -216,6 +223,10 @@ class AvatarSelfFactResolver:
         "what would your lounge outfit be tonight",
         "what lounge outfit would you wear tonight",
     })
+
+    @classmethod
+    def _is_presentation_reason_query(cls, normalized: str) -> bool:
+        return cls._PRESENTATION_REASON_RE.fullmatch(normalized) is not None
 
     @classmethod
     def _is_current_outfit_query(cls, normalized: str) -> bool:
@@ -332,6 +343,79 @@ class AvatarSelfFactResolver:
         normalized = _normalize(query)
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
+
+        if self._is_presentation_reason_query(normalized):
+            reason = presentation.reason.casefold()
+            if presentation.attire is AttireMode.NUDE:
+                if reason.startswith("user_clothing_action:"):
+                    return AvatarSelfFactAnswer(
+                        True,
+                        (
+                            "I didn't independently pick an outfit there. My current "
+                            "private AVATAR presentation has no clothing because an "
+                            "explicit clothing action committed the undressed state."
+                        ),
+                    )
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        "My current private AVATAR presentation has no clothing, but "
+                        "the stored presentation reason does not support a separate "
+                        "preference explanation. I won't invent one."
+                    ),
+                )
+
+            if reason.startswith("user_clothing_action:"):
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        f"I didn't independently select my {outfit} as an automatic "
+                        "wardrobe choice. It was committed from an explicit clothing "
+                        "action in the conversation."
+                    ),
+                )
+            if reason.startswith("headless_daily_context:"):
+                details = reason.split(":", 1)[1].split(",")
+                why = []
+                if "late_lounge" in details:
+                    why.append("the trusted local clock is in the late-lounge window")
+                if "season_and_activity" in details:
+                    why.append("it matches the grounded season and current activity")
+                if "modeled_emotion_influence" in details:
+                    why.append("modeled emotion gave it a bounded style preference")
+                if "ordinary_rotation" in details:
+                    why.append("it was the reviewed daily rotation candidate")
+                if "daytime_default" in details:
+                    why.append("it is the reviewed daytime default")
+                if why:
+                    return AvatarSelfFactAnswer(
+                        True,
+                        f"I picked my {outfit} because " + ", and ".join(why) + ".",
+                    )
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        f"My {outfit} came from the headless daily wardrobe planner's "
+                        "trusted contextual selection. I don't have a more specific "
+                        "grounded reason to add."
+                    ),
+                )
+            if reason == "canonical_daily_bootstrap":
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        f"My {outfit} is the canonical daily default that bootstraps "
+                        "the presentation state when no later grounded choice replaces it."
+                    ),
+                )
+            return AvatarSelfFactAnswer(
+                True,
+                (
+                    f"My current presentation is my {outfit}, but the persisted "
+                    "presentation record does not support a more specific human-readable "
+                    "reason. I won't make one up."
+                ),
+            )
 
         if self._is_current_outfit_state_followup(normalized):
             if presentation.attire is AttireMode.NUDE:
