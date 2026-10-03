@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import argparse
 import os
 import shlex
@@ -14,18 +14,27 @@ SERVICE_NAME = "sofia-fleet-agent.service"
 
 @dataclass(frozen=True, slots=True)
 class SystemdFleetAgentSpec:
-    python_path: Path
-    config_path: Path
-    state_directory: Path
+    python_path: PurePosixPath
+    config_path: PurePosixPath
+    state_directory: PurePosixPath
     service_user: str = "sofia-fleet"
 
     def __post_init__(self) -> None:
-        if not isinstance(self.python_path, Path) or not self.python_path.is_absolute():
-            raise ValueError("python_path must be an absolute Path")
-        if not isinstance(self.config_path, Path) or not self.config_path.is_absolute():
-            raise ValueError("config_path must be an absolute Path")
-        if not isinstance(self.state_directory, Path) or not self.state_directory.is_absolute():
-            raise ValueError("state_directory must be an absolute Path")
+        if (
+            not isinstance(self.python_path, PurePosixPath)
+            or not self.python_path.is_absolute()
+        ):
+            raise ValueError("python_path must be an absolute POSIX path")
+        if (
+            not isinstance(self.config_path, PurePosixPath)
+            or not self.config_path.is_absolute()
+        ):
+            raise ValueError("config_path must be an absolute POSIX path")
+        if (
+            not isinstance(self.state_directory, PurePosixPath)
+            or not self.state_directory.is_absolute()
+        ):
+            raise ValueError("state_directory must be an absolute POSIX path")
         if (
             not isinstance(self.service_user, str)
             or not self.service_user.strip()
@@ -34,7 +43,7 @@ class SystemdFleetAgentSpec:
             raise ValueError("service_user must be a nonempty account name")
 
 
-def _systemd_escape_arg(value: Path) -> str:
+def _systemd_escape_arg(value: PurePosixPath) -> str:
     # systemd ExecStart uses its own quoting rules; shlex.quote safely preserves
     # whitespace and metacharacters for the simple argv we emit.
     return shlex.quote(str(value))
@@ -105,11 +114,14 @@ def install_unit(
         raise RuntimeError("systemd Fleet service is unavailable on Windows")
     if os.geteuid() != 0:
         raise PermissionError("systemd service installation requires root")
-    if not spec.python_path.is_file():
+    python_path = Path(str(spec.python_path))
+    config_path = Path(str(spec.config_path))
+    state_directory = Path(str(spec.state_directory))
+    if not python_path.is_file():
         raise FileNotFoundError("Fleet agent Python executable does not exist")
-    if not spec.config_path.is_file():
+    if not config_path.is_file():
         raise FileNotFoundError("Fleet agent config does not exist")
-    spec.state_directory.mkdir(parents=True, exist_ok=True)
+    state_directory.mkdir(parents=True, exist_ok=True)
 
     unit_path.write_text(render_unit(spec), encoding="utf-8")
     _run(["systemctl", "daemon-reload"])
@@ -172,9 +184,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "install":
             install_unit(
                 SystemdFleetAgentSpec(
-                    python_path=Path(args.python).resolve(),
-                    config_path=Path(args.config).resolve(),
-                    state_directory=Path(args.state_dir).resolve(),
+                    python_path=PurePosixPath(args.python),
+                    config_path=PurePosixPath(args.config),
+                    state_directory=PurePosixPath(args.state_dir),
                     service_user=args.user,
                 ),
                 enable_now=not args.no_start,
