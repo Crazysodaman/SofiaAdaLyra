@@ -127,7 +127,7 @@ def test_current_weather_includes_source_and_observation_time():
     prompt = environment_prompt(snapshot)
     assert "Weather freshness: current." in prompt
     assert "Current weather condition: clear." in prompt
-    assert "Outdoor temperature: 77.0 F." in prompt
+    assert "Outdoor temperature: 77 F." in prompt
     assert "Outdoor temperature: 25.0 C." not in prompt
     assert "Weather source: test.weather" in prompt
 
@@ -176,3 +176,29 @@ def test_prompt_projects_host_location_without_coordinates():
     assert "33.6" not in prompt
     assert "-96.2" not in prompt
 
+
+
+def test_weather_prompt_uses_whole_user_facing_units():
+    weather = WeatherObservation(
+        condition="light rain",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:KGKY",
+        location_label="Homelab",
+        temperature_c=22.0,
+        feels_like_c=22.7,
+        humidity_percent=94.1,
+        wind_kph=12.9,
+    )
+    snapshot = EnvironmentService(
+        configuration(),
+        providers=(Provider(weather),),
+    ).snapshot(now=NOW)
+
+    prompt = environment_prompt(snapshot)
+
+    assert "Outdoor temperature: 72 F." in prompt
+    assert "Feels-like temperature: 73 F." in prompt
+    assert "Humidity: 94%." in prompt
+    assert "Wind: 8 mph." in prompt
+    assert "km/h" not in prompt
