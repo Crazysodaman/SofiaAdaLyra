@@ -23,13 +23,22 @@ class FilesystemAuthorizationEvaluator:
     that the console has independently authenticated its operator.
     """
 
-    _AUTHORIZATION_PHRASES = (
+    _ALLOW_PHRASES = (
         "you are allowed to check your own files",
         "you are allowed to inspect your own files",
         "you may check your own files",
         "you may inspect your own files",
         "you have permission to check your own files",
         "you have permission to inspect your own files",
+    )
+
+    _REVOKE_PHRASES = (
+        "you are not allowed to check your own files",
+        "you are not allowed to inspect your own files",
+        "you may no longer check your own files",
+        "you may no longer inspect your own files",
+        "revoke permission to check your own files",
+        "revoke permission to inspect your own files",
     )
 
     _TRUSTED_LOCAL_AUDIENCES = {
