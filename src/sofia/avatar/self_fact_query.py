@@ -146,6 +146,10 @@ class AvatarSelfFactResolver:
     _CURRENT_OUTFIT_FORMS = frozenset({
         "what outfit are you wearing right now",
         "what outfit are you wearing",
+        "what is your outfit",
+        "what's your outfit",
+        "whats your outfit",
+        "which is your outfit",
         "what outfit do you have on",
         "what are you wearing right now",
         "what are you wearing",
