@@ -17,6 +17,7 @@ from .model import HostLifecycle,WorkloadContract
 from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
 from .reconcile import MaintenanceReceiptStore
+from .repair_plan import FleetRepairPlanner
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from sofia.state.plane import StatePlane
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -41,6 +42,7 @@ class OpsToolService:
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
         self.maintenance_receipts=MaintenanceReceiptStore(state_path)
+        self.repair_planner=FleetRepairPlanner()
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -118,6 +120,28 @@ class OpsToolService:
         )
         return tuple(asdict(x) for x in detect_drift(self.registry,instances,desired_hosts,desired_workloads))
 
+    def drift_with_proposals(self,p:dict[str,Any])->dict[str,Any]:
+        drifts=self.drift(p)
+        typed=tuple(
+            __import__("sofia.ops.desired",fromlist=["Drift"]).Drift(
+                item["kind"],item["subject_id"],item["expected"],item["observed"]
+            )
+            for item in drifts
+        )
+        proposals=self.repair_planner.propose_all(typed)
+        return {
+            "drift":drifts,
+            "proposals":tuple({
+                "kind":proposal.kind.value,
+                "subject_id":proposal.drift.subject_id,
+                "reason":proposal.reason,
+                "workload_id":proposal.workload_id,
+                "source_host_id":proposal.source_host_id,
+                "target_host_id":proposal.target_host_id,
+                "authorized":proposal.authorized,
+            } for proposal in proposals),
+        }
+
     def maintenance_receipt(self,request_id:str)->dict[str,Any]|None:
         receipt=self.maintenance_receipts.get(request_id)
         if receipt is None:
@@ -156,7 +180,7 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -165,6 +189,7 @@ class OpsCapabilitySet:
             "ops.telemetry.latest":"Read the latest durable telemetry for one fleet host. Read-only.",
             "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet and activity evidence. Read-only.",
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
+            "ops.drift.propose":"Compare desired state and return conservative non-authoritative repair proposals. Read-only.",
             "ops.migration.plan":"Construct a migration plan without executing it. Read-only planning.",
             "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
         }
@@ -176,6 +201,7 @@ class OpsCapabilitySet:
         if name=="ops.telemetry.latest": return self.service.telemetry_latest(p["host_id"])
         if name=="ops.placement.choose": return self.service.choose_placement(p["workload"])
         if name=="ops.drift.detect": return self.service.drift(p)
+        if name=="ops.drift.propose": return self.service.drift_with_proposals(p)
         if name=="ops.migration.plan": return self.service.migration_plan(p)
         if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
         raise ValueError("unsupported OPS capability")
@@ -197,6 +223,10 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
         b("choose_workload_placement","ops.placement.choose","Evaluate workload placement against current fleet and foreground-activity evidence. Does not move anything.",
           {"workload":workload},("workload",)),
         b("detect_fleet_drift","ops.drift.detect","Compare supplied desired host/workload state with durable fleet evidence. Read-only.",
+          {"desired_hosts":{"type":"array","items":{"type":"object"}},
+           "desired_workloads":{"type":"array","items":{"type":"object"}},
+           "instances":{"type":"array","items":{"type":"object"}}}),
+        b("propose_fleet_repairs","ops.drift.propose","Compare Fleet drift and return conservative repair proposals without authority or execution.",
           {"desired_hosts":{"type":"array","items":{"type":"object"}},
            "desired_workloads":{"type":"array","items":{"type":"object"}},
            "instances":{"type":"array","items":{"type":"object"}}}),
