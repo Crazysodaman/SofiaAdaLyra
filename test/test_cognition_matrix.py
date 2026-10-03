@@ -1423,3 +1423,13 @@ def test_inspect_memory_usage_means_host_telemetry_not_personal_memory():
     assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
     assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
     assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.NONE
+
+
+
+def test_explicit_recall_about_ram_still_keeps_memory_domain():
+    env = envelope("Do you remember what I said about RAM last time?")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.REQUIRED
