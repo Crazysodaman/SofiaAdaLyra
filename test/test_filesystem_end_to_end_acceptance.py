@@ -245,7 +245,9 @@ def test_authorization_enables_actual_own_files_inspection(
     )
 
     application.conversation.respond(
-        "check your files"
+        "check your files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert len(captured_filesystem_results) == 2
@@ -305,7 +307,9 @@ def test_authorized_file_read_returns_real_repository_content(
     )
 
     application.conversation.respond(
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/filesystem/model.py",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     results = captured_filesystem_results[1]
@@ -360,7 +364,9 @@ def test_authorization_does_not_expand_filesystem_scope(
     )
 
     application.conversation.respond(
-        "read ../outside-secret.txt"
+        "read ../outside-secret.txt",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     results = captured_filesystem_results[1]
@@ -414,7 +420,9 @@ def test_filesystem_evidence_reaches_cognitive_request(
     )
 
     application.conversation.respond(
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/filesystem/model.py",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert len(captured_requests) == 2
@@ -659,11 +667,15 @@ def test_untrusted_channel_cannot_revoke_live_filesystem_authorization(
         )
         assert application.runtime.filesystem_authorization is not None
 
-        application.conversation.respond(
-            "you are not allowed to inspect your own files",
-            principal=local_sparks_principal("remote-chat:test"),
-            channel="remote",
-        )
+        with pytest.raises(
+            PermissionError,
+            match="already bound",
+        ):
+            application.conversation.respond(
+                "you are not allowed to inspect your own files",
+                principal=local_sparks_principal("remote-chat:test"),
+                channel="remote",
+            )
 
         assert application.runtime.filesystem_authorization is not None
         assert application.runtime.filesystem_inspector.authorized is True
