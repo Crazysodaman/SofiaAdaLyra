@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
@@ -346,11 +347,10 @@ class EmotionalConversationService(ConversationService):
                 subject=subject, message_id=user.id, occurred_at=user.created_at,
             )
         context_plan = getattr(self, "_current_context_plan", None)
-        if (
-            context_plan is not None
-            and not context_plan.allows(MatrixDomain.EMOTION)
-        ):
-            return request
+        emotion_allowed = (
+            context_plan is None
+            or context_plan.allows(MatrixDomain.EMOTION)
+        )
 
         now = datetime.now(timezone.utc)
         scope = self.relationship_scope
@@ -384,6 +384,20 @@ class EmotionalConversationService(ConversationService):
             emotion=current_state,
             environment=environment,
         )
+        if not emotion_allowed:
+            influence = replace(
+                influence,
+                primary_emotion_evidence_refs=(),
+                emotional_tone="neutral",
+                primary_emotion=None,
+                primary_intensity=0.0,
+                active_emotions=(),
+            )
+        self._current_contextual_influence = influence
+
+        if not emotion_allowed:
+            return request
+
         projections = [
             self.emotional_journal.current_state_prompt(
                 now=now,
