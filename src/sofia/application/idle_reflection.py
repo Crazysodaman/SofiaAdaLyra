@@ -27,18 +27,15 @@ class IdleReflectionWorker:
 
     def __init__(
         self, *, service: EmotionalConversationService, state_path: Path,
-        poll_seconds: float = 90.0, idle_seconds: float = 45.0,
-        retry_seconds: float = 600.0,
+        idle_seconds: float = 45.0, retry_seconds: float = 600.0,
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("A Path to the existing application state is required.")
-        for label, value in (("poll", poll_seconds), ("idle", idle_seconds),
-                             ("retry", retry_seconds)):
+        for label, value in (("idle", idle_seconds), ("retry", retry_seconds)):
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 < value <= 3600:
                 raise ValueError(f"{label} seconds must be in (0, 3600].")
         self._service = service
         self._path = state_path
-        self._poll_seconds = float(poll_seconds)
         self._idle_seconds = float(idle_seconds)
         self._retry_seconds = float(retry_seconds)
         self.last_error: str | None = None
