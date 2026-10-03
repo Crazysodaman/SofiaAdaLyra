@@ -408,3 +408,12 @@ def test_outfit_contradiction_followup_reports_current_clothed_state():
         result.content
     )
     assert "signature engineer outfit" in result.content
+
+
+def test_combined_mind_and_outfit_question_still_recognizes_outfit_fact():
+    result = answer(
+        "Just wondering what's on your mind and what are you wearing"
+    )
+
+    assert result.recognized
+    assert "signature engineer outfit" in result.content
