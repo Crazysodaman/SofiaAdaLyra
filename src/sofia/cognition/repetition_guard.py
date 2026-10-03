@@ -33,6 +33,11 @@ _STANDALONE_SOCIAL_CHECKIN = re.compile(
     r"^\s*(?:hru|how\s+(?:are|r)\s+(?:you|u)|how(?:'|’)re\s+you)\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_SHORT_SOCIAL_CUE = re.compile(
+    r"^\s*(?:hey|hi|hello|yo)(?:\s+(?:sof[ií]a|nerd))?\s*[?!.]*\s*$|"
+    r"^\s*(?:\*?\s*)?(?:waves?|wave)(?:\s+at\s+(?:you|u))?(?:\s*\*?)?\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
 _WARDROBE_CHECKIN_TANGENT = re.compile(
     r"\b(?:panties|underwear|trousers|gusseted|boots|"
     r"bra|lingerie|outfit|wardrobe|clothing|crotch)\b",
@@ -415,6 +420,14 @@ def response_quality_issue(
     content = response.content
     if len(_normalized(content)) >= 20 and _INCOMPLETE_TAIL.search(content.strip()):
         return "incomplete_generation"
+    concise_turn = (
+        _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip()) is not None
+        or _SHORT_SOCIAL_CUE.fullmatch(user.strip()) is not None
+        or _PERCEIVED_SELF_STATE_USER.search(user) is not None
+        or _ENVIRONMENT_EFFECT_USER.search(user) is not None
+    )
+    if concise_turn and len(_normalized(content).split()) > 90:
+        return "overlong_simple_social_turn"
     if _EMOTION_SELF_REPORT.search(user):
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
@@ -618,6 +631,23 @@ def grounded_quality_fallback(
             "instead of persisting a fragment."
         ))
 
+    if issue == "overlong_simple_social_turn":
+        if _ENVIRONMENT_EFFECT_USER.search(user):
+            return CognitiveResponse(content=(
+                "It can color how I express myself, but it doesn't create a new "
+                "feeling or literal body sensation by itself."
+            ))
+        if _PERCEIVED_SELF_STATE_USER.search(user):
+            return CognitiveResponse(content=(
+                "You may be hearing me as quieter. I'll stick to the current grounded "
+                "state instead of inventing a whole backstory for it."
+            ))
+        if re.search(r"\bwave", user, re.IGNORECASE):
+            return CognitiveResponse(content="*I wave back with a quick grin.*")
+        if _SHORT_SOCIAL_CUE.fullmatch(user.strip()):
+            return CognitiveResponse(content="Hey. *A quick crooked grin.*")
+        return CognitiveResponse(content="Pretty steady right now.")
+
     if issue == "emotion_physical_sensation":
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         if labels:
@@ -665,6 +695,13 @@ def grounded_quality_fallback(
         detail = (
             "Your draft ended mid-sentence or on an unfinished clause. Rewrite the full "
             "answer from the same grounded context and finish the thought cleanly."
+        )
+    elif issue == "overlong_simple_social_turn":
+        detail = (
+            "The user gave a short social, mood, or weather-affect turn, but your draft "
+            "became a monologue. Rewrite it in one or two compact sentences. Preserve "
+            "grounding and personality, but do not pad with repeated mood metaphors, "
+            "service offers, or multiple restatements of the same point."
         )
     elif issue == "emotion_physical_sensation":
         detail = (
