@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 
@@ -556,3 +557,53 @@ def test_all_channel_conversations_share_foreground_activity_state(
         ) is True
     finally:
         application.shutdown()
+
+
+
+def test_shutdown_waits_for_inflight_foreground_work(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    application.start()
+
+    entered = Event()
+    release = Event()
+    shutdown_done = Event()
+    shutdown_error = []
+
+    def hold_foreground_lock():
+        with application._model_lock:
+            entered.set()
+            release.wait(timeout=5)
+
+    def shut_down():
+        try:
+            application.shutdown()
+        except Exception as exc:
+            shutdown_error.append(exc)
+        finally:
+            shutdown_done.set()
+
+    holder = Thread(target=hold_foreground_lock)
+    holder.start()
+    assert entered.wait(timeout=2)
+
+    stopper = Thread(target=shut_down)
+    stopper.start()
+    assert shutdown_done.wait(timeout=0.1) is False
+
+    release.set()
+    holder.join(timeout=5)
+    stopper.join(timeout=5)
+
+    assert not holder.is_alive()
+    assert not stopper.is_alive()
+    assert shutdown_error == []
+    assert shutdown_done.is_set()
+    assert application.runtime.state is RuntimeState.STOPPED
