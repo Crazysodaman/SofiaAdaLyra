@@ -108,3 +108,49 @@ def test_ops_tool_reads_verified_maintenance_receipt(tmp_path):
     assert projected["execution_ref"] == "remote:maint-read-1"
     assert projected["verification_ref"] == "verify:maint-read-1"
     assert projected["observed"] == "service running after restart"
+
+
+def test_ops_drift_proposal_is_read_only_and_non_authoritative(tmp_path):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+
+    service = OpsToolService(state)
+    for host in (_host("venus", 5), _host("artemis", 30)):
+        service.registry.register_candidate(host)
+        service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
+        service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
+
+    result = service.drift_with_proposals(
+        {
+            "desired_hosts": [],
+            "desired_workloads": [
+                {
+                    "workload_id": "plex",
+                    "host_id": "artemis",
+                }
+            ],
+            "instances": [
+                {
+                    "instance_id": "plex-1",
+                    "workload_id": "plex",
+                    "version": "1",
+                    "host_id": "venus",
+                    "phase": "ready",
+                }
+            ],
+        }
+    )
+
+    assert result["drift"] == (
+        {
+            "kind": "workload_placement",
+            "subject_id": "plex",
+            "expected": "artemis",
+            "observed": "venus",
+        },
+    )
+    assert result["proposals"][0]["kind"] == "workload_migration"
+    assert result["proposals"][0]["source_host_id"] == "venus"
+    assert result["proposals"][0]["target_host_id"] == "artemis"
+    assert result["proposals"][0]["authorized"] is False
