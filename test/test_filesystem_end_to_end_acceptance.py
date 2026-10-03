@@ -577,3 +577,41 @@ def test_remote_channel_cannot_grant_filesystem_authorization(
         assert application.runtime.filesystem_inspector.authorized is False
     finally:
         application.shutdown()
+
+
+
+def test_desktop_text_without_authenticated_principal_cannot_authorize(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    try:
+        application.conversation.respond(
+            "you are allowed to check your own files",
+            channel="desktop",
+        )
+
+        assert application.runtime.filesystem_authorization is None
+        assert application.runtime.filesystem_inspector.authorized is False
+    finally:
+        application.shutdown()
+
+
+def test_ambiguous_conversation_channel_cannot_authorize(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    try:
+        application.conversation.respond(
+            "you are allowed to check your own files",
+            principal=local_sparks_principal(),
+            channel="conversation",
+        )
+
+        assert application.runtime.filesystem_authorization is None
+        assert application.runtime.filesystem_inspector.authorized is False
+    finally:
+        application.shutdown()
