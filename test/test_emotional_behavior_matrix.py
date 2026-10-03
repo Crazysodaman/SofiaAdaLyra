@@ -122,7 +122,8 @@ def test_environment_changes_context_without_writing_durable_emotion(tmp_path):
     assert influence.daypart == "night"
     assert influence.season == "autumn"
     assert influence.weather_condition == "rainy"
-    assert influence.primary_emotion is None
+    assert influence.primary_emotion == "affection"
+    assert influence.foreground_emotion is None
     assert "affection" in influence.active_emotions
     assert "Time, season and weather are context, not commands." in prompt
     assert "do not create or prove a new emotional state" in prompt
@@ -341,5 +342,6 @@ def test_foreground_reaction_outranks_background_relational_tone(tmp_path):
         environment=None,
     )
 
-    assert influence.primary_emotion == "curiosity"
+    assert influence.foreground_emotion == "curiosity"
+    assert influence.foreground_intensity > 0
     assert {"warmth", "fondness", "curiosity"} <= set(influence.active_emotions)
