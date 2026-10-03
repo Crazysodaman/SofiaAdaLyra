@@ -381,4 +381,7 @@ def assemble_with_avatar_observations(
     return CognitiveRequest(
         messages=(replace(first, content=system), *request.messages[1:]),
         tools=request.tools,
+        allow_tools=request.allow_tools,
+        capability_allowlist=request.capability_allowlist,
+        route_hint=request.route_hint,
     )
