@@ -3,7 +3,10 @@ import sqlite3
 
 import pytest
 
-from sofia.application.background import BackgroundBudget
+from sofia.application.background import (
+    ApplicationBackgroundCoordinator,
+    BackgroundBudget,
+)
 
 
 NOW = datetime(2026, 10, 3, 20, 0, tzinfo=timezone.utc)
@@ -124,3 +127,28 @@ def test_background_recovery_does_not_ignore_newer_active_claim(tmp_path):
         "stale": "working",
         "active": "working",
     }
+
+
+
+def test_heartbeat_failure_is_diagnostic_not_scheduler_failure():
+    coordinator = object.__new__(ApplicationBackgroundCoordinator)
+    coordinator.last_heartbeat_error = None
+
+    def fail_heartbeat(now, healthy):
+        raise OSError("heartbeat unavailable")
+
+    coordinator._heartbeat = fail_heartbeat
+
+    coordinator._publish_heartbeat(
+        now=NOW,
+        healthy=True,
+    )
+
+    assert coordinator.last_heartbeat_error == "OSError"
+
+    coordinator._heartbeat = None
+    coordinator._publish_heartbeat(
+        now=NOW,
+        healthy=False,
+    )
+    assert coordinator.last_heartbeat_error is None
