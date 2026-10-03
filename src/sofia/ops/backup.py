@@ -30,7 +30,10 @@ from sofia.identity.store import IdentityStore
 from sofia.ops.recovery import BackupEvidence, RestoreVerification
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.state.sqlite_plane import SQLiteStatePlane
-from sofia.constitution.store import ConstitutionStore
+from sofia.constitution.store import (
+    ConstitutionStore,
+    canonical_constitution_text,
+)
 
 
 class BackupError(RuntimeError):
@@ -46,9 +49,19 @@ class BackupEntry:
     nonce_b64: str
 
     def __post_init__(self) -> None:
-        if not self.logical_path or Path(self.logical_path).is_absolute():
-            raise ValueError("logical_path must be nonempty and relative")
-        if not self.payload_name or "/" in self.payload_name or "\\" in self.payload_name:
+        logical = Path(self.logical_path)
+        if (
+            not self.logical_path
+            or logical.is_absolute()
+            or ".." in logical.parts
+        ):
+            raise ValueError("logical_path must be a safe relative path")
+        payload = Path(self.payload_name)
+        if (
+            not self.payload_name
+            or payload.name != self.payload_name
+            or self.payload_name in {".", ".."}
+        ):
             raise ValueError("payload_name must be a simple file name")
         if len(self.sha256) != 64:
             raise ValueError("sha256 must be a lowercase SHA-256 digest")
@@ -361,7 +374,16 @@ class BackupEngine:
             constitution = protected_root / "constitution.md"
             identity = protected_root / "identity.json"
             if constitution.is_file():
-                ConstitutionStore(constitution).load()
+                loaded_constitution = ConstitutionStore(constitution).load()
+                constitution_hash = protected_root / "constitution.sha256"
+                if constitution_hash.is_file():
+                    expected_hash = constitution_hash.read_text(
+                        encoding="utf-8"
+                    ).strip()
+                    if expected_hash != loaded_constitution.content_hash:
+                        raise BackupError(
+                            "restored Constitution hash does not match protected digest"
+                        )
             if identity.is_file():
                 IdentityStore(
                     identity,
