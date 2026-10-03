@@ -123,21 +123,21 @@ Legend:
 
 | Decision surface | Emotion | Weather | Time/daypart | Season | Current code state |
 |---|---:|---:|---:|---:|---|
-| General conversation tone/attention | ✅ | ✅ | ✅ | ✅ | `EmotionalConversationService` injects `ContinuityInfluence.prompt()` |
+| General conversation tone/attention | ✅ | ✅ | ✅ | ✅ | `EmotionalConversationService` projects only matrix-allowed, evidence-backed influence |
 | Automatic outfit selection | ✅ | ✅ | ✅ | ✅ | `WardrobeContext` + `OutfitPlanner` |
-| User-requested outfit accept/decline/counter | ❌ | ❌ | ❌ | ❌ | `WardrobeAutonomyPolicy.decide()` does not receive contextual influence |
+| User-requested outfit accept/decline/counter | ✅ bounded | ✅ strong/current | ✅ bounded | ✅ compatibility | `WardrobeAutonomyPolicy` receives trusted contextual influence and may accept/decline/counter-propose |
 | Avatar style/expression/posture proposal | ✅ | ✅ | ✅ | ✅ | `propose_avatar_influence()` |
-| Production application of avatar expression proposal | 🟡 | 🟡 | 🟡 | 🟡 | proposal logic exists; production bootstrap clearly wires wardrobe influence, not a full renderer/expression commit path |
-| Desktop adaptive theme | ✅ | ✅ | ✅ | ❌ | `ThemeSignals` has time/daylight/weather/emotion but no season |
-| Reflection content / share now-later-none | ✅ | ❌ | ✅ | ✅ | `ThoughtAgent` serializes emotion/daypart/season/daylight but omits weather |
-| Reflection/outreach salience | ✅ | ✅ | ✅ | 🚫 direct | `outreach_salience()`; season currently unused, appropriately |
+| Production application of avatar expression proposal | 🟡 | 🟡 | 🟡 | 🟡 | proposal logic exists; a full renderer/expression commit path remains embodiment work |
+| Desktop adaptive theme | ✅ | ✅ | ✅ | ✅ | `ThemeSignals` includes season as a bounded visual cue |
+| Reflection content / share now-later-none | ✅ | ✅ current | ✅ | ✅ | reflection planning receives evidence-backed weather/daypart/season/emotion |
+| Reflection/outreach salience | ✅ | ✅ | ✅ | 🚫 direct | `outreach_salience()`; season remains intentionally non-direct |
 | Quiet-hour delivery | 🚫 | 🚫 | ✅ | 🚫 | ACT policy uses trusted local timezone/clock |
-| Interaction willingness / offer choice | ✅ bounded | 🚫 direct | 🚫 direct | 🚫 direct | trusted emotional/context projections reach model; no explicit influence whitelist |
-| Interaction expression style | ✅ | 🟡 subtle | ✅ subtle | ✅ subtle | general continuity prompt can affect expression, but this is not separately bounded by decision surface |
+| Interaction willingness / offer choice | ✅ bounded | 🚫 direct | 🚫 direct | 🚫 direct | explicit `INTERACTION_WILLINGNESS` signal whitelist |
+| Interaction expression style | ✅ bounded | ✅ expression-only | ✅ expression-only | ✅ expression-only | explicit `INTERACTION_EXPRESSION` whitelist |
 | HABIT observation context | 🚫 emotion | ✅ | ✅ | ✅ | conversation observations record daypart/season/daylight/current weather |
-| HABIT learned conversation routine | 🚫 | ❌ | ✅ | ❌ | current analyzer keeps only `daypart` + `day_type` |
-| Memory retrieval/ranking | ❌ | ❌ | ❌ | ❌ | retrieval is query/token/reviewed-memory driven only |
-| Social/interaction goal selection | ❌ | ❌ | ❌ | ❌ | `GoalJournal.next_goal()` uses fixed priority + age only |
+| HABIT learned conversation routine | 🚫 | ✅ bounded evidence | ✅ | ✅ bounded evidence | seasonal/environment correlations are learned only with sufficient evidence/coverage |
+| Memory retrieval/ranking | ✅ weak | ✅ weak/current | ✅ weak | ✅ weak | hard promoted/principal/audience/query eligibility first, then bounded contextual tie-breaking |
+| Social/interaction goal selection | 🟡 policy | 🚫 direct | 🟡 policy | 🚫 direct | influence surface exists; production goal-priority wiring remains behavior work |
 | Cognitive LLM route | 🚫 | 🚫 | 🚫 | 🚫 | should remain task/route based |
 | Fleet workload placement | 🚫 | 🚫 | 🚫 | 🚫 | should remain resources/trust/activity based |
 | SAFE / authority | 🚫 | 🚫 | 🚫 | 🚫 | must remain invariant |
@@ -191,34 +191,11 @@ This is the correct design pattern for the new influence matrix.
 
 ---
 
-# 5. User-requested wardrobe autonomy — major gap
+# 5. User-requested wardrobe autonomy — implemented
 
-`ClothingActionService` correctly routes a requested wardrobe transition through `WardrobeAutonomyPolicy`.
+`ClothingActionService` routes a requested wardrobe transition through `WardrobeAutonomyPolicy`, and the policy now receives trusted contextual influence rather than treating user wording as authority.
 
-However the current policy receives only:
-
-```text
-intent
-candidate_item_ids
-private_only
-```
-
-It does not receive:
-
-- ContinuityInfluence;
-- current weather;
-- daypart;
-- season;
-- modeled emotion;
-- activity.
-
-Therefore:
-
-> Automatic outfit choice is context-aware, while user-requested outfit autonomy is not.
-
-This should be unified.
-
-Recommended flow:
+The implemented flow preserves the originally recommended architecture:
 
 ```text
 user wardrobe suggestion
@@ -427,28 +404,21 @@ rendered animation
 
 ---
 
-# 11. UI adaptive theme — missing season
+# 11. UI adaptive theme — season implemented
 
-The desktop adaptive theme currently consumes:
+The desktop adaptive theme consumes:
 
 - local time;
 - daylight;
 - current weather;
+- season;
 - outfit;
 - appearance colors;
 - modeled emotion.
 
 It refreshes through the live desktop controller/worker.
 
-`ThemeSignals` does not contain season.
-
-Recommended addition:
-
-```text
-season: EnvironmentSeason | None
-```
-
-Season should be a **low-strength visual cue**, below:
+Season remains a **low-strength visual cue**, below:
 
 - accessibility;
 - current emotion;
@@ -515,15 +485,19 @@ Emotion can influence Sofía's response to a learned habit, but should not deter
 
 ---
 
-# 13. Memory relevance — stated intent, missing implementation
+# 13. Memory relevance — bounded reranking implemented
 
-`ContinuityInfluence.prompt()` says context may shape “what memories feel relevant.”
+`ContinuityInfluence.prompt()` says context may shape “what memories feel relevant,” and reviewed retrieval now implements that as a deliberately weak reranking stage.
 
-Actual `MemorySystem.recall_relevant()` does not use emotion/weather/time/season.
+The implementation keeps hard eligibility first:
 
-Reviewed retrieval is primarily token-overlap based after principal/audience/status filtering.
+- candidate must be PROMOTED;
+- principal/audience scope must match;
+- explicit query tokens must already make the memory relevant.
 
-Recommended future behavior:
+Only then may matrix-authorized, provenanced emotion/weather/daypart/season context break ties among already-eligible memories.
+
+Implemented behavior:
 
 ```text
 hard eligibility
@@ -547,7 +521,7 @@ The contextual reranker must **never**:
 - retrieve an otherwise irrelevant memory solely because of emotion;
 - rewrite memory truth.
 
-This may require adding contextual metadata to memory provenance before implementation.
+The implementation does not widen eligibility or rewrite memory metadata. Context is consumed only as a bounded tie-breaker, and unprovenanced or Context-Matrix-excluded signals have no reranking effect.
 
 ---
 
@@ -830,40 +804,32 @@ No current emotion may become evidence that the user's routine exists.
 
 ---
 
-# 20. Implementation order
+# 20. Implementation outcome
 
-After the current red verification gate:
+The original implementation order has been executed for the matrix block:
 
-1. Add typed `ContextualInfluenceMatrix` contracts and policy table.
-2. Gate `ContinuityInfluence.prompt()` through the matrix/context plan.
-3. Feed the influence result into `WardrobeAutonomyPolicy`.
-4. Add counter-proposal support to wardrobe autonomy.
-5. Add current weather to reflection decision payload.
-6. Add season to `ThemeSignals` / adaptive theme.
-7. Extend HABIT with seasonal/environment-correlation analysis.
-8. Add explicit interaction willingness vs expression influence separation.
-9. Add bounded memory contextual reranking only after metadata support exists.
-10. Add social-goal contextual priority only after the above is stable.
-11. Add invariant tests proving SAFE/authority/VERIFY/Fleet are unaffected.
+1. ✅ Typed `ContextualInfluenceMatrix` contracts and policy table.
+2. ✅ Context-plan gating for continuity influence.
+3. ✅ Contextual influence in `WardrobeAutonomyPolicy`.
+4. ✅ Wardrobe accept/decline/counter-proposal support.
+5. ✅ Current weather in reflection decision context.
+6. ✅ Season in `ThemeSignals` / adaptive theme.
+7. ✅ HABIT seasonal/environment-correlation analysis.
+8. ✅ Separate interaction willingness vs expression influence surfaces.
+9. ✅ Bounded contextual memory reranking after hard retrieval eligibility.
+10. 🟡 Social-goal contextual priority remains later behavior work, not a matrix-core blocker.
+11. ✅ Invariant tests proving SAFE/authority/VERIFY/Fleet are unaffected.
+
+The dedicated Matrix Tests closure gate passed **405 tests** on commit `130aa735`.
 
 ---
 
 # 21. Final audit conclusion
 
-Yes, **emotion + weather + time/daypart + season should be matrixed together**.
+Yes, **emotion + weather + time/daypart + season are matrixed together**.
 
-The current code already contains most of the raw trusted inputs and several good isolated implementations. The missing piece is an explicit cross-cutting contract that decides **where those inputs are allowed to matter**.
+The cross-cutting contract is now implemented and defines **where those inputs are allowed to matter**, with provenance/freshness requirements and explicit no-influence surfaces for authority, SAFE, release verification, Fleet authority/fencing, and BODY safety.
 
-The strongest current implementation is automatic wardrobe selection.
+The seven implementation gaps identified by the original audit are closed. The remaining work in adjacent systems is downstream behavior or embodiment work, such as optional social-goal prioritization and full renderer/live voice integration, rather than missing Contextual Influence Matrix foundations.
 
-The largest current gaps are:
-
-1. user-requested wardrobe autonomy has no contextual input;
-2. general continuity influence can bypass matrix context exclusion;
-3. reflection omits weather from its decision payload;
-4. UI theme omits season;
-5. HABIT records season/weather but does not learn those correlations;
-6. memory retrieval does not implement the contextual salience behavior promised by the continuity prompt;
-7. interaction willingness lacks an explicit influence whitelist separating emotion from ambient environmental context.
-
-The correct target is **context-sensitive personality without context-sensitive truth or authority**.
+The target remains **context-sensitive personality without context-sensitive truth or authority**.
