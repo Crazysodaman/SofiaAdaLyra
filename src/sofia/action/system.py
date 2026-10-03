@@ -1,4 +1,6 @@
-﻿from sofia.action.executor import (
+﻿from uuid import UUID
+
+from sofia.action.executor import (
     ActionExecutor,
     ActionExecutorError,
 )
@@ -35,11 +37,12 @@ class ActionSystem:
             )
 
         self._executor = executor
-        # An APPROVED enum value is not itself proof that this system approved
-        # the proposal. Keep a process-local issuance registry so callers
-        # cannot manufacture approval by constructing an ActionProposal with
-        # status=APPROVED. Production remains fail-closed across restarts.
-        self._approved: dict[object, ActionProposal] = {}
+        # Status values are not authority proofs. Keep process-local issuance
+        # registries so callers cannot manufacture PROPOSED/APPROVED lifecycle
+        # state merely by constructing an ActionProposal with that enum value.
+        # Production therefore fails closed across restarts.
+        self._proposed: dict[UUID, ActionProposal] = {}
+        self._approved: dict[UUID, ActionProposal] = {}
 
     @property
     def executor(self) -> ActionExecutor:
@@ -68,6 +71,16 @@ class ActionSystem:
                 "Only newly proposed actions may enter the proposal boundary."
             )
 
+        if proposal.id in self._approved:
+            raise ActionSystemError(
+                "An already approved action cannot be proposed again."
+            )
+        existing = self._proposed.get(proposal.id)
+        if existing is not None and existing != proposal:
+            raise ActionSystemError(
+                "Action proposal ID was reused for different content."
+            )
+        self._proposed[proposal.id] = proposal
         return proposal
 
     def approve(
@@ -93,6 +106,12 @@ class ActionSystem:
                 "Only proposed actions may be approved."
             )
 
+        issued = self._proposed.get(proposal.id)
+        if issued != proposal:
+            raise ActionSystemError(
+                "Proposal was not issued by this ActionSystem."
+            )
+
         approved = ActionProposal(
             action=proposal.action,
             rationale=proposal.rationale,
@@ -101,6 +120,7 @@ class ActionSystem:
             id=proposal.id,
             status=ActionStatus.APPROVED,
         )
+        self._proposed.pop(proposal.id, None)
         self._approved[approved.id] = approved
         return approved
 
