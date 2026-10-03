@@ -8,23 +8,21 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
-import logging
 from pathlib import Path
 import sqlite3
-from threading import Event, Thread
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sofia.application.emotional_conversation import EmotionalConversationService
 
-_LOG = logging.getLogger(__name__)
 
 
 class IdleReflectionWorker:
-    """One worker per application; durable attempts avoid repeated model calls.
+    """Coordinator-driven reflection unit with durable attempt bookkeeping.
 
-    A check interval is not a message quota. The outbox is unsent until a
-    separate, authorized delivery adapter is installed.
+    Scheduling belongs exclusively to ApplicationBackgroundCoordinator so every
+    background action shares one single-flight budget. This class performs one
+    bounded unit through run_once(); it owns no independent scheduler thread.
     """
 
     def __init__(
@@ -43,8 +41,6 @@ class IdleReflectionWorker:
         self._poll_seconds = float(poll_seconds)
         self._idle_seconds = float(idle_seconds)
         self._retry_seconds = float(retry_seconds)
-        self._stop_event = Event()
-        self._thread: Thread | None = None
         self.last_error: str | None = None
         with closing(self._connect()) as db, db:
             db.execute("""
@@ -158,28 +154,3 @@ class IdleReflectionWorker:
             return event.event_id
         return None
 
-    def _loop(self) -> None:
-        # Give the user time to start talking before any initial model call.
-        while not self._stop_event.wait(self._poll_seconds):
-            try:
-                self.run_once()
-            except Exception:
-                _LOG.exception("Idle reflection failed; recorded for a later retry")
-
-    def start(self) -> None:
-        if self._thread is not None:
-            raise RuntimeError("Idle reflection worker already started.")
-        self._stop_event.clear()
-        thread = Thread(target=self._loop, name="sofia-idle-reflection", daemon=True)
-        thread.start()
-        self._thread = thread
-
-    def stop(self, *, timeout_seconds: float = 180.0) -> None:
-        self._stop_event.set()
-        thread = self._thread
-        if thread is None:
-            return
-        thread.join(timeout=timeout_seconds)
-        if thread.is_alive():
-            raise RuntimeError("Idle reflection has not stopped; runtime shutdown is unsafe.")
-        self._thread = None
