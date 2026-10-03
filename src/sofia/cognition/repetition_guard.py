@@ -116,7 +116,9 @@ _EMOTION_STATE_LANGUAGE = re.compile(
 _EMOTION_IMPLEMENTATION_LEAK = re.compile(
     r"\b(?:decay\s+threshold|active\s+(?:modeled\s+)?emotions?\s+above\s+"
     r"(?:the\s+)?current\s+threshold|current\s+decay\s+threshold|"
-    r"modeled\s+emotional\s+state)\b",
+    r"modeled\s+emotional\s+state|foreground\s+(?:modeled\s+)?emotions?|"
+    r"background\s+relational\s+tone|foreground\s+drama|"
+    r"bond\s+coloring\s+the\s+background)\b",
     re.IGNORECASE,
 )
 _EMOTION_TEMPORAL_OVERCLAIM = re.compile(
@@ -198,6 +200,27 @@ _EXPRESSION_STYLE_META_LEAK = re.compile(
     r"i(?:'|’)ve\s+been\s+thinking\s+about\s+how\s+we\s+can\s+"
     r"keep\s+(?:this|the)\s+conversation\s+flowing)\b",
     re.IGNORECASE | re.DOTALL,
+)
+
+_SOCIAL_PERSONA_FICTION = re.compile(
+    r"\b(?:digital\s+void|waiting\s+for\s+my\s+return)\b",
+    re.IGNORECASE,
+)
+_FALSE_HOST_ACCESS_DENIAL = re.compile(
+    r"\b(?:i\s+(?:cannot|can't|can(?:not|'t))\s+(?:inspect|access)|"
+    r"i\s+do\s+not\s+have\s+direct\s+access|"
+    r"i\s+don't\s+have\s+direct\s+access|"
+    r"unable\s+to\s+(?:inspect|access))\b.{0,140}"
+    r"\b(?:computer|hardware|operating\s+system|host|network|"
+    r"storage|fleet|machine|system)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_OPERATIONAL_EVIDENCE_OVERREACH = re.compile(
+    r"\b(?:no\s+rogue\s+(?:agents?|processes?)|no\s+hidden\s+(?:daemons?|processes?)|"
+    r"system\s+appears\s+healthy|nothing\s+is\s+actively\s+consuming\s+cpu|"
+    r"(?:these|those)\s+processes\s+aren(?:'|’)t\s+the\s+bottleneck|"
+    r"(?:they(?:'|’)re|they\s+are)\s+not\s+the\s+problem)\b",
+    re.IGNORECASE,
 )
 
 _UNGROUNDED_ONGOING_ACTIVITY = re.compile(
@@ -464,6 +487,23 @@ def response_quality_issue(
         message.content for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
+    tool_context = "\n".join(
+        message.content for message in request.messages
+        if message.role is CognitiveRole.TOOL
+    )
+    host_tool_success = (
+        "Result: success" in tool_context
+        and "Capability:" in tool_context
+    )
+    if (
+        _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
+        and _SOCIAL_PERSONA_FICTION.search(content)
+    ):
+        return "social_persona_fiction"
+    if host_tool_success and _FALSE_HOST_ACCESS_DENIAL.search(content):
+        return "host_tool_evidence_denial"
+    if host_tool_success and _OPERATIONAL_EVIDENCE_OVERREACH.search(content):
+        return "operational_evidence_overreach"
     if (
         _EMOTION_SELF_REPORT.search(user)
         and _UNGROUNDED_ONGOING_ACTIVITY.search(content)
