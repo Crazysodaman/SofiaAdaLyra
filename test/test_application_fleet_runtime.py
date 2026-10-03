@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from uuid import uuid4
 from pathlib import Path
 import sqlite3
 from types import SimpleNamespace
@@ -7,11 +8,13 @@ import pytest
 
 from sofia.application.act_service import SofiaActService
 from sofia.application.fleet_runtime import (
+    configure_fleet_enrollment_notices,
     create_fleet_bootstrap_coordinator,
     create_fleet_reconciliation_notifier,
 )
 from sofia.config.model import FleetBootstrapConfiguration
 from sofia.ops import InstallAuthority
+from sofia.ops.capability import OpsToolService
 from sofia.ops.reconciliation_journal import FleetReconciliationRecord
 
 
@@ -147,3 +150,62 @@ def test_fleet_reconciliation_notice_is_durable_and_non_authoritative(
     assert "proposal only" in content
     assert "no repair has been authorized or executed" in content
     assert status == "queued"
+
+
+
+def test_fleet_enrollment_notice_failures_never_break_enrollment_callback(
+    monkeypatch,
+    tmp_path,
+):
+    state = tmp_path / "state.db"
+    ops = OpsToolService(state)
+    act = SofiaActService(state)
+    monkeypatch.setenv(
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+        "notify_sofia",
+    )
+    assert configure_fleet_enrollment_notices(
+        ops_service=ops,
+        act_service=act,
+    ) is True
+    notifier = ops.enrollment.enrolled_notifier
+    assert notifier is not None
+
+    def fail_notice(**kwargs):
+        raise RuntimeError("notification unavailable")
+
+    def fail_audit(*args, **kwargs):
+        raise OSError("state-plane audit unavailable")
+
+    monkeypatch.setattr(
+        act,
+        "queue_system_notice",
+        fail_notice,
+    )
+    monkeypatch.setattr(
+        ops.registry.state_plane,
+        "write",
+        fail_audit,
+    )
+
+    node_id = uuid4()
+    observed = datetime(2026, 10, 3, 16, 0, tzinfo=timezone.utc)
+    host = SimpleNamespace(
+        host_id="artemis",
+        platform="windows",
+        architecture="amd64",
+        tags=(),
+    )
+    enrollment = SimpleNamespace(
+        node=SimpleNamespace(
+            node_id=node_id,
+            name="Artemis",
+        )
+    )
+    peer = SimpleNamespace(
+        observed_at=observed,
+        public_key_sha256="a" * 64,
+        verifier="test-verifier",
+    )
+
+    notifier(host, None, enrollment, peer)
