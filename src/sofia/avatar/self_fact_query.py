@@ -219,7 +219,17 @@ class AvatarSelfFactResolver:
 
     @classmethod
     def _is_current_outfit_query(cls, normalized: str) -> bool:
-        return normalized in cls._CURRENT_OUTFIT_FORMS
+        if normalized in cls._CURRENT_OUTFIT_FORMS:
+            return True
+        return (
+            re.search(
+                r"\b(?:what\s+are\s+you|what\s+are\s+u|what\s+r\s+u)"
+                r"\s+wearing\b",
+                normalized,
+                re.IGNORECASE,
+            )
+            is not None
+        )
 
     @classmethod
     def _is_current_outfit_state_followup(
