@@ -133,12 +133,27 @@ class SystemNoticeQueue:
             raise TypeError("category must be OutreachCategory")
         if not isinstance(importance, Importance):
             raise TypeError("importance must be Importance")
+        if not isinstance(salience, (int, float)) or isinstance(salience, bool):
+            raise TypeError("salience must be numeric")
         if not 0.0 <= salience <= 1.0:
             raise ValueError("salience must be in [0,1]")
         created = self._time(created_at)
         expires = self._time(expires_at)
         if expires <= created:
             raise ValueError("notice must expire after creation")
+
+        # Build the same Candidate that delivery will later evaluate so invalid
+        # ACT identifiers fail at enqueue time instead of poisoning the queue.
+        Candidate(
+            candidate_id=notice_id,
+            recipient_id=recipient_id,
+            evidence_ids=(evidence_id,),
+            created_at=created,
+            expires_at=expires,
+            category=category,
+            importance=importance,
+            salience=float(salience),
+        )
 
         desired = (
             notice_id,
@@ -153,21 +168,24 @@ class SystemNoticeQueue:
             importance.value,
             float(salience),
         )
+        durable_status = "queued"
         with closing(self._connect()) as db:
             with db:
                 db.execute("BEGIN IMMEDIATE")
                 old = db.execute(
                     """
                     SELECT notice_id,recipient_id,channel,destination,evidence_id,
-                           content,created_at,expires_at,category,importance,salience
+                           content,created_at,expires_at,category,importance,salience,
+                           status
                     FROM act_system_notice
                     WHERE notice_id=?
                     """,
                     (notice_id,),
                 ).fetchone()
                 if old is not None:
-                    if tuple(old) != desired:
+                    if tuple(old[:-1]) != desired:
                         raise ValueError("notice_id reused for different evidence")
+                    durable_status = str(old["status"])
                 else:
                     db.execute(
                         """
@@ -181,9 +199,18 @@ class SystemNoticeQueue:
                         desired,
                     )
         return SystemNotice(
-            notice_id, recipient_id, channel, destination, evidence_id,
-            content.strip(), created, expires, "queued",
-            category, importance, salience,
+            notice_id,
+            recipient_id,
+            channel,
+            destination,
+            evidence_id,
+            content.strip(),
+            created,
+            expires,
+            durable_status,
+            category,
+            importance,
+            float(salience),
         )
 
     def _history(
@@ -267,6 +294,66 @@ class SystemNoticeQueue:
             operational_delivered_today=today_count(operational_times),
         )
 
+    def _finish_delivery(
+        self,
+        *,
+        payload: DeliveryPayload,
+        result: SendResult,
+        at: datetime,
+        max_attempts: int,
+    ) -> None:
+        status = {
+            DeliveryOutcome.DELIVERED: "delivered",
+            DeliveryOutcome.FAILED: "failed",
+            DeliveryOutcome.OUTCOME_UNKNOWN: "outcome_unknown",
+        }[result.outcome]
+
+        with closing(self._connect()) as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    """
+                    SELECT status,attempt_count
+                    FROM act_system_notice
+                    WHERE notice_id=?
+                    """,
+                    (payload.message_id,),
+                ).fetchone()
+                if row is None:
+                    raise RuntimeError("claimed system notice disappeared")
+                if row["status"] != "outcome_unknown":
+                    raise RuntimeError(
+                        "system notice is no longer in its claimed state"
+                    )
+
+                if status == "failed":
+                    final_status = (
+                        "failed"
+                        if int(row["attempt_count"]) >= max_attempts
+                        else "queued"
+                    )
+                else:
+                    final_status = status
+
+                changed = db.execute(
+                    """
+                    UPDATE act_system_notice
+                    SET status=?,receipt_id=?,error_type=?,finished_at=?
+                    WHERE notice_id=? AND status='outcome_unknown'
+                    """,
+                    (
+                        final_status,
+                        result.receipt_id,
+                        result.error_type,
+                        at.isoformat(),
+                        payload.message_id,
+                    ),
+                )
+                if changed.rowcount != 1:
+                    raise RuntimeError(
+                        "system notice delivery claim was lost"
+                    )
+
     def deliver_one(
         self,
         *,
@@ -280,117 +367,121 @@ class SystemNoticeQueue:
             raise TypeError("sender must be callable")
         if not isinstance(policy, Policy):
             raise TypeError("policy must be a Policy")
+        if not isinstance(busy, bool):
+            raise TypeError("busy must be boolean")
         if type(max_attempts) is not int or not 1 <= max_attempts <= 10:
             raise ValueError("max_attempts must be in 1..10")
         moment = self._time(now)
 
+        payload = None
         with closing(self._connect()) as db:
             with db:
                 db.execute("BEGIN IMMEDIATE")
-                row = db.execute(
+                rows = db.execute(
                     """
                     SELECT *
                     FROM act_system_notice
                     WHERE status='queued'
                       AND attempt_count < ?
                     ORDER BY created_at,notice_id
-                    LIMIT 1
                     """,
                     (max_attempts,),
-                ).fetchone()
-                if row is None:
-                    return None
-                created = datetime.fromisoformat(row["created_at"]).astimezone(timezone.utc)
-                expires = datetime.fromisoformat(row["expires_at"]).astimezone(timezone.utc)
-                if moment >= expires:
-                    db.execute(
+                ).fetchall()
+                for row in rows:
+                    created = datetime.fromisoformat(
+                        row["created_at"]
+                    ).astimezone(timezone.utc)
+                    expires = datetime.fromisoformat(
+                        row["expires_at"]
+                    ).astimezone(timezone.utc)
+                    if moment >= expires:
+                        db.execute(
+                            """
+                            UPDATE act_system_notice
+                            SET status='failed',error_type='Expired',finished_at=?
+                            WHERE notice_id=? AND status='queued'
+                            """,
+                            (moment.isoformat(), row["notice_id"]),
+                        )
+                        continue
+
+                    candidate = Candidate(
+                        candidate_id=row["notice_id"],
+                        recipient_id=row["recipient_id"],
+                        evidence_ids=(row["evidence_id"],),
+                        created_at=created,
+                        expires_at=expires,
+                        category=OutreachCategory(row["category"]),
+                        importance=Importance(row["importance"]),
+                        salience=float(row["salience"]),
+                    )
+                    history = self._history(
+                        db,
+                        recipient_id=row["recipient_id"],
+                        channel=row["channel"],
+                        destination=row["destination"],
+                        now=moment,
+                    )
+                    decision = evaluate(
+                        candidate,
+                        policy,
+                        history,
+                        moment,
+                        busy=busy,
+                    )
+                    if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                        continue
+
+                    attempt_id = str(uuid4())
+                    changed = db.execute(
                         """
                         UPDATE act_system_notice
-                        SET status='failed',error_type='Expired',finished_at=?
+                        SET attempt_count=attempt_count+1,
+                            status='outcome_unknown',
+                            receipt_id=NULL,
+                            error_type='DeliveryInProgress',
+                            finished_at=NULL
                         WHERE notice_id=? AND status='queued'
                         """,
-                        (moment.isoformat(), row["notice_id"]),
+                        (row["notice_id"],),
                     )
-                    return None
-                candidate = Candidate(
-                    candidate_id=row["notice_id"],
-                    recipient_id=row["recipient_id"],
-                    evidence_ids=(row["evidence_id"],),
-                    created_at=created,
-                    expires_at=expires,
-                    category=OutreachCategory(row["category"]),
-                    importance=Importance(row["importance"]),
-                    salience=float(row["salience"]),
-                )
-                history = self._history(
-                    db,
-                    recipient_id=row["recipient_id"],
-                    channel=row["channel"],
-                    destination=row["destination"],
-                    now=moment,
-                )
-                decision = evaluate(candidate, policy, history, moment, busy=busy)
-                if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
-                    return None
-                db.execute(
-                    """
-                    UPDATE act_system_notice
-                    SET attempt_count=attempt_count+1
-                    WHERE notice_id=? AND status='queued'
-                    """,
-                    (row["notice_id"],),
-                )
-                payload = DeliveryPayload(
-                    attempt_id=str(uuid4()),
-                    message_id=row["notice_id"],
-                    recipient_id=row["recipient_id"],
-                    channel=row["channel"],
-                    destination=row["destination"],
-                    evidence_id=row["evidence_id"],
-                    content=row["content"],
-                )
+                    if changed.rowcount != 1:
+                        continue
+
+                    payload = DeliveryPayload(
+                        attempt_id=attempt_id,
+                        message_id=row["notice_id"],
+                        recipient_id=row["recipient_id"],
+                        channel=row["channel"],
+                        destination=row["destination"],
+                        evidence_id=row["evidence_id"],
+                        content=row["content"],
+                    )
+                    break
+
+        if payload is None:
+            return None
 
         try:
             result = sender(payload)
+            if not isinstance(result, SendResult):
+                raise TypeError("ACT sender must return SendResult")
         except Exception as exc:
-            result = SendResult(
-                DeliveryOutcome.FAILED,
-                error_type=type(exc).__name__,
+            self._finish_delivery(
+                payload=payload,
+                result=SendResult(
+                    DeliveryOutcome.OUTCOME_UNKNOWN,
+                    error_type=type(exc).__name__,
+                ),
+                at=moment,
+                max_attempts=max_attempts,
             )
-        if not isinstance(result, SendResult):
-            raise TypeError("ACT sender must return SendResult")
+            raise
 
-        status = {
-            DeliveryOutcome.DELIVERED: "delivered",
-            DeliveryOutcome.FAILED: "failed",
-            DeliveryOutcome.OUTCOME_UNKNOWN: "outcome_unknown",
-        }[result.outcome]
-        with closing(self._connect()) as db:
-            with db:
-                if status == "failed":
-                    attempts = db.execute(
-                        "SELECT attempt_count FROM act_system_notice WHERE notice_id=?",
-                        (payload.message_id,),
-                    ).fetchone()
-                    final_status = (
-                        "failed"
-                        if attempts is not None and int(attempts[0]) >= max_attempts
-                        else "queued"
-                    )
-                else:
-                    final_status = status
-                db.execute(
-                    """
-                    UPDATE act_system_notice
-                    SET status=?,receipt_id=?,error_type=?,finished_at=?
-                    WHERE notice_id=?
-                    """,
-                    (
-                        final_status,
-                        result.receipt_id,
-                        result.error_type,
-                        moment.isoformat(),
-                        payload.message_id,
-                    ),
-                )
+        self._finish_delivery(
+            payload=payload,
+            result=result,
+            at=moment,
+            max_attempts=max_attempts,
+        )
         return result
