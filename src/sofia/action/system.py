@@ -1,4 +1,5 @@
-﻿from uuid import UUID
+﻿from threading import RLock
+from uuid import UUID
 
 from sofia.action.executor import (
     ActionExecutor,
@@ -36,6 +37,7 @@ class ActionSystem:
             )
 
         self._executor = executor
+        self._lock = RLock()
         # Status values are not authority proofs. Keep process-local issuance
         # registries so callers cannot manufacture PROPOSED/APPROVED lifecycle
         # state merely by constructing an ActionProposal with that enum value.
@@ -71,20 +73,21 @@ class ActionSystem:
                 "Only newly proposed actions may enter the proposal boundary."
             )
 
-        if proposal.id in self._resolved:
-            raise ActionSystemError(
-                "A resolved action proposal ID cannot be reused."
-            )
-        if proposal.id in self._approved:
-            raise ActionSystemError(
-                "An already approved action cannot be proposed again."
-            )
-        existing = self._proposed.get(proposal.id)
-        if existing is not None and existing != proposal:
-            raise ActionSystemError(
-                "Action proposal ID was reused for different content."
-            )
-        self._proposed[proposal.id] = proposal
+        with self._lock:
+            if proposal.id in self._resolved:
+                raise ActionSystemError(
+                    "A resolved action proposal ID cannot be reused."
+                )
+            if proposal.id in self._approved:
+                raise ActionSystemError(
+                    "An already approved action cannot be proposed again."
+                )
+            existing = self._proposed.get(proposal.id)
+            if existing is not None and existing != proposal:
+                raise ActionSystemError(
+                    "Action proposal ID was reused for different content."
+                )
+            self._proposed[proposal.id] = proposal
         return proposal
 
     def approve(
@@ -110,23 +113,24 @@ class ActionSystem:
                 "Only proposed actions may be approved."
             )
 
-        issued = self._proposed.get(proposal.id)
-        if issued != proposal:
-            raise ActionSystemError(
-                "Proposal was not issued by this ActionSystem."
-            )
+        with self._lock:
+            issued = self._proposed.get(proposal.id)
+            if issued != proposal:
+                raise ActionSystemError(
+                    "Proposal was not issued by this ActionSystem."
+                )
 
-        approved = ActionProposal(
-            action=proposal.action,
-            rationale=proposal.rationale,
-            expected_outcome=proposal.expected_outcome,
-            risk_explanation=proposal.risk_explanation,
-            id=proposal.id,
-            status=ActionStatus.APPROVED,
-        )
-        self._proposed.pop(proposal.id, None)
-        self._approved[approved.id] = approved
-        return approved
+            approved = ActionProposal(
+                action=proposal.action,
+                rationale=proposal.rationale,
+                expected_outcome=proposal.expected_outcome,
+                risk_explanation=proposal.risk_explanation,
+                id=proposal.id,
+                status=ActionStatus.APPROVED,
+            )
+            self._proposed.pop(proposal.id, None)
+            self._approved[approved.id] = approved
+            return approved
 
     def execute(
         self,
@@ -151,17 +155,18 @@ class ActionSystem:
                 "Only approved actions may be executed."
             )
 
-        issued = self._approved.get(proposal.id)
-        if issued != proposal:
-            raise ActionSystemError(
-                "Approved proposal was not issued by this ActionSystem."
-            )
+        with self._lock:
+            issued = self._approved.get(proposal.id)
+            if issued != proposal:
+                raise ActionSystemError(
+                    "Approved proposal was not issued by this ActionSystem."
+                )
 
-        # Approval is single-use. Consume it before crossing the executor
-        # boundary so an exception or ambiguous side effect cannot be replayed
-        # under the same approval.
-        self._approved.pop(proposal.id, None)
-        self._resolved.add(proposal.id)
+            # Approval is single-use. Consume it before crossing the executor
+            # boundary so an exception or ambiguous side effect cannot be
+            # replayed under the same approval.
+            self._approved.pop(proposal.id, None)
+            self._resolved.add(proposal.id)
 
         try:
             return self._executor.execute(proposal)
