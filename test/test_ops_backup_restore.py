@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from hashlib import sha256
 import json
 import sqlite3
 
@@ -48,12 +49,13 @@ def make_state(tmp_path: Path) -> Path:
         ),
         encoding="utf-8",
     )
+    constitution_text = "# Constitution\nTest"
     layout.constitution_path.write_text(
-        "# Constitution\nTest",
+        constitution_text,
         encoding="utf-8",
     )
     layout.constitution_hash_path.write_text(
-        "placeholder",
+        sha256(constitution_text.encode("utf-8")).hexdigest(),
         encoding="utf-8",
     )
     layout.personality_path.write_text("{}", encoding="utf-8")
@@ -165,3 +167,16 @@ def test_rotation_keeps_newest_directories(tmp_path):
         "20260102-b",
         "20260103-c",
     ]
+
+
+def test_manifest_entry_rejects_path_traversal():
+    from sofia.ops.backup import BackupEntry
+
+    with pytest.raises(ValueError, match="safe relative path"):
+        BackupEntry(
+            logical_path="../escape.txt",
+            payload_name="0000.bin",
+            sha256="a" * 64,
+            size=1,
+            nonce_b64="AA==",
+        )
