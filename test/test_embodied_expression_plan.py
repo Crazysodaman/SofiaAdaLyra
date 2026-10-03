@@ -136,3 +136,45 @@ def test_expression_prompt_preserves_representation_and_authority_boundary():
     assert "a fitting brief expression, if useful" in prompt
     assert "planner reason" not in prompt
     assert "active contextual influence signals" not in prompt
+
+
+
+def test_expression_plan_detects_naturalized_ear_perk_from_live_prose():
+    planner = EmbodiedExpressionPlanner()
+    influence = _influence(
+        emotion="curiosity",
+        intensity=0.55,
+        daypart="afternoon",
+    )
+
+    plan = planner.plan(
+        message_id="message-live-ear",
+        influence=influence,
+        recent_assistant_messages=(
+            "I'll give you a friendly wave, my ear perked up and a grin on my face.",
+        ),
+    )
+
+    assert "ear-perk" in plan.avoid_recent
+    assert plan.primary != "ear-perk"
+
+
+def test_expression_plan_detects_naturalized_tail_and_soft_voice_forms():
+    planner = EmbodiedExpressionPlanner()
+    influence = _influence(
+        emotion="fondness",
+        intensity=0.6,
+        daypart="evening",
+    )
+
+    plan = planner.plan(
+        message_id="message-live-tail",
+        influence=influence,
+        recent_assistant_messages=(
+            "My tail swishing lightly, my voice softens a little.",
+        ),
+    )
+
+    assert "tail-swish" in plan.avoid_recent
+    assert "speak-softly" in plan.avoid_recent
+    assert plan.primary not in {"tail-swish", "speak-softly"}
