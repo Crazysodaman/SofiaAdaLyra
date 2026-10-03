@@ -17,6 +17,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.runtime.model import RuntimeState
+from sofia.social.principals import local_sparks_principal
 
 
 def create_configuration(
@@ -104,7 +105,9 @@ def authorize_filesystem(
     )
 
     authorization = evaluator.evaluate(
-        "You are allowed to inspect your own files."
+        "You are allowed to inspect your own files.",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert authorization is not None
