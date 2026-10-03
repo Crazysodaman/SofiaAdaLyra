@@ -1,6 +1,7 @@
 """Real application-to-Ollama regressions for production conversation routing."""
 
 from dataclasses import replace
+from datetime import datetime, timezone
 
 from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
@@ -361,5 +362,53 @@ def test_live_tell_me_the_why_keeps_immediate_touch_context(
         assert trace is not None
         assert trace.context is not None
         assert trace.context.max_history_messages == 3
+    finally:
+        application.shutdown()
+
+
+
+def test_live_conversation_projects_and_rotates_embodied_expression(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "*Her ears perk.* I'm curious and pretty engaged right now.",
+            "*Her tail stills for a beat.* Still curious, just more focused.",
+        ),
+    )
+    try:
+        now = datetime.now(timezone.utc)
+        subject = application.conversation._relationship_subject()
+        application.conversation.emotional_journal.record(
+            event_id="test:embodied-expression:curiosity",
+            source="observed",
+            evidence_ref="test:embodied-expression:curiosity",
+            description="Test fixture supplies grounded current curiosity.",
+            emotions=("curiosity",),
+            occurred_at=now,
+            subject=subject,
+            scope=application.conversation.relationship_scope,
+        )
+
+        first = application.conversation.respond("hru")
+        assert "curious" in first.content
+        assert len(captured) == 1
+        first_system = "\n".join(
+            message.content for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "CURRENT EMBODIED EXPRESSION PLAN" in first_system
+        assert "Preferred expression semantic:" in first_system
+        assert application.conversation.current_expression_plan is not None
+
+        second = application.conversation.respond("hru")
+        assert "curious" in second.content
+        assert len(captured) == 2
+        second_plan = application.conversation.current_expression_plan
+        assert second_plan is not None
+        assert "ear-perk" in second_plan.avoid_recent
+        assert second_plan.primary != "ear-perk"
     finally:
         application.shutdown()
