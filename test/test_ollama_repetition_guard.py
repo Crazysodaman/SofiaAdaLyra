@@ -717,3 +717,23 @@ def test_process_snapshot_cannot_invent_health_or_zero_cpu_from_null_metric():
     assert len(client.calls) == 2
     assert "system appears healthy" not in response.content.casefold()
     assert "no rogue" not in response.content.casefold()
+
+
+
+def test_emotional_self_report_does_not_reflexively_end_with_you_question():
+    bad = "I'm feeling pretty good, Sparks. Calm with a playful edge. You?"
+    good = "I'm feeling pretty good, Sparks. Calm with a playful edge."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nOverall tone: positive",
+        ),
+        _message(CognitiveRole.USER, "how are you feeling emotionaly?"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert not response.content.rstrip().endswith("?")
