@@ -1,7 +1,15 @@
 from datetime import datetime, timedelta, timezone
 import pytest
 
-from sofia.act import Candidate, Decision, History, Policy, evaluate
+from sofia.act import (
+    Candidate,
+    Decision,
+    History,
+    Importance,
+    OutreachCategory,
+    Policy,
+    evaluate,
+)
 
 T0 = datetime(2026, 9, 25, 14, tzinfo=timezone.utc)
 
@@ -103,6 +111,7 @@ def test_cooldown_and_daily_limit_use_acknowledged_delivery_only():
         dict(candidate_id=""),
         dict(expires_at=T0 - timedelta(hours=2)),
         dict(created_at=datetime(2026, 9, 25)),
+        dict(salience=True),
     ],
 )
 def test_invalid_candidate_rejected(bad):
@@ -132,3 +141,76 @@ def test_naive_now_and_non_boolean_busy_rejected():
         decision(now=datetime(2026, 9, 25))
     with pytest.raises(TypeError):
         decision(busy="false")
+
+
+def test_critical_operational_can_bypass_quiet_hours_only():
+    critical = candidate(
+        category=OutreachCategory.OPERATIONAL,
+        importance=Importance.CRITICAL,
+        salience=1.0,
+        created_at=T0 - timedelta(hours=2),
+        expires_at=T0 + timedelta(hours=2),
+    )
+    quiet_policy = policy(
+        quiet_start_utc=14,
+        quiet_end_utc=15,
+        min_interval=timedelta(0),
+        operational_min_interval=timedelta(0),
+        max_daily=10,
+        operational_max_daily=10,
+    )
+
+    assert decision(
+        c=critical,
+        p=quiet_policy,
+    ) is Decision.ELIGIBLE_FOR_AUTHORIZATION
+
+
+def test_critical_operational_still_obeys_global_cooldown():
+    critical = candidate(
+        category=OutreachCategory.OPERATIONAL,
+        importance=Importance.CRITICAL,
+        salience=1.0,
+    )
+    limited = policy(
+        quiet_start_utc=14,
+        quiet_end_utc=15,
+        min_interval=timedelta(hours=2),
+        operational_min_interval=timedelta(0),
+    )
+    history = History(
+        last_delivered_at=T0 - timedelta(hours=1),
+    )
+
+    assert decision(
+        c=critical,
+        p=limited,
+        h=history,
+    ) is Decision.TOO_SOON
+
+
+def test_critical_operational_still_obeys_global_daily_cap():
+    critical = candidate(
+        category=OutreachCategory.OPERATIONAL,
+        importance=Importance.CRITICAL,
+        salience=1.0,
+    )
+    limited = policy(
+        quiet_start_utc=14,
+        quiet_end_utc=15,
+        min_interval=timedelta(0),
+        max_daily=1,
+        operational_min_interval=timedelta(0),
+        operational_max_daily=10,
+    )
+    history = History(
+        last_delivered_at=T0 - timedelta(hours=6),
+        delivered_day_utc=T0.date().isoformat(),
+        delivered_today=1,
+    )
+
+    assert decision(
+        c=critical,
+        p=limited,
+        h=history,
+    ) is Decision.DAILY_LIMIT
