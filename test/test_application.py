@@ -7,6 +7,7 @@ from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.application.act_service import SofiaActService
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
+from sofia.config.user_settings import RuntimeUserSettings
 from sofia.runtime.model import RuntimeState
 from sofia.social.principals import (
     discord_sparks_principal,
@@ -449,3 +450,76 @@ def test_interrupted_start_rolls_back_before_propagating_keyboard_interrupt(
 
     assert application.runtime.state is RuntimeState.STOPPED
     assert application.conversation.session is None
+
+
+
+def test_environment_hot_reload_reapplies_reviewed_configuration(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    changed_settings = RuntimeUserSettings(refresh_seconds=301)
+    monkeypatch.setattr(
+        application._environment_settings_store,
+        "load",
+        lambda: changed_settings,
+    )
+
+    base_configuration = object()
+    reviewed_configuration = object()
+    environment_service = object()
+    calls = []
+
+    def create_configuration_spy(*, state_path):
+        calls.append(("base", Path(state_path)))
+        return base_configuration
+
+    def apply_reviewed_spy(configuration, state_plane):
+        calls.append(("reviewed", configuration, state_plane))
+        return reviewed_configuration
+
+    def create_environment_spy(configuration):
+        calls.append(("environment", configuration))
+        return environment_service
+
+    def replace_environment_spy(service):
+        calls.append(("replace", service))
+
+    monkeypatch.setattr(
+        bootstrap,
+        "create_production_configuration",
+        create_configuration_spy,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "apply_reviewed_configuration",
+        apply_reviewed_spy,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "create_environment_service",
+        create_environment_spy,
+    )
+    monkeypatch.setattr(
+        application.runtime,
+        "replace_environment_service",
+        replace_environment_spy,
+    )
+
+    assert application._reload_environment_if_settings_changed() is True
+    assert calls == [
+        ("base", Path(application.runtime.configuration.state_path)),
+        (
+            "reviewed",
+            base_configuration,
+            application.runtime.state_plane,
+        ),
+        ("environment", reviewed_configuration),
+        ("replace", environment_service),
+    ]
