@@ -1411,3 +1411,15 @@ def test_hardware_memory_word_is_not_misclassified_as_autobiographical_memory():
     assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
     assert turn.relevance_for(MatrixDomain.MACHINE) is MatrixRelevance.REQUIRED
     assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.NONE
+
+
+
+def test_inspect_memory_usage_means_host_telemetry_not_personal_memory():
+    env = envelope("Inspect current memory usage and summarize it.")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.NONE
