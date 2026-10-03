@@ -220,6 +220,15 @@ class DesktopWorkbenchController:
             # so the desktop never pretends a possibly-unpersisted turn is done.
             self._application.text_ui.save_draft(content)
             raise
+
+        speak = getattr(self._application, "speak", None)
+        if callable(speak):
+            try:
+                speak(response.content)
+            except Exception:
+                # Audio is presentation. It must never invalidate a durable
+                # conversation turn or make desktop chat unavailable.
+                pass
         return response
 
     def _verify_send_persisted(

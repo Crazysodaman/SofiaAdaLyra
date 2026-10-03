@@ -58,6 +58,10 @@ class FakeApplication:
         self.text_ui = FakeTextUI()
         self.started_with = None
         self.shutdown_calls = 0
+        self.spoken: list[str] = []
+
+    def speak(self, content: str):
+        self.spoken.append(content)
 
     def start(self, session_id=None):
         self.started_with = session_id
@@ -89,6 +93,7 @@ def test_controller_send_saves_draft_before_generation():
 
     assert response.content == "response"
     assert app.text_ui.sent == ["hello"]
+    assert app.spoken == ["response"]
     assert controller.draft_text() == ""
 
 
@@ -150,6 +155,7 @@ def test_local_send_fails_closed_when_database_does_not_contain_rendered_turn(
         controller.send("must persist")
 
     assert controller.draft_text() == "must persist"
+    assert app.spoken == []
 
 
 def test_shutdown_preserves_current_draft():

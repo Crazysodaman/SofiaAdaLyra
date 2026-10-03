@@ -62,6 +62,7 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
+from sofia.voice.tts import TTSStatus
 
 
 _SOFIA_MATRIX_TERM_RE = re.compile(
@@ -248,6 +249,7 @@ class ConversationService:
         self._habit_continuity = None
         self._pre_response_hook = None
         self._clothing_action_handler = None
+        self._voice_runtime_provider = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -325,6 +327,52 @@ class ConversationService:
         if handler is not None and not callable(handler):
             raise TypeError("clothing action handler must be callable or None")
         self._clothing_action_handler = handler
+
+    def set_voice_runtime_provider(self, provider) -> None:
+        """Install a read-only host provider for current TTS runtime state."""
+        if provider is not None and not callable(provider):
+            raise TypeError("voice runtime provider must be callable or None")
+        self._voice_runtime_provider = provider
+
+    def _voice_runtime_status(self) -> TTSStatus | None:
+        provider = getattr(self, "_voice_runtime_provider", None)
+        if provider is None:
+            return None
+        try:
+            status = provider()
+        except Exception:
+            return None
+        return status if isinstance(status, TTSStatus) else None
+
+    def _matrix_voice_evidence(
+        self,
+    ) -> dict[str, EvidenceRecord | EvidenceState]:
+        status = self._voice_runtime_status()
+        if status is None:
+            return {}
+        return {
+            "voice.runtime.current": EvidenceRecord(
+                "voice.runtime.current",
+                EvidenceState.AVAILABLE,
+                status.evidence_ref,
+            )
+        }
+
+    def _matrix_voice_context_messages(
+        self,
+    ) -> tuple[CognitiveMessage, ...]:
+        context = getattr(self, "_current_context_plan", None)
+        if context is None or not context.allows(MatrixDomain.VOICE):
+            return ()
+        status = self._voice_runtime_status()
+        if status is None:
+            return ()
+        return (
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content=status.prompt(),
+            ),
+        )
 
     @property
     def database_path(self) -> Path:
@@ -826,6 +874,9 @@ class ConversationService:
                     current_message_id=message.id,
                 )
             )
+            availability.update(
+                self._matrix_voice_evidence()
+            )
             evidence = self._matrix_evidence_resolver.resolve(
                 evidence_requirements,
                 availability,
@@ -1013,6 +1064,9 @@ class ConversationService:
         )
         availability.update(
             self._matrix_request_evidence(request)
+        )
+        availability.update(
+            self._matrix_voice_evidence()
         )
         self._current_evidence_matrix = self._matrix_evidence_resolver.resolve(
             self._current_evidence_matrix,
@@ -1459,6 +1513,12 @@ class ConversationService:
         if scoped_context:
             cognitive_messages = (
                 *scoped_context,
+                *cognitive_messages,
+            )
+        voice_context = self._matrix_voice_context_messages()
+        if voice_context:
+            cognitive_messages = (
+                *voice_context,
                 *cognitive_messages,
             )
 

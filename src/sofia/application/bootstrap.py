@@ -74,6 +74,15 @@ from sofia.social.principals import local_sparks_principal
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
+from sofia.voice import (
+    TTSPlaybackReceipt,
+    TTSStatus,
+    TextToSpeechService,
+    VoiceProsodyMatrix,
+    VoiceProsodyProfile,
+    VoiceUrgency,
+    create_tts_service_from_environment,
+)
 
 
 class SofiaApplicationError(RuntimeError):
@@ -128,6 +137,9 @@ class SofiaApplication:
             state_plane=self._runtime.state_plane,
         )
         self._model_lock = RLock()
+        self._tts: TextToSpeechService = (
+            create_tts_service_from_environment()
+        )
         self._channel_conversations: list[ConversationService] = []
         conversation_store = ConversationStore(configuration.state_path)
         if conversation_store.database_path.resolve() != Path(
@@ -165,6 +177,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_pre_response_hook(
             self._refresh_trusted_live_state_before_response
+        )
+        self._conversation_service.set_voice_runtime_provider(
+            self.voice_runtime_status
         )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
@@ -276,6 +291,9 @@ class SofiaApplication:
         service.set_pre_response_hook(
             self._refresh_trusted_live_state_before_response
         )
+        service.set_voice_runtime_provider(
+            self.voice_runtime_status
+        )
         clothing_actions = getattr(
             self,
             "_clothing_action_service",
@@ -298,6 +316,58 @@ class SofiaApplication:
     def text_ui(self) -> UITextClient:
         """Return the local text-first UI over the canonical conversation."""
         return self._text_ui
+
+    @property
+    def tts(self) -> TextToSpeechService:
+        """Return the application-owned non-blocking TTS service."""
+        return self._tts
+
+    def voice_runtime_status(self) -> TTSStatus:
+        """Return current host-owned TTS runtime evidence."""
+        return self._tts.status()
+
+    def speak(
+        self,
+        content: str,
+        *,
+        urgency: VoiceUrgency = VoiceUrgency.NORMAL,
+    ) -> TTSPlaybackReceipt:
+        """Queue one persisted Sofía reply for local speech output."""
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("speech content must be nonempty")
+        if not isinstance(urgency, VoiceUrgency):
+            raise TypeError("urgency must be VoiceUrgency")
+
+        profile = VoiceProsodyProfile()
+        service = self._conversation_service
+        current_emotional_state = getattr(
+            service,
+            "current_emotional_state",
+            None,
+        )
+        if (
+            callable(current_emotional_state)
+            and self._runtime.personality is not None
+        ):
+            now = datetime.now(timezone.utc)
+            environment = self._runtime.environment_service.snapshot(
+                now=now,
+                refresh_providers=False,
+            )
+            emotion = current_emotional_state(now=now)
+            influence = ContinuityInfluence.from_state(
+                emotion=emotion,
+                environment=environment,
+            )
+            profile = VoiceProsodyMatrix().plan(
+                influence,
+                urgency=urgency,
+            ).profile
+
+        return self._tts.submit(
+            content,
+            profile=profile,
+        )
 
     @property
     def wardrobe_studio(self) -> WardrobeStudio | None:
@@ -550,6 +620,7 @@ class SofiaApplication:
             normalize_runtime_workspace_awareness(self._runtime)
             self._conversation_service.open()
             self._conversation_service.start(session_id=session_id)
+            self._tts.start()
             self._evaluate_contextual_presentation(
                 now=datetime.now(timezone.utc),
                 refresh_environment=True,
@@ -967,6 +1038,10 @@ class SofiaApplication:
         except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
             raise SofiaApplicationError("Sofía application failed to shut down.") from exc
         finally:
+            try:
+                self._tts.stop()
+            except Exception:
+                pass
             self._runtime.set_avatar_matrix_builder(None)
             self._presentation_bundle = None
             self._presentation_routine = None

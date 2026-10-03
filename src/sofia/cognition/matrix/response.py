@@ -158,8 +158,27 @@ class MatrixResponseValidator:
             is not EvidenceState.AVAILABLE
             for requirement in evidence.requirements
         )
-        if voice_runtime_missing and _VOICE_RUNTIME_CLAIM.search(content):
+        voice_runtime_claim = _VOICE_RUNTIME_CLAIM.search(content)
+        if voice_runtime_missing and voice_runtime_claim:
             reasons.append("voice_runtime_claim_without_evidence")
+
+        voice_record = next(
+            (
+                record
+                for record in evidence.records
+                if record.key == "voice.runtime.current"
+            ),
+            None,
+        )
+        if (
+            voice_runtime_claim
+            and voice_record is not None
+            and voice_record.state is EvidenceState.AVAILABLE
+            and voice_record.source_ref is not None
+            and voice_record.source_ref.rsplit(":", 1)[-1]
+            in {"disabled", "unavailable", "unprobed"}
+        ):
+            reasons.append("voice_runtime_claim_contradicts_evidence")
 
         if (
             contract.requires_execution_receipt
@@ -233,6 +252,13 @@ class MatrixResponseValidator:
                 content=(
                     "I don't have current voice-runtime evidence proving that "
                     "listening or speech output is working."
+                )
+            )
+        if "voice_runtime_claim_contradicts_evidence" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "Current voice-runtime evidence does not support claiming "
+                    "that speech output is working."
                 )
             )
         return CognitiveResponse(
