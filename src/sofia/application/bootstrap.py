@@ -565,10 +565,12 @@ class SofiaApplication:
                 errors.append(f"channel:{type(exc).__name__}")
         self._channel_conversations.clear()
 
-        try:
-            self._tts.stop()
-        except Exception as exc:
-            errors.append(f"tts:{type(exc).__name__}")
+        tts = getattr(self, "_tts", None)
+        if tts is not None:
+            try:
+                tts.stop()
+            except Exception as exc:
+                errors.append(f"tts:{type(exc).__name__}")
 
         try:
             self._conversation_service.close()
@@ -596,7 +598,11 @@ class SofiaApplication:
         except Exception as exc:
             errors.append(f"clothing_handler:{type(exc).__name__}")
 
-        if getattr(self._runtime.state, "value", None) == "ready":
+        if getattr(
+            getattr(self._runtime, "state", None),
+            "value",
+            None,
+        ) == "ready":
             try:
                 self._runtime.shutdown()
             except Exception as exc:
@@ -612,10 +618,15 @@ class SofiaApplication:
         before any optional idle model inference; no background work is claimed
         for periods when this process was not running.
         """
-        if getattr(self._runtime.state, "value", None) not in {
-            "created",
-            "stopped",
-        }:
+        runtime_state_value = getattr(
+            getattr(self._runtime, "state", None),
+            "value",
+            None,
+        )
+        if (
+            runtime_state_value is not None
+            and runtime_state_value not in {"created", "stopped"}
+        ):
             raise SofiaApplicationError(
                 "Sofía application can only start from a stopped state."
             )
