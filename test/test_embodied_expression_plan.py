@@ -28,6 +28,11 @@ def _influence(
         primary_emotion=emotion,
         primary_intensity=intensity,
         active_emotions=(() if emotion is None else (emotion,)),
+        foreground_emotion_evidence_refs=(
+            ("emotion:event-1",) if emotion is not None else ()
+        ),
+        foreground_emotion=emotion,
+        foreground_intensity=intensity,
         daypart_evidence_refs=(
             ("runtime.clock",) if daypart != "unknown" else ()
         ),
@@ -124,9 +129,9 @@ def test_expression_prompt_preserves_representation_and_authority_boundary():
     )
 
     prompt = plan.prompt().lower()
-    assert "represented avatar expression only" in prompt
-    assert "not evidence of physical sensation" in prompt
+    assert "representational expression is not evidence of physical sensation" in prompt
     assert "cannot override" in prompt
-    assert "recently used expression families to avoid repeating" in prompt
-    assert "preferred natural expression" in prompt
-    assert "semantic ids" in prompt
+    assert "avoid repeating these recently used expression families" in prompt
+    assert "a fitting brief expression, if useful" in prompt
+    assert "planner reason" not in prompt
+    assert "active contextual influence signals" not in prompt
