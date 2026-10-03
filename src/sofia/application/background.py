@@ -79,23 +79,23 @@ class BackgroundBudget:
                     FROM application_background_claims
                     WHERE status='working'
                     ORDER BY claimed_at, claim_id
-                    LIMIT 1
                     """
-                ).fetchone()
-                if working is not None:
+                ).fetchall()
+                stale_claim_ids: list[str] = []
+                for claim_id_value, claimed_at_value in working:
                     try:
                         claimed_at = datetime.fromisoformat(
-                            working[1]
+                            claimed_at_value
                         ).astimezone(timezone.utc)
                     except (TypeError, ValueError) as exc:
                         raise RuntimeError(
                             "background claim has an invalid timestamp"
                         ) from exc
                     age = moment - claimed_at
-                    if age < timedelta(0):
+                    if age < timedelta(0) or age < self.claim_timeout:
                         return None
-                    if age < self.claim_timeout:
-                        return None
+                    stale_claim_ids.append(claim_id_value)
+                for stale_claim_id in stale_claim_ids:
                     db.execute(
                         """
                         UPDATE application_background_claims
@@ -103,7 +103,7 @@ class BackgroundBudget:
                             error_type='AbandonedClaim'
                         WHERE claim_id=? AND status='working'
                         """,
-                        (moment.isoformat(), working[0]),
+                        (moment.isoformat(), stale_claim_id),
                     )
                 count = db.execute(
                     """
