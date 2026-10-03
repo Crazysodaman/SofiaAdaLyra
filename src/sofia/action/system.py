@@ -43,6 +43,7 @@ class ActionSystem:
         # Production therefore fails closed across restarts.
         self._proposed: dict[UUID, ActionProposal] = {}
         self._approved: dict[UUID, ActionProposal] = {}
+        self._resolved: set[UUID] = set()
 
     @property
     def executor(self) -> ActionExecutor:
@@ -71,6 +72,10 @@ class ActionSystem:
                 "Only newly proposed actions may enter the proposal boundary."
             )
 
+        if proposal.id in self._resolved:
+            raise ActionSystemError(
+                "A resolved action proposal ID cannot be reused."
+            )
         if proposal.id in self._approved:
             raise ActionSystemError(
                 "An already approved action cannot be proposed again."
@@ -157,6 +162,7 @@ class ActionSystem:
         # boundary so an exception or ambiguous side effect cannot be replayed
         # under the same approval.
         self._approved.pop(proposal.id, None)
+        self._resolved.add(proposal.id)
 
         try:
             return self._executor.execute(proposal)
