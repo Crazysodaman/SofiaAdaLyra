@@ -470,3 +470,15 @@ def test_generic_why_did_you_pick_that_explains_contextual_outfit():
     assert "trusted local clock" in result.content
     assert "grounded season and current activity" in result.content
     assert "bounded style preference" in result.content
+
+
+
+def test_generic_what_is_your_outfit_is_deterministic_authoritative_fact():
+    result = answer("what is your outfit")
+
+    assert result.recognized
+    assert result.content.startswith("I'm in my signature engineer outfit right now.")
+    assert "Fitted long-sleeve technical shirt" in result.content
+    assert "Articulated utility trousers" in result.content
+    assert "shock-absorbing" not in result.content.casefold()
+    assert "everything is maintained" not in result.content.casefold()
