@@ -203,6 +203,7 @@ class SofiaApplication:
             act_service=self._act_service,
         )
         self._background: ApplicationBackgroundCoordinator | None = None
+        self._startup_awareness_error: CognitiveEngineError | None = None
         self._heartbeat_store = ApplicationHeartbeatStore(
             configuration.state_path
         )
@@ -265,6 +266,11 @@ class SofiaApplication:
     @property
     def conversation(self) -> ConversationService:
         return self._conversation_service
+
+    @property
+    def startup_awareness_error(self) -> CognitiveEngineError | None:
+        """Return the latest optional startup-awareness model failure."""
+        return self._startup_awareness_error
 
     @property
     def idle_reflection_worker(self) -> IdleReflectionWorker | None:
@@ -743,6 +749,7 @@ class SofiaApplication:
                 now=datetime.now(timezone.utc),
                 refresh_environment=True,
             )
+            self._startup_awareness_error = None
             try:
                 response = self._conversation_service.deliver_pending_awareness()
             except CognitiveEngineError as exc:
