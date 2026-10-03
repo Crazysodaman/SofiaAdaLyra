@@ -330,3 +330,33 @@ def test_whats_on_your_mind_canned_closer_is_trimmed():
 
     assert response.content == "I return the wave with a grin."
     assert len(client.calls) == 1
+
+
+
+def test_expression_style_meta_narration_is_retried():
+    bad = (
+        "I'm gearing up to keep the conversation tight, direct, and a little teasing. "
+        "I'll make sure my next reply has just the right amount of energy."
+    )
+    good = "Nerd? Rude. Accurate, but rude. *A crooked grin tugs at one corner of my mouth.*"
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT EMBODIED EXPRESSION PLAN "
+                "(trusted non-authoritative style projection)\n"
+                "Preferred expression semantic: grin\n"
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                '{"emotion": "playfulness"}'
+            ),
+        ),
+        _message(CognitiveRole.USER, "hey nerd"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "gearing up" not in response.content.casefold()
+    assert "next reply" not in response.content.casefold()
