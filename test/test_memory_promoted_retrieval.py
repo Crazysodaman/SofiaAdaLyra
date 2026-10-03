@@ -127,9 +127,15 @@ def test_context_cannot_make_unrelated_memory_query_relevant(tmp_path):
 
 def test_unprovenanced_context_cannot_rerank_promoted_memories(tmp_path):
     s = DurableMemoryCandidateStore(tmp_path / "m.db")
-    summer = add(s, "Sparks runs model trains in summer")
-    winter = add(s, "Sparks runs model trains in winter")
+    add(s, "Sparks runs model trains in summer")
+    add(s, "Sparks runs model trains in winter")
 
+    baseline = retrieve_promoted(
+        s,
+        "model trains",
+        limit=5,
+        budget_characters=1000,
+    )
     out = retrieve_promoted(
         s,
         "model trains",
@@ -142,7 +148,6 @@ def test_unprovenanced_context_cannot_rerank_promoted_memories(tmp_path):
     )
 
     assert [x.candidate_id for x in out.selected] == [
-        summer.candidate_id,
-        winter.candidate_id,
+        x.candidate_id for x in baseline.selected
     ]
     s.close()
