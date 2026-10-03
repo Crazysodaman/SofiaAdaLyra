@@ -344,21 +344,29 @@ def _normalized(text: str) -> str:
 
 
 def _retry_eligible(request: CognitiveRequest, response: CognitiveResponse) -> bool:
+    # A completed tool round may still need a text-only quality repair. The
+    # retry request removes tool definitions/authority, so allowing validation
+    # here cannot re-execute a tool. Responses that themselves request tools
+    # remain ineligible.
     return not (
         response.tool_calls
         or not request.messages
         or request.messages[-1].role is not CognitiveRole.USER
         or _EXPLICIT_REPEAT.search(request.messages[-1].content)
-        or any(
-            message.role is CognitiveRole.TOOL or message.tool_calls
-            for message in request.messages
-        )
     )
 
 
 def is_near_duplicate_reply(request: CognitiveRequest, response: CognitiveResponse) -> bool:
     """Compare a long tool-free draft to recent assistant-only prose."""
     if not _retry_eligible(request, response):
+        return False
+    # Near-duplicate comparison intentionally stays tool-free. Tool-result
+    # requests are eligible for targeted quality checks, but their assistant
+    # tool-call scaffolding must not become prose-repeat evidence.
+    if any(
+        message.role is CognitiveRole.TOOL or message.tool_calls
+        for message in request.messages
+    ):
         return False
     draft = _normalized(response.content)
     if len(draft) < _MIN_COMPARISON_CHARS:
