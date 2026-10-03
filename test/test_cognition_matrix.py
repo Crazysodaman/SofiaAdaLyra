@@ -1234,3 +1234,19 @@ def test_response_matrix_rejects_unmeasured_benchmark_claim():
     )
 
     assert result.disposition is ResponseValidationDisposition.RETRY
+
+
+def test_bare_time_uses_environment_and_clock_evidence():
+    env = envelope("Time")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    evidence = MatrixEvidencePlanner().plan(turn, env)
+
+    assert turn.intent is MatrixIntent.ENVIRONMENT_QUERY
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert {
+        item.key for item in evidence.requirements
+    } == {"environment.clock.current"}
