@@ -10,7 +10,11 @@ from time import monotonic
 
 from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.cognition.matrix import MatrixDomain
+from sofia.cognition.matrix import (
+    EmbodiedExpressionPlan,
+    EmbodiedExpressionPlanner,
+    MatrixDomain,
+)
 from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
@@ -45,6 +49,8 @@ class EmotionalConversationService(ConversationService):
         self._emotional_journal: EmotionalJournal | None = None
         self._reflection_journal: ReflectionJournal | None = None
         self._clarification_journal: ClarificationJournal | None = None
+        self._embodied_expression_planner = EmbodiedExpressionPlanner()
+        self._current_expression_plan: EmbodiedExpressionPlan | None = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         self._active_user_requests = 0
         self._last_user_activity = monotonic()
@@ -87,6 +93,11 @@ class EmotionalConversationService(ConversationService):
         if self._clarification_journal is None:
             raise RuntimeError("Clarification journal is not open.")
         return self._clarification_journal
+
+    @property
+    def current_expression_plan(self) -> EmbodiedExpressionPlan | None:
+        """Return the present turn's non-authoritative avatar-expression plan."""
+        return getattr(self, "_current_expression_plan", None)
 
     def _principal_context(self) -> PrincipalContext | None:
         session = getattr(self, "_session", None)
@@ -321,6 +332,7 @@ class EmotionalConversationService(ConversationService):
         self._emotional_journal = None
         self._reflection_journal = None
         self._clarification_journal = None
+        self._current_expression_plan = None
 
     def _should_record_legacy_affection(self, user) -> bool:
         """Subclass hook: independent policy may veto a legacy head-pat cue."""
@@ -395,37 +407,63 @@ class EmotionalConversationService(ConversationService):
             )
         self._current_contextual_influence = influence
 
-        if not emotion_allowed:
-            return request
+        expression_plan = None
+        current_user = (
+            messages[-1]
+            if messages and messages[-1].role is ConversationRole.USER
+            else None
+        )
+        if current_user is not None:
+            planner = getattr(self, "_embodied_expression_planner", None)
+            if planner is None:
+                planner = EmbodiedExpressionPlanner()
+                self._embodied_expression_planner = planner
+            recent_assistant = tuple(
+                item.content
+                for item in messages[:-1]
+                if item.role is ConversationRole.ASSISTANT
+            )[-8:]
+            expression_plan = planner.plan(
+                message_id=current_user.id,
+                influence=influence,
+                recent_assistant_messages=recent_assistant,
+            )
+        self._current_expression_plan = expression_plan
 
-        projections = [
-            self.emotional_journal.current_state_prompt(
+        projections = []
+        if emotion_allowed:
+            projections.extend((
+                self.emotional_journal.current_state_prompt(
+                    now=now,
+                    subject=subject,
+                    scope=scope,
+                ),
+                influence.prompt(),
+            ))
+        if expression_plan is not None and expression_plan.primary is not None:
+            projections.append(expression_plan.prompt())
+
+        if emotion_allowed:
+            emotional_context = self.emotional_journal.prompt_context(
                 now=now,
                 subject=subject,
                 scope=scope,
-            ),
-            influence.prompt(),
-        ]
-        emotional_context = self.emotional_journal.prompt_context(
-            now=now,
-            subject=subject,
-            scope=scope,
-        )
-        if emotional_context is not None:
-            projections.append(emotional_context)
-        # The optional guard preserves compatibility with a test-only
-        # uninitialized service; a normally opened service always has this.
-        reflections = getattr(self, "_reflection_journal", None)
-        if reflections is not None:
-            reflections.reflect_due(now=now, scope=scope)
-            reflection_context = reflections.prompt_context(scope=scope)
-            if reflection_context is not None:
-                projections.append(reflection_context)
-        clarifications = getattr(self, "_clarification_journal", None)
-        if clarifications is not None:
-            clarification_context = clarifications.prompt_context(now=now)
-            if clarification_context is not None:
-                projections.append(clarification_context)
+            )
+            if emotional_context is not None:
+                projections.append(emotional_context)
+            # The optional guard preserves compatibility with a test-only
+            # uninitialized service; a normally opened service always has this.
+            reflections = getattr(self, "_reflection_journal", None)
+            if reflections is not None:
+                reflections.reflect_due(now=now, scope=scope)
+                reflection_context = reflections.prompt_context(scope=scope)
+                if reflection_context is not None:
+                    projections.append(reflection_context)
+            clarifications = getattr(self, "_clarification_journal", None)
+            if clarifications is not None:
+                clarification_context = clarifications.prompt_context(now=now)
+                if clarification_context is not None:
+                    projections.append(clarification_context)
         if not projections:
             return request
         return CognitiveRequest(
