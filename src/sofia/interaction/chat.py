@@ -625,9 +625,11 @@ class InteractiveConversationService(EmotionalConversationService):
         # turn is tool-relevant, do not let avatar/body discussion downgrade
         # it into a tool-free fictional interaction request.
         messages = self.messages()
-        if request.allow_tools:
-            # Tool exposure is already a host-owned matrix decision. Interaction
-            # interpretation may not broaden or downgrade that allowlist.
+        if request.allow_tools and request.tools:
+            # A non-empty tool surface is already a host-owned matrix decision.
+            # Merely allowing tools in principle is not enough to bypass
+            # representational interaction/lab grounding when no tool was
+            # actually exposed for this turn.
             return request
         if not messages or messages[-1].role is not ConversationRole.USER:
             return request
