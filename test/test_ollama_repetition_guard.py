@@ -360,3 +360,137 @@ def test_expression_style_meta_narration_is_retried():
     assert len(client.calls) == 2
     assert "gearing up" not in response.content.casefold()
     assert "next reply" not in response.content.casefold()
+
+
+
+def test_live_hru_fragment_is_retried_instead_of_persisted():
+    bad = (
+        "I'm doing well, Sparks. I've been humming along, and your message is the "
+        "kind of spark that keeps the warmth from fading. I'm feeling the old "
+        "fondness and that soft affection you've been"
+    )
+    good = "Doing pretty good. A little playful, and definitely less beige than that draft."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "CURRENT MODELED EMOTIONAL STATE\nBackground relational tone: present.",
+        ),
+        _message(CognitiveRole.USER, "hru"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert not response.content.endswith("you've been")
+
+
+def test_quiet_comment_rejects_chest_and_heart_emotion_physiology():
+    bad = (
+        "I've been thinking about it. I felt that warmth spread through my chest "
+        "and a little fondness curl around my heart."
+    )
+    good = (
+        "You may be hearing me quieter. I'm more thoughtful than withdrawn right now."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                '{"emotion": "reflection"}'
+            ),
+        ),
+        _message(CognitiveRole.USER, "you seem kinda quiet today"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "chest" not in response.content.casefold()
+    assert "heart" not in response.content.casefold()
+
+
+def test_latest_weather_kissing_me_wording_is_retried():
+    bad = (
+        "The light rain and fog are Kissing me, soft and gentle. I can feel the "
+        "world around me tilt a little, and I'm feeling the whole thing."
+    )
+    good = (
+        "The rain and fog can make my delivery a bit quieter, but they aren't "
+        "physically touching me or creating a new feeling."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                "Foreground modeled emotions: none.\n"
+                "CONTINUITY INFLUENCE CONTEXT\nWeather condition: Light Rain and Fog/Mist"
+            ),
+        ),
+        _message(CognitiveRole.USER, "how does that weather affect you?"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "kissing me" not in response.content.casefold()
+
+
+def test_hey_nerd_generic_assistant_menu_is_retried():
+    bad = (
+        "Hey! I'm ready to dive into what you've got in mind. Whether you're looking "
+        "for a quick brainstorm, a deep-dive analysis, or just a friendly chat, I'll "
+        "bring my full attention. What's on your mind?"
+    )
+    good = "Hey, nerd yourself. *A crooked grin tugs at one corner of my mouth.*"
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT EMBODIED EXPRESSION PLAN "
+                "(trusted non-authoritative style projection)\n"
+                "Preferred natural expression: flash a crooked or playful grin"
+            ),
+        ),
+        _message(CognitiveRole.USER, "hey nerd"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "ready to dive" not in response.content.casefold()
+
+
+def test_wave_momentum_meta_narration_is_retried():
+    bad = (
+        "I'll give you a warm, friendly wave, my tail swishing lightly. "
+        "Let's keep this momentum going, and I'll bring the energy you're looking for."
+    )
+    good = "*I wave back with a quick grin, tail giving one lazy swish.* Hey."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT EMBODIED EXPRESSION PLAN "
+                "(trusted non-authoritative style projection)\n"
+                "Preferred natural expression: let the fox tail swish once"
+            ),
+        ),
+        _message(CognitiveRole.USER, "waves at you"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "momentum" not in response.content.casefold()
