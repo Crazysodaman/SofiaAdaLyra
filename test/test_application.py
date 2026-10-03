@@ -6,6 +6,7 @@ import pytest
 import sofia.application.bootstrap as bootstrap
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.application.act_service import SofiaActService
+from sofia.cognition.engine import CognitiveEngineError
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.config.user_settings import RuntimeUserSettings
@@ -607,3 +608,45 @@ def test_shutdown_waits_for_inflight_foreground_work(
     assert shutdown_error == []
     assert shutdown_done.is_set()
     assert application.runtime.state is RuntimeState.STOPPED
+
+
+
+def test_startup_awareness_error_is_reset_on_later_success(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+
+    def fail_awareness():
+        raise CognitiveEngineError("synthetic awareness failure")
+
+    monkeypatch.setattr(
+        application.conversation,
+        "deliver_pending_awareness",
+        fail_awareness,
+    )
+
+    assert application.start() is None
+    assert isinstance(
+        application.startup_awareness_error,
+        CognitiveEngineError,
+    )
+    application.shutdown()
+
+    monkeypatch.setattr(
+        application.conversation,
+        "deliver_pending_awareness",
+        lambda: None,
+    )
+
+    assert application.start() is None
+    try:
+        assert application.startup_awareness_error is None
+    finally:
+        application.shutdown()
