@@ -743,9 +743,6 @@ def test_matrix_context_failure_falls_back_to_legacy_history(
 
 
 def test_matrix_trace_records_privacy_projection_for_bound_principal(tmp_path: Path):
-    from sofia.social.principals import local_sparks_principal
-from sofia.social.store import SocialSessionStore
-
     application = create_application(tmp_path)
     application.start()
     try:
