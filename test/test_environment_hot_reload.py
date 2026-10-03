@@ -9,6 +9,7 @@ from sofia.config.user_settings import RuntimeUserSettingsStore
 class FakeRuntime:
     def __init__(self) -> None:
         self.replaced = []
+        self.state_plane = object()
 
     def replace_environment_service(self, service) -> None:
         self.replaced.append(service)
@@ -46,6 +47,7 @@ def test_saved_environment_settings_hot_reload_once(
     store.save(updated)
 
     rebuilt_configuration = object()
+    reviewed_configuration = object()
     rebuilt_service = object()
     monkeypatch.setattr(
         bootstrap,
@@ -54,8 +56,28 @@ def test_saved_environment_settings_hot_reload_once(
     )
     monkeypatch.setattr(
         bootstrap,
+        "apply_reviewed_configuration",
+        lambda configuration, state_plane: (
+            reviewed_configuration
+            if (
+                configuration is rebuilt_configuration
+                and state_plane is app._runtime.state_plane
+            )
+            else (_ for _ in ()).throw(
+                AssertionError("reviewed configuration inputs changed")
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        bootstrap,
         "create_environment_service",
-        lambda configuration: rebuilt_service,
+        lambda configuration: (
+            rebuilt_service
+            if configuration is reviewed_configuration
+            else (_ for _ in ()).throw(
+                AssertionError("environment service must use reviewed config")
+            )
+        ),
     )
 
     assert app._reload_environment_if_settings_changed() is True
