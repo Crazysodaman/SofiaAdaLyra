@@ -132,11 +132,18 @@ def test_real_application_delivers_avatar_distinction_without_live_ollama(
         assert request.messages[-1].content == text
         system = '\n'.join(message.content for message in request.messages
                            if message.role is CognitiveRole.SYSTEM)
-        assert 'AVATAR-WORLD CONVERSATIONAL INTERPRETATION' in system
-        assert 'CURRENT AVATAR PRESENTATION' in system
-        assert '"outfit_id": "engineer.signature"' in system
-        assert 'actual capabilities' in system
-        assert 'No emotion forces a particular gesture' in system
+        if kind in {"gesture", "offer"}:
+            assert 'AVATAR-WORLD CONVERSATIONAL INTERPRETATION' in system
+            assert 'CURRENT AVATAR PRESENTATION' in system
+            assert '"outfit_id": "engineer.signature"' in system
+            assert 'actual capabilities' in system
+            assert 'No emotion forces a particular gesture' in system
+        else:
+            # A real-world sensor capability question is MACHINE/OPS-owned.
+            # It must not pull unrelated current AVATAR presentation state into
+            # the provider context merely because the wording mentions a hand.
+            assert 'CURRENT AVATAR PRESENTATION' not in system
+            assert '"outfit_id": "engineer.signature"' not in system
         if kind == 'gesture':
             assert 'TRUSTED INTERACTION INTERPRETATION' in system
             assert '"region_id": "left-ear"' in system
