@@ -127,3 +127,8 @@ class FilesystemAuthorization:
             raise ValueError(
                 "FilesystemAuthorization reason must be a non-empty string."
             )
+        if self.reason != self.reason.strip():
+            raise ValueError(
+                "FilesystemAuthorization reason must be canonical "
+                "without surrounding whitespace."
+            )
