@@ -35,6 +35,11 @@ class ActionSystem:
             )
 
         self._executor = executor
+        # An APPROVED enum value is not itself proof that this system approved
+        # the proposal. Keep a process-local issuance registry so callers
+        # cannot manufacture approval by constructing an ActionProposal with
+        # status=APPROVED. Production remains fail-closed across restarts.
+        self._approved: dict[object, ActionProposal] = {}
 
     @property
     def executor(self) -> ActionExecutor:
@@ -56,6 +61,11 @@ class ActionSystem:
         if not isinstance(proposal, ActionProposal):
             raise TypeError(
                 "ActionSystem proposal must be an ActionProposal."
+            )
+
+        if proposal.status is not ActionStatus.PROPOSED:
+            raise ActionSystemError(
+                "Only newly proposed actions may enter the proposal boundary."
             )
 
         return proposal
@@ -83,7 +93,7 @@ class ActionSystem:
                 "Only proposed actions may be approved."
             )
 
-        return ActionProposal(
+        approved = ActionProposal(
             action=proposal.action,
             rationale=proposal.rationale,
             expected_outcome=proposal.expected_outcome,
@@ -91,6 +101,8 @@ class ActionSystem:
             id=proposal.id,
             status=ActionStatus.APPROVED,
         )
+        self._approved[approved.id] = approved
+        return approved
 
     def execute(
         self,
@@ -115,13 +127,16 @@ class ActionSystem:
                 "Only approved actions may be executed."
             )
 
-        if (
-            proposal.action.requires_approval
-            and proposal.status is not ActionStatus.APPROVED
-        ):
+        issued = self._approved.get(proposal.id)
+        if issued != proposal:
             raise ActionSystemError(
-                "This action requires approval before execution."
+                "Approved proposal was not issued by this ActionSystem."
             )
+
+        # Approval is single-use. Consume it before crossing the executor
+        # boundary so an exception or ambiguous side effect cannot be replayed
+        # under the same approval.
+        self._approved.pop(proposal.id, None)
 
         try:
             return self._executor.execute(proposal)
