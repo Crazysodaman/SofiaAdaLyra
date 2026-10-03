@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import re
 from typing import Iterable
 
 from sofia.interaction.registry import (
@@ -236,6 +237,52 @@ def _definition_phrases() -> dict[str, tuple[str, ...]]:
 
 _EXPRESSION_PHRASES = _definition_phrases()
 
+# Naturalized replies do not always preserve registry alias word order.
+# These patterns map common prose/morphological forms back to the same
+# reviewed expression family so anti-repeat survives provider naturalization.
+_NATURAL_EXPRESSION_PATTERNS: dict[str, re.Pattern[str]] = {
+    "ear-perk": re.compile(
+        r"\b(?:ears?\s+perk(?:ed|ing)?(?:\s+up)?|"
+        r"perk(?:ed|ing)?\s+(?:of\s+)?(?:my|her|the)?\s*ears?)\b",
+        re.IGNORECASE,
+    ),
+    "ear-flick": re.compile(
+        r"\b(?:ears?\s+flick(?:ed|ing)?|"
+        r"flick(?:ed|ing)?\s+(?:of\s+)?(?:my|her|the)?\s*ears?)\b",
+        re.IGNORECASE,
+    ),
+    "ear-flatten": re.compile(
+        r"\b(?:ears?\s+flatten(?:ed|ing)?|"
+        r"flatten(?:ed|ing)?\s+(?:my|her|the)?\s*ears?)\b",
+        re.IGNORECASE,
+    ),
+    "tail-swish": re.compile(
+        r"\b(?:tail\s+swish(?:es|ed|ing)?|"
+        r"swish(?:es|ed|ing)?\s+(?:of\s+)?(?:my|her|the)?\s*tail)\b",
+        re.IGNORECASE,
+    ),
+    "tail-curl": re.compile(
+        r"\b(?:tail\s+curl(?:s|ed|ing)?|"
+        r"curl(?:s|ed|ing)?\s+(?:of\s+)?(?:my|her|the)?\s*tail)\b",
+        re.IGNORECASE,
+    ),
+    "tail-still": re.compile(
+        r"\b(?:tail\s+(?:goes?|went|falls?|fell|is|stays?)\s+still|"
+        r"stillness\s+(?:in|of)\s+(?:my|her|the)?\s*tail)\b",
+        re.IGNORECASE,
+    ),
+    "shift-posture": re.compile(
+        r"\b(?:shift(?:s|ed|ing)?\s+(?:my|her|the)?\s*"
+        r"(?:posture|weight)|posture\s+shift(?:s|ed|ing)?)\b",
+        re.IGNORECASE,
+    ),
+    "speak-softly": re.compile(
+        r"\b(?:voice\s+(?:softens?|lower(?:s|ed)?|goes?\s+soft)|"
+        r"speak(?:s|ing)?\s+softly|softer\s+voice)\b",
+        re.IGNORECASE,
+    ),
+}
+
 
 def recent_expression_ids(messages: Iterable[str]) -> tuple[str, ...]:
     """Detect recently narrated reviewed expression IDs from assistant prose."""
@@ -247,7 +294,14 @@ def recent_expression_ids(messages: Iterable[str]) -> tuple[str, ...]:
         for expression_id, phrases in _EXPRESSION_PHRASES.items():
             if expression_id in recent:
                 continue
-            if any(phrase in text for phrase in phrases):
+            natural_pattern = _NATURAL_EXPRESSION_PATTERNS.get(expression_id)
+            if (
+                any(phrase in text for phrase in phrases)
+                or (
+                    natural_pattern is not None
+                    and natural_pattern.search(message) is not None
+                )
+            ):
                 recent.append(expression_id)
     return tuple(recent)
 
