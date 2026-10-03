@@ -1085,9 +1085,9 @@ class SofiaApplication:
                         )
                     coordinator.set_heartbeat(publish_heartbeat)
                     coordinator.start()
-                    publish_heartbeat(
-                        datetime.now(timezone.utc),
-                        True,
+                    coordinator._publish_heartbeat(
+                        now=datetime.now(timezone.utc),
+                        healthy=True,
                     )
                 else:
                     coordinator.start()
