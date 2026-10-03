@@ -1324,3 +1324,35 @@ def test_weather_feeling_query_requires_environment_and_emotion():
         MatrixRelevance.REQUIRED
     )
 
+
+
+
+def test_natural_avatar_why_followup_keeps_last_turn_context():
+    result = BaselineTurnClassifier().classify(
+        envelope("why did you pick that?")
+    )
+
+    assert result.intent is MatrixIntent.GENERAL
+    assert result.history_policy is HistoryPolicy.LAST_TURN
+    assert result.response_strategy is ResponseStrategy.GENERATIVE
+
+
+def test_perceived_quiet_comment_is_social_emotion_turn():
+    result = BaselineTurnClassifier().classify(
+        envelope("you seem kinda quiet today")
+    )
+
+    assert result.intent is MatrixIntent.SOCIAL_CHECKIN
+    assert result.history_policy is HistoryPolicy.LAST_TURN
+    assert result.relevance_for(MatrixDomain.SOCIAL) is MatrixRelevance.REQUIRED
+    assert result.relevance_for(MatrixDomain.EMOTION) is MatrixRelevance.RELEVANT
+
+
+def test_weather_affect_you_routes_to_environment_and_emotion():
+    result = BaselineTurnClassifier().classify(
+        envelope("how does that weather affect you?")
+    )
+
+    assert result.intent is MatrixIntent.GENERAL
+    assert result.relevance_for(MatrixDomain.ENVIRONMENT) is MatrixRelevance.REQUIRED
+    assert result.relevance_for(MatrixDomain.EMOTION) is MatrixRelevance.REQUIRED
