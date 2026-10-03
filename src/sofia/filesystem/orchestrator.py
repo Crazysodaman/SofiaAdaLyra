@@ -147,6 +147,40 @@ class FilesystemOrchestrator:
 
         return ()
 
+    @staticmethod
+    def _looks_like_filesystem_target(argument: str) -> bool:
+        """Reject generic "inspect X" prose that is not plausibly a path.
+
+        The legacy filesystem parser runs before cognition. Without this guard,
+        requests such as "inspect the local network interfaces" are interpreted
+        as repository-relative paths and can poison the later operational reply
+        with a bogus filesystem authorization result.
+        """
+        value = argument.strip()
+        lowered = value.casefold()
+        if not value:
+            return False
+        if lowered in {
+            ".", "..", "your files", "your own files", "your directory",
+            "your own directory", "repository", "repo", "codebase",
+        }:
+            return True
+        if any(token in lowered for token in (
+            " file", "files", " folder", "folders", " directory", "directories",
+            " path", "filesystem", "repository", "repo", "codebase",
+        )):
+            return True
+        if value.startswith(("./", "../", ".\\", "..\\", "\\", "/")):
+            return True
+        if re.match(r"^[A-Za-z]:[\\/]", value):
+            return True
+        if "/" in value or "\\" in value:
+            return True
+        # Common filename form such as README.md or pyproject.toml.
+        if re.fullmatch(r"[A-Za-z0-9_.-]+\.[A-Za-z0-9_.-]+", value):
+            return True
+        return False
+
     def _parse_operation(
         self,
         content: str,
@@ -186,11 +220,14 @@ class FilesystemOrchestrator:
         )
 
         if match is not None:
+            argument = self._clean_argument(match.group(1))
+            if not self._looks_like_filesystem_target(argument):
+                return None
+            if not self._looks_like_filesystem_target(argument):
+                return None
             return (
                 FilesystemOperation.INSPECT_PATH,
-                self._clean_argument(
-                    match.group(1)
-                ),
+                argument,
             )
 
         match = self._CHECK_PATH_PATTERN.match(
