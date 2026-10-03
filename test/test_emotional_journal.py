@@ -107,6 +107,8 @@ def test_projection_preserves_epistemic_boundary_and_no_meters(tmp_path):
 def test_personality_preserves_affection_through_serious_conversation():
     guidance = '\n'.join(personality_expression_guidance()).lower()
     assert 'does not automatically disable personality' in guidance
+    assert 'does not replace stable traits' in guidance
+    assert 'constant softness' in guidance
     assert 'blends' in guidance
     assert 'no process ran' in guidance
     assert 'corresponding evidence' in guidance
