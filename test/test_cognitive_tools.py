@@ -657,3 +657,146 @@ def test_cognitive_system_respects_explicit_tool_suppression():
     assert response.content == "Tool-free response."
     assert engine.requests[0].tools == ()
     assert engine.requests[0].allow_tools is False
+
+
+
+def test_required_read_only_inspection_is_host_preflighted_before_model_answer():
+    capability = Capability(
+        name="process.inspect",
+        description="Inspect local running processes. Read-only.",
+    )
+    capability_system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+    capability_system.register(
+        capability=capability,
+        handler=lambda request: {"processes": [{"name": "python.exe", "pid": 42}]},
+    )
+    dispatcher = CognitiveToolDispatcher(
+        gateway=CapabilityGateway(capability_system=capability_system),
+        bindings=(
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="inspect_processes",
+                    description="Inspect local running processes. Read-only.",
+                    parameters={
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="process.inspect",
+            ),
+        ),
+    )
+
+    class EvidenceFirstEngine(CognitiveEngine):
+        def __init__(self):
+            self.requests = []
+
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            self.requests.append(request)
+            assert any(
+                message.role is CognitiveRole.TOOL
+                and "python.exe" in message.content
+                for message in request.messages
+            )
+            return CognitiveResponse(content="python.exe is running as PID 42.")
+
+    engine = EvidenceFirstEngine()
+    system = CognitiveSystem(engine=engine, tool_dispatcher=dispatcher)
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="TRUSTED READ-ONLY TOOL REQUIREMENT",
+                        ),
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Inspect the local running processes.",
+                        ),
+                    ),
+                    allow_tools=True,
+                    capability_allowlist=("process.inspect",),
+                    route_hint="deep",
+                )
+            ),
+            authority=Authority(
+                allowed_capabilities=("process.inspect",),
+            ),
+        )
+    )
+
+    assert response.content == "python.exe is running as PID 42."
+    assert response.evidence_refs == ("capability:process.inspect",)
+    assert len(engine.requests) == 1
+
+
+def test_required_read_only_preflight_never_autocalls_parameterized_tool():
+    capability = Capability(
+        name="machine.get",
+        description="Inspect one known machine.",
+    )
+    capability_system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+    called = []
+    capability_system.register(
+        capability=capability,
+        handler=lambda request: called.append(request) or {},
+    )
+    dispatcher = CognitiveToolDispatcher(
+        gateway=CapabilityGateway(capability_system=capability_system),
+        bindings=(
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="inspect_known_machine",
+                    description="Inspect one known machine.",
+                    parameters={
+                        "type": "object",
+                        "properties": {"machine_id": {"type": "string"}},
+                        "required": ["machine_id"],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="machine.get",
+            ),
+        ),
+    )
+
+    class NoToolEngine(CognitiveEngine):
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            return CognitiveResponse(content="No automatic call was possible.")
+
+    system = CognitiveSystem(engine=NoToolEngine(), tool_dispatcher=dispatcher)
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="TRUSTED READ-ONLY TOOL REQUIREMENT",
+                        ),
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Inspect a known machine.",
+                        ),
+                    ),
+                    allow_tools=True,
+                    capability_allowlist=("machine.get",),
+                    route_hint="deep",
+                )
+            ),
+            authority=Authority(
+                allowed_capabilities=("machine.get",),
+            ),
+        )
+    )
+
+    assert response.content == "No automatic call was possible."
+    assert called == []
