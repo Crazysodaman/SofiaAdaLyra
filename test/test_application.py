@@ -2,6 +2,7 @@
 
 import pytest
 
+import sofia.application.bootstrap as bootstrap
 from sofia.application import SofiaApplication, SofiaApplicationError
 from sofia.application.act_service import SofiaActService
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
@@ -305,3 +306,49 @@ def test_channel_conversations_share_runtime_but_keep_audience_sessions_isolated
     )
 
     application.shutdown()
+
+
+
+def test_failed_application_start_rolls_back_runtime_and_can_retry(
+    personality_path: Path,
+    tmp_path: Path,
+    monkeypatch,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    original = bootstrap.load_or_bootstrap_presentation
+
+    def fail_after_runtime_start(*args, **kwargs):
+        raise RuntimeError("synthetic presentation startup failure")
+
+    monkeypatch.setattr(
+        bootstrap,
+        "load_or_bootstrap_presentation",
+        fail_after_runtime_start,
+    )
+
+    with pytest.raises(
+        SofiaApplicationError,
+        match="failed to start",
+    ):
+        application.start()
+
+    assert application.runtime.state is RuntimeState.STOPPED
+    assert application.conversation.session is None
+
+    monkeypatch.setattr(
+        bootstrap,
+        "load_or_bootstrap_presentation",
+        original,
+    )
+
+    application.start()
+    try:
+        assert application.runtime.state is RuntimeState.READY
+        assert application.conversation.session is not None
+    finally:
+        application.shutdown()
