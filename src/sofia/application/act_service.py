@@ -233,6 +233,7 @@ class SofiaActService:
                 "retry_wait",
                 "attempt_limit",
                 "outcome_unknown",
+                "policy_blocked",
             ):
                 return result
         return None
