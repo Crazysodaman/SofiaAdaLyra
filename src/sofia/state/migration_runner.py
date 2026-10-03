@@ -62,6 +62,14 @@ class MigrationRunResult:
 class StateMigrationRunner:
     """Execute registered SQLite migrations under one fenced global lease."""
 
+    @staticmethod
+    def _clock_now(explicit_now: datetime | None) -> datetime:
+        return (
+            explicit_now.astimezone(timezone.utc)
+            if explicit_now is not None
+            else datetime.now(timezone.utc)
+        )
+
     def __init__(
         self,
         *,
@@ -193,9 +201,7 @@ class StateMigrationRunner:
                 + ", ".join(missing)
             )
 
-        moment = (now or datetime.now(timezone.utc)).astimezone(
-            timezone.utc
-        )
+        moment = self._clock_now(now)
         lease = self.leases.acquire(
             owner_id=self.owner_id,
             now=moment,
@@ -208,7 +214,7 @@ class StateMigrationRunner:
             for group in self._group_transitions(path):
                 transition_from = group[0].from_revision
                 transition_to = group[0].to_revision
-                step_time = datetime.now(timezone.utc)
+                step_time = self._clock_now(now)
                 self._require_lease(lease, now=step_time)
 
                 selected = tuple(
@@ -253,7 +259,7 @@ class StateMigrationRunner:
                         operation.apply(db)
                         operation.validate(db)
 
-                    applied_at = datetime.now(timezone.utc)
+                    applied_at = self._clock_now(now)
                     for operation in selected:
                         evidence_ref = (
                             f"{evidence_prefix}:"
@@ -318,7 +324,7 @@ class StateMigrationRunner:
             try:
                 self.leases.release(
                     lease,
-                    now=datetime.now(timezone.utc),
+                    now=self._clock_now(now),
                 )
             except MigrationLeaseLost:
                 if primary_error is None:
