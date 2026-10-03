@@ -412,3 +412,36 @@ def test_live_conversation_projects_and_rotates_embodied_expression(
         assert second_plan.primary != "ear-perk"
     finally:
         application.shutdown()
+
+
+
+def test_live_avatar_why_followup_stays_on_presentation_state(
+    monkeypatch, tmp_path
+):
+    from sofia.cognition.matrix import MatrixDomain, MatrixRelevance
+
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("This provider response must never be used.",),
+    )
+    try:
+        first = application.conversation.respond("what are you wearing?")
+        assert "signature engineer outfit" in first.content
+
+        second = application.conversation.respond("why did you pick that?")
+
+        assert "canonical daily default" in second.content
+        assert "tone" not in second.content.casefold()
+        assert "cadence" not in second.content.casefold()
+        assert captured == []
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.turn.relevance_for(MatrixDomain.AVATAR) is (
+            MatrixRelevance.CONTEXTUAL
+        )
+        assert trace.context is not None
+        assert trace.context.max_history_messages == 3
+    finally:
+        application.shutdown()
