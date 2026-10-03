@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 import json
+import re
 from pathlib import Path
 import sqlite3
 from uuid import uuid4
@@ -665,10 +666,48 @@ class ReflectionJournal:
             if result.rowcount != 1:
                 raise ValueError("No pending message with that ID; delivery not confirmed.")
 
+    @staticmethod
+    def _topic_tokens(text: str) -> frozenset[str]:
+        if not isinstance(text, str):
+            raise TypeError("topic text must be a string")
+        stop = {
+            "about", "after", "again", "been", "could", "did", "does",
+            "from", "have", "how", "into", "just", "more", "that", "the",
+            "their", "them", "then", "there", "these", "they", "this",
+            "those", "what", "when", "where", "which", "with", "would",
+            "your", "you",
+        }
+        values = []
+        for raw in re.findall(r"[a-z0-9]+", text.casefold()):
+            token = raw
+            if len(token) > 5 and token.endswith("ing"):
+                token = token[:-3]
+            elif len(token) > 4 and token.endswith("ed"):
+                token = token[:-2]
+            elif len(token) > 4 and token.endswith("s"):
+                token = token[:-1]
+            if len(token) >= 4 and token not in stop:
+                values.append(token)
+        return frozenset(values)
+
     def prompt_context(
         self, *, limit: int = 5, scope: SocialScope | None = None,
+        query: str | None = None,
     ) -> str | None:
         thoughts = self.recent_thoughts(limit=limit, scope=scope)
+        if query is not None:
+            query_tokens = self._topic_tokens(query)
+            if query_tokens:
+                thoughts = tuple(
+                    thought for thought in thoughts
+                    if query_tokens.intersection(
+                        self._topic_tokens(
+                            thought.subject + " " + thought.content
+                        )
+                    )
+                )
+            else:
+                thoughts = ()
         if not thoughts:
             return None
         lines = [
