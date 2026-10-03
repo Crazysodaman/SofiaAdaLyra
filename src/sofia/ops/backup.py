@@ -11,6 +11,7 @@ can later enforce that a restore target is different from the backup domain.
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -214,7 +215,10 @@ class BackupEngine:
     def _sqlite_snapshot(source: Path, target: Path) -> None:
         if not source.is_file():
             raise FileNotFoundError("canonical state database does not exist")
-        with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
+        with (
+            closing(sqlite3.connect(source)) as src,
+            closing(sqlite3.connect(target)) as dst,
+        ):
             src.backup(dst)
             row = dst.execute("PRAGMA integrity_check").fetchone()
             if row is None or row[0] != "ok":
@@ -399,7 +403,7 @@ class BackupEngine:
             staged_db = staging / "sofia.db"
             if not staged_db.is_file():
                 raise BackupError("backup does not contain sofia.db")
-            with sqlite3.connect(staged_db) as db:
+            with closing(sqlite3.connect(staged_db)) as db:
                 row = db.execute("PRAGMA integrity_check").fetchone()
                 if row is None or row[0] != "ok":
                     raise BackupError("restored SQLite failed integrity_check")
@@ -417,7 +421,7 @@ class BackupEngine:
                     expected_hash = constitution_hash.read_text(
                         encoding="utf-8"
                     ).strip()
-                    if expected_hash != loaded_constitution.content_hash:
+                    if expected_hash.casefold() != loaded_constitution.content_hash.casefold():
                         raise BackupError(
                             "restored Constitution hash does not match protected digest"
                         )
