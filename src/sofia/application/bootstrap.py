@@ -1102,14 +1102,7 @@ class SofiaApplication:
         except KeyboardInterrupt:
             self._rollback_failed_start()
             raise
-        except (
-            SofiaApplicationError,
-            SofiaRuntimeError,
-            PresentationStoreError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
+        except Exception as exc:
             cleanup_errors = self._rollback_failed_start()
             error = SofiaApplicationError(
                 "Sofía application failed to start."
