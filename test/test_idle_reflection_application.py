@@ -1,4 +1,5 @@
 """Application owns worker lifecycle; no live inference in this test."""
+from threading import RLock
 from types import SimpleNamespace
 
 import pytest
@@ -13,12 +14,6 @@ class FakeWorker:
         self.events = service.events
         self.events.append("worker:create")
 
-    def start(self):
-        self.events.append("worker:start")
-
-    def stop(self):
-        self.events.append("worker:stop")
-
 
 class FakeCoordinator:
     def __init__(
@@ -29,6 +24,7 @@ class FakeCoordinator:
         reflection_enabled=True,
         **_kwargs,
     ):
+        self.events = service.events
         self.idle = (
             FakeWorker(service=service, state_path=state_path)
             if reflection_enabled
@@ -45,12 +41,10 @@ class FakeCoordinator:
         pass
 
     def start(self):
-        if self.idle is not None:
-            self.idle.start()
+        self.events.append("coordinator:start")
 
     def stop(self):
-        if self.idle is not None:
-            self.idle.stop()
+        self.events.append("coordinator:stop")
 
 
 def _application(monkeypatch, tmp_path, *, personality=True):
@@ -114,6 +108,11 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     app._conversation_service = conversation
     app._channel_conversations = []
     app._idle_worker = None
+    app._model_lock = RLock()
+    app._tts = SimpleNamespace(
+        start=lambda: events.append("tts:start"),
+        stop=lambda: events.append("tts:stop"),
+    )
     monkeypatch.setattr(bootstrap, "EmotionalConversationService", SimpleNamespace)
     monkeypatch.setattr(
         bootstrap,
@@ -127,11 +126,20 @@ def test_opt_in_starts_only_after_awareness_and_stops_before_runtime(monkeypatch
     monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", "1")
     app, events = _application(monkeypatch, tmp_path)
     app.start()
-    assert events == ["runtime:start", "conversation:open", "conversation:start",
-                      "awareness", "worker:create", "worker:start"]
+    assert events == [
+        "runtime:start",
+        "conversation:open",
+        "conversation:start",
+        "tts:start",
+        "awareness",
+        "worker:create",
+        "coordinator:start",
+    ]
     assert app.idle_reflection_worker is not None
     app.shutdown()
-    assert events[-3:] == ["worker:stop", "runtime:shutdown", "conversation:close"]
+    assert "coordinator:stop" in events
+    assert "runtime:shutdown" in events
+    assert events[-1] == "conversation:close"
     assert app.idle_reflection_worker is None
 
 
@@ -142,7 +150,7 @@ def test_disabled_worker_never_starts(monkeypatch, tmp_path, setting):
     app.start()
     assert app.idle_reflection_worker is None
     app.shutdown()
-    assert "worker:start" not in events
+    assert "worker:create" not in events
 
 
 def test_no_personality_does_not_launch_worker(monkeypatch, tmp_path):
