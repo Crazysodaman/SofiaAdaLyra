@@ -581,8 +581,15 @@ class SofiaApplication:
             presentation_runtime_enabled = (
                 self._presentation_routine is not None
             )
+            fleet_discovery_config = getattr(
+                self._configuration,
+                "fleet_discovery",
+                None,
+            )
             fleet_discovery_source = (
-                create_configured_fleet_discovery_source(
+                None
+                if fleet_discovery_config is None
+                else create_configured_fleet_discovery_source(
                     self._configuration
                 )
             )
