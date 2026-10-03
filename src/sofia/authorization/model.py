@@ -60,10 +60,20 @@ class FilesystemAuthorization:
             raise ValueError(
                 "FilesystemAuthorization actor must be a non-empty string."
             )
+        if self.actor != self.actor.strip():
+            raise ValueError(
+                "FilesystemAuthorization actor must be canonical "
+                "without surrounding whitespace."
+            )
 
         if not isinstance(self.role, str) or not self.role.strip():
             raise ValueError(
                 "FilesystemAuthorization role must be a non-empty string."
+            )
+        if self.role != self.role.strip():
+            raise ValueError(
+                "FilesystemAuthorization role must be canonical "
+                "without surrounding whitespace."
             )
 
         if not isinstance(self.domain, AuthorizationDomain):
@@ -81,6 +91,10 @@ class FilesystemAuthorization:
             raise TypeError(
                 "FilesystemAuthorization operations must be a tuple."
             )
+        if not self.operations:
+            raise ValueError(
+                "FilesystemAuthorization operations must not be empty."
+            )
 
         for operation in self.operations:
             if not isinstance(
@@ -91,6 +105,12 @@ class FilesystemAuthorization:
                     "FilesystemAuthorization operations must contain "
                     "FilesystemAuthorizationOperation instances."
                 )
+
+        if len(set(self.operations)) != len(self.operations):
+            raise ValueError(
+                "FilesystemAuthorization operations must not contain "
+                "duplicates."
+            )
 
         if self.target is not None and not isinstance(self.target, Path):
             raise TypeError(
