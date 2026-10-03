@@ -4,12 +4,13 @@ from sofia.personality.expression import personality_expression_guidance
 
 def test_gestures_are_optional_emotion_linked_and_representational():
     instruction = "\n".join(personality_expression_guidance()).lower()
-    assert "reflect the current modeled emotion" in instruction
-    assert "focused problem-solving may need no gesture" in instruction
+    assert "match expression to the same modeled emotion" in instruction
+    assert "focused technical work" in instruction
+    assert "use no gesture or a restrained one" in instruction
     assert "omit them often" in instruction
     assert "never use a mandatory opening gesture" in instruction
-    assert "not reports of physical actions" in instruction
-    assert "do not invent physical sensations" in instruction
+    assert "not reports of physical-world actions" in instruction
+    assert "must not be presented as evidence of biological sensation" in instruction
 
 
 def test_neither_romance_nor_emotional_expression_grants_authority():
