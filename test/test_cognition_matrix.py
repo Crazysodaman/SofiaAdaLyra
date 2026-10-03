@@ -1305,3 +1305,21 @@ def test_is_that_all_inherits_only_prior_turn_domains():
     )
     assert inherited.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.NONE
     assert inherited.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
+
+
+def test_weather_feeling_query_requires_environment_and_emotion():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope("how does the weather make you feel?")
+    )
+
+    assert turn.intent is MatrixIntent.GENERAL
+    assert turn.response_strategy is ResponseStrategy.GENERATIVE
+    assert turn.history_policy is HistoryPolicy.NONE
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
+        MatrixRelevance.REQUIRED
+    )
+    assert turn.relevance_for(MatrixDomain.EMOTION) is (
+        MatrixRelevance.REQUIRED
+    )
