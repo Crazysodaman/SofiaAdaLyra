@@ -59,3 +59,34 @@ def test_operational_status_resolver_leaves_nonstatus_questions_unmodified():
     )
     assert not answer.recognized
     assert answer.content == ""
+
+
+def test_dev_self_capability_query_reports_registered_capability_not_blanket_denial():
+    answer = OperationalStatusQueryResolver().resolve(
+        "Are u able to make new code for yourself?",
+        selection=SELECTION,
+        capability_names=(
+            "codebase.inspect",
+            "dev.status",
+            "dev.build",
+            "dev.apply",
+            "dev.commit",
+            "dev.push",
+        ),
+    )
+
+    assert answer.recognized
+    assert "registered DEV capabilities" in answer.content
+    assert "dev.apply" in answer.content
+    assert "does not grant itself permission" in answer.content
+
+
+def test_dev_self_capability_query_fails_closed_without_registered_dev_tools():
+    answer = OperationalStatusQueryResolver().resolve(
+        "Can you modify your own code?",
+        selection=SELECTION,
+        capability_names=(),
+    )
+
+    assert answer.recognized
+    assert "don't have registered DEV capabilities" in answer.content
