@@ -9,6 +9,7 @@ import sys
 import tempfile
 
 from sofia.config.defaults import production_state_path
+from sofia.ops.recovery import DEFAULT_RECOVERY_OBJECTIVES
 from sofia.ops.backup import (
     BackupCipher,
     BackupEngine,
@@ -146,8 +147,17 @@ def main(argv: list[str] | None = None) -> int:
     rotate.add_argument("--keep", type=int, required=True)
     rotate.set_defaults(handler=_rotate)
 
+    sub.add_parser("objectives")
+
     args = parser.parse_args(argv)
     try:
+        if args.command == "objectives":
+            objectives = DEFAULT_RECOVERY_OBJECTIVES
+            print(
+                f"rpo_seconds={objectives.rpo_seconds} "
+                f"rto_seconds={objectives.rto_seconds}"
+            )
+            return 0
         return args.handler(args)
     except Exception as exc:
         print(
