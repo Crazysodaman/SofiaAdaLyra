@@ -701,6 +701,26 @@ def grounded_quality_fallback(
             "was a complete answer."
         ))
 
+    if issue == "social_persona_fiction":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            return CognitiveResponse(
+                content=f"Pretty good, Sparks. I'm feeling {labels[0].replace('-', ' ')} right now."
+            )
+        return CognitiveResponse(content="Pretty good, Sparks. Steady and present.")
+
+    if issue == "host_tool_evidence_denial":
+        return CognitiveResponse(content=(
+            "I have current host-tool evidence for this turn. I shouldn't claim I lack "
+            "access to the inspected system; I should report only what that evidence shows."
+        ))
+
+    if issue == "operational_evidence_overreach":
+        return CognitiveResponse(content=(
+            "The inspection gives me current observed data, but it doesn't support a broader "
+            "health, security, or bottleneck conclusion. I'll stick to the measured fields."
+        ))
+
     if issue == "future_reciprocal_wave":
         return CognitiveResponse(content="*I wave back with a quick grin.*")
 
@@ -912,6 +932,28 @@ def build_rephrase_request(
             "fluidity, gearing up to be direct/teasing, monitoring the vibe, or making "
             "the next reply have the right energy. Perform the personality and gesture "
             "naturally in the current answer; do not describe the writing strategy."
+        )
+    elif issue == "social_persona_fiction":
+        detail = (
+            "Your draft invented digital-void, offline-waiting, or return narrative for "
+            "a simple social check-in. Answer only from Sofía's current grounded state. "
+            "Keep it concise and natural; do not imply she was waiting, suspended in a "
+            "void, or continuously aware between turns, and do not reflexively end with "
+            "a question."
+        )
+    elif issue == "host_tool_evidence_denial":
+        detail = (
+            "A successful host TOOL result is present in this request. Do not say Sofía "
+            "cannot inspect or access the requested host/network/hardware/storage/Fleet "
+            "state. Summarize the supplied tool evidence directly, and distinguish fields "
+            "that are absent or null as unknown/not sampled."
+        )
+    elif issue == "operational_evidence_overreach":
+        detail = (
+            "Your draft went beyond the supplied operational evidence. Do not infer system "
+            "health, malware/rogue-process absence, safety, normality, or bottlenecks from "
+            "a bounded snapshot. Null CPU is unknown/not sampled, not zero. Rewrite as a "
+            "factual summary of only the observed fields and explicit tool-result status."
         )
     elif issue == "generic_personality_deflection":
         detail = (
