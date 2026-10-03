@@ -115,6 +115,7 @@ def test_expression_plan_can_remain_still_without_grounded_context():
     assert plan.primary is None
     assert plan.alternates == ()
     assert plan.active_signals == ()
+    assert "No specific expression cue is required this turn." in plan.prompt()
 
 
 def test_expression_prompt_preserves_representation_and_authority_boundary():
