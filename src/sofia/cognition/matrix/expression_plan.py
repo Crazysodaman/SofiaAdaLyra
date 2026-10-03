@@ -145,6 +145,43 @@ _WEATHER_HINTS = {
     "sun": ("ear-perk", "smile"),
 }
 
+_NATURAL_EXPRESSION = {
+    "laugh": "laugh naturally",
+    "chuckle": "give a brief chuckle",
+    "giggle": "let out a small giggle",
+    "cry": "show tears if the grounded emotion genuinely supports it",
+    "tear-up": "eyes well slightly if the grounded emotion supports it",
+    "sob": "show stronger crying only when strongly grounded",
+    "sniffle": "a small sniffle",
+    "sigh": "let out a brief sigh",
+    "gasp": "a quick surprised intake of breath",
+    "smile": "smile",
+    "grin": "flash a crooked or playful grin",
+    "frown": "frown slightly",
+    "blush": "show a faint representational blush",
+    "avert-gaze": "glance aside briefly",
+    "pause": "pause for a beat",
+    "speak-softly": "let the voice soften a little",
+    "tremble": "show a subtle representational tremble only when strongly grounded",
+    "ear-perk": "let the fox ears perk with attention",
+    "ear-flick": "give one fox ear a small flick",
+    "ear-flatten": "let the fox ears flatten slightly",
+    "tail-swish": "let the fox tail swish once",
+    "tail-curl": "let the fox tail curl in closer",
+    "tail-still": "let the fox tail go still",
+    "shift-posture": "shift posture or weight naturally",
+}
+
+_NATURAL_POSE = {
+    "stand-relaxed": "settle into a relaxed stance",
+    "lean-forward": "lean forward with interest",
+    "look-back": "glance back over a shoulder",
+    "recline": "recline a little",
+    "sit-cross-legged": "sit cross-legged",
+    "hands-behind-back": "rest the hands behind the back",
+    "hip-pop": "shift one hip with playful confidence",
+}
+
 
 def _valid_expression_id(value: str) -> bool:
     return value in _EXPRESSION_IDS
@@ -152,6 +189,22 @@ def _valid_expression_id(value: str) -> bool:
 
 def _valid_pose_id(value: str) -> bool:
     return value in _POSE_IDS
+
+
+def _expression_text(value: str | None) -> str:
+    if value is None:
+        return "none"
+    return _NATURAL_EXPRESSION.get(value, value.replace("-", " "))
+
+
+def _pose_text(value: str | None) -> str:
+    if value is None:
+        return "none"
+    return _NATURAL_POSE.get(value, value.replace("-", " "))
+
+
+def _list_text(values: tuple[str, ...], renderer) -> str:
+    return ", ".join(renderer(value) for value in values) if values else "none"
 
 
 def _stable_offset(message_id: str, count: int) -> int:
@@ -238,29 +291,27 @@ class EmbodiedExpressionPlan:
 
     def prompt(self) -> str:
         """Provider-facing plan. This is style guidance, never execution evidence."""
-        if self.primary is None:
-            candidate = "none"
-        else:
-            candidate = self.primary
-        alternates = ", ".join(self.alternates) if self.alternates else "none"
-        pose = self.pose or "none"
-        pose_alternates = ", ".join(self.pose_alternates) if self.pose_alternates else "none"
-        avoid = ", ".join(self.avoid_recent) if self.avoid_recent else "none"
+        candidate = _expression_text(self.primary)
+        alternates = _list_text(self.alternates, _expression_text)
+        pose = _pose_text(self.pose)
+        pose_alternates = _list_text(self.pose_alternates, _pose_text)
+        avoid = _list_text(self.avoid_recent, _expression_text)
         signals = ", ".join(self.active_signals) if self.active_signals else "none"
         return "\n".join((
             "CURRENT EMBODIED EXPRESSION PLAN (trusted non-authoritative style projection)",
-            f"Preferred expression semantic: {candidate}",
-            f"Alternate expression semantics: {alternates}",
-            f"Preferred body-pose semantic: {pose}",
-            f"Alternate body-pose semantics: {pose_alternates}",
-            f"Recently used semantics to avoid repeating: {avoid}",
+            f"Preferred natural expression: {candidate}",
+            f"Alternate natural expressions: {alternates}",
+            f"Preferred natural body pose: {pose}",
+            f"Alternate natural body poses: {pose_alternates}",
+            f"Recently used expression families to avoid repeating: {avoid}",
             f"Expression intensity: {self.intensity}",
             f"Active contextual influence signals: {signals}",
             f"Planner reason: {self.reason}",
             "For an ordinary social or conversational reply, use the preferred expression "
             "and optionally the preferred pose, or suitable alternates, when they fit. "
-            "A pose does not need to be narrated on every turn. Translate semantic IDs into concise "
-            "natural stage direction/prose; never print the ID itself. Do not mechanically "
+            "A pose does not need to be narrated on every turn. These are natural-language "
+            "suggestions, not text that must be copied. Use concise stage direction/prose. "
+            "Do not mention planners, semantic IDs, catalogs, or internal labels. Do not mechanically "
             "prefix every answer. Technical focus, seriousness, or awkward fit may justify "
             "stillness. Do not repeat a recently used cue merely to add decoration.",
             "This plan describes represented avatar expression only. It is not evidence of "
