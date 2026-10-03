@@ -187,7 +187,28 @@ try {{
     & icacls.exe $ServerKey /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
     if ($LASTEXITCODE -ne 0) {{ throw "Failed to restrict Fleet server private-key ACL." }}
 
+    $ServiceName = "SofiaAdaLyraFleetAgent"
     $ManagedPython = Join-Path $Root ".venv\\Scripts\\python.exe"
+
+    # Stop and remove the prior durable service before replacing its venv.
+    $ExistingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+    if ($null -ne $ExistingService) {{
+        Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+        foreach ($Attempt in 1..15) {{
+            Start-Sleep -Milliseconds 500
+            $ExistingService = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+            if ($null -eq $ExistingService -or $ExistingService.Status -eq "Stopped") {{
+                break
+            }}
+        }}
+        & sc.exe delete $ServiceName | Out-Null
+        if ($LASTEXITCODE -ne 0) {{
+            throw "Failed to remove prior Fleet agent service."
+        }}
+        Start-Sleep -Milliseconds 750
+    }}
+
+    # Clean up pre-service bootstrap agents from older releases.
     $ManagedProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object {{
             $_.CommandLine -and
@@ -233,107 +254,62 @@ try {{
     $AgentPython = Join-Path $Venv "Scripts\\python.exe"
     & $AgentPython -m pip install --disable-pip-version-check --no-deps (Join-Path $Root $WheelName)
     if ($LASTEXITCODE -ne 0) {{ throw "Fleet wheel installation failed." }}
-    & $AgentPython -m pip install --disable-pip-version-check cryptography
-    if ($LASTEXITCODE -ne 0) {{ throw "cryptography installation failed." }}
+    & $AgentPython -m pip install --disable-pip-version-check cryptography pywin32
+    if ($LASTEXITCODE -ne 0) {{ throw "Fleet service dependencies installation failed." }}
 
-    $Config = & $AgentPython -m sofia.distributed.agent_main --config (Join-Path $Root "agent.json") --check-config 2>&1
+    $ConfigPath = Join-Path $Root "agent.json"
+    $Config = & $AgentPython -m sofia.distributed.agent_main --config $ConfigPath --check-config 2>&1
     if ($LASTEXITCODE -ne 0) {{ throw "agent config validation failed: $Config" }}
-    & $AgentPython -c "import cryptography, sofia, sofia.distributed.agent_main, sofia.distributed.agent_tools"
-    if ($LASTEXITCODE -ne 0) {{ throw "Fleet import smoke failed." }}
+    & $AgentPython -c "import cryptography, win32serviceutil, sofia, sofia.distributed.agent_main, sofia.distributed.agent_tools, sofia.distributed.windows_agent_service, sofia.distributed.windows_agent_service_admin"
+    if ($LASTEXITCODE -ne 0) {{ throw "Fleet service import smoke failed." }}
     $PythonVersion = (& $AgentPython --version 2>&1 | Out-String).Trim()
 
     $FirewallName = "SofiaAdaLyra Fleet Agent $ListenPort"
     Get-NetFirewallRule -DisplayName $FirewallName -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
     New-NetFirewallRule -DisplayName $FirewallName -Direction Inbound -Action Allow -Protocol TCP -LocalPort $ListenPort -RemoteAddress LocalSubnet -Profile Any | Out-Null
 
-    $Stdout = Join-Path $Root "agent.stdout.log"
-    $Stderr = Join-Path $Root "agent.stderr.log"
-    $StartupStatus = Join-Path $Root "agent.startup.json"
-    Remove-Item $StartupStatus -Force -ErrorAction SilentlyContinue
-    $Runner = Join-Path $Root "agent_canary.py"
-    @'
-from pathlib import Path
-import json
-import sys
-import traceback
-
-from sofia.distributed.agent import RemoteAgentServer
-from sofia.distributed.agent_main import configuration_from_file
-from sofia.distributed.agent_tools import create_default_agent_dispatcher
-
-root = Path(sys.argv[1])
-config_path = Path(sys.argv[2])
-status_path = root / "agent.startup.json"
-
-def status(stage, error=None):
-    payload = dict(stage=stage)
-    if error is not None:
-        payload["error"] = error
-    status_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-
-try:
-    status("loading_config")
-    config = configuration_from_file(config_path)
-    status("creating_dispatcher")
-    dispatcher = create_default_agent_dispatcher()
-    status("creating_server")
-    server = RemoteAgentServer(config, dispatcher)
-    status("listening")
-    server.serve_forever()
-except BaseException as exc:
-    status("failed", type(exc).__name__ + ": " + str(exc))
-    traceback.print_exc(file=sys.stderr)
-    raise
-'@ | Set-Content -Path $Runner -Encoding UTF8
-    $Args = @($Runner,$Root,(Join-Path $Root "agent.json"))
-    $StartedAgent = Start-Process -FilePath $AgentPython -ArgumentList $Args -WindowStyle Hidden -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -PassThru
+    $InstallOutput = & $AgentPython -m sofia.distributed.windows_agent_service_admin install --config $ConfigPath 2>&1
+    if ($LASTEXITCODE -ne 0) {{
+        throw "Fleet agent service installation failed: $InstallOutput"
+    }}
+    $StartOutput = & $AgentPython -m sofia.distributed.windows_agent_service_admin start 2>&1
+    if ($LASTEXITCODE -ne 0) {{
+        throw "Fleet agent service start failed: $StartOutput"
+    }}
 
     $Listener = $null
-    foreach ($Attempt in 1..15) {{
+    $AgentService = $null
+    foreach ($Attempt in 1..20) {{
         Start-Sleep -Seconds 1
-        $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue |
-            Where-Object {{
-                $Owner = Get-CimInstance Win32_Process -Filter ("ProcessId=" + $_.OwningProcess) -ErrorAction SilentlyContinue
-                $Owner -and $Owner.CommandLine -and $Owner.CommandLine.Contains($Runner)
-            }} |
-            Select-Object -First 1
-        if ($null -ne $Listener) {{ break }}
-
-        $RunnerProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-            Where-Object {{
-                $_.CommandLine -and
-                $_.CommandLine.Contains($Root) -and
-                $_.CommandLine.Contains("agent_canary.py")
-            }}
-        $StartedAgent.Refresh()
-        if ($StartedAgent.HasExited -and -not $RunnerProcesses) {{
-            $Text = Read-TextSafe $Stderr
-            if ($Text) {{
-                throw "Fleet agent exited during startup. stderr: $Text"
-            }}
-            throw "Fleet agent exited during startup with code $($StartedAgent.ExitCode) and produced no stderr."
+        $AgentService = Get-CimInstance Win32_Service -Filter ("Name='" + $ServiceName + "'") -ErrorAction SilentlyContinue
+        if ($null -eq $AgentService) {{
+            continue
+        }}
+        if ($AgentService.State -eq "Stopped") {{
+            throw "Fleet agent service stopped during startup."
+        }}
+        if (
+            $AgentService.State -eq "Running" -and
+            [int]$AgentService.ProcessId -gt 0
+        ) {{
+            $ServicePid = [int]$AgentService.ProcessId
+            $Listener = Get-NetTCPConnection -State Listen -LocalPort $ListenPort -ErrorAction SilentlyContinue |
+                Where-Object {{ [int]$_.OwningProcess -eq $ServicePid }} |
+                Select-Object -First 1
+            if ($null -ne $Listener) {{ break }}
         }}
     }}
-    if ($null -eq $Listener) {{
-        $Text = Read-TextSafe $Stderr
-        $OutText = Read-TextSafe $Stdout
-        $Phase = ""
-        if (Test-Path $StartupStatus -PathType Leaf) {{
-            $Phase = Read-TextSafe $StartupStatus
-        }}
-        if ($Text) {{
-            throw "Fleet agent is not listening on the approved port. startup=$Phase stderr: $Text"
-        }}
-        if ($OutText) {{
-            throw "Fleet agent is not listening on the approved port. startup=$Phase stdout: $OutText"
-        }}
-        if ($Phase) {{
-            throw "Fleet agent is alive but is not listening on the approved port. startup=$Phase"
-        }}
-        throw "Fleet agent is alive but is not listening on the approved port and produced no startup evidence."
+    if ($null -eq $Listener -or $null -eq $AgentService) {{
+        $ObservedState = if ($null -eq $AgentService) {{ "missing" }} else {{ [string]$AgentService.State }}
+        throw "Fleet agent service is not listening on the approved port. service_state=$ObservedState"
     }}
 
-    $AgentPid = [int]$Listener.OwningProcess
+    $ValidateOutput = & $AgentPython -m sofia.distributed.windows_agent_service_admin validate --config $ConfigPath 2>&1
+    if ($LASTEXITCODE -ne 0) {{
+        throw "Fleet agent service registration validation failed: $ValidateOutput"
+    }}
+
+    $AgentPid = [int]$AgentService.ProcessId
     Set-Content (Join-Path $Root "agent.pid") ([string]$AgentPid) -Encoding ASCII
     Save-Receipt @{{
         status = "verified"
@@ -343,6 +319,8 @@ except BaseException as exc:
         process_id = $AgentPid
         listen_port = [int]$ListenPort
         python_version = $PythonVersion
+        service_name = $ServiceName
+        service_state = [string]$AgentService.State
     }}
 
     # The controller only needs the receipt after success. Scrub the staged
@@ -355,9 +333,15 @@ except BaseException as exc:
     Remove-Item (Join-Path $Stage "agent.json") -Force -ErrorAction SilentlyContinue
 }}
 catch {{
-    if ($null -ne $StartedAgent -and -not $StartedAgent.HasExited) {{
-        Stop-Process -Id $StartedAgent.Id -Force -ErrorAction SilentlyContinue
+    if (Test-Path $AgentPython -PathType Leaf) {{
+        & $AgentPython -m sofia.distributed.windows_agent_service_admin stop 2>$null | Out-Null
+        & $AgentPython -m sofia.distributed.windows_agent_service_admin remove 2>$null | Out-Null
     }}
+    else {{
+        Stop-Service -Name "SofiaAdaLyraFleetAgent" -Force -ErrorAction SilentlyContinue
+        & sc.exe delete "SofiaAdaLyraFleetAgent" 2>$null | Out-Null
+    }}
+    # Also remove any legacy hidden bootstrap process from older installs.
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         Where-Object {{
             $_.CommandLine -and
