@@ -323,7 +323,7 @@ def test_failed_application_start_rolls_back_runtime_and_can_retry(
     original = bootstrap.load_or_bootstrap_presentation
 
     def fail_after_runtime_start(*args, **kwargs):
-        raise RuntimeError("synthetic presentation startup failure")
+        raise OSError("synthetic presentation startup failure")
 
     monkeypatch.setattr(
         bootstrap,
