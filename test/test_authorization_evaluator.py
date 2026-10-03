@@ -216,3 +216,32 @@ def test_evaluator_provenance_cannot_be_relabelled(
             scope=tmp_path,
             actor="Someone Else",
         )
+
+
+
+def test_authorization_evaluator_rejects_invalid_principal_type(
+    tmp_path: Path,
+):
+    evaluator = FilesystemAuthorizationEvaluator(scope=tmp_path)
+
+    with pytest.raises(TypeError, match="PrincipalContext"):
+        evaluator.evaluate(
+            "you are allowed to check your own files",
+            principal="Sparks",
+            channel="desktop",
+        )
+
+
+@pytest.mark.parametrize("channel", ("", "   ", None))
+def test_authorization_evaluator_rejects_invalid_channel(
+    tmp_path: Path,
+    channel,
+):
+    evaluator = FilesystemAuthorizationEvaluator(scope=tmp_path)
+
+    with pytest.raises((TypeError, ValueError)):
+        evaluator.evaluate(
+            "you are allowed to check your own files",
+            principal=local_sparks_principal(),
+            channel=channel,
+        )
