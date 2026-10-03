@@ -1,5 +1,6 @@
 ﻿from datetime import datetime, timezone
 from pathlib import Path
+import logging
 import re
 from uuid import uuid4
 
@@ -65,6 +66,8 @@ from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
 from sofia.voice.tts import TTSStatus
 
+
+_LOG = logging.getLogger(__name__)
 
 _SOFIA_MATRIX_TERM_RE = re.compile(
     r"\b(?:matrix|matrixes|matrices|matrixs)\b",
@@ -290,6 +293,7 @@ class ConversationService:
         self._current_contextual_influence = None
         self._matrix_execution_baseline_serial = 0
         self._last_matrix_error: str | None = None
+        self._last_post_persistence_errors: tuple[str, ...] = ()
 
     @property
     def session(self) -> ConversationSession | None:
@@ -582,32 +586,59 @@ class ConversationService:
         message: ConversationMessage,
         principal: PrincipalContext | None,
     ) -> None:
-        """Run all continuity hooks only after the user turn is durable."""
+        """Run secondary continuity hooks after the user turn is durable.
+
+        These hooks enrich future continuity but are not prerequisites for the
+        current reply. Record failures for diagnosis without turning a memory,
+        habit, or relationship bookkeeping fault into a conversation outage.
+        """
+        errors: list[str] = []
+
         learning = getattr(self, "_learning_coordinator", None)
         if learning is not None:
-            learning.observe_user_message(
-                message=message,
-                principal=principal,
-            )
+            try:
+                learning.observe_user_message(
+                    message=message,
+                    principal=principal,
+                )
+            except Exception as exc:
+                errors.append(f"learning:{type(exc).__name__}")
+                _LOG.exception(
+                    "Conversation learning hook failed after message persistence"
+                )
 
         habit = getattr(self, "_habit_continuity", None)
         if habit is not None and principal is not None:
-            environment = self._runtime.environment_service.snapshot(
-                now=message.created_at,
-                refresh_providers=False,
-            )
-            habit.observe_conversation(
-                message=message,
-                principal=principal,
-                environment=environment,
-            )
+            try:
+                environment = self._runtime.environment_service.snapshot(
+                    now=message.created_at,
+                    refresh_providers=False,
+                )
+                habit.observe_conversation(
+                    message=message,
+                    principal=principal,
+                    environment=environment,
+                )
+            except Exception as exc:
+                errors.append(f"habit:{type(exc).__name__}")
+                _LOG.exception(
+                    "Habit continuity hook failed after message persistence"
+                )
 
         if principal is not None:
-            self._relationship_store.observe(
-                principal=principal,
-                evidence_ref=message.id,
-                occurred_at=message.created_at,
-            )
+            try:
+                self._relationship_store.observe(
+                    principal=principal,
+                    evidence_ref=message.id,
+                    occurred_at=message.created_at,
+                )
+            except Exception as exc:
+                errors.append(f"relationship:{type(exc).__name__}")
+                _LOG.exception(
+                    "Relationship continuity hook failed after message persistence"
+                )
+
+        self._last_post_persistence_errors = tuple(errors)
 
     def _matrix_person_scoped_evidence(
         self,
@@ -1233,6 +1264,11 @@ class ConversationService:
     def last_matrix_error(self) -> str | None:
         return self._last_matrix_error
 
+    @property
+    def last_post_persistence_errors(self) -> tuple[str, ...]:
+        """Return non-fatal continuity-hook failures from the latest user turn."""
+        return self._last_post_persistence_errors
+
     def respond(
         self,
         content: str,
@@ -1267,13 +1303,14 @@ class ConversationService:
             )
         channel = channel.strip().casefold()
 
-        principal = self._bind_principal(principal)
         content = content.strip()
 
         if not content:
             raise ValueError(
                 "ConversationService content must not be empty."
             )
+
+        principal = self._bind_principal(principal)
 
         pre_response_hook = self._pre_response_hook
         if pre_response_hook is not None:
