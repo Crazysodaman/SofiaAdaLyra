@@ -523,3 +523,36 @@ def test_environment_hot_reload_reapplies_reviewed_configuration(
         ("environment", reviewed_configuration),
         ("replace", environment_service),
     ]
+
+
+
+def test_all_channel_conversations_share_foreground_activity_state(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    application.start()
+    try:
+        channel = application.open_channel_conversation()
+        main = application.conversation
+
+        assert channel._activity_state is main._activity_state
+
+        channel._activity_state.begin()
+        try:
+            assert main.ready_for_idle_reflection(
+                idle_seconds=0,
+            ) is False
+        finally:
+            channel._activity_state.finish()
+
+        assert main.ready_for_idle_reflection(
+            idle_seconds=0,
+        ) is True
+    finally:
+        application.shutdown()
