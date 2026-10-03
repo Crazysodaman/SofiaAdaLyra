@@ -65,3 +65,62 @@ def test_background_budget_rejects_invalid_claim_timeout(tmp_path):
             state,
             claim_timeout=timedelta(0),
         )
+
+
+
+def test_background_recovery_does_not_ignore_newer_active_claim(tmp_path):
+    state = tmp_path / "state.db"
+    state.touch()
+    budget = BackgroundBudget(
+        state,
+        claim_timeout=timedelta(minutes=30),
+    )
+
+    with sqlite3.connect(state) as db:
+        db.execute(
+            """
+            INSERT INTO application_background_claims (
+                claim_id, task_kind, claimed_at, day_utc,
+                status, finished_at, error_type
+            )
+            VALUES (?, ?, ?, ?, 'working', NULL, NULL)
+            """,
+            (
+                "stale",
+                "old-task",
+                (NOW - timedelta(hours=1)).isoformat(),
+                NOW.date().isoformat(),
+            ),
+        )
+        db.execute(
+            """
+            INSERT INTO application_background_claims (
+                claim_id, task_kind, claimed_at, day_utc,
+                status, finished_at, error_type
+            )
+            VALUES (?, ?, ?, ?, 'working', NULL, NULL)
+            """,
+            (
+                "active",
+                "current-task",
+                (NOW - timedelta(minutes=5)).isoformat(),
+                NOW.date().isoformat(),
+            ),
+        )
+
+    assert budget.claim("new-task", now=NOW) is None
+
+    with sqlite3.connect(state) as db:
+        rows = dict(
+            db.execute(
+                """
+                SELECT claim_id,status
+                FROM application_background_claims
+                """
+            ).fetchall()
+        )
+
+    assert rows == {
+        "stale": "working",
+        "active": "working",
+    }
