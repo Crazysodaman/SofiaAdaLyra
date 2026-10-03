@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from sofia.cognition.engine import CognitiveEngine
+from sofia.cognition.matrix import ContextPlan, HistoryPolicy, MatrixDomain
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -597,5 +598,64 @@ def test_runtime_contextual_memory_rerank_only_reorders_query_matches(
     assert summer.content in assembled
     assert assembled.index(winter.content) < assembled.index(summer.content)
     assert unrelated.content not in assembled
+
+    runtime.shutdown()
+
+
+
+def test_runtime_context_plan_blocks_excluded_memory_influence_domains(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    summer = _candidate(
+        "Sparks runs model trains in summer."
+    )
+    winter = _candidate(
+        "Sparks runs model trains in winter."
+    )
+    candidate_store = runtime.memory_system.candidate_store
+    assert candidate_store is not None
+    for candidate in (summer, winter):
+        candidate_store.propose(candidate)
+        candidate_store.promote(candidate.candidate_id)
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+    runtime.start()
+
+    memory_only = ContextPlan(
+        included_domains=(MatrixDomain.MEMORY,),
+        excluded_domains=tuple(
+            domain
+            for domain in MatrixDomain
+            if domain is not MatrixDomain.MEMORY
+        ),
+        history_policy=HistoryPolicy.BOUNDED_RECENT,
+    )
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Tell me about model trains.",
+                ),
+            )
+        ),
+        principal=local_sparks_principal(),
+        context_plan=memory_only,
+        contextual_influence=_memory_influence(
+            season="winter",
+        ),
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert assembled.index(summer.content) < assembled.index(winter.content)
 
     runtime.shutdown()
