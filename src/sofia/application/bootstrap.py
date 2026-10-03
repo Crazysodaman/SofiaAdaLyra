@@ -128,6 +128,11 @@ class SofiaApplication:
         verify_production_component_schemas(configuration.state_path)
         migrate_legacy_fleet_sidecars(configuration.state_path)
         self._runtime: SofiaRuntime = compose(configuration)
+        # Composition applies reviewed State Plane configuration. From this
+        # point forward the application must use that same canonical object,
+        # not the pre-review constructor input.
+        self._configuration = self._runtime.configuration
+        configuration = self._configuration
         self._evolution = SofiaEvolutionService(
             configuration=configuration,
             state_plane=self._runtime.state_plane,
@@ -526,6 +531,79 @@ class SofiaApplication:
             operation_id=operation_id,
         )
 
+    def _rollback_failed_start(self) -> tuple[str, ...]:
+        """Best-effort unwind for resources opened by a failed start attempt."""
+        errors: list[str] = []
+
+        coordinator = getattr(self, "_background", None)
+        if coordinator is not None:
+            try:
+                coordinator.stop()
+            except Exception as exc:
+                errors.append(f"background:{type(exc).__name__}")
+            self._background = None
+            self._idle_worker = None
+
+        lifecycle_worker = getattr(
+            self,
+            "_model_lifecycle_worker",
+            None,
+        )
+        if lifecycle_worker is not None:
+            try:
+                lifecycle_worker.stop()
+            except Exception as exc:
+                errors.append(f"model_lifecycle:{type(exc).__name__}")
+            self._model_lifecycle_worker = None
+
+        for service in reversed(
+            tuple(getattr(self, "_channel_conversations", ()))
+        ):
+            try:
+                service.close()
+            except Exception as exc:
+                errors.append(f"channel:{type(exc).__name__}")
+        self._channel_conversations.clear()
+
+        try:
+            self._tts.stop()
+        except Exception as exc:
+            errors.append(f"tts:{type(exc).__name__}")
+
+        try:
+            self._conversation_service.close()
+        except Exception as exc:
+            errors.append(f"conversation:{type(exc).__name__}")
+
+        ui_draft_store = getattr(self, "_ui_draft_store", None)
+        if ui_draft_store is not None:
+            try:
+                ui_draft_store.close()
+            except Exception as exc:
+                errors.append(f"ui_drafts:{type(exc).__name__}")
+
+        try:
+            self._runtime.set_avatar_matrix_builder(None)
+        except Exception as exc:
+            errors.append(f"avatar_matrix:{type(exc).__name__}")
+
+        self._presentation_bundle = None
+        self._presentation_routine = None
+        self._wardrobe_studio = None
+        self._clothing_action_service = None
+        try:
+            self._conversation_service.set_clothing_action_handler(None)
+        except Exception as exc:
+            errors.append(f"clothing_handler:{type(exc).__name__}")
+
+        if getattr(self._runtime.state, "value", None) == "ready":
+            try:
+                self._runtime.shutdown()
+            except Exception as exc:
+                errors.append(f"runtime:{type(exc).__name__}")
+
+        return tuple(errors)
+
     def start(self, session_id: str | None = None) -> CognitiveResponse | None:
         """Start the runtime and session, then optionally start idle reflection.
 
@@ -534,6 +612,14 @@ class SofiaApplication:
         before any optional idle model inference; no background work is claimed
         for periods when this process was not running.
         """
+        if getattr(self._runtime.state, "value", None) not in {
+            "created",
+            "stopped",
+        }:
+            raise SofiaApplicationError(
+                "Sofía application can only start from a stopped state."
+            )
+
         try:
             enabled = _idle_reflections_enabled()
             habit_enabled = _habit_learning_enabled()
@@ -992,13 +1078,23 @@ class SofiaApplication:
                 self._model_lifecycle_worker = lifecycle_worker
             return response
         except (
+            SofiaApplicationError,
             SofiaRuntimeError,
             PresentationStoreError,
             RuntimeError,
             TypeError,
             ValueError,
         ) as exc:
-            raise SofiaApplicationError("Sofía application failed to start.") from exc
+            cleanup_errors = self._rollback_failed_start()
+            error = SofiaApplicationError(
+                "Sofía application failed to start."
+            )
+            if cleanup_errors:
+                error.add_note(
+                    "Startup rollback also reported: "
+                    + ", ".join(cleanup_errors)
+                )
+            raise error from exc
 
     def shutdown(self) -> None:
         """Stop idle inference *before* closing the shared cognitive runtime."""
