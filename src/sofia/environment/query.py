@@ -308,8 +308,6 @@ class EnvironmentQueryResolver:
         if not isinstance(query, str):
             return False
         normalized = _normalize(query)
-        if cls.is_user_reported_local_time(query):
-            return True
         return normalized in (
             cls._WEATHER_FORMS
             | cls._FORECAST_FORMS
@@ -330,6 +328,8 @@ class EnvironmentQueryResolver:
         if not isinstance(query, str):
             return False
         normalized = _normalize(query)
+        if cls.is_user_reported_local_time(query):
+            return True
         return normalized in (
             cls._TIME_FORMS
             | cls._DATE_FORMS
@@ -364,6 +364,28 @@ class EnvironmentQueryResolver:
             )
 
         normalized = _normalize(query)
+        reported_time = self._USER_REPORTED_LOCAL_TIME_RE.search(
+            normalized
+        )
+        if reported_time is not None:
+            hour = int(reported_time.group(1))
+            minute = int(reported_time.group(2) or "00")
+            meridiem = reported_time.group(3).upper()
+            if not 1 <= hour <= 12 or not 0 <= minute <= 59:
+                return EnvironmentQueryAnswer(
+                    True,
+                    "I couldn't parse that reported local time safely.",
+                )
+            return EnvironmentQueryAnswer(
+                True,
+                (
+                    f"You reported your local time as "
+                    f"{hour}:{minute:02d} {meridiem}. "
+                    "I'll keep AM/PM exactly as you stated it. "
+                    "That user report by itself does not prove a timezone or "
+                    "UTC conversion."
+                ),
+            )
 
         if normalized in self._TEMPERATURE_UNIT_FORMS:
             return EnvironmentQueryAnswer(
