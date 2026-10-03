@@ -8,6 +8,8 @@ from sofia.memory.conversation_originals import ConversationOriginalRetriever
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
+from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.social.store import SocialSessionStore
 
 
@@ -49,34 +51,47 @@ class MemoryReviewService:
             candidate_id=candidate_id,
         )
 
+    @staticmethod
+    def _require_sparks_reviewer(
+        approved_by: PrincipalContext,
+    ) -> None:
+        if not isinstance(approved_by, PrincipalContext):
+            raise TypeError(
+                "memory review requires an authenticated PrincipalContext"
+            )
+        if (
+            approved_by.principal_id != SPARKS_PRINCIPAL_ID
+            or approved_by.audience_kind is not AudienceKind.PRIVATE
+        ):
+            raise PermissionError(
+                "memory review requires authenticated private Sparks review"
+            )
+
     def promote(
         self,
         candidate_id: UUID,
         *,
-        approved_by: str,
+        approved_by: PrincipalContext,
     ) -> None:
-        if approved_by != "Sparks":
-            raise PermissionError("memory promotion requires Sparks review")
+        self._require_sparks_reviewer(approved_by)
         self._candidates.promote(candidate_id)
 
     def reject(
         self,
         candidate_id: UUID,
         *,
-        approved_by: str,
+        approved_by: PrincipalContext,
     ) -> None:
-        if approved_by != "Sparks":
-            raise PermissionError("memory rejection requires Sparks review")
+        self._require_sparks_reviewer(approved_by)
         self._candidates.reject(candidate_id)
 
     def revoke(
         self,
         candidate_id: UUID,
         *,
-        approved_by: str,
+        approved_by: PrincipalContext,
     ) -> None:
-        if approved_by != "Sparks":
-            raise PermissionError("memory revocation requires Sparks review")
+        self._require_sparks_reviewer(approved_by)
         self._candidates.revoke(candidate_id)
 
     def status(self, candidate_id: UUID) -> CandidateStatus | None:
