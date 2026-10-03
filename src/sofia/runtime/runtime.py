@@ -1062,6 +1062,8 @@ class SofiaRuntime:
                 selection=CognitiveModelSelection.from_configuration(
                     self._configuration
                 ),
+                capability_names=self._capability_system.capability_names(),
+                authority=self.current_authority(),
             )
             if status_answer.recognized:
                 return CognitiveResponse(content=status_answer.content)
