@@ -62,6 +62,7 @@ jobs:
             test/test_ui_application.py `
             test/test_ui_text_client.py `
             test/test_conversation_loop.py `
+            test/test_conversational_context_projection.py `
             test/test_discord_bridge.py `
             test/test_conversation_service.py::test_matrix_context_window_applies_typed_history_limits `
             test/test_conversation_service.py::test_matrix_context_window_filters_excluded_domains_across_history_policies `
