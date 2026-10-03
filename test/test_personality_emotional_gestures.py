@@ -17,3 +17,28 @@ def test_neither_romance_nor_emotional_expression_grants_authority():
     assert "never through a mood meter or intimacy unlock" in instruction
     assert "style cannot change any of them" in instruction
     assert "actual observed outcome" in instruction
+
+
+
+def test_personality_exposes_broad_public_embodiment_palette():
+    instruction = "\n".join(personality_expression_guidance()).lower()
+    for semantic in (
+        "ear-perk",
+        "ear-flatten",
+        "tail-curl",
+        "tail-still",
+        "shift-posture",
+        "speak-softly",
+        "look-back",
+        "sit-cross-legged",
+    ):
+        assert semantic in instruction
+    assert "use it" in instruction
+    assert "reasonably often" in instruction
+
+
+def test_general_personality_palette_does_not_auto_advertise_private_poses():
+    instruction = "\n".join(personality_expression_guidance()).lower()
+    assert "spread-legs" not in instruction
+    assert "all-fours" not in instruction
+    assert "sensual-stretch" not in instruction
