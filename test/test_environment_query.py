@@ -554,3 +554,42 @@ def test_casual_weather_phrasing_stays_deterministic(query):
     assert answer.recognized
     assert "don't have current weather evidence" in answer.content
     assert "No configured or current location evidence" in answer.content
+
+
+def test_literal_weather_and_time_are_deterministic():
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration()
+    ).snapshot(now=NOW)
+    resolver = EnvironmentQueryResolver()
+
+    weather = resolver.resolve("Weather", snapshot=snapshot)
+    current_time = resolver.resolve("Time", snapshot=snapshot)
+
+    assert weather.recognized
+    assert "don't have current weather evidence" in weather.content
+    assert current_time.recognized
+    assert "host machine's current local time" in current_time.content
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Use F not C",
+        "fahrenheit not celsius",
+        "use fahrenheit instead of celsius",
+        "don't use celsius",
+    ),
+)
+def test_temperature_unit_followup_cannot_become_fake_f_mode(query):
+    snapshot = EnvironmentService(
+        EnvironmentConfiguration()
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        query,
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "Fahrenheit" in answer.content
+    assert "F-mode" in answer.content
