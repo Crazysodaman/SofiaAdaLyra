@@ -98,3 +98,12 @@ def test_restore_requires_explicit_replace_flag(
 
     assert code == 0
     assert fake.restore_calls[0]["replace_existing"] is False
+
+
+def test_objectives_command_reports_declared_targets(capsys):
+    code = backup_cli.main(["objectives"])
+
+    assert code == 0
+    output = capsys.readouterr().out
+    assert "rpo_seconds=3600" in output
+    assert "rto_seconds=1800" in output
