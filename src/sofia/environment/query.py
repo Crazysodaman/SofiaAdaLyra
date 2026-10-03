@@ -301,12 +301,22 @@ class EnvironmentQueryResolver:
         if not isinstance(query, str):
             return False
         normalized = _normalize(query)
+        if cls.is_user_reported_local_time(query):
+            return True
         return normalized in (
             cls._WEATHER_FORMS
             | cls._FORECAST_FORMS
             | cls._TOMORROW_WEATHER_FORMS
             | cls._WEEKLY_FORECAST_FORMS
         )
+
+    @classmethod
+    def is_user_reported_local_time(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return cls._USER_REPORTED_LOCAL_TIME_RE.search(
+            _normalize(query)
+        ) is not None
 
     @classmethod
     def might_match(cls, query: str) -> bool:
