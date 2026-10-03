@@ -13,6 +13,7 @@ from hashlib import sha256
 import json
 import re
 
+from .body_contract import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from .wardrobe_piece_catalog import PieceSpec, generated_piece_specs
 from .wardrobe_bikini_catalog import (
@@ -175,6 +176,15 @@ class WardrobePrebuild:
             raise WardrobeError("invalid style inputs")
         if len({(x.subject_id, x.source_id) for x in self.inputs}) != len(self.inputs):
             raise WardrobeError("duplicate source-backed style input")
+        known_fit_anchors = {
+            anchor.name for anchor in DEFAULT_FIT_ANCHORS
+        }
+        for blueprint in self.blueprints:
+            unknown = set(blueprint.fit_anchors) - known_fit_anchors
+            if unknown:
+                raise WardrobeError(
+                    "garment blueprint references unknown body fit anchor"
+                )
         blueprint_ids = {bp.garment.item_id for bp in self.blueprints}
         for plan in self.presets:
             if set(plan.item_ids) - blueprint_ids:
