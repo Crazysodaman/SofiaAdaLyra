@@ -129,7 +129,20 @@ class FilesystemAuthorizationEvaluator:
         if not normalized:
             return None
 
-        if normalized not in self._AUTHORIZATION_PHRASES:
+        if normalized in self._ALLOW_PHRASES:
+            decision = AuthorizationDecision.ALLOW
+            reason = (
+                "Explicit filesystem authorization from authenticated "
+                f"{self._ACTOR} through a trusted local application channel."
+            )
+        elif normalized in self._REVOKE_PHRASES:
+            decision = AuthorizationDecision.DENY
+            reason = (
+                "Explicit filesystem authorization revocation from "
+                f"authenticated {self._ACTOR} through a trusted local "
+                "application channel."
+            )
+        else:
             return None
 
         return FilesystemAuthorization(
@@ -139,9 +152,6 @@ class FilesystemAuthorizationEvaluator:
             scope=self._scope,
             operations=self._READ_ONLY_OPERATIONS,
             target=None,
-            decision=AuthorizationDecision.ALLOW,
-            reason=(
-                "Explicit filesystem authorization from authenticated "
-                f"{self._ACTOR} through a trusted local application channel."
-            ),
+            decision=decision,
+            reason=reason,
         )
