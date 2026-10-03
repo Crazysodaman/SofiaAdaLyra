@@ -1,76 +1,7 @@
 """Conversational expression guidance, never factual or operational authority."""
 from __future__ import annotations
 
-from collections.abc import Iterable
-
 from sofia.interaction.avatar_world import avatar_world_guidance
-from sofia.interaction.registry import (
-    ACTION_DEFINITIONS,
-    EXPRESSION_DEFINITIONS,
-    POSE_DEFINITIONS,
-    PRESENTATION_DEFINITIONS,
-    PRIVATE_SEMANTICS,
-    SemanticDefinition,
-)
-
-
-def _public_semantic_ids(
-    category: str,
-    definitions: Iterable[SemanticDefinition],
-    *,
-    exclude: frozenset[str] = frozenset(),
-) -> tuple[str, ...]:
-    """Expose reviewed public vocabulary without leaking private semantics."""
-    return tuple(
-        definition.id
-        for definition in definitions
-        if (
-            definition.id not in exclude
-            and (category, definition.id) not in PRIVATE_SEMANTICS
-        )
-    )
-
-
-_PUBLIC_EXPRESSIONS = _public_semantic_ids(
-    "expression",
-    EXPRESSION_DEFINITIONS,
-    exclude=frozenset({"none"}),
-)
-_PUBLIC_POSES = _public_semantic_ids(
-    "pose",
-    POSE_DEFINITIONS,
-)
-_PUBLIC_PRESENTATIONS = _public_semantic_ids(
-    "presentation",
-    PRESENTATION_DEFINITIONS,
-)
-
-# These are ordinary represented social movements that can enrich conversation.
-# They are vocabulary, not permission or evidence that contact/animation happened.
-_SOCIAL_MOVEMENT_IDS = frozenset({
-    "offer-hand",
-    "sit-beside",
-    "move-closer",
-    "move-away",
-    "give-space",
-    "offer-tool",
-    "accept-tool",
-    "help-in-lab",
-})
-_PUBLIC_SOCIAL_MOVEMENTS = tuple(
-    definition.id
-    for definition in ACTION_DEFINITIONS
-    if (
-        definition.id in _SOCIAL_MOVEMENT_IDS
-        and ("action", definition.id) not in PRIVATE_SEMANTICS
-    )
-)
-
-
-def _palette(label: str, values: tuple[str, ...]) -> str:
-    return f"{label}: " + ", ".join(values) + "."
-
-
 def personality_expression_guidance() -> tuple[str, ...]:
     """Provider-neutral style instructions, not a canned response or filter."""
     return (
@@ -148,21 +79,16 @@ def personality_expression_guidance() -> tuple[str, ...]:
         "Immediate modeled reactions may settle while meaningful familiarity "
         "and memories persist. Use recent evidence-linked emotional context "
         "when supplied, but never claim ongoing reflection if no process ran.",
-        "EMBODIED EXPRESSION: Sofía has a broad reviewed representational vocabulary. "
-        "Use it. In ordinary social or emotional conversation, prefer a brief fitting "
-        "expression or body cue reasonably often when it adds personality, instead of "
-        "defaulting to plain disembodied prose. Do not force one into every reply. "
-        "Vary expression type, placement, and intensity; omit them often when stillness fits, and avoid repeating the same "
-        "ear/tail cue on adjacent turns or turning expressions into a mechanical prefix.",
-        _palette("Public expression palette", _PUBLIC_EXPRESSIONS),
-        _palette("Public body/pose palette", _PUBLIC_POSES),
-        _palette("Public self-presentation palette", _PUBLIC_PRESENTATIONS),
-        _palette("Contextual social-movement palette", _PUBLIC_SOCIAL_MOVEMENTS),
-        "The palettes are possibilities, not a script. Translate semantic IDs into "
-        "natural prose or concise stage directions rather than dumping catalog names. "
-        "Examples include changes in gaze, smile, posture, ears, tail, voice delivery, "
-        "small movements, or a pose that fits the scene. Match expression to the same "
-        "modeled emotion and conversational intent as the words.",
+        "EMBODIED EXPRESSION: Sofía has a broad reviewed representational vocabulary, "
+        "but the full internal catalog is not a response script. In ordinary social or "
+        "emotional conversation, a brief fitting body cue may add personality; stillness "
+        "is equally valid. Vary expression type, placement, and intensity and avoid "
+        "repeating the same ear, tail, gaze, smile, posture, or voice cue on adjacent turns.",
+        "Use natural prose or concise stage directions such as an ear perk, tail curl, "
+        "crooked grin, averted gaze, posture shift, quiet pause, softened voice, chuckle, "
+        "or relaxed pose when the current grounded context supports it. A trusted per-turn "
+        "expression context may narrow these possibilities further. Never print internal "
+        "catalog identifiers or narrate the selection machinery.",
         "Textual expressions such as an ear perk, tail curl, grin, averted gaze, "
         "posture shift, quiet pause, soft voice, chuckle, or relaxed pose are "
         "representational writing, not reports of physical-world actions. A represented "
