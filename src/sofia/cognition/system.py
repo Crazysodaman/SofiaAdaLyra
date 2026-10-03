@@ -155,8 +155,70 @@ class CognitiveSystem:
             tools=tools,
         )
 
-        response = self._respond_with_engine(request)
         evidence_refs: list[str] = []
+
+        # Explicit matrix-classified inspection/list turns require current
+        # evidence. Do not depend on a small local model deciding whether to
+        # call a zero-argument read-only tool: the host selects and executes
+        # only reviewed read-only capabilities, then the model summarizes the
+        # observed results. All dispatch still goes through normal authority.
+        tool_requirement = any(
+            message.role is CognitiveRole.SYSTEM
+            and "TRUSTED READ-ONLY TOOL REQUIREMENT" in message.content
+            for message in request.messages
+        )
+        if (
+            tool_requirement
+            and self.tool_dispatcher is not None
+            and request.capability_allowlist
+        ):
+            automatic_calls = self.tool_dispatcher.automatic_read_only_calls(
+                operation.authority,
+                allowed_capabilities=request.capability_allowlist,
+            )
+            if automatic_calls:
+                messages = list(request.messages)
+                messages.append(
+                    CognitiveMessage(
+                        role=CognitiveRole.ASSISTANT,
+                        content="",
+                        tool_calls=automatic_calls,
+                    )
+                )
+                for tool_call in automatic_calls:
+                    try:
+                        result = self.tool_dispatcher.dispatch(
+                            tool_call,
+                            principal=operation.context.principal,
+                            allowed_capabilities=request.capability_allowlist,
+                        )
+                    except Exception as exc:
+                        raise CognitiveSystemError(
+                            "Automatic read-only cognitive tool dispatch failed."
+                        ) from exc
+                    if result.kind is CapabilityResultKind.SUCCESS:
+                        evidence_refs.append(
+                            f"capability:{result.capability}"
+                        )
+                    messages.append(
+                        CognitiveMessage(
+                            role=CognitiveRole.TOOL,
+                            content=self.tool_dispatcher.format_result(
+                                tool_call,
+                                result,
+                            ),
+                            tool_call_id=tool_call.call_id or tool_call.name,
+                        )
+                    )
+                request = CognitiveRequest(
+                    messages=tuple(messages),
+                    tools=request.tools,
+                    allow_tools=request.allow_tools,
+                    capability_allowlist=request.capability_allowlist,
+                    route_hint=request.route_hint,
+                )
+
+        response = self._respond_with_engine(request)
 
         for _ in range(self.max_tool_rounds):
             if not response.tool_calls:
