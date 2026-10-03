@@ -814,7 +814,7 @@ def test_response_matrix_accepts_execution_claim_with_authority_and_receipt():
 @pytest.mark.parametrize(
     ("content", "route"),
     (
-        ("Hru", MatrixRoute.FAST),
+        ("Hru", MatrixRoute.STANDARD),
         ("pats your head", MatrixRoute.STANDARD),
         ("how is the network", MatrixRoute.DEEP),
         ("restart Plex on Dionysus", MatrixRoute.VERIFY),
@@ -834,7 +834,7 @@ def test_matrix_routing_planner_selects_clear_dual_llm_routes(
     assert plan.route is route
 
 
-def test_general_matrix_route_stays_auto_for_existing_complexity_router():
+def test_general_conversation_stays_on_primary_personality_path():
     env = envelope("Explain this architecture carefully.")
     turn = MatrixCoordinator(
         registry=default_matrix_registry()
@@ -842,7 +842,26 @@ def test_general_matrix_route_stays_auto_for_existing_complexity_router():
 
     plan = MatrixRoutingPlanner().plan(env, turn)
 
-    assert plan.route is MatrixRoute.AUTO
+    assert plan.route is MatrixRoute.STANDARD
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "hey nerd",
+        "you seem kinda quiet today",
+        "how does that weather affect you?",
+    ),
+)
+def test_personality_critical_live_turns_route_standard_primary(content):
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    plan = MatrixRoutingPlanner().plan(env, turn)
+
+    assert plan.route is MatrixRoute.STANDARD
 
 
 def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
