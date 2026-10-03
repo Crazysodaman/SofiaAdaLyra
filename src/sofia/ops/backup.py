@@ -14,6 +14,7 @@ from base64 import b64decode, b64encode
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+import hmac
 import json
 import os
 from pathlib import Path
@@ -156,6 +157,7 @@ class BackupCipher:
     def __init__(self, key: bytes) -> None:
         if not isinstance(key, bytes) or len(key) != 32:
             raise ValueError("backup key must be exactly 32 bytes")
+        self._key = key
         self._aes = AESGCM(key)
 
     def encrypt(self, plaintext: bytes, *, aad: bytes) -> tuple[bytes, bytes]:
@@ -164,6 +166,27 @@ class BackupCipher:
 
     def decrypt(self, ciphertext: bytes, *, nonce: bytes, aad: bytes) -> bytes:
         return self._aes.decrypt(nonce, ciphertext, aad)
+
+    def manifest_mac(self, manifest_bytes: bytes) -> str:
+        if not isinstance(manifest_bytes, bytes):
+            raise TypeError("manifest_bytes must be bytes")
+        return hmac.new(
+            self._key,
+            b"sofia-backup-manifest-v1\0" + manifest_bytes,
+            sha256,
+        ).hexdigest()
+
+    def verify_manifest_mac(
+        self,
+        manifest_bytes: bytes,
+        expected: str,
+    ) -> bool:
+        if not isinstance(expected, str):
+            raise TypeError("expected manifest MAC must be text")
+        return hmac.compare_digest(
+            self.manifest_mac(manifest_bytes),
+            expected.strip().casefold(),
+        )
 
 
 def load_backup_key(path: Path) -> bytes:
@@ -284,7 +307,12 @@ class BackupEngine:
                 created_at=created_at,
                 entries=tuple(entries),
             )
-            (staging / "manifest.json").write_bytes(manifest.canonical_bytes())
+            manifest_bytes = manifest.canonical_bytes()
+            (staging / "manifest.json").write_bytes(manifest_bytes)
+            (staging / "manifest.hmac").write_text(
+                self.cipher.manifest_mac(manifest_bytes) + "\n",
+                encoding="ascii",
+            )
             os.replace(staging, final)
 
         return final, BackupEvidence(
@@ -299,9 +327,18 @@ class BackupEngine:
         if not isinstance(backup_dir, Path) or not backup_dir.is_dir():
             raise FileNotFoundError("backup directory does not exist")
         manifest_path = backup_dir / "manifest.json"
+        manifest_mac_path = backup_dir / "manifest.hmac"
         if not manifest_path.is_file():
             raise BackupError("backup manifest is missing")
-        manifest = BackupManifest.from_bytes(manifest_path.read_bytes())
+        if not manifest_mac_path.is_file():
+            raise BackupError("backup manifest authentication is missing")
+        manifest_bytes = manifest_path.read_bytes()
+        if not self.cipher.verify_manifest_mac(
+            manifest_bytes,
+            manifest_mac_path.read_text(encoding="ascii"),
+        ):
+            raise BackupError("backup manifest authentication failed")
+        manifest = BackupManifest.from_bytes(manifest_bytes)
         payload_dir = backup_dir / "payload"
         for entry in manifest.entries:
             payload = payload_dir / entry.payload_name
