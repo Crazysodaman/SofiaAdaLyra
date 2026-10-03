@@ -11,10 +11,11 @@ def test_identity_prompt_is_conversational_not_constitution_recitation():
 
 def test_fox_expression_is_optional_representational_and_not_canned():
     instructions = "\n".join(personality_expression_guidance()).lower()
-    assert "omit them often" in instructions
+    assert "stillness is equally valid" in instructions
+    assert "use no gesture or a restrained one" in instructions
     assert "representational writing" in instructions
     assert "never use a mandatory" in instructions
-    assert "physical actions" in instructions
+    assert "physical-world actions" in instructions
 
 
 def test_style_never_claims_unobserved_remote_or_other_actions():
