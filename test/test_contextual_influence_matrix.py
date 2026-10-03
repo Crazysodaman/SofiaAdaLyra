@@ -27,7 +27,10 @@ def influence() -> ContinuityInfluence:
         emotional_tone="warm",
         primary_emotion="fondness",
         primary_intensity=0.62,
-        active_emotions=("fondness",),
+        active_emotions=("fondness", "curiosity"),
+        foreground_emotion_evidence_refs=("emotion:event-2",),
+        foreground_emotion="curiosity",
+        foreground_intensity=0.55,
         daypart_evidence_refs=("runtime.clock", "environment.location:configured"),
         season_evidence_refs=("runtime.clock", "environment.location:configured"),
         weather_evidence_refs=("environment.weather:matrix-weather",),
@@ -225,3 +228,26 @@ def test_environment_influence_fails_closed_without_provenance(signal, field):
     )
 
     assert plan.mode_for(signal) is InfluenceMode.NONE
+
+
+
+def test_background_relational_emotion_can_style_outfit_without_driving_expression():
+    background_only = replace(
+        influence(),
+        active_emotions=("fondness",),
+        foreground_emotion_evidence_refs=(),
+        foreground_emotion=None,
+        foreground_intensity=0.0,
+    )
+
+    conversation = ContextualInfluenceMatrix().plan(
+        InfluenceSurface.CONVERSATION_EXPRESSION,
+        background_only,
+    )
+    outfit = ContextualInfluenceMatrix().plan(
+        InfluenceSurface.AUTO_OUTFIT,
+        background_only,
+    )
+
+    assert conversation.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.NONE
+    assert outfit.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.BOUNDED_BIAS
