@@ -150,6 +150,23 @@ _TECHNICAL_EXPRESSION_QUERY = re.compile(
     r"animation|renderer|godot|implementation)\b",
     re.IGNORECASE,
 )
+
+_NATURAL_EXPRESSION_REPLACEMENTS = (
+    (re.compile(r"\bear-perk\b", re.IGNORECASE), "perk of my ears"),
+    (re.compile(r"\bear-flick\b", re.IGNORECASE), "flick of my ears"),
+    (re.compile(r"\bear-flatten\b", re.IGNORECASE), "flattening of my ears"),
+    (re.compile(r"\btail-swish\b", re.IGNORECASE), "tail swish"),
+    (re.compile(r"\btail-curl\b", re.IGNORECASE), "curl of my tail"),
+    (re.compile(r"\btail-still\b", re.IGNORECASE), "stillness in my tail"),
+    (re.compile(r"\bshift-posture\b", re.IGNORECASE), "posture shift"),
+    (re.compile(r"\bspeak-softly\b", re.IGNORECASE), "softer voice"),
+    (re.compile(r"\blean-forward\b", re.IGNORECASE), "leaning forward"),
+    (re.compile(r"\bstand-relaxed\b", re.IGNORECASE), "relaxed stance"),
+    (re.compile(r"\blook-back\b", re.IGNORECASE), "look back"),
+    (re.compile(r"\bsit-cross-legged\b", re.IGNORECASE), "sitting cross-legged"),
+    (re.compile(r"\bhands-behind-back\b", re.IGNORECASE), "hands behind my back"),
+    (re.compile(r"\bhip-pop\b", re.IGNORECASE), "playful shift of my hip"),
+)
 _MISSED_YOU_USER = re.compile(
     r"\b(?:i(?:'|’)ve\s+missed\s+you|i\s+missed\s+you|missed\s+you)\b",
     re.IGNORECASE,
@@ -305,6 +322,36 @@ def _repeats_previous_short_self_report(
     if len(prior) < 24:
         return False
     return SequenceMatcher(None, draft, prior, autojunk=False).ratio() >= 0.96
+
+
+def naturalize_embodied_semantics(
+    request: CognitiveRequest,
+    response: CognitiveResponse,
+) -> CognitiveResponse:
+    """Translate leaked planner IDs into ordinary prose outside technical queries."""
+    if (
+        not request.messages
+        or request.messages[-1].role is not CognitiveRole.USER
+        or _TECHNICAL_EXPRESSION_QUERY.search(request.messages[-1].content)
+    ):
+        return response
+    system_context = "\n".join(
+        message.content
+        for message in request.messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+    if "CURRENT EMBODIED EXPRESSION PLAN" not in system_context:
+        return response
+    content = response.content
+    for pattern, replacement in _NATURAL_EXPRESSION_REPLACEMENTS:
+        content = pattern.sub(replacement, content)
+    if content == response.content:
+        return response
+    return CognitiveResponse(
+        content=content,
+        tool_calls=response.tool_calls,
+        evidence_refs=response.evidence_refs,
+    )
 
 
 def response_quality_issue(
