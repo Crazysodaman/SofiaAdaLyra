@@ -22,10 +22,10 @@ class VoiceProsodyMatrix:
         if not isinstance(urgency,VoiceUrgency): raise TypeError("urgency must be VoiceUrgency")
         ip=self._matrix.plan(InfluenceSurface.VOICE_EXPRESSION,influence)
         rate=pitch=0.0; rate=energy=volume=pause=1.0; pitch=0.0; tags=[]; ambient=[]; reasons=[]
-        name=None if influence.primary_emotion is None else influence.primary_emotion.casefold()
+        name=None if influence.foreground_emotion is None else influence.foreground_emotion.casefold()
         target=None if name is None else _TARGETS.get(name)
         if ip.mode_for(InfluenceSignal.EMOTION) is not InfluenceMode.NONE and target is not None:
-            s=_clamp(float(influence.primary_intensity),0,1)
+            s=_clamp(float(influence.foreground_intensity),0,1)
             rate=_blend(rate,target[0],s); pitch=_blend(pitch,target[1],s); energy=_blend(energy,target[2],s); volume=_blend(volume,target[3],s); pause=_blend(pause,target[4],s)
             tags.append(f"emotion:{name}"); reasons.append("evidence-linked modeled emotion applied as bounded prosody")
         else: reasons.append("no reviewed evidence-linked emotion prosody adjustment applied")
