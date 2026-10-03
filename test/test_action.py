@@ -1,4 +1,5 @@
-﻿from uuid import UUID
+﻿from threading import Barrier, Thread
+from uuid import UUID
 
 import pytest
 
@@ -355,3 +356,38 @@ def test_resolved_proposal_id_cannot_be_reused():
         match="resolved action proposal ID cannot be reused",
     ):
         system.propose(operation, original)
+
+
+
+def test_concurrent_execution_consumes_approval_once():
+    executor = TestActionExecutor()
+    system = ActionSystem(executor)
+    operation = make_operation(can_execute_actions=True)
+    proposed = system.propose(operation, make_proposal())
+    approved = system.approve(operation, proposed)
+
+    start = Barrier(3)
+    results = []
+    errors = []
+
+    def run():
+        start.wait()
+        try:
+            results.append(system.execute(operation, approved))
+        except ActionSystemError as exc:
+            errors.append(exc)
+
+    first = Thread(target=run)
+    second = Thread(target=run)
+    first.start()
+    second.start()
+    start.wait()
+    first.join(timeout=5)
+    second.join(timeout=5)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert len(results) == 1
+    assert len(errors) == 1
+    assert results[0].status is ActionStatus.EXECUTED
+    assert executor.executed == [approved]
