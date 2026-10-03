@@ -245,3 +245,29 @@ def test_authorization_evaluator_rejects_invalid_channel(
             principal=local_sparks_principal(),
             channel=channel,
         )
+
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "you are not allowed to check your own files",
+        "you are not allowed to inspect your own files",
+        "you may no longer inspect your own files",
+        "revoke permission to inspect your own files",
+    ),
+)
+def test_explicit_local_revocation_is_recognized(
+    tmp_path: Path,
+    content: str,
+):
+    evaluator = FilesystemAuthorizationEvaluator(scope=tmp_path)
+
+    authorization = evaluator.evaluate(
+        content,
+        principal=local_sparks_principal(),
+        channel="desktop",
+    )
+
+    assert authorization is not None
+    assert authorization.decision is AuthorizationDecision.DENY
