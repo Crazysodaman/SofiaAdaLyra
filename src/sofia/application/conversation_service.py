@@ -7,6 +7,9 @@ from uuid import uuid4
 from sofia.authorization.evaluator import (
     FilesystemAuthorizationEvaluator,
 )
+from sofia.authorization.model import (
+    AuthorizationDecision as FilesystemAuthorizationDecision,
+)
 from sofia.continuity.model import ContinuityEvent
 from sofia.conversation.model import (
     ConversationMessage,
@@ -1413,9 +1416,23 @@ class ConversationService:
         )
 
         if authorization is not None:
-            self._runtime.authorize_filesystem(
-                authorization
-            )
+            if (
+                authorization.decision
+                is FilesystemAuthorizationDecision.ALLOW
+            ):
+                self._runtime.authorize_filesystem(
+                    authorization
+                )
+            elif (
+                authorization.decision
+                is FilesystemAuthorizationDecision.DENY
+            ):
+                self._runtime.revoke_filesystem_authorization()
+            else:
+                raise RuntimeError(
+                    "Filesystem authorization evaluator returned "
+                    "an unsupported decision."
+                )
             filesystem_results = ()
         else:
             filesystem_results = (
