@@ -270,6 +270,8 @@ def construct_release_evidence(
     artifact_dir.mkdir(parents=True, exist_ok=True)
     artifact_out = artifact_dir / wheel_path.name
     artifact_out.write_bytes(wheel_path.read_bytes())
+    artifact_lock = artifact_dir / "requirements.lock"
+    artifact_lock.write_bytes(lock_bytes)
     artifact_digest = directory_sha256(artifact_dir)
     source_digest = directory_sha256(source_dir)
     provenance = generate_provenance(
@@ -349,6 +351,11 @@ def verify_release_evidence(root: Path) -> ReleaseManifest:
     if len(wheels) != 1:
         raise ValueError("release artifact must contain exactly one wheel")
     verify_wheel_identity(wheels[0])
+    artifact_lock = artifact_dir / "requirements.lock"
+    if not artifact_lock.is_file():
+        raise ValueError("release artifact dependency lock is missing")
+    if canonical_dependency_lock(artifact_lock) != lock:
+        raise ValueError("release artifact dependency lock mismatch")
     if directory_sha256(artifact_dir) != manifest.artifact_sha256:
         raise ValueError("release artifact digest mismatch")
     return manifest
