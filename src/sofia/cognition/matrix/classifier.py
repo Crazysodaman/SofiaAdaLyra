@@ -32,6 +32,13 @@ _WEATHER = re.compile(
     r"\b(?:weather|temperature|forecast|humidity|outside)\b",
     re.IGNORECASE,
 )
+_WEATHER_EMOTION = re.compile(
+    r"\b(?:weather|rain|snow|storm|sunny|cloudy|temperature)\b"
+    r".{0,64}\b(?:make\s+you\s+feel|affect\s+your\s+(?:mood|feelings?)|"
+    r"how\s+do\s+you\s+feel)\b|"
+    r"\bhow\s+does\s+(?:the\s+)?weather\s+make\s+(?:you|u)\s+feel\b",
+    re.IGNORECASE,
+)
 _ENVIRONMENT_FEELING = re.compile(
     r"\b(?:weather|rain|storm|snow|temperature|season|daylight|"
     r"morning|afternoon|evening|night)\b.*"
@@ -216,6 +223,26 @@ class BaselineTurnClassifier:
                         MatrixDomain.SOCIAL,
                         MatrixRelevance.CONTEXTUAL,
                         "short follow-up should stay bound to the immediately prior turn",
+                    ),
+                ),
+            )
+
+        if _WEATHER_EMOTION.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.ENVIRONMENT_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.GENERATIVE,
+                domains=(
+                    _contribution(
+                        MatrixDomain.ENVIRONMENT,
+                        MatrixRelevance.REQUIRED,
+                        "current weather evidence grounds the environmental context",
+                    ),
+                    _contribution(
+                        MatrixDomain.EMOTION,
+                        MatrixRelevance.REQUIRED,
+                        "weather asks for modeled emotional response",
                     ),
                 ),
             )
