@@ -268,3 +268,36 @@ def test_loading_legacy_settings_persists_current_schema(tmp_path):
     assert persisted["cognitive_routing_enabled"] is True
     assert persisted["cognitive_model_auto_manage"] is True
     assert persisted["cognitive_model_auto_install"] is True
+
+
+def test_schema_v2_without_location_migrates_to_central_time(tmp_path):
+    import json
+    import sqlite3
+
+    state = tmp_path / "sofia.db"
+    store = RuntimeUserSettingsStore(state)
+    legacy = RuntimeUserSettings()
+    payload = json.loads(store._encode(legacy))
+    payload["schema_version"] = 2
+    payload["location_label"] = None
+    payload["location_timezone"] = None
+
+    with sqlite3.connect(state) as db:
+        db.execute(
+            """
+            INSERT OR REPLACE INTO ui_runtime_settings
+                (settings_key, value_json, updated_at)
+            VALUES (?, ?, ?)
+            """,
+            (
+                "runtime-user-settings",
+                json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                "2026-10-03T12:00:00+00:00",
+            ),
+        )
+
+    migrated = RuntimeUserSettingsStore(state).load()
+
+    assert migrated.schema_version == 3
+    assert migrated.location_label == "Home"
+    assert migrated.location_timezone == "America/Chicago"
