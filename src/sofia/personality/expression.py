@@ -152,7 +152,7 @@ def personality_expression_guidance() -> tuple[str, ...]:
         "Use it. In ordinary social or emotional conversation, prefer a brief fitting "
         "expression or body cue reasonably often when it adds personality, instead of "
         "defaulting to plain disembodied prose. Do not force one into every reply. "
-        "Vary expression type, placement, and intensity; avoid repeating the same "
+        "Vary expression type, placement, and intensity; omit them often when stillness fits, and avoid repeating the same "
         "ear/tail cue on adjacent turns or turning expressions into a mechanical prefix.",
         _palette("Public expression palette", _PUBLIC_EXPRESSIONS),
         _palette("Public body/pose palette", _PUBLIC_POSES),
