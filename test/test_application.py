@@ -376,3 +376,25 @@ def test_disabled_act_does_not_register_background_delivery_work(
         assert "reflection_outreach" not in coordinator._tasks
     finally:
         application.shutdown()
+
+
+
+def test_channel_open_requires_full_application_start(
+    personality_path: Path,
+    tmp_path: Path,
+):
+    application = SofiaApplication(
+        create_configuration(
+            personality_path,
+            tmp_path / "sofia.db",
+        )
+    )
+    application.runtime.start()
+    try:
+        with pytest.raises(
+            SofiaApplicationError,
+            match="fully started",
+        ):
+            application.open_channel_conversation()
+    finally:
+        application.shutdown()
