@@ -555,3 +555,89 @@ def test_live_social_turn_keeps_recent_gesture_avoidance_without_new_emotion(
         assert "ear-perk" in plan.avoid_recent
     finally:
         application.shutdown()
+
+
+
+def test_live_generic_what_is_your_outfit_bypasses_provider(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("THIS MUST NOT BE GENERATED",),
+    )
+    try:
+        reply = application.conversation.respond("what is your outfit")
+
+        assert "signature engineer outfit" in reply.content
+        assert "Fitted long-sleeve technical shirt" in reply.content
+        assert "Articulated utility trousers" in reply.content
+        assert "shock-absorbing" not in reply.content.casefold()
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
+def test_live_system_inspection_preflights_read_only_host_tool(
+    monkeypatch, tmp_path
+):
+    from sofia.cognition.model import CognitiveRole
+
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I inspected the host evidence and summarized only the observed fields.",),
+    )
+    try:
+        reply = application.conversation.respond(
+            "Inspect this computer's operating system, host identity, and uptime, "
+            "then summarize the important points."
+        )
+
+        assert "inspected the host evidence" in reply.content
+        assert len(captured) == 1
+        tool_messages = [
+            message for message in captured[0].messages
+            if message.role is CognitiveRole.TOOL
+        ]
+        assert tool_messages
+        assert any("Capability: system.inspect" in item.content for item in tool_messages)
+        assert any("Result: success" in item.content for item in tool_messages)
+        assert "capability:system.inspect" in reply.evidence_refs
+    finally:
+        application.shutdown()
+
+
+def test_live_network_inspection_is_not_hijacked_by_filesystem_parser(
+    monkeypatch, tmp_path
+):
+    from sofia.cognition.model import CognitiveRole
+
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I summarized the current network tool evidence only.",),
+    )
+    try:
+        reply = application.conversation.respond(
+            "Inspect the local network interfaces, routes, and DNS configuration, "
+            "then summarize the current network state."
+        )
+
+        assert "network tool evidence" in reply.content
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role is CognitiveRole.SYSTEM
+        )
+        assert "TRUSTED READ-ONLY TOOL REQUIREMENT" in system_text
+        assert "filesystem inspection is not authorized" not in system_text.casefold()
+        assert any(
+            message.role is CognitiveRole.TOOL
+            and "Capability: network.inspect" in message.content
+            for message in captured[0].messages
+        )
+        assert "capability:network.inspect" in reply.evidence_refs
+    finally:
+        application.shutdown()
