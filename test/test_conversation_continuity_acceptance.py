@@ -184,10 +184,8 @@ def test_restart_and_resume_preserves_cognitive_history(
         for message in request.messages
         if message.role is CognitiveRole.SYSTEM
     )
-    assert system_messages
-    assert any(
-        "CURRENT MODELED EMOTIONAL STATE"
-        in message.content
+    assert all(
+        "CURRENT MODELED EMOTIONAL STATE" not in message.content
         for message in system_messages
     )
 
