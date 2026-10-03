@@ -578,6 +578,7 @@ class ConversationService:
             )
             if (
                 item.evidence_ref != current_message_id
+                and item.principal_id == principal.principal_id
                 and item.audience_id == principal.audience_id
             )
         )
@@ -660,6 +661,7 @@ class ConversationService:
                 )
                 if (
                     item.evidence_ref != current_user.id
+                    and item.principal_id == principal.principal_id
                     and item.audience_id == principal.audience_id
                 )
             )
