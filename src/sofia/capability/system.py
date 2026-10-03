@@ -3,7 +3,9 @@ from typing import Any
 
 from sofia.capability.model import (
     Capability,
+    CapabilityExecutionError,
     CapabilityRequest,
+    CapabilityResolutionError,
     CapabilityResult,
     CapabilityResultKind,
 )
@@ -11,14 +13,6 @@ from sofia.capability.model import (
 
 CapabilityHandler = Callable[[CapabilityRequest], Any]
 AuthorizationChecker = Callable[[CapabilityRequest], bool]
-
-
-class CapabilityResolutionError(Exception):
-    """Raised when a requested capability cannot be resolved."""
-
-
-class CapabilityExecutionError(Exception):
-    """Raised when capability execution infrastructure fails."""
 
 
 class CapabilitySystem:
