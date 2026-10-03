@@ -123,6 +123,7 @@ def test_one_snapshot_drives_emotion_context_avatar_and_outfit_without_becoming_
     assert influence.weather_condition == "rainy"
     assert influence.weather_freshness == "current"
     assert influence.primary_emotion == "fondness"
+    assert influence.foreground_emotion is None
     assert "create permissions" in influence.prompt()
 
     # ENVIRONMENT is contextual input, not a durable emotional-event writer.
