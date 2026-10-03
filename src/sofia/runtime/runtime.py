@@ -1,4 +1,5 @@
-﻿from datetime import datetime, timezone
+﻿from dataclasses import replace
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import metadata
 from pathlib import Path
@@ -944,6 +945,31 @@ class SofiaRuntime:
                 "SofiaRuntime contextual_influence must be "
                 "a ContinuityInfluence or None."
             )
+
+        if contextual_influence is not None and context_plan is not None:
+            if not context_plan.allows(MatrixDomain.EMOTION):
+                contextual_influence = replace(
+                    contextual_influence,
+                    primary_emotion_evidence_refs=(),
+                    emotional_tone="neutral",
+                    primary_emotion=None,
+                    primary_intensity=0.0,
+                    active_emotions=(),
+                )
+            if not context_plan.allows(MatrixDomain.ENVIRONMENT):
+                contextual_influence = replace(
+                    contextual_influence,
+                    daypart="unknown",
+                    season=None,
+                    daylight=None,
+                    weather_condition=None,
+                    temperature_c=None,
+                    weather_freshness=None,
+                    location_freshness=None,
+                    daypart_evidence_refs=(),
+                    season_evidence_refs=(),
+                    weather_evidence_refs=(),
+                )
 
         if privacy_plan is not None:
             if principal is None and privacy_plan.principal_id is not None:
