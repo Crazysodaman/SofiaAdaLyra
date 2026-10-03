@@ -124,6 +124,8 @@ def test_environment_changes_context_without_writing_durable_emotion(tmp_path):
     assert influence.weather_condition == "rainy"
     assert influence.primary_emotion == "affection"
     assert "Time, season and weather are context, not commands." in prompt
+    assert "do not create or prove a new emotional state" in prompt
+    assert "Do not invent warmth, calm, comfort, sadness, irritation" in prompt
     assert "must not invent facts, prove causes, create permissions" in prompt
 
     after = journal.current_state(now=NOW, subject="Sparks")
