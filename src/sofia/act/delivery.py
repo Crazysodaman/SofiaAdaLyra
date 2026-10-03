@@ -292,6 +292,7 @@ class ActOutbox:
             if row[1] is not None
         ]
 
+        social_notice_rows = []
         operational_rows = []
         notice_table = db.execute(
             "SELECT 1 FROM sqlite_master "
@@ -305,16 +306,24 @@ class ActOutbox:
                 )
             }
             if "category" in columns:
-                operational_rows = db.execute(
+                notice_rows = db.execute(
                     """
-                    SELECT notice_id, finished_at
+                    SELECT notice_id, finished_at, category
                     FROM act_system_notice
                     WHERE recipient_id=? AND channel=? AND destination=?
-                      AND status='delivered' AND category='operational'
+                      AND status='delivered'
                     ORDER BY finished_at, notice_id
                     """,
                     (recipient_id, channel, destination),
                 ).fetchall()
+                social_notice_rows = [
+                    row for row in notice_rows
+                    if row[2] == "social"
+                ]
+                operational_rows = [
+                    row for row in notice_rows
+                    if row[2] == "operational"
+                ]
             else:
                 operational_rows = db.execute(
                     """
@@ -326,15 +335,22 @@ class ActOutbox:
                     """,
                     (recipient_id, channel, destination),
                 ).fetchall()
+        social_notice_times = [
+            datetime.fromisoformat(row[1]).astimezone(timezone.utc)
+            for row in social_notice_rows
+            if row[1] is not None
+        ]
         operational_times = [
             datetime.fromisoformat(row[1]).astimezone(timezone.utc)
             for row in operational_rows
             if row[1] is not None
         ]
+        social_times = sorted(social_times + social_notice_times)
 
         all_times = sorted(social_times + operational_times)
         ids = frozenset(
             [row[0] for row in social_rows]
+            + [row[0] for row in social_notice_rows]
             + [row[0] for row in operational_rows]
         )
         day = now.date().isoformat()
