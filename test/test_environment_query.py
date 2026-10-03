@@ -592,4 +592,5 @@ def test_temperature_unit_followup_cannot_become_fake_f_mode(query):
 
     assert answer.recognized
     assert "Fahrenheit" in answer.content
-    assert "F-mode" in answer.content
+    assert "Celsius" in answer.content
+    assert "mode" not in answer.content.casefold()
