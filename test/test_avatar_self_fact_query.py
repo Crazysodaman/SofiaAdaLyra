@@ -417,3 +417,56 @@ def test_combined_mind_and_outfit_question_still_recognizes_outfit_fact():
 
     assert result.recognized
     assert "signature engineer outfit" in result.content
+
+
+
+def test_generic_why_did_you_pick_that_uses_persisted_avatar_reason():
+    embodiment, projection, _ = sources()
+    nude = replace(
+        projection,
+        audience=AudienceScope.PRIVATE,
+        attire=AttireMode.NUDE,
+        outfit_id=None,
+        item_ids=(),
+        item_names=(),
+        private_fallback_used=False,
+        reason="user_clothing_action:undress",
+    )
+
+    resolver = AvatarSelfFactResolver()
+    assert resolver.allows_private_projection("why did you pick that?")
+
+    result = resolver.resolve(
+        "why did you pick that?",
+        embodiment=embodiment,
+        presentation=nude,
+    )
+
+    assert result.recognized
+    assert "didn't independently pick an outfit" in result.content
+    assert "explicit clothing action" in result.content
+    assert "tone" not in result.content.casefold()
+
+
+def test_generic_why_did_you_pick_that_explains_contextual_outfit():
+    embodiment, projection, _ = sources()
+    lounge = replace(
+        projection,
+        outfit_id="lounge.relaxed",
+        item_names=("Oversized lounge T-shirt", "Relaxed lounge sweatpants"),
+        reason=(
+            "headless_daily_context:covered_candidate,season_and_activity,"
+            "late_lounge,modeled_emotion_influence"
+        ),
+    )
+
+    result = AvatarSelfFactResolver().resolve(
+        "why did you pick that?",
+        embodiment=embodiment,
+        presentation=lounge,
+    )
+
+    assert result.recognized
+    assert "trusted local clock" in result.content
+    assert "grounded season and current activity" in result.content
+    assert "bounded style preference" in result.content
