@@ -38,6 +38,10 @@ _SHORT_SOCIAL_CUE = re.compile(
     r"^\s*(?:\*?\s*)?(?:waves?|wave)(?:\s+at\s+(?:you|u))?(?:\s*\*?)?\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_FUTURE_RECIPROCAL_WAVE = re.compile(
+    r"\b(?:i(?:'|’)ll|i\s+will|let\s+me)\b.{0,40}\b(?:wave|give\s+you\b.{0,20}\bwave)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 _WARDROBE_CHECKIN_TANGENT = re.compile(
     r"\b(?:panties|underwear|trousers|gusseted|boots|"
     r"bra|lingerie|outfit|wardrobe|clothing|crotch)\b",
@@ -428,6 +432,11 @@ def response_quality_issue(
     )
     if concise_turn and len(_normalized(content).split()) > 90:
         return "overlong_simple_social_turn"
+    if (
+        re.search(r"\bwave", user, re.IGNORECASE)
+        and _FUTURE_RECIPROCAL_WAVE.search(content)
+    ):
+        return "future_reciprocal_wave"
     if _EMOTION_SELF_REPORT.search(user):
         if _repeats_previous_short_self_report(request, response):
             return "repeated_emotion_self_report"
@@ -631,6 +640,9 @@ def grounded_quality_fallback(
             "instead of persisting a fragment."
         ))
 
+    if issue == "future_reciprocal_wave":
+        return CognitiveResponse(content="*I wave back with a quick grin.*")
+
     if issue == "overlong_simple_social_turn":
         if _ENVIRONMENT_EFFECT_USER.search(user):
             return CognitiveResponse(content=(
@@ -695,6 +707,13 @@ def grounded_quality_fallback(
         detail = (
             "Your draft ended mid-sentence or on an unfinished clause. Rewrite the full "
             "answer from the same grounded context and finish the thought cleanly."
+        )
+    elif issue == "future_reciprocal_wave":
+        detail = (
+            "The user waved in the represented conversational scene, but your draft "
+            "promised a future wave. Respond in the represented present instead, for "
+            "example with one concise natural wave or expression cue. Do not narrate "
+            "conversation momentum or promise future energy."
         )
     elif issue == "overlong_simple_social_turn":
         detail = (
