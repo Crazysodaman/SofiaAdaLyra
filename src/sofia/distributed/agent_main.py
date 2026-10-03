@@ -184,6 +184,32 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
     )
 
 
+def create_agent_server(config: RemoteAgentConfig) -> RemoteAgentServer:
+    """Compose one configured Fleet agent server without starting it."""
+    if not isinstance(config, RemoteAgentConfig):
+        raise TypeError("config must be RemoteAgentConfig")
+    config.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    inference = (
+        None
+        if not config.inference_models
+        else LocalOllamaInferenceService(
+            node_id=config.node_id,
+            policy=RemoteInferencePolicy(
+                allowed_models=config.inference_models,
+                max_context_size=config.inference_max_context_size,
+                allow_tools=config.inference_allow_tools,
+            ),
+        )
+    )
+    return RemoteAgentServer(
+        config,
+        create_default_agent_dispatcher(
+            inference_models=config.inference_models,
+        ),
+        inference_handler=None if inference is None else inference.infer,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sofia.distributed.agent_main")
     parser.add_argument(
@@ -210,26 +236,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        config.ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        inference = (
-            None
-            if not config.inference_models
-            else LocalOllamaInferenceService(
-                node_id=config.node_id,
-                policy=RemoteInferencePolicy(
-                    allowed_models=config.inference_models,
-                    max_context_size=config.inference_max_context_size,
-                    allow_tools=config.inference_allow_tools,
-                ),
-            )
-        )
-        server = RemoteAgentServer(
-            config,
-            create_default_agent_dispatcher(
-                inference_models=config.inference_models,
-            ),
-            inference_handler=None if inference is None else inference.infer,
-        )
+        server = create_agent_server(config)
         try:
             server.serve_forever()
         finally:
