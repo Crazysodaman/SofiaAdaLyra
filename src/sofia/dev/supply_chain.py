@@ -21,7 +21,7 @@ from sofia.run.release import directory_sha256
 
 
 _PIN = re.compile(
-    r"^([A-Za-z0-9_.-]+)==([^\\s;]+)(?:\\s+--hash=sha256:([0-9a-f]{64}))?$"
+    r"^([A-Za-z0-9_.-]+)==([^\s;]+)(?:\s+--hash=sha256:([0-9a-f]{64}))?$"
 )
 
 
