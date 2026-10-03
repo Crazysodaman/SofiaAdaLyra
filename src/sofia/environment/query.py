@@ -381,9 +381,9 @@ class EnvironmentQueryResolver:
                 (
                     f"You reported your local time as "
                     f"{hour}:{minute:02d} {meridiem}. "
-                    "I'll keep AM/PM exactly as you stated it. "
-                    "That user report by itself does not prove a timezone or "
-                    "UTC conversion."
+                    "I'll preserve that exact reported time without changing "
+                    "its meridiem. That user report by itself does not prove a "
+                    "timezone or UTC conversion."
                 ),
             )
 
