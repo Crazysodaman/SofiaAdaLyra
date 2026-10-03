@@ -370,3 +370,41 @@ def test_body_description_recognizes_common_build_wording():
         assert "67 in" in result.content
         assert "26 in" in result.content
         assert "37 in" in result.content
+
+
+def test_outfit_contradiction_followup_uses_current_private_state():
+    embodiment, projection, _ = sources()
+    nude = replace(
+        projection,
+        attire=AttireMode.NUDE,
+        outfit_id=None,
+        item_ids=(),
+        item_names=(),
+        private_fallback_used=False,
+    )
+    resolver = AvatarSelfFactResolver()
+
+    result = resolver.resolve(
+        "but I thought you were naked",
+        embodiment=embodiment,
+        presentation=nude,
+    )
+
+    assert resolver.allows_private_projection(
+        "but I thought you were naked"
+    )
+    assert result.recognized
+    assert "authoritative current private AVATAR presentation is nude" in (
+        result.content
+    )
+    assert "not wearing clothing" in result.content
+
+
+def test_outfit_contradiction_followup_reports_current_clothed_state():
+    result = answer("you said you were still wearing clothes")
+
+    assert result.recognized
+    assert "authoritative current AVATAR presentation is clothed" in (
+        result.content
+    )
+    assert "signature engineer outfit" in result.content
