@@ -24,6 +24,12 @@ from .supervisor import (
     SupervisorPolicy,
     SupervisorResult,
 )
+from .windows_service_spec import (
+    RUNTIME_SERVICE,
+    WATCHDOG_SERVICE,
+    WindowsServiceSpec,
+    service_specs,
+)
 
 __all__ = [
     "ApplicationHeartbeat",
@@ -42,4 +48,8 @@ __all__ = [
     "RuntimeObservation",
     "SupervisorPolicy",
     "SupervisorResult",
+    "RUNTIME_SERVICE",
+    "WATCHDOG_SERVICE",
+    "WindowsServiceSpec",
+    "service_specs",
 ]
