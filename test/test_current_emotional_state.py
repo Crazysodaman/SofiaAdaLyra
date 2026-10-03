@@ -83,6 +83,8 @@ def test_current_state_prompt_requires_direct_self_report_without_offline_fictio
     assert "current modeled emotional state" in prompt
     assert "answer directly from this state" in prompt
     assert "functioning as intended" in prompt
+    assert "emotion labels are grounding evidence, not a response template" in prompt
+    assert "must not turn every answer into soft reassurance" in prompt
     assert "never claim sofía was thinking" in prompt
     assert "offline" in prompt
 
