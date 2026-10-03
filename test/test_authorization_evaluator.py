@@ -1,5 +1,7 @@
 ﻿from pathlib import Path
 
+import pytest
+
 from sofia.authorization import (
     AuthorizationDecision,
     AuthorizationDomain,
@@ -174,3 +176,43 @@ def test_authorization_phrase_must_be_whole_statement(
             principal=principal,
             channel="desktop",
         ) is None
+
+
+
+def test_authorization_requires_channel_matching_local_audience(
+    tmp_path: Path,
+):
+    evaluator = FilesystemAuthorizationEvaluator(scope=tmp_path)
+
+    assert evaluator.evaluate(
+        "you are allowed to check your own files",
+        principal=local_sparks_principal("local:terminal"),
+        channel="desktop",
+    ) is None
+
+    assert evaluator.evaluate(
+        "you are allowed to check your own files",
+        principal=local_sparks_principal("local:text"),
+        channel="terminal",
+    ) is None
+
+    assert evaluator.evaluate(
+        "you are allowed to check your own files",
+        principal=local_sparks_principal("local:terminal"),
+        channel="terminal",
+    ) is not None
+
+
+def test_evaluator_provenance_cannot_be_relabelled(
+    tmp_path: Path,
+):
+    evaluator = FilesystemAuthorizationEvaluator(scope=tmp_path)
+
+    assert evaluator.actor == "Sparks"
+    assert evaluator.role == "creator"
+
+    with pytest.raises(TypeError):
+        FilesystemAuthorizationEvaluator(
+            scope=tmp_path,
+            actor="Someone Else",
+        )
