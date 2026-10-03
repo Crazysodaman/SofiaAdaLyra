@@ -1170,3 +1170,67 @@ def test_context_plan_allows_only_explicitly_included_domains():
     assert plan.allows(MatrixDomain.ENVIRONMENT) is False
     with pytest.raises(TypeError):
         plan.allows("social")
+
+
+def test_response_matrix_rejects_unmeasured_hardware_specs():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "operational.measurement",
+                EvidenceKind.MEASURED,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "operational.measurement",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+    contract = ResponseContract(
+        authority_decision=AuthorityDecision.NOT_REQUIRED,
+    )
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content=(
+                "CPU: Intel Core i9-10980XE. GPU: NVIDIA RTX 3070. "
+                "RAM: 64 GB DDR4. Uptime is about 4290 hours."
+            )
+        ),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "measured_operational_claim_without_evidence" in result.reasons
+
+
+def test_response_matrix_rejects_unmeasured_benchmark_claim():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "operational.measurement",
+                EvidenceKind.MEASURED,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "operational.measurement",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+    contract = ResponseContract(
+        authority_decision=AuthorityDecision.NOT_REQUIRED,
+    )
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="The latest benchmark throughput is 840 MB/s."
+        ),
+        contract,
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
