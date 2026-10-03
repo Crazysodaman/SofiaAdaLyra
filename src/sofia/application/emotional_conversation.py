@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 from threading import RLock
 from time import monotonic
+from weakref import WeakSet
 
 from sofia.application.conversation_service import ConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
@@ -42,26 +43,15 @@ _CONTEXT_HISTORY_QUERY = re.compile(
 )
 
 
-class ConversationActivityState:
-    """Thread-safe foreground activity shared by every application channel."""
+class ConversationActivityGroup:
+    """Aggregate foreground activity across all application conversation surfaces."""
 
-    def __init__(self) -> None:
-        self._lock = RLock()
-        self._active_requests = 0
-        self._last_activity = monotonic()
+    def __init__(self, model_lock=None) -> None:
+        self._model_lock = model_lock if model_lock is not None else RLock()
+        self._members: WeakSet = WeakSet()
 
-    def begin(self) -> None:
-        with self._lock:
-            self._active_requests += 1
-
-    def finish(self) -> None:
-        with self._lock:
-            if self._active_requests <= 0:
-                raise RuntimeError(
-                    "conversation activity finished without an active request"
-                )
-            self._active_requests -= 1
-            self._last_activity = monotonic()
+    def register(self, service) -> None:
+        self._members.add(service)
 
     def ready_for_idle(self, *, idle_seconds: float) -> bool:
         if (
@@ -70,10 +60,19 @@ class ConversationActivityState:
             or idle_seconds < 0
         ):
             raise ValueError("idle_seconds must be a nonnegative number")
-        with self._lock:
-            return (
-                self._active_requests == 0
-                and monotonic() - self._last_activity >= idle_seconds
+        # All foreground model work uses the same lock. Crossing it here gives
+        # the scheduler a coherent view of every registered channel's activity.
+        with self._model_lock:
+            now = monotonic()
+            members = tuple(self._members)
+            return bool(members) and all(
+                getattr(service, "_active_user_requests", 0) == 0
+                and (
+                    now
+                    - getattr(service, "_last_user_activity", now)
+                    >= idle_seconds
+                )
+                for service in members
             )
 
 
@@ -92,7 +91,7 @@ class EmotionalConversationService(ConversationService):
         conversation_store: ConversationStore,
         *,
         model_lock=None,
-        activity_state: ConversationActivityState | None = None,
+        activity_group: ConversationActivityGroup | None = None,
     ) -> None:
         super().__init__(runtime=runtime, conversation_store=conversation_store)
         self._emotional_journal: EmotionalJournal | None = None
@@ -102,17 +101,22 @@ class EmotionalConversationService(ConversationService):
         self._current_expression_plan: EmbodiedExpressionPlan | None = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
-            activity_state is not None
-            and not isinstance(activity_state, ConversationActivityState)
+            activity_group is not None
+            and not isinstance(activity_group, ConversationActivityGroup)
         ):
             raise TypeError(
-                "activity_state must be ConversationActivityState or None"
+                "activity_group must be ConversationActivityGroup or None"
             )
-        self._activity_state = (
-            activity_state
-            if activity_state is not None
-            else ConversationActivityState()
+        self._activity_group = (
+            activity_group
+            if activity_group is not None
+            else ConversationActivityGroup(self._model_lock)
         )
+        # Preserve the per-service activity contract used by deterministic
+        # INTERACTION fast paths while aggregating those fields application-wide.
+        self._active_user_requests = 0
+        self._last_user_activity = monotonic()
+        self._activity_group.register(self)
 
     def open(self) -> None:
         super().open()
@@ -235,7 +239,7 @@ class EmotionalConversationService(ConversationService):
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
         """Avoid idle inference during or shortly after any application channel."""
-        return self._activity_state.ready_for_idle(
+        return self._activity_group.ready_for_idle(
             idle_seconds=idle_seconds
         )
 
@@ -248,7 +252,7 @@ class EmotionalConversationService(ConversationService):
     ):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
-        self._activity_state.begin()
+        self._active_user_requests += 1
         try:
             with self._model_lock:
                 acquired = monotonic()
@@ -270,7 +274,8 @@ class EmotionalConversationService(ConversationService):
                         lock_wait_ms=(acquired - started) * 1000,
                         elapsed_ms=(monotonic() - started) * 1000)
         finally:
-            self._activity_state.finish()
+            self._last_user_activity = monotonic()
+            self._active_user_requests -= 1
 
     def clarify_event(self, *, event_id: str, message_id: str) -> None:
         """Explicitly link one saved user turn to one selected event.
