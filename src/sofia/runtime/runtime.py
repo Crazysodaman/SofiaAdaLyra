@@ -1038,7 +1038,13 @@ class SofiaRuntime:
                     scope=SocialScope.global_scope(),
                 )
             )
-            if principal is not None:
+            if (
+                principal is not None
+                and (
+                    privacy_plan is None
+                    or privacy_plan.allow_relationship_scope
+                )
+            ):
                 thoughts.extend(
                     reflection_journal.recent_thoughts(
                         limit=3,
