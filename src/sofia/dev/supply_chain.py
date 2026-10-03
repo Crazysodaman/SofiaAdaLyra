@@ -265,7 +265,12 @@ def construct_release_evidence(
         application_version=application_version,
     )
     sbom_digest = sha256(sbom).hexdigest()
-    artifact_digest = sha256_file(wheel_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    artifact_dir = output_dir / "artifact"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact_out = artifact_dir / wheel_path.name
+    artifact_out.write_bytes(wheel_path.read_bytes())
+    artifact_digest = directory_sha256(artifact_dir)
     source_digest = directory_sha256(source_dir)
     provenance = generate_provenance(
         git_revision=git_revision,
@@ -300,18 +305,15 @@ def construct_release_evidence(
         asset_sha256=asset_sha256,
     )
 
-    output_dir.mkdir(parents=True, exist_ok=True)
     lock_out = output_dir / "requirements.lock"
     sbom_out = output_dir / "sbom.cdx.json"
     provenance_out = output_dir / "provenance.intoto.json"
     manifest_out = output_dir / "release-manifest.json"
-    artifact_out = output_dir / wheel_path.name
 
     lock_out.write_bytes(lock_bytes)
     sbom_out.write_bytes(sbom)
     provenance_out.write_bytes(provenance)
     manifest_out.write_bytes(manifest.canonical_bytes())
-    artifact_out.write_bytes(wheel_path.read_bytes())
 
     return SupplyChainArtifacts(
         manifest_path=manifest_out,
@@ -340,10 +342,13 @@ def verify_release_evidence(root: Path) -> ReleaseManifest:
     if sha256(provenance).hexdigest() != manifest.provenance_sha256:
         raise ValueError("provenance digest mismatch")
 
-    wheels = tuple(root.glob("*.whl"))
+    artifact_dir = root / "artifact"
+    if not artifact_dir.is_dir():
+        raise ValueError("release evidence artifact directory is missing")
+    wheels = tuple(artifact_dir.glob("*.whl"))
     if len(wheels) != 1:
-        raise ValueError("release evidence must contain exactly one wheel")
+        raise ValueError("release artifact must contain exactly one wheel")
     verify_wheel_identity(wheels[0])
-    if sha256_file(wheels[0]) != manifest.artifact_sha256:
+    if directory_sha256(artifact_dir) != manifest.artifact_sha256:
         raise ValueError("release artifact digest mismatch")
     return manifest
