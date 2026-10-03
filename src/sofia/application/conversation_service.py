@@ -293,6 +293,7 @@ class ConversationService:
         self._current_contextual_influence = None
         self._matrix_execution_baseline_serial = 0
         self._last_matrix_error: str | None = None
+        self._last_pre_response_error: str | None = None
         self._last_post_persistence_errors: tuple[str, ...] = ()
 
     @property
@@ -1265,6 +1266,11 @@ class ConversationService:
         return self._last_matrix_error
 
     @property
+    def last_pre_response_error(self) -> str | None:
+        """Return the latest non-fatal live-state refresh failure."""
+        return self._last_pre_response_error
+
+    @property
     def last_post_persistence_errors(self) -> tuple[str, ...]:
         """Return non-fatal continuity-hook failures from the latest user turn."""
         return self._last_post_persistence_errors
@@ -1313,12 +1319,20 @@ class ConversationService:
         principal = self._bind_principal(principal)
 
         pre_response_hook = self._pre_response_hook
+        self._last_pre_response_error = None
         if pre_response_hook is not None:
-            pre_response_hook(
-                content=content,
-                principal=principal,
-                channel=channel,
-            )
+            try:
+                pre_response_hook(
+                    content=content,
+                    principal=principal,
+                    channel=channel,
+                )
+            except Exception as exc:
+                self._last_pre_response_error = type(exc).__name__
+                _LOG.exception(
+                    "Pre-response live-state refresh failed; continuing with "
+                    "the existing trusted runtime state"
+                )
 
         user_message = ConversationMessage(
             id=str(uuid4()),
