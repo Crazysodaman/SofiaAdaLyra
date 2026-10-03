@@ -37,8 +37,12 @@ def _fixture(tmp_path, *, busy=False, fail=False):
         ready_for_idle_reflection=lambda *, idle_seconds: not busy,
         reflect_on_event=reflect,
     )
-    worker = IdleReflectionWorker(service=service, state_path=path,
-                                  poll_seconds=1, idle_seconds=1, retry_seconds=60)
+    worker = IdleReflectionWorker(
+        service=service,
+        state_path=path,
+        idle_seconds=1,
+        retry_seconds=60,
+    )
     return worker, service, calls, path
 
 
@@ -48,8 +52,11 @@ def test_tick_creates_due_periods_and_one_reflection_once_across_restart(tmp_pat
     assert calls == ["event-1"]
     assert len(service.reflection_journal.recent_thoughts()) > 1
     assert worker.run_once(now=NOW) is None
-    restarted = IdleReflectionWorker(service=service, state_path=path,
-                                     poll_seconds=1, idle_seconds=1)
+    restarted = IdleReflectionWorker(
+        service=service,
+        state_path=path,
+        idle_seconds=1,
+    )
     assert restarted.run_once(now=NOW) is None
     assert calls == ["event-1"]
     assert service.reflection_journal.pending() == ()
@@ -77,8 +84,11 @@ def test_failed_generation_persists_error_and_retries_without_spamming(tmp_path)
 def test_abandoned_claim_is_recoverable_and_duplicate_worker_does_not_claim(tmp_path):
     worker, service, calls, path = _fixture(tmp_path)
     assert worker._claim("event-1", NOW)
-    another = IdleReflectionWorker(service=service, state_path=path,
-                                   poll_seconds=1, idle_seconds=1)
+    another = IdleReflectionWorker(
+        service=service,
+        state_path=path,
+        idle_seconds=1,
+    )
     assert another.run_once(now=NOW + timedelta(minutes=1)) is None
     assert calls == []
     assert another.run_once(now=NOW + timedelta(minutes=11)) == "event-1"
