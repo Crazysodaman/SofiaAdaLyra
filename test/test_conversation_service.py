@@ -395,7 +395,9 @@ def test_conversation_service_processes_filesystem_authorization(
     application.start()
 
     response = application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert response.content == "Test cognitive response."
@@ -421,11 +423,15 @@ def test_conversation_service_processes_filesystem_request(
     application.start()
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     response = application.conversation.respond(
-        "read src/sofia/filesystem/model.py"
+        "read src/sofia/filesystem/model.py",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert response.content == "Test cognitive response."
