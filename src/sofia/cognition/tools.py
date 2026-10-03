@@ -18,6 +18,25 @@ from sofia.filesystem.model import FilesystemResult
 from sofia.social.model import PrincipalContext
 
 
+_AUTO_READ_ONLY_CAPABILITIES = frozenset({
+    "process.inspect",
+    "system.inspect",
+    "network.inspect",
+    "hardware.inspect",
+    "service.inspect",
+    "machine.list",
+    "machine.discover.local",
+    "ops.fleet.list",
+    "storage.roots",
+    "storage.usage",
+    "sqlite.state.tables",
+    "sqlite.state.integrity",
+    "ollama.models",
+    "ollama.running",
+    "remote.nodes",
+})
+
+
 class CognitiveToolError(Exception):
     """Raised when a cognitive tool call cannot be dispatched."""
 
@@ -214,6 +233,45 @@ class CognitiveToolDispatcher:
                 or binding.capability_name in allowed
             )
         )
+
+    def automatic_read_only_calls(
+        self,
+        authority: Authority,
+        *,
+        allowed_capabilities: tuple[str, ...],
+    ) -> tuple[CognitiveToolCall, ...]:
+        """Build host-selected no-argument read-only inspection calls.
+
+        This is used only for turns that the matrix has already classified as
+        explicit tool-assisted inspection/list work. It cannot select mutating
+        capabilities, cannot invent required arguments, and still passes every
+        call through the normal capability gateway/authority checks.
+        """
+        if not isinstance(authority, Authority):
+            raise TypeError("authority must be Authority")
+        if not isinstance(allowed_capabilities, tuple):
+            raise TypeError("allowed_capabilities must be a tuple")
+
+        allowed = set(allowed_capabilities)
+        calls: list[CognitiveToolCall] = []
+        for binding in self._bindings.values():
+            capability = binding.capability_name
+            if capability not in allowed or capability not in _AUTO_READ_ONLY_CAPABILITIES:
+                continue
+            if not authority.can_use_capability(capability):
+                continue
+            schema = binding.definition.parameters
+            required = schema.get("required", ()) if isinstance(schema, dict) else ()
+            if required:
+                continue
+            calls.append(
+                CognitiveToolCall(
+                    name=binding.definition.name,
+                    arguments={},
+                    call_id=f"host-read:{binding.definition.name}",
+                )
+            )
+        return tuple(calls)
 
     def tool_result_produces_execution_receipt(
         self,
