@@ -144,3 +144,37 @@ def test_capability_name_must_be_string() -> None:
 
     with pytest.raises(TypeError):
         authority.can_use_capability(None)
+
+
+@pytest.mark.parametrize(
+    "capability",
+    (
+        " codebase.inspect",
+        "codebase.inspect ",
+        "\tcodebase.inspect",
+    ),
+)
+def test_allowed_capabilities_require_canonical_names(capability: str) -> None:
+    with pytest.raises(ValueError, match="canonical"):
+        Authority(
+            allowed_capabilities=(capability,),
+        )
+
+
+@pytest.mark.parametrize(
+    "capability",
+    (
+        " codebase.inspect",
+        "codebase.inspect ",
+        "\tcodebase.inspect",
+    ),
+)
+def test_capability_lookup_rejects_surrounding_whitespace(
+    capability: str,
+) -> None:
+    authority = Authority(
+        allowed_capabilities=("codebase.inspect",),
+    )
+
+    with pytest.raises(ValueError, match="surrounding"):
+        authority.can_use_capability(capability)
