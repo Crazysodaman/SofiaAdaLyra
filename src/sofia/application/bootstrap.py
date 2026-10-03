@@ -32,6 +32,7 @@ from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
     create_fleet_bootstrap_coordinator,
     create_fleet_candidate_notifier,
+    create_fleet_reconciliation_notifier,
 )
 from sofia.application.memory_review import MemoryReviewService
 from sofia.application.conversation_learning import ConversationLearningCoordinator
@@ -596,12 +597,18 @@ class SofiaApplication:
             fleet_discovery_enabled = (
                 fleet_discovery_source is not None
             )
+            ops_service = getattr(self._runtime, "ops_service", None)
+            fleet_reconciliation_enabled = (
+                ops_service is not None
+                and hasattr(ops_service, "observe_reconciliation")
+            )
             background_needed = (
                 reflection_enabled
                 or habit_runtime_enabled
                 or act_delivery_enabled
                 or presentation_runtime_enabled
                 or fleet_discovery_enabled
+                or fleet_reconciliation_enabled
             )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
@@ -720,6 +727,28 @@ class SofiaApplication:
                         interval_seconds=float(
                             self._configuration.fleet_discovery.interval_seconds
                         ),
+                    )
+
+                if fleet_reconciliation_enabled:
+                    reconciliation_notifier = (
+                        create_fleet_reconciliation_notifier(
+                            act_service=self._act_service,
+                        )
+                    )
+
+                    def reconcile_fleet(now):
+                        created = ops_service.observe_reconciliation(
+                            now=now,
+                        )
+                        if reconciliation_notifier is not None:
+                            for record in created:
+                                reconciliation_notifier(record)
+                        return len(created) or None
+
+                    coordinator.set_task(
+                        "fleet_reconciliation",
+                        reconcile_fleet,
+                        interval_seconds=300.0,
                     )
 
                 if presentation_runtime_enabled:
