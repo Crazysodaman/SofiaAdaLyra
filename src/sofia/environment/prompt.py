@@ -27,6 +27,10 @@ def environment_details_relevant(content: str | None) -> bool:
     return _DETAIL_RE.search(content) is not None
 
 
+def _mph(kph: float | None) -> float | None:
+    return None if kph is None else kph * 0.621371192237334
+
+
 def _value(value: float | None, suffix: str) -> str:
     if value is None:
         return "unknown"
@@ -231,7 +235,7 @@ def environment_prompt(
                 ),
                 (
                     "Wind: "
-                    f"{_value(weather.wind_kph, ' km/h')}."
+                    f"{_value(_mph(weather.wind_kph), ' mph')}."
                 ),
                 (
                     "Weather source: "
