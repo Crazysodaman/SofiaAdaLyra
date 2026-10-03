@@ -203,7 +203,12 @@ _EXPRESSION_STYLE_META_LEAK = re.compile(
 )
 
 _SOCIAL_PERSONA_FICTION = re.compile(
-    r"\b(?:digital\s+void|waiting\s+for\s+my\s+return)\b",
+    r"\b(?:digital\s+void|waiting\s+for\s+my\s+return|no\s+glitches)\b",
+    re.IGNORECASE,
+)
+_REFLEXIVE_SOCIAL_HANDOFF = re.compile(
+    r"(?:\byou\??|how\s+about\s+you\??|"
+    r"how(?:'|’)s\s+it\s+looking\s+on\s+your\s+end\??)\s*$",
     re.IGNORECASE,
 )
 _FALSE_HOST_ACCESS_DENIAL = re.compile(
@@ -464,6 +469,15 @@ def response_quality_issue(
     if concise_turn and len(_normalized(content).split()) > 90:
         return "overlong_simple_social_turn"
     if (
+        (
+            _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip()) is not None
+            or _EMOTION_SELF_REPORT.search(user) is not None
+            or _PERCEIVED_SELF_STATE_USER.search(user) is not None
+        )
+        and _REFLEXIVE_SOCIAL_HANDOFF.search(content.strip())
+    ):
+        return "reflexive_social_handoff"
+    if (
         re.search(r"\bwave", user, re.IGNORECASE)
         and _FUTURE_RECIPROCAL_WAVE.search(content)
     ):
@@ -709,6 +723,14 @@ def grounded_quality_fallback(
             "was a complete answer."
         ))
 
+    if issue == "reflexive_social_handoff":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            return CognitiveResponse(
+                content=f"I'm feeling {labels[0].replace('-', ' ')} right now."
+            )
+        return CognitiveResponse(content="Pretty steady right now.")
+
     if issue == "social_persona_fiction":
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         if labels:
@@ -940,6 +962,13 @@ def build_rephrase_request(
             "fluidity, gearing up to be direct/teasing, monitoring the vibe, or making "
             "the next reply have the right energy. Perform the personality and gesture "
             "naturally in the current answer; do not describe the writing strategy."
+        )
+    elif issue == "reflexive_social_handoff":
+        detail = (
+            "Your draft answered the user, then reflexively handed the conversation back "
+            "with 'You?', 'How about you?', or a similar generic question. Remove that "
+            "habit. Give the concise grounded self-report and let it land unless a question "
+            "is genuinely necessary to answer the user's request."
         )
     elif issue == "social_persona_fiction":
         detail = (
