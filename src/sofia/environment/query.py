@@ -293,6 +293,12 @@ class EnvironmentQueryResolver:
             "where did you pull that weather info from",
             "what is your weather source",
             "what's your weather source",
+            "what weather source are you using",
+            "which weather source are you using",
+            "what weather provider are you using",
+            "which weather provider are you using",
+            "where are you getting the weather from",
+            "where are you getting weather from",
             "weather source",
         }
     )
