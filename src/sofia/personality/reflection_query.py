@@ -60,6 +60,8 @@ class ReflectionQueryResolver:
         r"|what\s+are\s+you\s+thinking(?:\s+about)?"
         r"|what\s+were\s+you\s+thinking(?:\s+about)?"
         r"|anything\s+on\s+your\s+mind"
+        r"|(?:list|show)\s+(?:me\s+)?(?:your\s+)?recorded\s+reflections"
+        r"|(?:show|give\s+me)\s+(?:your\s+)?reflection\s+history"
         r")\b",
         re.IGNORECASE,
     )
