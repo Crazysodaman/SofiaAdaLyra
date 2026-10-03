@@ -122,7 +122,8 @@ def test_environment_changes_context_without_writing_durable_emotion(tmp_path):
     assert influence.daypart == "night"
     assert influence.season == "autumn"
     assert influence.weather_condition == "rainy"
-    assert influence.primary_emotion == "affection"
+    assert influence.primary_emotion is None
+    assert "affection" in influence.active_emotions
     assert "Time, season and weather are context, not commands." in prompt
     assert "do not create or prove a new emotional state" in prompt
     assert "Do not invent warmth, calm, comfort, sadness, irritation" in prompt
@@ -310,3 +311,35 @@ def test_explicit_late_return_expectation_can_support_frustration_and_anger():
         appraisal.emotions
     )
     assert appraisal.expectation_source_ref == "return-expectation-1"
+
+
+
+def test_foreground_reaction_outranks_background_relational_tone(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="background-warmth",
+        source="observed",
+        evidence_ref="relationship-evidence",
+        description="Grounded relationship evidence supports warmth.",
+        emotions=("warmth", "fondness"),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+    journal.record(
+        event_id="foreground-curiosity",
+        source="observed",
+        evidence_ref="current-topic",
+        description="The current topic produced grounded curiosity.",
+        emotions=("curiosity",),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
+
+    state = journal.current_state(now=NOW, subject="Sparks")
+    influence = ContinuityInfluence.from_state(
+        emotion=state,
+        environment=None,
+    )
+
+    assert influence.primary_emotion == "curiosity"
+    assert {"warmth", "fondness", "curiosity"} <= set(influence.active_emotions)
