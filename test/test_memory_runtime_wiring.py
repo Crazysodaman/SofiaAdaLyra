@@ -23,6 +23,7 @@ from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.retrieval_projection import SourceMessage
 from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
+from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
@@ -514,5 +515,87 @@ def test_runtime_unbound_request_cannot_see_principal_scoped_promoted_memory(
         for message in recorder.last_request.messages
     )
     assert candidate.content not in assembled
+
+    runtime.shutdown()
+
+
+
+def _memory_influence(**overrides) -> ContinuityInfluence:
+    values = dict(
+        daypart="evening",
+        season="winter",
+        daylight="night",
+        weather_condition="snow",
+        temperature_c=-2.0,
+        weather_freshness="current",
+        location_freshness="current",
+        primary_emotion_evidence_refs=("emotion:runtime-memory",),
+        emotional_tone="warm",
+        primary_emotion="fondness",
+        primary_intensity=0.5,
+        active_emotions=("fondness",),
+        daypart_evidence_refs=(
+            "runtime.clock",
+            "environment.location:test",
+        ),
+        season_evidence_refs=(
+            "runtime.clock",
+            "environment.location:test",
+        ),
+        weather_evidence_refs=("environment.weather:test",),
+    )
+    values.update(overrides)
+    return ContinuityInfluence(**values)
+
+
+def test_runtime_contextual_memory_rerank_only_reorders_query_matches(
+    tmp_path: Path,
+):
+    configuration = _configuration(tmp_path)
+    _write_runtime_files(configuration)
+    runtime = compose(configuration)
+
+    summer = _candidate(
+        "Sparks runs model trains in summer."
+    )
+    winter = _candidate(
+        "Sparks runs model trains in winter."
+    )
+    unrelated = _candidate(
+        "Winter snow evenings are cozy."
+    )
+    candidate_store = runtime.memory_system.candidate_store
+    assert candidate_store is not None
+    for candidate in (summer, winter, unrelated):
+        candidate_store.propose(candidate)
+        candidate_store.promote(candidate.candidate_id)
+
+    recorder = _RecordingEngine()
+    runtime.cognitive_system.engine = recorder
+    runtime.start()
+    runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="Tell me about model trains.",
+                ),
+            )
+        ),
+        principal=local_sparks_principal(),
+        contextual_influence=_memory_influence(
+            season="winter",
+        ),
+    )
+
+    assert recorder.last_request is not None
+    assembled = "\n".join(
+        message.content
+        for message in recorder.last_request.messages
+    )
+    assert winter.content in assembled
+    assert summer.content in assembled
+    assert assembled.index(winter.content) < assembled.index(summer.content)
+    assert unrelated.content not in assembled
 
     runtime.shutdown()
