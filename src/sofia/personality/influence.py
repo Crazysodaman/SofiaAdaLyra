@@ -175,13 +175,15 @@ class ContinuityInfluence:
             f"Weather freshness: {self.weather_freshness or 'unknown'}",
             f"Location freshness: {self.location_freshness or 'unknown'}",
             f"Modeled emotional tone: {self.emotional_tone}",
-            f"Primary modeled emotion: {self.primary_emotion or 'none'}",
-            f"Primary intensity: {self.primary_intensity:.3f}",
             (
                 "Foreground conversational emotion: "
                 f"{self.foreground_emotion or 'none'}"
             ),
             f"Foreground intensity: {self.foreground_intensity:.3f}",
+            (
+                "Background relational tone available to non-conversational "
+                f"style systems: {'yes' if self.primary_emotion is not None and self.foreground_emotion is None else 'contextual'}"
+            ),
             (
                 "These signals may naturally influence attention, conversational "
                 "tone, what feels worth reflecting on, what memories feel relevant, "
