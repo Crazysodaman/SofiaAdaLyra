@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - pyproject.toml
+      - src/sofia/dev/dependency_lock.py
+      - src/sofia/dev/supply_chain.py
       - .github/workflows/dependency-lock-snapshot.yml
 
 concurrency:
@@ -35,7 +37,8 @@ jobs:
           .\.lockvenv\Scripts\python.exe -m pip freeze --exclude-editable |
             Where-Object { $_ -notmatch '^sofia-ada-lyra==' } |
             Sort-Object |
-            Set-Content -Encoding utf8 requirements.lock.windows-py312.txt
+            Set-Content -Encoding utf8 requirements.lock.windows-py312.raw.txt
+          .\.lockvenv\Scripts\python.exe -m sofia.dev.dependency_lock requirements.lock.windows-py312.raw.txt requirements.lock.windows-py312.txt
           Get-Content requirements.lock.windows-py312.txt
 
       - name: Upload resolved lock
