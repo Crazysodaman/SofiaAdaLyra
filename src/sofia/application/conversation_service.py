@@ -1606,7 +1606,11 @@ class ConversationService:
                         "claim that Sofía lacks host access while an exposed tool "
                         "can provide the requested evidence, and do not substitute "
                         "filesystem inspection for network/system/hardware/storage "
-                        "or Fleet capabilities."
+                        "or Fleet capabilities. Summarize only what the tool result "
+                        "actually establishes. Null or absent metrics are unknown/not "
+                        "sampled, not zero. Do not infer malware absence, system health, "
+                        "bottlenecks, safety, or normality unless the evidence directly "
+                        "supports that conclusion."
                     ),
                 ),
                 *cognitive_messages,
