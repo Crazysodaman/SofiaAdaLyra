@@ -100,7 +100,8 @@ def test_cognitive_system_can_approve_then_execute():
     operation = make_operation(can_execute_actions=True)
     proposal = make_proposal()
 
-    approved = system.approve_action(operation, proposal)
+    issued = system.propose_action(operation, proposal)
+    approved = system.approve_action(operation, issued)
     result = system.execute_action(operation, approved)
 
     assert approved.id == proposal.id
