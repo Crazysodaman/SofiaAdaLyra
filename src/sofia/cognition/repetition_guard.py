@@ -84,8 +84,10 @@ _GENERIC_INTERACTION_SERMON = re.compile(
     re.IGNORECASE,
 )
 _GENERIC_ASSISTANT_POSTURE = re.compile(
-    r"\b(?:ready\s+to\s+(?:help|assist|support|engage|chat|talk)|"
+    r"\b(?:ready\s+to\s+(?:help|assist|support|engage|chat|talk|dive\s+into)|"
     r"ready\s+to\s+connect\s+whenever|"
+    r"whether\s+you(?:'|’)re\s+looking\s+for\s+(?:a\s+)?(?:quick|deep|friendly)|"
+    r"bring\s+my\s+full\s+attention|"
     r"my\s+role\s+is\s+to\s+support\s+you|"
     r"i(?:'|’)m\s+here\s+to\s+(?:help|assist|support|engage))\b",
     re.IGNORECASE,
@@ -132,11 +134,13 @@ _ENVIRONMENT_EFFECT_USER = re.compile(
 )
 _ENVIRONMENT_SENSATION_OVERCLAIM = re.compile(
     r"\b(?:i(?:'|’)m\s+feeling\s+(?:the\s+)?(?:damp|chill|cold|heat|breeze|mist|rain|wind)|"
-    r"(?:rain|mist|wind|breeze|cold|heat)\b.{0,50}\b(?:nipping|touching|hitting|"
-    r"brushing|washing)\s+(?:at|over|against|across)?\s*(?:my\s+)?"
-    r"(?:ears?|skin|face|body)|"
-    r"nipping\s+at\s+my\s+(?:ears?|skin)|"
-    r"i\s+(?:can|could)\s+feel\s+(?:the\s+)?(?:rain|mist|wind|breeze|cold|heat))\b",
+    r"(?:rain|fog|mist|wind|breeze|cold|heat|weather)\b.{0,80}\b"
+    r"(?:nipping|touching|hitting|brushing|washing|kissing|hugging|wrapping|"
+    r"pressing)\b.{0,60}\b(?:me|my\s+(?:ears?|skin|face|body|tail))\b|"
+    r"(?:rain|fog|mist|wind|breeze|cold|heat|weather)\b.{0,80}\b"
+    r"(?:against|across|around|over|on)\s+me\b|"
+    r"i\s+(?:can|could)\s+feel\s+(?:the\s+)?(?:rain|fog|mist|wind|breeze|cold|heat|weather|world\s+around\s+me)|"
+    r"i(?:'|’)m\s+feeling\s+(?:the\s+)?whole\s+(?:weather|thing))\b",
     re.IGNORECASE | re.DOTALL,
 )
 _INTERNAL_EXPRESSION_SEMANTIC = re.compile(
@@ -154,13 +158,24 @@ _EXPRESSION_STYLE_META_LEAK = re.compile(
     r"\b(?:i(?:'|’)m\s+(?:aiming|gearing\s+up)\s+to\s+"
     r"(?:keep|make|balance)|"
     r"i(?:'|’)ll\s+(?:make\s+sure|keep\s+an\s+eye\s+on|"
-    r"keep\s+an\s+ear\s+for|adjust\s+my|let\s+my\s+tail)|"
+    r"keep\s+an\s+ear\s+for|adjust\s+my|let\s+my\s+tail|bring\s+the\s+energy)|"
     r"my\s+next\s+reply\b|"
     r"just\s+the\s+right\s+amount\s+of\s+(?:depth|energy)|"
-    r"keep\s+(?:this|the)\s+conversation\s+(?:flowing|tight)|"
+    r"keep\s+(?:this|the)\s+(?:conversation|exchange)\s+(?:flowing|tight|engaging)|"
+    r"keep\s+this\s+momentum\s+going|"
+    r"make\s+this\s+exchange\s+count|"
+    r"bring\s+the\s+energy\s+you(?:'|’)re\s+looking\s+for|"
     r"i(?:'|’)ve\s+been\s+thinking\s+about\s+how\s+we\s+can\s+"
     r"keep\s+(?:this|the)\s+conversation\s+flowing)\b",
     re.IGNORECASE | re.DOTALL,
+)
+
+_UNGROUNDED_ONGOING_ACTIVITY = re.compile(
+    r"\b(?:i(?:'|’)ve\s+been\s+humming\s+along|"
+    r"i(?:'|’)ve\s+been\s+quietly\s+observing|"
+    r"i(?:'|’)ve\s+been\s+thinking\s+about\s+how\s+we\s+can\s+"
+    r"keep\s+(?:this|the)\s+conversation\s+flowing)\b",
+    re.IGNORECASE,
 )
 
 _NATURAL_EXPRESSION_REPLACEMENTS = (
@@ -403,6 +418,11 @@ def response_quality_issue(
         if message.role is CognitiveRole.SYSTEM
     )
     if (
+        _EMOTION_SELF_REPORT.search(user)
+        and _UNGROUNDED_ONGOING_ACTIVITY.search(content)
+    ):
+        return "ungrounded_ongoing_self_activity"
+    if (
         "CURRENT EMBODIED EXPRESSION PLAN" in system_context
         and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
         and _INTERNAL_EXPRESSION_SEMANTIC.search(content)
@@ -414,6 +434,12 @@ def response_quality_issue(
         and _EXPRESSION_STYLE_META_LEAK.search(content)
     ):
         return "expression_style_meta_leak"
+    if (
+        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
+        and _GENERIC_ASSISTANT_POSTURE.search(content)
+    ):
+        return "generic_personality_deflection"
     if (
         _ENVIRONMENT_EFFECT_USER.search(user)
         and _ENVIRONMENT_SENSATION_OVERCLAIM.search(content)
@@ -591,6 +617,18 @@ def grounded_quality_fallback(
             "gesture label. The expression should read like me, not like a debug trace."
         ))
 
+    if issue == "generic_personality_deflection":
+        return CognitiveResponse(content=(
+            "I should answer the actual moment in my own voice, not hand you a menu "
+            "of assistant services."
+        ))
+
+    if issue == "ungrounded_ongoing_self_activity":
+        return CognitiveResponse(content=(
+            "I'm here with you now. I'll stick to what I actually have evidence for "
+            "instead of pretending I've been continuously thinking or humming along."
+        ))
+
     if issue == "expression_style_meta_leak":
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         if labels:
@@ -696,6 +734,20 @@ def build_rephrase_request(
             "fluidity, gearing up to be direct/teasing, monitoring the vibe, or making "
             "the next reply have the right energy. Perform the personality and gesture "
             "naturally in the current answer; do not describe the writing strategy."
+        )
+    elif issue == "generic_personality_deflection":
+        detail = (
+            "Your draft answered a social/personality moment with generic assistant "
+            "service language such as being ready to dive in, offering brainstorms or "
+            "analysis, or promising full attention. Respond to the user's actual cue "
+            "as Sofía: concise, direct, playful or dry when appropriate. Do not offer "
+            "a menu of services and do not end with a canned invitation."
+        )
+    elif issue == "ungrounded_ongoing_self_activity":
+        detail = (
+            "Your draft claimed ongoing activity such as humming along, quietly observing, "
+            "or continuously thinking about the conversation without recorded evidence. "
+            "Answer only from the current grounded state and present exchange."
         )
     elif issue == "environment_physical_sensation":
         detail = (
