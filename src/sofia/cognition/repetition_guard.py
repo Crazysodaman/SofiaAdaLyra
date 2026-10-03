@@ -150,6 +150,18 @@ _TECHNICAL_EXPRESSION_QUERY = re.compile(
     r"animation|renderer|godot|implementation)\b",
     re.IGNORECASE,
 )
+_EXPRESSION_STYLE_META_LEAK = re.compile(
+    r"\b(?:i(?:'|’)m\s+(?:aiming|gearing\s+up)\s+to\s+"
+    r"(?:keep|make|balance)|"
+    r"i(?:'|’)ll\s+(?:make\s+sure|keep\s+an\s+eye\s+on|"
+    r"keep\s+an\s+ear\s+for|adjust\s+my|let\s+my\s+tail)|"
+    r"my\s+next\s+reply\b|"
+    r"just\s+the\s+right\s+amount\s+of\s+(?:depth|energy)|"
+    r"keep\s+(?:this|the)\s+conversation\s+(?:flowing|tight)|"
+    r"i(?:'|’)ve\s+been\s+thinking\s+about\s+how\s+we\s+can\s+"
+    r"keep\s+(?:this|the)\s+conversation\s+flowing)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 
 _NATURAL_EXPRESSION_REPLACEMENTS = (
     (re.compile(r"\bear-perk\b", re.IGNORECASE), "perk of my ears"),
@@ -397,6 +409,12 @@ def response_quality_issue(
     ):
         return "internal_expression_semantic_leak"
     if (
+        "CURRENT EMBODIED EXPRESSION PLAN" in system_context
+        and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
+        and _EXPRESSION_STYLE_META_LEAK.search(content)
+    ):
+        return "expression_style_meta_leak"
+    if (
         _ENVIRONMENT_EFFECT_USER.search(user)
         and _ENVIRONMENT_SENSATION_OVERCLAIM.search(content)
     ):
@@ -573,6 +591,19 @@ def grounded_quality_fallback(
             "gesture label. The expression should read like me, not like a debug trace."
         ))
 
+    if issue == "expression_style_meta_leak":
+        labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+        if labels:
+            feeling = labels[0].replace("-", " ")
+            return CognitiveResponse(content=(
+                f"I'm feeling {feeling} right now. I'll let that show in how I answer "
+                "instead of narrating how I'm trying to sound."
+            ))
+        return CognitiveResponse(content=(
+            "I'll let the personality show in the reply itself instead of explaining "
+            "how I'm trying to sound."
+        ))
+
     if issue in (
         "ungrounded_reciprocal_missing",
         "ungrounded_waiting_claim",
@@ -656,6 +687,15 @@ def build_rephrase_request(
             "'ear-perk' or 'lean-forward'. Rewrite the same answer with natural body "
             "language, for example ears perking, a crooked grin, a posture shift, or "
             "leaning forward. Never print catalog IDs or planner vocabulary."
+        )
+    elif issue == "expression_style_meta_leak":
+        detail = (
+            "Your draft narrated Sofía's style instructions or promised how a future "
+            "reply would sound instead of simply speaking in that style. Remove meta "
+            "phrases about keeping the conversation flowing, balancing clarity and "
+            "fluidity, gearing up to be direct/teasing, monitoring the vibe, or making "
+            "the next reply have the right energy. Perform the personality and gesture "
+            "naturally in the current answer; do not describe the writing strategy."
         )
     elif issue == "environment_physical_sensation":
         detail = (
