@@ -1406,7 +1406,9 @@ class ConversationService:
 
         authorization = (
             self._filesystem_authorization_evaluator.evaluate(
-                content
+                content,
+                principal=principal,
+                channel=channel,
             )
         )
 
