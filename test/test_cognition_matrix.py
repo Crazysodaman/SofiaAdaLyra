@@ -1324,19 +1324,3 @@ def test_weather_feeling_query_requires_environment_and_emotion():
         MatrixRelevance.REQUIRED
     )
 
-
-def test_weather_feeling_question_is_cross_domain_generative():
-    turn = MatrixCoordinator(
-        registry=default_matrix_registry()
-    ).evaluate(
-        envelope("how does the weather make you feel?")
-    )
-
-    assert turn.intent is MatrixIntent.ENVIRONMENT_QUERY
-    assert turn.response_strategy is ResponseStrategy.GENERATIVE
-    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
-        MatrixRelevance.REQUIRED
-    )
-    assert turn.relevance_for(MatrixDomain.EMOTION) is (
-        MatrixRelevance.REQUIRED
-    )
