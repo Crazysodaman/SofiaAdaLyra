@@ -246,3 +246,28 @@ def test_concurrent_wardrobe_change_fails_closed():
     with pytest.raises(InteractionBridgeError, match="wardrobe changed"):
         assemble_with_avatar_observations(make_context(), wardrobe=wardrobe,
                                           environment=make_env(), assembler=ChangingAssembler())
+
+
+
+def test_bridge_preserves_request_level_tool_and_route_restrictions():
+    class RestrictedAssembler(CognitiveContextAssembler):
+        def assemble(self, context, tools=()):
+            base = super().assemble(context, tools)
+            return CognitiveRequest(
+                messages=base.messages,
+                tools=base.tools,
+                allow_tools=False,
+                capability_allowlist=(),
+                route_hint="verify",
+            )
+
+    result = assemble_with_avatar_observations(
+        make_context(),
+        wardrobe=make_wardrobe(),
+        environment=make_env(),
+        assembler=RestrictedAssembler(),
+    )
+
+    assert result.allow_tools is False
+    assert result.capability_allowlist == ()
+    assert result.route_hint == "verify"
