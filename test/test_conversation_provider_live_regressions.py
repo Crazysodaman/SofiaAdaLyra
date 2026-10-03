@@ -401,8 +401,8 @@ def test_live_conversation_projects_and_rotates_embodied_expression(
             message.content for message in captured[0].messages
             if message.role.value == "system"
         )
-        assert "CURRENT EMBODIED EXPRESSION PLAN" in first_system
-        assert "Preferred natural expression:" in first_system
+        assert "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in first_system
+        assert "A fitting brief expression, if useful:" in first_system
         assert application.conversation.current_expression_plan is not None
 
         second = application.conversation.respond("hru")
