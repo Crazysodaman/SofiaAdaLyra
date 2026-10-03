@@ -37,21 +37,28 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Materialize clean tracked source
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-source | Out-Null
+          git archive --format=tar HEAD -o source.tar
+          tar -xf source.tar -C release-source
+
       - name: Verify exact hashed runtime lock
         shell: pwsh
         run: |
           python -m venv .releasevenv
           .\.releasevenv\Scripts\python.exe -m pip install --upgrade pip
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
-          .\.releasevenv\Scripts\python.exe -m pip install --no-deps .
+          .\.releasevenv\Scripts\python.exe -m pip install --no-deps release-source
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
         run: |
           $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
           New-Item -ItemType Directory -Force dist-a,dist-b | Out-Null
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --no-build-isolation --wheel-dir dist-a .
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --no-build-isolation --wheel-dir dist-b .
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a release-source
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b release-source
           $WheelA = Get-ChildItem dist-a\*.whl | Select-Object -First 1
           $WheelB = Get-ChildItem dist-b\*.whl | Select-Object -First 1
           if ($null -eq $WheelA -or $null -eq $WheelB) { throw "reproducibility build did not create both wheels" }
@@ -74,8 +81,8 @@ jobs:
             "--git-revision","${{ github.sha }}",
             "--lock","requirements.lock.windows-py312.txt",
             "--wheel","release-wheel.whl",
-            "--source",".",
-            "--constitution-hash","config\protected\constitution.sha256",
+            "--source","release-source",
+            "--constitution-hash","release-source\src\sofia\constitution\constitution.sha256",
             "--output","release-evidence"
           )
           if ($env:RELEASE_ID) {
