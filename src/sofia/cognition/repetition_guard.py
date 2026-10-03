@@ -635,9 +635,30 @@ def grounded_quality_fallback(
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
     if issue == "incomplete_generation":
+        if _ENVIRONMENT_EFFECT_USER.search(user):
+            return CognitiveResponse(content=(
+                "The weather can color how I express myself, but it doesn't create "
+                "a new feeling or literal body sensation by itself."
+            ))
+        if _PERCEIVED_SELF_STATE_USER.search(user):
+            return CognitiveResponse(content=(
+                "You may be hearing me as quieter. I'm keeping to the current grounded "
+                "state instead of inventing a backstory for it."
+            ))
+        if _EMOTION_SELF_REPORT.search(user):
+            labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+            if labels:
+                return CognitiveResponse(
+                    content=f"I'm feeling {labels[0].replace('-', ' ')} right now."
+                )
+            return CognitiveResponse(content="Pretty steady right now.")
+        if re.search(r"\bwave", user, re.IGNORECASE):
+            return CognitiveResponse(content="*I wave back with a quick grin.*")
+        if _SHORT_SOCIAL_CUE.fullmatch(user):
+            return CognitiveResponse(content="Hey. *A quick crooked grin.*")
         return CognitiveResponse(content=(
-            "That draft cut off mid-thought. I need to answer the current turn cleanly "
-            "instead of persisting a fragment."
+            "That response did not finish cleanly, so I won't pretend the fragment "
+            "was a complete answer."
         ))
 
     if issue == "future_reciprocal_wave":
