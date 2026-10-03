@@ -371,10 +371,10 @@ class EmbodiedExpressionPlanner:
         emotion_decision = matrix_plan.decision_for(InfluenceSignal.EMOTION)
         if (
             emotion_decision.mode is not InfluenceMode.NONE
-            and influence.primary_emotion is not None
+            and influence.foreground_emotion is not None
         ):
             candidates.extend(_EMOTION_CANDIDATES.get(
-                influence.primary_emotion,
+                influence.foreground_emotion,
                 (),
             ))
 
@@ -410,10 +410,10 @@ class EmbodiedExpressionPlanner:
         pose_candidates: list[str] = []
         if (
             emotion_decision.mode is not InfluenceMode.NONE
-            and influence.primary_emotion is not None
+            and influence.foreground_emotion is not None
         ):
             pose_candidates.extend(_EMOTION_POSES.get(
-                influence.primary_emotion,
+                influence.foreground_emotion,
                 (),
             ))
         if daypart_decision.mode is not InfluenceMode.NONE:
@@ -429,9 +429,9 @@ class EmbodiedExpressionPlanner:
             if item != pose
         )
 
-        if influence.primary_intensity >= 0.70:
+        if influence.foreground_intensity >= 0.70:
             intensity = "strong"
-        elif influence.primary_intensity >= 0.35:
+        elif influence.foreground_intensity >= 0.35:
             intensity = "moderate"
         else:
             intensity = "subtle"
