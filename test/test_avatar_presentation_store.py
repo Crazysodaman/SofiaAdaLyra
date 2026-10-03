@@ -115,3 +115,29 @@ def test_store_rejects_corrupt_snapshot_json(tmp_path):
     catalog, outfits, _ = setup_authority()
     with pytest.raises(PresentationStoreError):
         store.load(catalog.wardrobe, outfits=outfits)
+
+
+
+def test_store_wraps_denied_restored_snapshot_as_store_error(tmp_path):
+    catalog, outfits, authority = setup_authority()
+    snapshot = authority.snapshot()
+    snapshot["last_daily"]["private_only"] = True
+
+    path = tmp_path / "sofia.db"
+    store = PresentationStore(path)
+    with sqlite3.connect(path) as db:
+        db.execute(
+            """
+            INSERT INTO avatar_presentation_state (
+                state_key,
+                snapshot_json,
+                updated_at
+            )
+            VALUES ('canonical', ?, '2026-10-03T00:00:00+00:00')
+            """,
+            (json.dumps(snapshot),),
+        )
+        db.commit()
+
+    with pytest.raises(PresentationStoreError, match="invalid"):
+        store.load(catalog.wardrobe, outfits=outfits)
