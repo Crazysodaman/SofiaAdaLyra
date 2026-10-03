@@ -77,8 +77,9 @@ def _python_class_string() -> str | None:
     import winreg
 
     key_path = (
-        rf"SYSTEM\CurrentControlSet\Services\"
-        rf"{SERVICE_NAME}\PythonClass"
+        "SYSTEM\\CurrentControlSet\\Services\\"
+        + SERVICE_NAME
+        + "\\PythonClass"
     )
     try:
         with winreg.OpenKey(
