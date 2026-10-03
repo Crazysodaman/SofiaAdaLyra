@@ -41,7 +41,13 @@ from sofia.cognition.matrix import (
     InfluenceSurface,
 )
 from sofia.composition.root import compose
+from sofia.config.defaults import create_production_configuration
 from sofia.config.model import SofiaConfiguration
+from sofia.config.user_settings import (
+    RuntimeUserSettings,
+    RuntimeUserSettingsStore,
+)
+from sofia.environment.factory import create_environment_service
 from sofia.conversation.store import ConversationStore
 from sofia.cognition.engine import CognitiveEngineError
 from sofia.cognition.model import CognitiveResponse
@@ -101,6 +107,14 @@ class SofiaApplication:
 
     def __init__(self, configuration: SofiaConfiguration) -> None:
         self._configuration = configuration
+        self._environment_settings_store = RuntimeUserSettingsStore(
+            configuration.state_path
+        )
+        self._environment_settings_fingerprint = (
+            self._environment_fingerprint(
+                self._environment_settings_store.load()
+            )
+        )
         verify_production_component_schemas(configuration.state_path)
         migrate_legacy_fleet_sidecars(configuration.state_path)
         self._runtime: SofiaRuntime = compose(configuration)
@@ -289,6 +303,35 @@ class SofiaApplication:
         """Return the live AVATAR design/composition studio after startup."""
         return self._wardrobe_studio
 
+    @staticmethod
+    def _environment_fingerprint(
+        settings: RuntimeUserSettings,
+    ) -> tuple[tuple[str, str], ...]:
+        if not isinstance(settings, RuntimeUserSettings):
+            raise TypeError("settings must be RuntimeUserSettings")
+        return tuple(
+            sorted(settings.environment_mapping().items())
+        )
+
+    def _reload_environment_if_settings_changed(self) -> bool:
+        """Hot-reload persisted ENVIRONMENT settings without restarting Sofía."""
+        settings = self._environment_settings_store.load()
+        fingerprint = self._environment_fingerprint(settings)
+        if fingerprint == self._environment_settings_fingerprint:
+            return False
+
+        refreshed_configuration = create_production_configuration(
+            state_path=self._configuration.state_path
+        )
+        refreshed_service = create_environment_service(
+            refreshed_configuration
+        )
+        self._runtime.replace_environment_service(
+            refreshed_service
+        )
+        self._environment_settings_fingerprint = fingerprint
+        return True
+
     def _refresh_trusted_live_state_before_response(
         self,
         *,
@@ -304,6 +347,7 @@ class SofiaApplication:
         background presentation ticks.
         """
         _ = content, principal, channel
+        self._reload_environment_if_settings_changed()
         self._evaluate_contextual_presentation(
             now=datetime.now(timezone.utc),
             refresh_environment=False,
