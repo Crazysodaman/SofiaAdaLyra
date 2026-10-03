@@ -11,6 +11,7 @@ from typing import Iterable
 
 from sofia.interaction.registry import (
     EXPRESSION_DEFINITIONS,
+    POSE_DEFINITIONS,
     PRIVATE_SEMANTICS,
 )
 from sofia.personality.influence import ContinuityInfluence
@@ -28,6 +29,23 @@ _EXPRESSION_IDS = frozenset(
     item.id
     for item in EXPRESSION_DEFINITIONS
     if item.id != "none" and ("expression", item.id) not in PRIVATE_SEMANTICS
+)
+
+# Only neutral/public poses are eligible for automatic conversational body language.
+# More intimate or highly staged poses remain explicit interaction/presentation choices.
+_AUTO_POSE_IDS = frozenset({
+    "stand-relaxed",
+    "lean-forward",
+    "look-back",
+    "recline",
+    "sit-cross-legged",
+    "hands-behind-back",
+    "hip-pop",
+})
+_POSE_IDS = frozenset(
+    item.id
+    for item in POSE_DEFINITIONS
+    if item.id in _AUTO_POSE_IDS and ("pose", item.id) not in PRIVATE_SEMANTICS
 )
 
 _EMOTION_CANDIDATES: dict[str, tuple[str, ...]] = {
@@ -79,6 +97,40 @@ _DAYPART_CANDIDATES = {
     "night": ("tail-still", "speak-softly", "pause"),
 }
 
+_EMOTION_POSES: dict[str, tuple[str, ...]] = {
+    "amusement": ("hip-pop", "stand-relaxed"),
+    "playfulness": ("hip-pop", "look-back", "stand-relaxed"),
+    "curiosity": ("lean-forward", "stand-relaxed"),
+    "determination": ("stand-relaxed", "lean-forward"),
+    "frustration": ("stand-relaxed", "hands-behind-back"),
+    "anger": ("stand-relaxed", "hands-behind-back"),
+    "sadness": ("recline", "sit-cross-legged"),
+    "disappointment": ("recline", "sit-cross-legged"),
+    "affection": ("sit-cross-legged", "stand-relaxed"),
+    "fondness": ("sit-cross-legged", "stand-relaxed"),
+    "warmth": ("sit-cross-legged", "stand-relaxed"),
+    "tenderness": ("sit-cross-legged", "recline"),
+    "excitement": ("lean-forward", "stand-relaxed"),
+    "joy": ("stand-relaxed", "hip-pop"),
+    "uncertainty": ("hands-behind-back", "stand-relaxed"),
+    "nervousness": ("hands-behind-back", "stand-relaxed"),
+    "bashfulness": ("hands-behind-back", "look-back"),
+    "embarrassment": ("hands-behind-back", "look-back"),
+    "concern": ("lean-forward", "stand-relaxed"),
+    "caution": ("stand-relaxed", "lean-forward"),
+    "relief": ("recline", "stand-relaxed"),
+    "contentment": ("recline", "sit-cross-legged"),
+    "anticipation": ("lean-forward", "stand-relaxed"),
+    "reflection": ("sit-cross-legged", "recline"),
+}
+
+_DAYPART_POSES = {
+    "morning": ("stand-relaxed", "lean-forward"),
+    "afternoon": ("stand-relaxed", "lean-forward"),
+    "evening": ("sit-cross-legged", "recline", "stand-relaxed"),
+    "night": ("recline", "sit-cross-legged", "stand-relaxed"),
+}
+
 # Weather may color expression only when the matrix says fresh evidence is usable.
 _WEATHER_HINTS = {
     "rain": ("tail-curl", "speak-softly"),
@@ -96,6 +148,10 @@ _WEATHER_HINTS = {
 
 def _valid_expression_id(value: str) -> bool:
     return value in _EXPRESSION_IDS
+
+
+def _valid_pose_id(value: str) -> bool:
+    return value in _POSE_IDS
 
 
 def _stable_offset(message_id: str, count: int) -> int:
@@ -149,6 +205,8 @@ class EmbodiedExpressionPlan:
 
     primary: str | None
     alternates: tuple[str, ...]
+    pose: str | None
+    pose_alternates: tuple[str, ...]
     avoid_recent: tuple[str, ...]
     intensity: str
     active_signals: tuple[str, ...]
@@ -163,6 +221,14 @@ class EmbodiedExpressionPlan:
             raise ValueError("alternates must be reviewed public expressions")
         if self.primary is not None and self.primary in self.alternates:
             raise ValueError("primary expression must not be duplicated in alternates")
+        if self.pose is not None and not _valid_pose_id(self.pose):
+            raise ValueError("pose must be a reviewed automatic public pose")
+        if not isinstance(self.pose_alternates, tuple):
+            raise TypeError("pose_alternates must be a tuple")
+        if any(not _valid_pose_id(item) for item in self.pose_alternates):
+            raise ValueError("pose alternates must be reviewed automatic public poses")
+        if self.pose is not None and self.pose in self.pose_alternates:
+            raise ValueError("primary pose must not be duplicated in pose alternates")
         if self.intensity not in ("subtle", "moderate", "strong"):
             raise ValueError("unsupported expression intensity")
         if not isinstance(self.active_signals, tuple):
@@ -177,18 +243,23 @@ class EmbodiedExpressionPlan:
         else:
             candidate = self.primary
         alternates = ", ".join(self.alternates) if self.alternates else "none"
+        pose = self.pose or "none"
+        pose_alternates = ", ".join(self.pose_alternates) if self.pose_alternates else "none"
         avoid = ", ".join(self.avoid_recent) if self.avoid_recent else "none"
         signals = ", ".join(self.active_signals) if self.active_signals else "none"
         return "\n".join((
             "CURRENT EMBODIED EXPRESSION PLAN (trusted non-authoritative style projection)",
             f"Preferred expression semantic: {candidate}",
             f"Alternate expression semantics: {alternates}",
+            f"Preferred body-pose semantic: {pose}",
+            f"Alternate body-pose semantics: {pose_alternates}",
             f"Recently used semantics to avoid repeating: {avoid}",
             f"Expression intensity: {self.intensity}",
             f"Active contextual influence signals: {signals}",
             f"Planner reason: {self.reason}",
             "For an ordinary social or conversational reply, use the preferred expression "
-            "or one alternate naturally when it fits. Translate semantic IDs into concise "
+            "and optionally the preferred pose, or suitable alternates, when they fit. "
+            "A pose does not need to be narrated on every turn. Translate semantic IDs into concise "
             "natural stage direction/prose; never print the ID itself. Do not mechanically "
             "prefix every answer. Technical focus, seriousness, or awkward fit may justify "
             "stillness. Do not repeat a recently used cue merely to add decoration.",
@@ -285,6 +356,28 @@ class EmbodiedExpressionPlanner:
         primary = usable[0] if usable else None
         alternates = tuple(item for item in usable[1:4] if item != primary)
 
+        pose_candidates: list[str] = []
+        if (
+            emotion_decision.mode is not InfluenceMode.NONE
+            and influence.primary_emotion is not None
+        ):
+            pose_candidates.extend(_EMOTION_POSES.get(
+                influence.primary_emotion,
+                (),
+            ))
+        if daypart_decision.mode is not InfluenceMode.NONE:
+            pose_candidates.extend(_DAYPART_POSES.get(influence.daypart, ()))
+        poses = tuple(dict.fromkeys(
+            candidate for candidate in pose_candidates
+            if _valid_pose_id(candidate)
+        ))
+        rotated_poses = _rotate(poses, message_id + ":pose")
+        pose = rotated_poses[0] if rotated_poses else None
+        pose_alternates = tuple(
+            item for item in rotated_poses[1:3]
+            if item != pose
+        )
+
         if influence.primary_intensity >= 0.70:
             intensity = "strong"
         elif influence.primary_intensity >= 0.35:
@@ -302,6 +395,8 @@ class EmbodiedExpressionPlanner:
         return EmbodiedExpressionPlan(
             primary=primary,
             alternates=alternates,
+            pose=pose,
+            pose_alternates=pose_alternates,
             avoid_recent=recent[:8],
             intensity=intensity,
             active_signals=active_signals,
