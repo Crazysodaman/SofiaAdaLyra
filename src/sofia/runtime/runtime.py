@@ -463,6 +463,21 @@ class SofiaRuntime:
     def environment_service(self) -> EnvironmentService:
         return self._environment_service
 
+    def replace_environment_service(
+        self,
+        service: EnvironmentService,
+    ) -> None:
+        """Replace only the live ENVIRONMENT service at an app-owned boundary."""
+        if not isinstance(service, EnvironmentService):
+            raise TypeError(
+                "service must be an EnvironmentService"
+            )
+        previous = self._environment_service
+        if previous is service:
+            return
+        service.invalidate()
+        self._environment_service = service
+
     @property
     def operational_store(self) -> OperationalStore:
         return self._operational_store
