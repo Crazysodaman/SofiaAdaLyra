@@ -274,7 +274,7 @@ def test_embodied_semantic_ids_are_naturalized_before_chat():
         _message(
             CognitiveRole.SYSTEM,
             (
-                "CURRENT EMBODIED EXPRESSION PLAN "
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT "
                 "(trusted non-authoritative style projection)\n"
                 "Preferred expression semantic: ear-perk"
             ),
@@ -343,7 +343,7 @@ def test_expression_style_meta_narration_is_retried():
         _message(
             CognitiveRole.SYSTEM,
             (
-                "CURRENT EMBODIED EXPRESSION PLAN "
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT "
                 "(trusted non-authoritative style projection)\n"
                 "Preferred expression semantic: grin\n"
                 "CURRENT MODELED EMOTIONAL STATE\n"
@@ -454,9 +454,9 @@ def test_hey_nerd_generic_assistant_menu_is_retried():
         _message(
             CognitiveRole.SYSTEM,
             (
-                "CURRENT EMBODIED EXPRESSION PLAN "
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT "
                 "(trusted non-authoritative style projection)\n"
-                "Preferred natural expression: flash a crooked or playful grin"
+                "A fitting brief expression, if useful: flash a crooked or playful grin"
             ),
         ),
         _message(CognitiveRole.USER, "hey nerd"),
@@ -480,9 +480,9 @@ def test_wave_momentum_meta_narration_is_retried():
         _message(
             CognitiveRole.SYSTEM,
             (
-                "CURRENT EMBODIED EXPRESSION PLAN "
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT "
                 "(trusted non-authoritative style projection)\n"
-                "Preferred natural expression: let the fox tail swish once"
+                "A fitting brief expression, if useful: let the fox tail swish once"
             ),
         ),
         _message(CognitiveRole.USER, "waves at you"),
