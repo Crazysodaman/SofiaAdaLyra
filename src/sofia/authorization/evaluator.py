@@ -32,10 +32,10 @@ class FilesystemAuthorizationEvaluator:
         "you have permission to inspect your own files",
     )
 
-    _TRUSTED_LOCAL_CHANNELS = frozenset({
-        "desktop",
-        "terminal",
-    })
+    _TRUSTED_LOCAL_AUDIENCES = {
+        "desktop": frozenset({"local:text"}),
+        "terminal": frozenset({"local:terminal"}),
+    }
 
     _READ_ONLY_OPERATIONS = (
         FilesystemAuthorizationOperation.LIST_DIRECTORY,
@@ -106,8 +106,10 @@ class FilesystemAuthorizationEvaluator:
             principal is None
             or principal.principal_id != SPARKS_PRINCIPAL_ID
             or principal.audience_kind is not AudienceKind.PRIVATE
-            or not principal.audience_id.startswith("local:")
-            or normalized_channel not in self._TRUSTED_LOCAL_CHANNELS
+            or normalized_channel not in self._TRUSTED_LOCAL_AUDIENCES
+            or principal.audience_id not in (
+                self._TRUSTED_LOCAL_AUDIENCES[normalized_channel]
+            )
         ):
             return None
 
