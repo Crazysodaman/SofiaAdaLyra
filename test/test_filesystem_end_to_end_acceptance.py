@@ -203,6 +203,9 @@ def test_explicit_own_files_authorization_does_not_execute_inspection(
     assert application.runtime.filesystem_inspector.authorized is True
 
     assert captured_filesystem_results == [()]
+    assert len(captured_requests) == 1
+    assert captured_requests[0].allow_tools is False
+    assert captured_requests[0].capability_allowlist == ()
 
     application.shutdown()
 
