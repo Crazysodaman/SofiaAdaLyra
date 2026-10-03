@@ -870,8 +870,6 @@ class ClothingActionService:
         principal: PrincipalContext | None,
     ) -> str:
         current = self.bundle.authority.current
-        if candidate_item_ids == current.item_ids:
-            return "That is already my current wardrobe state, so I left it unchanged."
 
         if not candidate_item_ids:
             return self._decline_private()
@@ -932,6 +930,15 @@ class ClothingActionService:
             alternative_plan=alternative_plan,
             context=autonomy_context,
         )
+        if (
+            decision.accepted
+            and candidate_item_ids == current.item_ids
+        ):
+            return (
+                "That is already my current wardrobe state, "
+                "so I left it unchanged."
+            )
+
         if not decision.accepted:
             alternative = ""
             if decision.alternative_outfit_id is not None:
