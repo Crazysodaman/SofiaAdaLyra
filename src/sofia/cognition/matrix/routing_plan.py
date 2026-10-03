@@ -42,8 +42,24 @@ class MatrixRoutingPlanner:
             )
         if turn.intent is MatrixIntent.SOCIAL_CHECKIN:
             return RoutingPlan(
-                MatrixRoute.FAST,
-                "short social check-in is suitable for the secondary engine",
+                MatrixRoute.STANDARD,
+                "social self-expression is personality-critical and stays on the primary engine",
+            )
+        if (
+            turn.relevance_for(MatrixDomain.EMOTION)
+            is not MatrixRelevance.NONE
+        ):
+            return RoutingPlan(
+                MatrixRoute.STANDARD,
+                "emotion-grounded self-expression requires the primary personality path",
+            )
+        if (
+            turn.relevance_for(MatrixDomain.SOCIAL)
+            is not MatrixRelevance.NONE
+        ):
+            return RoutingPlan(
+                MatrixRoute.STANDARD,
+                "ordinary Sofía conversation stays on the primary personality path",
             )
         if (
             turn.relevance_for(MatrixDomain.INTERACTION)
