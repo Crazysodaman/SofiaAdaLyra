@@ -41,10 +41,10 @@ class ContinuityInfluence:
     emotional_tone: str
     primary_emotion: str | None
     primary_intensity: float
-    foreground_emotion_evidence_refs: tuple[str, ...]
-    foreground_emotion: str | None
-    foreground_intensity: float
     active_emotions: tuple[str, ...]
+    foreground_emotion_evidence_refs: tuple[str, ...] = ()
+    foreground_emotion: str | None = None
+    foreground_intensity: float = 0.0
     daypart_evidence_refs: tuple[str, ...] = ()
     season_evidence_refs: tuple[str, ...] = ()
     weather_evidence_refs: tuple[str, ...] = ()
