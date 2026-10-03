@@ -22,7 +22,8 @@ _WEATHER = re.compile(
     re.IGNORECASE,
 )
 _CLOCK = re.compile(
-    r"\b(?:what\s+time|time\s+is\s+it|timezone|date|day\s+is\s+it)\b",
+    r"(?:\b(?:what\s+time|time\s+is\s+it|timezone|date|day\s+is\s+it)\b"
+    r"|^\s*time\s*[?!.]*\s*$)",
     re.IGNORECASE,
 )
 _LOCATION = re.compile(
