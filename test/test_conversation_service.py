@@ -744,6 +744,7 @@ def test_matrix_context_failure_falls_back_to_legacy_history(
 
 def test_matrix_trace_records_privacy_projection_for_bound_principal(tmp_path: Path):
     from sofia.social.principals import local_sparks_principal
+from sofia.social.store import SocialSessionStore
 
     application = create_application(tmp_path)
     application.start()
@@ -1241,5 +1242,29 @@ def test_pre_response_refresh_failure_is_nonfatal_and_reported(
         messages = service.messages()
         assert messages[-2].role is ConversationRole.USER
         assert messages[-1].role is ConversationRole.ASSISTANT
+    finally:
+        application.shutdown()
+
+
+
+def test_blank_input_does_not_bind_session_principal(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    session_id = application.conversation.session_id
+    assert session_id is not None
+
+    try:
+        with pytest.raises(ValueError, match="must not be empty"):
+            application.conversation.respond(
+                "   ",
+                principal=local_sparks_principal(),
+            )
+
+        bindings = SocialSessionStore(
+            application.runtime.configuration.state_path
+        )
+        assert bindings.get(session_id) is None
     finally:
         application.shutdown()
