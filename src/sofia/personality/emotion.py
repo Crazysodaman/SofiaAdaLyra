@@ -991,17 +991,11 @@ class EmotionalJournal:
 
         if background:
             lines.append(
-                "Background relational tone: present. Let it soften or color the "
-                "voice subtly, but do not mechanically name, enumerate, or foreground "
-                "these persistent relationship emotions in ordinary replies."
+                "Background relational tone: present. Exact persistent relationship "
+                "labels stay out of ordinary provider context so they can soften or color "
+                "delivery without being mechanically named or foregrounded. Explicit "
+                "history/causality questions receive the relevant evidence separately."
             )
-            for item in background:
-                lines.append(json.dumps({
-                    "background_emotion": item.name,
-                    "intensity": _intensity_word(item.intensity),
-                    "evidence_refs": item.evidence_refs,
-                    "event_ids": item.event_ids,
-                }, ensure_ascii=False))
         else:
             lines.append("Background relational tone: none.")
         reunion_grounded = any(
