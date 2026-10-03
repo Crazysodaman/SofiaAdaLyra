@@ -792,7 +792,7 @@ class SofiaApplication:
                         busy=busy,
                     )
 
-                if act_service is not None:
+                if act_delivery_enabled:
                     coordinator.set_act_delivery(deliver_act)
 
                 def bridge_reflection_outreach(now):
@@ -818,10 +818,11 @@ class SofiaApplication:
                     )
                     return count or None
 
-                coordinator.set_task(
-                    "reflection_outreach",
-                    bridge_reflection_outreach,
-                )
+                if act_delivery_enabled:
+                    coordinator.set_task(
+                        "reflection_outreach",
+                        bridge_reflection_outreach,
+                    )
 
                 if fleet_discovery_enabled:
                     discovery = FleetDiscoveryCoordinator(
