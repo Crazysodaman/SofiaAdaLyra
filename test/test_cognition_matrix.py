@@ -1250,3 +1250,15 @@ def test_bare_time_uses_environment_and_clock_evidence():
     assert {
         item.key for item in evidence.requirements
     } == {"environment.clock.current"}
+
+
+def test_user_reported_local_time_routes_to_environment_without_rewriting_am_pm():
+    env = envelope("I was asleep and its 2:10 am for me")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.intent is MatrixIntent.ENVIRONMENT_QUERY
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
+        MatrixRelevance.REQUIRED
+    )
