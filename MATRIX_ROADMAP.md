@@ -77,15 +77,15 @@ Existing behavior-matrix suites also cover AVATAR, EMOTION, ENVIRONMENT cross-pa
 
 ## 2026-10-02 implementation snapshot
 
-- **M1 Capability / Tool Exposure:** implemented and production-wired; channel-parity acceptance coverage added.
-- **M2 Principal / Audience / Privacy:** implemented and production-wired; authenticated principal/audience remains authoritative over user prose.
-- **M3 Contextual Influence:** typed signals, surfaces, modes, freshness/evidence rules, and non-authoritative boundaries implemented.
+- **M1 Capability / Tool Exposure:** implemented and production-wired; channel-parity acceptance coverage added, and matrix request controls survive bounded provider-context projection.
+- **M2 Principal / Audience / Privacy:** implemented and production-wired; authenticated principal/audience remains authoritative over user prose, with negative cross-audience and cross-principal REL leakage coverage.
+- **M3 Contextual Influence:** typed signals, surfaces, modes, freshness/evidence rules, and non-authoritative boundaries implemented; bounded contextual memory reranking is wired after hard query/principal/audience eligibility.
 - **Context Matrix cleanup:** domain filtering now applies to every history policy; excluded EMOTION/ENVIRONMENT projections no longer re-enter through emotional conversation; LAST_TURN follow-ups inherit prior semantic domains as contextual relevance only.
 - **M4 REL / HABIT:** first-class domains, evaluators, scoped evidence/context, and tests implemented.
 - **M5 DEV / KNOW / INTEGRATE / BODY:** first-class semantic domains and evaluator/test coverage implemented.
 - **M6 Release Compatibility:** compatibility/trust matrix implemented with rollback, schema, Fleet protocol, digest, signature, lineage, and anti-rollback checks.
 - **M7 Fleet Failure / Recovery:** typed host/workload/failure/disposition matrix implemented with exhaustive state-space acceptance coverage.
-- **CI:** `Matrix Tests` now exercises M1-M7 plus cross-matrix behavior and context projection tests. A green CI run is the closure condition.
+- **CI:** `Matrix Tests` exercises M1-M7, the M8 Voice matrix foundation, cross-matrix behavior, contextual memory reranking, privacy isolation, and context projection tests. The closure gate is green: **405 passed** on commit `130aa735` (2026-10-02 Central / 2026-10-03 UTC).
 
 The detailed sections below remain the design/acceptance contract. Items written in future tense describe the contract that the current implementation is expected to satisfy, not unstarted work.
 
@@ -223,15 +223,15 @@ SAFE / authority / release / Fleet fencing / BODY safety
   all four = none
 ```
 
-Current code gaps this matrix must close:
+Previously identified implementation gaps, now closed:
 
-1. `WardrobeAutonomyPolicy.decide()` receives none of the four influence signals.
-2. `EmotionalConversationService` can inject `ContinuityInfluence` even when runtime matrix context excludes ENVIRONMENT.
-3. `ThoughtAgent` gets daypart/season/emotion but omits weather from reflection-decision payload.
-4. `ThemeSignals` omits season.
-5. HABIT records season/weather/daylight but current conversation-routine analysis keeps only daypart/day_type.
-6. Memory retrieval does not implement the bounded contextual salience described by the continuity prompt.
-7. Interaction willingness and expression do not have an explicit per-signal influence whitelist.
+1. `WardrobeAutonomyPolicy.decide()` receives trusted contextual influence for wardrobe autonomy.
+2. `EmotionalConversationService` obeys Context Matrix EMOTION/ENVIRONMENT exclusions and cannot re-inject excluded environment state.
+3. Reflection receives fresh weather alongside trusted daypart/season/emotion context.
+4. `ThemeSignals` includes season as a bounded visual influence.
+5. HABIT learning includes grounded seasonal/weather/daylight correlations with evidence requirements.
+6. Memory retrieval implements bounded contextual reranking only after promoted status, principal/audience scope, and explicit query relevance succeed; context alone cannot make an unrelated memory eligible.
+7. Interaction willingness and expression use separate per-signal influence whitelists, preserving consent/boundary dominance.
 
 Critical invariants:
 
