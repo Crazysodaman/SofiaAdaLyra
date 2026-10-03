@@ -41,6 +41,9 @@ class ContinuityInfluence:
     emotional_tone: str
     primary_emotion: str | None
     primary_intensity: float
+    foreground_emotion_evidence_refs: tuple[str, ...]
+    foreground_emotion: str | None
+    foreground_intensity: float
     active_emotions: tuple[str, ...]
     daypart_evidence_refs: tuple[str, ...] = ()
     season_evidence_refs: tuple[str, ...] = ()
@@ -91,11 +94,11 @@ class ContinuityInfluence:
             if environment is None
             else environment.current_location_freshness.value
         )
-        # Long-lived relationship tone should color delivery without
-        # monopolizing the turn. Prefer a foreground reaction for behavioral
-        # influence; background warmth/fondness/affection remain available in
-        # active_emotions and the emotional-state projection.
-        primary = next(
+        # Keep the strongest modeled emotion for wardrobe/avatar style.
+        # Conversation expression gets a separate foreground channel so
+        # persistent relational tone cannot monopolize dialogue.
+        primary = emotion.active[0] if emotion.active else None
+        foreground = next(
             (
                 item for item in emotion.active
                 if item.name not in _BACKGROUND_RELATIONAL
@@ -143,6 +146,15 @@ class ContinuityInfluence:
             emotional_tone=emotion.tone,
             primary_emotion=None if primary is None else primary.name,
             primary_intensity=0.0 if primary is None else primary.intensity,
+            foreground_emotion_evidence_refs=(
+                () if foreground is None else foreground.evidence_refs
+            ),
+            foreground_emotion=(
+                None if foreground is None else foreground.name
+            ),
+            foreground_intensity=(
+                0.0 if foreground is None else foreground.intensity
+            ),
             active_emotions=tuple(item.name for item in emotion.active),
             daypart_evidence_refs=clock_refs,
             season_evidence_refs=season_refs,
@@ -165,6 +177,11 @@ class ContinuityInfluence:
             f"Modeled emotional tone: {self.emotional_tone}",
             f"Primary modeled emotion: {self.primary_emotion or 'none'}",
             f"Primary intensity: {self.primary_intensity:.3f}",
+            (
+                "Foreground conversational emotion: "
+                f"{self.foreground_emotion or 'none'}"
+            ),
+            f"Foreground intensity: {self.foreground_intensity:.3f}",
             (
                 "These signals may naturally influence attention, conversational "
                 "tone, what feels worth reflecting on, what memories feel relevant, "
