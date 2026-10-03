@@ -7,6 +7,7 @@ from sofia.memory.promoted_retrieval import retrieve_promoted
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.store import MemoryStore
+from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 
 
@@ -97,6 +98,7 @@ class MemorySystem:
         limit: int = 5,
         *,
         principal: PrincipalContext | None = None,
+        influence: ContinuityInfluence | None = None,
     ) -> tuple[MemoryRecord, ...]:
         """
         Retrieve memories relevant to a textual query.
@@ -120,6 +122,14 @@ class MemorySystem:
                 "MemorySystem principal must be a PrincipalContext or None."
             )
 
+        if influence is not None and not isinstance(
+            influence,
+            ContinuityInfluence,
+        ):
+            raise TypeError(
+                "MemorySystem influence must be a ContinuityInfluence or None."
+            )
+
         if not isinstance(limit, int):
             raise TypeError(
                 "MemorySystem limit must be an integer."
@@ -140,6 +150,7 @@ class MemorySystem:
                 query,
                 limit=limit,
                 principal=principal,
+                influence=influence,
             )
 
         return self._recall_legacy(
@@ -183,6 +194,7 @@ class MemorySystem:
         *,
         limit: int,
         principal: PrincipalContext | None,
+        influence: ContinuityInfluence | None = None,
     ) -> tuple[MemoryRecord, ...]:
         candidate_store = self._candidate_store
 
@@ -202,6 +214,7 @@ class MemorySystem:
             audience_id=(
                 None if principal is None else principal.audience_id
             ),
+            influence=influence,
         )
 
         records: list[MemoryRecord] = []
