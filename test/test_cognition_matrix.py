@@ -1262,3 +1262,16 @@ def test_user_reported_local_time_routes_to_environment_without_rewriting_am_pm(
     assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
         MatrixRelevance.REQUIRED
     )
+
+
+def test_is_that_all_is_last_turn_followup():
+    turn = BaselineTurnClassifier().classify(
+        envelope("is that all")
+    )
+
+    assert turn.intent is MatrixIntent.GENERAL
+    assert turn.history_policy is HistoryPolicy.LAST_TURN
+    assert turn.response_strategy is ResponseStrategy.GENERATIVE
+    assert turn.relevance_for(MatrixDomain.SOCIAL) is (
+        MatrixRelevance.CONTEXTUAL
+    )
