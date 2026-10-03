@@ -281,3 +281,40 @@ def test_shutdown_revokes_filesystem_authorization(
         application.runtime.filesystem_authorization
         is None
     )
+
+
+def test_generic_operational_inspect_requests_are_not_treated_as_paths(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    orchestrator = FilesystemOrchestrator(application.runtime)
+    try:
+        assert orchestrator.process(
+            "Inspect the local network interfaces, routes, and DNS configuration, "
+            "then summarize the current network state."
+        ) == ()
+        assert orchestrator.process(
+            "Inspect available storage roots and storage usage, then summarize "
+            "capacity and free space."
+        ) == ()
+        assert orchestrator.process(
+            "Inspect this computer's operating system, host identity, and uptime."
+        ) == ()
+    finally:
+        application.shutdown()
+
+
+def test_explicit_path_inspection_still_reaches_filesystem_boundary(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    orchestrator = FilesystemOrchestrator(application.runtime)
+    try:
+        result = orchestrator.process("inspect src/sofia/filesystem/model.py")
+        assert len(result) == 1
+        assert result[0].operation is FilesystemOperation.INSPECT_PATH
+        assert result[0].kind is FilesystemResultKind.UNAUTHORIZED
+    finally:
+        application.shutdown()
