@@ -157,6 +157,13 @@ _ENVIRONMENT_SENSATION_OVERCLAIM = re.compile(
     r"i(?:'|’)m\s+feeling\s+(?:the\s+)?whole\s+(?:weather|thing))\b",
     re.IGNORECASE | re.DOTALL,
 )
+_DENIED_ENVIRONMENT_SENSATION = re.compile(
+    r"\b(?:isn(?:'|’)t|is\s+not|aren(?:'|’)t|are\s+not|"
+    r"don(?:'|’)t|do\s+not|doesn(?:'|’)t|does\s+not)\b"
+    r".{0,50}\b(?:physically\s+)?(?:touching|kissing|hugging|"
+    r"nipping|brushing|hitting|washing|pressing|felt|feel)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 _INTERNAL_EXPRESSION_SEMANTIC = re.compile(
     r"\b(?:ear-perk|ear-flick|ear-flatten|tail-swish|tail-curl|tail-still|"
     r"shift-posture|speak-softly|lean-forward|stand-relaxed|look-back|"
@@ -461,6 +468,7 @@ def response_quality_issue(
     if (
         _ENVIRONMENT_EFFECT_USER.search(user)
         and _ENVIRONMENT_SENSATION_OVERCLAIM.search(content)
+        and _DENIED_ENVIRONMENT_SENSATION.search(content) is None
     ):
         return "environment_physical_sensation"
     if (
