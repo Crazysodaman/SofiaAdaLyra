@@ -284,6 +284,7 @@ class ConversationService:
         self._current_response_validation: ResponseValidation | None = None
         self._current_routing_plan: RoutingPlan | None = None
         self._current_cognition_execution: CognitionExecutionTrace | None = None
+        self._current_contextual_influence = None
         self._matrix_execution_baseline_serial = 0
         self._last_matrix_error: str | None = None
 
@@ -772,6 +773,7 @@ class ConversationService:
         self._current_response_validation = None
         self._current_routing_plan = None
         self._current_cognition_execution = None
+        self._current_contextual_influence = None
         execution_reader = getattr(
             self._runtime,
             "cognition_routing_execution",
@@ -1113,6 +1115,7 @@ class ConversationService:
                 filesystem_results=(),
                 context_plan=self._current_context_plan,
                 privacy_plan=self._current_privacy_plan,
+                contextual_influence=self._current_contextual_influence,
             )
         else:
             retry = self._runtime.respond(
@@ -1121,6 +1124,7 @@ class ConversationService:
                 principal=principal,
                 context_plan=self._current_context_plan,
                 privacy_plan=self._current_privacy_plan,
+                contextual_influence=self._current_contextual_influence,
             )
 
         self._capture_cognition_execution()
@@ -1323,6 +1327,7 @@ class ConversationService:
                 filesystem_results=filesystem_results,
                 context_plan=context_plan,
                 privacy_plan=self._current_privacy_plan,
+                contextual_influence=self._current_contextual_influence,
             )
         else:
             response = self._runtime.respond(
@@ -1331,6 +1336,7 @@ class ConversationService:
                 principal=principal,
                 context_plan=context_plan,
                 privacy_plan=self._current_privacy_plan,
+                contextual_influence=self._current_contextual_influence,
             )
 
         self._capture_cognition_execution()
