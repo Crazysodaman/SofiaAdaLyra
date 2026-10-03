@@ -1375,3 +1375,39 @@ def test_weather_affect_you_routes_to_environment_and_emotion():
     assert result.intent is MatrixIntent.GENERAL
     assert result.relevance_for(MatrixDomain.ENVIRONMENT) is MatrixRelevance.REQUIRED
     assert result.relevance_for(MatrixDomain.EMOTION) is MatrixRelevance.REQUIRED
+
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "Inspect the local running processes and summarize the most relevant processes.",
+        "Inspect the local network interfaces, routes, and DNS configuration.",
+        "List the machines currently known to your fleet tools.",
+        "Inspect this computer's operating system, host identity, and uptime.",
+    ),
+)
+def test_explicit_read_only_operational_requests_are_tool_assisted(content):
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.OPS) is not MatrixRelevance.NONE
+
+
+def test_hardware_memory_word_is_not_misclassified_as_autobiographical_memory():
+    env = envelope(
+        "Inspect this computer's CPU, GPU, memory, storage, network adapters, "
+        "and virtualization hardware, then summarize the important points."
+    )
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.MACHINE) is MatrixRelevance.REQUIRED
+    assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.NONE
