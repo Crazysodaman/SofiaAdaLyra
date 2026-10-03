@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 from threading import Event, Thread
@@ -24,6 +24,7 @@ class BackgroundBudget:
         state_path: Path,
         *,
         max_attempts_per_utc_day: int = 768,
+        claim_timeout: timedelta = timedelta(minutes=30),
     ) -> None:
         if not isinstance(state_path, Path):
             raise TypeError("state_path must be a Path")
@@ -31,8 +32,15 @@ class BackgroundBudget:
             1 <= max_attempts_per_utc_day <= 1440
         ):
             raise ValueError("max_attempts_per_utc_day must be in 1..1440")
+        if (
+            not isinstance(claim_timeout, timedelta)
+            or claim_timeout <= timedelta(0)
+            or claim_timeout > timedelta(days=1)
+        ):
+            raise ValueError("claim_timeout must be in (0, 1 day]")
         self.path = state_path
         self.max_attempts_per_utc_day = max_attempts_per_utc_day
+        self.claim_timeout = claim_timeout
         with closing(self._connect()) as db:
             with db:
                 db.execute(
@@ -67,14 +75,36 @@ class BackgroundBudget:
                 db.execute("BEGIN IMMEDIATE")
                 working = db.execute(
                     """
-                    SELECT 1
+                    SELECT claim_id, claimed_at
                     FROM application_background_claims
                     WHERE status='working'
+                    ORDER BY claimed_at, claim_id
                     LIMIT 1
                     """
                 ).fetchone()
                 if working is not None:
-                    return None
+                    try:
+                        claimed_at = datetime.fromisoformat(
+                            working[1]
+                        ).astimezone(timezone.utc)
+                    except (TypeError, ValueError) as exc:
+                        raise RuntimeError(
+                            "background claim has an invalid timestamp"
+                        ) from exc
+                    age = moment - claimed_at
+                    if age < timedelta(0):
+                        return None
+                    if age < self.claim_timeout:
+                        return None
+                    db.execute(
+                        """
+                        UPDATE application_background_claims
+                        SET status='failed', finished_at=?,
+                            error_type='AbandonedClaim'
+                        WHERE claim_id=? AND status='working'
+                        """,
+                        (moment.isoformat(), working[0]),
+                    )
                 count = db.execute(
                     """
                     SELECT COUNT(*)
@@ -161,9 +191,17 @@ class ApplicationBackgroundCoordinator:
             raise TypeError("state_path must be a Path")
         if not isinstance(reflection_enabled, bool):
             raise TypeError("reflection_enabled must be boolean")
-        if not isinstance(poll_seconds, (int, float)) or poll_seconds <= 0:
+        if (
+            isinstance(poll_seconds, bool)
+            or not isinstance(poll_seconds, (int, float))
+            or poll_seconds <= 0
+        ):
             raise ValueError("poll_seconds must be positive")
-        if not isinstance(idle_seconds, (int, float)) or idle_seconds <= 0:
+        if (
+            isinstance(idle_seconds, bool)
+            or not isinstance(idle_seconds, (int, float))
+            or idle_seconds <= 0
+        ):
             raise ValueError("idle_seconds must be positive")
         self.service = service
         self.reflection_enabled = reflection_enabled
@@ -171,11 +209,15 @@ class ApplicationBackgroundCoordinator:
         self.poll_seconds = float(poll_seconds)
         self.idle_seconds = float(idle_seconds)
         self.budget = BackgroundBudget(state_path)
-        self.idle = IdleReflectionWorker(
-            service=service,
-            state_path=state_path,
-            poll_seconds=poll_seconds,
-            idle_seconds=idle_seconds,
+        self.idle = (
+            IdleReflectionWorker(
+                service=service,
+                state_path=state_path,
+                poll_seconds=poll_seconds,
+                idle_seconds=idle_seconds,
+            )
+            if reflection_enabled
+            else None
         )
         self.periodic = PeriodicThoughtGate(
             state_path,
@@ -227,7 +269,8 @@ class ApplicationBackgroundCoordinator:
         if not callable(callback):
             raise TypeError("background task callback must be callable or None")
         if (
-            not isinstance(interval_seconds, (int, float))
+            isinstance(interval_seconds, bool)
+            or not isinstance(interval_seconds, (int, float))
             or interval_seconds <= 0
         ):
             raise ValueError("interval_seconds must be positive")
@@ -256,7 +299,10 @@ class ApplicationBackgroundCoordinator:
         return tuple(dict.fromkeys(refs))[:16]
 
     def run_once(self, *, now: datetime | None = None) -> str:
-        moment = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+        moment = now or datetime.now(timezone.utc)
+        if moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError("background coordinator time must be timezone-aware")
+        moment = moment.astimezone(timezone.utc)
         if not self.service.ready_for_idle_reflection(
             idle_seconds=self.idle_seconds
         ):
@@ -281,6 +327,10 @@ class ApplicationBackgroundCoordinator:
                 )
                 return "budget_busy"
             try:
+                if self.idle is None:
+                    raise RuntimeError(
+                        "reflection opportunity claimed while reflection is disabled"
+                    )
                 event_id = self.idle.run_once(now=moment)
                 if event_id is None:
                     self.periodic.finish(
