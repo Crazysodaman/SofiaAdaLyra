@@ -452,6 +452,29 @@ class SofiaApplication:
             refresh_environment=False,
         )
 
+    def _evaluate_contextual_presentation_when_idle(
+        self,
+        *,
+        now: datetime,
+        refresh_environment: bool,
+        idle_seconds: float,
+    ):
+        """Serialize one background AVATAR mutation behind foreground turns.
+
+        The coordinator performs an initial idle check before dispatch. A user
+        turn can begin after that check, so recheck while holding the shared
+        model lock before touching PresentationAuthority.
+        """
+        with self._model_lock:
+            if not self._conversation_service.ready_for_idle_reflection(
+                idle_seconds=idle_seconds
+            ):
+                return None
+            return self._evaluate_contextual_presentation(
+                now=now,
+                refresh_environment=refresh_environment,
+            )
+
     def _wardrobe_autonomy_context(
         self,
     ) -> WardrobeAutonomyContext | None:
@@ -952,9 +975,10 @@ class SofiaApplication:
 
                 if presentation_runtime_enabled:
                     def evaluate_avatar_presentation(now):
-                        result = self._evaluate_contextual_presentation(
+                        result = self._evaluate_contextual_presentation_when_idle(
                             now=now,
                             refresh_environment=True,
+                            idle_seconds=coordinator.idle_seconds,
                         )
                         return (
                             result
