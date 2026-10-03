@@ -296,9 +296,14 @@ class EmbodiedExpressionPlan:
         pose = _pose_text(self.pose)
         pose_alternates = _list_text(self.pose_alternates, _pose_text)
         avoid = _list_text(self.avoid_recent, _expression_text)
+        preferred_line = (
+            "No specific expression cue is required this turn."
+            if self.primary is None
+            else f"A fitting brief expression, if useful: {candidate}"
+        )
         return "\n".join((
             "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT",
-            f"A fitting brief expression, if useful: {candidate}",
+            preferred_line,
             f"Other fitting expressions: {alternates}",
             f"A fitting body pose, if useful: {pose}",
             f"Other fitting poses: {pose_alternates}",
