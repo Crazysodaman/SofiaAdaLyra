@@ -70,11 +70,11 @@ jobs:
             test/test_conversation_service.py::test_conversation_records_active_matrix_trace_before_persistence `
             test/test_conversation_service.py::test_channel_propagates_through_full_conversation_stack_to_matrix_trace `
             test/test_conversation_service.py::test_matrix_context_failure_falls_back_to_legacy_history `
-            test/test_conversation_service.py::test_matrix_hru_routes_fast_and_records_validation `
+            test/test_conversation_service.py::test_matrix_hru_routes_standard_and_records_validation `
             test/test_conversation_service.py::test_matrix_network_no_evidence_is_recorded_without_fake_health `
             test/test_conversation_service.py::test_runtime_promotes_host_execution_receipt_evidence `
             test/test_conversation_service.py::test_allowed_receipt_backed_action_claim_persists `
             test/test_conversation_service.py::test_matrix_action_claim_is_rewritten_before_persistence `
             test/test_conversation_service.py::test_interaction_stop_completes_active_matrix_trace_without_llm `
-            test/test_conversation_service.py::test_fast_matrix_trace_records_actual_secondary_model_execution `
+            test/test_conversation_service.py::test_social_matrix_trace_records_actual_primary_model_execution `
             test/test_conversation_service.py::test_verify_matrix_trace_proves_primary_secondary_primary_execution
