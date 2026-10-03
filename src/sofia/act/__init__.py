@@ -12,7 +12,16 @@ from .delivery import (
     DeliveryRunResult,
     SendResult,
 )
-from .outreach import Candidate, Decision, History, Policy, evaluate
+from .outreach import (
+    Candidate,
+    Decision,
+    History,
+    Importance,
+    OutreachCategory,
+    Policy,
+    evaluate,
+)
+from .system_notice import SystemNotice, SystemNoticeQueue
 
 __all__ = [
     "ActDeliveryRunner",
@@ -27,7 +36,11 @@ __all__ = [
     "DeliveryPayload",
     "DeliveryRunResult",
     "History",
+    "Importance",
+    "OutreachCategory",
     "Policy",
     "SendResult",
+    "SystemNotice",
+    "SystemNoticeQueue",
     "evaluate",
 ]
