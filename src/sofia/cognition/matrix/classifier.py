@@ -23,7 +23,8 @@ _SOCIAL = re.compile(
 )
 _GENERIC_FOLLOWUP = re.compile(
     r"^\s*(?:tell\s+me\s+(?:the\s+)?why|why|how\s+so|"
-    r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more)\s*[?!.]*\s*$",
+    r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more|"
+    r"is\s+that\s+all|that's\s+all|that\s+all)\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
 
