@@ -7,6 +7,8 @@ from sofia.ops.reconcile import (
     MaintenanceReceipt,
     MaintenanceReceiptOutcome,
 )
+from sofia.ops.desired import DesiredWorkloadPlacement
+from sofia.ops.workload import WorkloadInstance, WorkloadPhase
 
 
 NOW = datetime(2026, 9, 26, 21, 0, tzinfo=timezone.utc)
@@ -154,3 +156,53 @@ def test_ops_drift_proposal_is_read_only_and_non_authoritative(tmp_path):
     assert result["proposals"][0]["source_host_id"] == "venus"
     assert result["proposals"][0]["target_host_id"] == "artemis"
     assert result["proposals"][0]["authorized"] is False
+
+
+def test_ops_reconciliation_preview_uses_durable_desired_and_observed_state(
+    tmp_path,
+):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+
+    service = OpsToolService(state)
+    for host in (_host("venus", 5), _host("artemis", 30)):
+        service.registry.register_candidate(host)
+        service.registry.transition(host.host_id, HostLifecycle.ENROLLED)
+        service.registry.transition(host.host_id, HostLifecycle.HEALTHY)
+
+    service.desired_state.set_workload(
+        DesiredWorkloadPlacement("plex", "artemis"),
+        at=NOW,
+    )
+    service.workloads.observe(
+        WorkloadInstance(
+            instance_id="plex-1",
+            workload_id="plex",
+            version="1",
+            host_id="venus",
+            phase=WorkloadPhase.READY,
+            lease_epoch=3,
+        ),
+        at=NOW,
+    )
+
+    result = service.reconciliation_preview()
+
+    assert result["desired_workloads"] == (
+        {"workload_id": "plex", "host_id": "artemis"},
+    )
+    assert result["observed_workloads"][0]["host_id"] == "venus"
+    assert result["drift"] == (
+        {
+            "kind": "workload_placement",
+            "subject_id": "plex",
+            "expected": "artemis",
+            "observed": "venus",
+        },
+    )
+    proposal = result["proposals"][0]
+    assert proposal["kind"] == "workload_migration"
+    assert proposal["source_host_id"] == "venus"
+    assert proposal["target_host_id"] == "artemis"
+    assert proposal["authorized"] is False
