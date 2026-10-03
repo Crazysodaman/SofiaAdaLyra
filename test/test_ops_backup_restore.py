@@ -180,3 +180,26 @@ def test_manifest_entry_rejects_path_traversal():
             size=1,
             nonce_b64="AA==",
         )
+
+
+def test_manifest_authentication_rejects_metadata_tampering(
+    tmp_path,
+    engine,
+):
+    state = make_state(tmp_path)
+    backup_dir, _ = engine.create(
+        state_path=state,
+        destination_root=tmp_path / "backups",
+        source_host_id="venus",
+        failure_domain="external-disk",
+        now=NOW,
+    )
+    manifest_path = backup_dir / "manifest.json"
+    payload = manifest_path.read_text(encoding="utf-8")
+    manifest_path.write_text(
+        payload.replace("external-disk", "same-host-disk"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(BackupError, match="authentication failed"):
+        engine.verify(backup_dir)
