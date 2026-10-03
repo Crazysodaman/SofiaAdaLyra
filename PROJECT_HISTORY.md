@@ -1441,15 +1441,18 @@ The matrix system should be expanded selectively around **tool exposure, privacy
 
 The focused matrix plan is now maintained in [`MATRIX_ROADMAP.md`](MATRIX_ROADMAP.md) and summarized in [`ROADMAP.md`](ROADMAP.md).
 
-The current matrix expansion order is:
+The matrix expansion was subsequently completed on `main` in this order:
 
-1. Capability / Tool Exposure Matrix
-2. Principal / Audience / Privacy Matrix
-3. REL + HABIT domain/context/evidence extension
-4. DEV + KNOW + INTEGRATE + BODY semantic domain refinement
-5. Release / Schema / Fleet Compatibility Matrix
-6. Fleet Failure / Recovery Matrix
-7. Voice parity after voice exists
+1. ✅ M1 Capability / Tool Exposure Matrix
+2. ✅ M2 Principal / Audience / Privacy Matrix
+3. ✅ M3 Contextual Influence Matrix
+4. ✅ M4 REL + HABIT domain/context/evidence extension
+5. ✅ M5 DEV + KNOW + INTEGRATE + BODY semantic domain refinement
+6. ✅ M6 Release / Schema / Fleet Compatibility Matrix
+7. ✅ M7 Fleet Failure / Recovery Matrix
+8. ✅ M8 Voice runtime/prosody matrix foundation
+
+The dedicated Matrix Tests closure gate passed **405/405** on commit `130aa735`. Actual live STT/TTS adapters and Desktop/Discord voice-channel parity remain later interface work, not missing matrix foundations.
 
 The current package/test ownership roster is treated as **21 families**:
 
@@ -1555,17 +1558,17 @@ The matrix is a whitelist per decision surface. It decides whether each signal m
 - hard compatibility;
 - or nothing.
 
-Important current findings:
+Implementation outcome:
 
-- automatic outfit selection already uses all four with good separation of strength;
-- user-requested wardrobe autonomy currently uses none of the four and needs the same trusted context;
-- general continuity influence is injected broadly and can bypass selective ENVIRONMENT context projection;
-- reflection receives emotion/daypart/season but omits weather from its decision payload;
-- outreach salience uses emotion/daypart/daylight/current weather, while ACT policy independently enforces quiet hours/limits;
-- desktop adaptive theme uses time/daylight/weather/emotion but not season;
-- HABIT observations record daypart/season/daylight/current weather, while current routine analysis keeps only daypart/day_type;
-- memory retrieval is not yet contextually reranked despite continuity guidance saying context may shape memory salience;
-- interaction willingness needs explicit separation: emotion may be a bounded influence, while weather/daypart/season must not directly decide consent/willingness.
+- automatic outfit selection and user-requested wardrobe autonomy use the shared influence contract with different reviewed strengths;
+- Context Matrix exclusions prevent later EMOTION/ENVIRONMENT re-injection;
+- reflection receives evidence-backed current weather together with trusted emotion/daypart/season context;
+- outreach salience uses bounded context while ACT independently enforces quiet hours/limits;
+- desktop adaptive theme includes season as a bounded visual cue;
+- HABIT learning supports seasonal/environment correlations with evidence/coverage requirements;
+- reviewed memory retrieval performs only bounded contextual tie-breaking after PROMOTED + principal/audience + explicit query relevance eligibility;
+- interaction willingness and expression use separate typed surfaces, so weather/daypart/season cannot directly decide willingness or consent;
+- Voice prosody reuses the same provenance-gated influence contract without letting weather/season directly alter numeric prosody.
 
 The non-negotiable invariant is:
 
