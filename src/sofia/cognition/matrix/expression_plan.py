@@ -296,27 +296,21 @@ class EmbodiedExpressionPlan:
         pose = _pose_text(self.pose)
         pose_alternates = _list_text(self.pose_alternates, _pose_text)
         avoid = _list_text(self.avoid_recent, _expression_text)
-        signals = ", ".join(self.active_signals) if self.active_signals else "none"
         return "\n".join((
-            "CURRENT EMBODIED EXPRESSION PLAN (trusted non-authoritative style projection)",
-            f"Preferred natural expression: {candidate}",
-            f"Alternate natural expressions: {alternates}",
-            f"Preferred natural body pose: {pose}",
-            f"Alternate natural body poses: {pose_alternates}",
-            f"Recently used expression families to avoid repeating: {avoid}",
-            f"Expression intensity: {self.intensity}",
-            f"Active contextual influence signals: {signals}",
-            f"Planner reason: {self.reason}",
-            "For an ordinary social or conversational reply, use the preferred expression "
-            "and optionally the preferred pose, or suitable alternates, when they fit. "
-            "A pose does not need to be narrated on every turn. These are natural-language "
-            "suggestions, not text that must be copied. Use concise stage direction/prose. "
-            "Do not mention planners, semantic IDs, catalogs, or internal labels. Do not mechanically "
-            "prefix every answer. Technical focus, seriousness, or awkward fit may justify "
-            "stillness. Do not repeat a recently used cue merely to add decoration.",
-            "This plan describes represented avatar expression only. It is not evidence of "
-            "physical sensation, real-world motion, contact, consent, renderer execution, "
-            "or authority. It cannot override the interaction, safety, or action layers.",
+            "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT",
+            f"A fitting brief expression, if useful: {candidate}",
+            f"Other fitting expressions: {alternates}",
+            f"A fitting body pose, if useful: {pose}",
+            f"Other fitting poses: {pose_alternates}",
+            f"Avoid repeating these recently used expression families: {avoid}",
+            f"Suggested intensity: {self.intensity}",
+            "Use at most one brief expression cue in an ordinary reply when it genuinely "
+            "adds personality. Stillness is valid. These are suggestions, not text to copy. "
+            "Write natural prose or a concise stage direction; do not narrate this guidance, "
+            "promise how a future reply will sound, or expose internal labels.",
+            "Representational expression is not evidence of physical sensation, real-world "
+            "motion, contact, consent, renderer execution, or authority. It cannot override "
+            "interaction, safety, or action policy.",
         ))
 
 
