@@ -456,7 +456,13 @@ class EmotionalConversationService(ConversationService):
                 ),
                 influence.prompt(),
             ))
-        if expression_plan is not None and expression_plan.primary is not None:
+        if (
+            expression_plan is not None
+            and (
+                expression_plan.primary is not None
+                or expression_plan.avoid_recent
+            )
+        ):
             projections.append(expression_plan.prompt())
 
         # Project only provenance relevant to this turn. A fresh appraisal
