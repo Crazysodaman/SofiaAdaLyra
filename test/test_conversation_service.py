@@ -1,5 +1,6 @@
 ﻿from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -1165,3 +1166,56 @@ def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
     assert merged.relevance_for(MatrixDomain.BODY) is MatrixRelevance.CONTEXTUAL
     assert merged.relevance_for(MatrixDomain.SOCIAL) is not MatrixRelevance.NONE
     assert plan.allows(MatrixDomain.BODY) is True
+
+
+
+def test_secondary_continuity_hook_failures_do_not_break_current_reply(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    service = application.conversation
+
+    class BrokenLearning:
+        @staticmethod
+        def observe_user_message(**kwargs):
+            raise RuntimeError("learning unavailable")
+
+    class BrokenHabit:
+        patterns = SimpleNamespace(
+            patterns=lambda **kwargs: (),
+        )
+
+        @staticmethod
+        def observe_conversation(**kwargs):
+            raise RuntimeError("habit unavailable")
+
+    class BrokenRelationship:
+        @staticmethod
+        def observe(**kwargs):
+            raise RuntimeError("relationship unavailable")
+
+        @staticmethod
+        def history(*args, **kwargs):
+            return ()
+
+    service._learning_coordinator = BrokenLearning()
+    service._habit_continuity = BrokenHabit()
+    service._relationship_store = BrokenRelationship()
+
+    try:
+        response = service.respond(
+            "Hello, Sofía.",
+            principal=local_sparks_principal(),
+        )
+        assert response.content == "Test cognitive response."
+        assert service.last_post_persistence_errors == (
+            "learning:RuntimeError",
+            "habit:RuntimeError",
+            "relationship:RuntimeError",
+        )
+        messages = service.messages()
+        assert messages[-2].role is ConversationRole.USER
+        assert messages[-1].role is ConversationRole.ASSISTANT
+    finally:
+        application.shutdown()
