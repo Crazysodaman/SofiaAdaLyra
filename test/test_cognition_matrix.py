@@ -7,6 +7,7 @@ from sofia.authority.model import Authority
 from sofia.cognition.model import CognitiveResponse
 
 from sofia.cognition.matrix.defaults import default_matrix_registry
+from sofia.application.conversation_service import _inherit_last_turn_domains
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
@@ -1275,3 +1276,32 @@ def test_is_that_all_is_last_turn_followup():
     assert turn.relevance_for(MatrixDomain.SOCIAL) is (
         MatrixRelevance.CONTEXTUAL
     )
+
+
+def test_is_that_all_inherits_only_prior_turn_domains():
+    prior = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope(
+            "how does the weather make you feel?",
+            message_id="prior-weather-feel",
+        )
+    )
+    current = BaselineTurnClassifier().classify(
+        envelope(
+            "is that all",
+            message_id="followup",
+        )
+    )
+
+    inherited = _inherit_last_turn_domains(current, prior)
+
+    assert inherited.history_policy is HistoryPolicy.LAST_TURN
+    assert inherited.relevance_for(MatrixDomain.ENVIRONMENT) is (
+        MatrixRelevance.CONTEXTUAL
+    )
+    assert inherited.relevance_for(MatrixDomain.EMOTION) is (
+        MatrixRelevance.CONTEXTUAL
+    )
+    assert inherited.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.NONE
+    assert inherited.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
