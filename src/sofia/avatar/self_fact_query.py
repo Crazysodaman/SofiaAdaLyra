@@ -100,6 +100,13 @@ class AvatarSelfFactResolver:
         r"look\s+like|which|what|show|see)\b",
         re.IGNORECASE,
     )
+    _CURRENT_OUTFIT_STATE_FOLLOWUP_RE = re.compile(
+        r"(?=.*\b(?:naked|nude|clothed|wearing|wear\s+anything|"
+        r"not\s+wearing|weren't\s+wearing|were\s+not\s+wearing)\b)"
+        r"(?=.*\b(?:thought|said|still|currently|right\s+now|"
+        r"are\s+you|were\s+you|but)\b)",
+        re.IGNORECASE,
+    )
 
     def allows_private_projection(self, query: str) -> bool:
         """Return whether this exact self-fact request may use private state.
@@ -112,6 +119,7 @@ class AvatarSelfFactResolver:
         normalized = _normalize(query)
         return (
             self._is_current_outfit_query(normalized)
+            or self._is_current_outfit_state_followup(normalized)
             or self._is_undergarment_query(normalized)
             or normalized in self._CURRENT_LOOK_FORMS
         )
@@ -214,6 +222,16 @@ class AvatarSelfFactResolver:
         return normalized in cls._CURRENT_OUTFIT_FORMS
 
     @classmethod
+    def _is_current_outfit_state_followup(
+        cls,
+        normalized: str,
+    ) -> bool:
+        return (
+            cls._CURRENT_OUTFIT_STATE_FOLLOWUP_RE.search(normalized)
+            is not None
+        )
+
+    @classmethod
     def _is_undergarment_query(cls, normalized: str) -> bool:
         return (
             normalized in cls._UNDERGARMENT_PRESENTATION_FORMS
@@ -303,6 +321,30 @@ class AvatarSelfFactResolver:
         normalized = _normalize(query)
         appearance = dict(embodiment.physical_self.appearance)
         outfit = _friendly_outfit(presentation.outfit_id)
+
+        if self._is_current_outfit_state_followup(normalized):
+            if presentation.attire is AttireMode.NUDE:
+                return AvatarSelfFactAnswer(
+                    True,
+                    (
+                        "My authoritative current private AVATAR presentation "
+                        "is nude. I am not wearing clothing in that current "
+                        "presentation."
+                    ),
+                )
+            pieces = ", ".join(presentation.item_names)
+            piece_text = (
+                f" The pieces are: {pieces}."
+                if pieces
+                else ""
+            )
+            return AvatarSelfFactAnswer(
+                True,
+                (
+                    f"My authoritative current AVATAR presentation is clothed "
+                    f"in my {outfit}.{piece_text}"
+                ),
+            )
 
         if self._is_undergarment_query(normalized):
             if presentation.attire is AttireMode.NUDE:
