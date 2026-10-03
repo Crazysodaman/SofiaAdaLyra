@@ -1033,7 +1033,7 @@ class EmotionalJournal:
             lines.append(
                 "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
                 "are separate modeled dimensions rather than a single sexual mode; never infer one "
-                "from another or equate any of them with consent."
+                "from another, and never equate any of them with consent."
             )
         if reunion_grounded or any(
             event_id.startswith("absence:")
