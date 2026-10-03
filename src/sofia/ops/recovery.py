@@ -7,6 +7,52 @@ from re import fullmatch
 
 class RecoveryDenied(PermissionError): pass
 
+
+@dataclass(frozen=True)
+class RecoveryObjectives:
+    """Declared recovery targets, not proof that live recovery meets them."""
+
+    rpo_seconds: int = 3600
+    rto_seconds: int = 1800
+
+    def __post_init__(self) -> None:
+        if type(self.rpo_seconds) is not int or self.rpo_seconds <= 0:
+            raise ValueError("rpo_seconds must be a positive integer")
+        if type(self.rto_seconds) is not int or self.rto_seconds <= 0:
+            raise ValueError("rto_seconds must be a positive integer")
+
+    def backup_within_rpo(
+        self,
+        backup: "BackupEvidence",
+        *,
+        now: datetime,
+    ) -> bool:
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        age = (
+            now.astimezone(backup.created_at.tzinfo)
+            - backup.created_at
+        ).total_seconds()
+        return 0.0 <= age <= self.rpo_seconds
+
+    def restore_within_rto(
+        self,
+        *,
+        started_at: datetime,
+        verified_at: datetime,
+    ) -> bool:
+        for value, label in (
+            (started_at, "started_at"),
+            (verified_at, "verified_at"),
+        ):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise ValueError(f"{label} must be timezone-aware")
+        elapsed = (verified_at - started_at).total_seconds()
+        return 0.0 <= elapsed <= self.rto_seconds
+
+
+DEFAULT_RECOVERY_OBJECTIVES = RecoveryObjectives()
+
 @dataclass(frozen=True)
 class BackupEvidence:
     backup_id:str; source_host_id:str; failure_domain:str; created_at:datetime; content_digest:str
