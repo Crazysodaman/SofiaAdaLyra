@@ -513,18 +513,22 @@ def response_quality_issue(
         message.content for message in request.messages
         if message.role is CognitiveRole.TOOL
     )
-    host_tool_success = (
-        "Result: success" in tool_context
+    host_tool_result_present = (
+        "COGNITIVE TOOL RESULT" in tool_context
         and "Capability:" in tool_context
+        and "Result:" in tool_context
     )
     if (
         _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
         and _SOCIAL_PERSONA_FICTION.search(content)
     ):
         return "social_persona_fiction"
-    if host_tool_success and _FALSE_HOST_ACCESS_DENIAL.search(content):
+    if host_tool_result_present and _FALSE_HOST_ACCESS_DENIAL.search(content):
         return "host_tool_evidence_denial"
-    if host_tool_success and _OPERATIONAL_EVIDENCE_OVERREACH.search(content):
+    if (
+        "Result: success" in tool_context
+        and _OPERATIONAL_EVIDENCE_OVERREACH.search(content)
+    ):
         return "operational_evidence_overreach"
     if (
         _EMOTION_SELF_REPORT.search(user)
@@ -741,8 +745,8 @@ def grounded_quality_fallback(
 
     if issue == "host_tool_evidence_denial":
         return CognitiveResponse(content=(
-            "I have current host-tool evidence for this turn. I shouldn't claim I lack "
-            "access to the inspected system; I should report only what that evidence shows."
+            "A host-tool result exists for this turn. I should report its actual result "
+            "status and evidence instead of claiming the architecture has no host access."
         ))
 
     if issue == "operational_evidence_overreach":
@@ -980,10 +984,11 @@ def build_rephrase_request(
         )
     elif issue == "host_tool_evidence_denial":
         detail = (
-            "A successful host TOOL result is present in this request. Do not say Sofía "
-            "cannot inspect or access the requested host/network/hardware/storage/Fleet "
-            "state. Summarize the supplied tool evidence directly, and distinguish fields "
-            "that are absent or null as unknown/not sampled."
+            "A host TOOL result is present in this request. Do not replace that concrete "
+            "result with a generic claim that Sofía cannot access computers or hardware. "
+            "Report the actual capability and result status. If it succeeded, summarize "
+            "only the supplied evidence; if it was denied/unavailable/failed, say that "
+            "specific tool result instead. Treat absent or null fields as unknown/not sampled."
         )
     elif issue == "operational_evidence_overreach":
         detail = (
