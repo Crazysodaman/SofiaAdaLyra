@@ -1,0 +1,45 @@
+name: Production Dependency Lock Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - pyproject.toml
+      - .github/workflows/dependency-lock-snapshot.yml
+
+concurrency:
+  group: dependency-lock-snapshot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lock:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve production runtime dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m pip freeze --exclude-editable |
+            Where-Object { $_ -notmatch '^sofia-ada-lyra==' } |
+            Sort-Object |
+            Set-Content -Encoding utf8 requirements.lock.windows-py312.txt
+          Get-Content requirements.lock.windows-py312.txt
+
+      - name: Upload resolved lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: requirements-lock-windows-py312-${{ github.sha }}
+          path: requirements.lock.windows-py312.txt
+          if-no-files-found: error
