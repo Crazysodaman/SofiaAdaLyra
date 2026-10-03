@@ -1126,7 +1126,7 @@ class SofiaApplication:
             raise error from exc
 
     def shutdown(self) -> None:
-        """Stop idle inference *before* closing the shared cognitive runtime."""
+        """Stop background work, then serialize teardown after foreground work."""
         coordinator = getattr(self, "_background", None)
         if coordinator is not None:
             try:
@@ -1150,34 +1150,45 @@ class SofiaApplication:
                     "Model lifecycle worker has not stopped safely."
                 ) from exc
             self._model_lifecycle_worker = None
-        try:
-            for service in reversed(
-                getattr(self, "_channel_conversations", ())
-            ):
-                service.close()
-            self._channel_conversations.clear()
-            bundle = getattr(self, "_presentation_bundle", None)
-            if bundle is not None:
-                bundle.store.save(bundle.authority)
-            self._runtime.shutdown()
-        except (SofiaRuntimeError, PresentationStoreError, RuntimeError) as exc:
-            raise SofiaApplicationError("Sofía application failed to shut down.") from exc
-        finally:
+
+        # Every conversation surface and idle reflection uses this lock around
+        # cognitive work. Crossing the same boundary here prevents teardown
+        # from closing shared stores/runtime underneath an in-flight reply.
+        with self._model_lock:
             try:
-                self._tts.stop()
-            except Exception:
-                pass
-            self._runtime.set_avatar_matrix_builder(None)
-            self._presentation_bundle = None
-            self._presentation_routine = None
-            self._wardrobe_studio = None
-            self._clothing_action_service = None
-            self._conversation_service.set_clothing_action_handler(None)
-            self._conversation_service.close()
-            ui_draft_store = getattr(
-                self,
-                "_ui_draft_store",
-                None,
-            )
-            if ui_draft_store is not None:
-                ui_draft_store.close()
+                for service in reversed(
+                    getattr(self, "_channel_conversations", ())
+                ):
+                    service.close()
+                self._channel_conversations.clear()
+                bundle = getattr(self, "_presentation_bundle", None)
+                if bundle is not None:
+                    bundle.store.save(bundle.authority)
+                self._runtime.shutdown()
+            except (
+                SofiaRuntimeError,
+                PresentationStoreError,
+                RuntimeError,
+            ) as exc:
+                raise SofiaApplicationError(
+                    "Sofía application failed to shut down."
+                ) from exc
+            finally:
+                try:
+                    self._tts.stop()
+                except Exception:
+                    pass
+                self._runtime.set_avatar_matrix_builder(None)
+                self._presentation_bundle = None
+                self._presentation_routine = None
+                self._wardrobe_studio = None
+                self._clothing_action_service = None
+                self._conversation_service.set_clothing_action_handler(None)
+                self._conversation_service.close()
+                ui_draft_store = getattr(
+                    self,
+                    "_ui_draft_store",
+                    None,
+                )
+                if ui_draft_store is not None:
+                    ui_draft_store.close()
