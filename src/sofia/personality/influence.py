@@ -8,6 +8,11 @@ from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
 from sofia.personality.emotion import CurrentEmotionalState
 
 
+_BACKGROUND_RELATIONAL = frozenset({
+    "affection", "fondness", "warmth", "tenderness", "romance",
+})
+
+
 def daypart(local_time: datetime | None) -> str:
     if local_time is None:
         return "unknown"
@@ -86,7 +91,17 @@ class ContinuityInfluence:
             if environment is None
             else environment.current_location_freshness.value
         )
-        primary = emotion.active[0] if emotion.active else None
+        # Long-lived relationship tone should color delivery without
+        # monopolizing the turn. Prefer a foreground reaction for behavioral
+        # influence; background warmth/fondness/affection remain available in
+        # active_emotions and the emotional-state projection.
+        primary = next(
+            (
+                item for item in emotion.active
+                if item.name not in _BACKGROUND_RELATIONAL
+            ),
+            None,
+        )
         effective_location = (
             None if environment is None else environment.effective_location
         )
