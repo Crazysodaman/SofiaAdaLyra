@@ -339,3 +339,19 @@ def test_action_parameter_names_must_be_nonempty_and_unique():
             description="A test action.",
             parameters=(("value", "one"), ("value", "two")),
         )
+
+
+
+def test_resolved_proposal_id_cannot_be_reused():
+    executor = TestActionExecutor()
+    system = ActionSystem(executor)
+    operation = make_operation(can_execute_actions=True)
+    original = system.propose(operation, make_proposal())
+    approved = system.approve(operation, original)
+    system.execute(operation, approved)
+
+    with pytest.raises(
+        ActionSystemError,
+        match="resolved action proposal ID cannot be reused",
+    ):
+        system.propose(operation, original)
