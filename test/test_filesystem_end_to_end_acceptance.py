@@ -13,6 +13,7 @@ from sofia.filesystem.model import (
     FilesystemResultKind,
 )
 from sofia.runtime.model import RuntimeState
+from sofia.social.principals import local_sparks_principal
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -121,6 +122,7 @@ def test_filesystem_request_is_unauthorized_before_explicit_authorization(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -174,6 +176,7 @@ def test_explicit_own_files_authorization_does_not_execute_inspection(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -189,7 +192,9 @@ def test_explicit_own_files_authorization_does_not_execute_inspection(
     )
 
     response = application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert response.content == "Authorization recorded."
@@ -219,6 +224,7 @@ def test_authorization_enables_actual_own_files_inspection(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -233,7 +239,9 @@ def test_authorization_enables_actual_own_files_inspection(
     )
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     application.conversation.respond(
@@ -276,6 +284,7 @@ def test_authorized_file_read_returns_real_repository_content(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -290,7 +299,9 @@ def test_authorized_file_read_returns_real_repository_content(
     )
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     application.conversation.respond(
@@ -328,6 +339,7 @@ def test_authorization_does_not_expand_filesystem_scope(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -342,7 +354,9 @@ def test_authorization_does_not_expand_filesystem_scope(
     )
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     application.conversation.respond(
@@ -378,6 +392,7 @@ def test_filesystem_evidence_reaches_cognitive_request(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_requests.append(request)
         captured_filesystem_results.append(
@@ -393,7 +408,9 @@ def test_filesystem_evidence_reaches_cognitive_request(
     )
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     application.conversation.respond(
@@ -426,7 +443,9 @@ def test_filesystem_authorization_is_revoked_by_shutdown(
     application.start()
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert application.runtime.filesystem_authorization is not None
@@ -448,7 +467,9 @@ def test_restart_requires_authorization_again(
     application.start()
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     assert application.runtime.filesystem_inspector.authorized is True
@@ -467,6 +488,7 @@ def test_restart_requires_authorization_again(
         context_plan=None,
         privacy_plan=None,
         contextual_influence=None,
+        principal=None,
     ):
         captured_filesystem_results.append(
             filesystem_results
@@ -501,7 +523,9 @@ def test_filesystem_capability_remains_read_only_after_authorization(
     application.start()
 
     application.conversation.respond(
-        "you are allowed to check your own files"
+        "you are allowed to check your own files",
+        principal=local_sparks_principal(),
+        channel="desktop",
     )
 
     inspector = application.runtime.filesystem_inspector
@@ -534,3 +558,22 @@ def test_filesystem_capability_remains_read_only_after_authorization(
     )
 
     application.shutdown()
+
+
+def test_remote_channel_cannot_grant_filesystem_authorization(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+
+    try:
+        application.conversation.respond(
+            "you are allowed to check your own files",
+            principal=local_sparks_principal("remote-chat:test"),
+            channel="remote",
+        )
+
+        assert application.runtime.filesystem_authorization is None
+        assert application.runtime.filesystem_inspector.authorized is False
+    finally:
+        application.shutdown()
