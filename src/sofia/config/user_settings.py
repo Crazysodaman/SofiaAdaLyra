@@ -19,7 +19,7 @@ from sofia.config.model_catalog import (
 from sofia.environment.model import LocationSubject
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 2
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +53,8 @@ class RuntimeUserSettings:
     home_assistant_current_location_entity: str | None = None
     home_assistant_current_location_subject: LocationSubject | None = None
 
-    location_label: str | None = None
-    location_timezone: str | None = None
+    location_label: str | None = "Home"
+    location_timezone: str | None = "America/Chicago"
     location_latitude: float | None = None
     location_longitude: float | None = None
     location_subject: LocationSubject = LocationSubject.USER
@@ -360,7 +360,6 @@ class RuntimeUserSettingsStore:
                 "runtime user settings were written by a newer Sofía build"
             )
         if version < 2:
-            data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
             data["cognitive_routing_enabled"] = True
             data["cognitive_model_auto_manage"] = True
             data["cognitive_model_auto_install"] = True
@@ -377,8 +376,11 @@ class RuntimeUserSettingsStore:
                     "cognitive_primary_context_size",
                     RECOMMENDED_PRIMARY_CONTEXT_SIZE,
                 )
-        else:
-            data["schema_version"] = version
+        if version < 3:
+            if not data.get("location_label") and not data.get("location_timezone"):
+                data["location_label"] = "Home"
+                data["location_timezone"] = "America/Chicago"
+        data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["location_subject"] = LocationSubject(
             data.get("location_subject", "user")
         )
