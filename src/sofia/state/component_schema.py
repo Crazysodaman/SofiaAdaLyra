@@ -118,9 +118,35 @@ class StateSchemaCoordinator:
                 )
             db.rollback()
 
+    def current(
+        self,
+        component: str,
+    ) -> SchemaCompatibility | None:
+        if not isinstance(component, str) or not component.strip():
+            raise ValueError("component must be nonempty")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """
+                SELECT current_revision, readable_min, readable_max,
+                       writable_min, writable_max
+                FROM state_schema_component
+                WHERE component=?
+                """,
+                (component,),
+            ).fetchone()
+        if row is None:
+            return None
+        return SchemaCompatibility(
+            current_revision=int(row["current_revision"]),
+            readable_min=int(row["readable_min"]),
+            readable_max=int(row["readable_max"]),
+            writable_min=int(row["writable_min"]),
+            writable_max=int(row["writable_max"]),
+        )
+
     def record_migration(
         self,
-        *,
+        *
         migration_id: str,
         component: str,
         from_revision: int,
