@@ -229,7 +229,7 @@ class BaselineTurnClassifier:
 
         if _WEATHER_EMOTION.search(text):
             return TurnMatrix(
-                intent=MatrixIntent.ENVIRONMENT_QUERY,
+                intent=MatrixIntent.GENERAL,
                 confidence=MatrixConfidence.HIGH,
                 history_policy=HistoryPolicy.NONE,
                 response_strategy=ResponseStrategy.GENERATIVE,
