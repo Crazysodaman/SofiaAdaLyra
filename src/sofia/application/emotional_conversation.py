@@ -30,13 +30,14 @@ from sofia.social.model import PrincipalContext, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 
-_EMOTION_HISTORY_QUERY = re.compile(
+_CONTEXT_HISTORY_QUERY = re.compile(
     r"\b(?:why\s+(?:do|are)\s+you\s+(?:feel|feeling)|"
     r"what\s+made\s+you\s+feel|what\s+caused\s+you\s+to\s+feel|"
     r"why\s+are\s+you\s+(?:happy|sad|upset|angry|mad|excited|"
     r"warm|affectionate|fond|frustrated|worried|nervous|calm)|"
     r"where\s+is\s+that\s+feeling\s+coming\s+from|"
-    r"what\s+is\s+that\s+feeling\s+from)\b",
+    r"what\s+is\s+that\s+feeling\s+from|"
+    r"what\s+happened|how\s+did\s+.{1,80}\s+go)\b",
     re.IGNORECASE,
 )
 
@@ -455,36 +456,48 @@ class EmotionalConversationService(ConversationService):
         if expression_plan is not None and expression_plan.primary is not None:
             projections.append(expression_plan.prompt())
 
-        # Current-state conversation needs the current modeled state, not a
-        # dump of old emotional events or reflection rows. Historical emotional
-        # evidence is projected only when the user explicitly asks for causes.
-        # This prevents old reunion/missed-you events from hijacking unrelated
-        # "hru", weather-affect, or perceived-mood turns.
+        # Project only provenance relevant to this turn. A fresh appraisal
+        # created from the current user message may be shown immediately, while
+        # older journal history requires an explicit causal/history question.
+        # This preserves evidence-linked emotion without letting old reunion or
+        # missed-you rows hijack unrelated "hru", weather, or mood turns.
         latest_text = "" if current_user is None else current_user.content
-        emotional_history_requested = (
+        history_requested = (
             emotion_allowed
-            and _EMOTION_HISTORY_QUERY.search(latest_text) is not None
+            and _CONTEXT_HISTORY_QUERY.search(latest_text) is not None
         )
-        if emotional_history_requested:
+        if emotion_allowed:
             emotional_context = self.emotional_journal.prompt_context(
                 now=now,
                 subject=subject,
                 scope=scope,
+                evidence_refs=(
+                    None
+                    if history_requested
+                    else (() if current_user is None else (current_user.id,))
+                ),
             )
             if emotional_context is not None:
                 projections.append(emotional_context)
-            clarifications = getattr(self, "_clarification_journal", None)
-            if clarifications is not None:
-                clarification_context = clarifications.prompt_context(now=now)
-                if clarification_context is not None:
-                    projections.append(clarification_context)
 
-        # Reflection records are queried through the deterministic reflection
-        # resolver. They are not generic personality context for every
-        # emotion-enabled turn.
+        clarifications = getattr(self, "_clarification_journal", None)
+        if history_requested and clarifications is not None:
+            clarification_context = clarifications.prompt_context(now=now)
+            if clarification_context is not None:
+                projections.append(clarification_context)
+
+        # Completed reflections may inform an explicit historical/topic question,
+        # but only when their stored subject/content overlaps the user's topic.
         reflections = getattr(self, "_reflection_journal", None)
         if reflections is not None:
             reflections.reflect_due(now=now, scope=scope)
+            if history_requested:
+                reflection_context = reflections.prompt_context(
+                    scope=scope,
+                    query=latest_text,
+                )
+                if reflection_context is not None:
+                    projections.append(reflection_context)
         if not projections:
             return request
         return CognitiveRequest(
