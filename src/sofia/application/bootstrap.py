@@ -634,6 +634,12 @@ class SofiaApplication:
         try:
             enabled = _idle_reflections_enabled()
             habit_enabled = _habit_learning_enabled()
+        except (TypeError, ValueError) as exc:
+            raise SofiaApplicationError(
+                "Sofía application failed to start."
+            ) from exc
+
+        try:
             ui_draft_store = getattr(
                 self,
                 "_ui_draft_store",
