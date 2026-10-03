@@ -22,7 +22,7 @@ from sofia.avatar.runtime_state import (
     load_or_bootstrap_presentation,
 )
 from sofia.application.emotional_conversation import (
-    ConversationActivityState,
+    ConversationActivityGroup,
     EmotionalConversationService,
 )
 from sofia.application.conversation_service import ConversationService
@@ -146,7 +146,9 @@ class SofiaApplication:
             state_plane=self._runtime.state_plane,
         )
         self._model_lock = RLock()
-        self._conversation_activity = ConversationActivityState()
+        self._conversation_activity = ConversationActivityGroup(
+            self._model_lock
+        )
         self._tts: TextToSpeechService = (
             create_tts_service_from_environment()
         )
@@ -162,7 +164,7 @@ class SofiaApplication:
             runtime=self._runtime,
             conversation_store=conversation_store,
             model_lock=self._model_lock,
-            activity_state=self._conversation_activity,
+            activity_group=self._conversation_activity,
         )
         candidate_store = self._runtime.memory_system.candidate_store
         if candidate_store is None:
@@ -302,7 +304,7 @@ class SofiaApplication:
             runtime=self._runtime,
             conversation_store=conversation_store,
             model_lock=self._model_lock,
-            activity_state=self._conversation_activity,
+            activity_group=self._conversation_activity,
         )
         service.set_learning_coordinator(
             self._conversation_learning
