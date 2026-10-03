@@ -34,13 +34,13 @@ def _mph(kph: float | None) -> float | None:
 def _value(value: float | None, suffix: str) -> str:
     if value is None:
         return "unknown"
-    return f"{value:.1f}{suffix}"
+    return f"{value:.0f}{suffix}"
 
 
 def _temperature_f(value_c: float | None) -> str:
     if value_c is None:
         return "unknown"
-    return f"{((value_c * 9.0 / 5.0) + 32.0):.1f} F"
+    return f"{((value_c * 9.0 / 5.0) + 32.0):.0f} F"
 
 
 def environment_prompt(
