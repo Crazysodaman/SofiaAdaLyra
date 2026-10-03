@@ -150,17 +150,8 @@ $ExpectedHash = '{package_sha256}'
 $NodeId = '{node_id}'
 $ListenPort = {listen_port}
 $Receipt = Join-Path $Stage "bootstrap-receipt.json"
-$StartedAgent = $null
-
 function Save-Receipt([hashtable]$Payload) {{
     $Payload | ConvertTo-Json -Depth 5 | Set-Content -Path $Receipt -Encoding UTF8
-}}
-
-function Read-TextSafe([string]$Path) {{
-    if (-not (Test-Path $Path -PathType Leaf)) {{ return "" }}
-    $Value = Get-Content $Path -Raw -ErrorAction SilentlyContinue
-    if ($null -eq $Value) {{ return "" }}
-    return ([string]$Value).Trim()
 }}
 
 try {{
