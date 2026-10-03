@@ -1,9 +1,6 @@
 ﻿import re
 from pathlib import Path
 
-from sofia.authorization.evaluator import (
-    FilesystemAuthorizationEvaluator,
-)
 from sofia.filesystem.model import (
     FilesystemOperation,
     FilesystemResult,
@@ -71,11 +68,6 @@ class FilesystemOrchestrator:
             )
 
         self._runtime = runtime
-        self._authorization_evaluator = (
-            FilesystemAuthorizationEvaluator(
-                scope=runtime.filesystem_inspector.root,
-            )
-        )
 
     def process(
         self,
@@ -84,8 +76,8 @@ class FilesystemOrchestrator:
         """
         Process filesystem-related intent.
 
-        Authorization statements are handled first and do not
-        automatically execute an inspection operation.
+        Authorization is intentionally handled by the authenticated
+        conversation boundary, not by this parser.
 
         Non-filesystem requests return an empty tuple.
         """
@@ -100,18 +92,6 @@ class FilesystemOrchestrator:
         )
 
         if not normalized:
-            return ()
-
-        authorization = (
-            self._authorization_evaluator.evaluate(
-                content
-            )
-        )
-
-        if authorization is not None:
-            self._runtime.authorize_filesystem(
-                authorization
-            )
             return ()
 
         operation_request = self._parse_operation(
