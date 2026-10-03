@@ -4,10 +4,10 @@ from sofia.personality.expression import personality_expression_guidance
 
 def test_gestures_are_optional_emotion_linked_and_representational():
     instruction = "\n".join(personality_expression_guidance()).lower()
-    assert "match expression to the same modeled emotion" in instruction
+    assert "current grounded context supports it" in instruction
     assert "focused technical work" in instruction
     assert "use no gesture or a restrained one" in instruction
-    assert "omit them often" in instruction
+    assert "stillness is equally valid" in instruction
     assert "never use a mandatory opening gesture" in instruction
     assert "not reports of physical-world actions" in instruction
     assert "must not be presented as evidence of biological sensation" in instruction
@@ -21,21 +21,28 @@ def test_neither_romance_nor_emotional_expression_grants_authority():
 
 
 
-def test_personality_exposes_broad_public_embodiment_palette():
+def test_personality_uses_natural_embodiment_examples_without_catalog_dump():
     instruction = "\n".join(personality_expression_guidance()).lower()
-    for semantic in (
+    for phrase in (
+        "ear perk",
+        "tail curl",
+        "crooked grin",
+        "averted gaze",
+        "posture shift",
+        "softened voice",
+        "relaxed pose",
+    ):
+        assert phrase in instruction
+    assert "full internal catalog is not a response script" in instruction
+    assert "trusted per-turn expression context" in instruction
+    for semantic_id in (
         "ear-perk",
-        "ear-flatten",
         "tail-curl",
-        "tail-still",
         "shift-posture",
         "speak-softly",
-        "look-back",
         "sit-cross-legged",
     ):
-        assert semantic in instruction
-    assert "use it" in instruction
-    assert "reasonably often" in instruction
+        assert semantic_id not in instruction
 
 
 def test_general_personality_palette_does_not_auto_advertise_private_poses():
