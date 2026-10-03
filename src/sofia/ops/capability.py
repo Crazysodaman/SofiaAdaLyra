@@ -16,6 +16,7 @@ from .migration import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
 from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine
+from .reconcile import MaintenanceReceiptStore
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from sofia.state.plane import StatePlane
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -39,6 +40,7 @@ class OpsToolService:
         )
         self.activity=HostActivityStore(state_path)
         self.placement=PlacementEngine()
+        self.maintenance_receipts=MaintenanceReceiptStore(state_path)
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -116,6 +118,23 @@ class OpsToolService:
         )
         return tuple(asdict(x) for x in detect_drift(self.registry,instances,desired_hosts,desired_workloads))
 
+    def maintenance_receipt(self,request_id:str)->dict[str,Any]|None:
+        receipt=self.maintenance_receipts.get(request_id)
+        if receipt is None:
+            return None
+        return {
+            "request_id":receipt.request_id,
+            "host_id":receipt.host_id,
+            "operation":receipt.operation,
+            "target":receipt.target,
+            "attempted_at":receipt.attempted_at.isoformat(),
+            "completed_at":receipt.completed_at.isoformat(),
+            "outcome":receipt.outcome.value,
+            "execution_ref":receipt.execution_ref,
+            "verification_ref":receipt.verification_ref,
+            "observed":receipt.observed,
+        }
+
     def migration_plan(self,p:dict[str,Any])->dict[str,Any]:
         contract=self._workload(p["workload"])
         managed=ManagedWorkload(
@@ -137,7 +156,7 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.migration.plan")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -147,6 +166,7 @@ class OpsCapabilitySet:
             "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet and activity evidence. Read-only.",
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
             "ops.migration.plan":"Construct a migration plan without executing it. Read-only planning.",
+            "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
         }
         return tuple(Capability(name,descriptions[name]) for name in self.NAMES)
     def execute(self,request:CapabilityRequest)->Any:
@@ -157,6 +177,7 @@ class OpsCapabilitySet:
         if name=="ops.placement.choose": return self.service.choose_placement(p["workload"])
         if name=="ops.drift.detect": return self.service.drift(p)
         if name=="ops.migration.plan": return self.service.migration_plan(p)
+        if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
         raise ValueError("unsupported OPS capability")
 
 def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
@@ -184,4 +205,6 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
            "target_host_id":{"type":"string"},"state_mode":{"type":"string"},
            "checkpoint_required":{"type":"boolean"},"failure_domain_spread":{"type":"boolean"}},
           ("migration_id","workload","source_host_id","target_host_id")),
+        b("inspect_maintenance_receipt","ops.maintenance.receipt","Read one durable verified maintenance receipt.",
+          {"request_id":{"type":"string"}},("request_id",)),
     )
