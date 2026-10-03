@@ -183,7 +183,7 @@ def test_direct_weather_reports_current_source_and_observation():
         snapshot=snapshot,
     )
     assert "Current weather for Configured area: clear" in answer.content
-    assert "76.1 °F" in answer.content
+    assert "76 °F" in answer.content
     assert "°C" not in answer.content
     assert "test.weather" in answer.content
 
@@ -254,8 +254,8 @@ def test_direct_forecast_returns_bounded_current_forecast():
     )
     assert "Current bounded forecast:" in answer.content
     assert "cloudy" in answer.content
-    assert "high 75.2 °F" in answer.content
-    assert "low 60.8 °F" in answer.content
+    assert "high 75 °F" in answer.content
+    assert "low 61 °F" in answer.content
     assert "°C" not in answer.content
     assert "precipitation 20%" in answer.content
 
@@ -323,9 +323,9 @@ def test_natural_tomorrow_weather_query_is_direct_and_host_timezone_aware():
     assert answer.recognized
     assert answer.content.startswith("Tomorrow's forecast:")
     assert "mostly sunny" in answer.content
-    assert "high 86.0 °F" in answer.content
+    assert "high 86 °F" in answer.content
     assert "mostly clear" in answer.content
-    assert "low 69.8 °F" in answer.content
+    assert "low 70 °F" in answer.content
     assert "clear tonight" not in answer.content
     assert "next day" not in answer.content
     assert "°C" not in answer.content
@@ -393,7 +393,7 @@ def test_weekly_weather_query_is_direct_fahrenheit_and_bounded_to_seven_days():
     assert "day 5" in answer.content
     assert "day 6" in answer.content
     assert "day 7" not in answer.content
-    assert "68.0 °F" in answer.content
+    assert "68 °F" in answer.content
     assert "°C" not in answer.content
 
 
@@ -449,7 +449,7 @@ def test_current_indoor_environment_is_directly_queryable():
         "what's the temperature inside?",
         snapshot=snapshot,
     )
-    assert "temperature 71.6 °F" in answer.content
+    assert "temperature 72 °F" in answer.content
     assert "°C" not in answer.content
     assert "humidity 45%" in answer.content
     assert "test.indoor" in answer.content
@@ -642,3 +642,41 @@ def test_weather_source_live_wording_is_deterministic():
     assert "Coordinates and provider credentials are not exposed" in (
         answer.content
     )
+
+
+def test_current_weather_uses_whole_fahrenheit_and_mph():
+    weather = WeatherObservation(
+        condition="light rain",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:KGKY",
+        location_label="Homelab",
+        temperature_c=22.0,
+        feels_like_c=22.7,
+        humidity_percent=94.1,
+        wind_kph=12.9,
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        "current weather?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "72 °F" in answer.content
+    assert "feels like 73 °F" in answer.content
+    assert "humidity 94%" in answer.content
+    assert "wind 8 mph" in answer.content
+    assert ".0 °F" not in answer.content
+    assert ".1 °F" not in answer.content
+    assert "km/h" not in answer.content
