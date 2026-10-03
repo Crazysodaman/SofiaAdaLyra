@@ -391,6 +391,43 @@ class BaselineTurnClassifier:
                 ),
             )
 
+        # Explicit read-only operational requests take precedence over
+        # overloaded words such as "memory". "Inspect memory usage" means host
+        # telemetry, not autobiographical recall.
+        if _READ_ONLY_OPERATION.search(text) and _OPS_STATUS.search(text):
+            machine_required = _HOST_HARDWARE_BUNDLE.search(text) is not None
+            domains = [
+                _contribution(
+                    (
+                        MatrixDomain.MACHINE
+                        if machine_required
+                        else MatrixDomain.OPS
+                    ),
+                    MatrixRelevance.REQUIRED,
+                    (
+                        "explicit host hardware/resource inspection requires "
+                        "current machine evidence"
+                        if machine_required
+                        else "explicit operational inspection requires current host evidence"
+                    ),
+                ),
+            ]
+            if machine_required:
+                domains.append(
+                    _contribution(
+                        MatrixDomain.OPS,
+                        MatrixRelevance.RELEVANT,
+                        "host operational state may contextualize hardware evidence",
+                    )
+                )
+            return TurnMatrix(
+                intent=MatrixIntent.OPERATIONAL_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=tuple(domains),
+            )
+
         # Host-resource language such as "CPU, GPU, memory, storage" is
         # operational even though the word "memory" also exists in the
         # autobiographical-memory vocabulary.
