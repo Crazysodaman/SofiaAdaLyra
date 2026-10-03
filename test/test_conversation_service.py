@@ -1219,3 +1219,27 @@ def test_secondary_continuity_hook_failures_do_not_break_current_reply(
         assert messages[-1].role is ConversationRole.ASSISTANT
     finally:
         application.shutdown()
+
+
+
+def test_pre_response_refresh_failure_is_nonfatal_and_reported(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    service = application.conversation
+
+    def broken_refresh(**kwargs):
+        raise RuntimeError("synthetic live-state refresh failure")
+
+    service.set_pre_response_hook(broken_refresh)
+
+    try:
+        response = service.respond("Hello, Sofía.")
+        assert response.content == "Test cognitive response."
+        assert service.last_pre_response_error == "RuntimeError"
+        messages = service.messages()
+        assert messages[-2].role is ConversationRole.USER
+        assert messages[-1].role is ConversationRole.ASSISTANT
+    finally:
+        application.shutdown()
