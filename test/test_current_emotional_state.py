@@ -345,9 +345,18 @@ def test_expired_expectation_before_last_contact_is_not_reused(tmp_path):
 
 def test_reunion_prompt_allows_negative_feeling_without_guilt_or_obligation(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="reunion:test",
+        source="observed",
+        evidence_ref="reunion:test",
+        description="A grounded reunion appraisal exists for this turn.",
+        emotions=("relief", "fondness"),
+        occurred_at=NOW,
+        subject="Sparks",
+    )
     prompt = journal.current_state_prompt(now=NOW, subject="Sparks").lower()
 
-    assert "anger about lateness require stronger" in prompt
+    assert "anger about lateness requires stronger" in prompt
     assert "elapsed time alone must not manufacture blame" in prompt
     assert "without guilt, pressure, accusation" in prompt
     assert "obligation for the user to maintain contact" in prompt
@@ -492,3 +501,13 @@ def test_repeated_reunions_do_not_compound_current_warmth(tmp_path):
     assert fondness.event_ids == ("reunion:third",)
     assert warmth.intensity < 0.8
     assert fondness.intensity < 0.8
+
+
+
+def test_irrelevant_reunion_policy_is_not_injected_into_plain_current_state(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+
+    prompt = journal.current_state_prompt(now=NOW, subject="Sparks").lower()
+
+    assert "anger about lateness" not in prompt
+    assert "single sexual mode" not in prompt
