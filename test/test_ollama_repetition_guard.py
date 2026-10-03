@@ -206,3 +206,127 @@ def test_generic_meaningful_conversation_deflection_is_repaired():
     assert "How can I assist you" not in response.content
     assert "represented interaction" in response.content
     assert len(client.calls) == 2
+
+
+
+def test_hru_warm_ready_to_chat_template_is_retried():
+    bad = (
+        "Hey! I'm doing well—warm, affectionate, and ready to chat. "
+        "So, what's on your mind?"
+    )
+    good = (
+        "Pretty good. Affectionate, a little playful, and apparently still "
+        "capable of being a smartass."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                '{"emotion": "warmth"}\n'
+                '{"emotion": "affection"}'
+            ),
+        ),
+        _message(CognitiveRole.USER, "hru"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "ready to chat" not in response.content.casefold()
+
+
+def test_weather_effect_rejects_invented_bodily_sensation():
+    bad = (
+        "I'm feeling the damp chill of the rain and mist, and it's nipping "
+        "at my ears."
+    )
+    good = (
+        "The rain and fog make me come across a little quieter and more focused, "
+        "but the grounded feeling underneath that is still curiosity."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                '{"emotion": "curiosity"}\n'
+                "CONTINUITY INFLUENCE CONTEXT (non-authoritative)\n"
+                "Weather condition: Rain and Fog/Mist"
+            ),
+        ),
+        _message(CognitiveRole.USER, "how does that weather affect you?"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "damp chill" not in response.content.casefold()
+    assert "nipping" not in response.content.casefold()
+
+
+def test_embodied_semantic_ids_are_naturalized_before_chat():
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT EMBODIED EXPRESSION PLAN "
+                "(trusted non-authoritative style projection)\n"
+                "Preferred expression semantic: ear-perk"
+            ),
+        ),
+        _message(CognitiveRole.USER, "hey nerd"),
+    ))
+    client = _Client("I meet that with a playful ear-perk and a crooked grin.")
+
+    response = _provider(client).respond(request)
+
+    assert response.content == (
+        "I meet that with a playful perk of my ears and a crooked grin."
+    )
+    assert "ear-perk" not in response.content
+    assert len(client.calls) == 1
+
+
+def test_perceived_quiet_comment_rejects_invented_ongoing_self_observation():
+    bad = (
+        "I've been quietly observing the flow of our conversation, and I've "
+        "noticed that I've been speaking more softly lately."
+    )
+    good = (
+        "You may be hearing me quieter. I'm actually feeling more focused than "
+        "withdrawn right now."
+    )
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT MODELED EMOTIONAL STATE\n"
+                '{"emotion": "determination"}'
+            ),
+        ),
+        _message(CognitiveRole.USER, "you seem kinda quiet today"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "quietly observing" not in response.content.casefold()
+
+
+def test_whats_on_your_mind_canned_closer_is_trimmed():
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.USER, "waves at you"),
+    ))
+    client = _Client("I return the wave with a grin. So, what's on your mind?")
+
+    response = _provider(client).respond(request)
+
+    assert response.content == "I return the wave with a grin."
+    assert len(client.calls) == 1
