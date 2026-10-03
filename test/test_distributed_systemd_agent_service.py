@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -11,9 +11,9 @@ from sofia.distributed.systemd_agent_service import (
 
 def spec() -> SystemdFleetAgentSpec:
     return SystemdFleetAgentSpec(
-        python_path=Path("/opt/sofia-fleet/.venv/bin/python"),
-        config_path=Path("/etc/sofia/fleet-agent.json"),
-        state_directory=Path("/var/lib/sofia-fleet"),
+        python_path=PurePosixPath("/opt/sofia-fleet/.venv/bin/python"),
+        config_path=PurePosixPath("/etc/sofia/fleet-agent.json"),
+        state_directory=PurePosixPath("/var/lib/sofia-fleet"),
         service_user="sofia-fleet",
     )
 
@@ -44,9 +44,9 @@ def test_systemd_unit_has_basic_hardening_and_bounded_write_path():
 def test_systemd_spec_requires_absolute_paths():
     with pytest.raises(ValueError, match="absolute"):
         SystemdFleetAgentSpec(
-            python_path=Path("python"),
-            config_path=Path("/etc/sofia/fleet-agent.json"),
-            state_directory=Path("/var/lib/sofia-fleet"),
+            python_path=PurePosixPath("python"),
+            config_path=PurePosixPath("/etc/sofia/fleet-agent.json"),
+            state_directory=PurePosixPath("/var/lib/sofia-fleet"),
         )
 
 
