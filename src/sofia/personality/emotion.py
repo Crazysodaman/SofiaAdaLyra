@@ -885,13 +885,27 @@ class EmotionalJournal:
         current = _aware_utc(now)
         target = _subject(subject)
         resolved_scope = _social_scope(scope, subject=target)
-        events = tuple(
+        raw_events = tuple(
             event for event in self.recent(
                 now=current, days=7, limit=50,
                 subject=target, scope=resolved_scope,
             )
             if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
         )
+        # Reunion appraisals are successive present-time interpretations of
+        # contact resuming, not independent long-lived emotional deposits.
+        # Keep their full history in the journal, but only let the newest
+        # reunion influence the current state. Otherwise frequent returns can
+        # compound warmth/fondness toward 1.0 for days.
+        latest_reunion_seen = False
+        projected_events = []
+        for event in raw_events:
+            if event.event_id.startswith("reunion:"):
+                if latest_reunion_seen:
+                    continue
+                latest_reunion_seen = True
+            projected_events.append(event)
+        events = tuple(projected_events)
         scores: dict[str, float] = {}
         refs: dict[str, list[str]] = {}
         ids: dict[str, list[str]] = {}
