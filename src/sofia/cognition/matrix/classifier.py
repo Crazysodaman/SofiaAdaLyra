@@ -23,8 +23,20 @@ _SOCIAL = re.compile(
 )
 _GENERIC_FOLLOWUP = re.compile(
     r"^\s*(?:tell\s+me\s+(?:the\s+)?why|why|how\s+so|"
+    r"why\s+did\s+you\s+(?:pick|choose)\s+(?:that|it)|"
+    r"why\s+(?:that|this)\s+(?:one|outfit|choice)|"
+    r"why\s+are\s+you\s+wearing\s+(?:that|it)|"
     r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more|"
     r"is\s+that\s+all|that's\s+all|that\s+all)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
+
+_PERCEIVED_SELF_STATE = re.compile(
+    r"^\s*(?:you|u)\s+(?:seem|sound)\s+(?:kinda\s+|kind\s+of\s+|"
+    r"a\s+little\s+|pretty\s+|really\s+)?"
+    r"(?:quiet|grumpy|happy|sad|upset|angry|mad|excited|energetic|"
+    r"tired|sleepy|distant|soft|calm|tense|playful|serious)"
+    r"(?:\s+today|\s+tonight|\s+right\s+now)?\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
 
@@ -34,9 +46,10 @@ _WEATHER = re.compile(
 )
 _WEATHER_EMOTION = re.compile(
     r"\b(?:weather|rain|snow|storm|sunny|cloudy|temperature)\b"
-    r".{0,64}\b(?:make\s+you\s+feel|affect\s+your\s+(?:mood|feelings?)|"
+    r".{0,64}\b(?:make\s+you\s+feel|affect\s+(?:you|u|your\s+(?:mood|feelings?))|"
     r"how\s+do\s+you\s+feel)\b|"
-    r"\bhow\s+does\s+(?:the\s+)?weather\s+make\s+(?:you|u)\s+feel\b",
+    r"\bhow\s+does\s+(?:that\s+|the\s+)?weather\s+"
+    r"(?:make\s+(?:you|u)\s+feel|affect\s+(?:you|u))\b",
     re.IGNORECASE,
 )
 _ENVIRONMENT_FEELING = re.compile(
@@ -168,6 +181,26 @@ class BaselineTurnClassifier:
                         MatrixDomain.AVATAR,
                         MatrixRelevance.CONTEXTUAL,
                         "prior represented action may involve avatar state",
+                    ),
+                ),
+            )
+
+        if _PERCEIVED_SELF_STATE.fullmatch(text):
+            return TurnMatrix(
+                intent=MatrixIntent.SOCIAL_CHECKIN,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.LAST_TURN,
+                response_strategy=ResponseStrategy.GENERATIVE,
+                domains=(
+                    _contribution(
+                        MatrixDomain.SOCIAL,
+                        MatrixRelevance.REQUIRED,
+                        "user is commenting on Sofía's apparent conversational state",
+                    ),
+                    _contribution(
+                        MatrixDomain.EMOTION,
+                        MatrixRelevance.RELEVANT,
+                        "current modeled emotion can ground the response",
                     ),
                 ),
             )
