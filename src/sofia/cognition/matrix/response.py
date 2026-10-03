@@ -40,6 +40,22 @@ _NETWORK_MEASUREMENT_CLAIM = re.compile(
     r"all\s+systems\s+(?:are\s+)?green)\b",
     re.IGNORECASE,
 )
+_OPERATIONAL_MEASUREMENT_CLAIM = re.compile(
+    r"(?:"
+    r"\b(?:cpu|processor)\s*[:=-]?\s*[A-Za-z0-9][A-Za-z0-9 ._-]{2,80}"
+    r"|\bgpu\s*[:=-]?\s*[A-Za-z0-9][A-Za-z0-9 ._-]{2,80}"
+    r"|\b(?:ram|memory)\s*[:=-]?\s*\d+(?:\.\d+)?\s*(?:gb|mb|tb)\b"
+    r"|\b(?:vram|video\s+memory)\s*[:=-]?\s*\d+(?:\.\d+)?\s*(?:gb|mb)\b"
+    r"|\buptime\s+(?:is|of|about|approximately)?\s*\d+(?:\.\d+)?\s*"
+    r"(?:hours?|days?|weeks?)\b"
+    r"|\b\d+\s*(?:cores?|threads?)\b"
+    r"|\b(?:throughput|benchmark|transfer\s+rate)\s*(?:is|:|at)?\s*"
+    r"\d+(?:\.\d+)?\s*(?:mb/s|gb/s|ops/s|requests?/s)\b"
+    r"|\b(?:storage|disk)\s*[:=-]?\s*(?:primary|secondary|nvme|ssd|hdd|"
+    r"\d+(?:\.\d+)?\s*(?:gb|tb))"
+    r")",
+    re.IGNORECASE,
+)
 _UNSUPPORTED_WEATHER_CLAIM = re.compile(
     r"\b(?:current\s+weather\s+(?:is|:)|it(?:'s|\s+is)\s+"
     r"(?:sunny|cloudy|raining|rainy|snowing|stormy)|"
@@ -116,7 +132,10 @@ class MatrixResponseValidator:
             is not EvidenceState.AVAILABLE
             for requirement in evidence.requirements
         )
-        if measured_missing and _NETWORK_MEASUREMENT_CLAIM.search(content):
+        if measured_missing and (
+            _NETWORK_MEASUREMENT_CLAIM.search(content)
+            or _OPERATIONAL_MEASUREMENT_CLAIM.search(content)
+        ):
             reasons.append("measured_operational_claim_without_evidence")
 
         environment_missing = any(
