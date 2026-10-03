@@ -35,6 +35,10 @@ _TIME_LOCATION = re.compile(
     r"\b(?:what\s+time|time\s+is\s+it|where\s+am\s+i|location|timezone|season)\b",
     re.IGNORECASE,
 )
+_BARE_TIME = re.compile(
+    r"^\s*time\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
 _AVATAR = re.compile(
     r"\b(?:wearing|outfit|clothes|clothing|panties|underwear|bra|lingerie|"
     r"hair|tail|ears|appearance|look\s+like|body|height|weight|lounge|loungewear|night\s*wear|nightwear|wear\b|socks?|boots?|shoes?|bare\s*foot|barefoot)\b",
@@ -262,7 +266,11 @@ class BaselineTurnClassifier:
                 domains=tuple(domains),
             )
 
-        if _WEATHER.search(text) or _TIME_LOCATION.search(text):
+        if (
+            _WEATHER.search(text)
+            or _TIME_LOCATION.search(text)
+            or _BARE_TIME.fullmatch(text)
+        ):
             return TurnMatrix(
                 intent=MatrixIntent.ENVIRONMENT_QUERY,
                 confidence=MatrixConfidence.HIGH,
