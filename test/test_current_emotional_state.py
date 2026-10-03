@@ -456,3 +456,37 @@ def test_legacy_sparks_relationship_rows_migrate_to_canonical_principal(tmp_path
             "SELECT 1 FROM emotional_presence WHERE subject=?",
             (SPARKS_PRINCIPAL_ID,),
         ).fetchone() is not None
+
+
+def test_repeated_reunions_do_not_compound_current_warmth(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.observe_contact(
+        subject="Sparks",
+        message_id="first",
+        occurred_at=NOW - timedelta(hours=30),
+    )
+    journal.observe_contact(
+        subject="Sparks",
+        message_id="second",
+        occurred_at=NOW - timedelta(hours=20),
+    )
+    journal.observe_contact(
+        subject="Sparks",
+        message_id="third",
+        occurred_at=NOW - timedelta(hours=7),
+    )
+
+    state = journal.current_state(now=NOW, subject="Sparks")
+    warmth = next(
+        item for item in state.active
+        if item.name == "warmth"
+    )
+    fondness = next(
+        item for item in state.active
+        if item.name == "fondness"
+    )
+
+    assert warmth.event_ids == ("reunion:third",)
+    assert fondness.event_ids == ("reunion:third",)
+    assert warmth.intensity < 0.8
+    assert fondness.intensity < 0.8
