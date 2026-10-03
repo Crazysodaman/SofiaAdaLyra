@@ -7,6 +7,7 @@ from sofia.avatar.body_contract import (
     DEFAULT_FIT_ANCHORS, FitAnchor, REGION_TO_SLOTS,
 )
 from sofia.avatar.wardrobe import SLOTS
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 
 
 SHA = "a" * 64
@@ -79,3 +80,14 @@ def test_fitting_anchors_are_authoring_references_only():
 def test_unsupported_revision_rejected():
     with pytest.raises(BodyContractError):
         BodyAuthoringContract(SHA, revision="a2")
+
+
+
+def test_every_starter_blueprint_uses_declared_body_fit_anchors():
+    contract = BodyAuthoringContract(SHA)
+    known = {anchor.name for anchor in contract.anchors}
+    catalog = build_starter_wardrobe()
+
+    assert catalog.blueprints
+    for blueprint in catalog.blueprints:
+        assert set(blueprint.fit_anchors) <= known
