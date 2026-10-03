@@ -626,6 +626,13 @@ def test_runtime_context_plan_blocks_excluded_memory_influence_domains(
     runtime.cognitive_system.engine = recorder
     runtime.start()
 
+    principal = local_sparks_principal()
+    baseline = runtime.memory_system.recall_relevant(
+        "model trains",
+        principal=principal,
+    )
+    assert len(baseline) == 2
+
     memory_only = ContextPlan(
         included_domains=(MatrixDomain.MEMORY,),
         excluded_domains=tuple(
@@ -644,7 +651,7 @@ def test_runtime_context_plan_blocks_excluded_memory_influence_domains(
                 ),
             )
         ),
-        principal=local_sparks_principal(),
+        principal=principal,
         context_plan=memory_only,
         contextual_influence=_memory_influence(
             season="winter",
@@ -656,6 +663,10 @@ def test_runtime_context_plan_blocks_excluded_memory_influence_domains(
         message.content
         for message in recorder.last_request.messages
     )
-    assert assembled.index(summer.content) < assembled.index(winter.content)
+    baseline_positions = [
+        assembled.index(memory.content)
+        for memory in baseline
+    ]
+    assert baseline_positions == sorted(baseline_positions)
 
     runtime.shutdown()
