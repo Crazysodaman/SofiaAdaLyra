@@ -62,15 +62,15 @@ jobs:
           python -m venv .releasevenv
           .\.releasevenv\Scripts\python.exe -m pip install --upgrade pip
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
-          .\.releasevenv\Scripts\python.exe -m pip install --no-deps release-source
+          .\.releasevenv\Scripts\python.exe -m pip install --no-deps .\release-source
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
         run: |
           $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
           New-Item -ItemType Directory -Force dist-a,dist-b | Out-Null
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a release-source
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b release-source
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a .\release-source
+          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b .\release-source
           $WheelA = Get-ChildItem dist-a\*.whl | Select-Object -First 1
           $WheelB = Get-ChildItem dist-b\*.whl | Select-Object -First 1
           if ($null -eq $WheelA -or $null -eq $WheelB) { throw "reproducibility build did not create both wheels" }
