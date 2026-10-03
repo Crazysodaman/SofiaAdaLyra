@@ -255,8 +255,10 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
             for message in captured[0].messages
             if message.role.value == "system"
         )
-        assert "Fitted breathable black technical shirt" in system_text
-        assert application.runtime.operational_state.model in system_text
+        assert "Fitted breathable black technical shirt" not in system_text
+        assert application.runtime.operational_state.model not in system_text
+        assert "CLOTHING: UNKNOWN" in system_text
+        assert "OPERATIONAL STATE: UNKNOWN" in system_text
 
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
@@ -443,5 +445,76 @@ def test_live_avatar_why_followup_stays_on_presentation_state(
         )
         assert trace.context is not None
         assert trace.context.max_history_messages == 3
+    finally:
+        application.shutdown()
+
+
+
+def test_live_hru_uses_primary_personality_route_and_hides_old_event_log(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("Doing pretty good. A little playful, actually.",),
+    )
+    try:
+        reply = application.conversation.respond("hru")
+
+        assert "playful" in reply.content
+        assert len(captured) == 1
+
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "MODELED EMOTIONAL CONTEXT" not in system_text
+        assert "RECORDED REFLECTIONS" not in system_text
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.routing is not None
+        assert trace.routing.route.value == "standard"
+        assert trace.cognition_execution is not None
+        assert trace.cognition_execution.actual_route == "standard"
+        assert trace.cognition_execution.successful_steps
+        assert trace.cognition_execution.successful_steps[0].role == "primary"
+    finally:
+        application.shutdown()
+
+
+def test_live_weather_affect_turn_uses_primary_and_no_emotional_history_dump(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "The rain can make my delivery a little quieter, but it isn't physically "
+            "touching me or manufacturing a new feeling.",
+        ),
+    )
+    try:
+        reply = application.conversation.respond(
+            "how does that weather affect you?"
+        )
+
+        assert "isn't physically touching me" in reply.content
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        )
+        assert "MODELED EMOTIONAL CONTEXT" not in system_text
+        assert "RECORDED REFLECTIONS" not in system_text
+
+        trace = application.conversation.latest_matrix_trace()
+        assert trace is not None
+        assert trace.routing is not None
+        assert trace.routing.route.value == "standard"
+        assert trace.cognition_execution is not None
+        assert trace.cognition_execution.successful_steps[0].role == "primary"
     finally:
         application.shutdown()
