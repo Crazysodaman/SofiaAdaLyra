@@ -44,32 +44,19 @@ class FilesystemAuthorizationEvaluator:
         FilesystemAuthorizationOperation.SEARCH_FILES,
     )
 
+    _ACTOR = "Sparks"
+    _ROLE = "creator"
+
     def __init__(
         self,
         scope: Path,
-        actor: str = "Sparks",
-        role: str = "creator",
     ) -> None:
         if not isinstance(scope, Path):
             raise TypeError(
                 "FilesystemAuthorizationEvaluator scope must be a Path."
             )
 
-        if not isinstance(actor, str) or not actor.strip():
-            raise ValueError(
-                "FilesystemAuthorizationEvaluator actor must be "
-                "a non-empty string."
-            )
-
-        if not isinstance(role, str) or not role.strip():
-            raise ValueError(
-                "FilesystemAuthorizationEvaluator role must be "
-                "a non-empty string."
-            )
-
         self._scope = scope.resolve()
-        self._actor = actor.strip()
-        self._role = role.strip()
 
     @property
     def scope(self) -> Path:
@@ -77,11 +64,11 @@ class FilesystemAuthorizationEvaluator:
 
     @property
     def actor(self) -> str:
-        return self._actor
+        return self._ACTOR
 
     @property
     def role(self) -> str:
-        return self._role
+        return self._ROLE
 
     def evaluate(
         self,
@@ -135,8 +122,8 @@ class FilesystemAuthorizationEvaluator:
             return None
 
         return FilesystemAuthorization(
-            actor=self._actor,
-            role=self._role,
+            actor=self._ACTOR,
+            role=self._ROLE,
             domain=AuthorizationDomain.FILESYSTEM,
             scope=self._scope,
             operations=self._READ_ONLY_OPERATIONS,
@@ -144,6 +131,6 @@ class FilesystemAuthorizationEvaluator:
             decision=AuthorizationDecision.ALLOW,
             reason=(
                 "Explicit filesystem authorization from authenticated "
-                f"{self._actor} through a trusted local application channel."
+                f"{self._ACTOR} through a trusted local application channel."
             ),
         )
