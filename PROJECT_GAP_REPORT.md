@@ -147,57 +147,21 @@ Because the project intentionally works directly on `main`, branch protection ma
 
 ---
 
-# P0/P1 — matrix architecture gaps
+# CLOSED — matrix architecture findings
 
-The accepted matrix roadmap is documented in `MATRIX_ROADMAP.md`, but the new pieces are not implemented yet.
+**Closed 2026-10-02.** The matrix architecture gaps identified by the original report are implemented on `main`. The dedicated Matrix Tests closure gate passed **405/405** on commit `130aa735`; later commits in this documentation cleanup are descendants of that green code revision.
 
-## 4. Tool exposure is still outside the matrix
+## 4. M1 Capability / Tool Exposure — closed
 
-Conversation tool relevance still begins with separate regex logic such as:
+The matrix now owns bounded capability/tool-family exposure. Exact tool definitions are still filtered by host authority, and provider/LLM output cannot widen the allowlist. Desktop/Discord/Terminal parity is covered, and bounded provider-context projection preserves `capability_allowlist` and route controls.
 
-```text
-_conversation_tools_relevant(...)
-```
+## 5. M2 Principal / Audience / Privacy — closed
 
-The matrix controls:
+A first-class privacy projection exists. Authenticated principal/audience state is authoritative over user prose. REL/HABIT/history/private presentation paths remain scoped by their authoritative stores/grants, with negative cross-audience and cross-principal REL leakage coverage.
 
-- turn classification;
-- domain relevance;
-- history/context policy;
-- evidence;
-- authority;
-- response validation;
-- LLM routing.
+## 6. M3 Contextual Influence — closed
 
-But it does not yet own exact capability/tool-family exposure.
-
-**Needed: M1 Capability / Tool Exposure Matrix**
-
-It chooses relevant tool families but never grants execution authority.
-
----
-
-## 5. Principal/audience/privacy is not yet a first-class matrix
-
-Privacy checks exist in individual stores and AVATAR/private-grant paths, but there is no single turn-level projection decision that says exactly what principal/audience-scoped data may enter provider context.
-
-**Needed: M2 Principal / Audience / Privacy Matrix**
-
-Apply it to:
-
-- memory;
-- historical imports;
-- AVATAR private state;
-- REL;
-- HABIT;
-- future voice;
-- future multi-user channels.
-
----
-
-## 6. Contextual Influence Matrix is documentation only
-
-The new influence set:
+The shared influence set is implemented as typed signals/surfaces/modes:
 
 ```text
 emotion
@@ -206,112 +170,29 @@ time/daypart
 season
 ```
 
-is documented but has no typed runtime matrix implementation.
+Active influence requires provenance/freshness/grounding. Context Matrix exclusions prevent later EMOTION/ENVIRONMENT re-injection. Wardrobe autonomy, reflection weather, seasonal theme, HABIT environmental/seasonal correlation, bounded contextual memory reranking, interaction willingness/expression, and Voice prosody foundations use the reviewed surface policy.
 
-See `CONTEXTUAL_INFLUENCE_AUDIT.md`.
+Contextual influence remains non-authoritative and returns NONE for SAFE/authority, factual truth, release verification, Fleet authority/fencing, DEV correctness, protected-state approval, and BODY safety.
 
-Major code gaps inside this work:
+## 7. M4/M5 semantic domain expansion — closed
 
-- user-requested wardrobe autonomy receives none of the four signals;
-- reflection decision payload omits weather;
-- desktop theme omits season;
-- HABIT records season/weather but current routine learning discards them;
-- memory retrieval does not use the bounded contextual salience promised by continuity guidance;
-- interaction willingness lacks an explicit influence whitelist.
+`MatrixDomain` includes first-class REL, HABIT, DEV, KNOW, INTEGRATE, BODY, and VOICE ownership where relevant. SAFE and VERIFY remain cross-cutting rather than ordinary conversation domains.
 
-**Needed: M3 Contextual Influence Matrix**
+## 8. Context Matrix authority — closed for reviewed paths
 
----
+Domain projection is authoritative across NONE, LAST_TURN, TOPIC_WINDOW, BOUNDED_RECENT, and RETRIEVE_SPECIFIC policies. LAST_TURN follow-ups inherit only contextual semantic relevance from the immediately preceding turn, not evidence or authority. Negative history-filtering tests prove excluded domains disappear from provider-visible context.
 
-## 7. Matrix domain roster is still too coarse
+## 9. Continuity influence bypass — closed
 
-Current `MatrixDomain` does not include first-class:
+`EmotionalConversationService` and `SofiaRuntime` both enforce Context Matrix EMOTION/ENVIRONMENT eligibility. A direct runtime caller cannot bypass exclusions by supplying a full `ContinuityInfluence`.
 
-- REL;
-- HABIT;
-- DEV;
-- KNOW;
-- INTEGRATE;
-- BODY.
+## 10. M6/M7 release/Fleet matrices — closed
 
-Some of these currently collapse into generic context or OPS.
+M6 implements release/schema/Fleet compatibility across revision/version/schema/protocol/agent/model/assets/Constitution/signature/lineage/anti-rollback dimensions, including compatible rollback coverage.
 
-**Needed:**
+M7 implements typed host/workload/failure/disposition recovery rules with exhaustive state-space coverage and fail-closed promotion requirements for state verification, fencing, and witness evidence.
 
-- M4 REL + HABIT domain/context/evidence extension;
-- M5 DEV + KNOW + INTEGRATE + BODY refinement.
-
-SAFE and VERIFY should remain cross-cutting constraints, not normal conversation domains.
-
----
-
-## 8. Context Matrix is not fully authoritative yet
-
-This is an important current-code finding.
-
-In `SofiaRuntime.respond()`:
-
-```python
-selective_context = (
-    context_plan is not None
-    and context_plan.history_policy
-    in (HistoryPolicy.NONE, HistoryPolicy.RETRIEVE_SPECIFIC)
-)
-```
-
-When `selective_context` is false, `include_domain()` returns true.
-
-Therefore domain exclusion is only actively enforced for a subset of history policies.
-
-For ordinary policies such as:
-
-- LAST_TURN;
-- TOPIC_WINDOW;
-- BOUNDED_RECENT;
-
-the matrix may calculate included/excluded domains while the runtime still supplies broad context.
-
-This is consistent with safe-rollout behavior, but it means:
-
-> the Context Matrix is not yet the sole authoritative provider-context selector.
-
-**Needed:**
-
-- make domain projection authoritative for all reviewed matrix paths;
-- maintain an explicit compatibility fallback only where intentionally configured;
-- add negative tests proving excluded domains truly disappear.
-
----
-
-## 9. Continuity influence can bypass Context Matrix exclusion
-
-`EmotionalConversationService` builds `ContinuityInfluence` directly from ENVIRONMENT and injects it as a SYSTEM projection.
-
-That can reintroduce:
-
-- weather;
-- daypart;
-- season;
-
-even when the runtime Context Matrix excluded ENVIRONMENT.
-
-**Needed:**
-
-- project contextual influence through the Context/Influence Matrix;
-- never allow a later conversation layer to silently re-add excluded domains.
-
----
-
-## 10. Release compatibility and Fleet failure matrices remain unimplemented
-
-The release/Fleet code has many typed contracts, but the systematic matrices are still documentation only.
-
-**Needed:**
-
-- M6 Release / Schema / Fleet Compatibility Matrix;
-- M7 Fleet Failure / Recovery Matrix.
-
----
+See `MATRIX_ROADMAP.md` and `CONTEXTUAL_INFLUENCE_AUDIT.md` for the maintained implementation contracts.
 
 # P1 — runtime/service reliability
 
@@ -720,114 +601,51 @@ Only then can a new host prove it is the single current Sofía runtime.
 
 # P1/P2 — personality/autonomy integration
 
-## 26. Wardrobe autonomy is still simplistic
+## 26. Context-aware wardrobe autonomy — closed
 
-Automatic outfit choice is context-aware.
-
-User-requested clothing changes are not.
-
-Current `WardrobeAutonomyPolicy.decide()` only receives:
-
-- intent;
-- candidate items;
-- private-only flag.
-
-**Needed:**
-
-- trusted Contextual Influence Matrix result;
-- activity;
-- preference evidence;
-- accept/decline/counter-propose result type;
-- counter-proposal candidate;
-- explanation evidence;
-- tests proving private grants and coverage always dominate.
+User-requested clothing changes are suggestions, not direct presentation commands. `WardrobeAutonomyPolicy` receives trusted contextual influence and may accept, decline, or counter-propose. Privacy/grant/coverage constraints dominate, and only an accepted persisted transition may be described as completed.
 
 ---
 
-## 27. Reflection weather wiring is incomplete
+## 27. Reflection weather wiring — closed
 
-Reflection gets:
-
-- emotion;
-- daypart;
-- season;
-- daylight.
-
-It does not get current weather in its decision payload, although later outreach salience can use weather.
-
-**Needed:**
-
-- fresh weather projection into reflection choice;
-- no stale/future-weather influence.
+Reflection receives evidence-backed current weather together with modeled emotion, trusted daypart, season, and daylight. Stale/future weather is rejected as current influence.
 
 ---
 
-## 28. Adaptive theme does not use season
+## 28. Seasonal adaptive theme — closed
 
-Theme currently uses:
-
-- time/daylight;
-- weather;
-- outfit;
-- appearance;
-- emotion.
-
-**Needed:**
-
-- bounded seasonal signal;
-- accessibility/contrast remains dominant.
+`ThemeSignals` includes season as a bounded visual cue. Accessibility/contrast remains dominant over all adaptive styling.
 
 ---
 
-## 29. HABIT captures more evidence than it learns
+## 29. HABIT environmental/seasonal learning — closed
 
-Conversation observations record:
-
-- daypart;
-- weekday/day type;
-- season;
-- daylight;
-- current weather.
-
-Current conversation-routine analysis keeps only:
-
-- daypart;
-- day type.
-
-The model already defines:
-
-- environment correlations;
-- seasonal cadence.
-
-**Needed:**
-
-- seasonal pattern learning;
-- daylight/environment correlation;
-- weather-correlation confidence rules;
-- stronger minimum evidence for sparse weather patterns;
-- explicit coverage requirements.
+HABIT learning includes seasonal cadence and environment/weather/daylight correlations with stronger evidence and observation-coverage requirements for sparse signals. Sofía's emotion does not become evidence that a user's habit exists.
 
 ---
 
-## 30. Memory retrieval does not implement contextual salience
+## 30. Bounded contextual memory salience — closed
 
-The continuity prompt says context may shape what memories feel relevant.
+Reviewed memory retrieval keeps hard eligibility first:
 
-Actual reviewed retrieval currently uses query/token relevance after review/scope filtering.
+```text
+PROMOTED
++ principal/audience allowed
++ explicit query relevant
+        ↓
+bounded contextual tie-break
+        ↓
+final projection
+```
 
-**Needed:**
-
-- metadata model for contextual memory signals;
-- bounded rerank only after hard eligibility;
-- no promotion or cross-principal expansion from contextual signals.
+Emotion/weather/daypart/season may only weakly rerank already-eligible memories when their matrix evidence is valid. Context cannot promote/create/rewrite a memory, expand scope, or make an otherwise irrelevant memory eligible.
 
 ---
 
-## 31. Interaction willingness and expression need separate influence contracts
+## 31. Interaction willingness vs expression — closed
 
-Current interaction prompts correctly protect boundaries and stop state, and modeled emotion can enter provider context.
-
-What is missing is an explicit typed rule such as:
+Separate typed influence surfaces now enforce:
 
 ```text
 willingness:
@@ -841,9 +659,7 @@ expression:
   weather/daypart/season = expression-only
 ```
 
-This prevents ambient context from accidentally becoming consent logic.
-
----
+Explicit stop/boundary state remains dominant; ambient context cannot manufacture consent.
 
 # P2 — proactive behavior
 
@@ -1085,15 +901,17 @@ The work now is to convert these foundations into a **fully proven production sy
 4. Add Linux + Python 3.14 CI.
 5. Make Context Matrix projection authoritative.
 
-## Phase B — finish the matrix/autonomy layer
+## Phase B — matrix/autonomy layer ✅ closed
 
-6. M1 Tool Exposure.
-7. M2 Privacy/Audience.
-8. M3 Contextual Influence.
-9. M4 REL/HABIT.
-10. M5 DEV/KNOW/INTEGRATE/BODY.
-11. M6 Release compatibility.
-12. M7 Fleet failure/recovery.
+6. ✅ M1 Tool Exposure.
+7. ✅ M2 Privacy/Audience.
+8. ✅ M3 Contextual Influence.
+9. ✅ M4 REL/HABIT.
+10. ✅ M5 DEV/KNOW/INTEGRATE/BODY.
+11. ✅ M6 Release compatibility.
+12. ✅ M7 Fleet failure/recovery.
+
+M8 Voice runtime/prosody matrix foundation is also implemented; actual live STT/TTS adapters and Desktop/Discord voice-channel parity remain interface work.
 
 ## Phase C — make Sofía survive machines/reboots
 
@@ -1117,12 +935,12 @@ The work now is to convert these foundations into a **fully proven production sy
 
 ## Phase E — finish behavioral autonomy
 
-27. Context-aware wardrobe request autonomy.
-28. Reflection weather wiring.
-29. Seasonal UI theme.
-30. Seasonal/environment HABIT learning.
-31. Contextual memory rerank.
-32. Interaction willingness/expression split.
+27. ✅ Context-aware wardrobe request autonomy.
+28. ✅ Reflection weather wiring.
+29. ✅ Seasonal UI theme.
+30. ✅ Seasonal/environment HABIT learning.
+31. ✅ Contextual memory rerank.
+32. ✅ Interaction willingness/expression split.
 33. Production initiative/goal generation.
 
 ## Phase F — embodiment/interfaces
