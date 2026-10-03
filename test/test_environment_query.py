@@ -610,3 +610,35 @@ def test_user_reported_local_time_preserves_am_pm_without_fake_conversion():
     assert "2:10 AM" in answer.content
     assert "PM" not in answer.content
     assert "does not prove a timezone or UTC conversion" in answer.content
+
+
+def test_weather_source_live_wording_is_deterministic():
+    weather = WeatherObservation(
+        condition="cloudy",
+        observed_at=NOW - timedelta(minutes=2),
+        expires_at=NOW + timedelta(minutes=20),
+        source_id="nws:KGKY",
+        location_label="Homelab",
+        temperature_c=22.0,
+    )
+    snapshot = EnvironmentService(
+        config(),
+        providers=(
+            Provider(
+                EnvironmentProviderObservation(
+                    weather=weather,
+                )
+            ),
+        ),
+    ).snapshot(now=NOW)
+
+    answer = EnvironmentQueryResolver().resolve(
+        "what weather source are you using",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "Weather/forecast evidence: nws:KGKY" in answer.content
+    assert "Coordinates and provider credentials are not exposed" in (
+        answer.content
+    )
