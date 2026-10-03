@@ -75,6 +75,12 @@ def _forecast_period_text(period) -> str:
 
 
 class EnvironmentQueryResolver:
+    _USER_REPORTED_LOCAL_TIME_RE = re.compile(
+        r"\b(?:it(?:'s|\s+is)|its)\s+"
+        r"(\d{1,2})(?::(\d{2}))?\s*"
+        r"(am|pm)\s+(?:for\s+me|my\s+time|locally)\b",
+        re.IGNORECASE,
+    )
     _TIME_FORMS = frozenset(
         {
             "what time is it",
