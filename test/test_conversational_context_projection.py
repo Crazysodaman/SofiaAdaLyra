@@ -93,3 +93,25 @@ def test_no_constitution_and_invalid_context_preserve_default_contract():
         pass
     else:
         raise AssertionError('Context validation unexpectedly bypassed.')
+
+
+
+def test_bounded_projection_preserves_matrix_request_controls():
+    from dataclasses import replace
+
+    context = _context()
+    context = replace(
+        context,
+        request=replace(
+            context.request,
+            allow_tools=False,
+            capability_allowlist=("hardware.inspect",),
+            route_hint="fast",
+        ),
+    )
+
+    request = ConversationalContextAssembler().assemble(context)
+
+    assert request.allow_tools is False
+    assert request.capability_allowlist == ("hardware.inspect",)
+    assert request.route_hint == "fast"
