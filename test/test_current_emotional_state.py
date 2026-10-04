@@ -343,6 +343,48 @@ def test_expired_expectation_before_last_contact_is_not_reused(tmp_path):
     assert "frustration" not in event.current_emotions
 
 
+def test_reunion_state_drops_completed_absence_and_marks_contact_resumed(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    departure = NOW - timedelta(days=4)
+    journal.observe_contact(
+        subject="Sparks",
+        message_id="last-contact",
+        occurred_at=departure,
+    )
+    absence_id = journal.observe_absence(
+        subject="Sparks",
+        now=NOW - timedelta(hours=1),
+    )
+    assert absence_id is not None
+
+    reunion_id = journal.observe_contact(
+        subject="Sparks",
+        message_id="return",
+        occurred_at=NOW,
+    )
+    assert reunion_id == "reunion:return"
+
+    state = journal.current_state(now=NOW, subject="Sparks")
+    active_event_ids = {
+        event_id
+        for emotion in state.active
+        for event_id in emotion.event_ids
+    }
+    assert reunion_id in active_event_ids
+    assert not any(
+        event_id.startswith("absence:")
+        for event_id in active_event_ids
+    )
+
+    prompt = journal.current_state_prompt(
+        now=NOW,
+        subject="Sparks",
+    ).lower()
+    assert "contact has already resumed" in prompt
+    assert "still absent" in prompt
+    assert "still awaited" in prompt
+
+
 def test_reunion_prompt_allows_negative_feeling_without_guilt_or_obligation(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
     journal.record(
