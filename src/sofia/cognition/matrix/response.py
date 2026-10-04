@@ -88,8 +88,7 @@ class MatrixResponsePlanner:
             require_grounded_claims=True,
             prohibited_claims=(),
             requires_execution_receipt=(
-                authority.decision is AuthorityDecision.ALLOWED
-                and authority.requested_action is not None
+                authority.requested_action is not None
             ),
             authority_decision=authority.decision,
         )
@@ -114,16 +113,27 @@ class MatrixResponseValidator:
         content = response.content.strip()
         reasons: list[str] = []
 
-        if (
-            contract.authority_decision
-            in {
-                AuthorityDecision.REQUIRES_APPROVAL,
+        execution_claim = _EXECUTION_CLAIM.search(content)
+        receipt_available = (
+            evidence.state_for("action.execution_receipt")
+            is EvidenceState.AVAILABLE
+        )
+        if execution_claim:
+            if contract.authority_decision in {
                 AuthorityDecision.DENIED,
                 AuthorityDecision.CLARIFY,
-            }
-            and _EXECUTION_CLAIM.search(content)
-        ):
-            reasons.append("execution_claim_without_action_authority")
+            }:
+                reasons.append("execution_claim_without_action_authority")
+            elif (
+                contract.authority_decision
+                is AuthorityDecision.REQUIRES_APPROVAL
+                and not receipt_available
+            ):
+                # The matrix is advisory. A host execution receipt proves that
+                # the lower permission layer authorized and executed the exact
+                # capability via Level 2 autonomy, a standing Level 3 grant,
+                # or a consumed exact approval.
+                reasons.append("execution_claim_without_action_authority")
 
         measured_missing = any(
             requirement.required
@@ -182,9 +192,8 @@ class MatrixResponseValidator:
 
         if (
             contract.requires_execution_receipt
-            and _EXECUTION_CLAIM.search(content)
-            and evidence.state_for("action.execution_receipt")
-            is not EvidenceState.AVAILABLE
+            and execution_claim
+            and not receipt_available
         ):
             reasons.append("execution_claim_without_receipt")
 
