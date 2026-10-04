@@ -31,8 +31,17 @@ class GraphicLoungeVariation:
     def __post_init__(self) -> None:
         if not isinstance(self.catalog, WardrobePrebuild) or not isinstance(self.optional_plan, OutfitPlan):
             raise WardrobeError("graphic variation requires catalog and outfit plan")
-        if not self.catalog.wardrobe.selection(self.optional_plan.item_ids).covered_default:
-            raise WardrobeError("graphic lounge variation must remain covered")
+        selected = self.catalog.wardrobe.selection(
+            self.optional_plan.item_ids
+        )
+        if (
+            not selected.covered_default
+            or selected.private_only
+            or self.optional_plan.private_only
+        ):
+            raise WardrobeError(
+                "graphic lounge variation must remain covered and public"
+            )
         if not isinstance(self.print_concepts, tuple) or not self.print_concepts or any(
             not isinstance(value, str) or not value.strip() for value in self.print_concepts
         ):
