@@ -62,12 +62,13 @@ from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.system.capability import create_local_system_capabilities
-from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.factory import create_state_plane
+from sofia.state.plane import StatePlane
 
 
 def _configuration_with_persistent_host_location(
     configuration: SofiaConfiguration,
-    state_plane: SQLiteStatePlane | None = None,
+    state_plane: StatePlane | None = None,
 ) -> SofiaConfiguration:
     """Use durable machine location unless an explicit process override exists."""
     if configuration.environment.host_location is not None:
@@ -79,7 +80,7 @@ def _configuration_with_persistent_host_location(
     try:
         identity = create_machine_discovery().discover().identity
         record = MachineLocationRegistry(
-            state_plane if state_plane is not None else SQLiteStatePlane(state_path),
+            state_plane if state_plane is not None else create_state_plane(state_path),
             legacy_path=registry_path,
         ).get(identity.machine_id)
     except (OSError, RuntimeError, TypeError, ValueError):
@@ -110,7 +111,7 @@ def compose(
     configuration: SofiaConfiguration,
 ) -> SofiaRuntime:
     state_path = Path(configuration.state_path)
-    state_plane = SQLiteStatePlane(state_path)
+    state_plane = create_state_plane(state_path)
     configuration = apply_reviewed_configuration(
         configuration,
         state_plane,
