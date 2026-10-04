@@ -8,7 +8,7 @@ from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from sofia.ops.workload import MigrationPlan, MigrationStage
 from .desired import DesiredHostState,DesiredWorkloadPlacement,Drift,detect_drift
 from .maintenance import MaintenanceOperation,MaintenancePolicy,MaintenanceRequest
-from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentService,MachineNodeBinding
+from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentApproval,FleetEnrollmentService,MachineNodeBinding
 from .recovery import BackupEvidence,RecoveryDenied,RecoveryGuard,RestoreVerification
 from .activity import ActivityMode,HostActivityObservation,HostActivityState,HostActivityStore,detect_windows_game
 from .agent_discovery import (
@@ -58,6 +58,7 @@ __all__ = [
     'MaintenancePolicy',
     'MaintenanceRequest',
     'AuthenticatedPeerEvidence',
+    'FleetEnrollmentApproval',
     'FleetEnrollmentService',
     'MachineNodeBinding',
     'BackupEvidence',
