@@ -110,7 +110,6 @@ _READ_ONLY = frozenset({
     "tool.catalog",
     "codebase.inspect",
     "filesystem.changes",
-    "filesystem.inspect",
     "process.inspect",
     "system.inspect",
     "network.inspect",
