@@ -479,6 +479,21 @@ def _parse_discovery_target(value: str) -> AgentDiscoveryTarget:
     )
 
 
+def create_configured_network_discovery_source(configuration):
+    """Build bare-host discovery for approved scopes regardless of Fleet enablement.
+
+    This source observes reachability/presence only. It cannot create Fleet
+    candidates, approve endpoints, enroll nodes, or change trust.
+    """
+    policy = configuration.fleet_discovery
+    if not policy.scopes:
+        return None
+    return ScopedHostPresenceDiscoverySource(
+        scopes=policy.scopes,
+        max_hosts_per_scope=policy.max_hosts_per_scope,
+    )
+
+
 def create_configured_fleet_discovery_source(configuration):
     policy = configuration.fleet_discovery
     if not policy.enabled:
