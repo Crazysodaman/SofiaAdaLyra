@@ -431,7 +431,8 @@ class ConversationMatrixMixin:
         principal: PrincipalContext | None,
         channel: str,
     ) -> None:
-        """Plan the turn matrix and persist a provisional pre-response trace."""
+        """Plan the live matrix independently from best-effort trace persistence."""
+        previous_turn = self._current_turn_matrix
         self._reset_matrix_turn()
         execution_reader = getattr(
             self._runtime,
@@ -446,9 +447,19 @@ class ConversationMatrixMixin:
         self._matrix_execution_baseline_serial = (
             0 if prior_execution is None else prior_execution.serial
         )
+
         store = getattr(self, "_matrix_trace_store", None)
-        if store is None:
-            return
+        prior_turn = previous_turn
+        trace_error: str | None = None
+        if store is not None:
+            try:
+                prior_trace = store.latest(session_id=message.session_id)
+            except Exception as exc:
+                prior_trace = None
+                trace_error = "trace-read:" + type(exc).__name__
+            if prior_trace is not None:
+                prior_turn = prior_trace.turn
+
         try:
             envelope = TurnEnvelope(
                 message_id=message.id,
@@ -461,11 +472,7 @@ class ConversationMatrixMixin:
                 channel=channel,
             )
             turn = self._matrix_coordinator.evaluate(envelope)
-            prior_trace = store.latest(session_id=message.session_id)
-            turn = _inherit_last_turn_domains(
-                turn,
-                None if prior_trace is None else prior_trace.turn,
-            )
+            turn = _inherit_last_turn_domains(turn, prior_turn)
             context_plan = self._matrix_context_planner.plan(turn)
             evidence_requirements = self._matrix_evidence_planner.plan(
                 turn,
@@ -483,9 +490,7 @@ class ConversationMatrixMixin:
                     current_message_id=message.id,
                 )
             )
-            availability.update(
-                self._matrix_voice_evidence()
-            )
+            availability.update(self._matrix_voice_evidence())
             evidence = self._matrix_evidence_resolver.resolve(
                 evidence_requirements,
                 availability,
@@ -510,6 +515,37 @@ class ConversationMatrixMixin:
                 envelope,
                 turn,
             )
+        except Exception as exc:
+            # Planning failure must not broaden provider context. Keep chat
+            # available, but expose only the current user turn and no
+            # turn-specific domains/tools until the matrix works again.
+            self._reset_matrix_turn()
+            self._current_context_plan = ContextPlan(
+                included_domains=(),
+                excluded_domains=tuple(MatrixDomain),
+                history_policy=HistoryPolicy.NONE,
+                max_history_messages=1,
+            )
+            self._last_matrix_error = "planning:" + type(exc).__name__
+            return
+
+        # The planned control state becomes authoritative for this turn before
+        # any telemetry write. Trace persistence is observational, not control.
+        self._current_matrix_message_id = message.id
+        self._current_matrix_envelope = envelope
+        self._current_turn_matrix = turn
+        self._current_context_plan = context_plan
+        self._current_evidence_matrix = evidence
+        self._current_authority_plan = authority_plan
+        self._current_privacy_plan = privacy_plan
+        self._current_tool_exposure_plan = tool_exposure_plan
+        self._current_response_contract = response_contract
+        self._current_routing_plan = routing_plan
+        self._last_matrix_error = trace_error
+
+        if store is None:
+            return
+        try:
             store.record(
                 MatrixTrace(
                     envelope=envelope,
@@ -526,21 +562,8 @@ class ConversationMatrixMixin:
                     context_active=True,
                 )
             )
-            self._current_matrix_message_id = message.id
-            self._current_matrix_envelope = envelope
-            self._current_turn_matrix = turn
-            self._current_context_plan = context_plan
-            self._current_evidence_matrix = evidence
-            self._current_authority_plan = authority_plan
-            self._current_privacy_plan = privacy_plan
-            self._current_tool_exposure_plan = tool_exposure_plan
-            self._current_response_contract = response_contract
-            self._current_routing_plan = routing_plan
-            self._last_matrix_error = None
         except Exception as exc:
-            # Matrix telemetry/context failure must never make chat unavailable.
-            self._reset_matrix_turn()
-            self._last_matrix_error = type(exc).__name__
+            self._last_matrix_error = "trace-write:" + type(exc).__name__
 
     def _record_current_matrix_trace(self) -> None:
         store = getattr(self, "_matrix_trace_store", None)
@@ -550,24 +573,29 @@ class ConversationMatrixMixin:
             or self._current_turn_matrix is None
         ):
             return
-        store.record(
-            MatrixTrace(
-                envelope=self._current_matrix_envelope,
-                turn=self._current_turn_matrix,
-                context=self._current_context_plan,
-                evidence=self._current_evidence_matrix,
-                authority=self._current_authority_plan,
-                privacy=self._current_privacy_plan,
-                tool_exposure=self._current_tool_exposure_plan,
-                response_contract=self._current_response_contract,
-                response_validation=self._current_response_validation,
-                routing=self._current_routing_plan,
-                cognition_execution=self._current_cognition_execution,
-                created_at=datetime.now(timezone.utc),
-                shadow=False,
-                context_active=self._current_context_plan is not None,
+        try:
+            store.record(
+                MatrixTrace(
+                    envelope=self._current_matrix_envelope,
+                    turn=self._current_turn_matrix,
+                    context=self._current_context_plan,
+                    evidence=self._current_evidence_matrix,
+                    authority=self._current_authority_plan,
+                    privacy=self._current_privacy_plan,
+                    tool_exposure=self._current_tool_exposure_plan,
+                    response_contract=self._current_response_contract,
+                    response_validation=self._current_response_validation,
+                    routing=self._current_routing_plan,
+                    cognition_execution=self._current_cognition_execution,
+                    created_at=datetime.now(timezone.utc),
+                    shadow=False,
+                    context_active=self._current_context_plan is not None,
+                )
             )
-        )
+        except Exception as exc:
+            # Trace persistence is diagnostic evidence, never a reason to
+            # discard an otherwise valid live matrix decision or chat reply.
+            self._last_matrix_error = "trace-final:" + type(exc).__name__
 
     def _capture_cognition_execution(self) -> None:
         execution_reader = getattr(
