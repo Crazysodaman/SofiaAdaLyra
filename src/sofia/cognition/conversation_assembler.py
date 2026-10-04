@@ -2,8 +2,8 @@
 
 Nothing here changes the Constitution, persisted conversation, observations,
 journals, authorization, or replay controls. The default assembler still sends
-the full context. Ordinary tool-free Ollama chat gets a shorter constitutional
-projection and omits unrelated startup/workspace evidence, which remains
+the full context. Ordinary chat, including tool-assisted turns, gets a shorter
+constitutional projection and omits unrelated startup/workspace evidence, which remains
 available on explicit operational questions. A provider view is not a deletion.
 """
 from __future__ import annotations
@@ -118,7 +118,7 @@ def _without_unrelated_workspace_context(request: CognitiveRequest) -> Cognitive
 
 
 class ConversationalContextAssembler(CognitiveContextAssembler):
-    """Preserve full assembly for short Constitutions, tools and direct questions."""
+    """Preserve full assembly only for short Constitutions and direct questions."""
 
     def assemble(
         self, context: CognitiveContext,
@@ -128,7 +128,7 @@ class ConversationalContextAssembler(CognitiveContextAssembler):
             return super().assemble(context, tools=tools)
         constitution = context.constitution
         if (constitution is None or len(constitution.content) <= _MINIMUM_FULL_TEXT_LENGTH
-                or _asks_about_constitution(context.request) or tools):
+                or _asks_about_constitution(context.request)):
             return super().assemble(context, tools=tools)
 
         # Work on ephemeral provider projections, not persisted records. Do not
