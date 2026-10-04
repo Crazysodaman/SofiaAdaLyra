@@ -19,6 +19,7 @@ from sofia.ui.quick_tools import (
     quick_tool_labels,
 )
 from sofia.ui.text import UITextClient, UITextMessage
+from sofia.ui.terminal import ConversationLoop
 from sofia.ui.theme import (
     AdaptiveThemePolicy,
     ThemePalette,

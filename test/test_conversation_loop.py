@@ -1,6 +1,7 @@
 ﻿from pathlib import Path
 
-from sofia.application import ConversationLoop, SofiaApplication
+from sofia.application import SofiaApplication
+from sofia.ui.terminal import ConversationLoop
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.cognition.matrix import MatrixTraceStore
 

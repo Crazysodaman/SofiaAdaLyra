@@ -2,10 +2,10 @@ from collections.abc import Callable, Sequence
 import sys
 
 from sofia.application import (
-    ConversationLoop,
     SofiaApplication,
     SofiaApplicationError,
 )
+from sofia.ui.terminal import ConversationLoop
 from sofia.config import (
     SofiaConfiguration,
     create_production_configuration,

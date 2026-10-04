@@ -10,7 +10,6 @@ from sofia.application.conversation_service import ConversationService
 from sofia.application.metadata import application_name, application_version
 
 __all__ = [
-    "ConversationLoop",
     "ConversationService",
     "SofiaApplication",
     "SofiaApplicationError",
@@ -24,9 +23,6 @@ def __getattr__(name: str):
         from sofia.application.bootstrap import SofiaApplication, SofiaApplicationError
         value = {"SofiaApplication": SofiaApplication,
                  "SofiaApplicationError": SofiaApplicationError}[name]
-    elif name == "ConversationLoop":
-        from sofia.application.conversation import ConversationLoop
-        value = ConversationLoop
     else:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     globals()[name] = value
