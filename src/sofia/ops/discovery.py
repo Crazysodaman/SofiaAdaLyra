@@ -219,6 +219,24 @@ class FleetDiscoveryCoordinator:
                         if observation.observed_public_key_sha256
                         else None
                     ),
+                    (
+                        "observed-endpoint-host:"
+                        f"{observation.observed_endpoint_hostname}"
+                        if observation.observed_endpoint_hostname
+                        else None
+                    ),
+                    (
+                        "observed-endpoint-port:"
+                        f"{observation.observed_endpoint_port}"
+                        if observation.observed_endpoint_port is not None
+                        else None
+                    ),
+                    f"observed-at:{observation.observed_at.isoformat()}",
+                    (
+                        "capabilities-verified"
+                        if observation.capabilities_verified is True
+                        else None
+                    ),
                 )
                 if value is not None
             )
