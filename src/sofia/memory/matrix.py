@@ -17,7 +17,7 @@ _EXPLICIT_RECALL = re.compile(
     re.IGNORECASE,
 )
 _COMPUTER_MEMORY = re.compile(
-    r"\b(?:memory\s+usage|system\s+memory|computer\s+memory|ram)\b",
+    r"\b(?:memory(?:\s+usage)?|system\s+memory|computer\s+memory|ram)\b",
     re.IGNORECASE,
 )
 
