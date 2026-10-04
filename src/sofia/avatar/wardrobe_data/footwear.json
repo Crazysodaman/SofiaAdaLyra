@@ -1157,7 +1157,7 @@
         }
       },
       "comfort": {
-        "softness": "good",
+        "softness": "high",
         "flexibility": "high",
         "compression": "none",
         "heat_retention": "none",
