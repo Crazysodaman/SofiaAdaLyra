@@ -53,6 +53,7 @@ from sofia.safe.capability_policy import protected_capability_extras
 from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -111,13 +112,24 @@ def compose(
         state_plane,
     )
     protected_extras = protected_capability_extras(state_plane)
-    if protected_extras:
+    permission_store = PermissionStore(state_path)
+    permission_extras = tuple(
+        dict.fromkeys(
+            automatic_capabilities()
+            + tuple(
+                grant.capability
+                for grant in permission_store.grants(active_only=True)
+            )
+        )
+    )
+    if protected_extras or permission_extras:
         configuration = replace(
             configuration,
             standing_allowed_capabilities=tuple(
                 dict.fromkeys(
                     configuration.standing_allowed_capabilities
                     + protected_extras
+                    + permission_extras
                 )
             ),
         )
