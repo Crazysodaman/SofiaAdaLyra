@@ -1,5 +1,12 @@
 # Sofía Runtime Tool Configuration
 
+> **Historical configuration note:** This document describes the older runtime-tool
+> configuration contract. The current permission model is centralized in
+> `src/sofia/safe/permissions.py`. Use the repository-root
+> [TOOLS.md](../../TOOLS.md) and [permission.md](../../permission.md) for current
+> permission/enabling instructions. `SOFIA_ALLOWED_CAPABILITIES` must not be
+> used to widen Level-3/4/5 authority.
+
 **Status:** repository-accepted runtime-tool configuration contract merged via PR #104 on 2026-09-25. Focused tool/mTLS acceptance passed 34/34, surrounding subsystem regression passed 270/270, and the full repository pytest suite was reported passing before merge. Live service/host deployment remains separately gated.
 
 This document describes how concrete runtime tools are enabled. Tool code being registered does not itself authorize use. Provider-visible tools are filtered by `SofiaConfiguration.standing_allowed_capabilities`, and consequential capabilities must be explicitly granted.
