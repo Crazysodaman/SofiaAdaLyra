@@ -1,7 +1,7 @@
 """Current emotional-state, reunion and truthful self-report contracts."""
 from datetime import datetime, timedelta, timezone
 
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)

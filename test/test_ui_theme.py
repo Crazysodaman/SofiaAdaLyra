@@ -14,7 +14,7 @@ from sofia.environment.model import (
     Season,
     WeatherObservation,
 )
-from sofia.personality.emotion import (
+from sofia.emotion.journal import (
     ActiveEmotion,
     CurrentEmotionalState,
 )

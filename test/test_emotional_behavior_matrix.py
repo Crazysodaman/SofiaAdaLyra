@@ -14,7 +14,7 @@ from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguratio
 from sofia.environment.model import WeatherObservation
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
-from sofia.personality.emotion import EmotionalJournal, ReturnExpectation
+from sofia.emotion.journal import EmotionalJournal, ReturnExpectation
 from sofia.personality.influence import ContinuityInfluence
 
 

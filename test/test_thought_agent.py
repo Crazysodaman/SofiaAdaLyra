@@ -5,7 +5,7 @@ import json
 import pytest
 
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall, CognitiveRole
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ThoughtAgent, ThoughtGenerationError

@@ -6,8 +6,8 @@ from types import SimpleNamespace
 from sofia.application.conversation_service import ConversationService
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.filesystem.changes import FilesystemChangeEvent
-from sofia.personality.clarification import ClarificationJournal
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.clarification import ClarificationJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 
 

@@ -11,7 +11,7 @@ from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import (
     Activity, OutfitPlanner, Season, WardrobeContext, Weather, WeatherObservation,
 )
-from sofia.personality.emotion import ActiveEmotion, CurrentEmotionalState
+from sofia.emotion.journal import ActiveEmotion, CurrentEmotionalState
 from sofia.personality.influence import ContinuityInfluence
 
 

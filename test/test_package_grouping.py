@@ -39,3 +39,9 @@ def test_representative_cross_package_ownership(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert "pkg_habit" in _package_markers(habit)
+    emotion = tmp_path / "test_affection_package_grouping_fixture.py"
+    emotion.write_text(
+        "from sofia.emotion.journal import EmotionalJournal\n",
+        encoding="utf-8",
+    )
+    assert "pkg_core" in _explicit_package_markers(emotion)

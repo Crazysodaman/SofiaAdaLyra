@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.observation_bridge import (
-    record_user_reappraisal, record_verified_test_run, record_workspace_observation,
+    record_workspace_observation,
 )
 from sofia.personality.reflection import ReflectionJournal
 
@@ -67,46 +67,8 @@ def test_no_baseline_means_no_observed_changes(tmp_path):
     assert reflections.recent_thoughts() == ()
 
 
-def test_verified_test_result_and_original_appraisal_survive_user_correction(tmp_path):
-    emotions, reflections = _stores(tmp_path)
-    event_id = record_verified_test_run(
-        run_id="pytest-123", evidence_ref="trusted-run-123", completed_at=NOW,
-        passed=26, failed=1, skipped=0, emotions=emotions, reflections=reflections,
-    )
-    record_user_reappraisal(
-        event_id=event_id, message_id="user-msg-1",
-        clarification="The failure was expected by the test harness.",
-        new_emotions=("relief", "curiosity"), revised_at=NOW + timedelta(minutes=1),
-        journal=emotions,
-    )
-    found = EmotionalJournal(tmp_path / "sofia.db").recent(now=NOW + timedelta(minutes=2))[0]
-    assert found.original_emotions == ("concern", "curiosity", "determination")
-    assert found.current_emotions == ("relief", "curiosity")
-    assert found.revision_count == 1
-    assert len(reflections.recent_thoughts()) == 1
-    assert "26 passed, 1 failed" in reflections.recent_thoughts()[0].content
-    assert reflections.pending() == ()
-    assert record_verified_test_run(
-        run_id="pytest-123", evidence_ref="trusted-run-123", completed_at=NOW,
-        passed=26, failed=1, skipped=0, emotions=emotions, reflections=reflections,
-    ) == event_id
-    assert len(emotions.recent(now=NOW)) == 1
 
 
-def test_result_validation_and_conflicting_ids_fail_closed(tmp_path):
-    emotions, reflections = _stores(tmp_path)
-    params = dict(run_id="a", evidence_ref="b", completed_at=NOW,
-                  passed=1, failed=0, skipped=0, emotions=emotions,
-                  reflections=reflections)
-    assert record_verified_test_run(**params) == "test-run:a"
-    with pytest.raises(ValueError, match="different evidence"):
-        record_verified_test_run(**{**params, "failed": 1})
-    with pytest.raises(ValueError, match="empty test result"):
-        record_verified_test_run(**{**params, "passed": 0})
-    with pytest.raises(ValueError, match="nonnegative integers"):
-        record_verified_test_run(**{**params, "passed": True})
-    with pytest.raises(ValueError, match="timezone-aware"):
-        record_verified_test_run(**{**params, "completed_at": NOW.replace(tzinfo=None)})
 
 
 def test_application_open_ingests_only_actual_workspace_delta(monkeypatch, tmp_path):

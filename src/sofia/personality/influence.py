@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Iterable
 
 from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
-from sofia.personality.emotion import CurrentEmotionalState
+from sofia.emotion.journal import CurrentEmotionalState
 
 
 _BACKGROUND_RELATIONAL = frozenset({

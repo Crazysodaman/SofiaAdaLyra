@@ -65,7 +65,7 @@ def test_current_period_not_invented_and_no_empty_periods(tmp_path):
     }
 
 
-def test_grounded_outbox_dedup_spacing_followup_and_delivery(tmp_path):
+def test_grounded_outbox_dedup_spacing_and_act_bridge(tmp_path):
     path = tmp_path / 'db.sqlite'
     store = ReflectionJournal(path)
     thought = store.record_thought(
@@ -90,10 +90,10 @@ def test_grounded_outbox_dedup_spacing_followup_and_delivery(tmp_path):
     pending = ReflectionJournal(path).pending()
     assert {e.message_id for e in pending} == {first, later}
     assert pending[-1].urgency == 'urgent'
-    store.confirm_delivery(message_id=first, delivered_at=_at(2026, 9, 20, 14))
+    store.mark_outbox_bridged(message_id=first)
     assert [e.message_id for e in ReflectionJournal(path).pending()] == [later]
-    with pytest.raises(ValueError, match='No pending'):
-        store.confirm_delivery(message_id=first, delivered_at=_at(2026, 9, 20, 15))
+    with pytest.raises(ValueError, match='no pending'):
+        store.mark_outbox_bridged(message_id=first)
 
 
 def test_cannot_forge_period_or_rewrite_thought(tmp_path):

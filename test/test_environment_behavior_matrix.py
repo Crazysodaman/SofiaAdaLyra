@@ -28,7 +28,7 @@ from sofia.environment.model import EnvironmentFreshness, Season, WeatherObserva
 from sofia.environment.provider import EnvironmentProviderObservation
 from sofia.environment.service import EnvironmentService
 from sofia.interaction.expanded_service import ExpandedConversationService
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence, daypart
 
 

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pytest
 
 from sofia.interaction.registry import EMOTION_EXTENSIONS
-from sofia.personality.emotion import EMOTIONS, EmotionalJournal
+from sofia.emotion.journal import EMOTIONS, EmotionalJournal
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 

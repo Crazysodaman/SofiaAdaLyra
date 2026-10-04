@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import sqlite3
 
-from sofia.personality.audit import reflection_audit, _sqlite_uri_for_path
+from sofia.verify.reflection_audit import reflection_audit, _sqlite_uri_for_path
 from sofia.personality.reflection import ReflectionJournal
 
 NOW = datetime(2026, 9, 20, 20, tzinfo=timezone.utc)

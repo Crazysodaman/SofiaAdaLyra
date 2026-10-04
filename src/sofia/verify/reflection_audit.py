@@ -1,6 +1,6 @@
 """Read-only, content-free evidence for supervised Batch G idle-reflection checks.
 
-Usage: python -m sofia.personality.audit
+Usage: python -m sofia.verify.reflection_audit
 This does not start Sofía, create reflections, read out private text or send mail.
 A completed attempt with no thought can be a valid model abstention.
 """
