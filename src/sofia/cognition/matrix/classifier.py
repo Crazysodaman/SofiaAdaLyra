@@ -62,7 +62,8 @@ _ENVIRONMENT_FEELING = re.compile(
     re.IGNORECASE,
 )
 _TIME_LOCATION = re.compile(
-    r"\b(?:what\s+time|time\s+is\s+it|where\s+am\s+i|location|timezone|season)\b",
+    r"\b(?:what\s+time|time\s+is\s+it|what\s+(?:day|date)\s+is\s+it|"
+    r"today(?:'s)?\s+date|where\s+am\s+i|location|timezone|season)\b",
     re.IGNORECASE,
 )
 _BARE_TIME = re.compile(
@@ -96,8 +97,9 @@ _MODEL_STATUS = re.compile(
 )
 _OPS_STATUS = re.compile(
     r"\b(?:network|fleet|telemetry|cpu|gpu|ram|memory\s+usage|disk|"
-    r"storage|service|services|process|processes|host|machine|machines|"
-    r"server|ollama|virtualization)\b",
+    r"storage|service|services|process|processes|host|hosts|machine|machines|"
+    r"computer|computers|device|devices|node|nodes|server|servers|ollama|"
+    r"virtualization)\b",
     re.IGNORECASE,
 )
 _HOST_HARDWARE_BUNDLE = re.compile(
@@ -107,6 +109,12 @@ _HOST_HARDWARE_BUNDLE = re.compile(
 _READ_ONLY_OPERATION = re.compile(
     r"^\s*(?:please\s+)?(?:inspect|list|show|check|summarize)\b",
     re.IGNORECASE,
+)
+_MIXED_ENVIRONMENT_OPERATIONAL = re.compile(
+    r"(?=.*\b(?:time|day|date|weather|temperature|forecast|timezone|season)\b)"
+    r"(?=.*\b(?:computer|computers|host|hosts|machine|machines|fleet|"
+    r"device|devices|node|nodes|system)\b)",
+    re.IGNORECASE | re.DOTALL,
 )
 _ACTION = re.compile(
     r"\b(?:restart|reboot|shutdown|start|stop|install|uninstall|remove|"
@@ -367,6 +375,31 @@ class BaselineTurnClassifier:
                         MatrixDomain.EMOTION,
                         MatrixRelevance.REQUIRED,
                         "answer must use current modeled emotional state",
+                    ),
+                ),
+            )
+
+        if _MIXED_ENVIRONMENT_OPERATIONAL.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.OPERATIONAL_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=(
+                    _contribution(
+                        MatrixDomain.ENVIRONMENT,
+                        MatrixRelevance.RELEVANT,
+                        "mixed factual turn includes current calendar/environment facts",
+                    ),
+                    _contribution(
+                        MatrixDomain.MACHINE,
+                        MatrixRelevance.REQUIRED,
+                        "mixed factual turn asks about local or known computers",
+                    ),
+                    _contribution(
+                        MatrixDomain.OPS,
+                        MatrixRelevance.RELEVANT,
+                        "known Fleet/remote state may answer computer visibility",
                     ),
                 ),
             )
