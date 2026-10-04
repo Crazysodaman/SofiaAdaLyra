@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from sofia.application.bootstrap import SofiaApplication
 from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.avatar.generated_proposal import GarmentGenerationBrief
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.wardrobe_design import GraphicDesign
 from sofia.avatar.wardrobe_generated_store import (
@@ -38,6 +39,18 @@ class _Runtime:
 
     def set_avatar_matrix_builder(self, builder):
         self.matrix_builder = builder
+
+
+class _SequenceRuntime(_Runtime):
+    def __init__(self, embodiment, responses):
+        super().__init__(embodiment)
+        self._responses = list(responses)
+
+    def respond(self, request):
+        self.decision_requests.append(request)
+        if not self._responses:
+            raise AssertionError("unexpected extra wardrobe cognition request")
+        return CognitiveResponse(content=self._responses.pop(0))
 
 
 class _Conversation:
@@ -217,3 +230,73 @@ def test_invalid_live_sofia_decision_asks_sparks_without_mutation(tmp_path):
     assert result.ask_sparks is True
     assert result.persisted is False
     assert app._presentation_bundle is bundle
+
+
+def test_brief_generation_and_independent_acceptance_are_two_cognition_steps(
+    tmp_path,
+):
+    state_path = tmp_path / "sofia.db"
+    embodiment = EmbodimentStore(AVATAR_PATH).load()
+    bundle = load_or_bootstrap_presentation(
+        embodiment=embodiment,
+        state_path=state_path,
+    )
+    proposal = """{
+      "slug": "two_step_violet_tee",
+      "name": "Two-Step Violet Tee",
+      "garment_type": "t_shirt",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "short",
+      "material": "soft cotton-modal knit",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "solid",
+      "features": ["soft_hem"],
+      "style_tags": ["generated", "casual", "violet"],
+      "description": "A soft violet tee proposed by the cognitive generator.",
+      "exposure": []
+    }"""
+    runtime = _SequenceRuntime(
+        embodiment,
+        responses=(
+            proposal,
+            (
+                '{"decision":"accept","reason":'
+                '"I want this violet casual tee in my wardrobe."}'
+            ),
+        ),
+    )
+
+    app = object.__new__(SofiaApplication)
+    app._model_lock = RLock()
+    app._configuration = SimpleNamespace(
+        state_path=state_path,
+        avatar_private_adult_verified=False,
+    )
+    app._runtime = runtime
+    app._conversation_service = _Conversation()
+    app._presentation_bundle = bundle
+    app._presentation_routine = None
+    app._clothing_action_service = None
+
+    blueprint, result = app.generate_wardrobe_piece_from_brief(
+        GarmentGenerationBrief(
+            "Make a soft violet casual tee with a cyan technical accent."
+        )
+    )
+
+    assert blueprint.garment.item_id == "generated.sofia.two_step_violet_tee"
+    assert result.decision is SofiaGarmentDecision.ACCEPT
+    assert result.persisted is True
+    assert len(runtime.decision_requests) == 2
+    first_system = runtime.decision_requests[0].messages[0].content
+    second_system = runtime.decision_requests[1].messages[0].content
+    assert "DESIGN PROPOSAL" in first_system
+    assert "does NOT mean Sofía owns it" in first_system
+    assert "OWNERSHIP DECISION" in second_system
+    assert any(
+        bp.garment.item_id == blueprint.garment.item_id
+        for bp in app._presentation_bundle.catalog.blueprints
+    )
