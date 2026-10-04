@@ -64,6 +64,52 @@ class WardrobeGenerationConversationService:
         self._resolve_pending = resolve_pending
 
     @staticmethod
+    def _render_result(
+        blueprint: GarmentBlueprint,
+        result: GarmentAcceptanceResult,
+    ) -> str:
+        name = blueprint.garment.name
+        if result.decision is SofiaGarmentDecision.ACCEPT:
+            if not result.persisted:
+                raise RuntimeError(
+                    "accepted generated garment was not persisted"
+                )
+            return (
+                f"I designed {name} and decided I want to keep it. "
+                "It's now part of my wardrobe. "
+                f"My reason: {result.reason}"
+            )
+        if result.decision is SofiaGarmentDecision.ASK_SPARKS:
+            return (
+                f"I designed {name}, but I'm genuinely unsure whether I want "
+                "to keep it, so I'm asking you before anything is added. "
+                f"My reason: {result.reason}"
+            )
+        return (
+            f"I designed {name}, but I decided not to add it to my wardrobe. "
+            f"My reason: {result.reason}"
+        )
+
+    @staticmethod
+    def _is_pending_followup(
+        content: str,
+        *,
+        previous_assistant_content: str | None,
+        principal: PrincipalContext | None,
+    ) -> bool:
+        if principal is None or principal.principal_id != SPARKS_PRINCIPAL_ID:
+            return False
+        if (
+            previous_assistant_content is None
+            or "genuinely unsure whether I want to keep it"
+            not in previous_assistant_content
+            or "asking you before anything is added"
+            not in previous_assistant_content
+        ):
+            return False
+        return bool(content.strip()) and len(content.strip()) <= 1200
+
+    @staticmethod
     def brief_for(content: str) -> GarmentGenerationBrief | None:
         if not isinstance(content, str):
             raise TypeError("content must be str")
