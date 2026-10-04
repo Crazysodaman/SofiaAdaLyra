@@ -194,7 +194,7 @@ def test_nightwear_why_uses_grounded_current_presentation_reason():
 
     assert result.recognized
     assert "late-night lounge outfit" in result.content
-    assert "trusted local clock" in result.content
+    assert "late-lounge window" in result.content
     assert "temperature" not in result.content.casefold()
     assert "warmth" not in result.content.casefold()
     assert "metric" not in result.content.casefold()
@@ -444,9 +444,9 @@ def test_generic_why_did_you_pick_that_explains_contextual_outfit():
     )
 
     assert result.recognized
-    assert "trusted local clock" in result.content
-    assert "grounded season and current activity" in result.content
-    assert "bounded style preference" in result.content
+    assert "late-lounge window" in result.content
+    assert "current season and what I'm doing" in result.content
+    assert "current mood nudged me" in result.content
 
 
 
@@ -487,8 +487,8 @@ def test_short_why_the_outfit_uses_only_committed_reason_and_pieces():
     )
 
     assert result.recognized
-    assert "trusted local clock" in result.content
-    assert "grounded season and current activity" in result.content
+    assert "late-lounge window" in result.content
+    assert "current season and what I'm doing" in result.content
     assert "Oversized late-night lounge T-shirt" in result.content
     assert "Fitted circuit running shorts" in result.content
     assert "jacket" not in result.content.casefold()
