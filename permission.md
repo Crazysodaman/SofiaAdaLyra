@@ -110,7 +110,7 @@ Status:
 | Remote machines | Inspect remote process/system/network/services | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote hardware | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote VMs | 1 | PRIVATE | ✅ |
-| Remote machines | Inspect remote containers | 1 | PRIVATE | ✅ |
+| Remote machines | Inspect remote containers | 1 | PRIVATE | ✅ List/get/stats/info/health summary/images/volumes/networks/stacks; active trusted OPS Fleet membership required |
 | Remote machines | Inspect remote Ollama | 1 | PRIVATE | ✅ |
 | Remote machines | Restart exact service | 3 | PRIVATE | ✅ Scoped standing grant |
 | Remote machines | Start/stop exact VM | 3 | PRIVATE | ✅ Scoped standing grant |
@@ -121,7 +121,7 @@ Status:
 | Docker / Portainer | List containers | 1 | PRIVATE | ✅ |
 | Docker / Portainer | Inspect container | 1 | PRIVATE | ✅ |
 | Docker / Portainer | Read logs | 1 | PRIVATE | ➕ |
-| Docker / Portainer | Inspect health | 1 | PRIVATE | ➕ |
+| Docker / Portainer | Inspect health | 1 | PRIVATE | ✅ Engine/container health summary includes running/stopped/unhealthy state |
 | Docker / Portainer | Inspect CPU/RAM/network stats | 1 | PRIVATE | ✅ Container stats through Portainer |
 | Docker / Portainer | Inspect engine/container health summary | 1 | PRIVATE | ✅ Engine version/counts plus running/stopped/unhealthy container summary |
 | Docker / Portainer | Inspect images | 1 | PRIVATE | ✅ |
@@ -483,19 +483,33 @@ Current autonomous exploration capabilities include:
 - `fleet.enroll` at Level 4: exact candidate/node/key/endpoint evidence plus a
   one-time Sparks approval is required. The tray Permissions page can issue that
   approval for a selected verified candidate.
+- Remote Fleet tools require **both** active identity/endpoint records and an
+  active trusted OPS Fleet membership. Partial enrollment state cannot activate
+  remote access.
 - `hardware.inspect`, `machine.list`, `machine.get`, and
   `remote.hardware.inspect` at Level 1.
 - Docker/Portainer reads at Level 1: endpoints, containers, container inspect,
   container stats, Docker info, health summary, images, volumes, networks, and
-  stack inventory.
+  stack inventory. The same read surface is available on enrolled remote nodes
+  through the Fleet agent.
 - `codebase.inspect`, `dev.status`, `dev.candidates.list`, and
   `dev.candidate.get` at Level 1 plus `dev.build` at Level 2. Candidate
-  building/testing remains isolated from the real workspace.
+  building/testing remains isolated from the real workspace. Host execution
+  receipts allow Sofía to truthfully report completed Level-2 or otherwise
+  host-authorized actions without weakening Level-3/4 admission.
 - `dev.apply`, `dev.rollback`, `dev.commit`, and `dev.push` remain
   protected Level 4 operations.
 
 Fleet candidate promotion remains deliberately separate from discovery:
 **adding/trusting/enrolling a computer into Fleet requires exact Sparks approval.**
+
+Approved network CIDR scopes, explicit Fleet-agent targets, automatic Fleet
+candidate discovery, scan interval, and maximum hosts per scope are configurable
+from the tray **Settings → Fleet** page and persist in canonical `sofia.db`.
+Read-only `network.discover` can use the approved scopes even when automatic
+Fleet candidate creation is disabled. Production uses these saved settings as
+canonical configuration; changing the background discovery configuration takes
+effect after the runtime is restarted.
 
 ## Final contract
 
