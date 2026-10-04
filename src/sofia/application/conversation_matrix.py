@@ -520,6 +520,7 @@ class ConversationMatrixMixin:
             # available, but expose only the current user turn and no
             # turn-specific domains/tools until the matrix works again.
             self._reset_matrix_turn()
+            self._current_matrix_message_id = message.id
             self._current_context_plan = ContextPlan(
                 included_domains=(),
                 excluded_domains=tuple(MatrixDomain),
