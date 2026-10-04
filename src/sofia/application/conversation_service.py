@@ -602,6 +602,9 @@ class ConversationService(ConversationMatrixMixin):
                 response = CognitiveResponse(
                     content=clothing_reply.strip()
                 )
+                response = self._matrix_finalize_deterministic_response(
+                    response
+                )
                 self._persist_response(response)
                 return response
 
