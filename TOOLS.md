@@ -189,6 +189,24 @@ below.
 
 ---
 
+## 5A. Level-5 authority-policy operations
+
+These names are part of the permission model but are **not cognitive tools Sofía
+may invoke for herself**:
+
+| Authority operation | Level | Meaning |
+|---|---:|---|
+| `permissions.grant` | 5 | Create/expand permission authority |
+| `permissions.revoke` | 5 | Revoke permission authority |
+| `permissions.classify` | 5 | Change a capability's risk classification |
+| `privacy.authority.change` | 5 | Change private/adult authority |
+| `fleet.trust-policy.change` | 5 | Change Fleet trust policy |
+
+Use the local operator surfaces documented above, especially
+`sofia.safe.permissions_cli` and the tray **Permissions** page. Sofía may
+inspect or propose these changes, but the cognitive runtime cannot self-authorize
+them.
+
 ## 6. Emergency operator stop
 
 Status:
