@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -47,7 +48,7 @@ class RecoverySnapshotManager:
     @staticmethod
     def _integrity(path:Path)->tuple[str,...]:
         uri=f"file:{path.resolve().as_posix()}?mode=ro"
-        with sqlite3.connect(uri,uri=True,timeout=10) as db:
+        with closing(sqlite3.connect(uri,uri=True,timeout=10)) as db:
             rows=db.execute("PRAGMA integrity_check").fetchall()
         return tuple(str(row[0]) for row in rows)
 

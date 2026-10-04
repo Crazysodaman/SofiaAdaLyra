@@ -107,3 +107,34 @@ def test_recovery_snapshot_is_verified_and_detects_tampering(tmp_path):
         fh.write(b"tamper")
 
     assert manager.verify(snapshot) is False
+
+
+def test_recovery_snapshot_and_verification_close_database_handles(tmp_path, monkeypatch):
+    import sqlite3
+    import sofia.clean.recovery as recovery_module
+
+    source = tmp_path / "source.db"
+    db = sqlite3.connect(source)
+    db.execute("CREATE TABLE evidence (value TEXT)")
+    db.execute("INSERT INTO evidence VALUES ('retained')")
+    db.commit()
+    db.close()
+    connections = []
+    connect = sqlite3.connect
+
+    def tracked_connect(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(recovery_module.sqlite3, "connect", tracked_connect)
+    manager = recovery_module.RecoverySnapshotManager(tmp_path / "recovery")
+    snapshot = manager.snapshot_sqlite(source)
+    assert snapshot.verified and manager.verify(snapshot)
+    assert len(connections) == 4
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
+    with connect(snapshot.snapshot) as reopened:
+        assert reopened.execute("SELECT value FROM evidence").fetchone() == ("retained",)
+    reopened.close()
