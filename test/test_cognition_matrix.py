@@ -244,7 +244,7 @@ def test_tool_exposure_selects_only_relevant_read_capability():
     assert plan.allow_tools is True
 
 
-def test_tool_exposure_fails_closed_for_unapproved_action():
+def test_tool_exposure_keeps_read_only_inspection_for_unapproved_action():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
     env = envelope("restart the Plex service")
@@ -258,8 +258,30 @@ def test_tool_exposure_fails_closed_for_unapproved_action():
     plan = planner.plan(env, turn, authority)
 
     assert authority.decision is AuthorityDecision.REQUIRES_APPROVAL
-    assert plan.capabilities == ()
-    assert plan.allow_tools is False
+    assert plan.capabilities == ("service.inspect",)
+    assert plan.allow_tools is True
+    assert "local.service.restart" not in plan.capabilities
+    assert "remote.service.restart" not in plan.capabilities
+
+
+def test_tool_exposure_keeps_safe_autonomous_dev_build_without_action_approval():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("build a code fix in an isolated worktree")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(can_respond=True, can_propose_actions=True),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert authority.decision is AuthorityDecision.REQUIRES_APPROVAL
+    assert "dev.build" in plan.capabilities
+    assert "dev.apply" not in plan.capabilities
+    assert "dev.commit" not in plan.capabilities
+    assert "dev.push" not in plan.capabilities
 
 
 def test_tool_exposure_allows_only_service_family_for_allowed_restart():
