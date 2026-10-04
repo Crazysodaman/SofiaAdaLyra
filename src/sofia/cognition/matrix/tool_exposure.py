@@ -22,6 +22,7 @@ _PROCESS = re.compile(r"\b(?:process(?:es)?|running\s+(?:apps?|programs?))\b", r
 _RUNNING_APP = re.compile(r"\b(?:is|are)\s+[A-Za-z0-9_.-]+\s+running\b|\bwhat(?:'|’)s\s+running\b", re.IGNORECASE)
 _HARDWARE = re.compile(r"\b(?:cpu|gpu|ram|memory\s+usage|hardware|sensors?)\b", re.IGNORECASE)
 _NETWORK = re.compile(r"\b(?:network|dns|routes?|interfaces?|packet\s+loss|latency)\b", re.IGNORECASE)
+_NETWORK_HOSTS = re.compile(r"\b(?:computers?|devices?|hosts?|machines?)\b", re.IGNORECASE)
 _SERVICE = re.compile(r"\bservices?\b", re.IGNORECASE)
 _SYSTEM = re.compile(r"\b(?:system|computer|local\s+host|host\s+status|uptime)\b", re.IGNORECASE)
 _MACHINE = re.compile(r"\b(?:machine|machines|inventory)\b", re.IGNORECASE)
@@ -107,6 +108,8 @@ class MatrixToolExposurePlanner:
             )
         if _NETWORK.search(text):
             _add(capabilities, "network.inspect")
+            if _DISCOVER.search(text) or _NETWORK_HOSTS.search(text):
+                _add(capabilities, "network.discover")
         if _SERVICE.search(text):
             _add(capabilities, "service.inspect")
         if _SYSTEM.search(text):
