@@ -131,6 +131,7 @@ class ConversationService(ConversationMatrixMixin):
         self._habit_continuity = None
         self._pre_response_hook = None
         self._clothing_action_handler = None
+        self._wardrobe_generation_handler = None
         self._voice_runtime_provider = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
@@ -184,6 +185,14 @@ class ConversationService(ConversationMatrixMixin):
         if handler is not None and not callable(handler):
             raise TypeError("clothing action handler must be callable or None")
         self._clothing_action_handler = handler
+
+    def set_wardrobe_generation_handler(self, handler) -> None:
+        """Install the host-owned generated-garment conversation boundary."""
+        if handler is not None and not callable(handler):
+            raise TypeError(
+                "wardrobe generation handler must be callable or None"
+            )
+        self._wardrobe_generation_handler = handler
 
     def set_voice_runtime_provider(self, provider) -> None:
         """Install a read-only host provider for current TTS runtime state."""
@@ -517,6 +526,26 @@ class ConversationService(ConversationMatrixMixin):
             principal=principal,
             channel=channel,
         )
+
+        generation_handler = self._wardrobe_generation_handler
+        if generation_handler is not None:
+            generation_reply = generation_handler(content=content)
+            if generation_reply is not None:
+                if (
+                    not isinstance(generation_reply, str)
+                    or not generation_reply.strip()
+                ):
+                    raise RuntimeError(
+                        "wardrobe generation handler returned invalid response text"
+                    )
+                response = CognitiveResponse(
+                    content=generation_reply.strip()
+                )
+                response = self._matrix_finalize_deterministic_response(
+                    response
+                )
+                self._persist_response(response)
+                return response
 
         clothing_handler = self._clothing_action_handler
         if clothing_handler is not None:
