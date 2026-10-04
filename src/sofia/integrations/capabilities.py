@@ -219,6 +219,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
                 lambda p:port.container_stats(p["container_id"])),
             _tool("portainer.info","Read Docker engine information through the configured Portainer endpoint.",_object(),
                 lambda p:port.info()),
+            _tool("portainer.summary","Summarize Docker engine/container health through Portainer. Read-only.",_object(),
+                lambda p:port.summary()),
             _tool("portainer.images","List Docker images through Portainer. Read-only.",_object(),
                 lambda p:port.images()),
             _tool("portainer.volumes","List Docker volumes through Portainer. Read-only.",_object(),
