@@ -268,6 +268,10 @@ class FleetDiscoveryCoordinator:
                             f"discovery conflicts with durable Fleet identity: "
                             f"{observation.host_id}"
                         )
+                if can_refine:
+                    # Refresh current discovery evidence even when platform and
+                    # architecture are unchanged. Enrollment deliberately
+                    # rejects stale evidence, so rediscovery must renew it.
                     self.registry.refine_candidate_identity(
                         observation.host_id,
                         platform=observation.platform,
