@@ -78,6 +78,7 @@ class EnvironmentConfiguration:
     home_assistant_current_location_subject: LocationSubject | None = None
     nws_enabled: bool = False
     nws_location_subject: LocationSubject = LocationSubject.USER
+    nws_station_id: str | None = None
     nws_user_agent: str = "SofiaAdaLyra/1.0"
 
     def __post_init__(self) -> None:
@@ -172,6 +173,15 @@ class EnvironmentConfiguration:
             raise TypeError(
                 "nws_location_subject must be LocationSubject"
             )
+        if self.nws_station_id is not None:
+            station = self.nws_station_id.strip().upper()
+            if (
+                not 3 <= len(station) <= 8
+                or not station.isascii()
+                or not station.isalnum()
+            ):
+                raise ValueError("nws_station_id must be a 3-8 character station ID")
+            object.__setattr__(self, "nws_station_id", station)
         if (
             not isinstance(self.nws_user_agent, str)
             or not self.nws_user_agent.strip()
@@ -359,6 +369,10 @@ def environment_configuration_from_environ(
             "SOFIA_ENVIRONMENT_NWS_LOCATION_SUBJECT must be "
             "user, site, or host"
         ) from exc
+    nws_station_id = env.get(
+        "SOFIA_ENVIRONMENT_NWS_STATION_ID",
+        "",
+    ).strip() or None
     nws_user_agent = env.get(
         "SOFIA_ENVIRONMENT_NWS_USER_AGENT",
         "SofiaAdaLyra/1.0",
@@ -400,5 +414,6 @@ def environment_configuration_from_environ(
         home_assistant_current_location_subject=ha_location_subject,
         nws_enabled=nws_enabled,
         nws_location_subject=nws_location_subject,
+        nws_station_id=nws_station_id,
         nws_user_agent=nws_user_agent,
     )
