@@ -17,6 +17,9 @@ from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.safe.permissions import automatic_capabilities
 
 
+_DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS = 768
+
+
 def _repository_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
@@ -219,6 +222,7 @@ def _routing_configuration_from_environ(
             "SOFIA_COGNITION_PRIMARY_CONTEXT_SIZE",
             default=user_settings.cognitive_primary_context_size,
         ),
+        max_output_tokens=base.max_output_tokens,
         thinking=base.thinking,
     )
     secondary = ProviderConfiguration(
@@ -230,6 +234,7 @@ def _routing_configuration_from_environ(
             "SOFIA_COGNITION_SECONDARY_CONTEXT_SIZE",
             default=user_settings.cognitive_secondary_context_size,
         ),
+        max_output_tokens=base.max_output_tokens,
         thinking=False,
     )
     return CognitiveRoutingConfiguration(
@@ -355,6 +360,7 @@ def create_default_configuration(
         provider="ollama",
         model=user_settings.provider_model,
         context_size=user_settings.provider_context_size,
+        max_output_tokens=_DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,
         thinking=user_settings.provider_thinking,
     )
 
