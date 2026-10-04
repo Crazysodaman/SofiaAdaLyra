@@ -301,3 +301,40 @@ def test_no_real_asset_proof_from_metadata():
     from sofia.avatar.wardrobe import VisibilityDenied
     with pytest.raises(VisibilityDenied):
         wardrobe().require_public_ready(result.outfit)
+
+
+
+def test_outfit_planner_rejects_private_garments_in_public_plan():
+    private_accessory = Garment(
+        "private_neck",
+        "Private neck piece",
+        Layer.ACCESSORY,
+        ("neck",),
+        (),
+        private_only=True,
+    )
+    public_top = Garment(
+        "public_top",
+        "Public top",
+        Layer.BASE,
+        ("torso",),
+        ("torso",),
+    )
+    public_bottom = Garment(
+        "public_bottom",
+        "Public bottom",
+        Layer.BASE,
+        ("pelvis",),
+        ("pelvis",),
+    )
+    w = Wardrobe((private_accessory, public_top, public_bottom))
+    unsafe = OutfitPlan(
+        "unsafe.public",
+        ("public_top", "public_bottom", "private_neck"),
+        frozenset({Activity.CONVERSATION}),
+        frozenset(Season),
+        private_only=False,
+    )
+
+    with pytest.raises(WardrobeError, match="private-only"):
+        OutfitPlanner(w, (unsafe,))
