@@ -760,26 +760,6 @@ class OutfitPlanner:
                 "host must use verified fallback"
             )
 
-        physical_environment_grounded = any(
-            value is not None
-            for value in (
-                context.effective_temperature_c,
-                context.precipitation_kind,
-                context.wind_kph,
-            )
-        )
-        if physical_environment_grounded and self._designs:
-            suitable = [
-                entry
-                for entry in compatible
-                if not self._outfit_profile_score(
-                    entry[0],
-                    context,
-                )[1]
-            ]
-            if suitable:
-                compatible = suitable
-
         recent = tuple(sorted((w for w in worn if timedelta(0) <= (
             context.now.astimezone(timezone.utc) - w.occurred_at.astimezone(timezone.utc)
         ) <= timedelta(days=90)), key=lambda w: (w.occurred_at.astimezone(timezone.utc), w.renderer_receipt_id)))
