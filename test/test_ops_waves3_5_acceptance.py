@@ -6,7 +6,7 @@ import pytest
 
 from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
-from sofia.ops import AuthenticatedPeerEvidence, BackupEvidence, DesiredHostState, DesiredWorkloadPlacement, FleetEnrollmentService, FleetHost, FleetRegistry, FleetRemovalApproval, FleetRemovalApprovalRequired, HostLifecycle, MachineNodeBinding, MaintenanceOperation, MaintenancePolicy, MaintenanceRequest, RecoveryDenied, RecoveryGuard, RestoreVerification, WorkloadInstance, WorkloadPhase, detect_drift
+from sofia.ops import AuthenticatedPeerEvidence, BackupEvidence, DesiredHostState, DesiredWorkloadPlacement, FleetEnrollmentApproval, FleetEnrollmentService, FleetHost, FleetRegistry, FleetRemovalApproval, FleetRemovalApprovalRequired, HostLifecycle, MachineNodeBinding, MaintenanceOperation, MaintenancePolicy, MaintenanceRequest, RecoveryDenied, RecoveryGuard, RestoreVerification, WorkloadInstance, WorkloadPhase, detect_drift
 
 NOW=datetime.now(timezone.utc)
 
@@ -75,7 +75,21 @@ def test_authenticated_enrollment_binds_machine_node_and_peer_key():
     binding=MachineNodeBinding("venus",node_id,NOW,"authenticated-net-binding")
     peer=AuthenticatedPeerEvidence(node_id,pin,NOW,"NET authenticated transport")
     registry=FleetRegistry()
-    enrolled=FleetEnrollmentService(registry).enroll(candidate,binding=binding,enrollment=enrollment,peer=peer)
+    approval=FleetEnrollmentApproval(
+        "enroll-venus",
+        "venus",
+        node_id,
+        pin,
+        "Sparks",
+        NOW,
+    )
+    enrolled=FleetEnrollmentService(registry).enroll(
+        candidate,
+        binding=binding,
+        enrollment=enrollment,
+        peer=peer,
+        approval=approval,
+    )
     assert enrolled.trusted
     assert enrolled.lifecycle is HostLifecycle.ENROLLED
     assert enrolled.node_id == node_id
@@ -90,6 +104,14 @@ def test_authenticated_enrollment_rejects_wrong_peer_key():
             binding=MachineNodeBinding("venus",node_id,NOW,"binding"),
             enrollment=enrollment,
             peer=AuthenticatedPeerEvidence(node_id,"b"*64,NOW,"NET"),
+            approval=FleetEnrollmentApproval(
+                "enroll-venus",
+                "venus",
+                node_id,
+                "a"*64,
+                "Sparks",
+                NOW,
+            ),
         )
 
 def test_recovery_requires_verified_restore_and_independent_failure_domain():
