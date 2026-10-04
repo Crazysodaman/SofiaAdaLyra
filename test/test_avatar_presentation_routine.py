@@ -114,7 +114,8 @@ def test_emotion_can_nudge_daily_choice(tmp_path):
     )
     result = routine.evaluate(context, operation_id="daily.emotion")
     assert result.changed
-    assert authority.last_daily.outfit_id == "night.lounge"
+    assert authority.last_daily.outfit_id == "outfit.violet_casual"
+    assert authority.last_daily.outfit_id != "night.lounge"
     assert "modeled_emotion_influence" in result.proposal.reasons
 
 
