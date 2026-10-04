@@ -21,6 +21,39 @@ class PortainerAdapter:
         data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/containers/{container_id}/json")
         if not isinstance(data,dict): raise RuntimeError("invalid Docker inspect response")
         return data
+    def container_stats(self,container_id:str)->dict[str,Any]:
+        if not container_id.strip() or "/" in container_id: raise ValueError("invalid container_id")
+        data=self.http.request(
+            "GET",
+            f"/api/endpoints/{self.endpoint_id}/docker/containers/{container_id}/stats",
+            query={"stream":"false"},
+        )
+        if not isinstance(data,dict): raise RuntimeError("invalid Docker stats response")
+        return data
+    def info(self)->dict[str,Any]:
+        data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/info")
+        if not isinstance(data,dict): raise RuntimeError("invalid Docker info response")
+        return data
+    def images(self)->list[dict[str,Any]]:
+        data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/images/json")
+        if not isinstance(data,list): raise RuntimeError("invalid Docker images response")
+        return data
+    def volumes(self)->dict[str,Any]:
+        data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/volumes")
+        if not isinstance(data,dict): raise RuntimeError("invalid Docker volumes response")
+        return data
+    def networks(self)->list[dict[str,Any]]:
+        data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/networks")
+        if not isinstance(data,list): raise RuntimeError("invalid Docker networks response")
+        return data
+    def stacks(self)->list[dict[str,Any]]:
+        data=self.http.request(
+            "GET",
+            "/api/stacks",
+            query={"endpointId":self.endpoint_id},
+        )
+        if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
+        return data
     def restart(self,container_id:str,*,timeout_seconds:int=10)->None:
         if not container_id.strip() or "/" in container_id: raise ValueError("invalid container_id")
         if timeout_seconds<0 or timeout_seconds>300: raise ValueError("timeout_seconds out of range")
