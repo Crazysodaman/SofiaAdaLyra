@@ -239,8 +239,26 @@ class EmotionalConversationService(ConversationService):
 
     def ready_for_idle_reflection(self, *, idle_seconds: float) -> bool:
         """Avoid idle inference during or shortly after any application channel."""
-        return self._activity_group.ready_for_idle(
-            idle_seconds=idle_seconds
+        activity_group = getattr(self, "_activity_group", None)
+        if activity_group is not None:
+            return activity_group.ready_for_idle(
+                idle_seconds=idle_seconds
+            )
+
+        # Preserve the service-level contract for lightweight harnesses that
+        # intentionally construct this class without __init__. Production
+        # instances always use ConversationActivityGroup.
+        if (
+            isinstance(idle_seconds, bool)
+            or not isinstance(idle_seconds, (int, float))
+            or idle_seconds < 0
+        ):
+            raise ValueError("idle_seconds must be a nonnegative number")
+        now = monotonic()
+        return (
+            getattr(self, "_active_user_requests", 0) == 0
+            and now - getattr(self, "_last_user_activity", now)
+            >= idle_seconds
         )
 
     def respond(
