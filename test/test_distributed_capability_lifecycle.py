@@ -1,10 +1,12 @@
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
 import sofia.distributed.capability as fleet_capability
 from sofia.distributed.capability import RemoteFleetToolService
+from sofia.distributed.operations import RemoteOperationResult, RemoteOutcome
 
 
 def _service(tmp_path: Path) -> RemoteFleetToolService:
@@ -149,3 +151,177 @@ def test_remote_fleet_tool_call_closes_durable_state_on_failure(
         "control:close",
         "endpoint:close",
     ]
+
+
+def test_enrolled_remote_read_only_inspection_needs_no_human_grant(
+    tmp_path,
+    monkeypatch,
+):
+    node_id = uuid4()
+    generated_grant = SimpleNamespace(grant_id=uuid4())
+    calls = []
+
+    class FakeEndpointPolicy:
+        def __init__(self, _path):
+            pass
+
+        def get(self, _node_id):
+            return SimpleNamespace()
+
+        def close(self):
+            pass
+
+    class FakeTransport:
+        def __init__(self, endpoint_lookup, **_kwargs):
+            assert callable(endpoint_lookup)
+
+    class FakeAuthorization:
+        def find_active(self, *, node_id, capability, operation, now):
+            calls.append(("find", node_id, capability, operation))
+            return None
+
+        def ensure_read_only_policy_grant(
+            self,
+            *,
+            node_id,
+            capability,
+            operation,
+            now,
+        ):
+            calls.append(("policy", node_id, capability, operation))
+            return generated_grant
+
+    class FakeControl:
+        def __init__(self, **_kwargs):
+            self.identities = SimpleNamespace(
+                get=lambda requested: (
+                    SimpleNamespace(node=SimpleNamespace(node_id=node_id))
+                    if requested == node_id
+                    else None
+                )
+            )
+            self.endpoints = SimpleNamespace(
+                get=lambda requested: (
+                    SimpleNamespace() if requested == node_id else None
+                )
+            )
+            self.authorization = FakeAuthorization()
+
+        def invoke(self, enrollment, endpoint, request, *, now):
+            assert request.grant_id == generated_grant.grant_id
+            assert request.capability == "system.inspect"
+            assert request.operation == "hardware"
+            calls.append(("invoke", request.node_id))
+            return RemoteOperationResult(
+                request.request_id,
+                request.node_id,
+                RemoteOutcome.REPORTED_SUCCESS,
+                "hardware observed",
+            )
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableEndpointPolicy",
+        FakeEndpointPolicy,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "PinnedHttpsRemoteTransport",
+        FakeTransport,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableRemoteControl",
+        FakeControl,
+    )
+
+    result = _service(tmp_path).invoke(
+        str(node_id),
+        "system.inspect",
+        "hardware",
+        {},
+    )
+
+    assert result["outcome"] == "reported_success"
+    assert any(item[0] == "policy" for item in calls)
+    assert any(item[0] == "invoke" for item in calls)
+
+
+def test_remote_mutation_without_human_grant_stays_denied(
+    tmp_path,
+    monkeypatch,
+):
+    node_id = uuid4()
+    invoked = []
+
+    class FakeEndpointPolicy:
+        def __init__(self, _path):
+            pass
+
+        def get(self, _node_id):
+            return SimpleNamespace()
+
+        def close(self):
+            pass
+
+    class FakeTransport:
+        def __init__(self, endpoint_lookup, **_kwargs):
+            assert callable(endpoint_lookup)
+
+    class FakeAuthorization:
+        def find_active(self, *, node_id, capability, operation, now):
+            return None
+
+        def ensure_read_only_policy_grant(self, **_kwargs):
+            raise AssertionError("mutation must never receive a read-only policy grant")
+
+    class FakeControl:
+        def __init__(self, **_kwargs):
+            self.identities = SimpleNamespace(
+                get=lambda requested: (
+                    SimpleNamespace(node=SimpleNamespace(node_id=node_id))
+                    if requested == node_id
+                    else None
+                )
+            )
+            self.endpoints = SimpleNamespace(
+                get=lambda requested: (
+                    SimpleNamespace() if requested == node_id else None
+                )
+            )
+            self.authorization = FakeAuthorization()
+
+        def invoke(self, *_args, **_kwargs):
+            invoked.append(True)
+            raise AssertionError("remote mutation must not execute")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableEndpointPolicy",
+        FakeEndpointPolicy,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "PinnedHttpsRemoteTransport",
+        FakeTransport,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableRemoteControl",
+        FakeControl,
+    )
+
+    with pytest.raises(PermissionError, match="human grant"):
+        _service(tmp_path).invoke(
+            str(node_id),
+            "service.manage",
+            "restart",
+            {"name": "example"},
+        )
+    assert invoked == []
