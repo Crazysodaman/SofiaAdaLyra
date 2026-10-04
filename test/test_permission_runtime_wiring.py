@@ -3,7 +3,9 @@ import sqlite3
 
 import pytest
 
+from sofia.capability.catalog import ToolCatalogCapability
 from sofia.capability.model import Capability, CapabilityRequest
+from sofia.capability.system import CapabilitySystem
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
@@ -408,3 +410,67 @@ def test_dev_build_tool_schema_does_not_require_or_offer_approval_id():
         schema = bindings[protected].definition.parameters
         assert "approval_id" in schema["properties"]
         assert "approval_id" in schema["required"]
+
+
+def test_legacy_standing_configuration_cannot_authorize_level_three(tmp_path):
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=("storage.mkdir",),
+    )
+    authorizer = create_capability_authorizer(
+        runtime_provider=lambda: object(),
+        configuration=configuration,
+        operator_stop=OperatorStopStore(configuration.state_path),
+    )
+    request = CapabilityRequest(
+        capability=Capability("storage.mkdir", "Create a directory."),
+        parameters={"root_index": 0, "path": "legacy-bypass"},
+        requested_scope=None,
+        rationale="legacy config must not grant a mutation",
+    )
+    assert authorizer(request) is False
+
+
+def test_runtime_ignores_legacy_mutating_standing_configuration(tmp_path):
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=("storage.mkdir",),
+    )
+    runtime = compose(configuration)
+    assert runtime.current_authority().can_use_capability("storage.mkdir") is False
+
+
+def test_tool_catalog_reads_live_authority_provider():
+    allowed = {"hardware.inspect"}
+    system = CapabilitySystem(authorization_checker=lambda _request: True)
+    hardware = Capability("hardware.inspect", "Read hardware.")
+    system.register(hardware, lambda _request: {"ok": True})
+    catalog = ToolCatalogCapability(system, lambda: tuple(allowed))
+    system.register(catalog.capability, catalog.execute)
+
+    request = CapabilityRequest(
+        capability=catalog.capability,
+        parameters={},
+        requested_scope=None,
+        rationale="inspect tools",
+    )
+    first = {item["name"]: item for item in catalog.execute(request)}
+    assert first["hardware.inspect"]["standing_authorized"] is True
+
+    allowed.clear()
+    second = {item["name"]: item for item in catalog.execute(request)}
+    assert second["hardware.inspect"]["standing_authorized"] is False
