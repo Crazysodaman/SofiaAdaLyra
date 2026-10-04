@@ -121,6 +121,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         catalog=SimpleNamespace(
             wardrobe=object(),
             presets=(),
+            blueprints=(),
         ),
         matrix_for=lambda item_ids: None,
     )
@@ -130,7 +131,7 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
     )
     monkeypatch.setattr(
         "sofia.application.bootstrap.OutfitPlanner",
-        lambda wardrobe, presets: None,
+        lambda wardrobe, presets, **kwargs: None,
     )
     monkeypatch.setattr(
         "sofia.application.bootstrap.HeadlessPresentationRoutine",
