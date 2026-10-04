@@ -279,6 +279,7 @@ def run_settings_window() -> int:
     location_subject = tk.StringVar(value=runtime.location_subject.value)
     nws_enabled = tk.BooleanVar(value=runtime.nws_enabled)
     nws_subject = tk.StringVar(value=runtime.nws_location_subject.value)
+    nws_station_id = tk.StringVar(value=runtime.nws_station_id or "")
     nws_user_agent = tk.StringVar(value=runtime.nws_user_agent)
     refresh_seconds = tk.StringVar(value=str(runtime.refresh_seconds))
     weather_age = tk.StringVar(value=str(runtime.weather_max_age_seconds))
@@ -640,6 +641,11 @@ def run_settings_window() -> int:
         textvariable=nws_subject,
         values=("user", "site", "host"),
         state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 6))
+    ttk.Label(weather_frame, text="NWS observation station").pack(anchor="w")
+    ttk.Entry(
+        weather_frame,
+        textvariable=nws_station_id,
     ).pack(anchor="w", fill="x", pady=(2, 6))
     ttk.Label(weather_frame, text="NWS User-Agent").pack(anchor="w")
     ttk.Entry(
@@ -1266,6 +1272,7 @@ def run_settings_window() -> int:
                 location_subject=selected_location_subject,
                 nws_enabled=bool(nws_enabled.get()),
                 nws_location_subject=selected_nws_subject,
+                nws_station_id=_optional_text(nws_station_id.get()),
                 nws_user_agent=nws_user_agent.get().strip(),
                 refresh_seconds=_positive(
                     refresh_seconds.get(),
