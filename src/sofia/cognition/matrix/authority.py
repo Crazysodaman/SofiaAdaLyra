@@ -67,6 +67,7 @@ class MatrixAuthorityPlanner:
             return AuthorityPlan(
                 AuthorityDecision.NOT_REQUIRED,
                 reason="turn does not request an executable action",
+                allowed_capabilities=authority.allowed_capabilities,
             )
 
         text = envelope.content.strip()
@@ -79,6 +80,7 @@ class MatrixAuthorityPlanner:
                     "host-defined representational interaction safety "
                     "control is directly enforceable"
                 ),
+                allowed_capabilities=authority.allowed_capabilities,
             )
 
         if _SELF_PRESENTATION_SUGGESTION.search(text):
@@ -102,6 +104,7 @@ class MatrixAuthorityPlanner:
                     "primary target is ambiguous across runtime/model/"
                     "database/Fleet authority domains"
                 ),
+                allowed_capabilities=authority.allowed_capabilities,
             )
 
         if authority.can_execute_actions:
@@ -109,6 +112,7 @@ class MatrixAuthorityPlanner:
                 AuthorityDecision.ALLOWED,
                 requested_action=text,
                 reason="host authority permits action execution",
+                allowed_capabilities=authority.allowed_capabilities,
             )
 
         if authority.can_propose_actions:
@@ -119,10 +123,12 @@ class MatrixAuthorityPlanner:
                     "host authority permits proposals but not execution "
                     "without approval"
                 ),
+                allowed_capabilities=authority.allowed_capabilities,
             )
 
         return AuthorityPlan(
             AuthorityDecision.DENIED,
             requested_action=text,
             reason="host authority does not permit action proposal or execution",
+            allowed_capabilities=authority.allowed_capabilities,
         )
