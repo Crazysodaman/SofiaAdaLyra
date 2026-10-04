@@ -328,6 +328,7 @@ class AuthorityPlan:
     decision: AuthorityDecision
     requested_action: str | None = None
     reason: str = ""
+    allowed_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.decision, AuthorityDecision):
@@ -341,6 +342,19 @@ class AuthorityPlan:
             )
         if not isinstance(self.reason, str):
             raise TypeError("reason must be a string")
+        if not isinstance(self.allowed_capabilities, tuple):
+            raise TypeError("allowed_capabilities must be a tuple")
+        if any(
+            not isinstance(item, str) or not item.strip()
+            for item in self.allowed_capabilities
+        ):
+            raise ValueError(
+                "allowed_capabilities must contain nonempty strings"
+            )
+        if len(set(self.allowed_capabilities)) != len(
+            self.allowed_capabilities
+        ):
+            raise ValueError("allowed_capabilities must be unique")
 
 
 @dataclass(frozen=True, slots=True)
