@@ -136,7 +136,46 @@ class WardrobeGenerationConversationService:
             private_only=private_only,
         )
 
-    def handle(self, *, content: str) -> str | None:
+    def handle(
+        self,
+        *,
+        content: str,
+        previous_assistant_content: str | None = None,
+        principal: PrincipalContext | None = None,
+    ) -> str | None:
+        if not isinstance(content, str):
+            raise TypeError("content must be str")
+        if previous_assistant_content is not None and not isinstance(
+            previous_assistant_content,
+            str,
+        ):
+            raise TypeError(
+                "previous_assistant_content must be str or None"
+            )
+        if principal is not None and not isinstance(
+            principal,
+            PrincipalContext,
+        ):
+            raise TypeError("principal must be PrincipalContext or None")
+
+        if (
+            self._resolve_pending is not None
+            and self._is_pending_followup(
+                content,
+                previous_assistant_content=previous_assistant_content,
+                principal=principal,
+            )
+        ):
+            try:
+                resolved = self._resolve_pending(content.strip())
+            except WardrobeError:
+                return (
+                    "I couldn't safely resolve that pending garment choice, "
+                    "so I left it pending instead of changing my wardrobe."
+                )
+            if resolved is not None:
+                return self._render_result(*resolved)
+
         brief = self.brief_for(content)
         if brief is None:
             return None
@@ -147,25 +186,4 @@ class WardrobeGenerationConversationService:
                 "I couldn't turn that into a valid new garment after validation, "
                 "so I didn't add anything to my wardrobe."
             )
-        name = blueprint.garment.name
-
-        if result.decision is SofiaGarmentDecision.ACCEPT:
-            if not result.persisted:
-                raise RuntimeError(
-                    "accepted generated garment was not persisted"
-                )
-            return (
-                f"I designed {name} and decided I want to keep it. "
-                "It's now part of my wardrobe. "
-                f"My reason: {result.reason}"
-            )
-        if result.decision is SofiaGarmentDecision.ASK_SPARKS:
-            return (
-                f"I designed {name}, but I'm genuinely unsure whether I want "
-                "to keep it, so I'm asking you before anything is added. "
-                f"My reason: {result.reason}"
-            )
-        return (
-            f"I designed {name}, but I decided not to add it to my wardrobe. "
-            f"My reason: {result.reason}"
-        )
+        return self._render_result(blueprint, result)
