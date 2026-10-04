@@ -108,3 +108,78 @@ def test_agent_inference_policy_is_read_only_owner_configuration(monkeypatch):
     assert result == {
         "allowed_models": ["primary:model", "secondary:model"]
     }
+
+
+class FakePortainer:
+    def __init__(self, base_url, api_key, endpoint_id):
+        self.base_url = base_url
+        self.api_key = api_key
+        self.endpoint_id = endpoint_id
+
+    def containers(self):
+        return [{"Id": "container"}]
+
+    def container(self, container):
+        return {"Id": container}
+
+    def container_stats(self, container):
+        return {"container": container, "cpu_stats": {}}
+
+    def info(self):
+        return {"ServerVersion": "27.0"}
+
+    def summary(self):
+        return {"running": ("healthy",), "unhealthy": ()}
+
+    def images(self):
+        return [{"Id": "image"}]
+
+    def volumes(self):
+        return {"Volumes": []}
+
+    def networks(self):
+        return [{"Id": "network"}]
+
+    def stacks(self):
+        return [{"Id": 1, "Name": "stack"}]
+
+    def restart(self, container, *, timeout_seconds=10):
+        return {"container": container, "timeout_seconds": timeout_seconds}
+
+
+def test_agent_portainer_advertises_expanded_read_only_docker_surface(
+    monkeypatch,
+):
+    monkeypatch.setenv("SOFIA_AGENT_PORTAINER_URL", "http://portainer.local")
+    monkeypatch.setenv("SOFIA_AGENT_PORTAINER_API_KEY", "secret")
+    monkeypatch.setenv("SOFIA_AGENT_PORTAINER_ENDPOINT_ID", "2")
+    monkeypatch.setattr(tools_module, "PortainerAdapter", FakePortainer)
+
+    dispatcher = create_default_agent_dispatcher()
+    capabilities = {
+        item.name: set(item.operations)
+        for item in dispatcher.inventory()
+    }
+
+    assert capabilities["container.inspect"] == {
+        "list",
+        "get",
+        "stats",
+        "info",
+        "summary",
+        "images",
+        "volumes",
+        "networks",
+        "stacks",
+    }
+    assert capabilities["container.manage"] == {"restart"}
+    assert dispatcher.execute(
+        "container.inspect",
+        "stats",
+        {"container": "abc"},
+    )["container"] == "abc"
+    assert dispatcher.execute(
+        "container.inspect",
+        "summary",
+        {},
+    )["running"] == ["healthy"]
