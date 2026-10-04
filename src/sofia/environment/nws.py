@@ -302,16 +302,27 @@ class NwsEnvironmentProvider:
             except ServiceHTTPError:
                 forecast = ()
 
-        stations_url = point_properties.get(
-            "observationStations"
-        )
-        if not isinstance(stations_url, str) or not stations_url.strip():
-            return EnvironmentProviderObservation()
+        configured_station = self._configuration.nws_station_id
+        if configured_station is not None:
+            station_urls = (
+                self._adapter.normalize_url(
+                    "/stations/" + configured_station
+                ),
+            )
+        else:
+            stations_url = point_properties.get(
+                "observationStations"
+            )
+            if (
+                not isinstance(stations_url, str)
+                or not stations_url.strip()
+            ):
+                return EnvironmentProviderObservation()
+            stations = self._adapter.get(stations_url)
+            station_urls = self._station_urls(stations)
 
-        stations = self._adapter.get(stations_url)
         candidates: list[WeatherObservation] = []
         last_station_error: ServiceHTTPError | None = None
-        station_urls = self._station_urls(stations)
         for station_url in station_urls:
             latest_url = (
                 station_url.rstrip("/")
