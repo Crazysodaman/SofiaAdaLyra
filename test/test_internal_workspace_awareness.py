@@ -129,6 +129,23 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         "sofia.application.bootstrap.load_or_bootstrap_presentation",
         lambda *, embodiment, state_path: presentation_bundle,
     )
+
+    def install_presentation_bundle(application, bundle):
+        # These tests exercise application lifecycle behavior, not AVATAR
+        # composition. Preserve the production PresentationRuntimeBundle type
+        # boundary and stub only this unrelated installation seam.
+        application._presentation_bundle = bundle
+        application._presentation_routine = None
+        application._clothing_action_service = None
+        application._wardrobe_generation_service = None
+        runtime.set_avatar_presentation(bundle.authority)
+        runtime.set_avatar_matrix_builder(bundle.matrix_for)
+
+    monkeypatch.setattr(
+        SofiaApplication,
+        "_install_presentation_bundle",
+        install_presentation_bundle,
+    )
     monkeypatch.setattr(
         "sofia.application.bootstrap.OutfitPlanner",
         lambda wardrobe, presets, **kwargs: None,
