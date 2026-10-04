@@ -6,6 +6,8 @@ import pytest
 
 from sofia.avatar.wardrobe import Layer, VisibilityDenied, WardrobeError
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_design import ContentRating
+from sofia.avatar.wardrobe_planner import Activity, Season
 from sofia.avatar.wardrobe_prebuild import (
     DAY_DEFAULT_OUTFIT_ID,
     DRAFT_STATUS,
@@ -146,3 +148,44 @@ def test_blueprint_rejects_claimed_asset_or_design_identity_mismatch():
                 item_id="different.id",
             ),
         )
+
+
+def test_safe_fallback_is_complete_public_standard_and_context_neutral():
+    pack = build_starter_wardrobe()
+    plan = pack.preset(FALLBACK_OUTFIT_ID)
+
+    assert plan.item_ids == (
+        "base.bralette",
+        "base.briefs",
+        "day.technical_top",
+        "day.utility_trousers",
+        "day.work_socks",
+        "foot.black_everyday_sneakers",
+    )
+    assert plan.manual_only is True
+    assert plan.private_only is False
+    assert plan.weather == frozenset()
+    assert plan.seasons == frozenset(Season)
+    assert plan.activities == frozenset(Activity)
+
+    selection = pack.wardrobe.selection(plan.item_ids)
+    assert selection.covered_default is True
+    assert selection.private_only is False
+
+    by_id = {bp.garment.item_id: bp for bp in pack.blueprints}
+    fallback = [by_id[item_id] for item_id in plan.item_ids]
+    assert all(
+        item.content_rating is ContentRating.STANDARD
+        for item in fallback
+    )
+    assert all(not item.private_only for item in fallback)
+    assert not any(
+        item.design.garment_type in {
+            "engineer_jacket",
+            "bomber_jacket",
+            "coat",
+            "parka",
+            "rain_jacket",
+        }
+        for item in fallback
+    )

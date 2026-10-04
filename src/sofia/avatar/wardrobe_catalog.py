@@ -824,8 +824,12 @@ def build_starter_wardrobe(
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
     approved_presets = load_outfit_data_file("outfits.json", wardrobe)
     fallback_items = (
-        "base.bralette", "base.briefs", "day.technical_top",
+        "base.bralette",
+        "base.briefs",
+        "day.technical_top",
         "day.utility_trousers",
+        "day.work_socks",
+        "foot.black_everyday_sneakers",
     )
     presets = (
         *approved_presets,
