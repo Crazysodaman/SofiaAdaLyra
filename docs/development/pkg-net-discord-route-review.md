@@ -1,12 +1,12 @@
 # PKG-NET: Discord-only outbound route preflight and review
 
-**Status:** isolated offline code, not a firewall, live transport, or deployment. Base `main`; general web/search is deliberately out of scope until Discord and real 24/7 RUN acceptance.
+**Status:** historical prototype review. Phase 9 retired the unwired route classifier and its exclusive tests; see [net cleanup report](net-cleanup-report.md). Current network behavior belongs to the live Discord transport and authenticated distributed operations. The review below describes historical evidence and future transport requirements.
 
 ## Coded slice
 
-`src/sofia/net/discord_routes.py` supplies a disabled-by-default exact destination classifier for REST `https://discord.com/api/...` and Gateway `wss://gateway.discord.gg/` URLs on default or explicit port 443. It rejects deceptive host suffixes, IP/other hosts, plain HTTP/WS, unrelated paths, non-443 ports, userinfo, fragments and control characters. It cannot grant network access or authenticate traffic.
+The retired `src/sofia/net/discord_routes.py` supplied a disabled-by-default exact destination classifier for REST `https://discord.com/api/...` and Gateway `wss://gateway.discord.gg/` URLs on default or explicit port 443. It rejects deceptive host suffixes, IP/other hosts, plain HTTP/WS, unrelated paths, non-443 ports, userinfo, fragments and control characters. It cannot grant network access or authenticate traffic.
 
-**Focused test:** `PYTHONPATH=src python -m pytest -q test/test_net_discord_routes.py`. Equivalent code in isolated Python 3.13.5 / pytest 9.0.2: **29 passed**, plus MEM's 23 and VERIFY's 20, **72 combined passed**. GitHub checkout, Windows, CI, real TLS/Discord connection and full suite **not run**.
+**Historical test evidence (retired test file):** Equivalent code in isolated Python 3.13.5 / pytest 9.0.2: **29 passed**, plus MEM's 23 and VERIFY's 20, **72 combined passed**. GitHub checkout, Windows, CI, real TLS/Discord connection and full suite **not run**.
 
 ## Review at package gate
 

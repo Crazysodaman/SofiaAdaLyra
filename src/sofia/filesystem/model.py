@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -27,10 +27,6 @@ class FilesystemOperation(str, Enum):
     SEARCH_FILES = "search_files"
 
 
-class FilesystemInspectionError(Exception):
-    """
-    Raised when a filesystem inspection operation cannot be completed.
-    """
 
 
 @dataclass(frozen=True)

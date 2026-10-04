@@ -1,4 +1,4 @@
-﻿from sofia.filesystem.changes import (
+from sofia.filesystem.changes import (
     FilesystemChange,
     FilesystemChangeEvent,
     FilesystemChangeKind,
@@ -6,7 +6,6 @@
 )
 from sofia.filesystem.inspector import FilesystemInspector
 from sofia.filesystem.model import (
-    FilesystemInspectionError,
     FilesystemOperation,
     FilesystemResult,
     FilesystemResultKind,
@@ -25,7 +24,6 @@ __all__ = [
     "FilesystemChangeEvent",
     "FilesystemChangeKind",
     "FilesystemEntry",
-    "FilesystemInspectionError",
     "FilesystemObservation",
     "FilesystemObservationError",
     "FilesystemObservationStore",
