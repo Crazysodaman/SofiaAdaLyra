@@ -53,6 +53,7 @@ from sofia.safe.capability_policy import protected_capability_extras
 from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.safe.permission_capability import PermissionInspectionCapability, create_permission_tool_binding
 from sofia.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
@@ -269,7 +270,12 @@ def compose(
     capability_system = CapabilitySystem(
         authorization_checker=capability_authorized,
     )
+    permission_capability = PermissionInspectionCapability(permission_store)
 
+    capability_system.register(
+        capability=permission_capability.capability,
+        handler=permission_capability.execute,
+    )
     capability_system.register(
         capability=codebase_capability.capability,
         handler=codebase_capability.execute,
@@ -354,7 +360,7 @@ def compose(
     tool_dispatcher = CognitiveToolDispatcher(
         gateway=capability_gateway,
         bindings=(
-            (create_tool_catalog_binding(),create_filesystem_changes_binding())
+            (create_tool_catalog_binding(),create_permission_tool_binding(),create_filesystem_changes_binding())
             + create_default_tool_bindings(
                 filesystem_root
             )
