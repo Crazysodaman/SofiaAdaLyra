@@ -15,7 +15,16 @@ import re
 
 from .authoring import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
-from .wardrobe_planner import Activity, OutfitPlan, Season, Weather
+from .wardrobe_planner import (
+    Activity,
+    OutfitPlan,
+    Preference,
+    PreferenceActor,
+    PreferenceTarget,
+    Season,
+    Sentiment,
+    Weather,
+)
 
 # Closet inventory families, seasonal presets, and swimwear live here so all
 # catalog construction shares one set of wardrobe invariants.
@@ -694,6 +703,43 @@ class WardrobePrebuild:
             p.outfit_id for p in self.presets
         } for x in self.inputs):
             raise WardrobeError("style input references an unknown design")
+
+    def reviewed_preferences(self) -> tuple[Preference, ...]:
+        """Project reviewed source-backed taste into planner preference evidence."""
+        plan_ids = {plan.outfit_id for plan in self.presets}
+        blueprint_ids = {
+            blueprint.garment.item_id
+            for blueprint in self.blueprints
+        }
+        preferences: list[Preference] = []
+        for item in self.inputs:
+            if item.status is RequestStatus.USER_LIKED:
+                sentiment = Sentiment.LIKE
+            elif item.status is RequestStatus.USER_DISLIKED:
+                sentiment = Sentiment.DISLIKE
+            else:
+                continue
+
+            if item.subject_id in plan_ids:
+                target = PreferenceTarget.OUTFIT
+            elif item.subject_id in blueprint_ids:
+                target = PreferenceTarget.ITEM
+            else:
+                raise WardrobeError(
+                    "reviewed style input references unknown preference target"
+                )
+
+            preferences.append(
+                Preference(
+                    actor=PreferenceActor.SPARKS,
+                    target=target,
+                    ids=(item.subject_id,),
+                    sentiment=sentiment,
+                    source_id=item.source_id,
+                    reviewed=True,
+                )
+            )
+        return tuple(preferences)
 
     def preset(self, outfit_id: str) -> OutfitPlan:
         for plan in self.presets:

@@ -64,3 +64,23 @@ def test_canonical_style_evidence_has_no_invented_sofia_preference():
         RequestStatus.USER_REQUESTED,
         RequestStatus.USER_LIKED,
     }
+
+
+def test_reviewed_catalog_likes_feed_live_planner_preferences():
+    catalog = build_starter_wardrobe()
+    preferences = catalog.reviewed_preferences()
+
+    assert {
+        preference.ids[0]
+        for preference in preferences
+    } == {
+        "engineer.signature",
+        "lounge.relaxed",
+    }
+    assert all(preference.reviewed for preference in preferences)
+    assert all(preference.actor.value == "sparks" for preference in preferences)
+    assert all(preference.sentiment.value == 1 for preference in preferences)
+    assert GRAPHIC_TEE_ID not in {
+        preference.ids[0]
+        for preference in preferences
+    }

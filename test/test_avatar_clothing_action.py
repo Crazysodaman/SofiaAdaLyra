@@ -15,7 +15,7 @@ from sofia.avatar.presentation_store import (
     PresentationStore,
     PresentationStoreError,
 )
-from sofia.avatar.runtime_state import PresentationRuntimeBundle
+from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
 from sofia.avatar.wardrobe import Layer
 from sofia.avatar.wardrobe_planner import (
     Activity,

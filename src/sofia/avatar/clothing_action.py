@@ -102,6 +102,9 @@ class ClothingActionService:
             bundle.catalog.wardrobe,
             bundle.catalog.presets,
         )
+        self._reviewed_preferences = (
+            bundle.catalog.reviewed_preferences()
+        )
 
     def handle(
         self,
@@ -569,7 +572,8 @@ class ClothingActionService:
         ):
             try:
                 proposal = self._planner.suggest(
-                    autonomy_context.wardrobe_context
+                    autonomy_context.wardrobe_context,
+                    preferences=self._reviewed_preferences,
                 )
             except (WardrobeError, WardrobeConflict):
                 proposal = None

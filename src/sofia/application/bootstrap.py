@@ -563,9 +563,16 @@ class SofiaApplication:
             activity=Activity.CONVERSATION,
             emotion_influences=emotion_influences,
         )
+        bundle = getattr(self, "_presentation_bundle", None)
+        preferences = (
+            ()
+            if bundle is None
+            else bundle.catalog.reviewed_preferences()
+        )
         return routine.evaluate(
             context,
             operation_id=operation_id,
+            preferences=preferences,
         )
 
     def _rollback_failed_start(self) -> tuple[str, ...]:
