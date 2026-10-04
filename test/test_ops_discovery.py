@@ -16,6 +16,7 @@ from sofia.ops import (
     FleetDiscoveryEvidence,
     FleetDiscoveryEnrollmentReconciler,
     FleetRegistry,
+    FleetEnrollmentApproval,
     FleetEnrollmentService,
     AgentPackage,
     BootstrapDisposition,
@@ -131,7 +132,7 @@ def test_discovery_evidence_converts_to_existing_bootstrap_contract():
     assert candidate.installed_protocol_version == "1.0"
 
 
-def test_preapproved_discovered_identity_auto_enrolls(tmp_path):
+def test_preapproved_discovered_identity_stays_pending_without_sparks_approval(tmp_path):
     registry = FleetRegistry()
     coordinator = FleetDiscoveryCoordinator(registry)
     node_id = UUID("11111111-2222-3333-4444-555555555555")
@@ -180,10 +181,11 @@ def test_preapproved_discovered_identity_auto_enrolls(tmp_path):
 
     host = registry.host("Artemis")
     assert host is not None
-    assert host.lifecycle is HostLifecycle.ENROLLED
-    assert host.trusted is True
-    assert host.node_id == node_id
-    assert reconciled.enrolled_host_ids == ("Artemis",)
+    assert host.lifecycle is HostLifecycle.CANDIDATE
+    assert host.trusted is False
+    assert host.node_id is None
+    assert reconciled.enrolled_host_ids == ()
+    assert reconciled.pending_host_ids == ("Artemis",)
 
     identities.close()
     endpoints.close()
