@@ -6,7 +6,7 @@ from enum import Enum
 import json
 from pathlib import Path
 import sqlite3
-from .persistence import retire_legacy_file
+from sofia.state.atomic_file import retire_legacy_file
 
 class DocumentDisposition(str,Enum):
     ACTIVE="active"; SUPERSEDED="superseded"; INVALID="invalid"

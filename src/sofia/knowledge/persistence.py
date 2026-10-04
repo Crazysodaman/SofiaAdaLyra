@@ -2,6 +2,7 @@ from __future__ import annotations
 from contextlib import closing
 import json
 from pathlib import Path
+from sofia.state.atomic_file import retire_legacy_file
 from datetime import datetime
 import sqlite3
 from .model import KnowledgeDocument,KnowledgeFact,SourceKind
@@ -50,13 +51,6 @@ def load_legacy_knowledge(path: Path) -> KnowledgeStore:
     return store
 
 
-def retire_legacy_file(path: Path) -> None:
-    destination = path.with_name(path.name + ".migrated")
-    index = 1
-    while destination.exists():
-        destination = path.with_name(path.name + f".migrated.{index}")
-        index += 1
-    path.replace(destination)
 
 
 class SQLiteKnowledgeStore(KnowledgeStore):

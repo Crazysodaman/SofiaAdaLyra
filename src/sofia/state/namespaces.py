@@ -33,13 +33,6 @@ class StateNamespaceSpec:
             raise ValueError("audience-scoped state must also be principal-scoped")
 
 
-STATE_MIGRATION_LEASE = StateNamespaceSpec(
-    "state.migration.lease",
-    "MEM/RUN",
-    StateClass.SHARED_AUTHORITATIVE,
-    principal_scoped=False,
-    audience_scoped=False,
-)
 REL_CONTACT_OBSERVATION = StateNamespaceSpec(
     "rel.contact.observation",
     "REL",
@@ -94,26 +87,3 @@ HABIT_EVIDENCE_INVALIDATION = StateNamespaceSpec(
     audience_scoped=True,
     append_only=True,
 )
-
-NAMESPACE_SPECS = {
-    item.name: item
-    for item in (
-        STATE_MIGRATION_LEASE,
-        REL_CONTACT_OBSERVATION,
-        HABIT_OBSERVATION,
-        HABIT_COVERAGE,
-        HABIT_PATTERN,
-        HABIT_EXPECTATION,
-        HABIT_SUPPRESSION,
-        HABIT_EVIDENCE_INVALIDATION,
-    )
-}
-
-
-def namespace_spec(name: str) -> StateNamespaceSpec:
-    if not isinstance(name, str) or not name.strip():
-        raise ValueError("namespace name must be nonempty")
-    try:
-        return NAMESPACE_SPECS[name]
-    except KeyError as exc:
-        raise KeyError(f"unregistered State Plane namespace: {name}") from exc

@@ -4,6 +4,7 @@ from contextlib import closing
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from sofia.state.atomic_file import retire_legacy_file
 
 from sofia.machine.inventory import MachineInventory
 from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
@@ -31,14 +32,6 @@ def load_legacy_inventory(path: Path) -> MachineInventory:
     return deserialize_inventory(payload)
 
 
-def retire_legacy_file(path: Path) -> None:
-    """Keep imported evidence under a collision-free retired filename."""
-    destination = path.with_name(path.name + ".migrated")
-    index = 1
-    while destination.exists():
-        destination = path.with_name(path.name + f".migrated.{index}")
-        index += 1
-    path.replace(destination)
 
 
 class SQLiteMachineInventoryPersistence:

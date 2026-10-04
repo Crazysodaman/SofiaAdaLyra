@@ -77,6 +77,7 @@ class SQLiteStatePlane(StatePlane):
                 )
             db.commit()
 
+
     @property
     def schema_revision(self) -> int:
         with self._lock, closing(self._connect()) as db, db:
@@ -86,6 +87,7 @@ class SQLiteStatePlane(StatePlane):
         if row is None:
             raise RuntimeError("State Plane schema metadata is missing")
         return int(row["value"])
+
 
     @staticmethod
     def _scope(key: StateKey) -> tuple[str, str, str, str]:

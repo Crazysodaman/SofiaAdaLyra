@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane
-from sofia.machine.persistence import retire_legacy_file
+from sofia.state.atomic_file import retire_legacy_file
 
 
 SCHEMA_VERSION = 1
