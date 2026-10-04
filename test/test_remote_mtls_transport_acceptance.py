@@ -20,6 +20,9 @@ from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
 from sofia.distributed.operations import RemoteOperationRequest,RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate
+from sofia.ops.model import FleetHost,HostLifecycle
+from sofia.ops.state_registry import StatePlaneFleetRegistry
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 
 def _write_key(path:Path,key):
@@ -173,6 +176,19 @@ def test_operator_provisions_exact_node_endpoint_grant_and_retirement(tmp_path:P
     enroll_node(state_path,node_id=node_id,name="venus",server_certificate=server_cert)
     approve_endpoint(state_path,node_id=node_id,hostname="localhost",port=7443)
     grant=grant_operation(state_path,node_id=node_id,capability="system.inspect",operation="system",hours=1)
+
+    # Remote control now requires active trusted OPS Fleet membership in
+    # addition to durable node identity/endpoint records.
+    registry=StatePlaneFleetRegistry(
+        SQLiteStatePlane(state_path),
+        legacy_path=state_path.parent/"fleet.json",
+    )
+    registry.register_candidate(FleetHost(
+        "venus","unknown","unknown",HostLifecycle.CANDIDATE,False
+    ))
+    registry.authenticate_candidate("venus",node_id)
+    registry.transition("venus",HostLifecycle.ENROLLED)
+
     service=RemoteFleetToolService(
         state_path,ca_file=ca_path,client_certificate=client_cert,client_private_key=client_key
     )
