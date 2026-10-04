@@ -301,3 +301,41 @@ def test_runtime_answers_outfit_time_and_weather_in_one_turn_without_llm(tmp_pat
     assert "current weather evidence" in response.content.casefold()
     assert provider.requests == []
     app.shutdown()
+
+
+def test_runtime_preserves_partial_deterministic_multi_question_answers(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "what day is it, explain a database transaction?"
+                    ),
+                ),
+            ),
+        )
+    )
+
+    assert response.content == "Captured."
+    assert len(provider.requests) == 1
+    system = "\n".join(
+        message.content
+        for message in provider.requests[0].messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+    assert "TRUSTED DETERMINISTIC SUBQUESTION ANSWERS" in system
+    assert "Clause: what day is it" in system
+    assert "Authoritative answer:" in system
+    assert "current date" in system.casefold()
+    app.shutdown()
