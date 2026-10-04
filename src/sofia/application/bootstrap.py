@@ -7,7 +7,8 @@ from pathlib import Path
 from threading import RLock
 
 from sofia.avatar.clothing_action import ClothingActionService
-from sofia.avatar.authoring import WardrobeStudio
+from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
+from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
 from sofia.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
     GeneratedWardrobeStore,
@@ -538,6 +539,43 @@ class SofiaApplication:
                 },
             ),
         )
+
+    def evaluate_generated_wardrobe_piece(
+        self,
+        blueprint: GarmentBlueprint,
+    ) -> GarmentAcceptanceResult:
+        """Let Sofía's live cognition decide ownership, then enforce the gate."""
+        if not isinstance(blueprint, GarmentBlueprint):
+            raise TypeError("blueprint must be GarmentBlueprint")
+        with self._model_lock:
+            decision = GeneratedGarmentDecisionService(
+                self._runtime.respond
+            ).decide(blueprint)
+            return self.decide_generated_wardrobe_piece(
+                blueprint,
+                decision,
+            )
+
+    def generate_and_evaluate_wardrobe_piece(
+        self,
+        request: GarmentDesignRequest,
+    ) -> tuple[GarmentBlueprint, GarmentAcceptanceResult]:
+        """Create one typed proposal, then require Sofía's ownership decision."""
+        if not isinstance(request, GarmentDesignRequest):
+            raise TypeError("request must be GarmentDesignRequest")
+        with self._model_lock:
+            bundle = self._presentation_bundle
+            if bundle is None:
+                raise SofiaApplicationError(
+                    "AVATAR presentation must be started before wardrobe generation."
+                )
+            blueprint = WardrobeStudio(bundle.catalog).design_piece(
+                request
+            )
+            result = self.evaluate_generated_wardrobe_piece(
+                blueprint
+            )
+            return blueprint, result
 
     def decide_generated_wardrobe_piece(
         self,
