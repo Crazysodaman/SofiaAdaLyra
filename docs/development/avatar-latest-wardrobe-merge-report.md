@@ -619,3 +619,5 @@ Top-level constants: None.
 - `_outfit_profile_score` (line 674): source candidates none outside file; test candidates none.
 - `suggest` (line 692): source candidates `src/sofia/interaction/conversation_offer_context.py`, `src/sofia/avatar/presentation_routine.py`, `src/sofia/avatar/clothing_action.py`; test candidates `test/test_environment_behavior_matrix.py`, `test/test_avatar_wardrobe_routine.py`, `test/test_avatar_behavior_matrix.py`.
 - `score` (line 725): source candidates `src/sofia/personality/influence.py`, `src/sofia/knowledge/service.py`, `src/sofia/knowledge/retrieval.py`, `src/sofia/habits/patterns.py`, `src/sofia/habits/engine.py`, `src/sofia/emotion/projection.py`, `src/sofia/cognition/routing.py`, `src/sofia/avatar/wardrobe_design.py`, `src/sofia/verify/interaction/decision_expression_probe.py`; test candidates none.
+
+Final combined-source gate after all Phase 10 changes and latest-main wardrobe integration: 3224 passed, 5 unavailable-Ollama failures, 2 existing skips (73.66s). Compile, dependency consistency and retired-name checks passed; see [completion report](phases-7-10-cleanup-summary.md).

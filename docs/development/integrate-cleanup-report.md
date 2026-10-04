@@ -189,3 +189,5 @@ Top-level constants: None.
 - `SchemaValidationError` (line 5): source candidates `src/sofia/integrate/__init__.py`; test candidates `test/test_know_integrate_wave2_acceptance.py`, `test/test_know_integrate_waves3_5_acceptance.py`.
 - `_fail` (line 7): source candidates none outside file; test candidates none.
 - `validate_object` (line 10): source candidates `src/sofia/integrate/__init__.py`, `src/sofia/integrate/registry.py`; test candidates `test/test_know_integrate_wave2_acceptance.py`, `test/test_know_integrate_waves3_5_acceptance.py`.
+
+Final combined-source gate after all Phase 10 changes and latest-main wardrobe integration: 3224 passed, 5 unavailable-Ollama failures, 2 existing skips (73.66s). Compile, dependency consistency and retired-name checks passed; see [completion report](phases-7-10-cleanup-summary.md).

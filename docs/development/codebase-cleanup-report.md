@@ -168,3 +168,5 @@ Top-level constants: None.
 - `CodebaseRelationshipAnalyzer` (line 7): source candidates `src/sofia/codebase/__init__.py`, `src/sofia/codebase/inspector.py`; test candidates none.
 - `analyze` (line 10): source candidates `src/sofia/codebase/analyzers.py`, `src/sofia/codebase/inspector.py`, `src/sofia/codebase/python.py`; test candidates `test/test_codebase_analyzers.py`.
 - `_resolve_target` (line 55): source candidates none outside file; test candidates none.
+
+Final combined-source gate after all Phase 10 changes and latest-main wardrobe integration: 3224 passed, 5 unavailable-Ollama failures, 2 existing skips (73.66s). Compile, dependency consistency and retired-name checks passed; see [completion report](phases-7-10-cleanup-summary.md).
