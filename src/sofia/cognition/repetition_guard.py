@@ -393,6 +393,36 @@ def is_near_duplicate_reply(request: CognitiveRequest, response: CognitiveRespon
     return False
 
 
+def _has_intra_response_repetition(content: str) -> bool:
+    """Detect a completion looping on its own sentences or paragraphs."""
+    normalized = _normalized(content)
+    if len(normalized) < 220:
+        return False
+
+    paragraphs = tuple(
+        _normalized(part)
+        for part in re.split(r"\n\s*\n+", content)
+        if len(_normalized(part)) >= 48
+    )
+    paragraph_counts: dict[str, int] = {}
+    for paragraph in paragraphs:
+        paragraph_counts[paragraph] = paragraph_counts.get(paragraph, 0) + 1
+        if paragraph_counts[paragraph] >= 2:
+            return True
+
+    sentences = tuple(
+        _normalized(part)
+        for part in re.split(r"(?<=[.!?])\s+|\n+", content)
+        if len(_normalized(part)) >= 24
+    )
+    sentence_counts: dict[str, int] = {}
+    for sentence in sentences:
+        sentence_counts[sentence] = sentence_counts.get(sentence, 0) + 1
+        if sentence_counts[sentence] >= 3:
+            return True
+    return False
+
+
 def _repeats_previous_short_self_report(
     request: CognitiveRequest, response: CognitiveResponse,
 ) -> bool:
@@ -455,6 +485,8 @@ def response_quality_issue(
         return None
     if is_near_duplicate_reply(request, response):
         return "near_duplicate"
+    if _has_intra_response_repetition(response.content):
+        return "intra_response_repetition"
 
     user = request.messages[-1].content
     content = response.content
