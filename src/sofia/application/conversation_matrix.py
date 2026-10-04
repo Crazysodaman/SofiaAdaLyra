@@ -750,7 +750,10 @@ class ConversationMatrixMixin:
             content=(
                 "MATRIX RESPONSE CORRECTION: The previous draft is rejected "
                 "and must not become conversation history. Rewrite once using "
-                "only supplied evidence and host authority. Do not claim an "
+                "only supplied evidence and host authority. Return only the "
+                "clean user-facing answer. Never include hidden reasoning, "
+                "analysis sections, constitutional evaluation, personality "
+                "adaptation, strategy notes, or drafting notes. Do not claim an "
                 "action executed without authority and an execution receipt. "
                 "Do not invent current measurements or current weather. "
                 "Validation reasons: "
