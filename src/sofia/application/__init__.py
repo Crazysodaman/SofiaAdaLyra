@@ -1,8 +1,8 @@
 """Public application exports without an eager bootstrap/import cycle.
 
-Importing a conversation implementation must not initialize the application
-bootstrap, which itself imports that implementation. Resolve the bootstrap and
-terminal loop only when callers explicitly request those public symbols.
+Importing conversation services must not initialize the application bootstrap,
+which itself imports those services. Resolve bootstrap-owned public symbols only
+when callers explicitly request them.
 """
 from __future__ import annotations
 

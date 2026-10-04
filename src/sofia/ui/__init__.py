@@ -54,7 +54,7 @@ from sofia.ui.control_center import (
     tray_menu_labels,
 )
 __all__ = [
-    "AccessDenied","AdaptiveThemePolicy","ConflictError","DesktopWorkbenchController",
+    "AccessDenied","AdaptiveThemePolicy","ConflictError","ConversationLoop","DesktopWorkbenchController",
     "Entry","EntryKind","EntryStatus","ExpressionDelivery","Item","ItemKind",
     "PresentationChannel","PresentationStatus","QUICK_TOOLS","QuickTool",
     "ThemePalette","ThemeSignals","UIDraft","UIDraftStore","UITextClient","UITextMessage",
