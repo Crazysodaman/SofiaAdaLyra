@@ -1,3 +1,5 @@
+> Cleanup update: unwired `ui.delivery`, headless `ui.workbench`, remote-chat transport/endpoint/authority and Fleet tray-control prototypes were retired. The desktop and tray remain live; remote-chat settings are accepted only for legacy normalization to local mode. Historical candidate descriptions below are not current wiring. See [UI cleanup report](ui-cleanup-report.md).
+
 # PKG-UI current-main rebuild
 
 **Date:** 2026-09-26. **Historical branch:** `feature/pkg-ui-current-main`.
@@ -50,7 +52,7 @@ control, proactive send, voice engine, or avatar animation is enabled here.
 Focused:
 
 ```powershell
-pytest -q test/test_ui_delivery.py test/test_ui_drafts.py test/test_ui_text_client.py test/test_ui_workbench.py test/test_ui_application.py
+pytest -q test/test_ui_drafts.py test/test_ui_text_client.py test/test_ui_application.py
 ```
 
 Application/Discord regression:
