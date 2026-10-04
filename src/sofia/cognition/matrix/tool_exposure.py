@@ -95,7 +95,16 @@ class MatrixToolExposurePlanner:
         if _RUNNING_APP.search(text) or _PROCESS.search(text):
             _add(capabilities, "process.inspect")
         if _HARDWARE.search(text):
-            _add(capabilities, "hardware.inspect")
+            _add(
+                capabilities,
+                "hardware.inspect",
+                "machine.list",
+                "machine.get",
+                "ops.fleet.list",
+                "ops.fleet.get",
+                "remote.nodes",
+                "remote.hardware.inspect",
+            )
         if _NETWORK.search(text):
             _add(capabilities, "network.inspect")
         if _SERVICE.search(text):
