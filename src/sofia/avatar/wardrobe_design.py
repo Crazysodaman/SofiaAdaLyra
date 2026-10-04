@@ -11,9 +11,9 @@ import re
 
 from .wardrobe import Layer, WardrobeError
 
-_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\\Z", re.ASCII)
-_STYLE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\\Z", re.ASCII)
-_HEX = re.compile(r"#[0-9A-Fa-f]{6}\\Z")
+_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
+_STYLE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\Z", re.ASCII)
+_HEX = re.compile(r"#[0-9A-Fa-f]{6}\Z")
 
 PALETTE: dict[str, str] = {
     "black": "#0B0D12",
