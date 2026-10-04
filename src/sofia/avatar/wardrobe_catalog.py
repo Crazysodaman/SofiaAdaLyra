@@ -1476,11 +1476,12 @@ def _no_graphic() -> GraphicDesign:
 
 
 def build_starter_wardrobe() -> WardrobePrebuild:
-    """Build the intentionally small day/night starter closet."""
+    """Build the owned data-backed wardrobe plus canonical outfit presets."""
     blueprints = (
         *_load_underlayer_blueprints(),
         *_load_wardrobe_data_file("tops.json"),
         *_load_wardrobe_data_file("bottoms.json"),
+        *_load_wardrobe_data_file("one_pieces.json"),
         _blueprint(
             GarmentDesign(
                 "day.engineer_jacket", "Asymmetric engineer jacket",
