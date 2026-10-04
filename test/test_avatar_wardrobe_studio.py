@@ -58,19 +58,20 @@ def test_registered_composition_is_durable(tmp_path):
     assert plan.outfit_id in restored.available_outfit_ids
 
 
-def test_registered_composition_requires_durable_store(tmp_path):
+def test_standalone_studio_can_register_in_memory_for_authoring(tmp_path):
     catalog, _, authority, _ = setup(tmp_path)
     studio = WardrobeStudio(
         catalog,
         authority=authority,
     )
 
-    with pytest.raises(WardrobeError, match="durable store"):
-        studio.compose(
-            outfit_id="dynamic.studio.unsafe",
-            item_ids=catalog.preset("lounge.relaxed").item_ids,
-            activities=frozenset({Activity.CONVERSATION}),
-            seasons=frozenset(Season),
-            lounge=True,
-            register=True,
-        )
+    plan = studio.compose(
+        outfit_id="dynamic.studio.authoring",
+        item_ids=catalog.preset("lounge.relaxed").item_ids,
+        activities=frozenset({Activity.CONVERSATION}),
+        seasons=frozenset(Season),
+        lounge=True,
+        register=True,
+    )
+
+    assert plan.outfit_id in authority.available_outfit_ids
