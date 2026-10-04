@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 import json
+import time
 from typing import Any, Callable, Mapping, Protocol
 
 from sofia.state.model import StateClass, StateKey, StateRecord
@@ -52,6 +53,8 @@ class ReleaseFleetOperator(Protocol):
     def stage(self, host_id: str, release_id: str, manifest_sha256: str) -> Mapping[str, Any]: ...
     def activate(self, host_id: str, release_id: str, manifest_sha256: str) -> Mapping[str, Any]: ...
     def current(self, host_id: str) -> Mapping[str, Any]: ...
+    def restart_runtime(self, host_id: str) -> Mapping[str, Any]: ...
+    def runtime_healthy(self, host_id: str) -> bool: ...
     def rollback(self, host_id: str, failed_release_id: str, reason: str) -> Mapping[str, Any]: ...
 
 
@@ -116,11 +119,27 @@ class ReleaseRolloutCoordinator:
         *,
         state_plane: StatePlane,
         operator: ReleaseFleetOperator,
+        health_attempts: int = 10,
+        health_interval_seconds: float = 3.0,
+        sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         if not isinstance(state_plane, StatePlane):
             raise TypeError("state_plane must be StatePlane")
+        if type(health_attempts) is not int or health_attempts < 1:
+            raise ValueError("health_attempts must be positive")
+        if (
+            isinstance(health_interval_seconds, bool)
+            or not isinstance(health_interval_seconds, (int, float))
+            or health_interval_seconds < 0
+        ):
+            raise ValueError("health_interval_seconds must be nonnegative")
+        if not callable(sleeper):
+            raise TypeError("sleeper must be callable")
         self.state_plane = state_plane
         self.operator = operator
+        self.health_attempts = health_attempts
+        self.health_interval_seconds = float(health_interval_seconds)
+        self.sleeper = sleeper
         self.journal = ReleaseRolloutJournal(state_plane)
 
     @staticmethod
@@ -170,6 +189,26 @@ class ReleaseRolloutCoordinator:
                 f"{target.host_id} did not converge to requested release"
             )
         self._event(events, target, "verify", "success")
+
+    def _restart_and_wait_healthy(
+        self,
+        target: ReleaseRolloutTarget,
+        events: list[ReleaseRolloutEvent],
+    ) -> None:
+        self.operator.restart_runtime(target.host_id)
+        self._event(events, target, "runtime_restart", "success")
+        for attempt in range(self.health_attempts):
+            if self.operator.runtime_healthy(target.host_id):
+                self._event(events, target, "runtime_health", "success")
+                return
+            if (
+                attempt + 1 < self.health_attempts
+                and self.health_interval_seconds > 0
+            ):
+                self.sleeper(self.health_interval_seconds)
+        raise ReleaseRolloutError(
+            f"{target.host_id} runtime did not become healthy after restart"
+        )
 
     def rollout(
         self,
@@ -225,6 +264,7 @@ class ReleaseRolloutCoordinator:
                     )
                     activated.append(target)
                     self._event(events, target, "activate", "success")
+                    self._restart_and_wait_healthy(target, events)
                     self._verify(
                         target,
                         release_id,
@@ -269,6 +309,7 @@ class ReleaseRolloutCoordinator:
                         release_id,
                         f"rollout {rollout_id} failed: {type(exc).__name__}",
                     )
+                    self._restart_and_wait_healthy(target, events)
                     self._event(events, target, "rollback", "success")
                 except Exception as rollback_exc:
                     rollback_errors.append(
@@ -303,13 +344,20 @@ class RemoteFleetReleaseOperator:
         *,
         remote_service,
         host_node_lookup: Callable[[str], str],
+        runtime_service_name: str,
     ) -> None:
         if remote_service is None:
             raise ValueError("remote_service is required")
         if not callable(host_node_lookup):
             raise TypeError("host_node_lookup must be callable")
+        if (
+            not isinstance(runtime_service_name, str)
+            or not runtime_service_name.strip()
+        ):
+            raise ValueError("runtime_service_name must be nonempty")
         self.remote_service = remote_service
         self.host_node_lookup = host_node_lookup
+        self.runtime_service_name = runtime_service_name.strip()
 
     def _call(
         self,
@@ -355,6 +403,48 @@ class RemoteFleetReleaseOperator:
                 f"{host_id} release status is not an object"
             )
         return payload
+
+    def restart_runtime(self, host_id: str):
+        return self._call(
+            host_id,
+            "service.manage",
+            "restart",
+            {"service": self.runtime_service_name},
+        )
+
+    def runtime_healthy(self, host_id: str) -> bool:
+        result = self._call(
+            host_id,
+            "system.inspect",
+            "service",
+            {"name": self.runtime_service_name, "limit": 1},
+        )
+        if result.get("outcome") != "reported_success":
+            return False
+        message = result.get("message", "")
+        try:
+            payload = json.loads(message) if message else {}
+        except (TypeError, json.JSONDecodeError):
+            return False
+        if not isinstance(payload, dict):
+            return False
+        if str(payload.get("kind", "")).casefold() != "success":
+            return False
+        evidence = payload.get("evidence")
+        if not isinstance(evidence, dict):
+            return False
+        services = evidence.get("services")
+        if not isinstance(services, list) or len(services) != 1:
+            return False
+        service = services[0]
+        if not isinstance(service, dict):
+            return False
+        if str(service.get("name", "")) != self.runtime_service_name:
+            return False
+        return str(service.get("state", "")).casefold() in {
+            "running",
+            "active",
+        }
 
     def rollback(self, host_id: str, failed_release_id: str, reason: str):
         return self._call(

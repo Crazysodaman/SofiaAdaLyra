@@ -58,6 +58,7 @@ def _temporary_release_grants(
                 ("release.manage", "stage"),
                 ("release.manage", "activate"),
                 ("release.manage", "rollback"),
+                ("service.manage", "restart"),
             ):
                 grant = RemoteGrant(
                     uuid4(),
@@ -85,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest-sha256", required=True)
     parser.add_argument("--targets", required=True)
     parser.add_argument("--approval-id", required=True)
+    parser.add_argument("--runtime-service", required=True)
     parser.add_argument("--rollout-id")
     args = parser.parse_args(argv)
 
@@ -103,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
             {"host_id": target.host_id, "ring": target.ring.value}
             for target in targets
         ],
+        "runtime_service": args.runtime_service,
     }
 
     try:
@@ -155,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
                 operator=RemoteFleetReleaseOperator(
                     remote_service=remote,
                     host_node_lookup=node_for,
+                    runtime_service_name=args.runtime_service,
                 ),
             ).rollout(
                 rollout_id=rollout_id,
