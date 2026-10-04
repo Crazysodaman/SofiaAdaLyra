@@ -15,8 +15,10 @@ from .model import (
 
 
 _QUESTION_START = (
-    r"(?:what|what's|whats|which|where|when|why|how|who|whose|"
-    r"can|could|would|will|should|do|does|did|is|are|am|have|has)"
+    r"(?:(?:please\s+)?(?:what|what's|whats|which|where|when|why|how|who|whose|"
+    r"can|could|would|will|should|do|does|did|is|are|am|have|has|"
+    r"inspect|list|show|check|summarize|restart|reboot|start|stop|"
+    r"wear|change|remove|add|scan|find))"
 )
 _BOUNDARY = re.compile(
     r"\s*(?:\?+|;+|,(?=\s*" + _QUESTION_START + r"\b)|"
