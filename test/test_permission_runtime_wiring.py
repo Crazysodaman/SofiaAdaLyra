@@ -12,7 +12,13 @@ from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.dev.approval import DevOperation
-from sofia.dev.capability import DevToolService, create_dev_tool_bindings
+from sofia.dev.capability import (
+    DevCandidateStore,
+    DevToolService,
+    create_dev_tool_bindings,
+)
+from sofia.dev.workflow import EngineeringCandidate
+from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
@@ -395,6 +401,31 @@ def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not():
             DevOperation.APPLY,
             {"proposal_id": "candidate-1"},
         )
+
+
+def test_dev_candidate_history_round_trips_from_durable_state(tmp_path):
+    state = tmp_path / "sofia.db"
+    store = DevCandidateStore(SQLiteStatePlane(state))
+    candidate = EngineeringCandidate(
+        proposal_id="candidate-history",
+        base_sha="a" * 40,
+        patch="diff --git a/x b/x\n",
+        changed_paths=("x",),
+        allowed_paths=("x",),
+        tests_passed=True,
+    )
+    store.put(candidate)
+
+    service = DevToolService.__new__(DevToolService)
+    service.store = store
+
+    listed = service.candidates()
+    inspected = service.candidate("candidate-history")
+
+    assert listed[0]["proposal_id"] == "candidate-history"
+    assert listed[0]["tests_passed"] is True
+    assert "patch" not in listed[0]
+    assert inspected["patch"] == candidate.patch
 
 
 def test_dev_candidate_history_tools_are_level_one_read_only():
