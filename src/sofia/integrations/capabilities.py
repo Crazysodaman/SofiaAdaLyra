@@ -10,6 +10,7 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.permissions import PermissionLevel, PermissionStore, capability_permission_policy
 from .github import GitHubAdapter
 from .discord import DiscordOperatorAdapter
 from .home_assistant import HomeAssistantAdapter
@@ -77,22 +78,42 @@ _MUTATING_SIDE_EFFECTS = {
 def _with_execution_approval(
     registration: IntegrationToolRegistration,
     verifier: ExecutionApprovalVerifier,
+    permission_store: PermissionStore,
 ) -> IntegrationToolRegistration:
     capability_name = registration.capability.name
     if capability_name not in _MUTATING_SIDE_EFFECTS:
         return registration
 
+    policy = capability_permission_policy(capability_name)
     original_handler = registration.handler
 
     def execute(request: CapabilityRequest):
         parameters = dict(request.parameters)
         approval_id = parameters.get("approval_id")
-        verifier.consume(
-            approval_id=approval_id,
-            capability=capability_name,
-            parameters=parameters,
-            now=datetime.now(timezone.utc),
-        )
+        standing_parameters = {
+            key: value
+            for key, value in parameters.items()
+            if key != "approval_id"
+        }
+
+        if policy.level is PermissionLevel.SAFE_AUTONOMOUS:
+            pass
+        elif (
+            policy.level is PermissionLevel.REVERSIBLE_SCOPED
+            and permission_store.allows_standing(
+                capability_name,
+                standing_parameters,
+            )
+        ):
+            pass
+        else:
+            verifier.consume(
+                approval_id=approval_id,
+                capability=capability_name,
+                parameters=parameters,
+                now=datetime.now(timezone.utc),
+            )
+
         parameters.pop("approval_id", None)
         stripped = CapabilityRequest(
             capability=request.capability,
@@ -109,10 +130,19 @@ def _with_execution_approval(
             f"mutating integration tool {capability_name} requires object parameters"
         )
     properties = dict(schema.get("properties", {}))
-    properties["approval_id"] = {"type": "string"}
     required = list(schema.get("required", []))
-    if "approval_id" not in required:
-        required.append("approval_id")
+
+    if policy.level in (
+        PermissionLevel.REVERSIBLE_SCOPED,
+        PermissionLevel.PROTECTED,
+    ):
+        properties["approval_id"] = {"type": "string"}
+        if (
+            policy.level is PermissionLevel.PROTECTED
+            and "approval_id" not in required
+        ):
+            required.append("approval_id")
+
     schema["properties"] = properties
     schema["required"] = required
 
@@ -343,7 +373,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
         ))
 
     verifier = ExecutionApprovalVerifier(state_path)
+    permission_store = PermissionStore(state_path)
     return tuple(
-        _with_execution_approval(registration, verifier)
+        _with_execution_approval(registration, verifier, permission_store)
         for registration in tools
     )
