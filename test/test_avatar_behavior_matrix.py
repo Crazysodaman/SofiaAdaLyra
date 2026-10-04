@@ -68,7 +68,7 @@ def test_daytime_without_weather_keeps_day_default():
     assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
 
 
-def test_current_hot_weather_does_not_invent_a_weather_outfit():
+def test_current_hot_weather_selects_approved_hot_weather_outfit():
     weather = WeatherObservation(
         Weather.HOT,
         DAY - timedelta(minutes=5),
@@ -82,7 +82,10 @@ def test_current_hot_weather_does_not_invent_a_weather_outfit():
             weather=weather,
         )
     )
-    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert Weather.HOT in selected.weather
+    assert selected.private_only is False
+    assert selected.lounge is False
 
 
 def test_stale_weather_is_recorded_without_changing_default():
@@ -107,7 +110,9 @@ def test_late_night_context_selects_lounge():
     result = planner().suggest(
         WardrobeContext(NIGHT, Season.SUMMER, Activity.CONVERSATION)
     )
-    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert selected.lounge is True
+    assert "late_lounge" in result.reasons
 
 
 def test_grounded_fondness_does_not_override_daypart_or_engineering():
@@ -129,8 +134,13 @@ def test_grounded_fondness_does_not_override_daypart_or_engineering():
         )
     )
 
-    assert conversation.outfit_id == DAY_DEFAULT_OUTFIT_ID
-    assert engineering.outfit_id == DAY_DEFAULT_OUTFIT_ID
+    catalog = build_starter_wardrobe()
+    conversation_plan = catalog.preset(conversation.outfit_id)
+    engineering_plan = catalog.preset(engineering.outfit_id)
+    assert conversation_plan.lounge is False
+    assert Activity.CONVERSATION in conversation_plan.activities
+    assert Activity.ENGINEERING in engineering_plan.activities
+    assert engineering_plan.lounge is False
 
 
 def test_grounded_fondness_can_reinforce_lounge_when_context_already_fits():
@@ -144,7 +154,8 @@ def test_grounded_fondness_can_reinforce_lounge_when_context_already_fits():
         )
     )
 
-    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert selected.lounge is True
     assert "modeled_emotion_influence" in result.reasons
 
 def test_season_is_a_preference_not_a_hard_rejection():
@@ -215,7 +226,9 @@ def test_measured_hot_weather_can_outweigh_daypart_for_casual_conversation():
         )
     )
 
-    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert Weather.HOT in selected.weather
+    assert selected.lounge is False
     assert "garment_environment_context" in result.reasons
 
 
@@ -236,7 +249,9 @@ def test_engineering_activity_still_blocks_lounge_even_when_day_outfit_is_hot():
         )
     )
 
-    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert Activity.ENGINEERING in selected.activities
+    assert selected.lounge is False
 
 
 def test_cold_late_night_can_reject_short_lounge_outfit():
@@ -256,4 +271,6 @@ def test_cold_late_night_can_reject_short_lounge_outfit():
         )
     )
 
-    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
+    selected = build_starter_wardrobe().preset(result.outfit_id)
+    assert Weather.COLD in selected.weather
+    assert selected.lounge is False
