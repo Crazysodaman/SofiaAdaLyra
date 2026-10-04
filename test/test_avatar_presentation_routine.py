@@ -27,7 +27,7 @@ def setup(tmp_path):
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             "long layered", "#8B1E3F", "#3A245C", ("engineer",)
         ),
@@ -50,7 +50,7 @@ def test_late_night_context_changes_daily_outfit_to_lounge(tmp_path):
     )
     result = routine.evaluate(context, operation_id="daily.2026-09-25")
     assert result.changed
-    assert authority.last_daily.outfit_id == "lounge.relaxed"
+    assert authority.last_daily.outfit_id == "night.lounge"
 
 
 def test_daypart_fallback_uses_lounge_without_season_evidence(tmp_path):
@@ -61,7 +61,7 @@ def test_daypart_fallback_uses_lounge_without_season_evidence(tmp_path):
     )
 
     assert result.changed
-    assert authority.current.outfit_id == "lounge.relaxed"
+    assert authority.current.outfit_id == "night.lounge"
     assert "late_lounge" in authority.current.reason
     assert "season_unknown" in authority.current.reason
 
@@ -79,7 +79,7 @@ def test_daypart_fallback_returns_to_engineer_after_lounge_window(tmp_path):
     )
 
     assert result.changed
-    assert authority.current.outfit_id == "engineer.signature"
+    assert authority.current.outfit_id == "day.default"
     assert "daytime_default" in authority.current.reason
 
 
@@ -106,14 +106,14 @@ def test_emotion_can_nudge_daily_choice(tmp_path):
             EmotionStyleInfluence(
                 "contentment",
                 1.0,
-                ("relaxed",),
+                ("soft",),
                 ("emotion:event:daily",),
             ),
         ),
     )
     result = routine.evaluate(context, operation_id="daily.emotion")
     assert result.changed
-    assert authority.last_daily.outfit_id == "lounge.relaxed"
+    assert authority.last_daily.outfit_id == "night.lounge"
     assert "modeled_emotion_influence" in result.proposal.reasons
 
 
@@ -140,7 +140,7 @@ def test_private_nude_state_defers_daily_rotation(tmp_path):
     assert result.deferred_private
     assert not result.changed
     assert authority.current.attire.value == "nude"
-    assert authority.last_daily.outfit_id == "engineer.signature"
+    assert authority.last_daily.outfit_id == "day.default"
 
 
 

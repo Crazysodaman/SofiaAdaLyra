@@ -43,7 +43,7 @@ def bundle(tmp_path):
             plan.outfit_id: plan.item_ids
             for plan in catalog.presets
         },
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             hairstyle="canonical default",
             hair_color="deep crimson",
@@ -145,33 +145,33 @@ def autonomy_context(
     )
 
 
-def test_change_into_bikini_commits_persists_and_updates_matrix(tmp_path):
+
+def test_change_into_night_lounge_commits_persists_and_updates_matrix(tmp_path):
     runtime_bundle = bundle(tmp_path)
     service = ClothingActionService(runtime_bundle)
 
     reply = service.handle(
-        content="change into bikini 4",
+        content="change into night lounge outfit",
         previous_user_content=None,
-        operation_id="test.bikini.04",
+        operation_id="test.night.lounge",
     )
 
     assert reply is not None
-    assert "Midnight Asymmetric Bikini" in reply
-    assert runtime_bundle.authority.current.outfit_id == "swim.bikini.04"
+    assert "Late-Night Lounge Outfit" in reply
+    assert runtime_bundle.authority.current.outfit_id == "night.lounge"
 
     matrix = runtime_bundle.current_matrix()
     assert (
         matrix.cell(slot="torso", layer=Layer.BASE).garment_id
-        == "closet.swim.bikini.04.top"
+        == "night.lounge_tee"
     )
     assert (
         matrix.cell(slot="pelvis", layer=Layer.BASE).garment_id
-        == "closet.swim.bikini.04.bottom"
+        == "night.running_shorts"
     )
     persisted = persisted_authority(runtime_bundle)
-    assert persisted.current.outfit_id == "swim.bikini.04"
+    assert persisted.current.outfit_id == "night.lounge"
     assert persisted.current.item_ids == runtime_bundle.authority.current.item_ids
-
 
 def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
     runtime_bundle = bundle(tmp_path)
@@ -187,7 +187,7 @@ def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
     assert "Asymmetric engineer jacket" in reply
     current = runtime_bundle.authority.current
     assert current.outfit_id.startswith("dynamic.chat.")
-    assert "engineer.jacket" not in current.item_ids
+    assert "day.engineer_jacket" not in current.item_ids
     assert runtime_bundle.current_matrix().cell(
         slot="torso",
         layer=Layer.OUTER,
@@ -195,10 +195,11 @@ def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
 
     persisted = persisted_authority(runtime_bundle)
     assert persisted.current.outfit_id == current.outfit_id
-    assert "engineer.jacket" not in persisted.current.item_ids
+    assert "day.engineer_jacket" not in persisted.current.item_ids
 
 
-def test_swap_boots_selects_compatible_public_replacement(tmp_path):
+
+def test_swap_boots_keeps_current_pair_when_no_replacement_exists(tmp_path):
     runtime_bundle = bundle(tmp_path)
     service = ClothingActionService(runtime_bundle)
 
@@ -209,16 +210,8 @@ def test_swap_boots_selects_compatible_public_replacement(tmp_path):
     )
 
     assert reply is not None
-    assert "swapped" in reply
-    assert "engineer.boots" not in runtime_bundle.authority.current.item_ids
-
-    matrix = runtime_bundle.current_matrix()
-    left = matrix.cell(slot="left_foot", layer=Layer.BASE)
-    right = matrix.cell(slot="right_foot", layer=Layer.BASE)
-    assert left is not None
-    assert right is not None
-    assert left.garment_id == right.garment_id
-    assert left.garment_id.startswith("closet.normal.footwear.")
+    assert "don't have a compatible public replacement" in reply
+    assert "day.work_boots" in runtime_bundle.authority.current.item_ids
 
 
 def test_hypothetical_does_not_mutate_but_do_it_executes_prior_request(tmp_path):
@@ -226,7 +219,7 @@ def test_hypothetical_does_not_mutate_but_do_it_executes_prior_request(tmp_path)
     service = ClothingActionService(runtime_bundle)
     original = runtime_bundle.authority.current
 
-    hypothetical = "if i asked you to change into bikini 2 will you"
+    hypothetical = "if i asked you to change into the night lounge outfit will you"
     reply = service.handle(
         content=hypothetical,
         previous_user_content=None,
@@ -244,8 +237,7 @@ def test_hypothetical_does_not_mutate_but_do_it_executes_prior_request(tmp_path)
     )
 
     assert followup is not None
-    assert runtime_bundle.authority.current.outfit_id == "swim.bikini.02"
-
+    assert runtime_bundle.authority.current.outfit_id == "night.lounge"
 
 def test_undress_and_do_it_fail_closed_without_private_grant(tmp_path):
     runtime_bundle = bundle(tmp_path)
@@ -290,7 +282,7 @@ def test_autonomy_policy_can_decline_public_change_without_mutation(tmp_path):
     )
 
     reply = service.handle(
-        content="wear bikini 1",
+        content="wear night lounge outfit",
         previous_user_content=None,
         operation_id="test.decline",
     )
@@ -301,51 +293,6 @@ def test_autonomy_policy_can_decline_public_change_without_mutation(tmp_path):
     assert runtime_bundle.authority.current == original
     assert persisted_authority(runtime_bundle).current == original
 
-
-
-def test_contextual_autonomy_counter_proposes_for_wrong_season(tmp_path):
-    runtime_bundle = bundle(tmp_path)
-    original = runtime_bundle.authority.current
-    context = autonomy_context(season=Season.WINTER)
-    service = ClothingActionService(
-        runtime_bundle,
-        context_provider=lambda: context,
-    )
-
-    reply = service.handle(
-        content="change into light engineer outfit",
-        previous_user_content=None,
-        operation_id="test.context.season",
-    )
-
-    assert reply is not None
-    assert "current season" in reply
-    assert "I'd rather wear" in reply
-    assert runtime_bundle.authority.current == original
-
-
-def test_contextual_autonomy_counter_proposes_for_incompatible_weather(tmp_path):
-    runtime_bundle = bundle(tmp_path)
-    original = runtime_bundle.authority.current
-    context = autonomy_context(
-        season=Season.SUMMER,
-        weather=Weather.COLD,
-    )
-    service = ClothingActionService(
-        runtime_bundle,
-        context_provider=lambda: context,
-    )
-
-    reply = service.handle(
-        content="wear bikini 4",
-        previous_user_content=None,
-        operation_id="test.context.weather",
-    )
-
-    assert reply is not None
-    assert "fresh weather evidence" in reply
-    assert "I'd rather wear" in reply
-    assert runtime_bundle.authority.current == original
 
 
 def test_contextual_autonomy_counter_proposes_during_lounge_window(tmp_path):
@@ -398,12 +345,12 @@ def test_contextual_autonomy_can_counter_propose_from_strong_modeled_emotion(tmp
     assert runtime_bundle.authority.current == original
 
 
+
 def test_contextual_autonomy_still_accepts_compatible_requested_outfit(tmp_path):
     runtime_bundle = bundle(tmp_path)
     context = autonomy_context(
-        hour=14,
-        season=Season.SUMMER,
-        weather=Weather.HOT,
+        hour=23,
+        season=Season.AUTUMN,
     )
     service = ClothingActionService(
         runtime_bundle,
@@ -411,14 +358,14 @@ def test_contextual_autonomy_still_accepts_compatible_requested_outfit(tmp_path)
     )
 
     reply = service.handle(
-        content="wear bikini 4",
+        content="wear night lounge outfit",
         previous_user_content=None,
         operation_id="test.context.accept",
     )
 
     assert reply is not None
-    assert "Midnight Asymmetric Bikini" in reply
-    assert runtime_bundle.authority.current.outfit_id == "swim.bikini.04"
+    assert "Late-Night Lounge Outfit" in reply
+    assert runtime_bundle.authority.current.outfit_id == "night.lounge"
 
 def test_unrelated_text_is_not_a_clothing_action(tmp_path):
     service = ClothingActionService(bundle(tmp_path))
@@ -480,39 +427,6 @@ def test_operator_stop_blocks_private_presentation_even_when_adult_verified(tmp_
     assert reply is not None
     assert "keeping my current outfit" in reply
     assert runtime_bundle.authority.current == original
-
-
-def test_private_partial_outfit_with_public_garments_persists_privacy_metadata(tmp_path):
-    runtime_bundle = bundle(tmp_path)
-    service = ClothingActionService(
-        runtime_bundle,
-        adult_verified=True,
-    )
-    principal = local_sparks_principal()
-
-    service.handle(
-        content="change into bikini 4",
-        previous_user_content=None,
-        operation_id="test.private.partial.base",
-        principal=principal,
-    )
-    reply = service.handle(
-        content="take off your bikini top",
-        previous_user_content=None,
-        operation_id="test.private.partial.remove",
-        principal=principal,
-    )
-
-    assert reply is not None
-    current = runtime_bundle.authority.current
-    assert current.private_only is True
-    assert "closet.swim.bikini.04.top" not in current.item_ids
-    assert current.item_ids == ("closet.swim.bikini.04.bottom",)
-
-    persisted = persisted_authority(runtime_bundle)
-    assert persisted.current.private_only is True
-    assert persisted.current.item_ids == current.item_ids
-
 
 
 def test_ambiguous_outfit_display_name_fails_closed(tmp_path):

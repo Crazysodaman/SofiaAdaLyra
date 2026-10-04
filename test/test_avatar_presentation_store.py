@@ -22,7 +22,7 @@ def setup_authority():
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             hairstyle="long layered",
             hair_color="#8B1E3F",
@@ -42,7 +42,7 @@ def test_store_round_trip_preserves_current_and_daily(tmp_path):
     authority.propose_outfit(
         operation_id="op.lounge",
         expected_revision=1,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="late night",
         daily=True,
     )
@@ -64,7 +64,7 @@ def test_store_round_trip_preserves_current_and_daily(tmp_path):
     restored = store.load(catalog.wardrobe, outfits=outfits)
 
     assert restored.current.attire is AttireMode.NUDE
-    assert restored.last_daily.outfit_id == "lounge.relaxed"
+    assert restored.last_daily.outfit_id == "night.lounge"
 
 
 def test_store_writes_snapshot_into_canonical_sqlite(tmp_path):
@@ -90,7 +90,7 @@ def test_store_refuses_unsettled_transition(tmp_path):
     authority.propose_outfit(
         operation_id="op.pending",
         expected_revision=1,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="pending",
     )
     with pytest.raises(PresentationConflict, match="unresolved"):
@@ -162,7 +162,7 @@ def test_persist_mutation_rolls_back_live_authority_when_save_fails(
         authority.propose_outfit(
             operation_id="op.synthetic.failure",
             expected_revision=authority.current.revision,
-            outfit_id="lounge.relaxed",
+            outfit_id="night.lounge",
             reason="synthetic failure",
             daily=True,
         )
@@ -198,7 +198,7 @@ def test_persist_mutation_compensates_when_verification_fails(
         authority.propose_outfit(
             operation_id="op.synthetic.verify",
             expected_revision=authority.current.revision,
-            outfit_id="lounge.relaxed",
+            outfit_id="night.lounge",
             reason="synthetic verification failure",
             daily=True,
         )

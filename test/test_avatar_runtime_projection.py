@@ -81,7 +81,7 @@ def test_application_bootstraps_headless_avatar_and_persists_it(
 
     authority = app.runtime.avatar_presentation
     assert isinstance(authority, PresentationAuthority)
-    assert authority.current.outfit_id == "engineer.signature"
+    assert authority.current.outfit_id == "day.default"
     assert not (tmp_path / "avatar-presentation.json").exists()
     with sqlite3.connect(config.state_path) as database:
         row = database.execute(
@@ -93,7 +93,7 @@ def test_application_bootstraps_headless_avatar_and_persists_it(
     authority.propose_outfit(
         operation_id="op.lounge",
         expected_revision=authority.current.revision,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="late-night daily choice",
         daily=True,
     )
@@ -103,7 +103,7 @@ def test_application_bootstraps_headless_avatar_and_persists_it(
     resumed = SofiaApplication(config)
     resumed.start()
     assert resumed.runtime.avatar_presentation is not None
-    assert resumed.runtime.avatar_presentation.last_daily.outfit_id == "lounge.relaxed"
+    assert resumed.runtime.avatar_presentation.last_daily.outfit_id == "night.lounge"
     resumed.shutdown()
 
 
@@ -117,7 +117,7 @@ def test_private_nude_state_restores_but_public_cognition_gets_daily_fallback(tm
     authority.propose_outfit(
         operation_id="op.lounge",
         expected_revision=authority.current.revision,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="daily lounge state",
         daily=True,
     )
@@ -136,7 +136,7 @@ def test_private_nude_state_restores_but_public_cognition_gets_daily_fallback(tm
         grant=grant,
     )
     assert authority.projection(AudienceScope.PRIVATE, grant=grant).attire.value == "nude"
-    assert app.runtime.avatar_presentation_projection.outfit_id == "lounge.relaxed"
+    assert app.runtime.avatar_presentation_projection.outfit_id == "night.lounge"
 
     provider = CapturingProvider()
     app.runtime.cognitive_system.engine = LLMCognitiveEngine(
@@ -155,7 +155,7 @@ def test_private_nude_state_restores_but_public_cognition_gets_daily_fallback(tm
     )
     system = provider.requests[-1].messages[0].content
     assert "CURRENT AVATAR PRESENTATION" in system
-    assert '"outfit_id": "lounge.relaxed"' in system
+    assert '"outfit_id": "night.lounge"' in system
     assert '"attire": "clothed"' in system
     assert '"attire": "nude"' not in system
     app.shutdown()
@@ -170,7 +170,7 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
     authority.propose_outfit(
         operation_id="op.lounge",
         expected_revision=authority.current.revision,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="late-night conversation",
         daily=True,
     )
@@ -195,8 +195,8 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
     assert "CANONICAL CLOTHING" in system
     assert "CURRENT AVATAR PRESENTATION" in system
     assert "overrides static canonical clothing design as a CURRENT-WEAR fact" in system
-    assert '"outfit_id": "lounge.relaxed"' in system
-    assert '"item_names": ["Breathable underlayer", "Base undergarment", "Oversized lounge T-shirt", "Relaxed lounge sweatpants"]' in system
+    assert '"outfit_id": "night.lounge"' in system
+    assert '"item_names": ["Soft technical bralette", "Soft technical briefs", "Oversized late-night lounge T-shirt", "Fitted circuit running shorts"]' in system
     app.shutdown()
 
 

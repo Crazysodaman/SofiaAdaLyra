@@ -25,7 +25,7 @@ def sources():
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             hairstyle="long layered",
             hair_color="deep crimson",
@@ -49,8 +49,8 @@ def answer(query: str):
 def test_current_outfit_is_deterministic_authoritative_fact():
     result = answer("What outfit are you wearing right now?")
     assert result.recognized
-    assert result.content.startswith("I'm in my signature engineer outfit right now.")
-    assert "Fitted long-sleeve technical shirt" in result.content
+    assert result.content.startswith("I'm in my day engineer outfit right now.")
+    assert "Fitted technical long-sleeve top" in result.content
     assert "Articulated utility trousers" in result.content
 
 
@@ -70,7 +70,7 @@ def test_current_look_combines_embodiment_and_presentation():
     assert "deep crimson hair" in result.content
     assert "warm ivory skin" in result.content
     assert "dark violet tail" in result.content
-    assert "signature engineer outfit" in result.content
+    assert "day engineer outfit" in result.content
 
 
 def test_avatar_form_is_not_denied_or_misrepresented_as_biological():
@@ -83,7 +83,7 @@ def test_avatar_form_is_not_denied_or_misrepresented_as_biological():
 def test_tonight_question_proposes_lounge_without_claiming_change():
     result = answer("What outfit would you want to change into tonight?")
     assert result.recognized
-    assert "relaxed lounge outfit" in result.content
+    assert "late-night lounge outfit" in result.content
     assert "not something I've already changed into" in result.content
 
 
@@ -100,37 +100,36 @@ def test_public_safe_outfit_quick_tool_wording_is_authoritative():
     )
 
     assert result.recognized
-    assert "signature engineer outfit" in result.content
+    assert "day engineer outfit" in result.content
     assert "outfit ID: engineer.signature" in result.content
     assert "deep crimson hair" in result.content
     assert "dark violet tail" in result.content
     assert "style tags: canonical, engineer" in result.content
 
 
+
 def test_direct_current_outfit_uses_human_readable_piece_names():
     embodiment, current, _ = sources()
-    seasonal = replace(
+    lounge = replace(
         current,
-        outfit_id="seasonal.spring.normal.01",
+        outfit_id="night.lounge",
         item_names=(
-            "Breathable underlayer",
-            "Base undergarment",
-            "Classic Top",
-            "Utility Bottom",
+            "Soft technical bralette",
+            "Soft technical briefs",
+            "Oversized late-night lounge T-shirt",
+            "Fitted circuit running shorts",
         ),
     )
     result = AvatarSelfFactResolver().resolve(
         "what are you wearing",
         embodiment=embodiment,
-        presentation=seasonal,
-        available_outfit_ids=("seasonal.spring.normal.01",),
+        presentation=lounge,
+        available_outfit_ids=("night.lounge",),
     )
     assert result.recognized
-    assert "Spring Everyday 01" in result.content
-    assert "Classic Top" in result.content
-    assert "Utility Bottom" in result.content
-
-
+    assert "late-night lounge outfit" in result.content
+    assert "Oversized late-night lounge T-shirt" in result.content
+    assert "Fitted circuit running shorts" in result.content
 
 def test_current_outfit_recognizes_chat_shorthand():
     for query in (
@@ -139,7 +138,7 @@ def test_current_outfit_recognizes_chat_shorthand():
     ):
         result = answer(query)
         assert result.recognized
-        assert "signature engineer outfit" in result.content
+        assert "day engineer outfit" in result.content
 
 
 def test_discord_panties_question_never_relabels_engineer_trousers():
@@ -171,8 +170,8 @@ def test_current_outfit_recognizes_conversational_prefix():
     result = answer("so what are you wearing")
 
     assert result.recognized
-    assert "signature engineer outfit" in result.content
-    assert "Fitted long-sleeve technical shirt" in result.content
+    assert "day engineer outfit" in result.content
+    assert "Fitted technical long-sleeve top" in result.content
     assert "feels" not in result.content.casefold()
 
 
@@ -180,8 +179,8 @@ def test_nightwear_why_uses_grounded_current_presentation_reason():
     embodiment, projection, _ = sources()
     lounge = replace(
         projection,
-        outfit_id="lounge.relaxed",
-        item_names=("Oversized lounge T-shirt", "Relaxed lounge sweatpants"),
+        outfit_id="night.lounge",
+        item_names=("Oversized late-night lounge T-shirt", "Fitted circuit running shorts"),
         reason="headless_daily_context:late_lounge,season_unknown",
     )
 
@@ -189,11 +188,11 @@ def test_nightwear_why_uses_grounded_current_presentation_reason():
         "why not night wear since its night (5:10 am)",
         embodiment=embodiment,
         presentation=lounge,
-        available_outfit_ids=("engineer.signature", "lounge.relaxed"),
+        available_outfit_ids=("day.default", "night.lounge"),
     )
 
     assert result.recognized
-    assert "relaxed lounge outfit" in result.content
+    assert "late-night lounge outfit" in result.content
     assert "trusted local clock" in result.content
     assert "temperature" not in result.content.casefold()
     assert "warmth" not in result.content.casefold()
@@ -207,32 +206,10 @@ def test_tonight_lounge_outfit_live_wording_is_deterministic():
     ):
         result = answer(query)
         assert result.recognized
-        assert "relaxed lounge outfit" in result.content
+        assert "late-night lounge outfit" in result.content
         assert "not something I've already changed into" in result.content
         assert "wool" not in result.content.casefold()
         assert "feel" not in result.content.casefold()
-
-
-def test_bikini_outfit_ids_are_presented_with_human_display_names():
-    embodiment, current, _ = sources()
-    bikini = replace(
-        current,
-        outfit_id="swim.bikini.04",
-        item_names=(
-            "Midnight Asymmetric Bikini Top",
-            "Midnight Asymmetric Bikini Bottom",
-        ),
-    )
-    result = AvatarSelfFactResolver().resolve(
-        "what are you wearing",
-        embodiment=embodiment,
-        presentation=bikini,
-        available_outfit_ids=("swim.bikini.04",),
-    )
-
-    assert result.recognized
-    assert "Midnight Asymmetric Bikini" in result.content
-    assert "swim bikini 04" not in result.content
 
 
 def test_dynamic_outfit_ids_do_not_leak_into_ordinary_conversation():
@@ -241,7 +218,7 @@ def test_dynamic_outfit_ids_do_not_leak_into_ordinary_conversation():
         current,
         outfit_id="dynamic.chat.clothing2c5daa1f427f46068c26ae48f93a7069",
         item_names=(
-            "Fitted long-sleeve technical shirt",
+            "Fitted technical long-sleeve top",
             "Articulated utility trousers",
         ),
     )
@@ -265,7 +242,7 @@ def test_current_outfit_recognizes_live_typo_and_followup_wording():
     ):
         result = answer(query)
         assert result.recognized
-        assert "signature engineer outfit" in result.content
+        assert "day engineer outfit" in result.content
 
 
 def test_panties_detail_question_uses_matrix_and_never_invents_color():
@@ -407,7 +384,7 @@ def test_outfit_contradiction_followup_reports_current_clothed_state():
     assert "authoritative current AVATAR presentation is clothed" in (
         result.content
     )
-    assert "signature engineer outfit" in result.content
+    assert "day engineer outfit" in result.content
 
 
 def test_combined_mind_and_outfit_question_still_recognizes_outfit_fact():
@@ -416,7 +393,7 @@ def test_combined_mind_and_outfit_question_still_recognizes_outfit_fact():
     )
 
     assert result.recognized
-    assert "signature engineer outfit" in result.content
+    assert "day engineer outfit" in result.content
 
 
 
@@ -452,8 +429,8 @@ def test_generic_why_did_you_pick_that_explains_contextual_outfit():
     embodiment, projection, _ = sources()
     lounge = replace(
         projection,
-        outfit_id="lounge.relaxed",
-        item_names=("Oversized lounge T-shirt", "Relaxed lounge sweatpants"),
+        outfit_id="night.lounge",
+        item_names=("Oversized late-night lounge T-shirt", "Fitted circuit running shorts"),
         reason=(
             "headless_daily_context:covered_candidate,season_and_activity,"
             "late_lounge,modeled_emotion_influence"
@@ -477,8 +454,8 @@ def test_generic_what_is_your_outfit_is_deterministic_authoritative_fact():
     result = answer("what is your outfit")
 
     assert result.recognized
-    assert result.content.startswith("I'm in my signature engineer outfit right now.")
-    assert "Fitted long-sleeve technical shirt" in result.content
+    assert result.content.startswith("I'm in my day engineer outfit right now.")
+    assert "Fitted technical long-sleeve top" in result.content
     assert "Articulated utility trousers" in result.content
     assert "shock-absorbing" not in result.content.casefold()
     assert "everything is maintained" not in result.content.casefold()

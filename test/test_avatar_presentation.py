@@ -21,7 +21,7 @@ def authority() -> PresentationAuthority:
     return PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             hairstyle="long layered",
             hair_color="#8B1E3F",
@@ -46,7 +46,7 @@ def private_grant(**changes) -> PrivatePresentationGrant:
 def test_bootstrap_public_daily_is_canonical_engineer():
     state = authority().projection(AudienceScope.PUBLIC)
     assert state.attire is AttireMode.CLOTHED
-    assert state.outfit_id == "engineer.signature"
+    assert state.outfit_id == "day.default"
     assert state.private_fallback_used is False
 
 
@@ -55,13 +55,13 @@ def test_daily_lounge_becomes_public_default_fallback():
     a.propose_outfit(
         operation_id="op.lounge",
         expected_revision=1,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="late evening conversation",
         daily=True,
     )
     lounge = a.commit_text(operation_id="op.lounge", renderer_unavailable=True)
-    assert lounge.outfit_id == "lounge.relaxed"
-    assert a.last_daily.outfit_id == "lounge.relaxed"
+    assert lounge.outfit_id == "night.lounge"
+    assert a.last_daily.outfit_id == "night.lounge"
 
     a.propose_nude(
         operation_id="op.private.nude",
@@ -78,7 +78,7 @@ def test_daily_lounge_becomes_public_default_fallback():
 
     public = a.projection(AudienceScope.PUBLIC)
     assert public.attire is AttireMode.CLOTHED
-    assert public.outfit_id == "lounge.relaxed"
+    assert public.outfit_id == "night.lounge"
     assert public.private_fallback_used is True
 
 
@@ -108,8 +108,8 @@ def test_private_state_never_becomes_public_without_explicit_grant():
         grant=grant,
     )
     a.commit_text(operation_id="op.nude", renderer_unavailable=True, grant=grant)
-    assert a.projection(AudienceScope.PUBLIC).outfit_id == "engineer.signature"
-    assert a.projection(AudienceScope.PRIVATE).outfit_id == "engineer.signature"
+    assert a.projection(AudienceScope.PUBLIC).outfit_id == "day.default"
+    assert a.projection(AudienceScope.PRIVATE).outfit_id == "day.default"
 
 
 def test_nude_requires_current_private_authorization():
@@ -129,7 +129,7 @@ def test_private_outfit_cannot_replace_daily_fallback():
         a.propose_outfit(
             operation_id="op.private",
             expected_revision=1,
-            outfit_id="lounge.relaxed",
+            outfit_id="night.lounge",
             reason="private experiment",
             private_only=True,
             daily=True,
@@ -161,7 +161,7 @@ def test_snapshot_restore_preserves_private_current_and_last_daily():
     a.propose_outfit(
         operation_id="op.lounge",
         expected_revision=1,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="late evening",
         daily=True,
     )
@@ -184,8 +184,8 @@ def test_snapshot_restore_preserves_private_current_and_last_daily():
         snapshot=snapshot,
     )
     assert restored.current.attire is AttireMode.NUDE
-    assert restored.last_daily.outfit_id == "lounge.relaxed"
-    assert restored.projection(AudienceScope.PUBLIC).outfit_id == "lounge.relaxed"
+    assert restored.last_daily.outfit_id == "night.lounge"
+    assert restored.projection(AudienceScope.PUBLIC).outfit_id == "night.lounge"
 
 
 def test_stale_revision_and_reused_operation_are_rejected():
@@ -193,7 +193,7 @@ def test_stale_revision_and_reused_operation_are_rejected():
     a.propose_outfit(
         operation_id="op.one",
         expected_revision=1,
-        outfit_id="lounge.relaxed",
+        outfit_id="night.lounge",
         reason="change",
     )
     a.commit_text(operation_id="op.one", renderer_unavailable=True)
@@ -201,14 +201,14 @@ def test_stale_revision_and_reused_operation_are_rejected():
         a.propose_outfit(
             operation_id="op.two",
             expected_revision=1,
-            outfit_id="engineer.signature",
+            outfit_id="day.default",
             reason="stale",
         )
     with pytest.raises(PresentationConflict):
         a.propose_outfit(
             operation_id="op.one",
             expected_revision=2,
-            outfit_id="engineer.signature",
+            outfit_id="day.default",
             reason="replay",
         )
 
@@ -219,7 +219,7 @@ def test_restore_accepts_legacy_dynamic_snapshot_without_private_flag():
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             hairstyle="long layered",
             hair_color="#8B1E3F",
@@ -229,7 +229,7 @@ def test_restore_accepts_legacy_dynamic_snapshot_without_private_flag():
     )
     authority.register_outfit(
         outfit_id="dynamic.chat.legacy",
-        item_ids=outfits["engineer.light"],
+        item_ids=outfits["day.default"],
         private_only=False,
     )
     snapshot = authority.snapshot()
