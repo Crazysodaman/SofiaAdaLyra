@@ -120,6 +120,13 @@ def create_default_agent_dispatcher(
         port=PortainerAdapter(port_url,port_key,int(port_endpoint))
         dispatcher.register("container.inspect","list",lambda p:_plain(port.containers()))
         dispatcher.register("container.inspect","get",lambda p:_plain(port.container(str(p["container"]))))
+        dispatcher.register("container.inspect","stats",lambda p:_plain(port.container_stats(str(p["container"]))))
+        dispatcher.register("container.inspect","info",lambda p:_plain(port.info()))
+        dispatcher.register("container.inspect","summary",lambda p:_plain(port.summary()))
+        dispatcher.register("container.inspect","images",lambda p:_plain(port.images()))
+        dispatcher.register("container.inspect","volumes",lambda p:_plain(port.volumes()))
+        dispatcher.register("container.inspect","networks",lambda p:_plain(port.networks()))
+        dispatcher.register("container.inspect","stacks",lambda p:_plain(port.stacks()))
         dispatcher.register("container.manage","restart",lambda p:_plain(
             port.restart(str(p["container"]),timeout_seconds=int(p.get("timeout_seconds",10)))
         ))
