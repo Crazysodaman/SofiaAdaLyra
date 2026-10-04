@@ -884,11 +884,13 @@ class ConversationService(ConversationMatrixMixin):
                 CognitiveMessage(
                     role=CognitiveRole.SYSTEM,
                     content=(
-                        "TRUSTED READ-ONLY TOOL REQUIREMENT\n"
+                        "TRUSTED TOOL EVIDENCE REQUIREMENT\n"
                         "The current user turn explicitly asks to inspect, list, "
-                        "or measure current operational state. Current evidence is "
-                        "required. Use the provided read-only host tool or tools "
-                        "before answering. Do not answer from model priors, do not "
+                        "discover, scan, find, or measure current operational state. "
+                        "Current evidence is required. Use the provided Level-1 "
+                        "read-only or Level-2 safe-autonomous host tool or tools "
+                        "selected for this turn before answering. Do not answer from "
+                        "model priors, do not "
                         "claim that Sofía lacks host access while an exposed tool "
                         "can provide the requested evidence, and do not substitute "
                         "filesystem inspection for network/system/hardware/storage "
