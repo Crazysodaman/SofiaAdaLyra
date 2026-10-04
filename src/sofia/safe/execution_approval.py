@@ -135,6 +135,50 @@ class ExecutionApprovalVerifier:
                 event_id=f"execution-approval-recorded:{approval.approval_id}",
             )
 
+    def active_capabilities(
+        self,
+        *,
+        now: datetime,
+    ) -> tuple[str, ...]:
+        """Return active unconsumed Sparks-approved capability names."""
+        if not isinstance(now, datetime):
+            raise TypeError("now must be a datetime")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        moment = now.astimezone(timezone.utc)
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA busy_timeout=10000")
+            rows = db.execute(
+                """
+                SELECT capability, approved_by, approved_at, expires_at
+                FROM safe_execution_approval
+                WHERE consumed_at IS NULL
+                ORDER BY capability, approved_at
+                """
+            ).fetchall()
+        capabilities = []
+        for row in rows:
+            if row["approved_by"] != "Sparks":
+                continue
+            try:
+                approved_at = datetime.fromisoformat(row["approved_at"])
+                expires_at = datetime.fromisoformat(row["expires_at"])
+            except (TypeError, ValueError):
+                continue
+            if (
+                approved_at.tzinfo is None
+                or approved_at.utcoffset() is None
+                or expires_at.tzinfo is None
+                or expires_at.utcoffset() is None
+            ):
+                continue
+            if approved_at.astimezone(timezone.utc) <= moment < expires_at.astimezone(timezone.utc):
+                capability = str(row["capability"])
+                if capability not in capabilities:
+                    capabilities.append(capability)
+        return tuple(capabilities)
+
     def consume(
         self,
         *,

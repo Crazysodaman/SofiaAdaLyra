@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
 
@@ -21,7 +21,11 @@ from sofia.dev.capability import (
 from sofia.dev.workflow import EngineeringCandidate
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
-from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.execution_approval import (
+    ExecutionApproval,
+    ExecutionApprovalVerifier,
+    execution_fingerprint,
+)
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.composition.authorization import create_capability_authorizer
 from sofia.composition.root import compose
@@ -651,3 +655,55 @@ def test_permissions_cli_refuses_protected_standing_grant(tmp_path, capsys):
             "grant",
             "local.host.reboot",
         ])
+
+
+def test_live_authority_includes_active_one_time_execution_approval(tmp_path):
+    state = tmp_path / "sofia.db"
+    runtime = compose(_configuration(tmp_path))
+    now = datetime.now(timezone.utc)
+    parameters = {}
+    approval = ExecutionApproval(
+        approval_id="reboot-once",
+        capability="local.host.reboot",
+        request_fingerprint=execution_fingerprint(
+            "local.host.reboot",
+            parameters,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    ExecutionApprovalVerifier(state).record(approval)
+
+    authority = runtime.current_authority()
+
+    assert "local.host.reboot" in authority.allowed_capabilities
+
+
+def test_consumed_execution_approval_disappears_from_live_authority(tmp_path):
+    state = tmp_path / "sofia.db"
+    runtime = compose(_configuration(tmp_path))
+    now = datetime.now(timezone.utc)
+    approval = ExecutionApproval(
+        approval_id="reboot-consume",
+        capability="local.host.reboot",
+        request_fingerprint=execution_fingerprint(
+            "local.host.reboot",
+            {},
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    verifier.record(approval)
+    verifier.consume(
+        approval_id=approval.approval_id,
+        capability="local.host.reboot",
+        parameters={},
+        now=now + timedelta(seconds=1),
+    )
+
+    authority = runtime.current_authority()
+
+    assert "local.host.reboot" not in authority.allowed_capabilities

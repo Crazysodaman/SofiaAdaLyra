@@ -72,6 +72,7 @@ from sofia.self_model.model import (
     SofiaCoreState,
     create_core_state,
 )
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
@@ -625,6 +626,12 @@ class SofiaRuntime:
         finally:
             remote_authorization.close()
 
+        execution_capabilities = ExecutionApprovalVerifier(
+            self._configuration.state_path
+        ).active_capabilities(
+            now=datetime.now(timezone.utc)
+        )
+
         live_capabilities = tuple(
             dict.fromkeys(
                 automatic_capabilities()
@@ -635,6 +642,7 @@ class SofiaRuntime:
                     )
                 )
                 + tuple(remote_capabilities)
+                + execution_capabilities
             )
         )
         return Authority(
