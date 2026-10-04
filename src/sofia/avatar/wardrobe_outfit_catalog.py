@@ -8,6 +8,18 @@ from __future__ import annotations
 from .wardrobe_routine import Activity, OutfitPlan, Season
 
 
+_SEASON_INDEX = {
+    Season.SPRING: 0,
+    Season.SUMMER: 1,
+    Season.AUTUMN: 2,
+    Season.WINTER: 3,
+}
+
+
+def _shift(index: int, offset: int) -> int:
+    return ((index - 1 + offset) % 25) + 1
+
+
 def _n(kind: str, index: int) -> str:
     return f"closet.normal.{kind}.{index:02d}"
 
@@ -17,16 +29,22 @@ def _p(kind: str, index: int) -> str:
 
 
 def _seasonal_normal(season: Season, index: int) -> OutfitPlan:
+    season_index = _SEASON_INDEX[season]
     items = (
         "underlayer.top",
         "underlayer.bottom",
         _n("top", index),
-        _n("bottom", ((index + season.value.__len__() - 1) % 25) + 1),
-        _n("footwear", ((index + 3) % 25) + 1),
-        _n("neckwear", ((index + 7) % 25) + 1),
+        _n("bottom", _shift(index, 2 + season_index * 3)),
+        _n("footwear", _shift(index, 4 + season_index * 5)),
+        _n("neckwear", _shift(index, 8 + season_index * 7)),
     )
     if season in {Season.SPRING, Season.AUTUMN, Season.WINTER}:
-        items += (_n("outerwear", ((index + 11) % 25) + 1),)
+        items += (
+            _n(
+                "outerwear",
+                _shift(index, 12 + season_index * 11),
+            ),
+        )
     return OutfitPlan(
         f"seasonal.{season.value}.normal.{index:02d}",
         items,
@@ -38,15 +56,19 @@ def _seasonal_normal(season: Season, index: int) -> OutfitPlan:
 
 
 def _seasonal_lounge(season: Season, index: int) -> OutfitPlan:
+    season_index = _SEASON_INDEX[season]
     items = (
         "underlayer.top",
         "underlayer.bottom",
-        _n("top", ((index + 4) % 25) + 1),
-        _n("bottom", ((index + 9) % 25) + 1),
-        _n("hair_accessory", ((index + 13) % 25) + 1),
+        _n("top", _shift(index, 4)),
+        _n("bottom", _shift(index, 9 + season_index * 3)),
+        _n(
+            "hair_accessory",
+            _shift(index, 13 + season_index * 5),
+        ),
     )
     if season is Season.WINTER:
-        items += (_n("legwear", ((index + 2) % 25) + 1),)
+        items += (_n("legwear", _shift(index, 2)),)
     return OutfitPlan(
         f"seasonal.{season.value}.lounge.{index:02d}",
         items,
@@ -59,12 +81,13 @@ def _seasonal_lounge(season: Season, index: int) -> OutfitPlan:
 
 
 def _seasonal_private(season: Season, index: int) -> OutfitPlan:
+    season_index = _SEASON_INDEX[season]
     items = (
         _p("bra", index),
-        _p("panty", ((index + 5) % 25) + 1),
-        _p("legwear", ((index + 10) % 25) + 1),
-        _p("neckwear", ((index + 15) % 25) + 1),
-        _p("footwear", ((index + 20) % 25) + 1),
+        _p("panty", _shift(index, 5 + season_index * 3)),
+        _p("legwear", _shift(index, 10 + season_index * 5)),
+        _p("neckwear", _shift(index, 15 + season_index * 7)),
+        _p("footwear", _shift(index, 20 + season_index * 9)),
     )
     return OutfitPlan(
         f"seasonal.{season.value}.private.{index:02d}",
