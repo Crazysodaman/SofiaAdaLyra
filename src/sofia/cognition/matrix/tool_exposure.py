@@ -165,6 +165,8 @@ class MatrixToolExposurePlanner:
                 "dev.candidates.list",
                 "dev.candidate.get",
             )
+            if _SELF_IMPROVE.search(text):
+                _add(capabilities, "dev.build")
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
         if _KNOWLEDGE.search(text):
@@ -342,7 +344,7 @@ class MatrixToolExposurePlanner:
                             PermissionLevel.REVERSIBLE_SCOPED,
                             PermissionLevel.PROTECTED,
                         }
-                        and authority.can_use_capability(capability)
+                        and capability in authority.allowed_capabilities
                     )
                 )
             ]
