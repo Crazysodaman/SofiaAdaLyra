@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
+from sofia.distributed.operations import RemoteOperationUncertain
 from sofia.ops.workload import MigrationPlan
 
 
@@ -177,9 +178,18 @@ def _path(value: Any, dotted: str | None) -> Any:
         return None
     current = value
     for part in dotted.split("."):
-        if not isinstance(current, Mapping) or part not in current:
-            raise WorkloadBackendError(f"result path is missing: {dotted}")
-        current = current[part]
+        if isinstance(current, Mapping):
+            if part not in current:
+                raise WorkloadBackendError(f"result path is missing: {dotted}")
+            current = current[part]
+            continue
+        if isinstance(current, (list, tuple)) and part.isdigit():
+            index = int(part)
+            if index >= len(current):
+                raise WorkloadBackendError(f"result path is missing: {dotted}")
+            current = current[index]
+            continue
+        raise WorkloadBackendError(f"result path is missing: {dotted}")
     return current
 
 
@@ -255,6 +265,10 @@ class TypedWorkloadBackend:
             )
         except WorkloadOutcomeUncertain:
             raise
+        except RemoteOperationUncertain as exc:
+            raise WorkloadOutcomeUncertain(
+                f"{step} outcome is uncertain on {host_id}; do not retry or rollback"
+            ) from exc
         except Exception as exc:
             raise WorkloadBackendError(
                 f"{step} failed on {host_id}: {type(exc).__name__}: {exc}"

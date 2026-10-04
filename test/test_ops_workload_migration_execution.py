@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from sofia.distributed.operations import RemoteOperationUncertain
 from sofia.ops.model import WorkloadContract
 from sofia.ops.migration import MigrationJournal, WorkloadMigrationExecutor
 from sofia.ops.workload import (
@@ -17,6 +18,7 @@ from sofia.ops.workload_backend import (
     TypedWorkloadBackend,
     WorkloadBackendError,
     WorkloadExecutionCatalog,
+    WorkloadOutcomeUncertain,
     WorkloadOperationBinding,
 )
 from sofia.ops.workload_store import WorkloadInstanceStore
@@ -75,7 +77,14 @@ def profiles(singleton=False, checkpoint=False):
     )
 
 
-def make_executor(tmp_path, *, singleton=False, checkpoint=False, fail_step=None):
+def make_executor(
+    tmp_path,
+    *,
+    singleton=False,
+    checkpoint=False,
+    fail_step=None,
+    uncertain_step=None,
+):
     state = tmp_path / "sofia.db"
     plane = SQLiteStatePlane(state)
     store = WorkloadInstanceStore(state)
@@ -90,6 +99,8 @@ def make_executor(tmp_path, *, singleton=False, checkpoint=False, fail_step=None
         calls.append((host, operation, dict(parameters)))
         if operation == fail_step:
             raise RuntimeError("boom")
+        if operation == uncertain_step:
+            raise RemoteOperationUncertain("transport outcome unknown")
         if operation == "ready":
             return {
                 "outcome":"reported_success",
@@ -172,3 +183,77 @@ def test_checkpoint_required_preflight_fails_before_side_effect(tmp_path):
         executor.execute(bad)
 
     assert calls == []
+
+
+def test_uncertain_remote_outcome_never_triggers_automatic_rollback(tmp_path):
+    executor, calls, store, plane = make_executor(
+        tmp_path,
+        uncertain_step="start",
+    )
+
+    with pytest.raises(WorkloadOutcomeUncertain, match="do not retry or rollback"):
+        executor.execute(plan())
+
+    operations = [operation for _, operation, _ in calls]
+    assert operations == ["drain", "start"]
+    assert "rollback" not in operations
+    assert store.instances()[0].host_id == "source"
+    assert (
+        MigrationJournal(plane).get("move-1")["stage"]
+        == "outcome_uncertain"
+    )
+
+
+def test_workload_result_path_supports_indexed_service_evidence(tmp_path):
+    state = tmp_path / "sofia.db"
+    plane = SQLiteStatePlane(state)
+    store = WorkloadInstanceStore(state)
+    store.observe(
+        WorkloadInstance(
+            "worker-1",
+            "worker",
+            "1",
+            "source",
+            WorkloadPhase.READY,
+            1,
+        )
+    )
+    source, target = profiles()
+    target = HostWorkloadProfile(
+        target.workload_id,
+        target.version,
+        target.host_id,
+        drain=target.drain,
+        start=target.start,
+        ready=WorkloadOperationBinding(
+            capability="system.inspect",
+            operation="service",
+            expect_path="evidence.services.0.state",
+            expect_equals="Running",
+        ),
+        fence=target.fence,
+        activate=target.activate,
+        rollback=target.rollback,
+    )
+
+    def invoke(host, capability, operation, parameters):
+        if host == "target" and operation == "service":
+            return {
+                "outcome": "reported_success",
+                "message": (
+                    '{"kind":"success","evidence":'
+                    '{"services":[{"name":"worker","state":"Running"}]}}'
+                ),
+            }
+        return {"outcome": "reported_success", "message": "{}"}
+
+    executor = WorkloadMigrationExecutor(
+        backend=TypedWorkloadBackend(
+            WorkloadExecutionCatalog((source, target)),
+            invoke,
+        ),
+        state_plane=plane,
+        instance_store=store,
+    )
+
+    assert executor.execute(plan()).stage is MigrationStage.COMPLETED
