@@ -156,6 +156,34 @@ def test_portainer_adapter_lists_and_restarts_exact_container():
     assert fake.calls[-1][2]["query"]["t"]==5
 
 
+def test_portainer_adapter_supports_bounded_read_only_inventory_and_stats():
+    adapter=PortainerAdapter("http://portainer.local","key",2)
+    fake=FakeHttp([
+        {"cpu_stats":{}},
+        {"Containers":3},
+        [{"Id":"img"}],
+        {"Volumes":[]},
+        [{"Id":"net"}],
+        [{"Id":7,"Name":"stack"}],
+    ])
+    adapter.http=fake
+
+    assert adapter.container_stats("abc")["cpu_stats"] == {}
+    assert adapter.info()["Containers"] == 3
+    assert adapter.images()[0]["Id"] == "img"
+    assert adapter.volumes()["Volumes"] == []
+    assert adapter.networks()[0]["Id"] == "net"
+    assert adapter.stacks()[0]["Name"] == "stack"
+
+    assert fake.calls[0][0:2] == (
+        "GET",
+        "/api/endpoints/2/docker/containers/abc/stats",
+    )
+    assert fake.calls[0][2]["query"]["stream"] == "false"
+    assert fake.calls[-1][0:2] == ("GET","/api/stacks")
+    assert fake.calls[-1][2]["query"]["endpointId"] == 2
+
+
 def test_jmri_adapter_power_and_roster_are_typed():
     adapter=JmriAdapter("http://jmri.local:12080")
     fake=FakeHttp([[{"type":"power"}],[{"type":"roster"}],{"type":"power"}]); adapter.http=fake
@@ -241,6 +269,8 @@ def test_configured_service_catalog_registers_homelab_tools(tmp_path,monkeypatch
     monkeypatch.setenv("SOFIA_GITHUB_REPOSITORY","owner/repo")
     names={x.capability.name for x in create_configured_integration_tools(filesystem_root=tmp_path,state_path=tmp_path/"sofia.db")}
     assert {"home_assistant.states","home_assistant.service.call","portainer.containers",
+            "portainer.container.stats","portainer.info","portainer.images",
+            "portainer.volumes","portainer.networks","portainer.stacks",
             "portainer.container.restart","jmri.power","jmri.power.set","github.repository",
             "github.pull_request.create","github.pull_request.merge"} <= names
 
