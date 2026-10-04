@@ -84,6 +84,26 @@ class OpsToolService:
         if telemetry is None: return None
         return {**asdict(telemetry),"observed_at":telemetry.observed_at.isoformat()}
 
+    def discover_network(self)->dict[str,Any]:
+        """Observe configured network scopes without changing Fleet membership."""
+        if self.discovery_source is None:
+            return {"configured":False,"observed":()}
+        observations=self.discovery_source.discover()
+        return {
+            "configured":True,
+            "observed":tuple({
+                "host_id":item.host_id,
+                "hostname":item.hostname,
+                "platform":item.platform,
+                "architecture":item.architecture,
+                "source":item.source,
+                "inside_approved_scope":item.inside_approved_scope,
+                "agent_present":item.observed_node_id is not None,
+                "capabilities_verified":item.capabilities_verified,
+                "capability_names":item.capability_names,
+            } for item in observations),
+        }
+
     def discover_candidates(self)->dict[str,Any]:
         """Run bounded configured discovery without granting Fleet membership."""
         if self.discovery_source is None:
@@ -297,13 +317,14 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
             "ops.fleet.list":"List durable OPS fleet hosts and current state. Read-only.",
             "ops.fleet.get":"Inspect one durable OPS fleet host. Read-only.",
             "ops.fleet.discover":"Run bounded configured Fleet/network discovery and persist only untrusted candidate observations. Safe-autonomous; never enrolls or trusts a machine.",
+            "network.discover":"Observe configured network scopes and return discovered computers/devices without changing Fleet state. Read-only.",
             "ops.telemetry.latest":"Read the latest durable telemetry for one fleet host. Read-only.",
             "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet and activity evidence. Read-only.",
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
@@ -319,6 +340,7 @@ class OpsCapabilitySet:
         if name=="ops.fleet.list": return self.service.fleet()
         if name=="ops.fleet.get": return self.service.host(p["host_id"])
         if name=="ops.fleet.discover": return self.service.discover_candidates()
+        if name=="network.discover": return self.service.discover_network()
         if name=="ops.telemetry.latest": return self.service.telemetry_latest(p["host_id"])
         if name=="ops.placement.choose": return self.service.choose_placement(p["workload"])
         if name=="ops.drift.detect": return self.service.drift(p)
@@ -342,6 +364,7 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
         b("inspect_fleet_host","ops.fleet.get","Inspect one OPS fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
         b("discover_fleet_candidates","ops.fleet.discover","Run configured bounded discovery and record only untrusted candidate observations. Never enrolls or trusts a machine."),
+        b("discover_network_computers","network.discover","Observe configured network scopes and return discovered computers/devices without adding them to Fleet."),
         b("inspect_fleet_telemetry","ops.telemetry.latest","Read latest durable telemetry for one fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
         b("choose_workload_placement","ops.placement.choose","Evaluate workload placement against current fleet and foreground-activity evidence. Does not move anything.",
