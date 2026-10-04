@@ -11,6 +11,7 @@ from sofia.cognition.tools import CognitiveToolBinding
 from .activity import HostActivityStore
 from .desired import Drift,DesiredHostState,DesiredWorkloadPlacement,detect_drift
 from .desired_store import DesiredFleetStateStore
+from .discovery import FleetDiscoveryCoordinator
 from .enrollment import FleetEnrollmentService
 from .history import SQLiteTelemetryHistory
 from sofia.ops.workload import MigrationPlan
@@ -31,6 +32,7 @@ class OpsToolService:
         state_path:Path,
         *,
         state_plane:StatePlane|None=None,
+        discovery_source=None,
     )->None:
         plane=state_plane or SQLiteStatePlane(state_path)
         self.registry=StatePlaneFleetRegistry(
@@ -49,6 +51,7 @@ class OpsToolService:
         self.desired_state=DesiredFleetStateStore(state_path)
         self.workloads=WorkloadInstanceStore(state_path)
         self.reconciliation_journal=FleetReconciliationJournal(state_path)
+        self.discovery_source=discovery_source
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -80,6 +83,37 @@ class OpsToolService:
             telemetry=None if host is None else host.telemetry
         if telemetry is None: return None
         return {**asdict(telemetry),"observed_at":telemetry.observed_at.isoformat()}
+
+    def discover_candidates(self)->dict[str,Any]:
+        """Run bounded configured discovery without granting Fleet membership."""
+        if self.discovery_source is None:
+            return {
+                "configured":False,
+                "observed":(),
+                "created_host_ids":(),
+                "existing_host_ids":(),
+                "rejected_host_ids":(),
+            }
+        result=FleetDiscoveryCoordinator(self.registry).run(
+            self.discovery_source
+        )
+        return {
+            "configured":True,
+            "observed":tuple({
+                "host_id":item.host_id,
+                "hostname":item.hostname,
+                "platform":item.platform,
+                "architecture":item.architecture,
+                "source":item.source,
+                "inside_approved_scope":item.inside_approved_scope,
+                "agent_present":item.observed_node_id is not None,
+                "capabilities_verified":item.capabilities_verified,
+                "capability_names":item.capability_names,
+            } for item in result.observed),
+            "created_host_ids":result.created_host_ids,
+            "existing_host_ids":result.existing_host_ids,
+            "rejected_host_ids":result.rejected_host_ids,
+        }
 
     @staticmethod
     def _workload(raw:dict[str,Any])->WorkloadContract:
@@ -263,12 +297,13 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
             "ops.fleet.list":"List durable OPS fleet hosts and current state. Read-only.",
             "ops.fleet.get":"Inspect one durable OPS fleet host. Read-only.",
+            "ops.fleet.discover":"Run bounded configured Fleet/network discovery and persist only untrusted candidate observations. Safe-autonomous; never enrolls or trusts a machine.",
             "ops.telemetry.latest":"Read the latest durable telemetry for one fleet host. Read-only.",
             "ops.placement.choose":"Evaluate eligible placement for a workload using current durable fleet and activity evidence. Read-only.",
             "ops.drift.detect":"Compare supplied desired state/workload placements with durable fleet evidence. Read-only.",
@@ -283,6 +318,7 @@ class OpsCapabilitySet:
         p=dict(request.parameters); name=request.capability.name
         if name=="ops.fleet.list": return self.service.fleet()
         if name=="ops.fleet.get": return self.service.host(p["host_id"])
+        if name=="ops.fleet.discover": return self.service.discover_candidates()
         if name=="ops.telemetry.latest": return self.service.telemetry_latest(p["host_id"])
         if name=="ops.placement.choose": return self.service.choose_placement(p["workload"])
         if name=="ops.drift.detect": return self.service.drift(p)
@@ -305,6 +341,7 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
         b("list_fleet_hosts","ops.fleet.list","List OPS fleet hosts and durable state. Read-only."),
         b("inspect_fleet_host","ops.fleet.get","Inspect one OPS fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
+        b("discover_fleet_candidates","ops.fleet.discover","Run configured bounded discovery and record only untrusted candidate observations. Never enrolls or trusts a machine."),
         b("inspect_fleet_telemetry","ops.telemetry.latest","Read latest durable telemetry for one fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
         b("choose_workload_placement","ops.placement.choose","Evaluate workload placement against current fleet and foreground-activity evidence. Does not move anything.",
