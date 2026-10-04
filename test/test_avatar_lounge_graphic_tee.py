@@ -4,9 +4,8 @@ import pytest
 
 from sofia.avatar.wardrobe_catalog import (
     GRAPHIC_OUTFIT_ID, GRAPHIC_REQUEST_SOURCE_ID, GRAPHIC_TEE_ID,
-    build_graphic_lounge_variation,
+    SPARKS_LIKED_OUTFIT_SOURCE_IDS, build_graphic_lounge_variation,
 )
-from sofia.avatar.style_context import project_style_context
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import RequestStatus
 
@@ -48,18 +47,18 @@ def test_request_is_not_misrepresented_as_like_or_sofia_preference():
     assert len(requests) == 1
     assert requests[0].status is RequestStatus.USER_REQUESTED
     assert requests[0].source_id == GRAPHIC_REQUEST_SOURCE_ID
-    projection = project_style_context(
-        variant.catalog,
-        reviewed_source_ids=frozenset({
-            "chat.2026-09-22.like.both.engineer",
-            "chat.2026-09-22.like.both.lounge",
-        }),
-    ).for_chat()
-    assert {entry["subject_id"] for entry in projection["liked_by_sparks"]} == {
+    likes = tuple(
+        entry
+        for entry in variant.catalog.inputs
+        if (
+            entry.status is RequestStatus.USER_LIKED
+            and entry.source_id in SPARKS_LIKED_OUTFIT_SOURCE_IDS
+        )
+    )
+    assert {entry.subject_id for entry in likes} == {
         "engineer.signature", "lounge.relaxed"
     }
-    assert GRAPHIC_TEE_ID not in {entry["subject_id"] for entry in projection["liked_by_sparks"]}
-    assert projection["sofia_preference_claims"] == []
+    assert GRAPHIC_TEE_ID not in {entry.subject_id for entry in likes}
 
 
 def test_manifest_exports_explicit_variant_without_false_asset_claim():

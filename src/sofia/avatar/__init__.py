@@ -8,23 +8,6 @@ __all__ = [
     "WardrobeError", "WardrobeConflict", "VisibilityDenied",
 ]
 
-from .scene import Actor, Action, Prop, Proposal, Scene, SceneConflict, SceneDenied, SceneError
-
-__all__ += ["Actor", "Action", "Prop", "Proposal", "Scene", "SceneConflict", "SceneDenied", "SceneError"]
-
-from .shared_wardrobe_state import (
-    PresentationMode, SharedWardrobeState, TransitionStatus, WardrobeChange,
-    WardrobeState, WardrobeStateConflict, WardrobeStateDenied,
-    WardrobeStateError, WardrobeItemProjection, WardrobeTextProjection,
-)
-
-__all__ += [
-    "PresentationMode", "SharedWardrobeState", "TransitionStatus",
-    "WardrobeChange", "WardrobeState", "WardrobeStateConflict",
-    "WardrobeStateDenied", "WardrobeStateError", "WardrobeItemProjection",
-    "WardrobeTextProjection",
-]
-
 from .wardrobe_planner import (
     Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
     OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
@@ -61,11 +44,6 @@ __all__ += [
     "generated_piece_specs", "generated_seasonal_outfits",
     "with_sparks_outfit_likes",
 ]
-
-from .style_context import StyleContext, project_style_context
-
-__all__ += ["StyleContext", "project_style_context"]
-
 
 from .presentation import (
     AppearanceState, AttireMode, AudienceScope, PresentationAuthority,

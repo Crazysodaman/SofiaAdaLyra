@@ -12,7 +12,7 @@ from sofia.avatar.clothing_action import (
     ClothingActionService,
     WardrobeAutonomyContext,
 )
-from sofia.avatar.interact_bridge import HostEnvironmentEvidence
+from sofia.avatar.environment_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
 from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner

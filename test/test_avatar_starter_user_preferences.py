@@ -6,7 +6,6 @@ from sofia.avatar.wardrobe_catalog import (
     build_sparks_starter_wardrobe,
     with_sparks_outfit_likes,
 )
-from sofia.avatar.style_context import project_style_context
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import RequestStatus, build_starter_wardrobe
 
@@ -23,21 +22,35 @@ def test_both_likes_are_in_enriched_clothing_data():
     ]) == 300
 
 
-def test_reviewed_likes_are_distinct_from_requests_and_sofia_taste():
+def test_likes_are_distinct_from_requests_and_remain_source_backed():
     catalog = build_sparks_starter_wardrobe()
-    projection = project_style_context(catalog, reviewed_source_ids=SPARKS_LIKED_OUTFIT_SOURCE_IDS)
-    assert {entry.subject_id for entry in projection.liked_by_sparks} == {
+    likes = tuple(
+        entry
+        for entry in catalog.inputs
+        if entry.status is RequestStatus.USER_LIKED
+    )
+    requests = tuple(
+        entry
+        for entry in catalog.inputs
+        if entry.status is RequestStatus.USER_REQUESTED
+    )
+    assert {entry.subject_id for entry in likes} == {
         "engineer.signature", "lounge.relaxed"
     }
-    assert len(projection.requested_by_sparks) == 2
-    assert projection.disliked_by_sparks == ()
-    assert projection.for_chat()["sofia_preference_claims"] == []
+    assert {entry.source_id for entry in likes} == SPARKS_LIKED_OUTFIT_SOURCE_IDS
+    assert len(requests) == 2
+    assert all(entry.detail.strip() for entry in likes + requests)
 
 
-def test_sources_not_reviewed_are_not_claimed_as_likes():
-    projection = project_style_context(build_sparks_starter_wardrobe())
-    assert projection.liked_by_sparks == ()
-    assert {entry.source_id for entry in projection.awaiting_source_review} == SPARKS_LIKED_OUTFIT_SOURCE_IDS
+def test_base_catalog_does_not_fabricate_likes():
+    catalog = build_starter_wardrobe()
+    assert not any(
+        entry.status is RequestStatus.USER_LIKED
+        for entry in catalog.inputs
+    )
+    assert {
+        entry.status for entry in catalog.inputs
+    } == {RequestStatus.USER_REQUESTED}
 
 
 def test_enrichment_is_idempotent_and_preserves_existing_records():
