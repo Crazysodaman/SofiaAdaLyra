@@ -265,6 +265,30 @@ def test_tool_exposure_exposes_live_permission_inspection_for_authority_question
     assert plan.allow_tools is True
 
 
+def test_docker_question_exposes_local_and_enrolled_remote_read_paths():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("check Docker on Eos")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+
+    plan = planner.plan(env, turn, authority)
+
+    assert {
+        "portainer.summary",
+        "portainer.containers",
+        "ops.fleet.list",
+        "remote.nodes",
+        "remote.container.summary",
+        "remote.container.stats",
+        "remote.container.images",
+        "remote.container.volumes",
+        "remote.container.networks",
+        "remote.container.stacks",
+    }.issubset(set(plan.capabilities))
+    assert plan.allow_tools is True
+
+
 def test_hardware_question_exposes_local_inventory_and_remote_read_paths():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
