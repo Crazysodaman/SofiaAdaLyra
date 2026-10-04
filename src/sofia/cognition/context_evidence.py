@@ -1,117 +1,7 @@
 """Format supplied observation and continuity evidence for cognitive context."""
 from __future__ import annotations
-from collections.abc import Mapping
-from typing import Any
 from sofia.continuity.model import ContinuityEvent, ContinuityEventKind
 from sofia.filesystem.changes import FilesystemChangeEvent
-from sofia.system.knowledge import SystemCapabilityKnowledgeRecord
-
-
-def format_system_capability_record(
-    record: SystemCapabilityKnowledgeRecord,
-) -> list[str]:
-    lines = [
-        "",
-        f"CAPABILITY: {record.capability.value}",
-        f"Result: {record.kind.value}",
-    ]
-
-    if record.observed_at is not None:
-        lines.append(
-            "Observed at: "
-            f"{record.observed_at.isoformat()}"
-        )
-
-    if record.backend_name is not None:
-        lines.append(
-            f"Backend: {record.backend_name}"
-        )
-
-    if record.error is not None:
-        lines.append(
-            f"Error: {record.error}"
-        )
-
-    if record.evidence is not None:
-        lines.append("Evidence:")
-        lines.extend(
-            format_structured_value(
-                record.evidence,
-                indent=2,
-            )
-        )
-    else:
-        lines.append(
-            "Evidence: none"
-        )
-
-    return lines
-
-
-
-def format_structured_value(
-    value: Any,
-    indent: int = 0,
-) -> list[str]:
-    prefix = " " * indent
-
-    if isinstance(value, Mapping):
-        lines: list[str] = []
-
-        for key, item in value.items():
-            if isinstance(item, (Mapping, tuple, list)):
-                lines.append(
-                    f"{prefix}{key}:"
-                )
-                lines.extend(
-                    format_structured_value(
-                        item,
-                        indent=indent + 2,
-                    )
-                )
-            else:
-                lines.append(
-                    f"{prefix}{key}: {item}"
-                )
-
-        if not lines:
-            lines.append(
-                f"{prefix}{{}}"
-            )
-
-        return lines
-
-    if isinstance(value, (tuple, list)):
-        if not value:
-            return [
-                f"{prefix}[]"
-            ]
-
-        lines = []
-
-        for item in value:
-            if isinstance(item, (Mapping, tuple, list)):
-                lines.append(
-                    f"{prefix}-"
-                )
-                lines.extend(
-                    format_structured_value(
-                        item,
-                        indent=indent + 2,
-                    )
-                )
-            else:
-                lines.append(
-                    f"{prefix}- {item}"
-                )
-
-        return lines
-
-
-    return [
-        f"{prefix}{value}"
-    ]
-
 
 
 def format_continuity_event(
@@ -188,7 +78,6 @@ def format_continuity_event(
     return lines
 
 
-
 def format_workspace_changes(
     event: FilesystemChangeEvent,
 ) -> list[str]:
@@ -257,7 +146,6 @@ def format_workspace_changes(
         )
 
     return lines
-
 
 
 def format_filesystem_result(result) -> list[str]:

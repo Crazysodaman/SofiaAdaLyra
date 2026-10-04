@@ -5,7 +5,6 @@ import json
 from sofia.avatar.presentation import AttireMode, PresentationProjection
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.context_evidence import (
-    format_system_capability_record,
     format_continuity_event,
     format_workspace_changes,
     format_filesystem_result,
@@ -580,43 +579,5 @@ class CognitiveContextAssembler:
                     format_filesystem_result(result)
                 )
 
-        if (
-            context.system_capability_knowledge is not None
-            and context.system_capability_machine_id is not None
-        ):
-            records = context.current_system_capability_knowledge
-
-            sections.extend(
-                [
-                    "",
-                    "SYSTEM CAPABILITY KNOWLEDGE",
-                    (
-                        "The following information is structured "
-                        "observational evidence produced by system "
-                        "capability inspection."
-                    ),
-                    (
-                        "Machine ID: "
-                        f"{context.system_capability_machine_id}"
-                    ),
-                    (
-                        "These observations do not grant authority, "
-                        "execute capabilities, or establish that any "
-                        "future operation is permitted."
-                    ),
-                ]
-            )
-
-            if not records:
-                sections.append(
-                    "No current system capability observations are available."
-                )
-            else:
-                for record in records:
-                    sections.extend(
-                        format_system_capability_record(
-                            record
-                        )
-                    )
 
         return "\n".join(sections)

@@ -1,14 +1,5 @@
-﻿from sofia.system.backend import (
+from sofia.system.backend import (
     SystemCapabilityBackend,
-)
-from sofia.system.knowledge import (
-    SystemCapabilityKnowledge,
-    SystemCapabilityKnowledgeRecord,
-    SystemCapabilityKnowledgeUpdate,
-)
-from sofia.system.machine_knowledge import (
-    SystemCapabilityMachineAssociation,
-    SystemCapabilityMachineKnowledge,
 )
 from sofia.system.model import (
     HardwareInspection,
@@ -34,11 +25,6 @@ __all__ = [
     "ServiceInspection",
     "SystemCapability",
     "SystemCapabilityBackend",
-    "SystemCapabilityKnowledge",
-    "SystemCapabilityKnowledgeRecord",
-    "SystemCapabilityKnowledgeUpdate",
-    "SystemCapabilityMachineAssociation",
-    "SystemCapabilityMachineKnowledge",
     "SystemCapabilityName",
     "SystemCapabilityRequest",
     "SystemCapabilityResult",
