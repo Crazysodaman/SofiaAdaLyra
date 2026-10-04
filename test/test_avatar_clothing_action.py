@@ -218,10 +218,20 @@ def test_swap_boots_keeps_current_pair_when_no_replacement_exists(tmp_path):
             or bp.garment.slots != current_boot.slots
         )
     )
+    available_ids = {
+        bp.garment.item_id
+        for bp in blueprints
+    }
+    presets = tuple(
+        plan
+        for plan in catalog.presets
+        if set(plan.item_ids) <= available_ids
+    )
     catalog = replace(
         catalog,
         blueprints=blueprints,
         wardrobe=Wardrobe(tuple(bp.garment for bp in blueprints)),
+        presets=presets,
     )
     runtime_bundle = bundle(tmp_path, catalog=catalog)
     service = ClothingActionService(runtime_bundle)
