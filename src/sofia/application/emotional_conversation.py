@@ -15,6 +15,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.cognition.matrix import (
     EmbodiedExpressionPlan,
     EmbodiedExpressionPlanner,
+    HistoryPolicy,
     MatrixDomain,
 )
 from sofia.cognition.performance import emit_performance
@@ -31,6 +32,12 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
+
+_CAUSAL_LAST_TURN_QUERY = re.compile(
+    r"^\s*(?:why|how\s+so|tell\s+me\s+(?:the\s+)?why|"
+    r"what\s+do\s+you\s+mean|explain\s+that)\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
 
 _CONTEXT_HISTORY_QUERY = re.compile(
     r"\b(?:why\s+(?:do|are)\s+you\s+(?:feel|feeling)|"
@@ -551,9 +558,19 @@ class EmotionalConversationService(ConversationService):
             if current_user is not None
             else ("" if request_user is None else request_user.content)
         )
+        causal_last_turn = (
+            emotion_allowed
+            and context_plan is not None
+            and context_plan.history_policy is HistoryPolicy.LAST_TURN
+            and context_plan.allows(MatrixDomain.EMOTION)
+            and _CAUSAL_LAST_TURN_QUERY.fullmatch(latest_text) is not None
+        )
         history_requested = (
             emotion_allowed
-            and _CONTEXT_HISTORY_QUERY.search(latest_text) is not None
+            and (
+                _CONTEXT_HISTORY_QUERY.search(latest_text) is not None
+                or causal_last_turn
+            )
         )
         if emotion_allowed:
             emotional_context = self.emotional_journal.prompt_context(
