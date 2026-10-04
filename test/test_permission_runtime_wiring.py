@@ -26,6 +26,7 @@ from sofia.composition.authorization import create_capability_authorizer
 from sofia.composition.root import compose
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.safe.permissions import PermissionStore
+from sofia.safe.permissions_cli import main as permissions_cli_main
 from sofia.safe.permission_capability import PermissionInspectionCapability
 from sofia.social.principals import local_sparks_principal
 from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
@@ -594,3 +595,56 @@ def test_named_domain_permission_contract_is_locked():
         name: capability_permission_policy(name).level
         for name in expected
     } == expected
+
+
+def test_permissions_cli_grant_list_revoke_and_private(tmp_path, capsys):
+    state = tmp_path / "sofia.db"
+
+    assert permissions_cli_main([
+        "--state-path", str(state),
+        "grant",
+        "portainer.container.restart",
+        "--scope-json", '{"container_id":"mealie"}',
+    ]) == 0
+    granted = json.loads(capsys.readouterr().out)
+    grant_id = granted["grant_id"]
+
+    assert permissions_cli_main([
+        "--state-path", str(state),
+        "list",
+        "--active-only",
+    ]) == 0
+    listed = json.loads(capsys.readouterr().out)
+    assert listed[0]["grant_id"] == grant_id
+    assert listed[0]["scope"] == {"container_id": "mealie"}
+
+    assert permissions_cli_main([
+        "--state-path", str(state),
+        "private",
+        "set",
+        "--adult-chat", "on",
+        "--adult-avatar", "on",
+    ]) == 0
+    private = json.loads(capsys.readouterr().out)
+    assert private["adult_chat"] is True
+    assert private["adult_avatar"] is True
+    assert private["adult_external_delivery"] is False
+
+    assert permissions_cli_main([
+        "--state-path", str(state),
+        "revoke",
+        grant_id,
+    ]) == 0
+    revoked = json.loads(capsys.readouterr().out)
+    assert revoked["grant_id"] == grant_id
+    assert revoked["revoked_at"] is not None
+
+
+def test_permissions_cli_refuses_protected_standing_grant(tmp_path, capsys):
+    state = tmp_path / "sofia.db"
+    with pytest.raises(SystemExit):
+        permissions_cli_main([
+            "--state-path", str(state),
+            "grant",
+            "local.host.reboot",
+        ])
