@@ -9,6 +9,8 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.composition.root import compose
+from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.safe.permissions import PermissionStore
 from sofia.social.principals import local_sparks_principal
 from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
@@ -172,3 +174,27 @@ def test_adult_private_authority_is_projected_into_trusted_cognitive_context(tmp
     assert "Adult chat authorized: yes" in system_text
     assert "Adult/private avatar authorized: yes" in system_text
     assert "Adult/private external delivery authorized: no" in system_text
+
+
+def test_runtime_tool_exposure_reads_new_standing_grants_without_restart(tmp_path):
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=(),
+    )
+    runtime = compose(configuration)
+    assert runtime.current_authority().can_use_capability("storage.mkdir") is False
+
+    PermissionStore(configuration.state_path).grant(
+        "storage.mkdir",
+        scope={"root_index": 0, "path": "docs"},
+        grant_id="live-storage-grant",
+    )
+
+    assert runtime.current_authority().can_use_capability("storage.mkdir") is True
