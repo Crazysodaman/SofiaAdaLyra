@@ -17,7 +17,10 @@ from .body_contract import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from .wardrobe_planner import Activity, OutfitPlan, Season, Weather
 
-# Closet inventory families, seasonal presets, and swimwear live here so all\n# catalog construction shares one set of wardrobe invariants.\n\n@dataclass(frozen=True, slots=True)
+# Closet inventory families, seasonal presets, and swimwear live here so all
+# catalog construction shares one set of wardrobe invariants.
+
+@dataclass(frozen=True, slots=True)
 class ClosetCategory:
     category_id: str
     label: str
@@ -251,7 +254,9 @@ def generated_piece_specs() -> tuple[PieceSpec, ...]:
             for index, style in enumerate(PRIVATE_STYLES, start=1)
         )
     return tuple(pieces)
-\n\n_SEASON_INDEX = {
+
+
+_SEASON_INDEX = {
     Season.SPRING: 0,
     Season.SUMMER: 1,
     Season.AUTUMN: 2,
@@ -351,7 +356,9 @@ def generated_seasonal_outfits() -> tuple[OutfitPlan, ...]:
             outfits.append(_seasonal_lounge(season, index))
             outfits.append(_seasonal_private(season, index))
     return tuple(outfits)
-\n\n_BIKINI_DESIGNS: tuple[
+
+
+_BIKINI_DESIGNS: tuple[
     tuple[str, str, str, str, str, str],
     ...,
 ] = (
@@ -496,7 +503,9 @@ def generated_bikini_outfits() -> tuple[OutfitPlan, ...]:
         )
         for index in range(1, 7)
     )
-\n\n_HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
+
+
+_HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
 DRAFT_STATUS = "proposed_no_mesh_no_verified_asset"
 ALL_SEASONS = frozenset(Season)
@@ -1000,7 +1009,12 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                    "chat.2026-09-22.request.lounge", "Oversized top and sweatpants requested; not a confirmed like."),
     )
     return WardrobePrebuild(wardrobe, blueprints, presets, inputs)
-\n\n# Source-backed starter taste evidence and optional lounge variation are\n# catalog initialization concerns, not separate subsystems.\n\nSPARKS_LIKED_OUTFIT_SOURCE_IDS = frozenset({
+
+
+# Source-backed starter taste evidence and optional lounge variation are
+# catalog initialization concerns, not separate subsystems.
+
+SPARKS_LIKED_OUTFIT_SOURCE_IDS = frozenset({
     "chat.2026-09-22.like.both.engineer",
     "chat.2026-09-22.like.both.lounge",
 })
@@ -1037,7 +1051,9 @@ def with_sparks_outfit_likes(catalog: WardrobePrebuild) -> WardrobePrebuild:
 def build_sparks_starter_wardrobe() -> WardrobePrebuild:
     """Build the starter wardrobe with the confirmed Sparks likes already present."""
     return with_sparks_outfit_likes(build_starter_wardrobe())
-\n\nGRAPHIC_TEE_ID = "lounge.graphic_tee"
+
+
+GRAPHIC_TEE_ID = "lounge.graphic_tee"
 GRAPHIC_OUTFIT_ID = "lounge.graphic"
 GRAPHIC_REQUEST_SOURCE_ID = "chat.2026-09-22.request.occasional_graphic_tee"
 
@@ -1148,4 +1164,4 @@ def build_graphic_lounge_variation() -> GraphicLoungeVariation:
             "Original tiny engineering joke or abstract circuitry",
         ),
     )
-\n
+
