@@ -159,7 +159,9 @@ class ConversationMatrixMixin:
         self._matrix_response_planner = MatrixResponsePlanner()
         self._matrix_response_validator = MatrixResponseValidator()
         self._matrix_routing_planner = MatrixRoutingPlanner()
-        self._matrix_privacy_planner = MatrixPrivacyPlanner()
+        self._matrix_privacy_planner = MatrixPrivacyPlanner(
+            self._runtime.configuration.state_path
+        )
         self._matrix_tool_exposure_planner = MatrixToolExposurePlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
         self._reset_matrix_turn()
