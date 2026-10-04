@@ -575,9 +575,11 @@ def test_named_domain_permission_contract_is_locked():
         # Docker
         "portainer.summary": PermissionLevel.OBSERVE_READ,
         "portainer.container.stats": PermissionLevel.OBSERVE_READ,
+        "portainer.container.logs": PermissionLevel.OBSERVE_READ,
         "portainer.container.restart": PermissionLevel.REVERSIBLE_SCOPED,
         "remote.container.summary": PermissionLevel.OBSERVE_READ,
         "remote.container.stats": PermissionLevel.OBSERVE_READ,
+        "remote.container.logs": PermissionLevel.OBSERVE_READ,
         "remote.container.images": PermissionLevel.OBSERVE_READ,
         "remote.container.volumes": PermissionLevel.OBSERVE_READ,
         "remote.container.networks": PermissionLevel.OBSERVE_READ,

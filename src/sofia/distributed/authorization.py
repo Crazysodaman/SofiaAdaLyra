@@ -26,6 +26,7 @@ REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("container.inspect", "list"),
     ("container.inspect", "get"),
     ("container.inspect", "stats"),
+    ("container.inspect", "logs"),
     ("container.inspect", "info"),
     ("container.inspect", "summary"),
     ("container.inspect", "images"),

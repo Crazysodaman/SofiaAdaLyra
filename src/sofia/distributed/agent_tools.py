@@ -121,6 +121,11 @@ def create_default_agent_dispatcher(
         dispatcher.register("container.inspect","list",lambda p:_plain(port.containers()))
         dispatcher.register("container.inspect","get",lambda p:_plain(port.container(str(p["container"]))))
         dispatcher.register("container.inspect","stats",lambda p:_plain(port.container_stats(str(p["container"]))))
+        dispatcher.register("container.inspect","logs",lambda p:_plain(port.container_logs(
+            str(p["container"]),
+            tail=int(p.get("tail",200)),
+            max_bytes=int(p.get("max_bytes",262144)),
+        )))
         dispatcher.register("container.inspect","info",lambda p:_plain(port.info()))
         dispatcher.register("container.inspect","summary",lambda p:_plain(port.summary()))
         dispatcher.register("container.inspect","images",lambda p:_plain(port.images()))

@@ -37,6 +37,9 @@ class FakeHttp:
     def request(self,method,path,**kwargs):
         self.calls.append((method,path,kwargs))
         return self.responses.pop(0) if self.responses else None
+    def request_text(self,method,path,**kwargs):
+        self.calls.append((method,path,kwargs))
+        return self.responses.pop(0) if self.responses else ""
 
 
 def _configuration(tmp_path:Path,allowed=())->SofiaConfiguration:
@@ -184,6 +187,22 @@ def test_portainer_adapter_supports_bounded_read_only_inventory_and_stats():
     assert fake.calls[-1][2]["query"]["endpointId"] == 2
 
 
+def test_portainer_adapter_reads_bounded_logs():
+    adapter=PortainerAdapter("http://portainer.local","key",2)
+    fake=FakeHttp(["2026-10-04T20:00:00Z hello\n"])
+    adapter.http=fake
+
+    text=adapter.container_logs("abc",tail=25,max_bytes=4096)
+
+    assert "hello" in text
+    assert fake.calls[-1][0:2] == (
+        "GET",
+        "/api/endpoints/2/docker/containers/abc/logs",
+    )
+    assert fake.calls[-1][2]["query"]["tail"] == "25"
+    assert fake.calls[-1][2]["max_bytes"] == 4096
+
+
 def test_portainer_summary_reports_running_stopped_and_unhealthy():
     adapter=PortainerAdapter("http://portainer.local","key",2)
     fake=FakeHttp([
@@ -298,7 +317,7 @@ def test_configured_service_catalog_registers_homelab_tools(tmp_path,monkeypatch
     monkeypatch.setenv("SOFIA_GITHUB_REPOSITORY","owner/repo")
     names={x.capability.name for x in create_configured_integration_tools(filesystem_root=tmp_path,state_path=tmp_path/"sofia.db")}
     assert {"home_assistant.states","home_assistant.service.call","portainer.containers",
-            "portainer.container.stats","portainer.info","portainer.summary","portainer.images",
+            "portainer.container.stats","portainer.container.logs","portainer.info","portainer.summary","portainer.images",
             "portainer.volumes","portainer.networks","portainer.stacks",
             "portainer.container.restart","jmri.power","jmri.power.set","github.repository",
             "github.pull_request.create","github.pull_request.merge"} <= names
