@@ -62,6 +62,14 @@ _UNSUPPORTED_WEATHER_CLAIM = re.compile(
     r"temperature\s+(?:is|at)\s+-?\d+)",
     re.IGNORECASE,
 )
+_INTERNAL_REASONING_LEAK = re.compile(
+    r"(?im)^\s*(?:#{1,6}\s*)?(?:\d+\.\s*)?"
+    r"(?:analysis\s+of\s+the\s+tool\s+result|constitutional\s+evaluation|"
+    r"personality\s+adaptation|strategic\s+intent|drafting\s+the\s+response)\b"
+    r"|^\s*okay,?\s+i\s+see\s+the\s+tool\s+output\b"
+    r"|^\s*let(?:'|’)s\s+analy[sz]e\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 _VOICE_RUNTIME_CLAIM = re.compile(
     r"(?:\b(?:voice|speech|microphone|mic|speaker|tts|stt)\b"
     r".{0,48}\b(?:working|ready|available|healthy|running|enabled|connected)\b"
@@ -112,6 +120,9 @@ class MatrixResponseValidator:
 
         content = response.content.strip()
         reasons: list[str] = []
+
+        if _INTERNAL_REASONING_LEAK.search(content):
+            reasons.append("internal_reasoning_leak")
 
         execution_claim = _EXECUTION_CLAIM.search(content)
         receipt_available = (
@@ -214,6 +225,13 @@ class MatrixResponseValidator:
         contract: ResponseContract,
     ) -> CognitiveResponse:
         reasons = set(validation.reasons)
+        if "internal_reasoning_leak" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I have the underlying evidence, but that draft exposed "
+                    "internal reasoning instead of a clean user-facing answer."
+                )
+            )
         if "execution_claim_without_action_authority" in reasons:
             if contract.authority_decision is AuthorityDecision.CLARIFY:
                 return CognitiveResponse(
