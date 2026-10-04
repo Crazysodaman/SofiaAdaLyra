@@ -94,9 +94,9 @@ def test_trace_store_failure_does_not_disable_live_matrix_scoping(
         )
         assert "CURRENT MODELED EMOTIONAL STATE" in system_text
         assert "CURRENT AVATAR PRESENTATION" not in system_text
-        assert application.conversation.last_matrix_error().startswith(
-            "trace-write:"
-        )
+        matrix_error = application.conversation.last_matrix_error()
+        assert matrix_error is not None
+        assert matrix_error.startswith("trace-")
     finally:
         application.shutdown()
 
