@@ -13,6 +13,7 @@ from sofia.filesystem.model import FilesystemResult
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.reflection import ReflectionJournal
 from sofia.social.model import PrincipalContext, SocialScope
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 if TYPE_CHECKING:
     from sofia.runtime.runtime import SofiaRuntime
@@ -396,6 +397,15 @@ def respond_with_runtime_context(
                 else None
             ),
             principal=principal,
+            private_adult_authority=(
+                runtime._permission_store.private_adult_authority()
+                if (
+                    principal is not None
+                    and principal.principal_id == SPARKS_PRINCIPAL_ID
+                    and principal.audience_kind.value == "private"
+                )
+                else None
+            ),
         ),
         authority=runtime.current_authority(),
     )
