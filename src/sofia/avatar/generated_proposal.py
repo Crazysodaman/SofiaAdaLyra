@@ -270,9 +270,44 @@ class GeneratedGarmentProposalService:
         self,
         brief: GarmentGenerationBrief,
     ) -> GarmentDesignRequest:
-        response = self._responder(self.request_for(brief))
+        request = self.request_for(brief)
+        response = self._responder(request)
         if not isinstance(response, CognitiveResponse):
             raise TypeError(
                 "wardrobe proposal responder must return CognitiveResponse"
             )
-        return self.parse(response.content, brief)
+        try:
+            return self.parse(response.content, brief)
+        except WardrobeError as first_error:
+            repair = CognitiveRequest(
+                messages=(
+                    request.messages[0],
+                    CognitiveMessage(
+                        role=CognitiveRole.SYSTEM,
+                        content=(
+                            "WARDROBE DESIGN SCHEMA REPAIR\n"
+                            "The previous proposal failed host validation: "
+                            + str(first_error)
+                            + ". Produce a fresh corrected proposal using the "
+                            "same creative brief and original host contract. "
+                            "Return exactly the required JSON object and nothing else."
+                        ),
+                    ),
+                    request.messages[1],
+                ),
+                tools=(),
+                allow_tools=False,
+                capability_allowlist=(),
+                route_hint="verify",
+            )
+            repaired = self._responder(repair)
+            if not isinstance(repaired, CognitiveResponse):
+                raise TypeError(
+                    "wardrobe proposal responder must return CognitiveResponse"
+                )
+            try:
+                return self.parse(repaired.content, brief)
+            except WardrobeError as second_error:
+                raise WardrobeError(
+                    "generated garment proposal failed validation after one repair"
+                ) from second_error
