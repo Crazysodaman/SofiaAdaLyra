@@ -351,6 +351,42 @@ def test_tool_exposure_keeps_safe_autonomous_dev_build_without_action_approval()
     assert "dev.push" not in plan.capabilities
 
 
+def test_level_three_standing_grant_keeps_reversible_tool_exposed():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("restart the Portainer container")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            allowed_capabilities=("portainer.container.restart",),
+        ),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "portainer.container.restart" in plan.capabilities
+
+
+def test_level_three_without_standing_grant_remains_hidden():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("restart the Portainer container")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(can_respond=True, can_propose_actions=True),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "portainer.container.restart" not in plan.capabilities
+
+
 def test_self_improvement_exposes_inspection_and_isolated_build_only():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())

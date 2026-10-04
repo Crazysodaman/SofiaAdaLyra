@@ -330,11 +330,18 @@ class MatrixToolExposurePlanner:
             capabilities = [
                 capability
                 for capability in capabilities
-                if capability_permission_policy(capability).level
-                in {
-                    PermissionLevel.OBSERVE_READ,
-                    PermissionLevel.SAFE_AUTONOMOUS,
-                }
+                if (
+                    capability_permission_policy(capability).level
+                    in {
+                        PermissionLevel.OBSERVE_READ,
+                        PermissionLevel.SAFE_AUTONOMOUS,
+                    }
+                    or (
+                        capability_permission_policy(capability).level
+                        is PermissionLevel.REVERSIBLE_SCOPED
+                        and authority.can_use_capability(capability)
+                    )
+                )
             ]
 
         if not capabilities:
