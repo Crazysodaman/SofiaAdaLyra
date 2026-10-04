@@ -29,7 +29,12 @@ from sofia.safe.permissions import PermissionStore
 from sofia.safe.permission_capability import PermissionInspectionCapability
 from sofia.social.principals import local_sparks_principal
 from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
-from sofia.ui.settings_window import _optional_expiry_minutes, _permission_scope
+from sofia.ui.settings_window import (
+    _csv_values,
+    _network_scopes,
+    _optional_expiry_minutes,
+    _permission_scope,
+)
 
 
 def _registration(registrations, name):
@@ -47,6 +52,21 @@ def test_permission_ui_scope_parser_is_bounded_to_json_objects():
     }
     with pytest.raises(ValueError, match="JSON object"):
         _permission_scope('["mealie"]')
+
+
+def test_fleet_settings_parsers_normalize_scopes_and_targets():
+    assert _csv_values("worker.lan:7443, worker.lan:7443, node2") == (
+        "worker.lan:7443",
+        "node2",
+    )
+    assert _network_scopes(
+        "192.168.1.42/24, 10.0.0.0/8"
+    ) == (
+        "192.168.1.0/24",
+        "10.0.0.0/8",
+    )
+    with pytest.raises(ValueError, match="Invalid discovery scope"):
+        _network_scopes("definitely-not-a-network")
 
 
 def test_permission_ui_expiry_parser():
@@ -524,3 +544,41 @@ def test_tool_catalog_reads_live_authority_provider():
     allowed.clear()
     second = {item["name"]: item for item in catalog.execute(request)}
     assert second["hardware.inspect"]["standing_authorized"] is False
+
+
+def test_named_domain_permission_contract_is_locked():
+    from sofia.safe.permissions import (
+        PermissionLevel,
+        capability_permission_policy,
+    )
+
+    expected = {
+        # Permissions
+        "permissions.inspect": PermissionLevel.OBSERVE_READ,
+        "permissions.grant": PermissionLevel.NEVER_SELF_AUTHORIZED,
+        # Fleet / network
+        "ops.fleet.list": PermissionLevel.OBSERVE_READ,
+        "ops.fleet.enrollment_evidence": PermissionLevel.OBSERVE_READ,
+        "ops.fleet.discover": PermissionLevel.SAFE_AUTONOMOUS,
+        "network.discover": PermissionLevel.OBSERVE_READ,
+        "fleet.enroll": PermissionLevel.PROTECTED,
+        # Hardware
+        "hardware.inspect": PermissionLevel.OBSERVE_READ,
+        "remote.hardware.inspect": PermissionLevel.OBSERVE_READ,
+        # Docker
+        "portainer.summary": PermissionLevel.OBSERVE_READ,
+        "portainer.container.stats": PermissionLevel.OBSERVE_READ,
+        "portainer.container.restart": PermissionLevel.REVERSIBLE_SCOPED,
+        # Self-improvement
+        "codebase.inspect": PermissionLevel.OBSERVE_READ,
+        "dev.candidates.list": PermissionLevel.OBSERVE_READ,
+        "dev.candidate.get": PermissionLevel.OBSERVE_READ,
+        "dev.build": PermissionLevel.SAFE_AUTONOMOUS,
+        "dev.apply": PermissionLevel.PROTECTED,
+        "dev.commit": PermissionLevel.PROTECTED,
+        "dev.push": PermissionLevel.PROTECTED,
+    }
+    assert {
+        name: capability_permission_policy(name).level
+        for name in expected
+    } == expected
