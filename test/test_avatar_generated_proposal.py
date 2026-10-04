@@ -103,3 +103,36 @@ def test_generated_proposal_requires_exact_schema():
             '{"slug":"incomplete"}',
             GarmentGenerationBrief("Design a tee."),
         )
+
+
+def test_generator_uses_one_schema_repair_attempt():
+    requests = []
+    responses = iter(("{}", VALID_TEE))
+
+    def respond(request):
+        requests.append(request)
+        return CognitiveResponse(content=next(responses))
+
+    proposal = GeneratedGarmentProposalService(respond).generate(
+        GarmentGenerationBrief("Design a violet tee.")
+    )
+
+    assert proposal.item_id == "generated.sofia.violet_soft_tee"
+    assert len(requests) == 2
+    repair_text = "\n".join(
+        message.content
+        for message in requests[1].messages
+        if message.role.value == "system"
+    )
+    assert "WARDROBE DESIGN SCHEMA REPAIR" in repair_text
+
+
+def test_generator_stops_after_failed_schema_repair():
+    service = GeneratedGarmentProposalService(
+        lambda request: CognitiveResponse(content="{}")
+    )
+
+    with pytest.raises(WardrobeError, match="after one repair"):
+        service.generate(
+            GarmentGenerationBrief("Design a violet tee.")
+        )
