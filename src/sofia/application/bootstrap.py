@@ -15,7 +15,7 @@ from sofia.avatar.clothing_action import (
 from sofia.avatar.interact_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
-from sofia.avatar.wardrobe_routine import Activity, OutfitPlanner
+from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner
 from sofia.avatar.wardrobe_studio import WardrobeStudio
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
