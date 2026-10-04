@@ -169,7 +169,19 @@ python -m sofia.safe.approve_execution --capability local.host.reboot --paramete
 ```
 
 The command prints an `approval_id`. The approval is time-bounded, exact to the
-capability and parameters, and consumable once.
+capability and parameters, and consumable once. Active one-time approvals are
+fed into live chat authority, so the protected tool becomes available only
+while that approval is active.
+
+Then make the matching request and include the ID, for example:
+
+```text
+Reboot this host using approval ID <approval-id>.
+```
+
+Execution verifies that the capability and exact parameters match before
+consuming the approval. A mismatched, expired, or already-consumed approval is
+rejected.
 
 Not every protected subsystem uses this generic approval store. DEV, EVOLVE,
 Fleet trust, and remote Fleet operations have specialized workflows described
@@ -819,7 +831,17 @@ python -m sofia.safe.dev_approve --operation commit --proposal-id <proposal-id> 
 
 Push approval requires the exact branch/remote parameters expected by the tool.
 
-DEV approvals are short-lived, exact, one-time, and Sparks-only.
+After recording the approval, make the matching chat request and include the
+returned ID:
+
+```text
+Apply candidate <proposal-id> using approval ID <approval-id>.
+Commit candidate <proposal-id> with message "<message>" using approval ID <approval-id>.
+```
+
+Active DEV approvals are fed into live authority, so only the approved DEV
+operation becomes available. DEV approvals are short-lived, exact, one-time,
+and Sparks-only.
 
 ---
 
