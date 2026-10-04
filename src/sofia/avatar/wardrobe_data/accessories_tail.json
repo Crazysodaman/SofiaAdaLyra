@@ -1,0 +1,1094 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_tail",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "tail.01.black_tail_ring",
+      "name": "Black tail ring",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black tail ring, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.02.violet_tail_ring",
+      "name": "Violet tail ring",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet tail ring, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.03.cyan_tail_band",
+      "name": "Cyan tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.04.crimson_tail_band",
+      "name": "Crimson tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.05.silver_tail_cuff",
+      "name": "Silver tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver tail cuff, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.06.circuit_tail_cuff",
+      "name": "Circuit tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Circuit tail cuff, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.07.soft_violet_tail_ribbon",
+      "name": "Soft-violet tail ribbon",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft-violet tail ribbon, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.08.black_tail_ribbon",
+      "name": "Black tail ribbon",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black tail ribbon, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.09.crimson_tail_ribbon",
+      "name": "Crimson tail ribbon",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson tail ribbon, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.10.cyan_signal_tail_band",
+      "name": "Cyan signal tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan signal tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.11.double_tail_ring",
+      "name": "Double tail ring",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Double tail ring, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.12.minimal_tail_cuff",
+      "name": "Minimal tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal tail cuff, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.13.engineer_tail_band",
+      "name": "Engineer tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Engineer tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.14.night_tail_ribbon",
+      "name": "Late-night tail ribbon",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Late-night tail ribbon, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.15.silver_chain_tail_cuff",
+      "name": "Silver-chain tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-chain tail cuff, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.16.violet_chain_tail_cuff",
+      "name": "Violet-chain tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet-chain tail cuff, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.17.crimson_charm_tail_band",
+      "name": "Crimson charm tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson charm tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.18.cyan_charm_tail_band",
+      "name": "Cyan charm tail band",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan charm tail band, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.19.soft_tail_wrap",
+      "name": "Soft tail wrap",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft tail wrap, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.20.technical_tail_guard",
+      "name": "Technical tail guard",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Technical tail guard, a accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.21.private_sheer_tail_ribbon",
+      "name": "Private sheer tail ribbon",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer tail ribbon, a private accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.22.private_lace_tail_cuff",
+      "name": "Private lace tail cuff",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private lace tail cuff, a private accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.23.private_chain_tail_harness",
+      "name": "Private chain tail harness",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private chain tail harness, a private accessory tail piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "tail.24.private_ringed_tail_harness",
+      "name": "Private ringed tail harness",
+      "garment_type": "tail_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_tail",
+      "sleeve_length": null,
+      "material": "soft textile and lightweight coated hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "accessory_tail",
+        "tail",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private ringed tail harness, a private accessory tail piece designed for Sofía's wardrobe."
+    }
+  ]
+}
