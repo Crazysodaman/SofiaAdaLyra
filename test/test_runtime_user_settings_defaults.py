@@ -40,6 +40,11 @@ def _clear_environment_overrides(monkeypatch):
         "SOFIA_COGNITION_MODEL_IDLE_UNLOAD_SECONDS",
         "SOFIA_COGNITION_MODEL_KEEP_ALIVE",
         "SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED",
+        "SOFIA_FLEET_DISCOVERY_ENABLED",
+        "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
+        "SOFIA_FLEET_DISCOVERY_TARGETS",
+        "SOFIA_FLEET_DISCOVERY_SCOPES",
+        "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE",
     )
     for name in names:
         monkeypatch.delenv(name, raising=False)
@@ -279,3 +284,57 @@ def test_private_avatar_adult_verification_defaults_off_and_requires_host_flag(
     monkeypatch.setenv("SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED", "1")
     configuration = create_default_configuration()
     assert configuration.avatar_private_adult_verified is True
+
+
+def test_saved_owner_settings_configure_fleet_and_network_discovery(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-fleet-discovery"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+
+    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+        RuntimeUserSettings(
+            fleet_discovery_enabled=True,
+            fleet_discovery_interval_seconds=75,
+            fleet_discovery_targets=("worker.lan:7443",),
+            fleet_discovery_scopes=("192.168.77.0/24",),
+            fleet_discovery_max_hosts_per_scope=64,
+        )
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.fleet_discovery.enabled is True
+    assert configuration.fleet_discovery.interval_seconds == 75
+    assert configuration.fleet_discovery.targets == ("worker.lan:7443",)
+    assert configuration.fleet_discovery.scopes == ("192.168.77.0/24",)
+    assert configuration.fleet_discovery.max_hosts_per_scope == 64
+
+
+def test_fleet_discovery_environment_override_beats_saved_setting(
+    tmp_path,
+    monkeypatch,
+):
+    state_root = tmp_path / "state-fleet-env"
+    monkeypatch.setenv("SOFIA_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("SOFIA_RUNTIME_MODE", "development")
+    _clear_environment_overrides(monkeypatch)
+    RuntimeUserSettingsStore(state_root / "sofia.db").save(
+        RuntimeUserSettings(
+            fleet_discovery_enabled=False,
+            fleet_discovery_scopes=("192.168.77.0/24",),
+        )
+    )
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_ENABLED", "1")
+    monkeypatch.setenv(
+        "SOFIA_FLEET_DISCOVERY_SCOPES",
+        "10.20.30.0/24",
+    )
+
+    configuration = create_default_configuration()
+
+    assert configuration.fleet_discovery.enabled is True
+    assert configuration.fleet_discovery.scopes == ("10.20.30.0/24",)
