@@ -48,7 +48,10 @@ from sofia.memory.system import MemorySystem
 from sofia.machine.capability import HardwareInspectionCapability,MachineCapabilitySet,MachineToolService,create_machine_tool_bindings
 from sofia.machine.discovery import create_machine_discovery
 from sofia.machine.location import MachineLocationRegistry
-from sofia.ops.agent_discovery import create_configured_fleet_discovery_source
+from sofia.ops.agent_discovery import (
+    create_configured_fleet_discovery_source,
+    create_configured_network_discovery_source,
+)
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
 from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
@@ -211,6 +214,9 @@ def compose(
         state_path,
         state_plane=state_plane,
         discovery_source=create_configured_fleet_discovery_source(
+            configuration
+        ),
+        network_discovery_source=create_configured_network_discovery_source(
             configuration
         ),
     )
