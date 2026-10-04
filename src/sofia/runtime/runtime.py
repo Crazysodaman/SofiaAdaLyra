@@ -206,7 +206,7 @@ class SofiaRuntime:
 
         self._filesystem_inspector = FilesystemInspector(
             root=configuration.filesystem_root,
-            authorized=False,
+            authorized=True,
         )
 
         self._filesystem_authorization: (
@@ -576,7 +576,7 @@ class SofiaRuntime:
 
             self._filesystem_inspector = FilesystemInspector(
                 root=self._configuration.filesystem_root,
-                authorized=False,
+                authorized=True,
             )
             self._filesystem_authorization = None
             self._state = RuntimeState.READY
