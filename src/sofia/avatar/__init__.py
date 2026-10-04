@@ -25,7 +25,7 @@ __all__ += [
     "WardrobeTextProjection",
 ]
 
-from .wardrobe_routine import (
+from .wardrobe_planner import (
     Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
     OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
     Sentiment, WardrobeContext, Weather, WeatherObservation, WornEvidence,
@@ -40,38 +40,31 @@ __all__ += [
 ]
 
 from .wardrobe_catalog import (
-    DRAFT_STATUS, GarmentBlueprint, RequestStatus, StyleInput,
-    WardrobePrebuild, build_starter_wardrobe,
+    DRAFT_STATUS, GRAPHIC_OUTFIT_ID, GRAPHIC_REQUEST_SOURCE_ID, GRAPHIC_TEE_ID,
+    SPARKS_LIKED_OUTFIT_SOURCE_IDS, ClosetCategory, GarmentBlueprint,
+    GraphicLoungeVariation, PieceSpec, RequestStatus, StyleInput,
+    WardrobePrebuild, all_closet_categories, build_graphic_lounge_variation,
+    build_sparks_starter_wardrobe, build_starter_wardrobe,
+    confirmed_sparks_outfit_likes, generated_bikini_outfits,
+    generated_bikini_piece_specs, generated_piece_specs,
+    generated_seasonal_outfits, with_sparks_outfit_likes,
 )
 
 __all__ += [
-    "DRAFT_STATUS", "GarmentBlueprint", "RequestStatus", "StyleInput",
-    "WardrobePrebuild", "build_starter_wardrobe",
+    "DRAFT_STATUS", "GRAPHIC_OUTFIT_ID", "GRAPHIC_REQUEST_SOURCE_ID",
+    "GRAPHIC_TEE_ID", "SPARKS_LIKED_OUTFIT_SOURCE_IDS", "ClosetCategory",
+    "GarmentBlueprint", "GraphicLoungeVariation", "PieceSpec", "RequestStatus",
+    "StyleInput", "WardrobePrebuild", "all_closet_categories",
+    "build_graphic_lounge_variation", "build_sparks_starter_wardrobe",
+    "build_starter_wardrobe", "confirmed_sparks_outfit_likes",
+    "generated_bikini_outfits", "generated_bikini_piece_specs",
+    "generated_piece_specs", "generated_seasonal_outfits",
+    "with_sparks_outfit_likes",
 ]
 
 from .style_context import StyleContext, project_style_context
 
 __all__ += ["StyleContext", "project_style_context"]
-
-from .starter_user_preferences import (
-    SPARKS_LIKED_OUTFIT_SOURCE_IDS, build_sparks_starter_wardrobe,
-    confirmed_sparks_outfit_likes, with_sparks_outfit_likes,
-)
-
-__all__ += [
-    "SPARKS_LIKED_OUTFIT_SOURCE_IDS", "build_sparks_starter_wardrobe",
-    "confirmed_sparks_outfit_likes", "with_sparks_outfit_likes",
-]
-
-from .lounge_graphic_tee import (
-    GRAPHIC_OUTFIT_ID, GRAPHIC_REQUEST_SOURCE_ID, GRAPHIC_TEE_ID,
-    GraphicLoungeVariation, build_graphic_lounge_variation,
-)
-
-__all__ += [
-    "GRAPHIC_OUTFIT_ID", "GRAPHIC_REQUEST_SOURCE_ID", "GRAPHIC_TEE_ID",
-    "GraphicLoungeVariation", "build_graphic_lounge_variation",
-]
 
 
 from .presentation import (
@@ -85,7 +78,7 @@ from .runtime_state import (
     PresentationRuntimeBundle, load_or_bootstrap_presentation,
     presentation_state_path,
 )
-from .wardrobe_routine import EmotionStyleInfluence
+from .wardrobe_planner import EmotionStyleInfluence
 
 __all__ += [
     "AppearanceState", "AttireMode", "AudienceScope", "PresentationAuthority",

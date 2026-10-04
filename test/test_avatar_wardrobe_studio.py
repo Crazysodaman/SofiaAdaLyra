@@ -6,7 +6,7 @@ from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_routine import Activity, Season
+from sofia.avatar.wardrobe_planner import Activity, Season
 from sofia.avatar.wardrobe_studio import WardrobeStudio
 
 

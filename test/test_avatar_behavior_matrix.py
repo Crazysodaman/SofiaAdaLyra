@@ -8,7 +8,7 @@ import pytest
 from sofia.avatar.influence import wardrobe_emotion_influences
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_routine import (
+from sofia.avatar.wardrobe_planner import (
     Activity, OutfitPlanner, Season, WardrobeContext, Weather, WeatherObservation,
 )
 from sofia.personality.emotion import ActiveEmotion, CurrentEmotionalState

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from .presentation import AttireMode, PresentationAuthority, PresentationState
 from .presentation_store import PresentationStore
-from .wardrobe_routine import (
+from .wardrobe_planner import (
     Cadence,
     OutfitPlanner,
     OutfitProposal,

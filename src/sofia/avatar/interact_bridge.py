@@ -33,7 +33,7 @@ from sofia.environment.model import (
 
 from .shared_wardrobe_state import SharedWardrobeState, WardrobeTextProjection
 from .style_context import StyleContext
-from .wardrobe_routine import (
+from .wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
     Season,

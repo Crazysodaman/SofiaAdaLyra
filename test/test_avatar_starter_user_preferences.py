@@ -1,7 +1,7 @@
 """Source-aware user preferences, not live INTERACT/renderer integration."""
 import pytest
 
-from sofia.avatar.starter_user_preferences import (
+from sofia.avatar.wardrobe_catalog import (
     SPARKS_LIKED_OUTFIT_SOURCE_IDS,
     build_sparks_starter_wardrobe,
     with_sparks_outfit_likes,

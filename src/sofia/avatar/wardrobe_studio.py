@@ -11,8 +11,8 @@ from .presentation import PresentationAuthority
 from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
 from .wardrobe_catalog import GarmentBlueprint, WardrobePrebuild
-from .wardrobe_piece_catalog import all_closet_categories
-from .wardrobe_routine import Activity, OutfitPlan, Season
+from .wardrobe_catalog import all_closet_categories
+from .wardrobe_planner import Activity, OutfitPlan, Season
 
 
 @dataclass(frozen=True, slots=True)

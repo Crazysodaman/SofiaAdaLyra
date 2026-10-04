@@ -2,7 +2,7 @@
 
 import pytest
 
-from sofia.avatar.lounge_graphic_tee import (
+from sofia.avatar.wardrobe_catalog import (
     GRAPHIC_OUTFIT_ID, GRAPHIC_REQUEST_SOURCE_ID, GRAPHIC_TEE_ID,
     build_graphic_lounge_variation,
 )

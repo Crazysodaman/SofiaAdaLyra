@@ -5,7 +5,7 @@ import pytest
 
 from sofia.avatar.wardrobe import VisibilityDenied, Wardrobe
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_piece_catalog import (
+from sofia.avatar.wardrobe_catalog import (
     CLOSET_CATEGORIES,
     NORMAL_STYLES,
     PRIVATE_STYLES,

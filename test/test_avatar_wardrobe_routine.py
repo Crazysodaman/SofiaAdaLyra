@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.avatar.wardrobe import Garment, Layer, Wardrobe, WardrobeError
-from sofia.avatar.wardrobe_routine import (
+from sofia.avatar.wardrobe_planner import (
     Activity, Cadence, ChangeOrigin, EmotionStyleInfluence, OutfitPlan, OutfitPlanner,
     Preference, PreferenceActor, PreferenceTarget, Season, Sentiment, WardrobeContext,
     Weather, WeatherObservation, WornEvidence, appraise_clothing_change, period_key,

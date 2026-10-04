@@ -17,7 +17,7 @@ from sofia.avatar.presentation_store import (
 )
 from sofia.avatar.runtime_state import PresentationRuntimeBundle
 from sofia.avatar.wardrobe import Layer
-from sofia.avatar.wardrobe_routine import (
+from sofia.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
     Season,

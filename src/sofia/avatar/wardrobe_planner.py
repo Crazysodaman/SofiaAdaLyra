@@ -1,7 +1,7 @@
-"""Offline wardrobe *proposals*: no renderer, weather fetch, scheduler or emotion claims.
+"""Offline wardrobe planning and *proposals*: no renderer, weather fetch, scheduler or emotion claims.
 
 The trusted host supplies local time, observed weather, audience and source IDs.
-No garment is shown or recorded as worn by this module. Automatic proposals
+No garment is shown or recorded as worn by the planner. Automatic proposals
 are covered, non-private outfits, even for an authenticated private session.
 """
 from __future__ import annotations

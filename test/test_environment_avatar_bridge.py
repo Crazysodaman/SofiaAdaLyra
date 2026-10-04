@@ -6,7 +6,7 @@ from sofia.avatar.interact_bridge import (
     HostEnvironmentEvidence,
     InteractionBridgeError,
 )
-from sofia.avatar.wardrobe_routine import (
+from sofia.avatar.wardrobe_planner import (
     Activity,
     Season as AvatarSeason,
     Weather,

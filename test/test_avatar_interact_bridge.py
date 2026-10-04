@@ -16,11 +16,11 @@ from sofia.avatar.interact_bridge import (
 from sofia.avatar.shared_wardrobe_state import (
     PresentationMode, SharedWardrobeState,
 )
-from sofia.avatar.starter_user_preferences import (
+from sofia.avatar.wardrobe_catalog import (
     SPARKS_LIKED_OUTFIT_SOURCE_IDS, build_sparks_starter_wardrobe,
 )
 from sofia.avatar.style_context import project_style_context
-from sofia.avatar.wardrobe_routine import Activity, Season, Weather
+from sofia.avatar.wardrobe_planner import Activity, Season, Weather
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import (

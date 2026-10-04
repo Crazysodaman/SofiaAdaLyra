@@ -35,7 +35,7 @@ from .wardrobe import (
     WardrobeError,
     normalize_slots,
 )
-from .wardrobe_routine import OutfitPlan, OutfitPlanner, WardrobeContext
+from .wardrobe_planner import OutfitPlan, OutfitPlanner, WardrobeContext
 
 
 def _normalize(value: str) -> str:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sofia.avatar.presentation import AppearanceState, PresentationState
-from sofia.avatar.wardrobe_routine import EmotionStyleInfluence
+from sofia.avatar.wardrobe_planner import EmotionStyleInfluence
 from sofia.personality.influence import ContinuityInfluence
 
 

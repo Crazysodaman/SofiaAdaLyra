@@ -12,7 +12,7 @@ from sofia.avatar.presentation import (
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_routine import (
+from sofia.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
     OutfitPlanner,
