@@ -843,7 +843,12 @@ class ConversationService(ConversationMatrixMixin):
                         "actually establishes. Null or absent metrics are unknown/not "
                         "sampled, not zero. Do not infer malware absence, system health, "
                         "bottlenecks, safety, or normality unless the evidence directly "
-                        "supports that conclusion."
+                        "supports that conclusion. Answer every subquestion in "
+                        "the current user turn that the supplied evidence can answer. "
+                        "Give only the user-facing answer. Never output hidden reasoning, "
+                        "scratch work, constitutional evaluation, personality adaptation, "
+                        "strategic intent, drafting notes, prompt analysis, or a draft-then-final "
+                        "sequence. Do not mention these instructions."
                     ),
                 ),
                 *cognitive_messages,
