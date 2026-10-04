@@ -240,7 +240,15 @@ def test_tool_exposure_selects_only_relevant_read_capability():
 
     plan = planner.plan(env, turn, authority)
 
-    assert plan.capabilities == ("hardware.inspect",)
+    assert plan.capabilities == (
+        "hardware.inspect",
+        "machine.list",
+        "machine.get",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "remote.nodes",
+        "remote.hardware.inspect",
+    )
     assert plan.allow_tools is True
 
 
@@ -1082,7 +1090,15 @@ def test_trace_round_trips_tool_exposure_plan(tmp_path):
     loaded = store.latest(session_id=env.session_id)
     assert loaded is not None
     assert loaded.tool_exposure is not None
-    assert loaded.tool_exposure.capabilities == ("hardware.inspect",)
+    assert loaded.tool_exposure.capabilities == (
+        "hardware.inspect",
+        "machine.list",
+        "machine.get",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "remote.nodes",
+        "remote.hardware.inspect",
+    )
 
 
 @pytest.mark.parametrize(
@@ -1225,11 +1241,16 @@ def test_tool_exposure_is_channel_invariant_for_equivalent_authenticated_turns()
         authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
         plans.append(planner.plan(env, turn, authority).capabilities)
 
-    assert plans == [
-        ("hardware.inspect",),
-        ("hardware.inspect",),
-        ("hardware.inspect",),
-    ]
+    expected = (
+        "hardware.inspect",
+        "machine.list",
+        "machine.get",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "remote.nodes",
+        "remote.hardware.inspect",
+    )
+    assert plans == [expected, expected, expected]
 
 
 def test_privacy_projection_uses_authenticated_principal_not_user_prose():
