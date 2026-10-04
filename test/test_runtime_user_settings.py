@@ -50,6 +50,11 @@ def test_runtime_user_settings_round_trip(tmp_path):
         weather_max_age_seconds=900,
         indoor_max_age_seconds=600,
         current_location_max_age_seconds=300,
+        fleet_discovery_enabled=True,
+        fleet_discovery_interval_seconds=90,
+        fleet_discovery_targets=("worker.lan:7443",),
+        fleet_discovery_scopes=("192.168.50.0/24",),
+        fleet_discovery_max_hosts_per_scope=128,
     )
 
     store.save(settings, at=NOW)
@@ -298,6 +303,44 @@ def test_schema_v2_without_location_migrates_to_central_time(tmp_path):
 
     migrated = RuntimeUserSettingsStore(state).load()
 
-    assert migrated.schema_version == 3
+    assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert migrated.location_label == "Home"
     assert migrated.location_timezone == "America/Chicago"
+
+
+def test_fleet_discovery_settings_validate_bounds():
+    with pytest.raises(ValueError, match="interval"):
+        RuntimeUserSettings(fleet_discovery_interval_seconds=29)
+    with pytest.raises(ValueError, match="max_hosts"):
+        RuntimeUserSettings(fleet_discovery_max_hosts_per_scope=1025)
+
+
+def test_schema_v3_migrates_fleet_discovery_defaults(tmp_path):
+    state = tmp_path / "sofia.db"
+    store = RuntimeUserSettingsStore(state)
+    current = RuntimeUserSettings()
+    payload = json.loads(store._encode(current))
+    payload["schema_version"] = 3
+    for key in (
+        "fleet_discovery_enabled",
+        "fleet_discovery_interval_seconds",
+        "fleet_discovery_targets",
+        "fleet_discovery_scopes",
+        "fleet_discovery_max_hosts_per_scope",
+    ):
+        payload.pop(key, None)
+
+    with store._connect() as db, db:
+        db.execute(
+            "INSERT INTO ui_runtime_settings "
+            "(settings_key,value_json,updated_at) VALUES (?,?,?)",
+            (store._KEY, json.dumps(payload), NOW.isoformat()),
+        )
+
+    migrated = store.load()
+    assert migrated.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+    assert migrated.fleet_discovery_enabled is False
+    assert migrated.fleet_discovery_scopes == ()
+    assert migrated.fleet_discovery_targets == ()
+    assert migrated.fleet_discovery_interval_seconds == 300
+    assert migrated.fleet_discovery_max_hosts_per_scope == 256
