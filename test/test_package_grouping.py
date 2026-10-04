@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from conftest import _explicit_package_markers, _package_markers
+from test.conftest import _explicit_package_markers, _package_markers
 
 
 def test_every_test_file_has_package_ownership() -> None:
