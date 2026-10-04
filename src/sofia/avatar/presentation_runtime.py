@@ -9,11 +9,8 @@ from sofia.embodiment.model import Embodiment
 
 from .presentation import AppearanceState, PresentationAuthority
 from .presentation_store import PresentationStore, PresentationStoreError
-from .wardrobe_catalog import (
-    DAY_DEFAULT_OUTFIT_ID,
-    WardrobePrebuild,
-    build_starter_wardrobe,
-)
+from .wardrobe_catalog import build_starter_wardrobe
+from .wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, WardrobePrebuild
 from .wardrobe_matrix import WardrobeSlotMatrix, build_wardrobe_matrix
 
 

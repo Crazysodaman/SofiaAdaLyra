@@ -2,11 +2,8 @@
 from dataclasses import replace
 
 from sofia.avatar.wardrobe import LEAF_SLOTS, Layer
-from sofia.avatar.wardrobe_catalog import (
-    DAY_DEFAULT_OUTFIT_ID,
-    NIGHT_LOUNGE_OUTFIT_ID,
-    build_starter_wardrobe,
-)
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID
 from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
 
 
