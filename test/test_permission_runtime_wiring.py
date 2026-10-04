@@ -569,6 +569,12 @@ def test_named_domain_permission_contract_is_locked():
         "portainer.summary": PermissionLevel.OBSERVE_READ,
         "portainer.container.stats": PermissionLevel.OBSERVE_READ,
         "portainer.container.restart": PermissionLevel.REVERSIBLE_SCOPED,
+        "remote.container.summary": PermissionLevel.OBSERVE_READ,
+        "remote.container.stats": PermissionLevel.OBSERVE_READ,
+        "remote.container.images": PermissionLevel.OBSERVE_READ,
+        "remote.container.volumes": PermissionLevel.OBSERVE_READ,
+        "remote.container.networks": PermissionLevel.OBSERVE_READ,
+        "remote.container.stacks": PermissionLevel.OBSERVE_READ,
         # Self-improvement
         "codebase.inspect": PermissionLevel.OBSERVE_READ,
         "dev.candidates.list": PermissionLevel.OBSERVE_READ,
