@@ -142,27 +142,45 @@ def _fleet_bootstrap_configuration_from_environ() -> FleetBootstrapConfiguration
     )
 
 
-def _fleet_discovery_configuration_from_environ() -> FleetDiscoveryConfiguration:
-    raw_targets = _environment_csv(
-        "SOFIA_FLEET_DISCOVERY_TARGETS"
+def _fleet_discovery_configuration_from_environ(
+    user_settings,
+) -> FleetDiscoveryConfiguration:
+    raw_targets = (
+        _environment_csv("SOFIA_FLEET_DISCOVERY_TARGETS")
+        if "SOFIA_FLEET_DISCOVERY_TARGETS" in os.environ
+        else user_settings.fleet_discovery_targets
     )
-    raw_scopes = _environment_csv(
-        "SOFIA_FLEET_DISCOVERY_SCOPES"
+    raw_scopes = (
+        _environment_csv("SOFIA_FLEET_DISCOVERY_SCOPES")
+        if "SOFIA_FLEET_DISCOVERY_SCOPES" in os.environ
+        else user_settings.fleet_discovery_scopes
     )
     return FleetDiscoveryConfiguration(
-        enabled=_environment_flag(
-            "SOFIA_FLEET_DISCOVERY_ENABLED",
-            default=False,
+        enabled=(
+            _environment_flag(
+                "SOFIA_FLEET_DISCOVERY_ENABLED",
+                default=user_settings.fleet_discovery_enabled,
+            )
+            if "SOFIA_FLEET_DISCOVERY_ENABLED" in os.environ
+            else user_settings.fleet_discovery_enabled
         ),
-        interval_seconds=_positive_environment_int(
-            "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
-            default=300,
+        interval_seconds=(
+            _positive_environment_int(
+                "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS",
+                default=user_settings.fleet_discovery_interval_seconds,
+            )
+            if "SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS" in os.environ
+            else user_settings.fleet_discovery_interval_seconds
         ),
         targets=raw_targets,
         scopes=raw_scopes,
-        max_hosts_per_scope=_positive_environment_int(
-            "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE",
-            default=256,
+        max_hosts_per_scope=(
+            _positive_environment_int(
+                "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE",
+                default=user_settings.fleet_discovery_max_hosts_per_scope,
+            )
+            if "SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE" in os.environ
+            else user_settings.fleet_discovery_max_hosts_per_scope
         ),
     )
 
@@ -357,7 +375,9 @@ def create_default_configuration(
             user_settings,
         ),
         fleet_cognition=_fleet_cognition_configuration_from_environ(),
-        fleet_discovery=_fleet_discovery_configuration_from_environ(),
+        fleet_discovery=_fleet_discovery_configuration_from_environ(
+            user_settings
+        ),
         fleet_bootstrap=_fleet_bootstrap_configuration_from_environ(),
         environment=environment,
         avatar_private_adult_verified=_environment_flag(
