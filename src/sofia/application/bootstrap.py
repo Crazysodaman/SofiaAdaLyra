@@ -7,10 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 
-from sofia.avatar.clothing_action import (
-    ClothingActionService,
-    WardrobeAutonomyContext,
-)
+from sofia.avatar.clothing_action import ClothingActionService
+from sofia.avatar.wardrobe_autonomy import WardrobeAutonomyContext
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
 from sofia.avatar.wardrobe_planner import (

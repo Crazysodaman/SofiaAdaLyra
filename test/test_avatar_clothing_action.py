@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.avatar.clothing_action import (
-    ClothingActionService,
+from sofia.avatar.clothing_action import ClothingActionService
+from sofia.avatar.wardrobe_autonomy import (
     WardrobeAutonomyContext,
     WardrobeAutonomyDecision,
     WardrobeAutonomyPolicy,
