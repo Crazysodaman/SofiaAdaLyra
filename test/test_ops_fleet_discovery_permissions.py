@@ -115,7 +115,7 @@ def test_network_discovery_does_not_persist_fleet_candidate(tmp_path):
     ))
     service = OpsToolService(
         tmp_path / "sofia.db",
-        discovery_source=source,
+        network_discovery_source=source,
     )
 
     result = service.discover_network()
@@ -129,3 +129,42 @@ def test_network_discovery_is_level_one_read_only():
     policy = capability_permission_policy("network.discover")
     assert policy.level is PermissionLevel.OBSERVE_READ
     assert policy.standing_grant_allowed is False
+
+
+def test_network_discovery_and_fleet_candidate_discovery_are_independent(tmp_path):
+    now = datetime(2026, 10, 4, 20, 10, tzinfo=timezone.utc)
+    network_source = _DiscoverySource((
+        FleetDiscoveryEvidence(
+            host_id="nas",
+            hostname="nas",
+            platform="unknown",
+            architecture="unknown",
+            observed_at=now,
+            source="network-only",
+            inside_approved_scope=True,
+        ),
+    ))
+    fleet_source = _DiscoverySource((
+        FleetDiscoveryEvidence(
+            host_id="worker",
+            hostname="worker",
+            platform="linux",
+            architecture="x86_64",
+            observed_at=now,
+            source="fleet-candidate",
+            inside_approved_scope=True,
+        ),
+    ))
+    service = OpsToolService(
+        tmp_path / "sofia.db",
+        discovery_source=fleet_source,
+        network_discovery_source=network_source,
+    )
+
+    network = service.discover_network()
+    assert network["observed"][0]["host_id"] == "nas"
+    assert service.host("nas") is None
+
+    fleet = service.discover_candidates()
+    assert fleet["created_host_ids"] == ("worker",)
+    assert service.host("worker")["trusted"] is False
