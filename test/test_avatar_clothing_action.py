@@ -1,4 +1,5 @@
 """Authoritative natural-language clothing action acceptance tests."""
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sofia.avatar.clothing_action import (
@@ -506,3 +507,37 @@ def test_private_partial_outfit_with_public_garments_persists_privacy_metadata(t
     persisted = persisted_authority(runtime_bundle)
     assert persisted.current.private_only is True
     assert persisted.current.item_ids == current.item_ids
+
+
+
+def test_ambiguous_outfit_display_name_fails_closed(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    catalog = runtime_bundle.catalog
+    first = replace(
+        catalog.presets[0],
+        display_name="Same Outfit",
+    )
+    second = replace(
+        catalog.presets[1],
+        display_name="Same Outfit",
+    )
+    ambiguous_catalog = replace(
+        catalog,
+        presets=(first, second, *catalog.presets[2:]),
+    )
+    runtime_bundle = replace(
+        runtime_bundle,
+        catalog=ambiguous_catalog,
+    )
+    service = ClothingActionService(runtime_bundle)
+    original = runtime_bundle.authority.current
+
+    reply = service.handle(
+        content="wear same outfit",
+        previous_user_content=None,
+        operation_id="test.ambiguous.outfit",
+    )
+
+    assert reply is not None
+    assert "couldn't resolve" in reply
+    assert runtime_bundle.authority.current == original
