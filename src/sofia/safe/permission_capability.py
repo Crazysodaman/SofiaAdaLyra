@@ -12,6 +12,7 @@ from .permissions import (
     PermissionLevel,
     PermissionStore,
     capability_permission_policy,
+    explicitly_classified_capabilities,
     grantable_capabilities,
 )
 
@@ -68,6 +69,16 @@ class PermissionInspectionCapability:
             )
 
         private = self.store.private_adult_authority()
+        capabilities_by_level = {
+            str(int(level)): tuple(
+                sorted(
+                    capability
+                    for capability in explicitly_classified_capabilities()
+                    if capability_permission_policy(capability).level is level
+                )
+            )
+            for level in PermissionLevel
+        }
         return {
             "levels": {
                 "1": "observe_read",
@@ -80,6 +91,7 @@ class PermissionInspectionCapability:
                 int(PermissionLevel.OBSERVE_READ),
                 int(PermissionLevel.SAFE_AUTONOMOUS),
             ),
+            "capabilities_by_level": capabilities_by_level,
             "grantable_capabilities": grantable_capabilities(),
             "standing_grants": tuple(grants),
             "private_adult": {
