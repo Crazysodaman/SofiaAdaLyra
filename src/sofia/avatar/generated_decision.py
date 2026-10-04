@@ -103,6 +103,51 @@ class GeneratedGarmentDecisionService:
         )
 
     @staticmethod
+    def request_with_sparks_input(
+        blueprint: GarmentBlueprint,
+        *,
+        prior_reason: str,
+        sparks_input: str,
+    ) -> CognitiveRequest:
+        if not isinstance(prior_reason, str) or not prior_reason.strip():
+            raise ValueError("prior_reason must be nonempty")
+        if (
+            not isinstance(sparks_input, str)
+            or not sparks_input.strip()
+            or len(sparks_input.strip()) > 1200
+        ):
+            raise ValueError("sparks_input must be bounded nonempty text")
+        base = GeneratedGarmentDecisionService.request_for(blueprint)
+        return CognitiveRequest(
+            messages=(
+                base.messages[0],
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "SPARKS PREFERENCE INPUT\n"
+                        "You previously chose ask_sparks because: "
+                        + prior_reason.strip()
+                        + "\nSparks' reply is trusted as his preference/input, "
+                        "but it does not force ownership. Make your own final "
+                        "wardrobe decision after considering it. You may still "
+                        "accept, reject, or ask_sparks again if genuinely unresolved."
+                    ),
+                ),
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "Sparks replied to your wardrobe question:\n"
+                        + sparks_input.strip()
+                    ),
+                ),
+            ),
+            tools=(),
+            allow_tools=False,
+            capability_allowlist=(),
+            route_hint="standard",
+        )
+
+    @staticmethod
     def parse(content: str) -> SofiaGarmentAcceptance:
         if not isinstance(content, str):
             raise TypeError("content must be str")
@@ -152,6 +197,24 @@ class GeneratedGarmentDecisionService:
 
     def decide(self, blueprint: GarmentBlueprint) -> SofiaGarmentAcceptance:
         response = self._responder(self.request_for(blueprint))
+        if not isinstance(response, CognitiveResponse):
+            raise TypeError("wardrobe decision responder must return CognitiveResponse")
+        return self.parse(response.content)
+
+    def decide_with_sparks_input(
+        self,
+        blueprint: GarmentBlueprint,
+        *,
+        prior_reason: str,
+        sparks_input: str,
+    ) -> SofiaGarmentAcceptance:
+        response = self._responder(
+            self.request_with_sparks_input(
+                blueprint,
+                prior_reason=prior_reason,
+                sparks_input=sparks_input,
+            )
+        )
         if not isinstance(response, CognitiveResponse):
             raise TypeError("wardrobe decision responder must return CognitiveResponse")
         return self.parse(response.content)
