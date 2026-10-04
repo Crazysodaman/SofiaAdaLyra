@@ -14,6 +14,7 @@ from sofia.config.model import (
 from sofia.environment.config import environment_configuration_from_environ
 from sofia.config.layout import RuntimeStorageLayout
 from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.safe.permissions import automatic_capabilities
 
 
 def _repository_root() -> Path:
@@ -328,63 +329,7 @@ def create_default_configuration(
     environment = environment_configuration_from_environ(
         environment_values
     )
-    environment_capabilities = tuple(
-        capability
-        for capability, enabled in (
-            ("environment.nws.read", environment.nws_enabled),
-            (
-                "environment.home_assistant.read",
-                environment.home_assistant_enabled,
-            ),
-        )
-        if enabled
-    )
-
-    standing_capabilities=tuple(dict.fromkeys((
-        "tool.catalog",
-        "codebase.inspect",
-        "filesystem.changes",
-        "process.inspect",
-        "system.inspect",
-        "network.inspect",
-        "service.inspect",
-        "hardware.inspect",
-        "storage.roots",
-        "storage.usage",
-        "knowledge.search",
-        "knowledge.document",
-        "dev.status",
-        "machine.list",
-        "machine.get",
-        "machine.discover.local",
-        "ops.fleet.list",
-        "ops.fleet.get",
-        "ops.telemetry.latest",
-        "ops.placement.choose",
-        "ops.drift.detect",
-        "ops.migration.plan",
-        "remote.nodes",
-        "remote.process.inspect",
-        "remote.system.inspect",
-        "remote.network.inspect",
-        "remote.service.inspect",
-        "remote.hardware.inspect",
-        "remote.vm.list",
-        "remote.vm.get",
-        "remote.container.list",
-        "remote.container.get",
-        "remote.ollama.inference_policy",
-        "remote.ollama.models",
-        "remote.ollama.running",
-        "remote.ollama.show",
-        "ollama.models",
-        "ollama.running",
-        "ollama.model.show",
-        "sqlite.state.tables",
-        "sqlite.state.query",
-        "sqlite.state.integrity",
-        *environment_capabilities,
-    )))
+    standing_capabilities=automatic_capabilities()
 
     provider_configuration = ProviderConfiguration(
         provider="ollama",
