@@ -9,9 +9,13 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import sqlite3
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from sofia.distributed.authorization import RemoteAuthorization, RemoteGrant
+from sofia.distributed.authorization import (
+    RemoteAuthorization,
+    RemoteGrant,
+    remote_operation_is_read_only,
+)
 from sofia.distributed.capabilities import _aware
 from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.operations import (
@@ -118,6 +122,55 @@ class DurableRemoteAuthorization(RemoteAuthorization):
                     approved_by, expires_at,
                 )
         return None
+
+    def ensure_read_only_policy_grant(
+        self,
+        *,
+        node_id: UUID,
+        capability: str,
+        operation: str,
+        now: datetime,
+        ttl: timedelta = timedelta(minutes=15),
+    ) -> RemoteGrant:
+        """Materialize a short-lived host-policy grant for Level-1 observation.
+
+        This never applies to manage/mutation operations. The durable grant keeps
+        the existing exact-node/capability/operation admission and audit boundary
+        intact while removing repeated human approval from read-only Fleet work.
+        """
+        _aware(now, "now")
+        if not isinstance(node_id, UUID):
+            raise TypeError("node_id must be a UUID")
+        if not remote_operation_is_read_only(capability, operation):
+            raise PermissionError(
+                "host policy may only authorize classified read-only remote operations"
+            )
+        if (
+            not isinstance(ttl, timedelta)
+            or ttl <= timedelta(0)
+            or ttl > timedelta(hours=1)
+        ):
+            raise ValueError("read-only policy grant ttl must be in (0, 1 hour]")
+
+        existing = self.find_active(
+            node_id=node_id,
+            capability=capability,
+            operation=operation,
+            now=now,
+        )
+        if existing is not None:
+            return existing
+
+        grant = RemoteGrant(
+            uuid4(),
+            node_id,
+            capability,
+            operation,
+            "policy:level1-read-only",
+            now + ttl,
+        )
+        self.add_approved_grant(grant)
+        return grant
 
     def active_grants_for_node(self, node_id: UUID, *, now: datetime) -> tuple[RemoteGrant, ...]:
         _aware(now, "now")
