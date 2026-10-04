@@ -1,4 +1,4 @@
-"""Seasonal wardrobe preset and self-composition contracts."""
+"""Seasonal wardrobe preset contracts."""
 from __future__ import annotations
 
 from sofia.avatar.presentation import (
@@ -9,8 +9,7 @@ from sofia.avatar.presentation import (
 )
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_catalog import generated_seasonal_outfits
-from sofia.avatar.wardrobe_planner import Activity, Season
-from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
+from sofia.avatar.wardrobe_planner import Season
 
 
 def grant():
@@ -53,61 +52,6 @@ def test_explicit_bra_and_panty_families_have_25_each():
     assert all("Panties" in item.garment.name for item in panties)
 
 
-def test_studio_can_compose_new_public_outfit_from_individual_pieces():
-    catalog = build_starter_wardrobe()
-    studio = WardrobeStudio(catalog)
-    plan = studio.compose(
-        outfit_id="studio.autumn.custom.01",
-        item_ids=(
-            "underlayer.top",
-            "underlayer.bottom",
-            "closet.normal.top.03",
-            "closet.normal.bottom.08",
-            "closet.normal.footwear.12",
-            "closet.normal.neckwear.04",
-        ),
-        activities=frozenset({Activity.CONVERSATION}),
-        seasons=frozenset({Season.AUTUMN}),
-        style_tags=("self-composed", "autumn"),
-        display_name="Autumn Workshop Casual",
-    )
-    assert plan.outfit_id == "studio.autumn.custom.01"
-    assert not plan.private_only
-
-
-def test_studio_refuses_private_piece_inside_public_composition():
-    catalog = build_starter_wardrobe()
-    studio = WardrobeStudio(catalog)
-    try:
-        studio.compose(
-            outfit_id="studio.bad.public",
-            item_ids=("closet.private.bra.01", "closet.private.panty.01"),
-            activities=frozenset({Activity.CONVERSATION}),
-            seasons=frozenset({Season.SUMMER}),
-        )
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("private pieces must not become public outfit")
-
-
-def test_studio_can_design_new_piece_metadata_without_claiming_asset():
-    studio = WardrobeStudio(build_starter_wardrobe())
-    blueprint = studio.design_piece(
-        GarmentDesignRequest(
-            item_id="studio.top.crimson-night",
-            name="Crimson Night Knit Top",
-            category_id="closet.top",
-            primary_hex="#8B1E3F",
-            material="soft technical knit",
-            style_tags=("self-designed", "crimson", "night"),
-        )
-    )
-    assert blueprint.garment.asset_ref is None
-    assert blueprint.garment.item_id == "studio.top.crimson-night"
-    assert blueprint.provenance == "design_proposal_review_required"
-
-
 def test_private_seasonal_outfit_requires_private_commit_and_public_stays_fallback():
     catalog = build_starter_wardrobe()
     authority = PresentationAuthority(
@@ -146,58 +90,6 @@ def test_private_seasonal_outfit_requires_private_commit_and_public_stays_fallba
     )
     assert authority.projection(AudienceScope.PRIVATE, grant=grant()).outfit_id == target
     assert authority.projection(AudienceScope.PUBLIC).outfit_id == "engineer.signature"
-
-
-def test_composed_outfit_can_register_present_and_survive_snapshot_restore(tmp_path):
-    catalog = build_starter_wardrobe()
-    outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
-    authority = PresentationAuthority(
-        catalog.wardrobe,
-        outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
-        initial_appearance=AppearanceState(
-            "long layered", "deep crimson", "dark violet", ("engineer",)
-        ),
-    )
-    studio = WardrobeStudio(catalog, authority=authority)
-    plan = studio.compose(
-        outfit_id="studio.spring.custom.01",
-        item_ids=(
-            "underlayer.top",
-            "underlayer.bottom",
-            "closet.normal.top.01",
-            "closet.normal.bottom.02",
-            "closet.normal.footwear.03",
-        ),
-        activities=frozenset({Activity.CONVERSATION}),
-        seasons=frozenset({Season.SPRING}),
-        style_tags=("self-composed", "spring"),
-        display_name="Spring Self-Composed 01",
-        register=True,
-    )
-    assert plan.outfit_id in authority.available_outfit_ids
-
-    authority.propose_outfit(
-        operation_id="studio-wear",
-        expected_revision=authority.current.revision,
-        outfit_id=plan.outfit_id,
-        reason="self-composed outfit",
-        daily=True,
-    )
-    authority.commit_text(
-        operation_id="studio-wear",
-        renderer_unavailable=True,
-    )
-    snapshot = authority.snapshot()
-
-    restored = PresentationAuthority.restore(
-        catalog.wardrobe,
-        outfits=outfits,
-        snapshot=snapshot,
-    )
-    assert restored.current.outfit_id == "studio.spring.custom.01"
-    assert "studio.spring.custom.01" in restored.available_outfit_ids
-
 
 
 def test_seasonal_outfit_combinations_are_distinct_across_all_seasons():
