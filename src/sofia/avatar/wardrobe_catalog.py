@@ -779,6 +779,12 @@ def build_starter_wardrobe(
         *_load_wardrobe_data_file("one_pieces.json", _blueprint),
         *_load_wardrobe_data_file("footwear.json", _blueprint),
         *_load_wardrobe_data_file("outerwear.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_legwear.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_hand_wrist.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_waist.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_ear.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_tail.json", _blueprint),
+        *_load_wardrobe_data_file("accessories_neck.json", _blueprint),
         *_load_wardrobe_data_file("intimate_underlayers.json", _blueprint),
         *generated_blueprints,
         _blueprint(
