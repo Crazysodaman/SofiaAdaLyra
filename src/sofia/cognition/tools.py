@@ -16,25 +16,10 @@ from sofia.codebase.evidence import format_codebase_evidence
 from sofia.codebase.model import CodebaseInspectionEvidence
 from sofia.filesystem.model import FilesystemResult
 from sofia.social.model import PrincipalContext
-
-
-_AUTO_READ_ONLY_CAPABILITIES = frozenset({
-    "process.inspect",
-    "system.inspect",
-    "network.inspect",
-    "hardware.inspect",
-    "service.inspect",
-    "machine.list",
-    "machine.discover.local",
-    "ops.fleet.list",
-    "storage.roots",
-    "storage.usage",
-    "sqlite.state.tables",
-    "sqlite.state.integrity",
-    "ollama.models",
-    "ollama.running",
-    "remote.nodes",
-})
+from sofia.safe.permissions import (
+    PermissionLevel,
+    capability_permission_policy,
+)
 
 
 class CognitiveToolError(Exception):
@@ -256,7 +241,12 @@ class CognitiveToolDispatcher:
         calls: list[CognitiveToolCall] = []
         for binding in self._bindings.values():
             capability = binding.capability_name
-            if capability not in allowed or capability not in _AUTO_READ_ONLY_CAPABILITIES:
+            if capability not in allowed:
+                continue
+            if (
+                capability_permission_policy(capability).level
+                is not PermissionLevel.OBSERVE_READ
+            ):
                 continue
             if not authority.can_use_capability(capability):
                 continue
