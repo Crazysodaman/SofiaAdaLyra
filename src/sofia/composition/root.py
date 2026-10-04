@@ -7,7 +7,7 @@ from sofia.action.system import ActionSystem
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.capability.system import CapabilitySystem
-from sofia.codebase.codebase import CodebaseCapability
+from sofia.codebase.capability import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler

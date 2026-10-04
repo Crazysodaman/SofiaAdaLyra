@@ -19,12 +19,9 @@ def test_representative_cross_package_ownership(tmp_path: Path) -> None:
     root = Path(__file__).parent
     assert {
         "pkg_ops",
-        "pkg_integrate",
         "pkg_safe",
-    }.issubset(
-        _package_markers(
-            root / "test_waves3_5_cross_package_acceptance.py"
-        )
+    } == _package_markers(
+        root / "test_waves3_5_cross_package_acceptance.py"
     )
     assert {
         "pkg_ui",
