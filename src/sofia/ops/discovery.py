@@ -299,7 +299,12 @@ class FleetDiscoveryEnrollmentResult:
 
 
 class FleetDiscoveryEnrollmentReconciler:
-    """Enroll only candidates whose discovered identity matches preapproved state."""
+    """Validate enrollment readiness without granting Fleet membership.
+
+    Discovery and preapproved identity/endpoint evidence are observations only.
+    Promotion into Fleet trust requires an explicit FleetEnrollmentApproval
+    supplied through an operator-approved enrollment operation.
+    """
 
     def __init__(
         self,
@@ -370,25 +375,9 @@ class FleetDiscoveryEnrollmentReconciler:
                 pending.append(observation.host_id)
                 continue
 
-            binding = MachineNodeBinding(
-                host_id=observation.host_id,
-                node_id=observation.observed_node_id,
-                verified_at=observation.observed_at,
-                source=observation.source,
-            )
-            peer = AuthenticatedPeerEvidence(
-                node_id=observation.observed_node_id,
-                public_key_sha256=observation.observed_public_key_sha256,
-                observed_at=observation.observed_at,
-                verifier="mtls-agent-discovery",
-            )
-            self.enrollment_service.enroll(
-                host,
-                binding=binding,
-                enrollment=enrollment,
-                peer=peer,
-            )
-            enrolled.append(observation.host_id)
+            # Valid discovery evidence makes the host enrollment-ready,
+            # but never constitutes permission to trust/add it to the Fleet.
+            pending.append(observation.host_id)
 
         return FleetDiscoveryEnrollmentResult(
             enrolled_host_ids=tuple(sorted(set(enrolled))),
