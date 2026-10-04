@@ -5,7 +5,6 @@ from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
-from sofia.interaction.avatar_world_probe import _shutdown_disposable_app
 
 
 def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch, tmp_path):
@@ -29,9 +28,9 @@ def test_disposable_probe_releases_all_runtime_database_connections(monkeypatch,
         app.start()
         assert app.conversation.respond('I ask to hug you').content == 'Isolated test response.'
     finally:
-        _shutdown_disposable_app(app)
+        app.shutdown()
     assert app.conversation._conversation_store._connection is None
-    assert app.runtime._memory_system._store._connection is None
+    assert app.runtime.memory_system.candidate_store._db is None
     assert app.runtime._operational_store._closed is True
     assert app.runtime._filesystem_observation_store._connection is None
     # Actual deletion is the Windows-specific proof that every handle was closed.

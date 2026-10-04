@@ -9,16 +9,13 @@ import pytest
 
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.decision_expression import (
-    CandidateChoice, ExpressionAudit, audit_expression, choice_request,
-    expression_request, from_reviewed_action, from_reviewed_gesture,
-    parse_choice, real_sensor_fixture, run_prototype,
-)
-from sofia.interaction.decision_expression_probe import _sample_count
+from sofia.interaction.decision_expression import CandidateChoice, ExpressionAudit, audit_expression, choice_request, expression_request, from_reviewed_action, parse_choice
+from sofia.verify.interaction.prototype import from_reviewed_gesture, real_sensor_fixture, run_prototype
+from sofia.verify.interaction.decision_expression_probe import _sample_count
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore
 
@@ -35,13 +32,13 @@ def _static(case, text):
         identity=IdentityStore(ROOT / 'identity' / 'identity.json').load(),
         personality=PersonalityStore(ROOT / 'personality' / 'personality.json').load(),
         constitution=ConstitutionStore(ROOT / 'constitution' / 'constitution.md').load(),
-        embodiment=AvatarStore(ROOT / 'data' / 'avatar.json').load(),
+        embodiment=EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load(),
     )
     return request
 
 
 def _gesture(text, *, stopped=False):
-    engine = NaturalInteractionEngine(AvatarStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load())
     decision = engine.from_text(
         content=text, message_id='synthetic-evidence',
         session_id='synthetic-session',

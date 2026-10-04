@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from uuid import uuid4
-from sofia.memory.cognition_projection import project_promoted_memories
+from sofia.memory.promoted_retrieval import project_promoted_memories
 from sofia.memory.provenance import MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.originals import SourceMessage
 
 
 def item(text):

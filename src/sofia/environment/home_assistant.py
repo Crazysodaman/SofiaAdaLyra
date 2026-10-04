@@ -5,7 +5,7 @@ state is never mined for location/weather by implication.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from sofia.integrations.home_assistant import HomeAssistantAdapter
@@ -19,34 +19,11 @@ from .model import (
     LocationSubject,
     WeatherObservation,
 )
-from .provider import EnvironmentProviderObservation
-
-
-def _aware_timestamp(value: object) -> datetime | None:
-    """Return only source-backed timestamps; never manufacture freshness."""
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc)
-
-
-def _number(value: object) -> float | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return None
-    return result
+from .provider import EnvironmentProviderObservation, source_number, source_timestamp
 
 
 def _temperature_c(value: object, unit: object) -> float | None:
-    number = _number(value)
+    number = source_number(value)
     if number is None:
         return None
     normalized = str(unit or "°C").strip().lower()
@@ -58,7 +35,7 @@ def _temperature_c(value: object, unit: object) -> float | None:
 
 
 def _wind_kph(value: object, unit: object) -> float | None:
-    number = _number(value)
+    number = source_number(value)
     if number is None:
         return None
     normalized = str(unit or "km/h").strip().lower()
@@ -96,7 +73,7 @@ def _forecast(
         condition = str(row.get("condition") or "unknown").strip()
         if not condition:
             condition = "unknown"
-        probability = _number(
+        probability = source_number(
             row.get("precipitation_probability")
         )
         try:
@@ -178,7 +155,7 @@ class HomeAssistantEnvironmentProvider:
         if not isinstance(attrs, dict):
             attrs = {}
 
-        observed = _aware_timestamp(
+        observed = source_timestamp(
             state.get("last_updated") or state.get("last_changed")
         )
         if observed is None:
@@ -213,12 +190,12 @@ class HomeAssistantEnvironmentProvider:
                 attrs.get("apparent_temperature"),
                 temp_unit,
             ),
-            humidity_percent=_number(attrs.get("humidity")),
+            humidity_percent=source_number(attrs.get("humidity")),
             wind_kph=_wind_kph(
                 attrs.get("wind_speed"),
                 wind_unit,
             ),
-            precipitation_mm=_number(
+            precipitation_mm=source_number(
                 attrs.get("precipitation")
             ),
             forecast=_forecast(
@@ -253,7 +230,7 @@ class HomeAssistantEnvironmentProvider:
             attrs = temp_state.get("attributes")
             if not isinstance(attrs, dict):
                 attrs = {}
-            temp_observed = _aware_timestamp(
+            temp_observed = source_timestamp(
                 temp_state.get("last_updated")
                 or temp_state.get("last_changed")
             )
@@ -266,12 +243,12 @@ class HomeAssistantEnvironmentProvider:
                     timestamps.append(temp_observed)
 
         if humidity_state is not None:
-            humidity_observed = _aware_timestamp(
+            humidity_observed = source_timestamp(
                 humidity_state.get("last_updated")
                 or humidity_state.get("last_changed")
             )
             if humidity_observed is not None:
-                humidity = _number(humidity_state.get("state"))
+                humidity = source_number(humidity_state.get("state"))
                 if humidity is not None:
                     timestamps.append(humidity_observed)
 
@@ -313,11 +290,11 @@ class HomeAssistantEnvironmentProvider:
         attrs = state.get("attributes")
         if not isinstance(attrs, dict):
             attrs = {}
-        latitude = _number(attrs.get("latitude"))
-        longitude = _number(attrs.get("longitude"))
+        latitude = source_number(attrs.get("latitude"))
+        longitude = source_number(attrs.get("longitude"))
         if latitude is None or longitude is None:
             return None
-        precision_meters = _number(
+        precision_meters = source_number(
             attrs.get("gps_accuracy")
             if attrs.get("gps_accuracy") is not None
             else attrs.get("accuracy")
@@ -334,7 +311,7 @@ class HomeAssistantEnvironmentProvider:
             not in {"unknown", "unavailable", "not_home"}
             else "current location"
         )
-        observed = _aware_timestamp(
+        observed = source_timestamp(
             state.get("last_updated") or state.get("last_changed")
         )
         if observed is None:

@@ -130,6 +130,11 @@ The Constitution, actual authority implementation, original data and existing st
 
 ## PKG-BODY: Gaia hexapod and physical robotics
 
+**Current implementation:** BODY matrix routing is active. The unconnected controller,
+E-stop evidence and SSC-32 prototype were retired during phase 5 cleanup; they had
+no production bootstrap, capability binding or hardware observation adapter. The
+requirements below describe future implementation and acceptance, not deployed motion.
+
 **Outcome:** Authorized, limited real Gaia motion with validated hardware feedback and independent physical emergency safety, separate from avatar motion and simulation.
 
 **Reuse/inventory:** separately existing Gaia frame, SSC32 serial controller concept, actual servos/regulator/battery and current capability/authority interface. Mixed 180-degree and continuous-rotation servos require physical inventory; pulse commands alone do not prove a position or closed-loop feedback.

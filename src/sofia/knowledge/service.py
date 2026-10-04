@@ -7,9 +7,9 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from .access import KnowledgeAccess, KnowledgeAccessStore, KnowledgeVisibility
-from .lifecycle import KnowledgeLifecycle
+from .lifecycle import SQLiteKnowledgeLifecycle
 from .model import KnowledgeDocument,KnowledgeFact,SourceKind
-from .persistence import JsonKnowledgeStore
+from .persistence import SQLiteKnowledgeStore
 from .retrieval import KnowledgeRetriever
 
 class KnowledgeServiceError(RuntimeError): pass
@@ -18,8 +18,8 @@ class KnowledgeService:
     def __init__(
         self,
         root:Path,
-        store:JsonKnowledgeStore,
-        lifecycle:KnowledgeLifecycle,
+        store:SQLiteKnowledgeStore,
+        lifecycle:SQLiteKnowledgeLifecycle,
         access:KnowledgeAccessStore|None=None,
     )->None:
         self.root=root.resolve(); self.store=store; self.lifecycle=lifecycle

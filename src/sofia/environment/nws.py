@@ -6,7 +6,7 @@ EnvironmentProviderObservation contract.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from sofia.integrations.http import ServiceHTTPError
@@ -18,32 +18,11 @@ from .model import (
     ForecastPeriod,
     WeatherObservation,
 )
-from .provider import EnvironmentProviderObservation
-
-
-def _aware_timestamp(value: object) -> datetime | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(timezone.utc)
-
-
-def _number(value: object) -> float | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+from .provider import EnvironmentProviderObservation, source_number, source_timestamp
 
 
 def _temperature_c(value: object, unit: object) -> float | None:
-    number = _number(value)
+    number = source_number(value)
     if number is None:
         return None
     normalized = str(unit or "").strip().lower()
@@ -59,7 +38,7 @@ def _quantitative_value(
 ) -> tuple[float | None, str | None]:
     if not isinstance(raw, dict):
         return None, None
-    value = _number(raw.get("value"))
+    value = source_number(raw.get("value"))
     unit = raw.get("unitCode")
     unit_text = str(unit).strip() if unit is not None else None
     return value, unit_text
@@ -155,10 +134,10 @@ class NwsEnvironmentProvider:
         for row in rows[:16]:
             if not isinstance(row, dict):
                 continue
-            starts = _aware_timestamp(row.get("startTime"))
+            starts = source_timestamp(row.get("startTime"))
             if starts is None:
                 continue
-            ends = _aware_timestamp(row.get("endTime"))
+            ends = source_timestamp(row.get("endTime"))
             condition = str(
                 row.get("shortForecast")
                 or row.get("name")
@@ -178,7 +157,7 @@ class NwsEnvironmentProvider:
                 "probabilityOfPrecipitation"
             )
             if isinstance(raw_probability, dict):
-                probability = _number(
+                probability = source_number(
                     raw_probability.get("value")
                 )
             try:
@@ -242,7 +221,7 @@ class NwsEnvironmentProvider:
         forecast: tuple[ForecastPeriod, ...],
     ) -> WeatherObservation | None:
         properties = self._properties(document)
-        observed = _aware_timestamp(
+        observed = source_timestamp(
             properties.get("timestamp")
         )
         if observed is None:

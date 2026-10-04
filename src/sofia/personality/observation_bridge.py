@@ -1,7 +1,7 @@
 """Translate trusted, typed observations into emotional and reflection records.
 
 No text classification, implicit authorization, background activity or delivery.
-Only callers holding real observation objects or verified test-run results
+Only callers holding real observation objects
 should invoke these functions. Models have no direct access to this bridge.
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from sofia.filesystem.changes import FilesystemChangeEvent
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 
 
@@ -74,67 +74,3 @@ def record_workspace_observation(
         evidence_refs=(event_id,), emotions=labels, created_at=when,
     )
     return event_id
-
-
-def record_verified_test_run(
-    *, run_id: str, evidence_ref: str, completed_at: datetime,
-    passed: int, failed: int, skipped: int, emotions: EmotionalJournal,
-    reflections: ReflectionJournal,
-) -> str:
-    """Ingest explicit result counts supplied by a trusted test-run producer.
-
-    The bridge cannot verify that a caller actually executed pytest. A chat
-    claim or LLM-generated answer must never be passed as observed evidence.
-    """
-    for label, value in (("run_id", run_id), ("evidence_ref", evidence_ref)):
-        if (not isinstance(value, str) or not 0 < len(value.strip()) <= 120
-                or any(ch in value for ch in "\x00\r\n")):
-            raise ValueError(f"{label} must be a nonempty single-line identifier.")
-    if not isinstance(completed_at, datetime) or completed_at.tzinfo is None or completed_at.utcoffset() is None:
-        raise ValueError("Test completion time must be timezone-aware.")
-    if any(type(n) is not int or n < 0 for n in (passed, failed, skipped)):
-        raise ValueError("Test counts must be nonnegative integers.")
-    if passed + failed + skipped == 0:
-        raise ValueError("An empty test result is not a completed test run.")
-    if not isinstance(emotions, EmotionalJournal) or not isinstance(reflections, ReflectionJournal):
-        raise TypeError("EmotionalJournal and ReflectionJournal are required.")
-    description = f"Recorded test run: {passed} passed, {failed} failed, {skipped} skipped."
-    labels = ("concern", "curiosity", "determination") if failed else (
-        ("joy", "contentment") if passed else ("uncertainty", "curiosity")
-    )
-    event_id = f"test-run:{run_id}"
-    emotions.record(
-        event_id=event_id, occurred_at=completed_at, source="observed",
-        evidence_ref=evidence_ref, description=description, emotions=labels,
-    )
-    reflections.record_thought(
-        thought_id=f"test-thought:{run_id}", kind="observation",
-        subject="Recorded test outcome", content=description,
-        evidence_refs=(event_id,), emotions=labels, created_at=completed_at,
-    )
-    return event_id
-
-
-def record_user_reappraisal(
-    *, event_id: str, message_id: str, clarification: str,
-    new_emotions: tuple[str, ...], revised_at: datetime,
-    journal: EmotionalJournal,
-) -> None:
-    """Preserve original appraisal and append a user's later clarification.
-
-    Caller must associate the clarification with a real persisted user message.
-    This does not infer corrections from free-form conversation automatically.
-    """
-    for label, value in (("event_id", event_id), ("message_id", message_id)):
-        if not isinstance(value, str) or not value.strip() or len(value) > 100:
-            raise ValueError(f"{label} is required (max 100 characters).")
-    if (not isinstance(clarification, str) or not 0 < len(clarification.strip()) <= 160
-            or any(ch in clarification for ch in "\x00\r\n")):
-        raise ValueError("A concise, single-line user clarification is required.")
-    if not isinstance(journal, EmotionalJournal):
-        raise TypeError("An EmotionalJournal is required.")
-    journal.revise(
-        event_id=event_id, emotions=new_emotions,
-        reason=f"User clarification ({message_id}): {clarification}",
-        revised_at=revised_at,
-    )

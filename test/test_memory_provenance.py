@@ -3,8 +3,9 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.memory.provenance import CandidateStatus, MemoryCandidate, MemoryCandidateRegistry
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.provenance import CandidateStatus, MemoryCandidate
+from sofia.memory.originals import SourceMessage
+from sofia.memory.provenance_store import DurableMemoryCandidateStore
 
 
 def source(mid="m1", session="s1"):
@@ -25,8 +26,8 @@ def test_candidate_cannot_silently_combine_sessions():
         candidate(source("a", "s1"), source("b", "s2"))
 
 
-def test_propose_promote_revoke_lifecycle():
-    registry = MemoryCandidateRegistry()
+def test_propose_promote_revoke_lifecycle(tmp_path):
+    registry = DurableMemoryCandidateStore(tmp_path / "sofia.db")
     item = candidate()
     registry.propose(item)
     assert registry.status(item.candidate_id) is CandidateStatus.PROPOSED
@@ -36,8 +37,8 @@ def test_propose_promote_revoke_lifecycle():
     assert registry.status(item.candidate_id) is CandidateStatus.REVOKED
 
 
-def test_rejected_candidate_cannot_be_promoted():
-    registry = MemoryCandidateRegistry()
+def test_rejected_candidate_cannot_be_promoted(tmp_path):
+    registry = DurableMemoryCandidateStore(tmp_path / "sofia.db")
     item = candidate()
     registry.propose(item)
     registry.reject(item.candidate_id)
@@ -46,8 +47,8 @@ def test_rejected_candidate_cannot_be_promoted():
         registry.promote(item.candidate_id)
 
 
-def test_duplicate_candidate_id_fails_closed():
-    registry = MemoryCandidateRegistry()
+def test_duplicate_candidate_id_fails_closed(tmp_path):
+    registry = DurableMemoryCandidateStore(tmp_path / "sofia.db")
     item = candidate()
     registry.propose(item)
     with pytest.raises(ValueError):

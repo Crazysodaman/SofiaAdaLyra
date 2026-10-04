@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -54,110 +54,6 @@ class AuthoritativeSelfState:
                 "OperationalState or None."
             )
 
-    @property
-    def identity_name(self) -> str | None:
-        if self.core_state is None:
-            return None
-
-        return self.core_state.identity.name
-
-    @property
-    def identity_instance_id(self):
-        if self.core_state is None:
-            return None
-
-        return self.core_state.identity.instance_id
-
-    @property
-    def self_concept(self):
-        if self.core_state is None:
-            return None
-
-        return self.core_state.self_concept
-
-    @property
-    def relationships(self):
-        if self.core_state is None:
-            return ()
-
-        return self.core_state.relationships
-
-    @property
-    def foundational_values(self) -> tuple[str, ...]:
-        if self.core_state is None:
-            return ()
-
-        return self.core_state.foundational_values
-
-    @property
-    def constitution_version(self) -> str | None:
-        if self.core_state is None:
-            return None
-
-        return self.core_state.constitution_version
-
-    @property
-    def constitution_hash(self) -> str | None:
-        if self.core_state is None:
-            return None
-
-        return self.core_state.constitution_hash
-
-    @property
-    def embodiment_subject(self) -> str | None:
-        if self.embodiment is None:
-            return None
-
-        return self.embodiment.subject
-
-    @property
-    def embodiment_form(self) -> str | None:
-        if self.embodiment is None:
-            return None
-
-        return self.embodiment.physical_self.form
-
-    @property
-    def additional_features(self) -> tuple[str, ...]:
-        if self.embodiment is None:
-            return ()
-
-        return self.embodiment.physical_self.additional_features
-
-    @property
-    def measurements(self):
-        if self.embodiment is None:
-            return ()
-
-        return self.embodiment.physical_self.measurements
-
-    @property
-    def appearance(self):
-        if self.embodiment is None:
-            return ()
-
-        return self.embodiment.physical_self.appearance
-
-    @property
-    def anatomy(self):
-        if self.embodiment is None:
-            return ()
-
-        return self.embodiment.physical_self.anatomy
-
-    @property
-    def clothing(self):
-        if self.embodiment is None:
-            return ()
-
-        return self.embodiment.clothing.items
-
-    @property
-    def clothing_canonical_status(self) -> str | None:
-        if self.embodiment is None:
-            return None
-
-        return self.embodiment.clothing.canonical_status
 
     def serialize(self) -> str:
         """
@@ -435,22 +331,3 @@ class AuthoritativeSelfState:
         )
 
         return "\n".join(lines)
-
-
-def create_authoritative_self_state(
-    *,
-    core_state: SofiaCoreState | None,
-    embodiment: Embodiment | None,
-    operational_state: OperationalState | None,
-) -> AuthoritativeSelfState:
-    """
-    Construct the canonical self-state projection for one operation.
-
-    This function performs no inference and has no provider dependency.
-    """
-
-    return AuthoritativeSelfState(
-        core_state=core_state,
-        embodiment=embodiment,
-        operational_state=operational_state,
-    )

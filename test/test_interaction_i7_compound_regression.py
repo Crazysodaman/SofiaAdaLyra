@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.grammar import NaturalInteractionEngine
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 
 
 @pytest.fixture
 def engine():
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    return NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 @pytest.mark.parametrize('phrase', [

@@ -13,13 +13,13 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import (
     InteractiveConversationService,
     representational_experience_followup_prompt,
 )
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 def _service(
@@ -43,7 +43,7 @@ def _service(
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
         personality=object() if personality else None,
-        embodiment=AvatarStore(AVATAR).load() if avatar else None,
+        embodiment=EmbodimentStore(AVATAR).load() if avatar else None,
     )
     return service, original
 
@@ -139,7 +139,7 @@ def test_real_exposed_tool_surface_is_preserved(monkeypatch):
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
         personality=object(),
-        embodiment=AvatarStore(AVATAR).load(),
+        embodiment=EmbodimentStore(AVATAR).load(),
     )
 
     result = service._build_request()

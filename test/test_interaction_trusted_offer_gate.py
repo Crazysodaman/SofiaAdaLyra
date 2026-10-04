@@ -10,7 +10,7 @@ from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole, CognitiveToolCall,
 )
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.decision_expression import from_reviewed_action
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.registry import InteractionCatalog

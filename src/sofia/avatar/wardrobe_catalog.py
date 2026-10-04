@@ -12,7 +12,7 @@ from hashlib import sha256
 import json
 import re
 
-from .authoring import DEFAULT_FIT_ANCHORS
+from .fit import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Wardrobe, WardrobeError
 from .wardrobe_design import (
     ComfortProfile,

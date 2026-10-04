@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sofia.application import bootstrap
+from sofia.application import bootstrap, background_runtime
 
 
 class FakeWorker:
@@ -111,7 +111,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     )
     monkeypatch.setattr(bootstrap, "EmotionalConversationService", SimpleNamespace)
     monkeypatch.setattr(
-        bootstrap,
+        background_runtime,
         "ApplicationBackgroundCoordinator",
         FakeCoordinator,
     )
@@ -163,3 +163,49 @@ def test_invalid_opt_in_is_reported_before_start(monkeypatch, tmp_path):
     with pytest.raises(bootstrap.SofiaApplicationError, match="failed to start"):
         app.start()
     assert events == []
+
+
+def test_failed_coordinator_start_is_owned_and_stopped_during_rollback(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", "1")
+    app, events = _application(monkeypatch, tmp_path)
+
+    def fail_after_starting(coordinator):
+        coordinator.events.append("coordinator:partial-start")
+        raise RuntimeError("startup failed after acquiring resources")
+
+    monkeypatch.setattr(FakeCoordinator, "start", fail_after_starting)
+    with pytest.raises(bootstrap.SofiaApplicationError) as error:
+        app.start()
+
+    assert isinstance(error.value.__cause__, RuntimeError)
+    assert events.index("coordinator:partial-start") < events.index("coordinator:stop")
+    assert events.index("coordinator:stop") < events.index("conversation:close")
+    assert app._background is None
+    assert app.idle_reflection_worker is None
+
+
+def test_failed_model_worker_start_is_stopped_during_rollback(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", "0")
+    app, events = _application(monkeypatch, tmp_path)
+    app._runtime.model_lifecycle = SimpleNamespace(
+        install_missing=lambda: None,
+        policy=SimpleNamespace(enabled=True, idle_unload_seconds=60),
+    )
+
+    class PartialWorker:
+        def __init__(self, **kwargs):
+            pass
+
+        def start(self):
+            events.append("model:partial-start")
+            raise RuntimeError("model worker start failed")
+
+        def stop(self):
+            events.append("model:stop")
+
+    monkeypatch.setattr(bootstrap, "ModelLifecycleWorker", PartialWorker)
+    with pytest.raises(bootstrap.SofiaApplicationError):
+        app.start()
+
+    assert events.index("model:partial-start") < events.index("model:stop")
+    assert app._model_lifecycle_worker is None

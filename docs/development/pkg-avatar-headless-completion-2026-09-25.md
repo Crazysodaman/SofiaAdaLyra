@@ -33,9 +33,9 @@ The public/default fallback is the **last successfully committed daily clothed o
 
 ### Presentation persistence
 
-`PresentationStore` atomically stores settled state at:
-
-`state/avatar-presentation.json`
+`PresentationStore` stores settled state in the `avatar_presentation_state` table
+of canonical `sofia.db`. Startup verifies and retires an existing legacy
+`avatar-presentation.json`; it is no longer a second live state store.
 
 The snapshot preserves current state and last daily public fallback separately. Pending transitions cannot be snapshotted as settled.
 
@@ -91,7 +91,7 @@ These are presentation properties, not protected identity.
 
 The branch ports the non-Blender AVATAR foundation from the old draft onto current `main`:
 
-- body/fit contract;
+- body-region mappings and fit anchors (now `sofia.avatar.fit`);
 - wardrobe metadata/layering;
 - starter wardrobe and lounge variation;
 - shared wardrobe state;
@@ -126,20 +126,9 @@ Those become the visual AVATAR gate after the headless software state is accepte
 
 Run:
 
-```powershell
-python -m pytest -q `
-  test/test_avatar_body_contract.py `
-  test/test_avatar_scene.py `
-  test/test_avatar_shared_wardrobe_state.py `
-  test/test_avatar_starter_user_preferences.py `
-  test/test_avatar_style_context.py `
-  test/test_avatar_wardrobe_catalog.py `
-  test/test_avatar_wardrobe_metadata.py `
-  test/test_avatar_wardrobe_routine.py `
-  test/test_avatar_presentation.py `
-  test/test_avatar_presentation_store.py `
-  test/test_avatar_presentation_routine.py `
-  test/test_avatar_runtime_projection.py
+```bash
+python -m pytest -q -m "pkg_avatar and not integration"
+python -m pytest -q test/test_avatar_behavior_matrix.py test/test_avatar_wardrobe_matrix.py test/test_contextual_influence_matrix.py test/test_ui_application.py test/test_production_dual_cognition.py test/test_production_storage_boundary.py
 ```
 
 Then run surrounding application/cognition/embodiment regressions and the full repository suite.
@@ -154,6 +143,14 @@ After this branch and the CORE/INTERACT live fixes are both integrated, replay t
 - body gestures.
 
 For outfit/current-appearance turns, Sofía must answer from AVATAR presentation state instead of denying her canonical representational body or clothing.
+
+## Cleanup of dormant authoring APIs
+
+The production catalog consumes validated fit anchors directly. Unwired studio
+composition/design and the standalone body snapshot contract were removed;
+production dynamic outfit registration stays on `PresentationAuthority`, with
+durable mutations owned by `PresentationStore`. Planned mesh requirements in
+the design documents remain requirements, not an implemented asset verifier.
 
 ## Deferred dependencies
 

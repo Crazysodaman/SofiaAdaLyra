@@ -8,18 +8,12 @@ from sofia.integrate import (
     GovernedAdapterRegistry,InvocationContext,JsonlReceiptLedger,SchemaValidationError,SideEffectClass,ToolInvocation,validate_object,
 )
 from sofia.knowledge import (
-    DocumentDisposition,KnowledgeDocument,KnowledgeFact,KnowledgeLifecycle,KnowledgeRetriever,
-    KnowledgeStore,RepositoryIngestError,SourceKind,ingest_repository_file,
+    DocumentDisposition,KnowledgeDocument,KnowledgeFact,SQLiteKnowledgeLifecycle,KnowledgeRetriever,
+    KnowledgeStore,SourceKind,
 )
 
 NOW=datetime.now(timezone.utc)
 
-def test_repository_ingest_is_revisioned_and_root_confined(tmp_path:Path):
-    root=tmp_path/"repo"; root.mkdir(); (root/"docs").mkdir(); (root/"docs"/"a.md").write_text("breaker manual",encoding="utf-8")
-    doc,text=ingest_repository_file(root,"docs/a.md",document_id="d1",revision="abc123")
-    assert text=="breaker manual" and doc.version=="abc123" and doc.source_kind is SourceKind.REPOSITORY
-    outside=tmp_path/"outside.txt"; outside.write_text("no",encoding="utf-8")
-    with pytest.raises(RepositoryIngestError): ingest_repository_file(root,"../outside.txt",document_id="d2",revision="abc123")
 
 def test_fact_supersession_drives_active_retrieval():
     store=KnowledgeStore()
@@ -38,9 +32,9 @@ def test_untrusted_reference_is_excluded_by_default():
     assert KnowledgeRetriever(store).search("breaker")==()
 
 def test_lifecycle_supersession_and_invalidation_are_durable(tmp_path:Path):
-    p=tmp_path/"lifecycle.json"; life=KnowledgeLifecycle(p)
+    p=tmp_path/"lifecycle.db"; life=SQLiteKnowledgeLifecycle(p)
     life.register("old"); life.register("new"); life.supersede("old","new"); life.invalidate("new")
-    again=KnowledgeLifecycle(p)
+    again=SQLiteKnowledgeLifecycle(p)
     assert again.status("old").disposition is DocumentDisposition.SUPERSEDED
     assert again.status("old").replaced_by=="new"
     assert again.status("new").disposition is DocumentDisposition.INVALID
@@ -76,7 +70,7 @@ def test_invalidated_document_is_not_retrieved(tmp_path:Path):
     doc=KnowledgeDocument("d-invalid",SourceKind.MANUAL,"manual://old","1",NOW,"d"*64,True)
     store.register_document(doc)
     store.record_fact(KnowledgeFact("f-invalid","d-invalid","obsolete breaker value","p1",NOW))
-    lifecycle=KnowledgeLifecycle(tmp_path/"life.json")
+    lifecycle=SQLiteKnowledgeLifecycle(tmp_path/"life.db")
     lifecycle.register("d-invalid")
     lifecycle.invalidate("d-invalid")
     assert KnowledgeRetriever(store,lifecycle).search("breaker")==()

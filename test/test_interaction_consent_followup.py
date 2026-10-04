@@ -8,10 +8,10 @@ import pytest
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
 
 
@@ -61,7 +61,7 @@ def test_short_followup_stays_bound_to_prior_interaction(monkeypatch, tmp_path, 
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
         personality=object(),
-        embodiment=AvatarStore(AVATAR).load(),
+        embodiment=EmbodimentStore(AVATAR).load(),
         configuration=SimpleNamespace(state_path=tmp_path / "sofia.db"),
     )
 
@@ -100,7 +100,7 @@ def test_new_interaction_prompt_rejects_region_based_moralizing(monkeypatch):
 
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
-        personality=object(), embodiment=AvatarStore(AVATAR).load(),
+        personality=object(), embodiment=EmbodimentStore(AVATAR).load(),
     )
 
     prompt = service._build_request().messages[0].content
@@ -138,7 +138,7 @@ def test_live_grope_wording_routes_through_interaction_engine(
 
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
-        personality=object(), embodiment=AvatarStore(AVATAR).load(),
+        personality=object(), embodiment=EmbodimentStore(AVATAR).load(),
     )
 
     prompt = service._build_request().messages[0].content

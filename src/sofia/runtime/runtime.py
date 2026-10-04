@@ -1,10 +1,8 @@
-﻿from dataclasses import replace
+"""Foundational runtime lifecycle and canonical subsystem ownership."""
 from datetime import datetime, timezone
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import metadata
-from pathlib import Path
 from uuid import UUID, uuid4
 
+from sofia.package_metadata import application_name, application_version
 from sofia.avatar.presentation import (
     AudienceScope,
     PresentationAuthority,
@@ -21,23 +19,13 @@ from sofia.authorization.model import (
     FilesystemAuthorizationOperation,
 )
 from sofia.capability.system import CapabilitySystem
-from sofia.cognition.context import CognitiveContext
-from sofia.cognition.matrix import (
-    ContextPlan,
-    EvidenceRecord,
-    EvidenceState,
-    HistoryPolicy,
-    MatrixDomain,
-    PrivacyProjectionPlan,
-)
+from sofia.cognition.matrix import ContextPlan, EvidenceRecord, EvidenceState, PrivacyProjectionPlan
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleManager
 from sofia.cognition.routing import RoutingCognitiveEngine, RoutingExecution
-from sofia.cognition.operation import CognitiveOperation
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
-from sofia.config.state_store import StatePlaneConfigurationStore
 from sofia.constitution.integrity import (
     ConstitutionIntegrityError,
     ConstitutionIntegrityVerifier,
@@ -51,9 +39,7 @@ from sofia.continuity.model import (
 )
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
-from sofia.embodiment.store import AvatarStore
-from sofia.environment.model import EnvironmentFreshness
-from sofia.environment.prompt import environment_details_relevant
+from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
@@ -70,7 +56,6 @@ from sofia.identity.model import SofiaIdentity
 from sofia.identity.store import IdentityStore
 from sofia.memory.system import MemorySystem
 from sofia.ops.capability import OpsToolService
-from sofia.dev.release_store import ReleaseStateStore
 from sofia.operational.model import (
     OperationalState,
     RuntimeContinuity,
@@ -79,9 +64,10 @@ from sofia.operational.store import OperationalStore
 from sofia.operational.status_queries import OperationalStatusQueryResolver
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.model import PersonalityProfile
-from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.reflection_query import ReflectionQueryResolver
 from sofia.personality.store import PersonalityStore
+from sofia.runtime.evidence import project_matrix_evidence
+from sofia.runtime.response import respond_with_runtime_context
 from sofia.runtime.model import RuntimeState
 from sofia.self_model.model import (
     SofiaCoreState,
@@ -90,44 +76,8 @@ from sofia.self_model.model import (
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
-from sofia.social.model import PrincipalContext, SocialScope
+from sofia.social.model import PrincipalContext
 from sofia.state.plane import StatePlane
-from sofia.verify.semantic_integrity import SemanticIntegrityVerifier
-
-
-_PACKAGE_NAME = "sofia-ada-lyra"
-
-
-def _application_name() -> str:
-    try:
-        value = metadata(_PACKAGE_NAME)["Name"]
-    except PackageNotFoundError as exc:
-        raise RuntimeError(
-            f"Application package metadata not found: {_PACKAGE_NAME!r}."
-        ) from exc
-
-    if not value:
-        raise RuntimeError(
-            "Application package metadata contains no package name."
-        )
-
-    return value
-
-
-def _application_version() -> str:
-    try:
-        value = metadata(_PACKAGE_NAME)["Version"]
-    except PackageNotFoundError as exc:
-        raise RuntimeError(
-            f"Application package metadata not found: {_PACKAGE_NAME!r}."
-        ) from exc
-
-    if not value:
-        raise RuntimeError(
-            "Application package metadata contains no package version."
-        )
-
-    return value
 
 
 class SofiaRuntimeError(Exception):
@@ -149,7 +99,7 @@ class SofiaRuntime:
         integrity_verifier: ConstitutionIntegrityVerifier,
         identity_store: IdentityStore,
         personality_store: PersonalityStore,
-        avatar_store: AvatarStore,
+        embodiment_store: EmbodimentStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
         ops_service: OpsToolService,
@@ -181,7 +131,7 @@ class SofiaRuntime:
         self._integrity_verifier = integrity_verifier
         self._identity_store = identity_store
         self._personality_store = personality_store
-        self._avatar_store = avatar_store
+        self._embodiment_store = embodiment_store
         if not isinstance(ops_service, OpsToolService):
             raise TypeError(
                 "SofiaRuntime ops_service must be an OpsToolService."
@@ -205,12 +155,6 @@ class SofiaRuntime:
             )
         self._model_lifecycle = model_lifecycle
         self._state_plane = state_plane
-        self._configuration_store = StatePlaneConfigurationStore(state_plane)
-        self._release_state_store = ReleaseStateStore(state_plane)
-        self._semantic_integrity = SemanticIntegrityVerifier(
-            configuration.state_path,
-            state_plane=state_plane,
-        )
         self._environment_service = (
             environment_service
             if environment_service is not None
@@ -319,9 +263,6 @@ class SofiaRuntime:
     def identity(self) -> SofiaIdentity | None:
         return self._identity
 
-    @property
-    def identity_store(self) -> IdentityStore:
-        return self._identity_store
 
     @property
     def personality(
@@ -334,10 +275,6 @@ class SofiaRuntime:
         self,
     ) -> PersonalityStore:
         return self._personality_store
-
-    @property
-    def avatar_store(self) -> AvatarStore:
-        return self._avatar_store
 
     @property
     def embodiment(self) -> Embodiment | None:
@@ -447,17 +384,6 @@ class SofiaRuntime:
     def state_plane(self) -> StatePlane:
         return self._state_plane
 
-    @property
-    def configuration_store(self) -> StatePlaneConfigurationStore:
-        return self._configuration_store
-
-    @property
-    def release_state_store(self) -> ReleaseStateStore:
-        return self._release_state_store
-
-    @property
-    def semantic_integrity(self) -> SemanticIntegrityVerifier:
-        return self._semantic_integrity
 
     @property
     def environment_service(self) -> EnvironmentService:
@@ -488,11 +414,6 @@ class SofiaRuntime:
     ) -> FilesystemObservationStore:
         return self._filesystem_observation_store
 
-    @property
-    def filesystem_observer(
-        self,
-    ) -> FilesystemObserver:
-        return self._filesystem_observer
 
     @property
     def runtime_id(self) -> UUID | None:
@@ -547,8 +468,8 @@ class SofiaRuntime:
             runtime_id=self._runtime_id,
             started_at=self._started_at,
             lifecycle_state=self._state.value,
-            application_name=_application_name(),
-            application_version=_application_version(),
+            application_name=application_name(),
+            application_version=application_version(),
             provider=provider_configuration.provider,
             model=provider_configuration.model,
         )
@@ -582,21 +503,17 @@ class SofiaRuntime:
 
         self._state = RuntimeState.STARTING
 
-        # STOPPED releases all owned SQLite handles. Starting the same runtime
-        # object must symmetrically reopen those resources before continuity,
-        # observation, or memory work touches them.
-        self._operational_store.open()
-        self._filesystem_observation_store.open()
-        self._memory_system.open()
-
-        environment_service = getattr(self, "_environment_service", None)
-        if environment_service is not None:
-            environment_service.invalidate()
-
-        runtime_id = uuid4()
-        started_at = datetime.now(timezone.utc)
-
         try:
+            # Restart reopens the same owned stores. A partial reopen failure
+            # must follow the same FAILED transition as any other startup error.
+            self._operational_store.open()
+            self._filesystem_observation_store.open()
+            self._memory_system.open()
+            self._environment_service.invalidate()
+
+            runtime_id = uuid4()
+            started_at = datetime.now(timezone.utc)
+
             constitution = self._constitution_store.load()
 
             self._integrity_verifier.verify(
@@ -605,7 +522,7 @@ class SofiaRuntime:
 
             identity = self._identity_store.load()
             personality = self._personality_store.load()
-            embodiment = self._avatar_store.load()
+            embodiment = self._embodiment_store.load()
 
             core_state = create_core_state(
                 identity=identity,
@@ -675,16 +592,14 @@ class SofiaRuntime:
             )
 
         except ConstitutionIntegrityError as exc:
-            self._clear_runtime_state()
-            self._state = RuntimeState.FAILED
+            self._rollback_failed_start(exc)
 
             raise SofiaRuntimeError(
                 "Sofía Constitution integrity verification failed."
             ) from exc
 
         except Exception as exc:
-            self._clear_runtime_state()
-            self._state = RuntimeState.FAILED
+            self._rollback_failed_start(exc)
 
             raise SofiaRuntimeError(
                 "Sofía runtime failed during startup."
@@ -708,218 +623,9 @@ class SofiaRuntime:
         required_keys: tuple[str, ...] | None = None,
         response: CognitiveResponse | None = None,
     ) -> dict[str, EvidenceRecord | EvidenceState]:
-        """Project only host-owned evidence requested by the matrix layer."""
-        if required_keys is not None:
-            if not isinstance(required_keys, tuple):
-                raise TypeError("required_keys must be a tuple or None")
-            if any(
-                not isinstance(key, str) or not key.strip()
-                for key in required_keys
-            ):
-                raise ValueError(
-                    "required_keys must contain nonempty strings"
-                )
-            wanted = set(required_keys)
-        else:
-            wanted = {
-                "avatar.canonical",
-                "memory.retrieval",
-                "cognition.configuration",
-                "continuity.current",
-                "interaction.interpretation",
-                "emotion.current",
-                "operational.measurement",
-                "action.execution_receipt",
-                "environment.current",
-                "environment.weather.current",
-                "environment.clock.current",
-                "environment.location.current",
-                "environment.calendar.current",
-            }
-
-        all_static: dict[str, EvidenceRecord | EvidenceState] = {
-            "avatar.canonical": EvidenceRecord(
-                "avatar.canonical",
-                (
-                    EvidenceState.AVAILABLE
-                    if self._embodiment is not None
-                    else EvidenceState.MISSING
-                ),
-                (
-                    "runtime:embodiment"
-                    if self._embodiment is not None
-                    else None
-                ),
-            ),
-            "memory.retrieval": EvidenceRecord(
-                "memory.retrieval",
-                EvidenceState.AVAILABLE,
-                "runtime:memory-system",
-            ),
-            "cognition.configuration": EvidenceRecord(
-                "cognition.configuration",
-                EvidenceState.AVAILABLE,
-                "runtime:cognitive-configuration",
-            ),
-            "continuity.current": EvidenceRecord(
-                "continuity.current",
-                (
-                    EvidenceState.AVAILABLE
-                    if self._runtime_continuity is not None
-                    else EvidenceState.MISSING
-                ),
-                (
-                    "runtime:continuity"
-                    if self._runtime_continuity is not None
-                    else None
-                ),
-            ),
-            "interaction.interpretation": EvidenceState.UNKNOWN,
-            "emotion.current": EvidenceState.UNKNOWN,
-            "operational.measurement": EvidenceState.MISSING,
-            "action.execution_receipt": EvidenceState.MISSING,
-        }
-        availability = {
-            key: value
-            for key, value in all_static.items()
-            if key in wanted
-        }
-
-        environment_keys = {
-            "environment.current",
-            "environment.weather.current",
-            "environment.location.current",
-            "environment.calendar.current",
-        }
-        snapshot = (
-            self._environment_service.snapshot(refresh_providers=False)
-            if wanted & environment_keys
-            else None
+        return project_matrix_evidence(
+            self, required_keys=required_keys, response=response,
         )
-
-        if "environment.clock.current" in wanted:
-            availability["environment.clock.current"] = EvidenceRecord(
-                "environment.clock.current",
-                EvidenceState.AVAILABLE,
-                "runtime:clock",
-            )
-
-        if snapshot is not None:
-            if (
-                snapshot.weather is not None
-                and snapshot.weather_freshness
-                is EnvironmentFreshness.CURRENT
-            ):
-                weather_state: EvidenceRecord | EvidenceState = (
-                    EvidenceRecord(
-                        "environment.weather.current",
-                        EvidenceState.AVAILABLE,
-                        f"environment:{snapshot.weather.source_id}",
-                    )
-                )
-            elif snapshot.weather_freshness is EnvironmentFreshness.STALE:
-                weather_state = EvidenceState.STALE
-            else:
-                weather_state = EvidenceState.MISSING
-
-            if "environment.weather.current" in wanted:
-                availability["environment.weather.current"] = weather_state
-
-            if "environment.current" in wanted:
-                availability["environment.current"] = (
-                    EvidenceRecord(
-                        "environment.current",
-                        EvidenceState.AVAILABLE,
-                        "environment:snapshot",
-                    )
-                )
-
-            if "environment.location.current" in wanted:
-                if (
-                    snapshot.current_location is not None
-                    and snapshot.current_location_freshness
-                    is EnvironmentFreshness.CURRENT
-                ):
-                    availability["environment.location.current"] = (
-                        EvidenceRecord(
-                            "environment.location.current",
-                            EvidenceState.AVAILABLE,
-                            (
-                                "environment:"
-                                + snapshot.current_location.source_id
-                            ),
-                        )
-                    )
-                elif (
-                    snapshot.current_location_freshness
-                    is EnvironmentFreshness.STALE
-                ):
-                    availability["environment.location.current"] = (
-                        EvidenceState.STALE
-                    )
-                else:
-                    availability["environment.location.current"] = (
-                        EvidenceState.MISSING
-                    )
-
-            if "environment.calendar.current" in wanted:
-                availability["environment.calendar.current"] = (
-                    EvidenceRecord(
-                        "environment.calendar.current",
-                        EvidenceState.AVAILABLE,
-                        "runtime:calendar",
-                    )
-                    if (
-                        snapshot.season is not None
-                        or snapshot.daylight is not None
-                    )
-                    else EvidenceState.MISSING
-                )
-
-        if response is not None and "operational.measurement" in wanted:
-            if not isinstance(response, CognitiveResponse):
-                raise TypeError(
-                    "matrix evidence response must be CognitiveResponse or None"
-                )
-            operational_refs = tuple(
-                ref
-                for ref in response.evidence_refs
-                if ref.startswith(
-                    (
-                        "capability:system.inspect",
-                        "capability:process.inspect",
-                        "capability:network.inspect",
-                        "capability:hardware.inspect",
-                        "capability:service.inspect",
-                        "capability:machine.",
-                        "capability:ops.",
-                        "capability:storage.",
-                        "capability:remote.",
-                        "capability:telemetry.",
-                    )
-                )
-            )
-            if operational_refs:
-                availability["operational.measurement"] = EvidenceRecord(
-                    "operational.measurement",
-                    EvidenceState.AVAILABLE,
-                    operational_refs[0],
-                )
-
-        if response is not None and "action.execution_receipt" in wanted:
-            execution_refs = tuple(
-                ref
-                for ref in response.evidence_refs
-                if ref.startswith("execution-receipt:")
-            )
-            if execution_refs:
-                availability["action.execution_receipt"] = EvidenceRecord(
-                    "action.execution_receipt",
-                    EvidenceState.AVAILABLE,
-                    execution_refs[0],
-                )
-
-        return availability
 
     def respond(
         self,
@@ -930,386 +636,15 @@ class SofiaRuntime:
         context_plan: ContextPlan | None = None,
         privacy_plan: PrivacyProjectionPlan | None = None,
         contextual_influence: ContinuityInfluence | None = None,
-    ):
+    ) -> CognitiveResponse:
         if self._state is not RuntimeState.READY:
             raise SofiaRuntimeError(
                 "SofiaRuntime must be READY before responding."
             )
-
-        if not isinstance(request, CognitiveRequest):
-            raise TypeError(
-                "SofiaRuntime request must be a CognitiveRequest."
-            )
-
-        if principal is not None and not isinstance(principal, PrincipalContext):
-            raise TypeError(
-                "SofiaRuntime principal must be a PrincipalContext or None."
-            )
-
-        if context_plan is not None and not isinstance(
-            context_plan, ContextPlan
-        ):
-            raise TypeError(
-                "SofiaRuntime context_plan must be a ContextPlan or None."
-            )
-        if privacy_plan is not None and not isinstance(
-            privacy_plan, PrivacyProjectionPlan
-        ):
-            raise TypeError(
-                "SofiaRuntime privacy_plan must be a PrivacyProjectionPlan or None."
-            )
-        if contextual_influence is not None and not isinstance(
-            contextual_influence,
-            ContinuityInfluence,
-        ):
-            raise TypeError(
-                "SofiaRuntime contextual_influence must be "
-                "a ContinuityInfluence or None."
-            )
-
-        if contextual_influence is not None and context_plan is not None:
-            if not context_plan.allows(MatrixDomain.EMOTION):
-                contextual_influence = replace(
-                    contextual_influence,
-                    primary_emotion_evidence_refs=(),
-                    emotional_tone="neutral",
-                    primary_emotion=None,
-                    primary_intensity=0.0,
-                    active_emotions=(),
-                )
-            if not context_plan.allows(MatrixDomain.ENVIRONMENT):
-                contextual_influence = replace(
-                    contextual_influence,
-                    daypart="unknown",
-                    season=None,
-                    daylight=None,
-                    weather_condition=None,
-                    temperature_c=None,
-                    weather_freshness=None,
-                    location_freshness=None,
-                    daypart_evidence_refs=(),
-                    season_evidence_refs=(),
-                    weather_evidence_refs=(),
-                )
-
-        if privacy_plan is not None:
-            if principal is None and privacy_plan.principal_id is not None:
-                raise ValueError(
-                    "privacy plan is bound but runtime principal is absent"
-                )
-            if principal is not None and (
-                privacy_plan.principal_id != principal.principal_id
-                or privacy_plan.audience_id != principal.audience_id
-                or privacy_plan.audience_kind != principal.audience_kind.value
-            ):
-                raise ValueError(
-                    "privacy plan does not match authenticated runtime principal"
-                )
-
-        selective_context = context_plan is not None
-
-        def include_domain(*domains: MatrixDomain) -> bool:
-            if not selective_context or context_plan is None:
-                return True
-            return any(context_plan.allows(domain) for domain in domains)
-
-        if not isinstance(filesystem_results, tuple):
-            raise TypeError(
-                "SofiaRuntime filesystem_results must be a tuple."
-            )
-
-        for result in filesystem_results:
-            if not isinstance(result, FilesystemResult):
-                raise TypeError(
-                    "SofiaRuntime filesystem_results must contain "
-                    "FilesystemResult instances."
-                )
-
-        user_content = self._latest_user_content(request)
-        environment_query = user_content
-        if (
-            user_content
-            and self._environment_query_resolver.is_generic_source_followup(
-                user_content
-            )
-        ):
-            previous_user_content = self._previous_user_content(request)
-            if (
-                previous_user_content
-                and self._environment_query_resolver.is_weather_or_forecast_query(
-                    previous_user_content
-                )
-            ):
-                environment_query = "what is your weather source"
-
-        reflection_answer = None
-        if (
-            user_content
-            and self._reflection_query_resolver.might_match(user_content)
-        ):
-            reflection_journal = ReflectionJournal(
-                self._configuration.state_path
-            )
-            thoughts = list(
-                reflection_journal.recent_thoughts(
-                    limit=3,
-                    scope=SocialScope.global_scope(),
-                )
-            )
-            if (
-                principal is not None
-                and (
-                    privacy_plan is None
-                    or privacy_plan.allow_relationship_scope
-                )
-            ):
-                thoughts.extend(
-                    reflection_journal.recent_thoughts(
-                        limit=3,
-                        scope=principal.relationship_scope,
-                    )
-                )
-            reflection_answer = self._reflection_query_resolver.resolve(
-                user_content,
-                thoughts=tuple(thoughts),
-            )
-
-        if user_content:
-            status_answer = self._operational_status_query_resolver.resolve(
-                user_content,
-                selection=CognitiveModelSelection.from_configuration(
-                    self._configuration
-                ),
-                capability_names=self._capability_system.capability_names(),
-                authority=self.current_authority(),
-            )
-            if status_answer.recognized:
-                return CognitiveResponse(content=status_answer.content)
-
-        presentation = self.avatar_projection_for(
-            principal=principal,
-        )
-        if (
-            user_content
-            and include_domain(MatrixDomain.AVATAR)
-            and self._embodiment is not None
-            and presentation is not None
-            and self._avatar_presentation is not None
-        ):
-            self_fact = self._avatar_self_fact_resolver.resolve(
-                user_content,
-                embodiment=self._embodiment,
-                presentation=presentation,
-                available_outfit_ids=self._avatar_presentation.available_outfit_ids,
-                wardrobe_matrix=self._avatar_matrix_for(presentation),
-            )
-            if self_fact.recognized:
-                if (
-                    self._avatar_self_fact_resolver.allows_private_projection(
-                        user_content
-                    )
-                    and (
-                        privacy_plan is None
-                        or privacy_plan.allow_private_presentation_candidate
-                    )
-                ):
-                    private_grant = self._private_presentation_grants.resolve(
-                        principal=principal,
-                        explicit_current_opt_in=True,
-                    )
-                    if private_grant is not None:
-                        private_presentation = self.avatar_projection_for(
-                            principal=principal,
-                            private_grant=private_grant,
-                        )
-                        if private_presentation is not None:
-                            self_fact = self._avatar_self_fact_resolver.resolve(
-                                user_content,
-                                embodiment=self._embodiment,
-                                presentation=private_presentation,
-                                available_outfit_ids=(
-                                    self._avatar_presentation.available_outfit_ids
-                                ),
-                                wardrobe_matrix=self._avatar_matrix_for(
-                                    private_presentation
-                                ),
-                            )
-                if (
-                    reflection_answer is not None
-                    and reflection_answer.recognized
-                ):
-                    return CognitiveResponse(
-                        content=(
-                            reflection_answer.content
-                            + "\n\n"
-                            + self_fact.content
-                        )
-                    )
-                return CognitiveResponse(content=self_fact.content)
-
-        if (
-            reflection_answer is not None
-            and reflection_answer.recognized
-        ):
-            return CognitiveResponse(content=reflection_answer.content)
-
-        environment_snapshot = None
-        environment_details_needed = environment_details_relevant(
-            user_content or None
-        )
-        environment_service = getattr(
-            self,
-            "_environment_service",
-            None,
-        )
-        if (
-            environment_service is not None
-            and environment_query
-            and include_domain(MatrixDomain.ENVIRONMENT)
-            and self._environment_query_resolver.might_match(
-                environment_query
-            )
-        ):
-            environment_snapshot = (
-                environment_service.snapshot(
-                    refresh_providers=environment_details_needed,
-                )
-            )
-            environment_answer = (
-                self._environment_query_resolver.resolve(
-                    environment_query,
-                    snapshot=environment_snapshot,
-                )
-            )
-            if environment_answer.recognized:
-                return CognitiveResponse(
-                    content=environment_answer.content
-                )
-
-        if include_domain(MatrixDomain.MEMORY):
-            audience_scope_allowed = (
-                privacy_plan is None
-                or privacy_plan.allow_audience_scope
-            )
-            if audience_scope_allowed:
-                memories = self._memory_system.recall_relevant(
-                    user_content,
-                    principal=principal,
-                    influence=contextual_influence,
-                )
-            else:
-                memories = ()
-
-            historical_private_allowed = (
-                privacy_plan is None
-                or privacy_plan.allow_historical_private_scope
-            )
-            if audience_scope_allowed and historical_private_allowed:
-                historical_conversation_evidence = (
-                    self._memory_system.recall_historical_evidence(
-                        user_content,
-                        principal=principal,
-                    )
-                )
-            else:
-                historical_conversation_evidence = ()
-        else:
-            memories = ()
-            historical_conversation_evidence = ()
-
-        measurement_query = None
-
-        if (
-            self._embodiment is not None
-            and include_domain(MatrixDomain.AVATAR)
-        ):
-            measurement_query = self._measurement_query_resolver.resolve(
-                query=user_content,
-                embodiment=self._embodiment,
-            )
-
-        if (
-            environment_snapshot is None
-            and environment_service is not None
-            and include_domain(MatrixDomain.ENVIRONMENT)
-        ):
-            environment_snapshot = (
-                environment_service.snapshot(
-                    refresh_providers=environment_details_needed,
-                )
-            )
-
-        operation = CognitiveOperation(
-            context=CognitiveContext(
-                request=request,
-                identity=self._identity,
-                personality=self._personality,
-                constitution=self._constitution,
-                embodiment=(
-                    self._embodiment
-                    if include_domain(
-                        MatrixDomain.AVATAR,
-                        MatrixDomain.INTERACTION,
-                    )
-                    else None
-                ),
-                measurement_query=measurement_query,
-                core_state=self._core_state,
-                memories=memories,
-                historical_conversation_evidence=(
-                    historical_conversation_evidence
-                ),
-                operational_state=(
-                    self.operational_state
-                    if include_domain(
-                        MatrixDomain.COGNITION,
-                        MatrixDomain.MACHINE,
-                        MatrixDomain.OPS,
-                        MatrixDomain.AUTHORITY,
-                        MatrixDomain.CONTINUITY,
-                    )
-                    else None
-                ),
-                runtime_continuity=(
-                    self._runtime_continuity
-                    if include_domain(MatrixDomain.CONTINUITY)
-                    else None
-                ),
-                filesystem_results=filesystem_results,
-                workspace_changes=(
-                    self._workspace_changes
-                    if include_domain(MatrixDomain.CONTINUITY)
-                    else None
-                ),
-                operational_self_model=(
-                    self.operational_self_model
-                    if include_domain(
-                        MatrixDomain.COGNITION,
-                        MatrixDomain.MACHINE,
-                        MatrixDomain.OPS,
-                    )
-                    else None
-                ),
-                avatar_presentation=(
-                    self.avatar_projection_for(principal=principal)
-                    if include_domain(
-                        MatrixDomain.AVATAR,
-                        MatrixDomain.INTERACTION,
-                    )
-                    else None
-                ),
-                environment_snapshot=(
-                    environment_snapshot
-                    if include_domain(MatrixDomain.ENVIRONMENT)
-                    else None
-                ),
-                principal=principal,
-            ),
-            authority=self.current_authority(),
-        )
-
-        return self._cognitive_system.respond(
-            operation
+        return respond_with_runtime_context(
+            self, request, filesystem_results,
+            principal=principal, context_plan=context_plan,
+            privacy_plan=privacy_plan, contextual_influence=contextual_influence,
         )
 
     def consume_continuity_awareness(self) -> ContinuityEvent | None:
@@ -1410,14 +745,6 @@ class SofiaRuntime:
             authorized=False,
         )
 
-    def enable_filesystem_inspection(self) -> None:
-        raise SofiaRuntimeError(
-            "Direct filesystem inspection enabling is no longer "
-            "supported. Explicit filesystem authorization is required."
-        )
-
-    def disable_filesystem_inspection(self) -> None:
-        self.revoke_filesystem_authorization()
 
     def shutdown(self) -> None:
         if self._state is RuntimeState.STOPPED:
@@ -1450,6 +777,10 @@ class SofiaRuntime:
         # prevents state-file replacement, recovery, and disposable test cleanup.
         self._clear_runtime_state()
         self._state = RuntimeState.STOPPED
+        self._close_runtime_resources()
+
+    def _close_runtime_resources(self) -> None:
+        """Attempt every owned close, including after a partial reopen."""
         try:
             self._memory_system.close()
         finally:
@@ -1457,6 +788,17 @@ class SofiaRuntime:
                 self._filesystem_observation_store.close()
             finally:
                 self._operational_store.close()
+
+    def _rollback_failed_start(self, failure: Exception) -> None:
+        self._state = RuntimeState.FAILED
+        try:
+            self._clear_runtime_state()
+        except Exception as cleanup_error:
+            failure.add_note(f"Runtime state cleanup failed: {cleanup_error}")
+        try:
+            self._close_runtime_resources()
+        except Exception as cleanup_error:
+            failure.add_note(f"Runtime resource cleanup failed: {cleanup_error}")
 
     def _clear_runtime_state(self) -> None:
         self._constitution = None
@@ -1476,29 +818,3 @@ class SofiaRuntime:
             root=self._configuration.filesystem_root,
             authorized=False,
         )
-
-    @staticmethod
-    def _previous_user_content(
-        request: CognitiveRequest,
-    ) -> str:
-        seen_latest = False
-        for message in reversed(request.messages):
-            if message.role.value != "user":
-                continue
-            if not seen_latest:
-                seen_latest = True
-                continue
-            return message.content
-        return ""
-
-    @staticmethod
-    def _latest_user_content(
-        request: CognitiveRequest,
-    ) -> str:
-        for message in reversed(
-            request.messages
-        ):
-            if message.role.value == "user":
-                return message.content
-
-        return ""

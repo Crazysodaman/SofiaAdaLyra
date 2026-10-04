@@ -221,7 +221,6 @@ def test_controller_reports_local_chat_database_and_session(tmp_path: Path):
     app = FakeApplication()
     app.chat_storage_mode = "local"
     app.chat_state_path = tmp_path / "sofia.db"
-    app.local_state_path = tmp_path / "sofia.db"
     controller = DesktopWorkbenchController(app)
     controller.start()
 
@@ -238,7 +237,6 @@ def test_controller_rejects_remote_chat_authority(
     app = FakeApplication()
     app.chat_storage_mode = "remote"
     app.chat_state_path = None
-    app.local_state_path = tmp_path / "sofia.db"
     controller = DesktopWorkbenchController(app)
     controller.start()
 

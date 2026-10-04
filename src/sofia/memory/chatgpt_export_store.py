@@ -405,25 +405,6 @@ class ChatGPTExportEvidenceStore:
                 break
         return tuple(results)
 
-    def messages_for_conversation(
-        self,
-        source_digest: str,
-        conversation_id: str,
-    ) -> tuple[tuple[str, str, str, int], ...]:
-        if not source_digest.strip() or not conversation_id.strip():
-            raise ValueError("source_digest and conversation_id are required")
-        with closing(self._connect()) as db:
-            rows = db.execute(
-                "SELECT message_id, role, content, position "
-                "FROM chatgpt_export_message "
-                "WHERE source_digest=? AND conversation_id=? "
-                "ORDER BY position ASC, message_id ASC",
-                (source_digest, conversation_id),
-            ).fetchall()
-        return tuple(
-            (str(row[0]), str(row[1]), str(row[2]), int(row[3]))
-            for row in rows
-        )
 
 
     def attachments_for_message(

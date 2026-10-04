@@ -1,4 +1,5 @@
 import hashlib
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -21,13 +22,18 @@ from sofia.memory.chatgpt_export import (
 from sofia.memory.model import MemoryRecord
 from sofia.memory.provenance import MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.retrieval_projection import SourceMessage
-from sofia.memory.store import MemoryStore
+from sofia.memory.originals import SourceMessage
 from sofia.memory.system import MemorySystem
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
 
+
+
+def seed_legacy(path, memory):
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE IF NOT EXISTS memories (id TEXT PRIMARY KEY, content TEXT NOT NULL, created_at TEXT NOT NULL)")
+        db.execute("INSERT INTO memories VALUES (?, ?, ?)", (memory.id, memory.content, memory.created_at.isoformat()))
 
 def _candidate(content: str) -> MemoryCandidate:
     now = datetime.now(timezone.utc)
@@ -69,16 +75,14 @@ def test_reviewed_memory_path_ignores_matching_legacy_rows(
     tmp_path: Path,
 ):
     database_path = tmp_path / "sofia.db"
-    legacy_store = MemoryStore(database_path)
     candidate_store = DurableMemoryCandidateStore(
         database_path
     )
     system = MemorySystem(
-        legacy_store,
         candidate_store=candidate_store,
     )
 
-    system.remember(
+    seed_legacy(database_path,
         MemoryRecord(
             id="legacy-memory",
             content="Sparks likes model trains.",
@@ -115,23 +119,20 @@ def test_reviewed_memory_path_ignores_matching_legacy_rows(
     )
 
     candidate_store.close()
-    legacy_store.close()
 
 
 def test_reviewed_memory_path_fails_closed_without_promoted_match(
     tmp_path: Path,
 ):
     database_path = tmp_path / "sofia.db"
-    legacy_store = MemoryStore(database_path)
     candidate_store = DurableMemoryCandidateStore(
         database_path
     )
     system = MemorySystem(
-        legacy_store,
         candidate_store=candidate_store,
     )
 
-    system.remember(
+    seed_legacy(database_path,
         MemoryRecord(
             id="legacy-memory",
             content="Architecture first development.",
@@ -149,19 +150,16 @@ def test_reviewed_memory_path_fails_closed_without_promoted_match(
     ) == ()
 
     candidate_store.close()
-    legacy_store.close()
 
 
 def test_reviewed_memory_path_excludes_revoked_candidate(
     tmp_path: Path,
 ):
     database_path = tmp_path / "sofia.db"
-    legacy_store = MemoryStore(database_path)
     candidate_store = DurableMemoryCandidateStore(
         database_path
     )
     system = MemorySystem(
-        legacy_store,
         candidate_store=candidate_store,
     )
 
@@ -177,7 +175,6 @@ def test_reviewed_memory_path_excludes_revoked_candidate(
     ) == ()
 
     candidate_store.close()
-    legacy_store.close()
 
 
 def test_composition_enables_reviewed_memory_for_runtime(
@@ -187,7 +184,6 @@ def test_composition_enables_reviewed_memory_for_runtime(
         _configuration(tmp_path)
     )
 
-    assert runtime.memory_system.uses_reviewed_memory is True
     assert isinstance(
         runtime.memory_system.candidate_store,
         DurableMemoryCandidateStore,
@@ -265,7 +261,7 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
     _write_runtime_files(configuration)
     runtime = compose(configuration)
 
-    runtime.memory_system.remember(
+    seed_legacy(configuration.state_path,
         MemoryRecord(
             id="legacy-memory",
             content="Legacy model trains memory must not enter cognition.",

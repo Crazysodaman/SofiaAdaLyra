@@ -4,17 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.core import InteractionEngine
-from sofia.interaction.lab import InteractionLab, LabScene, LabStep, MAX_STEPS
+from test.interaction_lab_support import InteractionLab, LabScene, LabStep, MAX_STEPS
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 
 @pytest.fixture
 def lab():
-    return InteractionLab(InteractionEngine(AvatarStore(AVATAR).load()))
+    return InteractionLab(InteractionEngine(EmbodimentStore(AVATAR).load()))
 
 
 def step(name, mode, **kwargs):

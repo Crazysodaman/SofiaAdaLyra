@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 from sofia.composition import root as composition_root
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
@@ -62,7 +63,7 @@ def test_composition_loads_persistent_location_for_current_machine(
 ):
     state = tmp_path / "state"
     registry = MachineLocationRegistry(
-        state / "machine-locations.json"
+        SQLiteStatePlane(state / "sofia.db")
     )
     registry.set(
         new_machine_location(
@@ -103,7 +104,7 @@ def test_explicit_process_host_location_overrides_persistent_registry(
 ):
     state = tmp_path / "state"
     registry = MachineLocationRegistry(
-        state / "machine-locations.json"
+        SQLiteStatePlane(state / "sofia.db")
     )
     registry.set(
         new_machine_location(
@@ -167,7 +168,7 @@ def test_persistent_host_location_completes_nws_host_configuration(
 ):
     state = tmp_path / "state"
     registry = MachineLocationRegistry(
-        state / "machine-locations.json"
+        SQLiteStatePlane(state / "sofia.db")
     )
     registry.set(
         new_machine_location(

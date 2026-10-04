@@ -90,10 +90,6 @@ class ClothingActionService:
             blueprint.garment.item_id: blueprint
             for blueprint in bundle.catalog.blueprints
         }
-        self._base_outfits = {
-            plan.outfit_id: plan.item_ids
-            for plan in bundle.catalog.presets
-        }
         self._plans = {
             plan.outfit_id: plan
             for plan in bundle.catalog.presets

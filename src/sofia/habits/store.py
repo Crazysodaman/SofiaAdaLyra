@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import NAMESPACE_URL, uuid5
 from typing import Any
 
 from sofia.habits.model import (
@@ -12,10 +13,6 @@ from sofia.habits.model import (
 from sofia.state.json_repository import JsonStateRepository
 from sofia.state.namespaces import HABIT_COVERAGE, HABIT_OBSERVATION
 from sofia.state.plane import StatePlane, StatePlaneConflictError
-
-
-def _iso(value: datetime) -> str:
-    return value.isoformat()
 
 
 class HabitObservationStore:
@@ -40,8 +37,8 @@ class HabitObservationStore:
             "principal_id": item.principal_id,
             "audience_id": item.audience_id,
             "kind": item.kind,
-            "occurred_at_utc": _iso(item.occurred_at_utc),
-            "local_timestamp": _iso(item.local_timestamp),
+            "occurred_at_utc": item.occurred_at_utc.isoformat(),
+            "local_timestamp": item.local_timestamp.isoformat(),
             "timezone": item.timezone,
             "context": dict(sorted(item.context.items())),
             "evidence_ref": item.evidence_ref,
@@ -58,8 +55,8 @@ class HabitObservationStore:
             "principal_id": item.principal_id,
             "audience_id": item.audience_id,
             "source_id": item.source_id,
-            "started_at_utc": _iso(item.started_at_utc),
-            "ended_at_utc": _iso(item.ended_at_utc),
+            "started_at_utc": item.started_at_utc.isoformat(),
+            "ended_at_utc": item.ended_at_utc.isoformat(),
             "status": item.status.value,
             "quality": item.quality.value,
             "reason": item.reason,
@@ -187,3 +184,103 @@ class HabitObservationStore:
                 item.coverage_id,
             ),
         ))
+
+
+class HabitObservationRecorder:
+    """Trusted ingestion boundary for durable habit evidence."""
+
+    def __init__(self, store: HabitObservationStore) -> None:
+        if not isinstance(store, HabitObservationStore):
+            raise TypeError("store must be HabitObservationStore")
+        self._store = store
+
+    @staticmethod
+    def _aware(value: datetime, label: str) -> datetime:
+        if (
+            not isinstance(value, datetime)
+            or value.tzinfo is None
+            or value.utcoffset() is None
+        ):
+            raise ValueError(f"{label} must be timezone-aware")
+        return value
+
+    @staticmethod
+    def _id(prefix: str, *parts: str) -> str:
+        payload = ":".join(parts)
+        return f"{prefix}:{uuid5(NAMESPACE_URL, payload)}"
+
+    def record(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+        kind: str,
+        occurred_at: datetime,
+        local_timestamp: datetime,
+        timezone_name: str,
+        context: dict[str, str],
+        evidence_ref: str,
+        source_quality: SourceQuality,
+        coverage: ObservationCoverage = ObservationCoverage.OBSERVED,
+        sensitive: bool = False,
+        explicit_user_evidence: bool = False,
+    ) -> HabitObservation:
+        occurred = self._aware(occurred_at, "occurred_at").astimezone(timezone.utc)
+        local = self._aware(local_timestamp, "local_timestamp")
+        item = HabitObservation(
+            observation_id=self._id(
+                "habit-observation",
+                principal_id,
+                audience_id,
+                kind,
+                evidence_ref,
+            ),
+            principal_id=principal_id,
+            audience_id=audience_id,
+            kind=kind,
+            occurred_at_utc=occurred,
+            local_timestamp=local,
+            timezone=timezone_name,
+            context=context,
+            evidence_ref=evidence_ref,
+            source_quality=source_quality,
+            coverage=coverage,
+            sensitive=sensitive,
+            explicit_user_evidence=explicit_user_evidence,
+        )
+        return self._store.append_observation(item)
+
+    def record_coverage(
+        self,
+        *,
+        principal_id: str,
+        audience_id: str,
+        source_id: str,
+        started_at: datetime,
+        ended_at: datetime,
+        status: ObservationCoverage,
+        quality: SourceQuality,
+        reason: str,
+    ) -> CoverageWindow:
+        start = self._aware(started_at, "started_at").astimezone(timezone.utc)
+        end = self._aware(ended_at, "ended_at").astimezone(timezone.utc)
+        item = CoverageWindow(
+            coverage_id=self._id(
+                "habit-coverage",
+                principal_id,
+                audience_id,
+                source_id,
+                start.isoformat(),
+                end.isoformat(),
+                status.value,
+            ),
+            principal_id=principal_id,
+            audience_id=audience_id,
+            source_id=source_id,
+            started_at_utc=start,
+            ended_at_utc=end,
+            status=status,
+            quality=quality,
+            reason=reason,
+        )
+        return self._store.append_coverage(item)

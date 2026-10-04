@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 
 NOW = datetime(2026, 9, 20, 19, tzinfo=timezone.utc)
 

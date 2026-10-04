@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.registry import CATALOG_VERSION
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 
 
 def test_text_and_synthetic_expanded_verbs_share_semantics():
-    engine = NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    engine = NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
     text = engine.from_text(content='I kiss your left cheek', message_id='m2',
                             session_id='s1', occurred_at=NOW)
     hit = engine.from_lab_pointer(fixture_id='synthetic', session_id='s1',
@@ -24,7 +24,7 @@ def test_text_and_synthetic_expanded_verbs_share_semantics():
 
 
 def test_unsupported_or_stopped_synthetic_hit_never_becomes_contact():
-    engine = NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    engine = NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
     with pytest.raises(ValueError):
         engine.from_lab_pointer(fixture_id='s', session_id='s1', region_id='nose',
                                 gesture='unsupported-action', occurred_at=NOW)

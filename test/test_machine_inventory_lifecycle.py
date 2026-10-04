@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -22,10 +22,7 @@ from sofia.machine.observation import (
     ObservationSource,
     ObservationState,
 )
-from sofia.machine.persistence import (
-    deserialize_inventory,
-    serialize_inventory,
-)
+from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
 
 
 TIMESTAMP = datetime(

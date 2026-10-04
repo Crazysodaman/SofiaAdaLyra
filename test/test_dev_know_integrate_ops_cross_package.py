@@ -105,3 +105,14 @@ def test_machine_removal_cannot_be_smuggled_through_general_tool_authority():
     assert not receipt.succeeded
     assert "FleetRemovalApprovalRequired" in receipt.error
     assert fleet.host("node").lifecycle is HostLifecycle.DRAINING
+
+
+def test_relocated_embodiment_baseline_remains_protected_from_dev_changes():
+    proposal = ChangeProposal(
+        "baseline-move", "a" * 40,
+        ("src/sofia/embodiment/avatar.json", "src/sofia/embodiment/model.py"),
+        ("reviewed-source",), "inspect baseline and model", "run package gate", "revert checkpoint",
+    )
+    findings = inspect(proposal)
+    assert findings[0].state is ReviewState.BLOCKED_PROTECTED
+    assert findings[1].state is ReviewState.REQUIRES_REVIEW

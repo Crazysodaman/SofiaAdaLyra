@@ -150,7 +150,6 @@ def test_restart_and_workspace_changes_are_one_event(
         is ContinuityEventKind.CONTINUITY_AND_WORKSPACE_CHANGED
     )
     assert event.workspace_change_count == 1
-    assert event.has_workspace_changes is True
 
 
 def test_workspace_changes_without_restart_are_one_event(
@@ -202,7 +201,7 @@ def test_continuity_event_is_immutable():
     )
 
     try:
-        event.kind = ContinuityEventKind.UNKNOWN
+        event.kind = ContinuityEventKind.INITIAL_RUNTIME
     except AttributeError:
         pass
     else:

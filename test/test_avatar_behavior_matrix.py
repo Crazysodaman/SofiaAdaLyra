@@ -25,7 +25,7 @@ from sofia.avatar.wardrobe_planner import (
     WeatherObservation,
     wardrobe_emotion_influences,
 )
-from sofia.personality.emotion import ActiveEmotion, CurrentEmotionalState
+from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
 from sofia.personality.influence import ContinuityInfluence
 
 

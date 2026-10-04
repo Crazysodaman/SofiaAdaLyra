@@ -8,7 +8,7 @@ from sofia.application.conversation_service import ConversationService
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 

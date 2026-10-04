@@ -2,9 +2,9 @@ from sofia.cognition.model_lifecycle import (
     LifecycleManagedCognitiveEngine,
 )
 from sofia.cognition.routing import RoutingCognitiveEngine
-from sofia.composition.root import (
-    _create_cognitive_engine,
-    _create_model_lifecycle,
+from sofia.composition.engines import (
+    create_cognitive_engine,
+    create_model_lifecycle,
 )
 from sofia.config import create_production_configuration
 from sofia.config.user_settings import (
@@ -31,8 +31,8 @@ def test_production_configuration_composes_two_lifecycle_managed_roles(tmp_path)
     configuration=create_production_configuration(
         state_path=state_path,
     )
-    lifecycle=_create_model_lifecycle(configuration)
-    engine=_create_cognitive_engine(
+    lifecycle=create_model_lifecycle(configuration)
+    engine=create_cognitive_engine(
         configuration,
         lifecycle=lifecycle,
     )

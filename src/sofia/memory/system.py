@@ -1,12 +1,9 @@
-﻿import re
-
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.historical import HistoricalConversationEvidence
 from sofia.memory.model import MemoryRecord
 from sofia.memory.promoted_retrieval import retrieve_promoted
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.store import MemoryStore
 from sofia.personality.influence import ContinuityInfluence
 from sofia.social.model import AudienceKind, PrincipalContext
 
@@ -15,35 +12,26 @@ class MemorySystem:
     """
     Coordinates Sofía's persistent memory operations.
 
-    Legacy memory records remain available through explicit remember/recall
-    APIs for compatibility. When a provenance-backed candidate store is
-    configured, normal relevance retrieval uses only explicitly promoted
-    reviewed memories.
+    Relevance retrieval uses only explicitly promoted, provenance-backed
+    reviewed memories. Imported conversation history remains source evidence.
     """
 
     DEFAULT_RETRIEVAL_BUDGET_CHARACTERS = 4000
 
     def __init__(
         self,
-        store: MemoryStore,
-        candidate_store: DurableMemoryCandidateStore | None = None,
+        candidate_store: DurableMemoryCandidateStore,
         historical_store: ChatGPTExportEvidenceStore | None = None,
     ) -> None:
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "MemorySystem store must be a MemoryStore."
-            )
-
         if (
-            candidate_store is not None
-            and not isinstance(
+            not isinstance(
                 candidate_store,
                 DurableMemoryCandidateStore,
             )
         ):
             raise TypeError(
                 "MemorySystem candidate_store must be a "
-                "DurableMemoryCandidateStore or None."
+                "DurableMemoryCandidateStore."
             )
 
         if (
@@ -58,39 +46,20 @@ class MemorySystem:
                 "ChatGPTExportEvidenceStore or None."
             )
 
-        self._store = store
         self._candidate_store = candidate_store
         self._historical_store = historical_store
 
     @property
     def candidate_store(
         self,
-    ) -> DurableMemoryCandidateStore | None:
+    ) -> DurableMemoryCandidateStore:
         return self._candidate_store
 
-    @property
-    def uses_reviewed_memory(self) -> bool:
-        return self._candidate_store is not None
-
-    @property
-    def uses_historical_evidence(self) -> bool:
-        return self._historical_store is not None
 
     @property
     def historical_store(self) -> ChatGPTExportEvidenceStore | None:
         return self._historical_store
 
-    def remember(
-        self,
-        memory: MemoryRecord,
-    ) -> None:
-        self._store.save(memory)
-
-    def recall(
-        self,
-        memory_id: str,
-    ) -> MemoryRecord | None:
-        return self._store.get(memory_id)
 
     def recall_relevant(
         self,
@@ -103,10 +72,7 @@ class MemorySystem:
         """
         Retrieve memories relevant to a textual query.
 
-        With a reviewed candidate store configured, only PROMOTED
-        provenance-backed memories are eligible for cognition. Legacy
-        token-overlap retrieval remains available only for MemorySystem
-        instances constructed without the reviewed store.
+        Only PROMOTED provenance-backed memories are eligible for cognition.
         """
 
         if not isinstance(query, str):
@@ -140,22 +106,11 @@ class MemorySystem:
                 "MemorySystem limit must be greater than zero."
             )
 
-        if self._candidate_store is not None:
-            # Reviewed production memory is identity-scoped. An unbound
-            # cognitive request must never mean "all principals"; fail closed
-            # until an authenticated PrincipalContext is supplied.
-            if principal is None:
-                return ()
-            return self._recall_promoted(
-                query,
-                limit=limit,
-                principal=principal,
-                influence=influence,
-            )
-
-        return self._recall_legacy(
-            query,
-            limit=limit,
+        # Unbound requests fail closed rather than spanning principals.
+        if principal is None:
+            return ()
+        return self._recall_promoted(
+            query, limit=limit, principal=principal, influence=influence,
         )
 
     def recall_historical_evidence(
@@ -193,13 +148,10 @@ class MemorySystem:
         query: str,
         *,
         limit: int,
-        principal: PrincipalContext | None,
+        principal: PrincipalContext,
         influence: ContinuityInfluence | None = None,
     ) -> tuple[MemoryRecord, ...]:
         candidate_store = self._candidate_store
-
-        if candidate_store is None:
-            return ()
 
         projection = retrieve_promoted(
             candidate_store,
@@ -208,12 +160,8 @@ class MemorySystem:
             budget_characters=(
                 self.DEFAULT_RETRIEVAL_BUDGET_CHARACTERS
             ),
-            principal_id=(
-                None if principal is None else principal.principal_id
-            ),
-            audience_id=(
-                None if principal is None else principal.audience_id
-            ),
+            principal_id=principal.principal_id,
+            audience_id=principal.audience_id,
             influence=influence,
         )
 
@@ -248,81 +196,11 @@ class MemorySystem:
 
         return tuple(records)
 
-    def _recall_legacy(
-        self,
-        query: str,
-        *,
-        limit: int,
-    ) -> tuple[MemoryRecord, ...]:
-        """
-        Compatibility retrieval for callers that have not yet been wired to
-        the reviewed memory pipeline.
-        """
-
-        query_tokens = self._tokenize(query)
-
-        if not query_tokens:
-            return ()
-
-        scored: list[
-            tuple[int, int, MemoryRecord]
-        ] = []
-
-        for index, memory in enumerate(
-            self._store.list_all()
-        ):
-            memory_tokens = self._tokenize(
-                memory.content
-            )
-
-            score = len(
-                query_tokens.intersection(
-                    memory_tokens
-                )
-            )
-
-            if score > 0:
-                scored.append(
-                    (
-                        score,
-                        index,
-                        memory,
-                    )
-                )
-
-        scored.sort(
-            key=lambda item: (
-                -item[0],
-                item[1],
-            )
-        )
-
-        return tuple(
-            memory
-            for _, _, memory in scored[:limit]
-        )
 
     def open(self) -> None:
         """Reopen persistent stores after a runtime STOPPED transition."""
-        self._store.open()
-        if self._candidate_store is not None:
-            self._candidate_store.open()
+        self._candidate_store.open()
 
     def close(self) -> None:
         """Close all persistent memory stores owned by this system."""
-        self._store.close()
-        if self._candidate_store is not None:
-            self._candidate_store.close()
-
-    @staticmethod
-    def _tokenize(
-        content: str,
-    ) -> set[str]:
-        return {
-            token.lower()
-            for token in re.findall(
-                r"[A-Za-z0-9À-ÿ']+",
-                content,
-            )
-            if len(token) > 1
-        }
+        self._candidate_store.close()

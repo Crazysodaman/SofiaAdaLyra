@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import pytest
 
@@ -12,7 +12,7 @@ from sofia.embodiment.model import (
     RobotEmbodiment,
 )
 from sofia.embodiment.store import (
-    AvatarStore,
+    EmbodimentStore,
     EmbodimentStoreError,
 )
 
@@ -121,10 +121,10 @@ def test_embodiment_stores_current_forms():
     assert embodiment.current.avatar == "Test Avatar"
 
 
-def test_avatar_store_round_trips_embodiment(tmp_path: Path):
+def test_embodiment_store_round_trips_embodiment(tmp_path: Path):
     path = tmp_path / "avatar.json"
 
-    store = AvatarStore(path)
+    store = EmbodimentStore(path)
     original = create_embodiment()
 
     store.save(original)
@@ -134,10 +134,10 @@ def test_avatar_store_round_trips_embodiment(tmp_path: Path):
     assert loaded == original
 
 
-def test_avatar_store_creates_parent_directory(tmp_path: Path):
+def test_embodiment_store_creates_parent_directory(tmp_path: Path):
     path = tmp_path / "nested" / "avatar.json"
 
-    store = AvatarStore(path)
+    store = EmbodimentStore(path)
     embodiment = create_embodiment()
 
     store.save(embodiment)
@@ -145,8 +145,8 @@ def test_avatar_store_creates_parent_directory(tmp_path: Path):
     assert path.exists()
 
 
-def test_avatar_store_rejects_missing_file(tmp_path: Path):
-    store = AvatarStore(
+def test_embodiment_store_rejects_missing_file(tmp_path: Path):
+    store = EmbodimentStore(
         tmp_path / "missing.json"
     )
 
@@ -157,7 +157,7 @@ def test_avatar_store_rejects_missing_file(tmp_path: Path):
         store.load()
 
 
-def test_avatar_store_rejects_non_object_json(
+def test_embodiment_store_rejects_non_object_json(
     tmp_path: Path,
 ):
     path = tmp_path / "avatar.json"
@@ -167,7 +167,7 @@ def test_avatar_store_rejects_non_object_json(
         encoding="utf-8",
     )
 
-    store = AvatarStore(path)
+    store = EmbodimentStore(path)
 
     with pytest.raises(
         EmbodimentStoreError,

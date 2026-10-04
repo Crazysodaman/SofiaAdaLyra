@@ -17,7 +17,7 @@ from sofia.environment.model import (
     EnvironmentSnapshot,
     Season,
 )
-from sofia.personality.emotion import CurrentEmotionalState
+from sofia.emotion.model import CurrentEmotionalState
 
 
 _HEX = re.compile(r"#[0-9A-Fa-f]{6}\Z")

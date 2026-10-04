@@ -1,11 +1,11 @@
-﻿import json
+import json
 from pathlib import Path
 
 from sofia.embodiment.model import (
     ClothingItem,
     ClothingSpecification,
 )
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -13,7 +13,7 @@ CANONICAL_AVATAR = (
     PROJECT_ROOT
     / "src"
     / "sofia"
-    / "data"
+    / "embodiment"
     / "avatar.json"
 )
 
@@ -67,7 +67,7 @@ def test_clothing_specification_is_immutable():
 
 
 def test_canonical_avatar_round_trips_clothing():
-    store = AvatarStore(CANONICAL_AVATAR)
+    store = EmbodimentStore(CANONICAL_AVATAR)
 
     embodiment = store.load()
 

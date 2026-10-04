@@ -6,15 +6,32 @@ import pytest
 
 def test_module_entrypoint_launches_desktop_by_default(monkeypatch):
     calls: list[str] = []
+    configuration = object()
+
+    def run_desktop(configuration=None):
+        assert configuration is expected_configuration
+        calls.append("desktop")
+        return 0
+
+    def ensure_tray(received_configuration):
+        assert received_configuration is expected_configuration
+        calls.append("tray")
+        return True
+
+    expected_configuration = configuration
 
     monkeypatch.setattr(sys, "argv", ["sofia"])
     monkeypatch.setattr(
+        "sofia.config.create_production_configuration",
+        lambda: configuration,
+    )
+    monkeypatch.setattr(
         "sofia.ui.desktop.run_desktop",
-        lambda configuration=None: calls.append("desktop") or 0,
+        run_desktop,
     )
     monkeypatch.setattr(
         "sofia.ui.tray_launcher.ensure_tray_agent",
-        lambda configuration: calls.append("tray") or True,
+        ensure_tray,
     )
 
     with pytest.raises(SystemExit) as exc_info:

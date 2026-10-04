@@ -1,6 +1,6 @@
 # PKG-AVATAR | Starter wardrobe blueprints and style evidence
 
-**2026-09-22 | draft PR #7 | metadata/authoring handoff, not rendered garments.** This addition is AVATAR-only. It does not alter `src/sofia/data/avatar.json`, INTERACT, identity, Constitution, or production data.
+**2026-09-22 | draft PR #7 | metadata/authoring handoff, not rendered garments.** This addition is AVATAR-only. It does not alter `src/sofia/embodiment/avatar.json`, INTERACT, identity, Constitution, or production data.
 
 ## Prebuilt catalog
 

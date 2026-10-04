@@ -5,12 +5,10 @@ from datetime import datetime
 from typing import Iterable
 
 from sofia.environment.model import EnvironmentFreshness, EnvironmentSnapshot
-from sofia.personality.emotion import CurrentEmotionalState
+from sofia.emotion.model import CurrentEmotionalState
 
 
-_BACKGROUND_RELATIONAL = frozenset({
-    "affection", "fondness", "warmth", "tenderness", "romance",
-})
+from sofia.emotion.catalog import _BACKGROUND_RELATIONAL
 
 
 def daypart(local_time: datetime | None) -> str:

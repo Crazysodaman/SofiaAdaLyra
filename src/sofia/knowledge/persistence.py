@@ -1,40 +1,56 @@
 from __future__ import annotations
 from contextlib import closing
-import json,os
+import json
 from pathlib import Path
+from sofia.state.atomic_file import retire_legacy_file
 from datetime import datetime
 import sqlite3
 from .model import KnowledgeDocument,KnowledgeFact,SourceKind
-from .store import KnowledgeStore
 
-class JsonKnowledgeStore(KnowledgeStore):
-    """Atomic durable provenance store; successful mutations are persisted."""
-    def __init__(self,path:Path)->None:
-        super().__init__(); self.path=path; self._loading=True
-        if path.exists(): self._load()
-        self._loading=False
-    def _load(self)->None:
-        data=json.loads(self.path.read_text(encoding="utf-8"))
-        for d in data.get("documents",[]):
-            d["source_kind"]=SourceKind(d["source_kind"]); d["retrieved_at"]=datetime.fromisoformat(d["retrieved_at"])
-            super().register_document(KnowledgeDocument(**d))
-        for raw in data.get("facts",[]):
-            raw["observed_at"]=datetime.fromisoformat(raw["observed_at"]); raw["supersedes"]=tuple(raw.get("supersedes",()))
-            super().record_fact(KnowledgeFact(**raw))
-    def register_document(self,document:KnowledgeDocument)->None:
-        super().register_document(document)
-        if not self._loading: self.flush()
+class KnowledgeStore:
+    def __init__(self)->None:
+        self._documents:dict[str,KnowledgeDocument]={}; self._facts:dict[str,KnowledgeFact]={}; self._by_document:dict[str,list[str]]={}
+    def register_document(self, document:KnowledgeDocument)->None:
+        old=self._documents.get(document.document_id)
+        if old is not None and old != document: raise ValueError("document_id already registered with different provenance")
+        self._documents[document.document_id]=document
     def record_fact(self,fact:KnowledgeFact)->None:
-        super().record_fact(fact)
-        if not self._loading: self.flush()
-    def flush(self)->None:
-        self.path.parent.mkdir(parents=True,exist_ok=True)
-        data={"documents":[dict(document_id=d.document_id,source_kind=d.source_kind.value,source_uri=d.source_uri,version=d.version,retrieved_at=d.retrieved_at.isoformat(),content_hash=d.content_hash,trusted_for_reference=d.trusted_for_reference) for d in self._documents.values()],
-              "facts":[dict(fact_id=x.fact_id,document_id=x.document_id,statement=x.statement,locator=x.locator,observed_at=x.observed_at.isoformat(),supersedes=list(x.supersedes)) for x in self._facts.values()]}
-        tmp=self.path.with_suffix(self.path.suffix+".tmp")
-        with tmp.open("w",encoding="utf-8") as fh:
-            json.dump(data,fh,sort_keys=True,indent=2); fh.flush(); os.fsync(fh.fileno())
-        tmp.replace(self.path)
+        if fact.document_id not in self._documents: raise KeyError("fact source document is not registered")
+        old=self._facts.get(fact.fact_id)
+        if old is not None and old != fact: raise ValueError("fact_id conflict")
+        self._facts[fact.fact_id]=fact
+        ids=self._by_document.setdefault(fact.document_id,[])
+        if fact.fact_id not in ids: ids.append(fact.fact_id)
+    def document(self,document_id:str): return self._documents.get(document_id)
+    def fact(self,fact_id:str): return self._facts.get(fact_id)
+    def facts_for(self,document_id:str)->tuple[KnowledgeFact,...]:
+        return tuple(self._facts[x] for x in self._by_document.get(document_id,()))
+    def documents(self)->tuple[KnowledgeDocument,...]:
+        return tuple(self._documents[k] for k in sorted(self._documents))
+    def facts(self)->tuple[KnowledgeFact,...]:
+        return tuple(self._facts[k] for k in sorted(self._facts))
+    def active_facts(self)->tuple[KnowledgeFact,...]:
+        superseded={old for fact in self._facts.values() for old in fact.supersedes}
+        return tuple(f for f in self.facts() if f.fact_id not in superseded)
+
+
+def load_legacy_knowledge(path: Path) -> KnowledgeStore:
+    """Read retired JSON evidence without creating a second writable owner."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    store = KnowledgeStore()
+    for raw in data.get("documents", []):
+        values = dict(raw)
+        values["source_kind"] = SourceKind(values["source_kind"])
+        values["retrieved_at"] = datetime.fromisoformat(values["retrieved_at"])
+        store.register_document(KnowledgeDocument(**values))
+    for raw in data.get("facts", []):
+        values = dict(raw)
+        values["observed_at"] = datetime.fromisoformat(values["observed_at"])
+        values["supersedes"] = tuple(values.get("supersedes", ()))
+        store.record_fact(KnowledgeFact(**values))
+    return store
+
+
 
 
 class SQLiteKnowledgeStore(KnowledgeStore):
@@ -103,8 +119,8 @@ class SQLiteKnowledgeStore(KnowledgeStore):
 
     def register_document(self, document: KnowledgeDocument) -> None:
         old = self.document(document.document_id)
-        super().register_document(document)
         if old is not None:
+            super().register_document(document)
             return
         with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
@@ -123,11 +139,14 @@ class SQLiteKnowledgeStore(KnowledgeStore):
                 1 if document.trusted_for_reference else 0,
             ))
             db.commit()
+        super().register_document(document)
 
     def record_fact(self, fact: KnowledgeFact) -> None:
         old = self.fact(fact.fact_id)
-        super().record_fact(fact)
+        if fact.document_id not in self._documents:
+            raise KeyError("fact source document is not registered")
         if old is not None:
+            super().record_fact(fact)
             return
         with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
             db.execute("PRAGMA busy_timeout=10000")
@@ -145,24 +164,18 @@ class SQLiteKnowledgeStore(KnowledgeStore):
                 json.dumps(list(fact.supersedes), separators=(",", ":")),
             ))
             db.commit()
+        super().record_fact(fact)
 
     def _migrate_legacy(self, legacy_path: Path) -> None:
         if not legacy_path.is_file():
             return
-        legacy = JsonKnowledgeStore(legacy_path)
+        legacy = load_legacy_knowledge(legacy_path)
         for document in legacy.documents():
             self.register_document(document)
         for fact in legacy.facts():
             self.record_fact(fact)
-        if self.documents() != legacy.documents() or self.facts() != legacy.facts():
+        if any(self.document(value.document_id) != value for value in legacy.documents()) or any(self.fact(value.fact_id) != value for value in legacy.facts()):
             raise RuntimeError(
                 "legacy knowledge.json conflicts with canonical sofia.db"
             )
-        destination = legacy_path.with_name(legacy_path.name + ".migrated")
-        index = 1
-        while destination.exists():
-            destination = legacy_path.with_name(
-                legacy_path.name + f".migrated.{index}"
-            )
-            index += 1
-        legacy_path.replace(destination)
+        retire_legacy_file(legacy_path)

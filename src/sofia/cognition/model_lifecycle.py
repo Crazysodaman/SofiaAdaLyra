@@ -39,7 +39,6 @@ class ModelLifecycleBackend(Protocol):
     def models(self) -> Any: ...
     def running(self) -> Any: ...
     def pull(self, name: str) -> Any: ...
-    def load(self, name: str, *, keep_alive: str) -> Any: ...
     def unload(self, name: str) -> Any: ...
 
 
@@ -107,11 +106,6 @@ class ModelLifecycleManager:
             raise ValueError("model lifecycle time must be timezone-aware")
         return moment.astimezone(timezone.utc)
 
-    def update_selection(self, selection: CognitiveModelSelection) -> None:
-        if not isinstance(selection, CognitiveModelSelection):
-            raise TypeError("selection must be CognitiveModelSelection")
-        with self._lock:
-            self.selection = selection
 
     def provider_for(self, role: CognitiveModelRole) -> ProviderConfiguration:
         if not isinstance(role, CognitiveModelRole):
@@ -130,13 +124,6 @@ class ModelLifecycleManager:
             else (CognitiveModelRole.PRIMARY,)
         )
 
-    @property
-    def background_role(self) -> CognitiveModelRole:
-        return (
-            CognitiveModelRole.SECONDARY
-            if self.selection.secondary is not None
-            else CognitiveModelRole.PRIMARY
-        )
 
     def _managed_providers(self) -> tuple[tuple[CognitiveModelRole, ProviderConfiguration], ...]:
         values: list[tuple[CognitiveModelRole, ProviderConfiguration]] = [
@@ -222,19 +209,6 @@ class ModelLifecycleManager:
             )
         return next(item for item in self.statuses(now=now) if item.role is role)
 
-    def note_used(
-        self,
-        role: CognitiveModelRole,
-        *,
-        now: datetime | None = None,
-    ) -> None:
-        provider = self.provider_for(role)
-        if provider.provider != self.managed_provider:
-            return
-        moment = self._now(now)
-        with self._lock:
-            self._last_used[provider.model] = moment
-            self._observed_ready_at.setdefault(provider.model, moment)
 
     def begin_use(
         self,
@@ -356,45 +330,6 @@ class ModelLifecycleManager:
                 state=state,
             )
 
-    def ensure_loaded(
-        self,
-        role: CognitiveModelRole,
-        *,
-        now: datetime | None = None,
-    ) -> ModelLifecycleStatus:
-        provider = self.provider_for(role)
-        if provider.provider != self.managed_provider:
-            raise ModelLifecycleError(
-                f"provider {provider.provider!r} is not managed by this lifecycle backend"
-            )
-        moment = self._now(now)
-        with self._lock:
-            installed, running = self._inventory()
-            model = provider.model
-            if model not in installed:
-                raise ModelUnavailableError(
-                    f"configured {role.value} model is not installed"
-                )
-            if model not in running:
-                self._transient[model] = ModelResidency.LOADING
-                try:
-                    self.backend.load(model, keep_alive=self.policy.keep_alive)
-                except Exception as exc:
-                    self._last_error[model] = type(exc).__name__
-                    self._transient.pop(model, None)
-                    raise ModelLifecycleError(
-                        f"failed to load configured {role.value} model"
-                    ) from exc
-                self._transient.pop(model, None)
-            self._last_error.pop(model, None)
-            self._last_used[model] = moment
-            self._observed_ready_at.setdefault(model, moment)
-            return ModelLifecycleStatus(
-                role=role,
-                provider=provider.provider,
-                model=model,
-                state=ModelResidency.READY,
-            )
 
     def unload(
         self,
@@ -429,16 +364,6 @@ class ModelLifecycleManager:
                 state=ModelResidency.UNLOADED,
             )
 
-    def unload_all(self) -> tuple[str, ...]:
-        unloaded: list[str] = []
-        seen: set[str] = set()
-        for role, provider in self._managed_providers():
-            if provider.model in seen:
-                continue
-            seen.add(provider.model)
-            self.unload(role)
-            unloaded.append(provider.model)
-        return tuple(unloaded)
 
     def sweep_idle(
         self,

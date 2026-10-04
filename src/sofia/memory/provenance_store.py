@@ -13,7 +13,7 @@ from threading import RLock
 from uuid import UUID
 
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.originals import SourceMessage
 
 
 def _utc(value: datetime) -> str:
@@ -256,29 +256,6 @@ class DurableMemoryCandidateStore:
             ).fetchall()
         return tuple(UUID(row[0]) for row in rows)
 
-    def candidate_ids_for_source(
-        self,
-        *,
-        session_id: str,
-        message_id: str,
-    ) -> tuple[UUID, ...]:
-        if not isinstance(session_id, str) or not session_id.strip():
-            raise ValueError("session_id must be nonempty")
-        if not isinstance(message_id, str) or not message_id.strip():
-            raise ValueError("message_id must be nonempty")
-
-        with self._lock:
-            rows = self._require_db().execute(
-                """
-                SELECT candidate_id
-                FROM memory_candidate_source
-                WHERE session_id = ? AND message_id = ?
-                ORDER BY candidate_id ASC
-                """,
-                (session_id, message_id),
-            ).fetchall()
-
-        return tuple(UUID(row[0]) for row in rows)
 
     def status(
         self,

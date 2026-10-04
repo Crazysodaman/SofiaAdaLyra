@@ -246,14 +246,6 @@ EXPRESSION_DEFINITIONS = _definitions("expression", {
     "shift-posture": ("shift posture", "shift weight"),
 })
 
-# Prospective emotion IDs. These do NOT mutate the current emotion journal.
-EMOTION_EXTENSIONS = frozenset({
-    "anger", "fear", "jealousy", "embarrassment", "humiliation",
-    "sexual-arousal", "aversion", "disgust", "nervousness", "shame",
-    "pride", "tenderness", "affectionate-uncertainty",
-})
-
-
 class InteractionCatalog:
     """Immutable, versioned vocabulary; does not execute or persist actions."""
 

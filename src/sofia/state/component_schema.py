@@ -6,7 +6,44 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
-from sofia.state.schema import SchemaCompatibility
+@dataclass(frozen=True, slots=True)
+class SchemaCompatibility:
+    current_revision: int
+    readable_min: int
+    readable_max: int
+    writable_min: int
+    writable_max: int
+
+    def __post_init__(self) -> None:
+        values = (
+            self.current_revision,
+            self.readable_min,
+            self.readable_max,
+            self.writable_min,
+            self.writable_max,
+        )
+        if any(type(value) is not int or value < 1 for value in values):
+            raise ValueError("schema revisions must be positive integers")
+        if self.readable_min > self.readable_max:
+            raise ValueError("readable schema window is invalid")
+        if self.writable_min > self.writable_max:
+            raise ValueError("writable schema window is invalid")
+        if not self.can_read(self.current_revision):
+            raise ValueError("current revision must be readable")
+        if not self.can_write(self.current_revision):
+            raise ValueError("current revision must be writable")
+
+    def can_read(self, revision: int) -> bool:
+        return (
+            type(revision) is int
+            and self.readable_min <= revision <= self.readable_max
+        )
+
+    def can_write(self, revision: int) -> bool:
+        return (
+            type(revision) is int
+            and self.writable_min <= revision <= self.writable_max
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,18 +81,6 @@ class StateSchemaCoordinator:
                     writable_min INTEGER NOT NULL CHECK(writable_min > 0),
                     writable_max INTEGER NOT NULL CHECK(writable_max > 0),
                     registered_at TEXT NOT NULL
-                )
-                """
-            )
-            db.execute(
-                """
-                CREATE TABLE IF NOT EXISTS state_schema_migration (
-                    migration_id TEXT PRIMARY KEY,
-                    component TEXT NOT NULL,
-                    from_revision INTEGER NOT NULL,
-                    to_revision INTEGER NOT NULL,
-                    applied_at TEXT NOT NULL,
-                    evidence_ref TEXT NOT NULL
                 )
                 """
             )
@@ -117,107 +142,6 @@ class StateSchemaCoordinator:
                     "the reviewed production schema registry; explicit migration required"
                 )
             db.rollback()
-
-    def current(
-        self,
-        component: str,
-    ) -> SchemaCompatibility | None:
-        if not isinstance(component, str) or not component.strip():
-            raise ValueError("component must be nonempty")
-        with closing(self._connect()) as db:
-            row = db.execute(
-                """
-                SELECT current_revision, readable_min, readable_max,
-                       writable_min, writable_max
-                FROM state_schema_component
-                WHERE component=?
-                """,
-                (component,),
-            ).fetchone()
-        if row is None:
-            return None
-        return SchemaCompatibility(
-            current_revision=int(row["current_revision"]),
-            readable_min=int(row["readable_min"]),
-            readable_max=int(row["readable_max"]),
-            writable_min=int(row["writable_min"]),
-            writable_max=int(row["writable_max"]),
-        )
-
-    def record_migration(
-        self,
-        *
-        migration_id: str,
-        component: str,
-        from_revision: int,
-        to_revision: int,
-        compatibility: SchemaCompatibility,
-        evidence_ref: str,
-        applied_at: datetime,
-    ) -> None:
-        if not isinstance(migration_id, str) or not migration_id.strip():
-            raise ValueError("migration_id must be nonempty")
-        if not isinstance(component, str) or not component.strip():
-            raise ValueError("component must be nonempty")
-        if not isinstance(evidence_ref, str) or not evidence_ref.strip():
-            raise ValueError("evidence_ref must be nonempty")
-        if not isinstance(applied_at, datetime):
-            raise TypeError("applied_at must be a datetime")
-        if applied_at.tzinfo is None or applied_at.utcoffset() is None:
-            raise ValueError("applied_at must be timezone-aware")
-        if compatibility.current_revision != to_revision:
-            raise ValueError("compatibility current revision must equal to_revision")
-        with closing(self._connect()) as db, db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute(
-                """
-                SELECT current_revision
-                FROM state_schema_component
-                WHERE component=?
-                """,
-                (component,),
-            ).fetchone()
-            if row is None or int(row["current_revision"]) != from_revision:
-                db.rollback()
-                raise RuntimeError(
-                    "component schema changed before migration record"
-                )
-            db.execute(
-                """
-                INSERT INTO state_schema_migration (
-                    migration_id,component,from_revision,to_revision,
-                    applied_at,evidence_ref
-                )
-                VALUES (?,?,?,?,?,?)
-                """,
-                (
-                    migration_id,
-                    component,
-                    from_revision,
-                    to_revision,
-                    applied_at.astimezone(timezone.utc).isoformat(),
-                    evidence_ref,
-                ),
-            )
-            db.execute(
-                """
-                UPDATE state_schema_component
-                SET current_revision=?,readable_min=?,readable_max=?,
-                    writable_min=?,writable_max=?,registered_at=?
-                WHERE component=? AND current_revision=?
-                """,
-                (
-                    compatibility.current_revision,
-                    compatibility.readable_min,
-                    compatibility.readable_max,
-                    compatibility.writable_min,
-                    compatibility.writable_max,
-                    applied_at.astimezone(timezone.utc).isoformat(),
-                    component,
-                    from_revision,
-                ),
-            )
-            db.commit()
 
 
 REVISION_ONE = SchemaCompatibility(

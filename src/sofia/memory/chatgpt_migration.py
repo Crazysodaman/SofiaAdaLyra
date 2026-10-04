@@ -9,7 +9,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from sofia.memory.chatgpt_import_store import ChatGPTMemoryImportStore
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.originals import SourceMessage
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 

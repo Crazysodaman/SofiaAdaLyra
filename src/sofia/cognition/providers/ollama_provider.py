@@ -16,11 +16,13 @@ from sofia.cognition.model import (
 from sofia.cognition.performance import emit_performance, ollama_metric
 from sofia.cognition.provider import LLMProvider, LLMProviderError
 from sofia.cognition.repetition_guard import (
-    build_rephrase_request,
-    grounded_quality_fallback,
     naturalize_embodied_semantics,
     response_quality_issue,
     trim_generic_assistant_closer,
+)
+from sofia.cognition.quality_repair import (
+    build_rephrase_request,
+    grounded_quality_fallback,
 )
 from sofia.config.model import ProviderConfiguration
 

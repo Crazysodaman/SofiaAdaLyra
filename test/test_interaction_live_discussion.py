@@ -6,12 +6,12 @@ from types import SimpleNamespace
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
 
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 
@@ -23,7 +23,7 @@ def test_actual_hypothetical_chat_is_read_only_and_all_regions_contextual(monkey
                            role=ConversationRole.USER, created_at=NOW)
     monkeypatch.setattr(InteractiveConversationService, 'messages', lambda self: (user,))
     service = object.__new__(InteractiveConversationService)
-    service._runtime = SimpleNamespace(personality=object(), embodiment=AvatarStore(AVATAR).load(),
+    service._runtime = SimpleNamespace(personality=object(), embodiment=EmbodimentStore(AVATAR).load(),
                                        configuration=SimpleNamespace(state_path=tmp_path / 'sofia.db'))
     result = service._build_request()
     assert result.messages[-1] is original.messages[-1]
@@ -41,7 +41,7 @@ def test_actual_hypothetical_chat_is_read_only_and_all_regions_contextual(monkey
 
 
 def test_ordinary_anatomy_question_and_how_to_remain_regular_chat():
-    engine = NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    engine = NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
     assert body_discussion_prompt(content='Tell me about your tail', engine=engine) is None
     assert body_discussion_prompt(content='How do I pat your head?', engine=engine) is None
     assert body_discussion_prompt(content='*pats your head*', engine=engine) is None

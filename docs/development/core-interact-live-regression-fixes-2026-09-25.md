@@ -24,7 +24,7 @@ This is **not** a new package. AVATAR, REL, SOCIAL, RUN and Discord stay out of 
 
 3. **Contradictory continuity wording**
    - Startup: “workspace change count of 234” followed by “No file changes were observed”.
-   - Fix: deterministic continuity summary must not contradict `workspace_change_count` / `has_workspace_changes`.
+   - Fix: deterministic continuity summary must not contradict `workspace_change_count` or the observed filesystem change evidence.
 
 4. **Canonical embodiment/outfit denial**
    - User asked what outfit Sofía had on or wanted to change.

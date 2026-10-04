@@ -3,8 +3,8 @@
 from datetime import datetime, timezone
 from threading import Thread
 
-from sofia.personality.clarification import ClarificationJournal
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.clarification import ClarificationJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.reflection import ReflectionJournal
 
 

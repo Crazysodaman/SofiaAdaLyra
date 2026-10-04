@@ -36,7 +36,7 @@ python -m sofia.machine.location_cli set-local `
   --longitude <LON>
 ```
 
-This writes `state/machine-locations.json`. On the next Sofía start, composition discovers the current machine identity and injects that record into PKG-ENVIRONMENT as HOST configuration.
+This writes the canonical machine-location namespace in `state/sofia.db`; existing JSON locations are imported once and retired. On the next Sofía start, composition discovers the current machine identity and injects that record into PKG-ENVIRONMENT as HOST configuration.
 
 A known remote machine can be configured from an inventory-bearing installation:
 

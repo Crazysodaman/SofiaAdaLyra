@@ -9,7 +9,7 @@ from sofia.application.bootstrap import SofiaApplication
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_default_configuration
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.avatar_world import avatar_world_guidance, gesture_provider_view
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.expanded_service import _without_prescribed_gesture_reactions
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
 def _left_ear_decision():
     from datetime import datetime, timezone
 
-    engine = NaturalInteractionEngine(AvatarStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load())
     decision = engine.from_text(
         content='*pats your left ear*', message_id='isolated-ear',
         session_id='isolated-session', occurred_at=datetime(2026, 9, 21, tzinfo=timezone.utc),

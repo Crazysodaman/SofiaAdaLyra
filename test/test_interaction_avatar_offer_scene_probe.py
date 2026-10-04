@@ -6,7 +6,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.cognition.providers.ollama_provider import OllamaProvider
-from sofia.interaction import avatar_world_probe
+from sofia.verify.interaction import avatar_world_probe
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.expanded_service import action_prompt
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
@@ -28,14 +27,13 @@ from sofia.application.emotional_conversation import (
 from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.background import ApplicationBackgroundCoordinator
-from sofia.application.act_service import SofiaActService
-from sofia.application.act_runtime import configure_act_delivery_from_environment
+from sofia.application.background_runtime import create_background_coordinator
+from sofia.application.act_service import (
+    SofiaActService, configure_act_delivery_from_environment,
+)
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
-    create_fleet_bootstrap_coordinator,
-    create_fleet_candidate_notifier,
-    create_fleet_reconciliation_notifier,
 )
 from sofia.application.memory_review import MemoryReviewService
 from sofia.application.conversation_learning import ConversationLearningCoordinator
@@ -59,17 +57,10 @@ from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleWorker
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
-from sofia.run.heartbeat import ApplicationHeartbeat, ApplicationHeartbeatStore
-from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.run.heartbeat import ApplicationHeartbeatStore
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
-from sofia.ops.discovery import (
-    FleetDiscoveryCoordinator,
-    FleetDiscoveryEnrollmentReconciler,
-)
-from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
@@ -231,10 +222,6 @@ class SofiaApplication:
         return Path(self._configuration.state_path)
 
     @property
-    def local_state_path(self) -> Path:
-        return Path(self._configuration.state_path)
-
-    @property
     def runtime(self) -> SofiaRuntime:
         return self._runtime
 
@@ -253,10 +240,6 @@ class SofiaApplication:
     @property
     def memory_review(self) -> MemoryReviewService:
         return self._memory_review
-
-    @property
-    def conversation_learning(self) -> ConversationLearningCoordinator:
-        return self._conversation_learning
 
     @property
     def background_coordinator(
@@ -831,291 +814,28 @@ class SofiaApplication:
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):
                     raise SofiaApplicationError("Idle reflection requires an emotional conversation service.")
-                coordinator = ApplicationBackgroundCoordinator(
-                    service=self._conversation_service,
-                    state_path=Path(self._configuration.state_path),
-                    reflection_enabled=reflection_enabled,
-                )
-                activity_store = HostActivityStore(
-                    self._configuration.state_path
-                )
-                host_id = socket.gethostname()
-
-                def deliver_act(now):
-                    activity = activity_store.state(host_id).effective
-                    busy = activity in {
-                        ActivityMode.GAMING,
-                        ActivityMode.BUSY,
-                        ActivityMode.DO_NOT_DISTURB,
-                    }
-                    return act_service.deliver_one(
-                        now=now,
-                        busy=busy,
-                    )
-
-                if act_delivery_enabled:
-                    coordinator.set_act_delivery(deliver_act)
-
-                def bridge_reflection_outreach(now):
-                    service = self._conversation_service
-                    if not hasattr(service, "current_emotional_state"):
-                        return None
-                    emotion = service.current_emotional_state(now=now)
-                    environment = self._runtime.environment_service.snapshot(
-                        now=now,
-                        refresh_providers=False,
-                    )
-                    influence = ContinuityInfluence.from_state(
-                        emotion=emotion,
-                        environment=environment,
-                    )
-                    if act_service is None:
-                        return None
-                    count = act_service.bridge_reflection_outbox(
-                        reflections=service.reflection_journal,
-                        scope=service.relationship_scope,
-                        now=now,
-                        influence=influence,
-                    )
-                    return count or None
-
-                if act_delivery_enabled:
-                    coordinator.set_task(
-                        "reflection_outreach",
-                        bridge_reflection_outreach,
-                    )
-
-                if fleet_discovery_enabled:
-                    discovery = FleetDiscoveryCoordinator(
-                        self._runtime.ops_service.registry,
-                        candidate_notifier=create_fleet_candidate_notifier(
-                            act_service=self._act_service,
-                        ),
-                    )
-                    bootstrap_coordinator = (
-                        create_fleet_bootstrap_coordinator(
-                            configuration=self._configuration,
-                            act_service=self._act_service,
-                        )
-                    )
-
-                    def discover_fleet_candidates(now):
-                        result = discovery.run(fleet_discovery_source)
-                        bootstrap_result = (
-                            None
-                            if bootstrap_coordinator is None
-                            else bootstrap_coordinator.reconcile(result)
-                        )
-                        identities = DurableNodeIdentityRegistry(
-                            self._configuration.state_path
-                        )
-                        endpoints = DurableEndpointPolicy(
-                            self._configuration.state_path
-                        )
-                        try:
-                            reconciled = FleetDiscoveryEnrollmentReconciler(
-                                enrollment_service=(
-                                    self._runtime.ops_service.enrollment
-                                ),
-                                identity_registry=identities,
-                                endpoint_policy=endpoints,
-                            ).reconcile(result)
-                        finally:
-                            identities.close()
-                            endpoints.close()
-                        count = (
-                            len(result.created_host_ids)
-                            + len(result.rejected_host_ids)
-                            + len(reconciled.enrolled_host_ids)
-                            + (
-                                0
-                                if bootstrap_result is None
-                                else len(
-                                    bootstrap_result.operator_host_ids
-                                )
-                                + len(
-                                    bootstrap_result.installed_host_ids
-                                )
-                            )
-                        )
-                        return count or None
-
-                    coordinator.set_task(
-                        "fleet_discovery",
-                        discover_fleet_candidates,
-                        interval_seconds=float(
-                            self._configuration.fleet_discovery.interval_seconds
-                        ),
-                    )
-
-                if fleet_reconciliation_enabled:
-                    reconciliation_notifier = (
-                        create_fleet_reconciliation_notifier(
-                            act_service=self._act_service,
-                        )
-                    )
-
-                    def reconcile_fleet(now):
-                        created = ops_service.observe_reconciliation(
-                            now=now,
-                        )
-                        if reconciliation_notifier is not None:
-                            for record in created:
-                                reconciliation_notifier(record)
-                        return len(created) or None
-
-                    coordinator.set_task(
-                        "fleet_reconciliation",
-                        reconcile_fleet,
-                        interval_seconds=300.0,
-                    )
-
-                if presentation_runtime_enabled:
-                    def evaluate_avatar_presentation(now):
-                        result = self._evaluate_contextual_presentation_when_idle(
-                            now=now,
-                            refresh_environment=True,
-                            idle_seconds=coordinator.idle_seconds,
-                        )
-                        return (
-                            result
-                            if result is not None and result.changed
-                            else None
-                        )
-
-                    coordinator.set_task(
-                        "avatar_presentation",
-                        evaluate_avatar_presentation,
-                        interval_seconds=900.0,
-                    )
-
-                def analyze_habits(now):
-                    service = self._conversation_service
-                    principal = (
-                        service._principal_context()
-                        if hasattr(service, "_principal_context")
-                        else None
-                    )
-                    if principal is None:
-                        return None
-                    count = self._habit_continuity.analyze_conversation_patterns(
-                        principal_id=principal.principal_id,
-                        audience_id=principal.audience_id,
-                        now=now,
-                    )
-                    return count or None
-
-                def decay_habits(now):
-                    service = self._conversation_service
-                    principal = (
-                        service._principal_context()
-                        if hasattr(service, "_principal_context")
-                        else None
-                    )
-                    if principal is None:
-                        return None
-                    count = self._habit_continuity.decay_patterns(
-                        principal_id=principal.principal_id,
-                        audience_id=principal.audience_id,
-                        now=now,
-                    )
-                    return count or None
-
-                def evaluate_expectations(now):
-                    service = self._conversation_service
-                    principal = (
-                        service._principal_context()
-                        if hasattr(service, "_principal_context")
-                        else None
-                    )
-                    if principal is None:
-                        return None
-                    count = self._habit_continuity.evaluate_expectations(
-                        principal_id=principal.principal_id,
-                        audience_id=principal.audience_id,
-                        now=now,
-                    )
-                    return count or None
-
-                last_coverage_at = datetime.now(timezone.utc)
-
-                def record_habit_coverage(now):
-                    nonlocal last_coverage_at
-                    service = self._conversation_service
-                    principal = (
-                        service._principal_context()
-                        if hasattr(service, "_principal_context")
-                        else None
-                    )
-                    if principal is None:
-                        last_coverage_at = now
-                        return None
-                    self._habit_continuity.record_runtime_coverage(
-                        principal_id=principal.principal_id,
-                        audience_id=principal.audience_id,
-                        started_at=last_coverage_at,
-                        ended_at=now,
-                    )
-                    last_coverage_at = now
-                    return True
-
-                if habit_runtime_enabled:
-                    coordinator.set_task(
-                        "habit_observation",
-                        record_habit_coverage,
-                    )
-                    coordinator.set_task(
-                        "habit_analysis",
-                        analyze_habits,
-                    )
-                    coordinator.set_task(
-                        "habit_decay",
-                        decay_habits,
-                    )
-                    coordinator.set_task(
-                        "expectation_evaluation",
-                        evaluate_expectations,
-                    )
-                runtime_id = getattr(self._runtime, "runtime_id", None)
-                heartbeat_store = getattr(
+                coordinator = create_background_coordinator(
                     self,
-                    "_heartbeat_store",
-                    None,
+                    reflection_enabled=reflection_enabled,
+                    habit_runtime_enabled=habit_runtime_enabled,
+                    act_delivery_enabled=act_delivery_enabled,
+                    presentation_runtime_enabled=presentation_runtime_enabled,
+                    fleet_discovery_source=fleet_discovery_source,
+                    fleet_reconciliation_enabled=fleet_reconciliation_enabled,
                 )
-                if runtime_id is not None and heartbeat_store is not None:
-                    def publish_heartbeat(now, healthy):
-                        runtime_state = getattr(
-                            getattr(self._runtime, "state", None),
-                            "value",
-                            "ready" if healthy else "unknown",
-                        )
-                        heartbeat_store.publish(
-                            ApplicationHeartbeat(
-                                instance_id=str(runtime_id),
-                                recorded_at=now,
-                                ready=bool(
-                                    healthy and runtime_state == "ready"
-                                ),
-                                runtime_state=runtime_state,
-                                database_writable=True,
-                                background_running=True,
-                                detail=(
-                                    "application background loop healthy"
-                                    if healthy
-                                    else "application background loop reported an error"
-                                ),
-                            )
-                        )
-                    coordinator.set_heartbeat(publish_heartbeat)
-                    coordinator.start()
+                # Register ownership before any thread can start, so failed
+                # startup always unwinds the coordinator through rollback.
+                self._background = coordinator
+                self._idle_worker = coordinator.idle
+                coordinator.start()
+                if (
+                    getattr(self._runtime, "runtime_id", None) is not None
+                    and getattr(self, "_heartbeat_store", None) is not None
+                ):
                     coordinator._publish_heartbeat(
                         now=datetime.now(timezone.utc),
                         healthy=True,
                     )
-                else:
-                    coordinator.start()
-                self._background = coordinator
-                self._idle_worker = coordinator.idle
 
             model_lifecycle = getattr(
                 self._runtime,
@@ -1137,8 +857,8 @@ class SofiaApplication:
                     manager=model_lifecycle,
                     interval_seconds=interval,
                 )
-                lifecycle_worker.start()
                 self._model_lifecycle_worker = lifecycle_worker
+                lifecycle_worker.start()
             return response
         except KeyboardInterrupt:
             self._rollback_failed_start()

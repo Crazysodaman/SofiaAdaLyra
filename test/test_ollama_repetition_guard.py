@@ -7,7 +7,10 @@ from sofia.cognition.model import (
 )
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.cognition.repetition_guard import (
-    build_rephrase_request, is_near_duplicate_reply,
+    is_near_duplicate_reply,
+)
+from sofia.cognition.quality_repair import (
+    build_rephrase_request,
 )
 from sofia.config.model import ProviderConfiguration
 

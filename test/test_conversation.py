@@ -203,3 +203,56 @@ def test_saving_older_message_does_not_rewind_session_timestamp(
 
     assert updated_session is not None
     assert updated_session.updated_at == newer_message_time
+
+def test_failed_message_activity_update_rolls_back_message(tmp_path):
+    from contextlib import closing
+    import sqlite3
+    import pytest
+
+    database_path = tmp_path / "sofia.db"
+    store = ConversationStore(database_path)
+    session = store.create_session()
+    message = ConversationMessage(
+        id="partial-message", session_id=session.id,
+        role=ConversationRole.USER, content="Do not persist half a turn.",
+        created_at=session.created_at + timedelta(seconds=1),
+    )
+    with closing(sqlite3.connect(database_path)) as connection:
+        connection.execute("""
+            CREATE TRIGGER reject_activity_update
+            BEFORE UPDATE ON conversation_sessions
+            BEGIN SELECT RAISE(ABORT, 'activity update failed'); END
+        """)
+        connection.commit()
+    try:
+        with pytest.raises(sqlite3.IntegrityError, match="activity update failed"):
+            store.save(message)
+        assert store.list_messages(session.id) == ()
+        assert store.get_session(session.id) == session
+    finally:
+        store.close()
+
+
+def test_failed_store_initialization_can_reopen_cleanly(tmp_path, monkeypatch):
+    import pytest
+
+    store = ConversationStore(tmp_path / "sofia.db")
+    store.close()
+    initialize = store._initialize_database
+
+    def fail_initialize():
+        raise RuntimeError("schema initialization failed")
+
+    monkeypatch.setattr(store, "_initialize_database", fail_initialize)
+    with pytest.raises(RuntimeError, match="schema initialization failed"):
+        store.open()
+    with pytest.raises(RuntimeError, match="must be opened"):
+        store.create_session()
+
+    monkeypatch.setattr(store, "_initialize_database", initialize)
+    store.open()
+    try:
+        session = store.create_session()
+        assert store.get_session(session.id) == session
+    finally:
+        store.close()

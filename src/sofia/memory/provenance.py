@@ -1,8 +1,7 @@
 """Provenance-first candidate lifecycle for PKG-MEM.
 
 Candidates are derived claims, never replacements for source conversation
-records. Promotion is explicit and reversible. This module is intentionally
-storage-agnostic so persistence can be added without changing the contract.
+records. Promotion is explicit and reversible. Lifecycle persistence is owned by DurableMemoryCandidateStore.
 """
 from __future__ import annotations
 
@@ -11,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.originals import SourceMessage
 
 
 class CandidateStatus(str, Enum):
@@ -54,47 +53,3 @@ class MemoryCandidate:
                 raise ValueError(f"{name} must be None or nonempty")
         if self.audience_id is not None and self.principal_id is None:
             raise ValueError("audience-scoped memory requires principal_id")
-
-
-class MemoryCandidateRegistry:
-    """Explicit lifecycle. No model output can silently become accepted memory."""
-
-    def __init__(self) -> None:
-        self._candidates: dict[UUID, MemoryCandidate] = {}
-        self._status: dict[UUID, CandidateStatus] = {}
-
-    def propose(self, candidate: MemoryCandidate) -> None:
-        if not isinstance(candidate, MemoryCandidate):
-            raise TypeError("candidate must be a MemoryCandidate")
-        if candidate.candidate_id in self._candidates:
-            raise ValueError("candidate ID already exists")
-        self._candidates[candidate.candidate_id] = candidate
-        self._status[candidate.candidate_id] = CandidateStatus.PROPOSED
-
-    def status(self, candidate_id: UUID) -> CandidateStatus | None:
-        if not isinstance(candidate_id, UUID):
-            raise TypeError("candidate_id must be a UUID")
-        return self._status.get(candidate_id)
-
-    def promote(self, candidate_id: UUID) -> None:
-        self._transition(candidate_id, CandidateStatus.PROPOSED, CandidateStatus.PROMOTED)
-
-    def reject(self, candidate_id: UUID) -> None:
-        self._transition(candidate_id, CandidateStatus.PROPOSED, CandidateStatus.REJECTED)
-
-    def revoke(self, candidate_id: UUID) -> None:
-        self._transition(candidate_id, CandidateStatus.PROMOTED, CandidateStatus.REVOKED)
-
-    def get(self, candidate_id: UUID) -> MemoryCandidate | None:
-        if not isinstance(candidate_id, UUID):
-            raise TypeError("candidate_id must be a UUID")
-        return self._candidates.get(candidate_id)
-
-    def _transition(self, candidate_id: UUID, expected: CandidateStatus, target: CandidateStatus) -> None:
-        if not isinstance(candidate_id, UUID):
-            raise TypeError("candidate_id must be a UUID")
-        if candidate_id not in self._candidates:
-            raise LookupError("candidate does not exist")
-        if self._status[candidate_id] is not expected:
-            raise ValueError(f"candidate must be {expected.value} before {target.value}")
-        self._status[candidate_id] = target

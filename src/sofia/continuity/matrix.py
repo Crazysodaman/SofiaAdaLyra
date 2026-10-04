@@ -4,7 +4,6 @@ import re
 from sofia.cognition.matrix.model import (
     DomainContribution,
     MatrixDomain,
-    MatrixIntent,
     MatrixRelevance,
 )
 

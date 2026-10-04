@@ -71,3 +71,13 @@ def atomic_write_text(
                 temporary.unlink()
             except OSError:
                 pass
+
+
+def retire_legacy_file(path: Path) -> None:
+    """Retain imported evidence without overwriting an earlier backup."""
+    destination = path.with_name(path.name + ".migrated")
+    index = 1
+    while destination.exists():
+        destination = path.with_name(path.name + f".migrated.{index}")
+        index += 1
+    path.replace(destination)

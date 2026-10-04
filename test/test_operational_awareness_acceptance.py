@@ -41,7 +41,7 @@ AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
     / "sofia"
-    / "data"
+    / "embodiment"
     / "avatar.json"
 )
 
@@ -236,3 +236,75 @@ def test_failed_start_does_not_expose_partial_operational_state(
     assert application.runtime.started_at is None
     assert application.runtime.operational_state is None
     assert application.runtime.runtime_continuity is None
+
+@pytest.mark.parametrize("failing_store", [
+    "operational_store", "filesystem_observation_store", "memory_system",
+])
+def test_partial_runtime_reopen_failure_closes_all_resources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failing_store: str,
+):
+    from sofia.runtime import SofiaRuntimeError
+
+    runtime = create_application(tmp_path).runtime
+    calls = []
+    failure = OSError("simulated store reopen failure")
+
+    def fail_open():
+        raise failure
+
+    monkeypatch.setattr(getattr(runtime, failing_store), "open", fail_open)
+    for name in ("memory_system", "filesystem_observation_store", "operational_store"):
+        store = getattr(runtime, name)
+        original_close = store.close
+
+        def close(store_name=name, original=original_close):
+            calls.append(store_name)
+            original()
+
+        monkeypatch.setattr(store, "close", close)
+
+    with pytest.raises(SofiaRuntimeError) as caught:
+        runtime.start()
+
+    assert caught.value.__cause__ is failure
+    assert runtime.state is RuntimeState.FAILED
+    assert runtime.runtime_id is None
+    assert runtime.identity is None
+    assert runtime.filesystem_authorization is None
+    assert calls == ["memory_system", "filesystem_observation_store", "operational_store"]
+
+
+def test_runtime_startup_preserves_failure_when_cleanup_also_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    from sofia.runtime import SofiaRuntimeError
+
+    runtime = create_application(tmp_path).runtime
+    failure = OSError("startup failure")
+    closed = []
+
+    def fail_open():
+        raise failure
+
+    def fail_close():
+        raise OSError("memory close failure")
+
+    monkeypatch.setattr(runtime.operational_store, "open", fail_open)
+    monkeypatch.setattr(runtime.memory_system, "close", fail_close)
+    for name in ("filesystem_observation_store", "operational_store"):
+        store = getattr(runtime, name)
+        original_close = store.close
+
+        def close(store_name=name, original=original_close):
+            closed.append(store_name)
+            original()
+
+        monkeypatch.setattr(store, "close", close)
+
+    with pytest.raises(SofiaRuntimeError) as caught:
+        runtime.start()
+
+    assert caught.value.__cause__ is failure
+    assert runtime.state is RuntimeState.FAILED
+    assert closed == ["filesystem_observation_store", "operational_store"]
+    assert any("memory close failure" in note for note in failure.__notes__)

@@ -603,27 +603,6 @@ class ReflectionJournal:
                 )
             return followup_id
 
-    def due_followups(
-        self,
-        *,
-        now: datetime,
-        scope: SocialScope | None = None,
-        limit: int = 10,
-    ) -> tuple[tuple[str, str, float], ...]:
-        moment = _utc(now)
-        resolved_scope = _scope(scope)
-        if type(limit) is not int or not 1 <= limit <= 50:
-            raise ValueError("followup limit must be 1-50")
-        with self._connect() as db:
-            rows = db.execute(
-                "SELECT followup_id,thought_id,salience "
-                "FROM reflection_followups "
-                "WHERE scope_key=? AND status='deferred' "
-                "AND reconsider_after<=? "
-                "ORDER BY salience DESC,reconsider_after,followup_id LIMIT ?",
-                (resolved_scope.key, moment.isoformat(), limit),
-            ).fetchall()
-        return tuple((row[0], row[1], float(row[2])) for row in rows)
 
     def mark_outbox_bridged(self, *, message_id: str) -> None:
         identifier = _short(message_id, "Message ID", 160)
@@ -655,16 +634,6 @@ class ReflectionJournal:
             content=r[4], urgency=r[5], queued_at=datetime.fromisoformat(r[6]), status=r[7],
         ) for r in rows)
 
-    def confirm_delivery(self, *, message_id: str, delivered_at: datetime) -> None:
-        """Called only by a future delivery adapter after positive acknowledgment."""
-        when = _utc(delivered_at)
-        with self._connect() as db:
-            result = db.execute(
-                "UPDATE reflection_outbox SET status='delivered', delivered_at=? "
-                "WHERE message_id=? AND status='pending'", (when.isoformat(), message_id),
-            )
-            if result.rowcount != 1:
-                raise ValueError("No pending message with that ID; delivery not confirmed.")
 
     @staticmethod
     def _topic_tokens(text: str) -> frozenset[str]:

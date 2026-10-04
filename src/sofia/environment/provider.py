@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Protocol, runtime_checkable
 
 from .model import (
@@ -61,3 +61,26 @@ class EnvironmentProvider(Protocol):
         now: datetime,
     ) -> EnvironmentProviderObservation:
         ...
+
+
+def source_timestamp(value: object) -> datetime | None:
+    """Return only source-backed timestamps; never manufacture freshness."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def source_number(value: object) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result

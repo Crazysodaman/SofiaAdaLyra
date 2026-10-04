@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 
 from sofia.avatar.presentation import PresentationProjection
 from sofia.cognition.grounding import (
@@ -28,10 +28,6 @@ from sofia.personality.model import PersonalityProfile
 from sofia.social.model import PrincipalContext
 from sofia.self_model.model import SofiaCoreState
 from sofia.self_model.operational import SofiaOperationalSelfModel
-from sofia.system.knowledge import (
-    SystemCapabilityKnowledge,
-    SystemCapabilityKnowledgeRecord,
-)
 
 
 @dataclass(frozen=True)
@@ -60,8 +56,6 @@ class CognitiveContext:
     filesystem_results: tuple[FilesystemResult, ...] = ()
     workspace_changes: FilesystemChangeEvent | None = None
     operational_self_model: SofiaOperationalSelfModel | None = None
-    system_capability_knowledge: SystemCapabilityKnowledge | None = None
-    system_capability_machine_id: str | None = None
     avatar_presentation: PresentationProjection | None = None
     environment_snapshot: EnvironmentSnapshot | None = None
     principal: PrincipalContext | None = None
@@ -224,17 +218,6 @@ class CognitiveContext:
                 "SofiaOperationalSelfModel or None."
             )
 
-        if (
-            self.system_capability_knowledge is not None
-            and not isinstance(
-                self.system_capability_knowledge,
-                SystemCapabilityKnowledge,
-            )
-        ):
-            raise TypeError(
-                "CognitiveContext system_capability_knowledge must be "
-                "a SystemCapabilityKnowledge or None."
-            )
 
         if (
             self.avatar_presentation is not None
@@ -266,27 +249,6 @@ class CognitiveContext:
                 "CognitiveContext principal must be a PrincipalContext or None."
             )
 
-        if self.system_capability_machine_id is not None:
-            if not isinstance(
-                self.system_capability_machine_id,
-                str,
-            ):
-                raise TypeError(
-                    "CognitiveContext system_capability_machine_id "
-                    "must be a string or None."
-                )
-
-            if not self.system_capability_machine_id.strip():
-                raise ValueError(
-                    "CognitiveContext system_capability_machine_id "
-                    "must not be empty."
-                )
-
-            if self.system_capability_knowledge is None:
-                raise ValueError(
-                    "CognitiveContext system_capability_machine_id "
-                    "requires system_capability_knowledge."
-                )
 
     @property
     def authoritative_self_state(self) -> AuthoritativeSelfState:
@@ -305,28 +267,6 @@ class CognitiveContext:
             operational_state=self.operational_state,
         )
 
-    @property
-    def current_system_capability_knowledge(
-        self,
-    ) -> tuple[SystemCapabilityKnowledgeRecord, ...]:
-        """
-        Return the current system capability observations for the
-        machine associated with this cognitive operation.
-
-        The returned records are immutable knowledge snapshots supplied
-        by SystemCapabilityKnowledge. No capability is executed,
-        authorized, or refreshed by this property.
-        """
-
-        if (
-            self.system_capability_knowledge is None
-            or self.system_capability_machine_id is None
-        ):
-            return ()
-
-        return self.system_capability_knowledge.all_for_machine(
-            self.system_capability_machine_id
-        )
 
     @property
     def continuity_event(self) -> ContinuityEvent | None:

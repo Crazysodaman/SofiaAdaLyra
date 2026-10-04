@@ -8,14 +8,14 @@ import pytest
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.world import LabWorld, WorldAction
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
 from sofia.interaction.world_text import handle_lab_command
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ def test_chat_uses_actual_world_state_without_changing_original_message(monkeypa
     monkeypatch.setattr(InteractiveConversationService, "messages", lambda self: (message,))
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(personality=object(),
-                                       embodiment=AvatarStore(AVATAR).load(),
+                                       embodiment=EmbodimentStore(AVATAR).load(),
                                        configuration=SimpleNamespace(state_path=tmp_path / "sofia.db"))
     result = service._build_request()
     assert '"status": "completed"' in result.messages[0].content
@@ -111,7 +111,7 @@ def test_chat_narration_does_not_create_world_or_claim_work(monkeypatch, tmp_pat
     monkeypatch.setattr(InteractiveConversationService, "messages", lambda self: (message,))
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(personality=object(),
-                                       embodiment=AvatarStore(AVATAR).load(),
+                                       embodiment=EmbodimentStore(AVATAR).load(),
                                        configuration=SimpleNamespace(state_path=tmp_path / "sofia.db"))
     assert service._build_request() is original
     assert not lab_state_path(tmp_path / "sofia.db").exists()

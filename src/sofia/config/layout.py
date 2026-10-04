@@ -142,7 +142,7 @@ class RuntimeStorageLayout:
                 False,
             ),
             (
-                self.source_root / "data" / "avatar.json",
+                self.source_root / "embodiment" / "avatar.json",
                 self.avatar_path,
                 False,
             ),

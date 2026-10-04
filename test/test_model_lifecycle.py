@@ -73,43 +73,6 @@ def _selection(primary="vendor/primary:any", secondary="vendor/secondary:any"):
     )
 
 
-def test_background_role_prefers_secondary_when_configured():
-    manager=ModelLifecycleManager(
-        selection=_selection(),
-        policy=ModelLifecycleConfiguration(),
-        backend=Backend(),
-    )
-    assert manager.background_role is CognitiveModelRole.SECONDARY
-
-
-def test_background_role_falls_back_to_primary_for_single_model():
-    manager=ModelLifecycleManager(
-        selection=_selection(secondary=None),
-        policy=ModelLifecycleConfiguration(),
-        backend=Backend(),
-    )
-    assert manager.background_role is CognitiveModelRole.PRIMARY
-
-
-def test_both_models_can_be_unloaded_then_primary_can_wake_again():
-    names=("vendor/primary:any","vendor/secondary:any")
-    backend=Backend(installed=names, running=names)
-    manager=ModelLifecycleManager(
-        selection=_selection(*names),
-        policy=ModelLifecycleConfiguration(enabled=True),
-        backend=backend,
-    )
-
-    assert manager.unload_all() == names
-    assert backend.resident == set()
-
-    status=manager.ensure_loaded(CognitiveModelRole.PRIMARY, now=NOW)
-
-    assert status.state is ModelResidency.READY
-    assert backend.resident == {"vendor/primary:any"}
-    assert backend.loads == [("vendor/primary:any","10m")]
-
-
 def test_unavailable_model_is_not_pulled_or_invented():
     manager=ModelLifecycleManager(
         selection=_selection(),
@@ -117,7 +80,7 @@ def test_unavailable_model_is_not_pulled_or_invented():
         backend=Backend(installed=("vendor/secondary:any",)),
     )
     with pytest.raises(ModelUnavailableError):
-        manager.ensure_loaded(CognitiveModelRole.PRIMARY, now=NOW)
+        manager.ensure_available(CognitiveModelRole.PRIMARY, now=NOW)
 
 
 def test_idle_sweep_unloads_only_after_policy_timeout():
@@ -132,8 +95,10 @@ def test_idle_sweep_unloads_only_after_policy_timeout():
         ),
         backend=backend,
     )
-    manager.note_used(CognitiveModelRole.PRIMARY, now=NOW)
-    manager.note_used(CognitiveModelRole.SECONDARY, now=NOW)
+    manager.begin_use(CognitiveModelRole.PRIMARY, now=NOW)
+    manager.end_use(CognitiveModelRole.PRIMARY, now=NOW)
+    manager.begin_use(CognitiveModelRole.SECONDARY, now=NOW)
+    manager.end_use(CognitiveModelRole.SECONDARY, now=NOW)
 
     assert manager.sweep_idle(now=NOW+timedelta(seconds=59)) == ()
     assert manager.sweep_idle(now=NOW+timedelta(seconds=61)) == names
@@ -153,7 +118,8 @@ def test_disabled_policy_never_performs_automatic_unload():
         ),
         backend=backend,
     )
-    manager.note_used(CognitiveModelRole.PRIMARY, now=NOW)
+    manager.begin_use(CognitiveModelRole.PRIMARY, now=NOW)
+    manager.end_use(CognitiveModelRole.PRIMARY, now=NOW)
     assert manager.sweep_idle(now=NOW+timedelta(hours=1)) == ()
     assert backend.unloads == []
 
@@ -173,7 +139,6 @@ def test_statuses_are_role_based_and_model_name_agnostic():
         CognitiveModelRole.PRIMARY:ModelResidency.UNLOADED,
         CognitiveModelRole.SECONDARY:ModelResidency.READY,
     }
-
 
 
 class Delegate(CognitiveEngine):
@@ -234,7 +199,6 @@ def test_idle_sweep_never_unloads_busy_model():
     )==("vendor/primary:any",)
 
 
-
 def test_install_pulls_missing_configured_role_without_loading_it():
     backend=Backend()
     manager=ModelLifecycleManager(
@@ -246,7 +210,6 @@ def test_install_pulls_missing_configured_role_without_loading_it():
     assert status.state is ModelResidency.UNLOADED
     assert backend.installed=={"vendor/primary:any"}
     assert backend.resident==set()
-
 
 
 def test_install_missing_provisions_all_configured_roles_without_loading():
@@ -281,7 +244,6 @@ def test_install_missing_is_disabled_by_policy():
 
     assert manager.install_missing()==()
     assert backend.installed==set()
-
 
 
 def test_ensure_available_rejects_missing_model_without_loading_or_pulling():

@@ -13,10 +13,9 @@ from pathlib import Path
 
 from .discovery import create_machine_discovery
 from .location import MachineLocationRegistry, new_machine_location
-from .location_state import StatePlaneMachineLocationRegistry
 from sofia.config import production_state_path
 from sofia.state.sqlite_plane import SQLiteStatePlane
-from .persistence import MachineInventoryPersistence
+from .persistence import SQLiteMachineInventoryPersistence
 
 
 def _state_directory() -> Path:
@@ -25,9 +24,9 @@ def _state_directory() -> Path:
 
 def _registry(
     state_directory: Path,
-) -> StatePlaneMachineLocationRegistry:
+) -> MachineLocationRegistry:
     state_path = state_directory / "sofia.db"
-    return StatePlaneMachineLocationRegistry(
+    return MachineLocationRegistry(
         SQLiteStatePlane(state_path),
         legacy_path=state_directory / "machine-locations.json",
     )
@@ -39,39 +38,24 @@ def _known_identity(
     machine_id: str | None,
     hostname: str | None,
 ) -> tuple[str, str]:
+    try:
+        inventory = SQLiteMachineInventoryPersistence(
+            state_directory / "sofia.db",
+            legacy_path=state_directory / "machine-inventory.json",
+        ).load()
+    except FileNotFoundError:
+        inventory = None
     if machine_id:
-        inventory_path = state_directory / "machine-inventory.json"
-        if inventory_path.exists():
-            inventory = MachineInventoryPersistence(
-                inventory_path
-            ).load()
-            observation = inventory.get(machine_id)
-            if observation is not None:
-                return (
-                    observation.machine_id,
-                    observation.hostname,
-                )
+        observation = None if inventory is None else inventory.get(machine_id)
+        if observation is not None:
+            return observation.machine_id, observation.hostname
         if not hostname:
-            raise ValueError(
-                "hostname is required when machine_id is not present "
-                "in machine-inventory.json"
-            )
+            raise ValueError("hostname is required when machine_id is not in canonical inventory")
         return machine_id, hostname
-
     if not hostname:
-        raise ValueError(
-            "one of --machine-id or --hostname is required"
-        )
-
-    inventory_path = state_directory / "machine-inventory.json"
-    if not inventory_path.exists():
-        raise ValueError(
-            "machine-inventory.json does not exist; use --machine-id "
-            "with --hostname or configure the machine locally"
-        )
-    inventory = MachineInventoryPersistence(
-        inventory_path
-    ).load()
+        raise ValueError("one of --machine-id or --hostname is required")
+    if inventory is None:
+        raise ValueError("canonical inventory does not exist; use --machine-id with --hostname or configure locally")
     matches = [
         observation
         for machine_id_value in inventory.machine_ids()
@@ -95,7 +79,7 @@ def _known_identity(
 
 
 def _configure(
-    registry: StatePlaneMachineLocationRegistry,
+    registry: MachineLocationRegistry,
     *,
     machine_id: str,
     hostname: str,
@@ -110,9 +94,6 @@ def _configure(
         longitude=args.longitude,
     )
     registry.set(record)
-    legacy_path = getattr(registry, "legacy_path", None)
-    if legacy_path is not None:
-        MachineLocationRegistry(legacy_path).set(record)
     print(
         f"Saved {record.hostname} ({record.machine_id}) "
         f"location as {record.label} in {record.timezone}."

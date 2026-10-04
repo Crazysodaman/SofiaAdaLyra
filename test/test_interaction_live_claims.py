@@ -9,7 +9,7 @@ import pytest
 
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.live_guard import mixed_interaction_control
@@ -17,7 +17,7 @@ from sofia.interaction.ledger import control_command
 from datetime import datetime, timezone
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 
 
 @pytest.mark.parametrize('content', [
@@ -70,7 +70,7 @@ def test_mixed_control_is_saved_but_neither_executed_nor_sent_to_model(tmp_path)
 
 
 def test_accepted_ear_gesture_preserves_representational_fox_anatomy():
-    engine = NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    engine = NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
     decision = engine.from_text(content='Sofía, I gently pat your left ear',
                                 message_id='m1', session_id='s1', occurred_at=NOW)
     assert decision is not None and decision.status == 'accepted'

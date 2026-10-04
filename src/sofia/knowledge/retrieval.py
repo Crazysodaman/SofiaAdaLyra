@@ -2,9 +2,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import re
-from .lifecycle import KnowledgeLifecycle
+from .lifecycle import SQLiteKnowledgeLifecycle
 from .model import KnowledgeFact
-from .store import KnowledgeStore
+from .persistence import KnowledgeStore
 
 @dataclass(frozen=True)
 class KnowledgeHit:
@@ -17,7 +17,7 @@ def _tokens(text:str)->set[str]:
     return {x for x in re.findall(r"[a-z0-9_./:-]+",text.lower()) if len(x)>1}
 
 class KnowledgeRetriever:
-    def __init__(self,store:KnowledgeStore,lifecycle:KnowledgeLifecycle|None=None)->None:
+    def __init__(self,store:KnowledgeStore,lifecycle:SQLiteKnowledgeLifecycle|None=None)->None:
         self.store=store; self.lifecycle=lifecycle
     def search(self,query:str,*,trusted_only:bool=True,limit:int=10)->tuple[KnowledgeHit,...]:
         if not query.strip(): return ()

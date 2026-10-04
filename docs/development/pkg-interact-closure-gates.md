@@ -146,7 +146,7 @@ python -m pytest -q test/test_current_emotional_state.py test/test_response_qual
 Then run the actual configured model and application against disposable state only:
 
 ```powershell
-python -m sofia.interaction.live_behavior_probe --run-disposable
+python -m sofia.verify.interaction.live_behavior_probe --run-disposable
 ```
 
 Human review must confirm that `hru` and `are you happy` answer the emotional/social question directly; generic service closers do not recur; `I missed you` does not manufacture reciprocal longing without absence evidence; sexual/intimate wording routes through the same contextual interaction system rather than a special sexual mode or blanket anatomy refusal; `why` and consent follow-ups remain tied to the preceding represented interaction; and Sofía can express yes, no, uncertainty, not-now, or changed-mind boundaries without treating user desire as her consent.

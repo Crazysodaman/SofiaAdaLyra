@@ -8,14 +8,14 @@ import pytest
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.world import LabWorld, WorldAction
 from sofia.interaction.world_observation import lab_observation_prompt
 from sofia.interaction.world_setup import lab_state_path, provision_starter_lab
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 def _observe(state: Path, message: str = "Sofía, what's in the lab?") -> str | None:
@@ -89,7 +89,7 @@ def _chat(monkeypatch, state: Path, message: str):
     monkeypatch.setattr(InteractiveConversationService, "messages", lambda self: (saved,))
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(
-        personality=object(), embodiment=AvatarStore(AVATAR).load(),
+        personality=object(), embodiment=EmbodimentStore(AVATAR).load(),
         configuration=SimpleNamespace(state_path=state),
     )
     return service._build_request(), original

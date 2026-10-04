@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 
 from sofia.embodiment.model import Embodiment, PhysicalSelf
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.core import InteractionEngine, REGISTRY_VERSION
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 @pytest.fixture
 def engine():
-    return InteractionEngine(AvatarStore(AVATAR).load())
+    return InteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 def text(engine, value, *, mid="message-1", stopped=False):

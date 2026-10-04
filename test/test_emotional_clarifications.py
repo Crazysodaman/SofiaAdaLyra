@@ -8,8 +8,8 @@ from sofia.application.conversation_service import ConversationService
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.personality.clarification import ClarificationJournal
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.clarification import ClarificationJournal
+from sofia.emotion.journal import EmotionalJournal
 
 NOW = datetime(2026, 9, 20, 12, tzinfo=timezone.utc)
 

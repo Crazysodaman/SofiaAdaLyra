@@ -72,7 +72,6 @@ def test_desktop_application_uses_configured_canonical_database(tmp_path):
     assert isinstance(app, SofiaApplication)
     assert app.chat_storage_mode == "local"
     assert app.chat_state_path == config.state_path
-    assert app.local_state_path == config.state_path
 
 
 def test_legacy_remote_chat_setting_is_migrated_to_local(tmp_path):

@@ -7,7 +7,7 @@ from sofia.authority.model import Authority
 from sofia.cognition.model import CognitiveResponse
 
 from sofia.cognition.matrix.defaults import default_matrix_registry
-from sofia.application.conversation_service import _inherit_last_turn_domains
+from sofia.application.conversation_matrix import _inherit_last_turn_domains
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
@@ -1433,3 +1433,9 @@ def test_explicit_recall_about_ram_still_keeps_memory_domain():
     ).evaluate(env)
 
     assert turn.relevance_for(MatrixDomain.MEMORY) is MatrixRelevance.REQUIRED
+
+
+@pytest.mark.parametrize("content", ["What does Gaia's hardware E-stop verify?", "Explain the hexapod servo limits"])
+def test_physical_body_question_reaches_body_evidence_domain(content):
+    result = MatrixCoordinator(registry=default_matrix_registry()).evaluate(envelope(content))
+    assert result.relevance_for(MatrixDomain.BODY) is MatrixRelevance.REQUIRED

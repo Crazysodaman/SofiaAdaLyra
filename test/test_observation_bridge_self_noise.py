@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from sofia.filesystem.changes import FilesystemChange, FilesystemChangeEvent, FilesystemChangeKind
-from sofia.personality.emotion import EmotionalJournal
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 

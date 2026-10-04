@@ -1,5 +1,8 @@
 # PKG-INTERACT: implementation log and acceptance gates
 
+> Cleanup status (2026-10-04): production interaction uses the live ledger, reviewed staged-offer gates and cognition's embodied expression planner. The unconnected representation/target-body/initiative/expression prototypes have been retired. Historical contract sketches below describe intended designs, not implemented runtime consumers. The retained synthetic simulator is `test/interaction_lab_support.py`. Runnable diagnostic commands now live under `sofia.verify.interaction`.
+
+
 ## Lab meaning and one-world rule
 
 **Sparks's lab is a persistent virtual location Sofía can enter and work in, not a simulator.** The [world-location contract](pkg-interact-world-location-contract.md) supersedes earlier ambiguous wording. `LabWorld` stores actual software-state rooms, actors, objects, inventory and transitions; `InteractionLab` is only an isolated synthetic **test harness**, never evidence of work in her location. Text and future authenticated avatar clients must refer to the same body regions, world object IDs and operation results. None of this is a physical room or real equipment control.

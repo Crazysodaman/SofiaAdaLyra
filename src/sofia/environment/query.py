@@ -7,8 +7,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-import re
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from . import query_forms as forms
+from .query_sources import environment_sources
 
 from .model import (
     EnvironmentFreshness,
@@ -80,239 +82,13 @@ def _forecast_period_text(period) -> str:
 
 
 class EnvironmentQueryResolver:
-    _USER_REPORTED_LOCAL_TIME_RE = re.compile(
-        r"\b(?:it(?:'s|\s+is)|its)\s+"
-        r"(\d{1,2})(?::(\d{2}))?\s*"
-        r"(am|pm)\s+(?:for\s+me|my\s+time|locally)\b",
-        re.IGNORECASE,
-    )
-    _TIME_FORMS = frozenset(
-        {
-            "what time is it",
-            "what time is it right now",
-            "what's the time",
-            "what is the current time",
-            "current time",
-            "time",
-        }
-    )
-    _DATE_FORMS = frozenset(
-        {
-            "what date is it",
-            "what's the date",
-            "what is today's date",
-            "what day is it",
-            "what day is it today",
-        }
-    )
-    _WEATHER_FORMS = frozenset(
-        {
-            "what's the weather",
-            "whats the weather",
-            "what is the weather",
-            "what's the weather like",
-            "whats the weather like",
-            "what is the weather like",
-            "what's the weather right now",
-            "whats the weather right now",
-            "what is the weather right now",
-            "what's the weather today",
-            "whats the weather today",
-            "what is the weather today",
-            "how's the weather today",
-            "how is the weather today",
-            "today's weather",
-            "todays weather",
-            "weather today",
-            "how's the weather",
-            "hows the weather",
-            "how is the weather",
-            "weather",
-            "current weather",
-        }
-    )
-    _LOCATION_FORMS = frozenset(
-        {
-            "where am i",
-            "what is my location",
-            "what's my location",
-            "what is my current location",
-            "what's my current location",
-            "do you know where i am",
-        }
-    )
-    _SOFIA_LOCATION_FORMS = frozenset(
-        {
-            "where are you",
-            "what is your location",
-            "what's your location",
-            "what is your current location",
-            "what's your current location",
-            "do you know where you are",
-        }
-    )
-    _USER_TIMEZONE_FORMS = frozenset(
-        {
-            "what is my timezone",
-            "what's my timezone",
-            "what timezone am i in",
-            "what time zone am i in",
-        }
-    )
-    _CONTEXT_TIMEZONE_FORMS = frozenset(
-        {
-            "what timezone are you using",
-            "what time zone are you using",
-            "what timezone is configured",
-            "what time zone is configured",
-        }
-    )
-    _FORECAST_FORMS = frozenset(
-        {
-            "what's the forecast",
-            "what is the forecast",
-            "what's the weather forecast",
-            "what is the weather forecast",
-        }
-    )
-    _TOMORROW_WEATHER_FORMS = frozenset(
-        {
-            "what's tomorrow's weather",
-            "what is tomorrow's weather",
-            "whats tomorrows weather",
-            "what's the weather tomorrow",
-            "what is the weather tomorrow",
-            "how's the weather tomorrow",
-            "how is the weather tomorrow",
-            "what will the weather be tomorrow",
-            "what's the forecast tomorrow",
-            "what is the forecast tomorrow",
-            "tomorrow's weather",
-            "tomorrows weather",
-            "weather tomorrow",
-        }
-    )
-    _WEEKLY_FORECAST_FORMS = frozenset(
-        {
-            "what's the weekly forecast",
-            "what is the weekly forecast",
-            "weekly forecast",
-            "weekly weather",
-            "what's the weather this week",
-            "what is the weather this week",
-            "how's the weather this week",
-            "how is the weather this week",
-            "weather this week",
-            "forecast this week",
-            "what's this week's weather",
-            "what is this week's weather",
-            "this week's weather",
-            "whats this weeks weather",
-            "this weeks weather",
-            "what's the 7 day forecast",
-            "what is the 7 day forecast",
-            "7 day forecast",
-            "seven day forecast",
-        }
-    )
-    _SUNRISE_FORMS = frozenset(
-        {
-            "when is sunrise",
-            "what time is sunrise",
-            "when does the sun rise",
-        }
-    )
-    _SUNSET_FORMS = frozenset(
-        {
-            "when is sunset",
-            "what time is sunset",
-            "when does the sun set",
-        }
-    )
-    _INDOOR_FORMS = frozenset(
-        {
-            "what's the indoor temperature",
-            "what is the indoor temperature",
-            "what's the temperature inside",
-            "what is the temperature inside",
-            "what's the indoor humidity",
-            "what is the indoor humidity",
-        }
-    )
-    _SEASON_FORMS = frozenset(
-        {
-            "what season is it",
-            "what's the season",
-            "what season are we in",
-            "what is the current season",
-        }
-    )
-    _DAYLIGHT_FORMS = frozenset(
-        {
-            "is it day",
-            "is it daytime",
-            "is it night",
-            "is it nighttime",
-            "is it dark outside",
-            "is it light outside",
-        }
-    )
-    _GENERIC_SOURCE_FOLLOWUP_FORMS = frozenset(
-        {
-            "where you pull the info",
-            "where did you pull that info from",
-            "where did you get that info",
-            "where did you get the info",
-            "where is that info from",
-            "what source did you use",
-            "what source are you using",
-        }
-    )
-    _TEMPERATURE_UNIT_FORMS = frozenset(
-        {
-            "use f not c",
-            "use f instead of c",
-            "f not c",
-            "fahrenheit not celsius",
-            "use fahrenheit",
-            "use fahrenheit not celsius",
-            "use fahrenheit instead of celsius",
-            "show fahrenheit",
-            "show temperatures in fahrenheit",
-            "why are you using celsius",
-            "don't use celsius",
-            "do not use celsius",
-        }
-    )
 
-    _CONTEXT_SOURCE_FORMS = frozenset(
-        {
-            "explain your current environment context sources",
-            "what are your current environment context sources",
-            "what are your environment context sources",
-            "what environment sources are you using",
-            "where does your environment context come from",
-            "where do you get your weather info",
-            "where do you get the weather info",
-            "where did you get that weather info",
-            "where did you pull that weather info from",
-            "what is your weather source",
-            "what's your weather source",
-            "what weather source are you using",
-            "which weather source are you using",
-            "what weather provider are you using",
-            "which weather provider are you using",
-            "where are you getting the weather from",
-            "where are you getting weather from",
-            "weather source",
-        }
-    )
 
     @classmethod
     def is_generic_source_followup(cls, query: str) -> bool:
         if not isinstance(query, str):
             return False
-        return _normalize(query) in cls._GENERIC_SOURCE_FOLLOWUP_FORMS
+        return _normalize(query) in forms._GENERIC_SOURCE_FOLLOWUP_FORMS
 
     @classmethod
     def is_weather_or_forecast_query(cls, query: str) -> bool:
@@ -320,17 +96,17 @@ class EnvironmentQueryResolver:
             return False
         normalized = _normalize(query)
         return normalized in (
-            cls._WEATHER_FORMS
-            | cls._FORECAST_FORMS
-            | cls._TOMORROW_WEATHER_FORMS
-            | cls._WEEKLY_FORECAST_FORMS
+            forms._WEATHER_FORMS
+            | forms._FORECAST_FORMS
+            | forms._TOMORROW_WEATHER_FORMS
+            | forms._WEEKLY_FORECAST_FORMS
         )
 
     @classmethod
     def is_user_reported_local_time(cls, query: str) -> bool:
         if not isinstance(query, str):
             return False
-        return cls._USER_REPORTED_LOCAL_TIME_RE.search(
+        return forms._USER_REPORTED_LOCAL_TIME_RE.search(
             _normalize(query)
         ) is not None
 
@@ -342,23 +118,23 @@ class EnvironmentQueryResolver:
         if cls.is_user_reported_local_time(query):
             return True
         return normalized in (
-            cls._TIME_FORMS
-            | cls._DATE_FORMS
-            | cls._WEATHER_FORMS
-            | cls._LOCATION_FORMS
-            | cls._SOFIA_LOCATION_FORMS
-            | cls._USER_TIMEZONE_FORMS
-            | cls._CONTEXT_TIMEZONE_FORMS
-            | cls._FORECAST_FORMS
-            | cls._TOMORROW_WEATHER_FORMS
-            | cls._WEEKLY_FORECAST_FORMS
-            | cls._SUNRISE_FORMS
-            | cls._SUNSET_FORMS
-            | cls._INDOOR_FORMS
-            | cls._SEASON_FORMS
-            | cls._DAYLIGHT_FORMS
-            | cls._CONTEXT_SOURCE_FORMS
-            | cls._TEMPERATURE_UNIT_FORMS
+            forms._TIME_FORMS
+            | forms._DATE_FORMS
+            | forms._WEATHER_FORMS
+            | forms._LOCATION_FORMS
+            | forms._SOFIA_LOCATION_FORMS
+            | forms._USER_TIMEZONE_FORMS
+            | forms._CONTEXT_TIMEZONE_FORMS
+            | forms._FORECAST_FORMS
+            | forms._TOMORROW_WEATHER_FORMS
+            | forms._WEEKLY_FORECAST_FORMS
+            | forms._SUNRISE_FORMS
+            | forms._SUNSET_FORMS
+            | forms._INDOOR_FORMS
+            | forms._SEASON_FORMS
+            | forms._DAYLIGHT_FORMS
+            | forms._CONTEXT_SOURCE_FORMS
+            | forms._TEMPERATURE_UNIT_FORMS
         )
 
     def resolve(
@@ -375,7 +151,7 @@ class EnvironmentQueryResolver:
             )
 
         normalized = _normalize(query)
-        reported_time = self._USER_REPORTED_LOCAL_TIME_RE.search(
+        reported_time = forms._USER_REPORTED_LOCAL_TIME_RE.search(
             normalized
         )
         if reported_time is not None:
@@ -398,7 +174,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._TEMPERATURE_UNIT_FORMS:
+        if normalized in forms._TEMPERATURE_UNIT_FORMS:
             return EnvironmentQueryAnswer(
                 True,
                 (
@@ -407,106 +183,10 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._CONTEXT_SOURCE_FORMS:
-            sources = [
-                "Environment context sources:",
-                "- Clock: trusted runtime host clock.",
-            ]
-            configured = snapshot.configured_location
-            if configured is None:
-                sources.append("- Configured location: unavailable.")
-            else:
-                sources.append(
-                    "- Configured location: "
-                    f"{configured.label} ({configured.subject.value}) "
-                    f"from {configured.source_id}; configuration is not "
-                    "current physical-location proof."
-                )
+        if normalized in forms._CONTEXT_SOURCE_FORMS:
+            return EnvironmentQueryAnswer(True, environment_sources(snapshot))
 
-            host = snapshot.host_location
-            if host is None:
-                sources.append("- Configured runtime host location: unavailable.")
-            else:
-                sources.append(
-                    "- Configured runtime host location: "
-                    f"{host.label}; timezone={host.timezone}; "
-                    f"source={host.source_id}; configuration is not "
-                    "current physical-location proof."
-                )
-
-            current = snapshot.current_location
-            if current is None:
-                sources.append(
-                    "- Current physical location evidence: unavailable."
-                )
-            else:
-                sources.append(
-                    "- Current physical location evidence: "
-                    f"{current.source_id} "
-                    f"({snapshot.current_location_freshness.value}, "
-                    f"subject={current.subject.value})."
-                )
-
-            if snapshot.timezone is None:
-                sources.append("- Environment timezone: unavailable.")
-            else:
-                sources.append(
-                    "- Environment timezone: "
-                    f"{snapshot.timezone}, derived from the effective "
-                    "location evidence."
-                )
-
-            if snapshot.season is None:
-                sources.append("- Season: unavailable.")
-            else:
-                sources.append(
-                    "- Season: derived from the effective location and date."
-                )
-
-            if snapshot.daylight is None:
-                sources.append("- Daylight/sunrise/sunset: unavailable.")
-            else:
-                sources.append(
-                    "- Daylight/sunrise/sunset: derived from the effective "
-                    "location, date, and timezone."
-                )
-
-            weather = snapshot.weather
-            if weather is None:
-                sources.append("- Weather/forecast evidence: unavailable.")
-            else:
-                sources.append(
-                    "- Weather/forecast evidence: "
-                    f"{weather.source_id} "
-                    f"({snapshot.weather_freshness.value})."
-                )
-
-            indoor = snapshot.indoor
-            if indoor is None:
-                sources.append("- Indoor environment evidence: unavailable.")
-            else:
-                sources.append(
-                    "- Indoor environment evidence: "
-                    f"{indoor.source_id} "
-                    f"({snapshot.indoor_freshness.value})."
-                )
-
-            if snapshot.provider_errors:
-                sources.append(
-                    "- Provider status: degraded evidence is present; "
-                    "provider error details are intentionally bounded."
-                )
-
-            sources.append(
-                "Coordinates and provider credentials are not exposed in "
-                "this report."
-            )
-            return EnvironmentQueryAnswer(
-                True,
-                "\n".join(sources),
-            )
-
-        if normalized in self._TIME_FORMS:
+        if normalized in forms._TIME_FORMS:
             local = (
                 snapshot.user_local_time
                 or snapshot.host_local_time
@@ -536,7 +216,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._DATE_FORMS:
+        if normalized in forms._DATE_FORMS:
             local = (
                 snapshot.user_local_time
                 or snapshot.host_local_time
@@ -560,7 +240,7 @@ class EnvironmentQueryResolver:
                 f"The current date {qualifier} is {local.date().isoformat()}.",
             )
 
-        if normalized in self._LOCATION_FORMS:
+        if normalized in forms._LOCATION_FORMS:
             current = snapshot.current_location
             if (
                 current is not None
@@ -601,7 +281,7 @@ class EnvironmentQueryResolver:
                 "I don't have current physical-location evidence for you.",
             )
 
-        if normalized in self._WEATHER_FORMS:
+        if normalized in forms._WEATHER_FORMS:
             weather = snapshot.weather
             if (
                 weather is None
@@ -666,7 +346,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._SOFIA_LOCATION_FORMS:
+        if normalized in forms._SOFIA_LOCATION_FORMS:
             current = snapshot.current_location
             if (
                 current is not None
@@ -710,7 +390,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._USER_TIMEZONE_FORMS:
+        if normalized in forms._USER_TIMEZONE_FORMS:
             effective = snapshot.effective_location
             if (
                 snapshot.timezone is None
@@ -729,7 +409,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._CONTEXT_TIMEZONE_FORMS:
+        if normalized in forms._CONTEXT_TIMEZONE_FORMS:
             if snapshot.timezone is None:
                 return EnvironmentQueryAnswer(
                     True,
@@ -749,7 +429,7 @@ class EnvironmentQueryResolver:
                 ),
             )
 
-        if normalized in self._WEEKLY_FORECAST_FORMS:
+        if normalized in forms._WEEKLY_FORECAST_FORMS:
             weather = snapshot.weather
             if (
                 weather is None
@@ -795,7 +475,7 @@ class EnvironmentQueryResolver:
                 + ".",
             )
 
-        if normalized in self._TOMORROW_WEATHER_FORMS:
+        if normalized in forms._TOMORROW_WEATHER_FORMS:
             weather = snapshot.weather
             if (
                 weather is None
@@ -839,7 +519,7 @@ class EnvironmentQueryResolver:
                 + ".",
             )
 
-        if normalized in self._FORECAST_FORMS:
+        if normalized in forms._FORECAST_FORMS:
             weather = snapshot.weather
             if (
                 weather is None
@@ -861,7 +541,7 @@ class EnvironmentQueryResolver:
                 + ".",
             )
 
-        if normalized in self._SUNRISE_FORMS:
+        if normalized in forms._SUNRISE_FORMS:
             if (
                 snapshot.daylight is None
                 or snapshot.daylight.sunrise is None
@@ -876,7 +556,7 @@ class EnvironmentQueryResolver:
                 f"{snapshot.daylight.sunrise.isoformat()}.",
             )
 
-        if normalized in self._SUNSET_FORMS:
+        if normalized in forms._SUNSET_FORMS:
             if (
                 snapshot.daylight is None
                 or snapshot.daylight.sunset is None
@@ -891,7 +571,7 @@ class EnvironmentQueryResolver:
                 f"{snapshot.daylight.sunset.isoformat()}.",
             )
 
-        if normalized in self._INDOOR_FORMS:
+        if normalized in forms._INDOOR_FORMS:
             indoor = snapshot.indoor
             if (
                 indoor is None
@@ -924,7 +604,7 @@ class EnvironmentQueryResolver:
                 f"from {indoor.source_id}.",
             )
 
-        if normalized in self._SEASON_FORMS:
+        if normalized in forms._SEASON_FORMS:
             if snapshot.season is None:
                 return EnvironmentQueryAnswer(
                     True,
@@ -938,7 +618,7 @@ class EnvironmentQueryResolver:
                 f"The derived current season is {snapshot.season.value}.",
             )
 
-        if normalized in self._DAYLIGHT_FORMS:
+        if normalized in forms._DAYLIGHT_FORMS:
             if snapshot.daylight is None:
                 return EnvironmentQueryAnswer(
                     True,

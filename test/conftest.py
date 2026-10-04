@@ -27,6 +27,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "discord": ("pkg_ui", "pkg_social", "pkg_net"),
     "distributed": ("pkg_net", "pkg_ops"),
     "embodiment": ("pkg_avatar",),
+    "emotion": ("pkg_core",),
     "environment": ("pkg_environment",),
     "evolve": ("pkg_evolve", "pkg_safe"),
     "external": ("pkg_integrate",),
