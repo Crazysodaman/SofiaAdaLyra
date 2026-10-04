@@ -1633,6 +1633,11 @@ def test_multi_question_turn_merges_matrix_domains_and_tools():
     assert "network.discover" not in capabilities
     assert "ops.fleet.discover" not in capabilities
 
+    evidence = MatrixEvidencePlanner().plan(turn, env)
+    keys = {item.key for item in evidence.requirements}
+    assert "environment.clock.current" in keys
+    assert "operational.measurement" in keys
+
 
 def test_multi_question_splitter_preserves_nonquestion_comma_lists():
     assert split_multi_question(
