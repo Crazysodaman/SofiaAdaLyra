@@ -5,11 +5,21 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
 from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_catalog import (
+    DAY_DEFAULT_OUTFIT_ID,
+    NIGHT_LOUNGE_OUTFIT_ID,
+    build_starter_wardrobe,
+)
 from sofia.avatar.wardrobe_planner import (
-    Activity, OutfitPlanner, Season, WardrobeContext, Weather, WeatherObservation,
+    Activity,
+    OutfitPlan,
+    OutfitPlanner,
+    Season,
+    WardrobeContext,
+    Weather,
+    WeatherObservation,
+    wardrobe_emotion_influences,
 )
 from sofia.personality.emotion import ActiveEmotion, CurrentEmotionalState
 from sofia.personality.influence import ContinuityInfluence
@@ -43,87 +53,102 @@ def influence(emotion: str | None = None, intensity: float = 0.0):
     return ContinuityInfluence.from_state(emotion=state, environment=None)
 
 
-def test_daytime_without_weather_keeps_canonical_engineer_outfit():
+def test_daytime_without_weather_keeps_day_default():
     result = planner().suggest(
         WardrobeContext(DAY, Season.SUMMER, Activity.CONVERSATION)
     )
-    assert result.outfit_id == "engineer.signature"
+    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
 
 
-def test_current_hot_weather_selects_lighter_engineer_outfit():
+def test_current_hot_weather_does_not_invent_a_weather_outfit():
     weather = WeatherObservation(
-        Weather.HOT, DAY - timedelta(minutes=5), "matrix.weather"
+        Weather.HOT,
+        DAY - timedelta(minutes=5),
+        "matrix.weather",
     )
     result = planner().suggest(
         WardrobeContext(
-            DAY, Season.SUMMER, Activity.CONVERSATION, weather=weather
+            DAY,
+            Season.SUMMER,
+            Activity.CONVERSATION,
+            weather=weather,
         )
     )
-    assert result.outfit_id == "engineer.light"
+    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
 
 
-def test_stale_hot_weather_cannot_select_weather_specialized_outfit():
+def test_stale_weather_is_recorded_without_changing_default():
     weather = WeatherObservation(
-        Weather.HOT, DAY - timedelta(hours=7), "matrix.weather"
+        Weather.HOT,
+        DAY - timedelta(hours=7),
+        "matrix.weather",
     )
     result = planner().suggest(
         WardrobeContext(
-            DAY, Season.SUMMER, Activity.CONVERSATION, weather=weather
+            DAY,
+            Season.SUMMER,
+            Activity.CONVERSATION,
+            weather=weather,
         )
     )
-    assert result.outfit_id == "engineer.signature"
+    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
     assert "weather_missing_or_stale" in result.reasons
 
 
-def test_late_night_context_selects_lounge_even_in_summer():
+def test_late_night_context_selects_lounge():
     result = planner().suggest(
         WardrobeContext(NIGHT, Season.SUMMER, Activity.CONVERSATION)
     )
-    assert result.outfit_id == "lounge.relaxed"
+    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
 
 
-def test_grounded_fondness_can_nudge_lounge_without_overriding_activity():
+def test_grounded_fondness_can_nudge_lounge_without_overriding_engineering():
     emotion = wardrobe_emotion_influences(influence("fondness", 1.0))
     conversation = planner().suggest(
         WardrobeContext(
-            DAY, Season.AUTUMN, Activity.CONVERSATION,
+            DAY,
+            Season.AUTUMN,
+            Activity.CONVERSATION,
             emotion_influences=emotion,
         )
     )
     engineering = planner().suggest(
         WardrobeContext(
-            DAY, Season.AUTUMN, Activity.ENGINEERING,
+            DAY,
+            Season.AUTUMN,
+            Activity.ENGINEERING,
             emotion_influences=emotion,
         )
     )
 
-    assert conversation.outfit_id == "lounge.relaxed"
+    assert conversation.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
     assert "modeled_emotion_influence" in conversation.reasons
-    assert engineering.outfit_id == "engineer.signature"
+    assert engineering.outfit_id == DAY_DEFAULT_OUTFIT_ID
 
 
-
-def test_season_is_a_hard_compatibility_constraint_not_an_emotion_score():
+def test_season_remains_a_hard_compatibility_constraint():
     catalog = build_starter_wardrobe()
     spring_only = (
-        catalog.preset("seasonal.spring.normal.01"),
+        OutfitPlan(
+            "spring.only",
+            catalog.preset(DAY_DEFAULT_OUTFIT_ID).item_ids,
+            frozenset({Activity.CONVERSATION}),
+            frozenset({Season.SPRING}),
+        ),
     )
-    planner = OutfitPlanner(catalog.wardrobe, spring_only)
+    local = OutfitPlanner(catalog.wardrobe, spring_only)
 
     with pytest.raises(WardrobeError, match="season"):
-        planner.suggest(
+        local.suggest(
             WardrobeContext(
                 DAY,
                 Season.WINTER,
                 Activity.CONVERSATION,
-                emotion_influences=wardrobe_emotion_influences(
-                    influence("fondness", 1.0)
-                ),
             )
         )
 
 
-def test_private_outfits_are_never_automatic_even_at_night_with_emotion():
+def test_automatic_choices_remain_public_and_covered():
     catalog = build_starter_wardrobe()
     result = OutfitPlanner(
         catalog.wardrobe,
@@ -133,11 +158,11 @@ def test_private_outfits_are_never_automatic_even_at_night_with_emotion():
             NIGHT,
             Season.WINTER,
             Activity.CONVERSATION,
-            emotion_influences=wardrobe_emotion_influences(
-                influence("fondness", 1.0)
-            ),
         )
     )
     selected = catalog.preset(result.outfit_id)
+    outfit = catalog.wardrobe.selection(selected.item_ids)
+
     assert selected.private_only is False
-    assert not catalog.wardrobe.selection(selected.item_ids).private_only
+    assert outfit.private_only is False
+    assert outfit.covered_default is True

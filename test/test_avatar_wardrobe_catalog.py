@@ -1,129 +1,140 @@
-"""Only metadata tests: not asset availability, fit, opacity, or render proof."""
+"""Structured starter wardrobe catalog contracts."""
 import json
 from dataclasses import replace
 
 import pytest
 
-from sofia.avatar.wardrobe import Garment, Layer, VisibilityDenied, WardrobeError
+from sofia.avatar.wardrobe import Layer, VisibilityDenied, WardrobeError
 from sofia.avatar.wardrobe_catalog import (
-    DRAFT_STATUS, GarmentBlueprint, RequestStatus, StyleInput,
-    WardrobePrebuild, build_starter_wardrobe,
+    DAY_DEFAULT_OUTFIT_ID,
+    DRAFT_STATUS,
+    FALLBACK_OUTFIT_ID,
+    NIGHT_LOUNGE_OUTFIT_ID,
+    RequestStatus,
+    StyleInput,
+    build_starter_wardrobe,
 )
 
 
-def test_presets_validate_against_actual_wardrobe_and_privacy_contract():
+def test_only_reviewed_day_night_and_fallback_presets_ship():
     pack = build_starter_wardrobe()
-    ids = {p.outfit_id for p in pack.presets}
-    assert {
-        "engineer.signature",
-        "engineer.light",
-        "lounge.relaxed",
-        "fallback.covered",
-    } <= ids
-    assert len([item for item in ids if item.startswith("seasonal.")]) == 300
+    assert {plan.outfit_id for plan in pack.presets} == {
+        DAY_DEFAULT_OUTFIT_ID,
+        NIGHT_LOUNGE_OUTFIT_ID,
+        FALLBACK_OUTFIT_ID,
+    }
+    assert pack.preset(NIGHT_LOUNGE_OUTFIT_ID).lounge is True
+    assert pack.preset(FALLBACK_OUTFIT_ID).manual_only is True
+
     for plan in pack.presets:
         selection = pack.wardrobe.selection(plan.item_ids)
-        if plan.private_only:
-            assert selection.private_only
-        else:
-            assert selection.covered_default
-            assert not selection.private_only
+        assert selection.covered_default
+        assert not selection.private_only
 
 
-def test_garments_are_blueprints_only_and_never_renderer_ready():
+def test_blueprints_are_design_metadata_not_renderer_claims():
     pack = build_starter_wardrobe()
     for plan in pack.presets:
         selection = pack.wardrobe.selection(plan.item_ids)
         assert not selection.asset_refs_present
         with pytest.raises(VisibilityDenied):
-            pack.wardrobe.require_public_ready(selection, assets_verified_by_renderer=True)
+            pack.wardrobe.require_public_ready(
+                selection,
+                assets_verified_by_renderer=True,
+            )
     assert all(bp.garment.asset_ref is None for bp in pack.blueprints)
 
 
-def test_engineer_layering_clearances_and_named_fit_references():
+def test_day_outfit_preserves_layering_and_tail_clearance():
     pack = build_starter_wardrobe()
-    garments = pack.wardrobe.garments(pack.preset("engineer.signature").item_ids)
-    assert any(g.item_id == "engineer.gauntlets" and g.layer is Layer.ACCESSORY for g in garments)
-    assert any(g.item_id == "engineer.jacket" and g.layer is Layer.OUTER for g in garments)
+    garments = pack.wardrobe.garments(
+        pack.preset(DAY_DEFAULT_OUTFIT_ID).item_ids
+    )
+    torso_layers = [g.layer for g in garments if "torso" in g.slots]
+    assert torso_layers == [Layer.UNDERWEAR, Layer.BASE, Layer.OUTER]
     assert all(g.tail_clearance for g in garments if "tail" in g.slots)
-    assert any("tail.opening.clearance" in bp.fit_anchors for bp in pack.blueprints)
+    assert any(
+        bp.garment.item_id == "day.engineer_jacket"
+        and bp.provenance == "canonical_clothing_design"
+        for bp in pack.blueprints
+    )
 
 
-def test_lounge_outfit_has_proposed_colors_and_tail_clearance():
+def test_night_lounge_outfit_uses_new_structured_pieces():
     pack = build_starter_wardrobe()
-    garment = next(bp for bp in pack.blueprints if bp.garment.item_id == "lounge.sweats")
-    assert garment.garment.tail_clearance
-    assert garment.provenance == "design_proposal_review_required"
-    assert pack.preset("lounge.relaxed").lounge
+    plan = pack.preset(NIGHT_LOUNGE_OUTFIT_ID)
+
+    assert plan.item_ids == (
+        "base.bralette",
+        "base.briefs",
+        "night.lounge_tee",
+        "night.running_shorts",
+    )
+    shorts = next(
+        bp for bp in pack.blueprints
+        if bp.garment.item_id == "night.running_shorts"
+    )
+    assert shorts.garment.tail_clearance is True
+    assert shorts.provenance == "design_proposal_review_required"
 
 
-def test_missing_or_wrong_outfit_id_is_denied():
+def test_manifest_is_v2_json_serializable_and_modeler_ready():
+    manifest = build_starter_wardrobe().manifest()
+
+    assert manifest["schema"] == "sofia.avatar.wardrobe.prebuild.v2"
+    assert manifest["stage"] == DRAFT_STATUS
+    assert all(row["asset_ref"] is None for row in manifest["garments"])
+    assert all("type" in row for row in manifest["garments"])
+    assert all("fit" in row for row in manifest["garments"])
+    assert all("length" in row for row in manifest["garments"])
+    assert all("sleeve_length" in row for row in manifest["garments"])
+    assert all("graphic" in row for row in manifest["garments"])
+    assert all(row["description"].strip() for row in manifest["garments"])
+    assert json.loads(json.dumps(manifest)) == manifest
+
+
+def test_new_defaults_are_requests_not_invented_likes():
+    pack = build_starter_wardrobe()
+
+    assert {item.status for item in pack.inputs} == {
+        RequestStatus.USER_REQUESTED
+    }
+    assert {item.subject_id for item in pack.inputs} == {
+        DAY_DEFAULT_OUTFIT_ID,
+        NIGHT_LOUNGE_OUTFIT_ID,
+    }
+    assert pack.reviewed_preferences() == ()
+
+
+def test_invalid_style_source_and_unknown_preset_fail_closed():
+    with pytest.raises(WardrobeError):
+        StyleInput(
+            DAY_DEFAULT_OUTFIT_ID,
+            RequestStatus.USER_LIKED,
+            "not a source",
+            "Unproven preference",
+        )
     with pytest.raises(WardrobeError):
         build_starter_wardrobe().preset("not.here")
 
 
-def test_manifest_json_serializable_and_explicitly_unbuilt():
-    manifest = build_starter_wardrobe().manifest()
-    assert manifest["stage"] == DRAFT_STATUS
-    assert all(x["asset_ref"] is None for x in manifest["garments"])
-    assert all(x["provenance"] in {
-        "canonical_clothing_design", "design_proposal_review_required"
-    } for x in manifest["garments"])
-    assert json.loads(json.dumps(manifest)) == manifest
-
-
-def test_style_inputs_distinguish_requests_from_confirmed_likes():
-    pack = build_starter_wardrobe()
-    requests = tuple(
-        record for record in pack.inputs
-        if record.status is RequestStatus.USER_REQUESTED
-    )
-    likes = tuple(
-        record for record in pack.inputs
-        if record.status is RequestStatus.USER_LIKED
-    )
-    assert len(requests) == 3
-    assert len(likes) == 2
-    assert all(record.source_id.startswith("chat.") for record in pack.inputs)
-
-
-def test_undocumented_preference_requires_real_source():
-    with pytest.raises(WardrobeError):
-        StyleInput("engineer.signature", RequestStatus.USER_LIKED,
-                   "not a source", "Unproven preference")
-
-
-def test_malformed_blueprint_rejected():
+def test_blueprint_rejects_claimed_asset_or_design_identity_mismatch():
     original = build_starter_wardrobe().blueprints[0]
+
     with pytest.raises(WardrobeError):
-        replace(original, primary_hex="purple")
+        replace(
+            original,
+            garment=replace(
+                original.garment,
+                asset_ref="fake.rendered.asset",
+            ),
+        )
+
     with pytest.raises(WardrobeError):
-        replace(original, fit_anchors=("repeat", "repeat"))
-    with pytest.raises(WardrobeError):
-        replace(original, garment=replace(original.garment, asset_ref="fake.rendered.asset"))
-
-
-def test_preset_cannot_reference_missing_blueprint():
-    pack = build_starter_wardrobe()
-    without_engineer_shirt = tuple(
-        bp for bp in pack.blueprints
-        if bp.garment.item_id != "engineer.shirt"
-    )
-    with pytest.raises(WardrobeError):
-        replace(pack, blueprints=without_engineer_shirt)
-
-
-def test_underwear_and_outerwear_share_body_without_same_layer_conflicts():
-    pack = build_starter_wardrobe()
-    garments = pack.wardrobe.garments(pack.preset("engineer.signature").item_ids)
-    torso_layers = [g.layer for g in garments if "torso" in g.slots]
-    assert torso_layers == [Layer.UNDERWEAR, Layer.BASE, Layer.OUTER]
-
-
-def test_canonical_and_proposed_specs_separate_without_overwriting_canon():
-    pack = build_starter_wardrobe()
-    jacket = next(bp for bp in pack.blueprints if bp.garment.item_id == "engineer.jacket")
-    assert jacket.provenance == "canonical_clothing_design"
-    assert any("16 in" in note for note in jacket.construction)
-    lounge = next(bp for bp in pack.blueprints if bp.garment.item_id == "lounge.top")
-    assert lounge.provenance == "design_proposal_review_required"
+        replace(
+            original,
+            garment=replace(
+                original.garment,
+                item_id="different.id",
+            ),
+        )

@@ -1,112 +1,72 @@
-"""Large individual-piece closet and private-visibility contracts."""
-from dataclasses import replace
-
-import pytest
-
-from sofia.avatar.wardrobe import VisibilityDenied, Wardrobe
+"""Structured wardrobe type vocabulary and starter-closet contracts."""
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_catalog import (
-    CLOSET_CATEGORIES,
-    NORMAL_STYLES,
-    PRIVATE_STYLES,
-    generated_piece_specs,
-)
+from sofia.avatar.wardrobe_design import all_garment_types, garment_type
 
 
-def test_each_human_facing_category_has_25_normal_and_25_adult_private_pieces():
-    specs = generated_piece_specs()
-    assert len(CLOSET_CATEGORIES) == 18
-    assert len(NORMAL_STYLES) == 25
-    assert len(PRIVATE_STYLES) == 25
-    assert len(specs) == 18 * 50 + 50
+def test_creator_vocabulary_has_real_garment_types_not_style_permutations():
+    ids = {item.type_id for item in all_garment_types()}
+    assert {
+        "t_shirt",
+        "crop_top",
+        "long_sleeve_tee",
+        "hoodie",
+        "running_shorts",
+        "athletic_shorts",
+        "denim_shorts",
+        "cargo_shorts",
+        "lounge_shorts",
+        "utility_trousers",
+        "jeans",
+        "leggings",
+        "dress",
+        "engineer_jacket",
+        "work_boots",
+        "sneakers",
+    } <= ids
 
-    for category in CLOSET_CATEGORIES:
-        rows = [item for item in specs if item.category == category.category_id]
-        normal = [item for item in rows if not item.private_only]
-        private = [item for item in rows if item.private_only]
-        assert len(normal) == 25
-        assert len(private) == 25
-        assert len({item.item_id for item in rows}) == 50
+
+def test_garment_types_own_slot_and_creator_capability_rules():
+    tee = garment_type("t_shirt")
+    shorts = garment_type("running_shorts")
+
+    assert tee.supports_sleeve_length is True
+    assert tee.supports_rise is False
+    assert shorts.supports_rise is True
+    assert shorts.supports_sleeve_length is False
+    assert shorts.tail_clearance is True
+    assert "torso" in tee.slots
+    assert "pelvis" in shorts.slots
 
 
-def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
+def test_starter_closet_is_intentionally_small():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert summary["generated_piece_count"] == 963
-    assert summary["adult_private_requires_authorization"] is True
-    assert summary["assets_verified"] is False
-    assert len(summary["categories"]) == 22
-    for category, counts in summary["categories"].items():
-        if category in {"closet.bra", "closet.panty"}:
-            assert counts == {"normal": 0, "adult_private": 25}
-        elif category in {
-            "closet.swim.bikini_top",
-            "closet.swim.bikini_bottom",
-        }:
-            assert counts == {"normal": 6, "adult_private": 0}
-        elif category == "closet.top":
-            assert counts == {"normal": 26, "adult_private": 25}
-        else:
-            assert counts == {"normal": 25, "adult_private": 25}
+    assert len(pack.blueprints) == 11
+    assert len(pack.presets) == 3
+    assert summary["starter_piece_count"] == 11
+    assert summary["outfit_count"] == 3
+    assert summary["all_designs_unique"] is True
 
 
-def test_private_pieces_are_first_class_private_metadata_not_name_conventions():
+def test_running_shorts_match_structured_creator_example():
     pack = build_starter_wardrobe()
-    private = pack.pieces(
-        category="closet.underwear_top",
-        private_only=True,
+    shorts = next(
+        bp for bp in pack.blueprints
+        if bp.garment.item_id == "night.running_shorts"
     )
-    normal = pack.pieces(
-        category="closet.underwear_top",
-        private_only=False,
-    )
+    design = shorts.design
 
-    assert len(private) == 25
-    assert len(normal) == 25
-    assert all(item.private_only and item.garment.private_only for item in private)
-    assert all(not item.private_only and not item.garment.private_only for item in normal)
-    assert all("adult-private" in item.style_tags for item in private)
-
-
-def test_private_piece_cannot_become_public_ready_even_with_fake_asset_metadata():
-    pack = build_starter_wardrobe()
-    private = pack.pieces(
-        category="closet.one_piece",
-        private_only=True,
-    )[0].garment
-    # Simulate a future asset reference. Privacy must still independently deny.
-    rendered = replace(private, asset_ref="asset.private.one_piece")
-    wardrobe = Wardrobe((rendered,))
-    selection = wardrobe.selection((rendered.item_id,))
-
-    assert selection.private_only is True
-    with pytest.raises(VisibilityDenied):
-        wardrobe.require_public_ready(
-            selection,
-            assets_verified_by_renderer=True,
-        )
-
-
-def test_normal_piece_categories_map_to_existing_low_level_rig_slots():
-    pack = build_starter_wardrobe()
-    for category in CLOSET_CATEGORIES:
-        piece = pack.pieces(
-            category=category.category_id,
-            private_only=False,
-        )[0].garment
-        assert piece.slots == category.slots
-        assert piece.tail_clearance is category.tail_clearance
-        assert piece.ear_clearance is category.ear_clearance
-
-
-def test_manifest_exposes_category_style_and_privacy_without_claiming_assets():
-    manifest = build_starter_wardrobe().manifest()
-    generated = [
-        row for row in manifest["garments"]
-        if row["category"].startswith("closet.")
-    ]
-    assert len(generated) == 963
-    assert sum(row["private_only"] for row in generated) == 500
-    assert all(row["asset_ref"] is None for row in generated)
-    assert all(row["style_tags"] for row in generated)
+    assert design.garment_type == "running_shorts"
+    assert design.fit == "fitted"
+    assert design.rise == "mid"
+    assert design.length == "short"
+    assert design.material == "performance-knit"
+    assert design.primary == "dark_violet"
+    assert design.accent == "cyan"
+    assert design.pattern == "none"
+    assert design.graphic.enabled is True
+    assert design.graphic.placement == "left_leg"
+    assert design.graphic.design == "small_circuit_mark"
+    assert design.features == ("drawstring", "side_slits", "tail_clearance")
+    assert design.description.strip()

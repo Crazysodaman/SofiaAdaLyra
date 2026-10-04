@@ -18,6 +18,7 @@ from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.wardrobe import SLOTS
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_design import GraphicDesign
 from sofia.avatar.wardrobe_planner import Activity, Season
 
 
@@ -113,7 +114,7 @@ def setup(tmp_path):
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             "long layered",
             "deep crimson",
@@ -133,7 +134,7 @@ def test_registered_composition_is_durable(tmp_path):
         authority=authority,
         store=store,
     )
-    item_ids = catalog.preset("lounge.relaxed").item_ids
+    item_ids = catalog.preset("night.lounge").item_ids
 
     plan = studio.compose(
         outfit_id="dynamic.studio.lounge",
@@ -161,7 +162,7 @@ def test_standalone_studio_can_register_in_memory_for_authoring(tmp_path):
 
     plan = studio.compose(
         outfit_id="dynamic.studio.authoring",
-        item_ids=catalog.preset("lounge.relaxed").item_ids,
+        item_ids=catalog.preset("night.lounge").item_ids,
         activities=frozenset({Activity.CONVERSATION}),
         seasons=frozenset(Season),
         lounge=True,
@@ -176,7 +177,7 @@ def test_studio_can_author_manual_only_outfit_without_auto_rotation():
     studio = WardrobeStudio(catalog)
     plan = studio.compose(
         outfit_id="manual.test",
-        item_ids=catalog.preset("lounge.relaxed").item_ids,
+        item_ids=catalog.preset("night.lounge").item_ids,
         activities=frozenset({Activity.RELAXING}),
         seasons=frozenset({Season.AUTUMN}),
         manual_only=True,
