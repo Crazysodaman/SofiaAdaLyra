@@ -174,7 +174,8 @@ class WardrobeStudio:
                 mutate()
             else:
                 # Callers supplying the canonical store get durable-or-rollback
-                # registration. No frontend currently wires this creator API.
+                # registration. The application wardrobe-generation pipeline
+                # is the production caller for this creator API.
                 self.store.persist_mutation(
                     self.authority,
                     mutate,
