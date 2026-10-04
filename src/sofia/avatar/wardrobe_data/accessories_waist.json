@@ -1,0 +1,1094 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_waist",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "waist.01.utility_belt_black",
+      "name": "Black utility belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black utility belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.02.violet_utility_belt",
+      "name": "Violet utility belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet utility belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.03.slim_circuit_belt",
+      "name": "Slim circuit belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Slim circuit belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.04.charcoal_web_belt",
+      "name": "Charcoal web belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Charcoal web belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.05.crimson_buckle_belt",
+      "name": "Crimson-buckle belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-buckle belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.06.cyan_trim_belt",
+      "name": "Cyan-trim belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan-trim belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.07.silver_hardware_belt",
+      "name": "Silver-hardware belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-hardware belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.08.black_chain_belt",
+      "name": "Black chain belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black chain belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.09.violet_chain_belt",
+      "name": "Violet chain belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet chain belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.10.technical_clip_belt",
+      "name": "Technical clip belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Technical clip belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.11.low_profile_work_belt",
+      "name": "Low-profile work belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Low-profile work belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.12.soft_lounge_sash_belt",
+      "name": "Soft lounge sash belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "soft woven textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft lounge sash belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.13.double_loop_belt",
+      "name": "Double-loop belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Double-loop belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.14.asymmetric_buckle_belt",
+      "name": "Asymmetric buckle belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Asymmetric buckle belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.15.matte_panel_belt",
+      "name": "Matte panel belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Matte panel belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.16.circuit_trace_belt",
+      "name": "Circuit-trace belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Circuit-trace belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.17.crimson_violet_belt",
+      "name": "Crimson-violet belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-violet belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.18.silver_line_belt",
+      "name": "Silver-line belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-line belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.19.minimal_black_belt",
+      "name": "Minimal black belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal black belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.20.tail_clearance_utility_belt",
+      "name": "Tail-clearance utility belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Tail-clearance utility belt, a accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.21.private_sheer_waist_wrap",
+      "name": "Private sheer waist wrap",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer waist wrap, a private accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.22.private_lace_waist_belt",
+      "name": "Private lace waist belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private lace waist belt, a private accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.23.private_body_chain_waist_belt",
+      "name": "Private body-chain waist belt",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private body-chain waist belt, a private accessory waist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "waist.24.private_open_frame_waist_harness",
+      "name": "Private open-frame waist harness",
+      "garment_type": "belt",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_waist",
+      "sleeve_length": null,
+      "material": "matte technical webbing and hardware",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_buckle"
+      ],
+      "style_tags": [
+        "accessory_waist",
+        "waist",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private open-frame waist harness, a private accessory waist piece designed for Sofía's wardrobe."
+    }
+  ]
+}
