@@ -1,0 +1,1936 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "underlayers_upper",
+  "profiles": {
+    "soft_everyday": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_smooth",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 8,
+          "preferred_minimum_c": 16,
+          "preferred_maximum_c": 29,
+          "maximum_c": 36,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "relaxing"
+          ],
+          "acceptable": [
+            "engineering",
+            "lab",
+            "sleep",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "private"
+          ],
+          "acceptable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "lounge",
+            "casual"
+          ],
+          "acceptable": [
+            "work",
+            "smart_casual"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    },
+    "structured_support": {
+      "material_properties": {
+        "stretch": "high",
+        "fabric_weight": "light",
+        "texture": "smooth_support_knit",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 8,
+          "preferred_minimum_c": 16,
+          "preferred_maximum_c": 29,
+          "maximum_c": 36,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "relaxing"
+          ],
+          "acceptable": [
+            "engineering",
+            "lab",
+            "sleep",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "private"
+          ],
+          "acceptable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "lounge",
+            "casual"
+          ],
+          "acceptable": [
+            "work",
+            "smart_casual"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "high",
+        "compression": "moderate",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "sport": {
+      "material_properties": {
+        "stretch": "high",
+        "fabric_weight": "light",
+        "texture": "smooth_performance",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 4,
+          "preferred_minimum_c": 14,
+          "preferred_maximum_c": 30,
+          "maximum_c": 38,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "exercise"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "conversation"
+          ],
+          "acceptable": [
+            "relaxing"
+          ],
+          "poor": [
+            "sleep",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "private"
+          ],
+          "acceptable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "lounge",
+            "casual"
+          ],
+          "acceptable": [
+            "work",
+            "smart_casual"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "good",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "high",
+        "compression": "moderate",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "cooling": {
+      "material_properties": {
+        "stretch": "high",
+        "fabric_weight": "ultralight",
+        "texture": "cooling_mesh",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 14,
+          "preferred_minimum_c": 22,
+          "preferred_maximum_c": 34,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "excellent"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "relaxing"
+          ],
+          "acceptable": [
+            "engineering",
+            "lab",
+            "sleep",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "private"
+          ],
+          "acceptable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "lounge",
+            "casual"
+          ],
+          "acceptable": [
+            "work",
+            "smart_casual"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "sleep": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "brushed_soft",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 10,
+          "preferred_minimum_c": 18,
+          "preferred_maximum_c": 28,
+          "maximum_c": 34,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "sleep",
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [
+            "engineering",
+            "lab",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "private"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [
+            "work",
+            "smart_casual"
+          ],
+          "unsuitable": [
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "excellent",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    },
+    "thermal": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "midweight",
+        "texture": "soft_thermal",
+        "breathability": "moderate",
+        "insulation": "high"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -15,
+          "preferred_minimum_c": -5,
+          "preferred_maximum_c": 12,
+          "maximum_c": 20,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "good"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "excellent",
+          "moderate": "good",
+          "high": "poor"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "acceptable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "winter"
+          ],
+          "good": [
+            "autumn",
+            "spring"
+          ],
+          "acceptable": [],
+          "poor": [
+            "summer"
+          ],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "relaxing"
+          ],
+          "acceptable": [
+            "engineering",
+            "lab",
+            "sleep",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "private"
+          ],
+          "acceptable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "lounge",
+            "casual"
+          ],
+          "acceptable": [
+            "work",
+            "smart_casual"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "relaxed",
+            "focused",
+            "playful",
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "good",
+        "compression": "low",
+        "heat_retention": "high",
+        "ventilation": "low",
+        "skin_contact": "excellent"
+      }
+    },
+    "private_lewd": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_private_mesh",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 14,
+          "preferred_minimum_c": 19,
+          "preferred_maximum_c": 30,
+          "maximum_c": 34,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [
+            "engineering",
+            "lab",
+            "sleep"
+          ],
+          "unsuitable": [
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [
+            "casual"
+          ],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond",
+            "relaxed"
+          ],
+          "good": [
+            "cozy"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    },
+    "private_explicit": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_private_stretch",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 16,
+          "preferred_minimum_c": 20,
+          "preferred_maximum_c": 30,
+          "maximum_c": 34,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "acceptable",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [],
+          "acceptable": [
+            "home"
+          ],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual",
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond"
+          ],
+          "good": [
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "base.bralette",
+      "name": "Soft technical bralette",
+      "garment_type": "bralette",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "soft breathable stretch knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "base",
+        "technical",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "soft_everyday",
+      "canonical": true,
+      "description": "A simple black technical bralette in soft breathable stretch knit with a dark-violet band. Clean seams and low-profile edges keep it comfortable beneath other layers."
+    },
+    {
+      "item_id": "under.upper.seamless_everyday",
+      "name": "Seamless everyday wireless bra",
+      "garment_type": "wireless_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "seamless microfiber stretch knit",
+      "primary": "black",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "everyday",
+        "seamless",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "structured_support",
+      "canonical": false,
+      "description": "A smooth black wireless bra with soft-violet edging, molded without bulky seams for everyday layering under fitted tops."
+    },
+    {
+      "item_id": "under.upper.lounge_bralette",
+      "name": "Relaxed lounge bralette",
+      "garment_type": "bralette",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "brushed modal stretch knit",
+      "primary": "black",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "lounge",
+        "soft",
+        "cozy"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sleep",
+      "canonical": false,
+      "description": "A relaxed black lounge bralette in brushed modal stretch knit with soft-violet trim and a wide soft band for low-pressure comfort."
+    },
+    {
+      "item_id": "under.upper.racerback_sport",
+      "name": "Racerback performance sports bra",
+      "garment_type": "sports_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "moisture-wicking performance knit",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "racerback",
+        "wide_band"
+      ],
+      "style_tags": [
+        "athletic",
+        "performance",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A fitted black racerback sports bra with cyan seam accents, moisture-wicking fabric, and a stable wide band for active movement."
+    },
+    {
+      "item_id": "under.upper.high_support_sport",
+      "name": "High-support technical sports bra",
+      "garment_type": "sports_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "high-support compression knit",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "wide_straps",
+        "support_panels"
+      ],
+      "style_tags": [
+        "athletic",
+        "support",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A high-support black sports bra with crimson support-panel accents, wide straps, and compressive stretch for high-mobility activity."
+    },
+    {
+      "item_id": "under.upper.longline_bralette",
+      "name": "Longline violet bralette",
+      "garment_type": "longline_bralette",
+      "fit": "fitted",
+      "rise": null,
+      "length": "midriff",
+      "sleeve_length": null,
+      "material": "soft stretch jersey",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "everyday",
+        "longline",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "soft_everyday",
+      "canonical": false,
+      "description": "A dark-violet longline bralette extending to the upper midriff, with a soft supportive band and restrained cyan piping."
+    },
+    {
+      "item_id": "under.upper.triangle_bralette",
+      "name": "Minimal triangle bralette",
+      "garment_type": "triangle_bralette",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "lightweight stretch jersey",
+      "primary": "black",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "minimal",
+        "lightweight",
+        "casual"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "soft_everyday",
+      "canonical": false,
+      "description": "A lightweight black triangle bralette with soft-violet edging and minimal seams for hot-weather or low-bulk layering."
+    },
+    {
+      "item_id": "under.upper.wireless_contour",
+      "name": "Wireless contour bra",
+      "garment_type": "wireless_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "smooth contour knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "contour_panels"
+      ],
+      "style_tags": [
+        "everyday",
+        "support",
+        "smooth"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "structured_support",
+      "canonical": false,
+      "description": "A smooth black wireless contour bra with shaped support panels and dark-violet edging, designed for clean lines under everyday clothing."
+    },
+    {
+      "item_id": "under.upper.plunge",
+      "name": "Low-plunge wireless bra",
+      "garment_type": "plunge_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "soft support microfiber",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "plunge",
+        "dress_compatible",
+        "smooth"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "structured_support",
+      "canonical": false,
+      "description": "A low-plunge black wireless bra with subtle crimson trim, shaped to sit beneath lower necklines without bulky seams."
+    },
+    {
+      "item_id": "under.upper.bandeau",
+      "name": "Seamless technical bandeau",
+      "garment_type": "bandeau",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "grip-lined stretch knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_band"
+      ],
+      "style_tags": [
+        "strapless",
+        "seamless",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "soft_everyday",
+      "canonical": false,
+      "description": "A black seamless bandeau with a dark-violet grip band, intended for strapless or open-shoulder layering."
+    },
+    {
+      "item_id": "under.upper.front_zip_sport",
+      "name": "Front-zip sports bra",
+      "garment_type": "sports_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "breathable performance knit",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "front_zip",
+        "support_panels"
+      ],
+      "style_tags": [
+        "athletic",
+        "performance",
+        "front_zip"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A fitted black performance sports bra with a low-profile front zip, cyan piping, and flexible support panels."
+    },
+    {
+      "item_id": "under.upper.fitted_camisole",
+      "name": "Fitted soft camisole",
+      "garment_type": "camisole",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "soft cotton-modal stretch knit",
+      "primary": "black",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "base_layer",
+        "casual",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "soft_everyday",
+      "canonical": false,
+      "description": "A fitted black camisole reaching the hip in soft cotton-modal stretch knit with narrow soft-violet edging."
+    },
+    {
+      "item_id": "under.upper.technical_tank",
+      "name": "Breathable technical base tank",
+      "garment_type": "base_tank",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "breathable performance knit",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "base_layer",
+        "technical",
+        "warm_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A fitted black technical base tank with cyan micro-seam accents and high breathability for warm environments and active work."
+    },
+    {
+      "item_id": "under.upper.cropped_base",
+      "name": "Cropped technical base top",
+      "garment_type": "base_top",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "light technical stretch knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "base_layer",
+        "cropped",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cooling",
+      "canonical": false,
+      "description": "A fitted cropped black base top in lightweight technical stretch knit with dark-violet seam accents and minimal bulk."
+    },
+    {
+      "item_id": "under.upper.short_sleeve_base",
+      "name": "Short-sleeve technical base tee",
+      "garment_type": "base_tee",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "short",
+      "material": "light moisture-wicking knit",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "base_layer",
+        "technical",
+        "short_sleeve"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A fitted black short-sleeve base tee with cyan seam accents, designed to wick moisture beneath heavier clothing."
+    },
+    {
+      "item_id": "under.upper.long_sleeve_base",
+      "name": "Long-sleeve technical base tee",
+      "garment_type": "thermal_top",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "light thermal technical knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "base_layer",
+        "technical",
+        "cool_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "thermal",
+      "canonical": false,
+      "description": "A fitted black long-sleeve technical base layer with dark-violet seams, light insulation, and low-profile construction."
+    },
+    {
+      "item_id": "under.upper.cooling_mesh_tank",
+      "name": "Cooling mesh base tank",
+      "garment_type": "base_tank",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "ultralight cooling mesh",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "mesh_zones"
+      ],
+      "style_tags": [
+        "base_layer",
+        "cooling",
+        "hot_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cooling",
+      "canonical": false,
+      "description": "An ultralight black cooling-mesh tank with cyan edging and high-airflow zones for hot, humid conditions."
+    },
+    {
+      "item_id": "under.upper.compression_top",
+      "name": "High-mobility compression top",
+      "garment_type": "compression_top",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "four-way stretch compression knit",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "support_panels"
+      ],
+      "style_tags": [
+        "athletic",
+        "compression",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sport",
+      "canonical": false,
+      "description": "A fitted black compression base top with crimson support-panel lines and four-way stretch for high-mobility activity."
+    },
+    {
+      "item_id": "under.upper.sleep_camisole",
+      "name": "Soft sleep camisole",
+      "garment_type": "camisole",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "brushed modal knit",
+      "primary": "dark_violet",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [],
+      "style_tags": [
+        "sleep",
+        "lounge",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "sleep",
+      "canonical": false,
+      "description": "A relaxed dark-violet sleep camisole in brushed modal knit with soft-violet edging and a loose, low-pressure fit."
+    },
+    {
+      "item_id": "under.upper.thermal_mockneck",
+      "name": "Thermal mock-neck base top",
+      "garment_type": "thermal_top",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "soft thermal technical knit",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "mock_neck"
+      ],
+      "style_tags": [
+        "base_layer",
+        "thermal",
+        "cold_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "thermal",
+      "canonical": false,
+      "description": "A fitted black thermal base top with long sleeves, a low mock neck, and restrained crimson seam accents for cold-weather layering."
+    },
+    {
+      "item_id": "under.upper.strappy_private_bralette",
+      "name": "Private strappy bralette",
+      "garment_type": "triangle_bralette",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "soft opaque stretch knit",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "decorative_straps"
+      ],
+      "style_tags": [
+        "private",
+        "lewd",
+        "strappy"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private_lewd",
+      "canonical": false,
+      "description": "A private black triangle bralette with opaque coverage and decorative crimson straps arranged for a deliberately provocative look while remaining covered."
+    },
+    {
+      "item_id": "under.upper.sheer_panel_private_bra",
+      "name": "Private sheer-panel plunge bra",
+      "garment_type": "plunge_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "opaque microfiber with sheer side mesh",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "sheer_side_panels"
+      ],
+      "style_tags": [
+        "private",
+        "lewd",
+        "sheer_panels"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private_lewd",
+      "canonical": false,
+      "description": "A private plunge bra combining opaque black cup panels with dark-violet sheer side mesh, intentionally provocative while retaining nipple coverage."
+    },
+    {
+      "item_id": "under.upper.open_cup_bralette",
+      "name": "Private open-cup bralette",
+      "garment_type": "open_cup_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "soft stretch straps and underband",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "open_cup",
+        "support_band"
+      ],
+      "style_tags": [
+        "private",
+        "explicit",
+        "open_cup"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples"
+      ],
+      "profile": "private_explicit",
+      "canonical": false,
+      "description": "A private black open-cup bralette built around a soft support band and dark-violet straps; the open-cup construction intentionally leaves the nipples exposed."
+    },
+    {
+      "item_id": "under.upper.cutout_open_cup_bra",
+      "name": "Private circuit-cutout open-cup bra",
+      "garment_type": "open_cup_bra",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": null,
+      "material": "soft technical strapwork",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "open_cup",
+        "circuit_strap_layout"
+      ],
+      "style_tags": [
+        "private",
+        "explicit",
+        "technical"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples"
+      ],
+      "profile": "private_explicit",
+      "canonical": false,
+      "description": "A private black technical open-cup bra with cyan circuit-inspired strapwork and a supportive lower band; the design intentionally leaves the nipples exposed."
+    }
+  ]
+}

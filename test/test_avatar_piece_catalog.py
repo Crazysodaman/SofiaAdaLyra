@@ -38,13 +38,13 @@ def test_garment_types_own_slot_and_creator_capability_rules():
     assert "pelvis" in shorts.slots
 
 
-def test_starter_closet_is_intentionally_small():
+def test_owned_closet_includes_data_backed_underlayers():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert len(pack.blueprints) == 11
+    assert len(pack.blueprints) == 57
     assert len(pack.presets) == 3
-    assert summary["starter_piece_count"] == 11
+    assert summary["starter_piece_count"] == 57
     assert summary["outfit_count"] == 3
     assert summary["all_designs_unique"] is True
 
