@@ -1745,3 +1745,35 @@ def test_garment_generation_is_avatar_action_not_avatar_query():
     assert turn.intent is MatrixIntent.ACTION_REQUEST
     assert turn.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
     assert turn.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "wear the violet hoodie",
+        "change into bikini 4",
+        "design yourself a new soft violet hoodie",
+    ),
+)
+def test_self_presentation_uses_avatar_autonomy_not_generic_host_approval(
+    content,
+):
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+    plan = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=False,
+        ),
+    )
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
+    assert plan.decision is AuthorityDecision.NOT_REQUIRED
+    assert plan.requested_action is None
+    assert "AVATAR autonomy/ownership gate" in plan.reason
