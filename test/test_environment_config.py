@@ -151,3 +151,31 @@ def test_ha_tracker_subject_is_not_inferred_when_user_and_host_both_exist():
             }
         )
 
+def test_nws_explicit_station_is_normalized_and_preserved():
+    config = environment_configuration_from_environ(
+        {
+            "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Homelab",
+            "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+            "SOFIA_ENVIRONMENT_LATITUDE": "32.5",
+            "SOFIA_ENVIRONMENT_LONGITUDE": "-97.1",
+            "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
+            "SOFIA_ENVIRONMENT_NWS_STATION_ID": "kgky",
+        }
+    )
+
+    assert config.nws_enabled
+    assert config.nws_station_id == "KGKY"
+
+
+def test_nws_invalid_station_id_fails_closed():
+    with pytest.raises(ValueError, match="nws_station_id"):
+        environment_configuration_from_environ(
+            {
+                "SOFIA_ENVIRONMENT_LOCATION_LABEL": "Homelab",
+                "SOFIA_ENVIRONMENT_TIMEZONE": "America/Chicago",
+                "SOFIA_ENVIRONMENT_LATITUDE": "32.5",
+                "SOFIA_ENVIRONMENT_LONGITUDE": "-97.1",
+                "SOFIA_ENVIRONMENT_NWS_ENABLED": "true",
+                "SOFIA_ENVIRONMENT_NWS_STATION_ID": "KGKY/../KRBD",
+            }
+        )
