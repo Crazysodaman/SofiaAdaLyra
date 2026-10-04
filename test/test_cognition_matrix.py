@@ -1777,3 +1777,24 @@ def test_self_presentation_uses_avatar_autonomy_not_generic_host_approval(
     assert plan.decision is AuthorityDecision.NOT_REQUIRED
     assert plan.requested_action is None
     assert "AVATAR autonomy/ownership gate" in plan.reason
+
+
+def test_multi_question_splitter_handles_question_then_action_clause():
+    assert split_multi_question(
+        "what time is it? and design yourself a new violet hoodie"
+    ) == (
+        "what time is it",
+        "design yourself a new violet hoodie",
+    )
+
+
+def test_multi_question_question_plus_generation_keeps_both_matrix_domains():
+    content = "what time is it? and design yourself a new violet hoodie"
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope(content))
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is not MatrixRelevance.NONE
+    assert turn.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
+    assert turn.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
