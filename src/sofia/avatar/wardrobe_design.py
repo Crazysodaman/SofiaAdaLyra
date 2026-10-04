@@ -600,9 +600,9 @@ class GarmentDesign:
     features: tuple[str, ...]
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
+    description: str = ""
     content_rating: ContentRating = ContentRating.STANDARD
     exposure: tuple[ExposureZone, ...] = ()
-    description: str = ""
     material_properties: MaterialProperties = field(
         default_factory=MaterialProperties
     )
