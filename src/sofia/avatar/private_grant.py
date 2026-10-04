@@ -30,6 +30,8 @@ class PrivatePresentationGrantResolver:
             raise TypeError(
                 "operator_stop_store must be OperatorStopStore or None"
             )
+        # Kept only for constructor compatibility. Durable PermissionStore
+        # authority is canonical and legacy configuration may never widen it.
         self._legacy_adult_verified = adult_verified
         self._permission_store = PermissionStore(state_path)
         self._operator_stop_store = (
@@ -65,11 +67,7 @@ class PrivatePresentationGrantResolver:
             and principal.audience_kind is AudienceKind.PRIVATE
         )
         authority = self._permission_store.private_adult_authority()
-        adult_verified = (
-            self._legacy_adult_verified
-            if authority.updated_by == "system:bootstrap"
-            else authority.adult_avatar
-        )
+        adult_verified = authority.adult_avatar
         if not (
             adult_verified
             and authority.private_chat
