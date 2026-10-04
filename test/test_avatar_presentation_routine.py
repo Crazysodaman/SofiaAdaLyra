@@ -10,6 +10,7 @@ from sofia.avatar.presentation import (
     PrivatePresentationGrant,
 )
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
+from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import (
@@ -212,3 +213,56 @@ def test_background_avatar_evaluation_rechecks_idle_before_mutation():
         refresh_environment=True,
         idle_seconds=45.0,
     ) is None
+
+
+def test_contextual_outfit_trace_reaches_authority_store_and_matrix(tmp_path):
+    catalog = build_starter_wardrobe()
+    outfits = {
+        plan.outfit_id: plan.item_ids
+        for plan in catalog.presets
+    }
+    authority = PresentationAuthority(
+        catalog.wardrobe,
+        outfits=outfits,
+        canonical_daily_outfit_id="day.default",
+        initial_appearance=AppearanceState(
+            "long layered", "#8B1E3F", "#3A245C", ("engineer",)
+        ),
+    )
+    store = PresentationStore(tmp_path / "sofia.db")
+    store.save(authority)
+    bundle = PresentationRuntimeBundle(authority, store, catalog)
+    routine = HeadlessPresentationRoutine(
+        authority=authority,
+        store=store,
+        planner=OutfitPlanner(
+            catalog.wardrobe,
+            catalog.presets,
+            designs={
+                blueprint.garment.item_id: blueprint.design
+                for blueprint in catalog.blueprints
+            },
+        ),
+    )
+    context = WardrobeContext(
+        datetime(2026, 10, 4, 22, 0, tzinfo=timezone.utc),
+        Season.AUTUMN,
+        Activity.CONVERSATION,
+    )
+
+    result = routine.evaluate(
+        context,
+        operation_id="trace.contextual.presentation",
+    )
+
+    persisted = store.load(
+        catalog.wardrobe,
+        outfits=outfits,
+    )
+    matrix = bundle.current_matrix()
+
+    assert result.state == authority.current
+    assert persisted.current == authority.current
+    assert matrix.item_ids == authority.current.item_ids
+    assert result.proposal is not None
+    assert result.proposal.outfit_id == authority.current.outfit_id
