@@ -338,3 +338,33 @@ def test_fleet_discovery_environment_override_beats_saved_setting(
 
     assert configuration.fleet_discovery.enabled is True
     assert configuration.fleet_discovery.scopes == ("10.20.30.0/24",)
+
+
+def test_production_saved_fleet_settings_beat_stale_environment_override(
+    tmp_path,
+    monkeypatch,
+):
+    state = tmp_path / "production" / "sofia.db"
+    state.parent.mkdir(parents=True, exist_ok=True)
+    _clear_environment_overrides(monkeypatch)
+    RuntimeUserSettingsStore(state).save(
+        RuntimeUserSettings(
+            fleet_discovery_enabled=False,
+            fleet_discovery_interval_seconds=120,
+            fleet_discovery_scopes=("192.168.88.0/24",),
+            fleet_discovery_max_hosts_per_scope=32,
+        )
+    )
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_ENABLED", "1")
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_INTERVAL_SECONDS", "30")
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_SCOPES", "10.0.0.0/8")
+    monkeypatch.setenv("SOFIA_FLEET_DISCOVERY_MAX_HOSTS_PER_SCOPE", "512")
+
+    configuration = create_production_configuration(
+        state_path=state,
+    )
+
+    assert configuration.fleet_discovery.enabled is False
+    assert configuration.fleet_discovery.interval_seconds == 120
+    assert configuration.fleet_discovery.scopes == ("192.168.88.0/24",)
+    assert configuration.fleet_discovery.max_hosts_per_scope == 32
