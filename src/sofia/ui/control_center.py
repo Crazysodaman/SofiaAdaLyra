@@ -299,6 +299,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Avatar",
     "Memory",
     "EVOLVE",
+    "Permissions",
     "Safety & Authority",
     "Advanced",
 )
