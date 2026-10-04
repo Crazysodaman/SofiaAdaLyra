@@ -48,7 +48,7 @@ from .presentation import (
     PrivatePresentationGrant,
 )
 from .presentation_store import PresentationStore, PresentationStoreError
-from .runtime_state import (
+from .presentation_runtime import (
     PresentationRuntimeBundle, load_or_bootstrap_presentation,
 )
 from .wardrobe_planner import EmotionStyleInfluence

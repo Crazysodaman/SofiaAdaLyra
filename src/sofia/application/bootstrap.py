@@ -17,7 +17,7 @@ from sofia.avatar.wardrobe_planner import (
     WardrobeContext,
     wardrobe_emotion_influences,
 )
-from sofia.avatar.runtime_state import (
+from sofia.avatar.presentation_runtime import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
 )

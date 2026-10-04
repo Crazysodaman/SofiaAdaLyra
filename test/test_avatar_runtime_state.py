@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.presentation_store import PresentationStore
-from sofia.avatar.runtime_state import load_or_bootstrap_presentation
+from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.embodiment.store import AvatarStore
 

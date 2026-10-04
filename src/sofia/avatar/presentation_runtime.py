@@ -1,4 +1,4 @@
-"""Bootstrap and persistence helpers for headless AVATAR presentation."""
+"""Runtime bootstrap and migration for headless AVATAR presentation."""
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -27,7 +27,7 @@ from .presentation import (
     PresentationState,
 )
 from .private_grant import PrivatePresentationGrantResolver
-from .runtime_state import PresentationRuntimeBundle
+from .presentation_runtime import PresentationRuntimeBundle
 from .wardrobe import (
     WardrobeConflict,
     WardrobeError,
