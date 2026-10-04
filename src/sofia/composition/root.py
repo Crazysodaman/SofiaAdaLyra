@@ -53,7 +53,7 @@ from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permission_capability import PermissionInspectionCapability, create_permission_tool_binding
-from sofia.safe.permissions import PermissionStore, automatic_capabilities
+from sofia.safe.permissions import PermissionStore, automatic_capabilities, is_explicitly_classified
 from sofia.operational.store import OperationalStore
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.runtime import SofiaRuntime
@@ -339,6 +339,17 @@ def compose(
         capability=tool_catalog_capability.capability,
         handler=tool_catalog_capability.execute,
     )
+
+    unclassified = tuple(
+        capability.name
+        for capability in capability_system.capabilities()
+        if not is_explicitly_classified(capability.name)
+    )
+    if unclassified:
+        raise ValueError(
+            "registered production capabilities require explicit permission "
+            "classification: " + ", ".join(unclassified)
+        )
 
     capability_gateway = CapabilityGateway(
         capability_system=capability_system,
