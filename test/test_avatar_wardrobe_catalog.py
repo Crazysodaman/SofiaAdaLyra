@@ -16,20 +16,27 @@ from sofia.avatar.wardrobe_prebuild import (
 )
 
 
-def test_only_reviewed_day_night_and_fallback_presets_ship():
+def test_approved_saved_outfits_and_fallback_ship():
     pack = build_starter_wardrobe()
-    assert {plan.outfit_id for plan in pack.presets} == {
-        DAY_DEFAULT_OUTFIT_ID,
-        NIGHT_LOUNGE_OUTFIT_ID,
-        FALLBACK_OUTFIT_ID,
-    }
+    ids = {plan.outfit_id for plan in pack.presets}
+    assert len(ids) == 24
+    assert DAY_DEFAULT_OUTFIT_ID in ids
+    assert NIGHT_LOUNGE_OUTFIT_ID in ids
+    assert FALLBACK_OUTFIT_ID in ids
+    assert "private.violet_tease" in ids
+    assert "private.circuit_after_dark" in ids
+    assert "private.rope_harness" in ids
     assert pack.preset(NIGHT_LOUNGE_OUTFIT_ID).lounge is True
     assert pack.preset(FALLBACK_OUTFIT_ID).manual_only is True
 
     for plan in pack.presets:
         selection = pack.wardrobe.selection(plan.item_ids)
-        assert selection.covered_default
-        assert not selection.private_only
+        if plan.private_only:
+            assert selection.private_only
+            assert plan.manual_only
+        else:
+            assert selection.covered_default
+            assert not selection.private_only
 
 
 def test_blueprints_are_design_metadata_not_renderer_claims():
@@ -65,10 +72,11 @@ def test_night_lounge_outfit_uses_new_structured_pieces():
     plan = pack.preset(NIGHT_LOUNGE_OUTFIT_ID)
 
     assert plan.item_ids == (
-        "base.bralette",
-        "base.briefs",
+        "under.upper.lounge_bralette",
+        "under.lower.lounge_boyshort",
         "night.lounge_tee",
         "night.running_shorts",
+        "foot.soft_violet_slippers",
     )
     shorts = next(
         bp for bp in pack.blueprints

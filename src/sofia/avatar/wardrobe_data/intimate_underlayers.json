@@ -1,0 +1,275 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "intimate_underlayers",
+  "profiles": {
+    "private_rope": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "light",
+        "texture": "soft_braided_rope",
+        "breathability": "high",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 16,
+          "preferred_minimum_c": 20,
+          "preferred_maximum_c": 30,
+          "maximum_c": 35,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "poor",
+          "drizzle": "unsuitable",
+          "rain": "unsuitable",
+          "heavy_rain": "unsuitable",
+          "snow": "unsuitable"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "none",
+          "absorbency": "moderate",
+          "wet_comfort": "poor"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "good",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "none",
+          "strong_wind": "unsuitable"
+        },
+        "sunlight": {
+          "direct_sun": "poor",
+          "uv_protection": "none"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [],
+          "acceptable": [
+            "afternoon"
+          ],
+          "poor": [
+            "morning"
+          ],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer"
+          ],
+          "good": [
+            "autumn"
+          ],
+          "acceptable": [
+            "winter"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "exercise",
+            "formal",
+            "outdoor",
+            "travel"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual",
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond"
+          ],
+          "good": [
+            "relaxed",
+            "confident"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "acceptable",
+          "seated_comfort": "acceptable",
+          "active_comfort": "poor"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "low",
+        "compression": "moderate",
+        "heat_retention": "none",
+        "ventilation": "high",
+        "skin_contact": "acceptable"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "under.private.rope_breast_harness",
+      "name": "Private breast rope harness",
+      "garment_type": "rope_breast_harness",
+      "fit": "fitted",
+      "rise": null,
+      "length": "harness",
+      "sleeve_length": null,
+      "material": "soft braided rope",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "rope_lattice",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_ties",
+        "chest_harness"
+      ],
+      "style_tags": [
+        "private",
+        "explicit",
+        "rope",
+        "harness"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples"
+      ],
+      "profile": "private_rope",
+      "canonical": false,
+      "description": "A private braided-rope chest harness worn at the underwear layer. The rope structure frames the torso while intentionally leaving the nipples exposed."
+    },
+    {
+      "item_id": "under.private.rope_hip_harness",
+      "name": "Private hip rope harness",
+      "garment_type": "rope_hip_harness",
+      "fit": "fitted",
+      "rise": "mid",
+      "length": "harness",
+      "sleeve_length": null,
+      "material": "soft braided rope",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "rope_lattice",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_ties",
+        "pelvic_harness",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "private",
+        "explicit",
+        "rope",
+        "harness"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "genitals"
+      ],
+      "profile": "private_rope",
+      "canonical": false,
+      "description": "A private braided-rope pelvic harness worn at the underwear layer, shaped around the hips with tail clearance and intentional genital exposure."
+    },
+    {
+      "item_id": "under.private.rope_full_harness",
+      "name": "Private full rope harness",
+      "garment_type": "rope_full_harness",
+      "fit": "fitted",
+      "rise": "mid",
+      "length": "full_harness",
+      "sleeve_length": null,
+      "material": "soft braided rope",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "rope_lattice",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_ties",
+        "chest_harness",
+        "pelvic_harness",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "private",
+        "explicit",
+        "rope",
+        "full_harness"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples",
+        "genitals"
+      ],
+      "profile": "private_rope",
+      "canonical": false,
+      "description": "A private full braided-rope harness spanning torso and pelvis at the underwear layer, with tail clearance and intentional nipple and genital exposure."
+    }
+  ]
+}

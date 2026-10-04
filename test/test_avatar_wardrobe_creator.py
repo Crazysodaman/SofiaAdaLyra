@@ -120,13 +120,11 @@ def test_reset_has_no_generated_seasonal_inventory():
         plan.outfit_id.startswith("seasonal.")
         for plan in catalog.presets
     )
-    assert {
-        plan.outfit_id for plan in catalog.presets
-    } == {
-        DAY_DEFAULT_OUTFIT_ID,
-        NIGHT_LOUNGE_OUTFIT_ID,
-        "fallback.covered",
-    }
+    preset_ids = {plan.outfit_id for plan in catalog.presets}
+    assert DAY_DEFAULT_OUTFIT_ID in preset_ids
+    assert NIGHT_LOUNGE_OUTFIT_ID in preset_ids
+    assert "fallback.covered" in preset_ids
+    assert len(preset_ids) == 24
 
 
 def test_studio_preserves_explicit_environment_context_and_comfort_profiles():

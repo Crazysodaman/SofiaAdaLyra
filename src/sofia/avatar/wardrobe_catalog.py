@@ -15,6 +15,7 @@ from .wardrobe_prebuild import (DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID,
 from .wardrobe_loader import _load_wardrobe_data_file
 from .wardrobe import Garment, Wardrobe
 from .wardrobe_generated_store import generated_wardrobe_path
+from .wardrobe_outfit_loader import load_outfit_data_file
 from .wardrobe_design import ComfortProfile, ContextProfile, EnvironmentProfile, FabricWeight, GarmentDesign, GraphicDesign, HumidityProfile, MaterialProperties, MoistureProfile, MovementProfile, PrecipitationProfile, RatedContext, Suitability, SunlightProfile, TemperatureProfile, TraitLevel, WindProfile, validate_design
 from .wardrobe_planner import Activity, OutfitPlan, Season
 
@@ -778,6 +779,7 @@ def build_starter_wardrobe(
         *_load_wardrobe_data_file("one_pieces.json", _blueprint),
         *_load_wardrobe_data_file("footwear.json", _blueprint),
         *_load_wardrobe_data_file("outerwear.json", _blueprint),
+        *_load_wardrobe_data_file("intimate_underlayers.json", _blueprint),
         *generated_blueprints,
         _blueprint(
             GarmentDesign(
@@ -820,37 +822,13 @@ def build_starter_wardrobe(
     )
 
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
-    day_items = (
-        "base.bralette", "base.briefs", "day.technical_top",
-        "day.utility_trousers", "day.engineer_jacket", "day.work_socks",
-        "day.work_boots", "day.fingerless_gloves", "day.utility_belt",
-    )
-    night_items = (
-        "base.bralette", "base.briefs", "night.lounge_tee",
-        "night.running_shorts",
-    )
+    approved_presets = load_outfit_data_file("outfits.json", wardrobe)
     fallback_items = (
         "base.bralette", "base.briefs", "day.technical_top",
         "day.utility_trousers",
     )
     presets = (
-        OutfitPlan(
-            DAY_DEFAULT_OUTFIT_ID,
-            day_items,
-            frozenset({Activity.CONVERSATION, Activity.ENGINEERING, Activity.LAB}),
-            ALL_SEASONS,
-            style_tags=("day", "engineer", "technical", "canonical"),
-            display_name="Day Engineer Outfit",
-        ),
-        OutfitPlan(
-            NIGHT_LOUNGE_OUTFIT_ID,
-            night_items,
-            frozenset({Activity.CONVERSATION, Activity.RELAXING, Activity.SLEEP}),
-            ALL_SEASONS,
-            lounge=True,
-            style_tags=("night", "lounge", "soft", "cozy"),
-            display_name="Late-Night Lounge Outfit",
-        ),
+        *approved_presets,
         OutfitPlan(
             FALLBACK_OUTFIT_ID,
             fallback_items,

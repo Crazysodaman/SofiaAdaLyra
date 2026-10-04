@@ -1,0 +1,723 @@
+{
+  "schema": "sofia.avatar.wardrobe.outfits.v1",
+  "outfits": [
+    {
+      "outfit_id": "day.default",
+      "display_name": "Engineer Day",
+      "item_ids": [
+        "base.bralette",
+        "base.briefs",
+        "day.technical_top",
+        "day.utility_trousers",
+        "day.engineer_jacket",
+        "day.work_socks",
+        "day.work_boots",
+        "day.fingerless_gloves",
+        "day.utility_belt"
+      ],
+      "activities": [
+        "conversation",
+        "engineering",
+        "lab",
+        "workshop"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "day",
+        "engineer",
+        "technical",
+        "canonical"
+      ]
+    },
+    {
+      "outfit_id": "outfit.light_lab_tech",
+      "display_name": "Light Lab Tech",
+      "item_ids": [
+        "under.upper.seamless_everyday",
+        "under.lower.performance_brief",
+        "top.technical_tank",
+        "bottom.slim_utility_trousers",
+        "outer.technical_utility_vest",
+        "foot.black_everyday_sneakers"
+      ],
+      "activities": [
+        "engineering",
+        "lab",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "lab",
+        "technical",
+        "warm",
+        "light"
+      ]
+    },
+    {
+      "outfit_id": "outfit.circuit_casual",
+      "display_name": "Circuit Casual",
+      "item_ids": [
+        "under.upper.wireless_contour",
+        "under.lower.seamless_briefs",
+        "top.fitted_circuit_tee",
+        "bottom.black_stretch_jeans",
+        "outer.black_bomber",
+        "foot.black_everyday_sneakers"
+      ],
+      "activities": [
+        "conversation",
+        "casual"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "casual",
+        "circuit",
+        "everyday"
+      ]
+    },
+    {
+      "outfit_id": "outfit.violet_casual",
+      "display_name": "Violet Casual",
+      "item_ids": [
+        "under.upper.longline_bralette",
+        "under.lower.hipster",
+        "top.relaxed_violet_tee",
+        "bottom.violet_stretch_jeans",
+        "foot.violet_circuit_sneakers"
+      ],
+      "activities": [
+        "conversation",
+        "casual",
+        "relaxing"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "casual",
+        "violet",
+        "soft"
+      ]
+    },
+    {
+      "outfit_id": "outfit.summer_violet",
+      "display_name": "Summer Violet",
+      "item_ids": [
+        "under.upper.triangle_bralette",
+        "under.lower.cooling_mesh_brief",
+        "top.fitted_violet_tank",
+        "bottom.light_utility_shorts",
+        "foot.violet_sandals"
+      ],
+      "activities": [
+        "casual",
+        "outdoor",
+        "relaxing"
+      ],
+      "seasons": [
+        "spring",
+        "summer"
+      ],
+      "weather": [
+        "hot"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "summer",
+        "violet",
+        "warm_weather"
+      ]
+    },
+    {
+      "outfit_id": "outfit.hot_day_technical",
+      "display_name": "Hot-Day Technical",
+      "item_ids": [
+        "under.upper.racerback_sport",
+        "under.lower.performance_brief",
+        "top.cropped_technical_tee",
+        "bottom.black_training_shorts",
+        "foot.performance_running_shoes"
+      ],
+      "activities": [
+        "exercise",
+        "outdoor",
+        "casual"
+      ],
+      "seasons": [
+        "spring",
+        "summer"
+      ],
+      "weather": [
+        "hot"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "technical",
+        "athletic",
+        "hot_weather"
+      ]
+    },
+    {
+      "outfit_id": "outfit.training_circuit",
+      "display_name": "Training Circuit",
+      "item_ids": [
+        "under.upper.high_support_sport",
+        "under.lower.compression_short",
+        "top.performance_training_tank",
+        "bottom.circuit_bike_shorts",
+        "foot.cyan_accent_training_sneakers"
+      ],
+      "activities": [
+        "exercise"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "training",
+        "athletic",
+        "circuit"
+      ]
+    },
+    {
+      "outfit_id": "outfit.rainy_engineer",
+      "display_name": "Rainy Engineer",
+      "item_ids": [
+        "under.upper.seamless_everyday",
+        "under.lower.performance_brief",
+        "top.casual_long_sleeve",
+        "day.utility_trousers",
+        "outer.black_rain_shell",
+        "foot.black_rain_boots"
+      ],
+      "activities": [
+        "engineering",
+        "workshop",
+        "outdoor",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [
+        "wet"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "engineer",
+        "rain",
+        "technical"
+      ]
+    },
+    {
+      "outfit_id": "outfit.winter_engineer",
+      "display_name": "Winter Engineer",
+      "item_ids": [
+        "under.upper.long_sleeve_base",
+        "under.lower.thermal_leggings",
+        "top.thermal_long_sleeve",
+        "day.utility_trousers",
+        "outer.black_winter_parka",
+        "foot.insulated_winter_boots"
+      ],
+      "activities": [
+        "engineering",
+        "workshop",
+        "outdoor",
+        "travel"
+      ],
+      "seasons": [
+        "autumn",
+        "winter"
+      ],
+      "weather": [
+        "cold"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "engineer",
+        "winter",
+        "thermal"
+      ]
+    },
+    {
+      "outfit_id": "outfit.autumn_cyber",
+      "display_name": "Autumn Cyber",
+      "item_ids": [
+        "under.upper.wireless_contour",
+        "under.lower.hipster",
+        "top.fitted_technical_sweater",
+        "bottom.black_stretch_jeans",
+        "outer.black_leather_jacket",
+        "foot.violet_ankle_boots"
+      ],
+      "activities": [
+        "casual",
+        "conversation"
+      ],
+      "seasons": [
+        "autumn",
+        "winter"
+      ],
+      "weather": [
+        "mild",
+        "cold"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "cyber",
+        "autumn",
+        "casual"
+      ]
+    },
+    {
+      "outfit_id": "outfit.violet_smart_casual",
+      "display_name": "Violet Smart Casual",
+      "item_ids": [
+        "under.upper.plunge",
+        "under.lower.seamless_briefs",
+        "top.ribbed_mockneck",
+        "bottom.pleated_violet_skirt",
+        "outer.long_violet_coat",
+        "foot.violet_loafers"
+      ],
+      "activities": [
+        "conversation",
+        "formal"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "violet",
+        "smart_casual",
+        "polished"
+      ]
+    },
+    {
+      "outfit_id": "outfit.technical_office",
+      "display_name": "Technical Office",
+      "item_ids": [
+        "under.upper.seamless_everyday",
+        "under.lower.seamless_briefs",
+        "top.technical_button_up",
+        "bottom.technical_utility_skirt",
+        "outer.technical_trench",
+        "foot.black_flats"
+      ],
+      "activities": [
+        "engineering",
+        "lab",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "office",
+        "technical",
+        "polished"
+      ]
+    },
+    {
+      "outfit_id": "outfit.formal_black_violet",
+      "display_name": "Formal Black & Violet",
+      "item_ids": [
+        "under.upper.plunge",
+        "under.lower.thong",
+        "dress.smart_black",
+        "outer.long_violet_coat",
+        "foot.violet_dress_heels"
+      ],
+      "activities": [
+        "formal",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "formal",
+        "black",
+        "violet"
+      ]
+    },
+    {
+      "outfit_id": "outfit.summer_dress",
+      "display_name": "Summer Dress",
+      "item_ids": [
+        "under.upper.triangle_bralette",
+        "under.lower.bikini_brief",
+        "dress.summer_cyan_trim",
+        "foot.violet_sandals"
+      ],
+      "activities": [
+        "casual",
+        "outdoor",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer"
+      ],
+      "weather": [
+        "hot"
+      ],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "summer",
+        "dress",
+        "light"
+      ]
+    },
+    {
+      "outfit_id": "outfit.athletic_dress",
+      "display_name": "Athletic Dress",
+      "item_ids": [
+        "under.upper.racerback_sport",
+        "under.lower.athletic_brief",
+        "dress.athletic_tank",
+        "foot.cyan_accent_training_sneakers"
+      ],
+      "activities": [
+        "exercise",
+        "casual"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "athletic",
+        "dress",
+        "active"
+      ]
+    },
+    {
+      "outfit_id": "outfit.violet_romper",
+      "display_name": "Violet Romper",
+      "item_ids": [
+        "base.bralette",
+        "under.lower.seamless_briefs",
+        "onepiece.casual_romper",
+        "outer.light_cropped_jacket",
+        "foot.violet_circuit_sneakers"
+      ],
+      "activities": [
+        "casual",
+        "conversation",
+        "relaxing"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "violet",
+        "romper",
+        "casual"
+      ]
+    },
+    {
+      "outfit_id": "outfit.utility_overalls",
+      "display_name": "Utility Overalls",
+      "item_ids": [
+        "under.upper.technical_tank",
+        "base.briefs",
+        "onepiece.utility_overalls",
+        "foot.black_high_tops",
+        "day.utility_belt"
+      ],
+      "activities": [
+        "engineering",
+        "workshop",
+        "casual"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": false,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "utility",
+        "overalls",
+        "tinkering"
+      ]
+    },
+    {
+      "outfit_id": "outfit.cozy_evening",
+      "display_name": "Cozy Evening",
+      "item_ids": [
+        "under.upper.lounge_bralette",
+        "under.lower.lounge_boyshort",
+        "top.oversized_lounge_hoodie",
+        "bottom.soft_lounge_shorts",
+        "foot.soft_violet_slippers"
+      ],
+      "activities": [
+        "relaxing",
+        "gaming",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "cozy",
+        "evening",
+        "lounge"
+      ]
+    },
+    {
+      "outfit_id": "night.lounge",
+      "display_name": "Late-Night Lounge",
+      "item_ids": [
+        "under.upper.lounge_bralette",
+        "under.lower.lounge_boyshort",
+        "night.lounge_tee",
+        "night.running_shorts",
+        "foot.soft_violet_slippers"
+      ],
+      "activities": [
+        "relaxing",
+        "gaming",
+        "conversation",
+        "sleep"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "night",
+        "lounge",
+        "soft",
+        "cozy",
+        "canonical"
+      ]
+    },
+    {
+      "outfit_id": "outfit.sleepy_violet",
+      "display_name": "Sleepy Violet",
+      "item_ids": [
+        "under.upper.sleep_camisole",
+        "under.lower.lounge_boyshort",
+        "outer.long_lounge_cardigan",
+        "foot.black_house_shoes"
+      ],
+      "activities": [
+        "sleep",
+        "relaxing"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": false,
+      "manual_only": false,
+      "style_tags": [
+        "sleep",
+        "violet",
+        "soft"
+      ]
+    },
+    {
+      "outfit_id": "private.violet_tease",
+      "display_name": "Private Violet Tease",
+      "item_ids": [
+        "under.upper.strappy_private_bralette",
+        "under.lower.strappy_private_panty",
+        "top.private_sheer_crop",
+        "bottom.private_micro_skirt",
+        "foot.black_heeled_boots"
+      ],
+      "activities": [
+        "relaxing",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": true,
+      "manual_only": true,
+      "style_tags": [
+        "private",
+        "lewd",
+        "violet"
+      ]
+    },
+    {
+      "outfit_id": "private.circuit_after_dark",
+      "display_name": "Private Circuit After Dark",
+      "item_ids": [
+        "under.upper.open_cup_bralette",
+        "under.lower.open_crotch_briefs",
+        "top.private_open_bust_crop",
+        "bottom.private_open_crotch_shorts",
+        "foot.black_heeled_boots"
+      ],
+      "activities": [
+        "relaxing",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": true,
+      "manual_only": true,
+      "style_tags": [
+        "private",
+        "explicit",
+        "circuit"
+      ]
+    },
+    {
+      "outfit_id": "private.rope_harness",
+      "display_name": "Private Rope Harness",
+      "item_ids": [
+        "under.private.rope_full_harness"
+      ],
+      "activities": [
+        "relaxing",
+        "conversation"
+      ],
+      "seasons": [
+        "spring",
+        "summer",
+        "autumn",
+        "winter"
+      ],
+      "weather": [],
+      "lounge": true,
+      "private_only": true,
+      "manual_only": true,
+      "style_tags": [
+        "private",
+        "explicit",
+        "rope",
+        "harness"
+      ]
+    }
+  ]
+}
