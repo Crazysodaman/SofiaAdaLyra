@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.decision_expression import (
     CandidateChoice, ReviewedFrame, choice_request, from_reviewed_action, parse_choice,

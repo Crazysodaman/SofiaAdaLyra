@@ -1,6 +1,6 @@
 """Synthetic, state-free probe of per-turn action instruction verbosity.
 
-Run: python -m sofia.interaction.focused_probe
+Run: python -m sofia.verify.interaction.focused_probe
 Compare the existing bounded-static request with the SAME request after
 replacing only its action-specific explanatory prose. Preserve its exact
 structured policy decision, canonical system context and user text.
@@ -8,6 +8,8 @@ Neither condition is the complete live session. No database is opened or
 written, and this module does not change production request assembly.
 """
 from __future__ import annotations
+
+import argparse
 
 import json
 
@@ -18,7 +20,7 @@ from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.store import IdentityStore
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.personality.store import PersonalityStore
 
 _CASES = (
@@ -89,7 +91,9 @@ def focused_variant(*, case: str, assembled: CognitiveRequest) -> CognitiveReque
     return CognitiveRequest(messages=(canonical, replacement, user), tools=assembled.tools)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.parse_args(argv)
     configuration = create_production_configuration()
     if configuration.provider.provider != 'ollama':
         raise RuntimeError('The probe supports the configured Ollama provider only.')

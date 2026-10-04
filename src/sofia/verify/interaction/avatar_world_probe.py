@@ -1,6 +1,6 @@
 """Review avatar-world conversation with Ollama in disposable application state.
 
-Run: python -m sofia.interaction.avatar_world_probe --offer-scene
+Run: python -m sofia.verify.interaction.avatar_world_probe --offer-scene
 
 The optional offer-scene variant adds ONE synthetic per-turn instruction to
 an otherwise unchanged real application request. It is NOT installed in live
@@ -85,14 +85,6 @@ def _build_offer_scene_request(self) -> CognitiveRequest:
     return request
 
 
-def _shutdown_disposable_app(app: SofiaApplication) -> None:
-    """Use the real application/runtime shutdown ownership path.
-
-    Disposable probes intentionally do not carry a second SQLite cleanup path.
-    If production shutdown leaks a handle, the Windows unlink tests must expose
-    it rather than masking it here.
-    """
-    app.shutdown()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -133,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f'FRAME: {"diagnostic avatar scene" if changed else "unchanged production request"}')
                     print(f'RESPONSE: {response.content}')
             finally:
-                _shutdown_disposable_app(app)
+                app.shutdown()
     return 0
 
 

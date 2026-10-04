@@ -11,14 +11,12 @@ import argparse
 from dataclasses import dataclass
 
 from sofia.cognition.model import CognitiveRequest
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import (
-    OFFER, ChoiceObservation, ChoiceProvider, _observe, _samples,
-    routed_choice_request,
-)
+from sofia.verify.interaction.architecture_compare import ChoiceObservation, ChoiceProvider, _observe, _samples
+from sofia.interaction.offer_route import OFFER, routed_choice_request
 from sofia.interaction.decision_expression import ReviewedFrame, from_reviewed_action
-from sofia.interaction.route_boundary_probe import boundary_fixture, boundary_contradiction
+from sofia.verify.interaction.route_boundary_probe import boundary_fixture, boundary_contradiction
 
 
 @dataclass(frozen=True)

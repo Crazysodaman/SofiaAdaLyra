@@ -16,10 +16,11 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from sofia.application.bootstrap import SofiaApplication
+from sofia.verify.interaction.disposable import close_disposable_application
 from sofia.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.interaction import live_offer_service
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.registry import InteractionCatalog
 from sofia.interaction.reviewed_hug_question import CLARIFICATION
@@ -42,26 +43,6 @@ def _show(label, result, reply: str) -> None:
     print('SAVED ASSISTANT REPLY:', reply)
 
 
-def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
-    """Close ALL app-owned SQLite handles before Windows removes temp files.
-
-    SofiaApplication.shutdown() closes conversation, but current runtime
-    lifetime retains separate memory, operational and workspace observation
-    connections. Close them here ONLY on the disposable instance.
-    """
-    try:
-        if started:
-            app.shutdown()
-        else:
-            app.conversation.close()
-    finally:
-        try:
-            app.runtime.memory_system._store.close()
-        finally:
-            try:
-                app.runtime.operational_store.close()
-            finally:
-                app.runtime.filesystem_observation_store.close()
 
 
 def run_disposable_probe() -> None:
@@ -215,7 +196,7 @@ def run_disposable_probe() -> None:
                     print('Provider calls for four turns:', spy.call_count)
                     print('This does NOT certify the human-reviewed quality of reply one.')
         finally:
-            _close_disposable_app(app, started=started)
+            close_disposable_application(app, started=started)
     print('Temporary database directory exited; no production DB was opened.')
 
 

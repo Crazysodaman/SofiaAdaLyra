@@ -8,7 +8,7 @@ from sofia.cognition.model import CognitiveRole
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.store import IdentityStore
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore
 

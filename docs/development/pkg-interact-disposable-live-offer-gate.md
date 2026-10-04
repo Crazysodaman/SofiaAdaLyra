@@ -15,7 +15,7 @@ This is **not a production migration, release or general gesture test**. The app
 With normal Sofía closed, `.venv` active, `feature/pkg-interact-shared-engine` selected and fast-forwarded, first run focused tests from [closure gates](pkg-interact-closure-gates.md). On failure **stop**. Only after green tests run:
 
 ```powershell
-python -m sofia.interaction.disposable_live_offer_probe --run-disposable
+python -m sofia.verify.interaction.disposable_live_offer_probe --run-disposable
 ```
 
 The updated probe exercises four turns: (1) the reviewed declarative offer with real Qwen choice and expression, either a saved coherent reply or a correctly vetoed raw candidate; (2) `Could I hug you?` which must ask whether the user means avatar or real contact, save both turns and make **zero extra Qwen calls**; (3) the original offer after a clearly labeled synthetic source-attested no-hugs boundary, blocked before inference; (4) `Can I hug you?` under that same synthetic boundary, also blocked with zero extra calls. The probe verifies saved-message counts, veto isolation and Windows cleanup. Total expected Qwen calls: **2** for the first offer only. The synthetic record is NOT an actual Sofía preference.

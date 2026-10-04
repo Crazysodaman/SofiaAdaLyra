@@ -4,7 +4,7 @@ import pytest
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.interaction.decision_expression import CandidateChoice, ReviewedFrame
-from sofia.interaction.decision_expression_probe import main
+from sofia.verify.interaction.decision_expression_probe import main
 from sofia.interaction.decision_reason_audit import (
     DecisionReasonAudit, audit_decision_reason,
 )

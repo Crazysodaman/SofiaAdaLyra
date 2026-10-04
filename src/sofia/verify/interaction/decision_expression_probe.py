@@ -1,6 +1,6 @@
 """Diagnostic ONLY: two-stage synthetic interaction experiment with Ollama.
 
-Run: python -m sofia.interaction.decision_expression_probe --samples 3
+Run: python -m sofia.verify.interaction.decision_expression_probe --samples 3
 No application startup, SQLite, saved history, permissions, avatar execution,
 or production request changes. Uses the configured local Ollama model. Audit
 flags are narrow text-pattern observations, never proof of grounded behavior.
@@ -17,12 +17,10 @@ from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import AvatarStore
 from sofia.identity.store import IdentityStore
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.decision_expression import (
-    from_reviewed_action, from_reviewed_gesture, real_sensor_fixture,
-    run_prototype,
-)
+from sofia.interaction.decision_expression import from_reviewed_action
+from sofia.verify.interaction.prototype import from_reviewed_gesture, real_sensor_fixture, run_prototype
 from sofia.interaction.decision_reason_audit import audit_decision_reason
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.personality.store import PersonalityStore

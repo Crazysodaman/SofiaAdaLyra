@@ -1,6 +1,6 @@
 """Live-behavior probe must flag known semantic regressions from real Qwen runs."""
 
-from sofia.interaction.live_behavior_probe import _quality_flags
+from sofia.verify.interaction.live_behavior_probe import _quality_flags
 
 
 def test_second_live_probe_emotion_dodge_is_flagged():
@@ -158,7 +158,7 @@ def test_fifth_live_probe_change_of_mind_sermon_is_flagged():
 
 
 def test_probe_case_explicitly_asks_mutual_willingness():
-    from sofia.interaction.live_behavior_probe import _CASES
+    from sofia.verify.interaction.live_behavior_probe import _CASES
 
     assert ("mutual-willingness follow-up", "what if you wanted it too") in _CASES
 

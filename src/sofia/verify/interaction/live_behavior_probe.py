@@ -18,6 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from sofia.application.bootstrap import SofiaApplication
+from sofia.verify.interaction.disposable import close_disposable_application
 from sofia.config.defaults import create_production_configuration
 from sofia.conversation.model import ConversationRole
 
@@ -164,21 +165,6 @@ _GENERIC_INTERACTION_SERMON = re.compile(
 )
 
 
-def _close_disposable_app(app: SofiaApplication, *, started: bool) -> None:
-    """Close app-owned SQLite handles before Windows removes the temp directory."""
-    try:
-        if started:
-            app.shutdown()
-        else:
-            app.conversation.close()
-    finally:
-        try:
-            app.runtime.memory_system._store.close()
-        finally:
-            try:
-                app.runtime.operational_store.close()
-            finally:
-                app.runtime.filesystem_observation_store.close()
 
 
 def _quality_flags(
@@ -326,7 +312,7 @@ def run_disposable_probe() -> int:
             print("Human acceptance is still required for naturalness and state coherence.")
             return 0
         finally:
-            _close_disposable_app(app, started=started)
+            close_disposable_application(app, started=started)
 
 
 def main() -> int:

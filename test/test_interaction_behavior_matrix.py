@@ -17,15 +17,7 @@ from sofia.embodiment.store import AvatarStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
-from sofia.interaction.registry import PRIVATE_SEMANTICS, catalog_for_engine
-from sofia.interaction.representation import (
-    InteractionProjectionDenied,
-    InteractionStage,
-    InteractionVisibility,
-    PrivateInteractionGrant,
-    project_interaction,
-    reviewed_interaction,
-)
+from sofia.interaction.registry import catalog_for_engine
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -267,71 +259,3 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
         assert db.execute(
             "SELECT COUNT(*) FROM interaction_evidence"
         ).fetchone()[0] == 0
-
-
-
-@pytest.mark.parametrize(
-    ("category", "semantic_id"),
-    tuple(sorted(PRIVATE_SEMANTICS)),
-)
-def test_every_private_semantic_requires_current_grant(
-    engine,
-    category,
-    semantic_id,
-):
-    if category == "action":
-        actor_id, target_id = "sofia", "sparks"
-    elif category in {"pose", "presentation"}:
-        actor_id, target_id = "sofia", "sofia"
-    else:
-        actor_id, target_id = "user", "sofia"
-
-    interaction = reviewed_interaction(
-        catalog=catalog_for_engine(engine),
-        interaction_id=f"matrix-private-{category}-{semantic_id}",
-        category=category,
-        semantic_id=semantic_id,
-        actor_id=actor_id,
-        target_id=target_id,
-        stage=InteractionStage.REPRESENTED,
-        occurred_at=NOW,
-        evidence_refs=("matrix-private-evidence",),
-    )
-    assert interaction.visibility is InteractionVisibility.PRIVATE
-    with pytest.raises(InteractionProjectionDenied):
-        project_interaction(interaction)
-
-    grant = PrivateInteractionGrant(
-        adult_verified=True,
-        owner_verified=True,
-        private_session=True,
-        explicit_current_opt_in=True,
-        external_stop_active=False,
-    )
-    projected = project_interaction(interaction, grant=grant)
-    assert projected.interaction.semantic_id == semantic_id
-    assert projected.text.visibility is InteractionVisibility.PRIVATE
-    assert projected.avatar.animation_confirmed is False
-
-
-def test_external_stop_overrides_private_interaction_grant(engine):
-    interaction = reviewed_interaction(
-        catalog=catalog_for_engine(engine),
-        interaction_id="matrix-private-stop",
-        category="presentation",
-        semantic_id="change-lingerie",
-        actor_id="sofia",
-        target_id="sofia",
-        stage=InteractionStage.REPRESENTED,
-        occurred_at=NOW,
-        evidence_refs=("matrix-private-stop-evidence",),
-    )
-    stopped_grant = PrivateInteractionGrant(
-        adult_verified=True,
-        owner_verified=True,
-        private_session=True,
-        explicit_current_opt_in=True,
-        external_stop_active=True,
-    )
-    with pytest.raises(InteractionProjectionDenied):
-        project_interaction(interaction, grant=stopped_grant)

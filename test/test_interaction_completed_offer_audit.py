@@ -1,7 +1,7 @@
 """Diagnostic regression for false-positive completed-contact detection."""
 
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.decision_expression import audit_expression, from_reviewed_action
 
 

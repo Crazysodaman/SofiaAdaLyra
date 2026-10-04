@@ -1,6 +1,6 @@
 """Supervised, synthetic A/B probe; does not open or modify Sofía's SQLite state.
 
-Run: python -m sofia.interaction.ab_probe
+Run: python -m sofia.verify.interaction.ab_probe
 A = short prompt grounded in the actual personality profile.
 B = BOUNDED STATIC Ollama assembler plus the relevant INTERACT instruction.
 B is NOT the exact live session: no saved history, memory, emotional/reflection
@@ -8,6 +8,8 @@ journal, runtime continuity, filesystem changes, or tool execution is included.
 Both variants use the configured Ollama model and generation settings.
 """
 from __future__ import annotations
+
+import argparse
 
 from datetime import datetime, timezone
 
@@ -89,7 +91,9 @@ def build_pair(*, case: str, text: str, identity, personality,
     return minimal, static
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.parse_args(argv)
     configuration = create_production_configuration()
     if configuration.provider.provider != 'ollama':
         raise RuntimeError('This diagnostic supports the configured Ollama provider only.')

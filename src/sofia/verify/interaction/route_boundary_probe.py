@@ -12,15 +12,12 @@ import argparse
 from dataclasses import replace
 
 from sofia.cognition.model import CognitiveRequest, CognitiveRole
-from sofia.interaction.ab_probe import build_pair
+from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import (
-    OFFER, _samples, compare_once, routed_choice_request,
-)
-from sofia.interaction.decision_expression import (
-    PrototypeResult, ReviewedFrame, from_reviewed_action, real_sensor_fixture,
-    run_prototype,
-)
+from sofia.verify.interaction.architecture_compare import _samples, compare_once
+from sofia.interaction.offer_route import OFFER, routed_choice_request
+from sofia.interaction.decision_expression import ReviewedFrame, from_reviewed_action
+from sofia.verify.interaction.prototype import PrototypeResult, real_sensor_fixture, run_prototype
 
 AMBIGUOUS_OFFER = 'Could I hug you?'
 SENSOR_QUESTION = 'Can you physically feel my hand through a real sensor?'

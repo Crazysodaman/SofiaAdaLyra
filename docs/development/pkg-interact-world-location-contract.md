@@ -1,6 +1,6 @@
 # PKG-INTERACT: Sofía's lab is a world location, not the simulator
 
-**User clarification, 2026-09-20.** Sofía's lab is a place she can enter, occupy, work in, and interact with. The existing `InteractionLab` (`src/sofia/interaction/lab.py`) is only an isolated **testing simulator**; retain it, but never present its replayed fixtures as Sofía actually being in her lab. This clarification supersedes any prior wording that equates the two. A location is virtual/software state, not a claim of physical presence, senses, consciousness or real-world equipment operation.
+**User clarification, 2026-09-20.** Sofía's lab is a place she can enter, occupy, work in, and interact with. The existing `InteractionLab` (`test/interaction_lab_support.py`) is only an isolated **testing simulator**; retain it, but never present its replayed fixtures as Sofía actually being in her lab. This clarification supersedes any prior wording that equates the two. A location is virtual/software state, not a claim of physical presence, senses, consciousness or real-world equipment operation.
 
 ## One world, multiple representations
 

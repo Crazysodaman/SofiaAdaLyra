@@ -13,7 +13,7 @@ from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveR
 from sofia.cognition.provider import LLMProvider
 from sofia.conversation.store import ConversationStore
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.decision_expression import from_reviewed_action
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.ledger import InteractionLedger

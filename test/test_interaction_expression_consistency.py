@@ -7,7 +7,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER
+from sofia.interaction.offer_route import OFFER
 from sofia.interaction.atomic_offer_release import commit_guarded_offer_reply
 from sofia.interaction.decision_expression import CandidateChoice, from_reviewed_action
 from sofia.interaction.expression_consistency import validate_offer_expression

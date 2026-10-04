@@ -9,9 +9,10 @@ from sofia.cognition.model import (
     CognitiveToolDefinition,
 )
 from sofia.interaction.action_grammar import parse_user_action
-from sofia.interaction.architecture_compare import OFFER, compare_once, routed_choice_request
+from sofia.verify.interaction.architecture_compare import compare_once
+from sofia.interaction.offer_route import OFFER, routed_choice_request
 from sofia.interaction.decision_expression import from_reviewed_action
-from sofia.interaction.route_boundary_probe import (
+from sofia.verify.interaction.route_boundary_probe import (
     AMBIGUOUS_OFFER, SENSOR_QUESTION, ambiguous_offer_unrouted,
     boundary_contradiction, boundary_fixture, sensor_separate_path,
 )
