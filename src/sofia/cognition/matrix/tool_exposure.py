@@ -137,7 +137,13 @@ class MatrixToolExposurePlanner:
             if re.search(r"\bchanges?\b", text, re.IGNORECASE):
                 _add(capabilities, "filesystem.changes")
         if _CODE.search(text) or _SELF_IMPROVE.search(text):
-            _add(capabilities, "codebase.inspect", "dev.status")
+            _add(
+                capabilities,
+                "codebase.inspect",
+                "dev.status",
+                "dev.candidates.list",
+                "dev.candidate.get",
+            )
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
         if _KNOWLEDGE.search(text):
