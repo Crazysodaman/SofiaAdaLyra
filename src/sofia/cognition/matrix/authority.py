@@ -30,6 +30,21 @@ _INTERACTION_SAFETY_CONTROL = re.compile(
     r"(?:body\s+)?(?:interactions?|gestures?)\s*[.!]?\s*$",
     re.IGNORECASE,
 )
+_SELF_PRESENTATION_SUGGESTION = re.compile(
+    r"^\s*(?:please\s+)?(?:"
+    r"(?:wear|change\s+into|change\s+(?:your\s+)?outfit\s+(?:to|into)|"
+    r"put\s+on|take\s+off|take\s+.+?\s+off|swap|switch|undress|"
+    r"get\s+undressed)\b"
+    r"|"
+    r"(?:design|generate|create|make)\s+.*"
+    r"\b(?:garment|clothing|shirt|tee|top|tank|hoodie|sweater|"
+    r"pants|trousers|jeans|shorts|skirt|dress|jumpsuit|romper|"
+    r"bodysuit|bra|bralette|briefs|panties|underwear|socks|"
+    r"stockings|shoes|boots|sandals|slippers|jacket|coat|vest|"
+    r"belt|gloves|bracelet|necklace|choker|collar|accessory)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 class MatrixAuthorityPlanner:
@@ -63,6 +78,16 @@ class MatrixAuthorityPlanner:
                 reason=(
                     "host-defined representational interaction safety "
                     "control is directly enforceable"
+                ),
+            )
+
+        if _SELF_PRESENTATION_SUGGESTION.search(text):
+            return AuthorityPlan(
+                AuthorityDecision.NOT_REQUIRED,
+                reason=(
+                    "self-presentation requests are proposals evaluated by "
+                    "the dedicated AVATAR autonomy/ownership gate, not generic "
+                    "host execution authority"
                 ),
             )
 
