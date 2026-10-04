@@ -62,6 +62,81 @@ def test_real_application_hru_is_tool_free_and_repairs_generic_assistant_reply(
         application.shutdown()
 
 
+def test_trace_store_failure_does_not_disable_live_matrix_scoping(
+    monkeypatch,
+    tmp_path,
+):
+    class BrokenTraceStore:
+        def latest(self, *, session_id):
+            raise RuntimeError("trace read unavailable")
+
+        def record(self, trace):
+            raise RuntimeError("trace write unavailable")
+
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I'm feeling pretty settled right now.",),
+    )
+    try:
+        application.conversation._matrix_trace_store = BrokenTraceStore()
+
+        response = application.conversation.respond("hru")
+
+        assert response.content == "I'm feeling pretty settled right now."
+        assert len(captured) == 1
+        request = captured[0]
+        assert request.allow_tools is False
+        system_text = "\n".join(
+            message.content
+            for message in request.messages
+            if message.role.value == "system"
+        )
+        assert "CURRENT MODELED EMOTIONAL STATE" in system_text
+        assert "CURRENT AVATAR PRESENTATION" not in system_text
+        assert application.conversation.last_matrix_error().startswith(
+            "trace-write:"
+        )
+    finally:
+        application.shutdown()
+
+
+def test_matrix_planning_failure_fails_narrow_not_broad(
+    monkeypatch,
+    tmp_path,
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I can't ground a live state from that turn.",),
+    )
+    try:
+        def broken_evaluate(envelope):
+            raise RuntimeError("synthetic matrix failure")
+
+        application.conversation._matrix_coordinator.evaluate = broken_evaluate
+
+        response = application.conversation.respond("hru")
+
+        assert response.content == "I can't ground a live state from that turn."
+        assert len(captured) == 1
+        request = captured[0]
+        system_text = "\n".join(
+            message.content
+            for message in request.messages
+            if message.role.value == "system"
+        )
+        assert "CURRENT MODELED EMOTIONAL STATE" not in system_text
+        assert "CURRENT AVATAR PRESENTATION" not in system_text
+        assert "CURRENT ENVIRONMENT" not in system_text
+        assert request.allow_tools is False
+        assert application.conversation.last_matrix_error().startswith(
+            "planning:"
+        )
+    finally:
+        application.shutdown()
+
+
 def test_central_timezone_followup_does_not_expose_system_inspection_tools(
     monkeypatch,
     tmp_path,
@@ -369,6 +444,51 @@ def test_live_tell_me_the_why_keeps_immediate_touch_context(
     finally:
         application.shutdown()
 
+
+
+def test_bare_why_after_emotional_self_report_gets_causal_provenance(
+    monkeypatch,
+    tmp_path,
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "I'm feeling longing right now.",
+            "Because this is a reunion after a real recorded contact gap.",
+        ),
+    )
+    try:
+        now = datetime.now(timezone.utc)
+        subject = application.conversation._relationship_subject()
+        application.conversation.emotional_journal.record(
+            event_id="reunion:test-causal-followup",
+            source="observed",
+            evidence_ref="reunion:test-causal-followup",
+            description=(
+                "Sparks returned after a recorded contact gap; contact is now resumed."
+            ),
+            emotions=("longing", "relief"),
+            occurred_at=now,
+            subject=subject,
+            scope=application.conversation.relationship_scope,
+        )
+
+        first = application.conversation.respond("hru")
+        assert "longing" in first.content
+
+        second = application.conversation.respond("why")
+        assert "reunion" in second.content.casefold()
+        assert len(captured) == 2
+        system_text = "\n".join(
+            message.content
+            for message in captured[1].messages
+            if message.role.value == "system"
+        )
+        assert "MODELED EMOTIONAL CONTEXT" in system_text
+        assert "contact is now resumed" in system_text
+    finally:
+        application.shutdown()
 
 
 def test_live_conversation_projects_and_rotates_embodied_expression(
