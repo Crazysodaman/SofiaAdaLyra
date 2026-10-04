@@ -8,6 +8,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .presentation import PresentationAuthority
+from .wardrobe_generated_store import (
+    GarmentAcceptanceResult,
+    GeneratedWardrobeStore,
+    SofiaGarmentAcceptance,
+)
 from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
 from .wardrobe_design import (
@@ -65,6 +70,7 @@ class WardrobeStudio:
         *,
         authority: PresentationAuthority | None = None,
         store: PresentationStore | None = None,
+        generated_store: GeneratedWardrobeStore | None = None,
     ) -> None:
         from .wardrobe_prebuild import WardrobePrebuild
 
@@ -76,9 +82,41 @@ class WardrobeStudio:
             raise TypeError("store must be PresentationStore or None")
         if store is not None and authority is None:
             raise ValueError("store requires live presentation authority")
+        if generated_store is not None and not isinstance(
+            generated_store, GeneratedWardrobeStore
+        ):
+            raise TypeError(
+                "generated_store must be GeneratedWardrobeStore or None"
+            )
         self.catalog = catalog
         self.authority = authority
         self.store = store
+        self.generated_store = generated_store
+
+    def decide_generated_piece(
+        self,
+        blueprint: "GarmentBlueprint",
+        acceptance: SofiaGarmentAcceptance,
+    ) -> GarmentAcceptanceResult:
+        """Only Sofía can accept a generated piece into permanent ownership."""
+        from .wardrobe_prebuild import GarmentBlueprint
+
+        if not isinstance(blueprint, GarmentBlueprint):
+            raise TypeError("blueprint must be GarmentBlueprint")
+        if not isinstance(acceptance, SofiaGarmentAcceptance):
+            raise TypeError("acceptance must be SofiaGarmentAcceptance")
+        if any(
+            item.garment.item_id == blueprint.garment.item_id
+            for item in self.catalog.blueprints
+        ):
+            raise WardrobeError("generated garment ID already exists")
+        if self.generated_store is None:
+            if acceptance.requires_persistence:
+                raise WardrobeError(
+                    "accepted generated garment requires generated wardrobe store"
+                )
+            return GarmentAcceptanceResult.from_acceptance(acceptance)
+        return self.generated_store.apply(blueprint, acceptance)
 
     def compose(
         self,

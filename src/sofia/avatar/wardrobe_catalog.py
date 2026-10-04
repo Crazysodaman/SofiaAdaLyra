@@ -8,11 +8,13 @@ texture, renderer asset, or proof that an item is visibly worn.
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 from .wardrobe_prebuild import (DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID,
     FALLBACK_OUTFIT_ID, GarmentBlueprint, WardrobePrebuild, StyleInput, RequestStatus)
 from .wardrobe_loader import _load_wardrobe_data_file
 from .wardrobe import Garment, Wardrobe
+from .wardrobe_generated_store import generated_wardrobe_path
 from .wardrobe_design import ComfortProfile, ContextProfile, EnvironmentProfile, FabricWeight, GarmentDesign, GraphicDesign, HumidityProfile, MaterialProperties, MoistureProfile, MovementProfile, PrecipitationProfile, RatedContext, Suitability, SunlightProfile, TemperatureProfile, TraitLevel, WindProfile, validate_design
 from .wardrobe_planner import Activity, OutfitPlan, Season
 
@@ -708,6 +710,7 @@ def _blueprint(
     *,
     canonical: bool = False,
     apply_starter_profiles: bool = True,
+    provenance: str | None = None,
 ) -> GarmentBlueprint:
     if apply_starter_profiles:
         material_properties, environment, context, comfort = _starter_profiles(
@@ -740,9 +743,13 @@ def _blueprint(
         garment=garment,
         design=design,
         provenance=(
-            "canonical_clothing_design"
-            if canonical
-            else "design_proposal_review_required"
+            provenance
+            if provenance is not None
+            else (
+                "canonical_clothing_design"
+                if canonical
+                else "design_proposal_review_required"
+            )
         ),
     )
 
@@ -751,8 +758,19 @@ def _no_graphic() -> GraphicDesign:
     return GraphicDesign()
 
 
-def build_starter_wardrobe() -> WardrobePrebuild:
-    """Build the owned data-backed wardrobe plus canonical outfit presets."""
+def build_starter_wardrobe(
+    *,
+    state_path: str | Path | None = None,
+) -> WardrobePrebuild:
+    """Build seed wardrobe plus Sofía-accepted generated garments."""
+    generated_blueprints: tuple[GarmentBlueprint, ...] = ()
+    if state_path is not None:
+        generated_path = generated_wardrobe_path(state_path)
+        if generated_path.is_file():
+            generated_blueprints = _load_wardrobe_data_file(
+                generated_path,
+                _blueprint,
+            )
     blueprints = (
         *_load_underlayer_blueprints(),
         *_load_wardrobe_data_file("tops.json", _blueprint),
@@ -760,6 +778,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         *_load_wardrobe_data_file("one_pieces.json", _blueprint),
         *_load_wardrobe_data_file("footwear.json", _blueprint),
         *_load_wardrobe_data_file("outerwear.json", _blueprint),
+        *generated_blueprints,
         _blueprint(
             GarmentDesign(
                 "day.work_socks", "Technical crew socks", "crew_socks",

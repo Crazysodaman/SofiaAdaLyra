@@ -2,6 +2,7 @@
 from __future__ import annotations
 from importlib.resources import files
 import json
+from pathlib import Path
 from .wardrobe import WardrobeError
 from .wardrobe_design import ComfortProfile, ContentRating, ContextProfile, EnvironmentProfile, ExposureZone, FabricWeight, GarmentDesign, GraphicDesign, HumidityProfile, MaterialProperties, MoistureProfile, MovementProfile, PrecipitationProfile, RatedContext, Suitability, SunlightProfile, TemperatureProfile, TraitLevel, WindProfile
 from typing import Callable
@@ -219,8 +220,15 @@ def _profiles_from_json(raw: object) -> tuple[
     )
 
 
-def _load_wardrobe_data_file(filename: str, blueprint_factory: Callable[..., GarmentBlueprint]) -> tuple[GarmentBlueprint, ...]:
-    resource = files("sofia.avatar").joinpath("wardrobe_data", filename)
+def _load_wardrobe_data_file(
+    filename: str | Path,
+    blueprint_factory: Callable[..., GarmentBlueprint],
+) -> tuple[GarmentBlueprint, ...]:
+    resource = (
+        filename
+        if isinstance(filename, Path)
+        else files("sofia.avatar").joinpath("wardrobe_data", filename)
+    )
     try:
         raw = json.loads(resource.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -250,6 +258,9 @@ def _load_wardrobe_data_file(filename: str, blueprint_factory: Callable[..., Gar
         canonical = row.get("canonical", False)
         if type(canonical) is not bool:
             raise WardrobeError("garment canonical flag must be boolean")
+        provenance = row.get("provenance")
+        if provenance is not None and not isinstance(provenance, str):
+            raise WardrobeError("garment provenance must be string or null")
 
         design = GarmentDesign(
             item_id=row.get("item_id"),
@@ -291,6 +302,7 @@ def _load_wardrobe_data_file(filename: str, blueprint_factory: Callable[..., Gar
                 design,
                 canonical=canonical,
                 apply_starter_profiles=False,
+                provenance=provenance,
             )
         )
     return tuple(result)

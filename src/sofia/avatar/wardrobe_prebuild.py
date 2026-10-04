@@ -84,6 +84,7 @@ class GarmentBlueprint:
         if self.provenance not in {
             "canonical_clothing_design",
             "design_proposal_review_required",
+            "sofia_accepted_generated_design",
         }:
             raise WardrobeError("unknown design provenance")
 

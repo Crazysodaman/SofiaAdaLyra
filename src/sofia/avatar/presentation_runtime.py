@@ -235,7 +235,7 @@ def load_or_bootstrap_presentation(
     embodiment: Embodiment,
     state_path: str | Path,
 ) -> PresentationRuntimeBundle:
-    catalog = build_starter_wardrobe()
+    catalog = build_starter_wardrobe(state_path=state_path)
     outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
     store = PresentationStore(Path(state_path))
     _migrate_legacy_presentation_state(
