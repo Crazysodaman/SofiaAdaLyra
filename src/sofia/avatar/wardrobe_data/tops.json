@@ -1742,6 +1742,40 @@
       "description": "A fitted dark-violet technical tank with cyan edging, a clean racerback cut, and breathable fabric for warm-weather wear."
     },
     {
+      "item_id": "top.technical_tank",
+      "name": "Fitted technical tank",
+      "garment_type": "tank_top",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "sleeveless",
+      "material": "breathable performance-knit",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "panelled",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "stretch_panels",
+        "reinforced_seams"
+      ],
+      "style_tags": [
+        "technical",
+        "lab",
+        "engineer",
+        "warm_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "technical",
+      "canonical": false,
+      "description": "A fitted black sleeveless technical tank in breathable performance knit with cyan panel accents, stretch zones, and reinforced seams for warm lab or workshop use."
+    },
+    {
       "item_id": "top.private_strappy_halter",
       "name": "Private strappy halter top",
       "garment_type": "tank_top",
