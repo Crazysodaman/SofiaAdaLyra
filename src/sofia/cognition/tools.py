@@ -219,23 +219,23 @@ class CognitiveToolDispatcher:
             )
         )
 
-    def automatic_read_only_calls(
+    def _automatic_calls_for_levels(
         self,
         authority: Authority,
         *,
         allowed_capabilities: tuple[str, ...],
+        levels: frozenset[PermissionLevel],
+        call_id_prefix: str,
     ) -> tuple[CognitiveToolCall, ...]:
-        """Build host-selected no-argument read-only inspection calls.
-
-        This is used only for turns that the matrix has already classified as
-        explicit tool-assisted inspection/list work. It cannot select mutating
-        capabilities, cannot invent required arguments, and still passes every
-        call through the normal capability gateway/authority checks.
-        """
+        """Build host-selected no-argument calls for explicitly allowed levels."""
         if not isinstance(authority, Authority):
             raise TypeError("authority must be Authority")
         if not isinstance(allowed_capabilities, tuple):
             raise TypeError("allowed_capabilities must be a tuple")
+        if not isinstance(levels, frozenset) or not levels:
+            raise TypeError("levels must be a nonempty frozenset")
+        if not isinstance(call_id_prefix, str) or not call_id_prefix.strip():
+            raise ValueError("call_id_prefix must be a nonempty string")
 
         allowed = set(allowed_capabilities)
         calls: list[CognitiveToolCall] = []
@@ -243,10 +243,7 @@ class CognitiveToolDispatcher:
             capability = binding.capability_name
             if capability not in allowed:
                 continue
-            if (
-                capability_permission_policy(capability).level
-                is not PermissionLevel.OBSERVE_READ
-            ):
+            if capability_permission_policy(capability).level not in levels:
                 continue
             if not authority.can_use_capability(capability):
                 continue
@@ -258,10 +255,48 @@ class CognitiveToolDispatcher:
                 CognitiveToolCall(
                     name=binding.definition.name,
                     arguments={},
-                    call_id=f"host-read:{binding.definition.name}",
+                    call_id=f"{call_id_prefix}:{binding.definition.name}",
                 )
             )
         return tuple(calls)
+
+    def automatic_read_only_calls(
+        self,
+        authority: Authority,
+        *,
+        allowed_capabilities: tuple[str, ...],
+    ) -> tuple[CognitiveToolCall, ...]:
+        """Build host-selected no-argument Level-1 observation calls."""
+        return self._automatic_calls_for_levels(
+            authority,
+            allowed_capabilities=allowed_capabilities,
+            levels=frozenset((PermissionLevel.OBSERVE_READ,)),
+            call_id_prefix="host-read",
+        )
+
+    def automatic_evidence_calls(
+        self,
+        authority: Authority,
+        *,
+        allowed_capabilities: tuple[str, ...],
+    ) -> tuple[CognitiveToolCall, ...]:
+        """Build deterministic zero-argument Level-1/Level-2 evidence calls.
+
+        The matrix must already have selected the capability for the current
+        tool-assisted turn. Level 3+ capabilities are never host-preflighted,
+        and tools with required arguments remain model/operator supplied.
+        """
+        return self._automatic_calls_for_levels(
+            authority,
+            allowed_capabilities=allowed_capabilities,
+            levels=frozenset(
+                (
+                    PermissionLevel.OBSERVE_READ,
+                    PermissionLevel.SAFE_AUTONOMOUS,
+                )
+            ),
+            call_id_prefix="host-auto",
+        )
 
     def tool_result_produces_execution_receipt(
         self,
