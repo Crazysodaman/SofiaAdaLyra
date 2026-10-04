@@ -39,7 +39,7 @@ def test_duplicate_approval_for_same_grant_refused(remote_authorization):
 
 
 def test_human_approval_record_and_aware_time_required():
-    with pytest.raises(ValueError, match="approver"):
+    with pytest.raises(ValueError, match="approving authority"):
         RemoteGrant(uuid4(), uuid4(), "system.inspect", "summary", " ", NOW)
     with pytest.raises(ValueError, match="timezone"):
         RemoteGrant(uuid4(), uuid4(), "system.inspect", "summary", "operator",
