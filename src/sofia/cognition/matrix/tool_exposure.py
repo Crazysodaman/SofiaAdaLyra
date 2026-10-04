@@ -23,6 +23,12 @@ _RUNNING_APP = re.compile(r"\b(?:is|are)\s+[A-Za-z0-9_.-]+\s+running\b|\bwhat(?:
 _HARDWARE = re.compile(r"\b(?:cpu|gpu|ram|memory\s+usage|hardware|sensors?)\b", re.IGNORECASE)
 _NETWORK = re.compile(r"\b(?:network|dns|routes?|interfaces?|packet\s+loss|latency)\b", re.IGNORECASE)
 _NETWORK_HOSTS = re.compile(r"\b(?:computers?|devices?|hosts?|machines?)\b", re.IGNORECASE)
+_OTHER_COMPUTERS = re.compile(
+    r"\b(?:other|known|available)\s+(?:computers?|machines?|hosts?|nodes?|devices?)\b"
+    r"|\b(?:see|know\s+about|access)\s+(?:any\s+)?(?:other\s+)?"
+    r"(?:computers?|machines?|hosts?|nodes?|devices?)\b",
+    re.IGNORECASE,
+)
 _SERVICE = re.compile(r"\bservices?\b", re.IGNORECASE)
 _SYSTEM = re.compile(r"\b(?:system|computer|local\s+host|host\s+status|uptime)\b", re.IGNORECASE)
 _MACHINE = re.compile(r"\b(?:machine|machines|inventory)\b", re.IGNORECASE)
@@ -124,6 +130,15 @@ class MatrixToolExposurePlanner:
             _add(capabilities, "system.inspect")
         if _MACHINE.search(text):
             _add(capabilities, "machine.list", "machine.get", "machine.discover.local")
+        if _OTHER_COMPUTERS.search(text):
+            _add(
+                capabilities,
+                "machine.list",
+                "machine.get",
+                "ops.fleet.list",
+                "ops.fleet.get",
+                "remote.nodes",
+            )
             if _DISCOVER.search(text) and _NETWORK.search(text):
                 _add(capabilities, "ops.fleet.discover")
         if _FLEET.search(text):
