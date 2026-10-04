@@ -19,7 +19,7 @@ from sofia.config.model_catalog import (
 from sofia.environment.model import LocationSubject
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 3
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +68,12 @@ class RuntimeUserSettings:
     weather_max_age_seconds: int = 1800
     indoor_max_age_seconds: int = 900
     current_location_max_age_seconds: int = 900
+
+    fleet_discovery_enabled: bool = False
+    fleet_discovery_interval_seconds: int = 300
+    fleet_discovery_targets: tuple[str, ...] = ()
+    fleet_discovery_scopes: tuple[str, ...] = ()
+    fleet_discovery_max_hosts_per_scope: int = 256
 
     def __post_init__(self) -> None:
         if (
@@ -141,7 +147,12 @@ class RuntimeUserSettings:
                 "cognitive_model_keep_alive must be a nonempty bounded string"
             )
 
-        for name in ("discord_enabled", "home_assistant_enabled", "nws_enabled"):
+        for name in (
+            "discord_enabled",
+            "home_assistant_enabled",
+            "nws_enabled",
+            "fleet_discovery_enabled",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
         for name in (
@@ -258,6 +269,38 @@ class RuntimeUserSettings:
             value = getattr(self, name)
             if type(value) is not int or value <= 0:
                 raise ValueError(f"{name} must be positive")
+
+        for name in (
+            "fleet_discovery_targets",
+            "fleet_discovery_scopes",
+        ):
+            values = getattr(self, name)
+            if not isinstance(values, tuple):
+                raise TypeError(f"{name} must be a tuple")
+            normalized = []
+            for value in values:
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(
+                        f"{name} must contain nonempty strings"
+                    )
+                stripped = value.strip()
+                if stripped not in normalized:
+                    normalized.append(stripped)
+            object.__setattr__(self, name, tuple(normalized))
+        if (
+            type(self.fleet_discovery_interval_seconds) is not int
+            or self.fleet_discovery_interval_seconds < 30
+        ):
+            raise ValueError(
+                "fleet_discovery_interval_seconds must be an int >= 30"
+            )
+        if (
+            type(self.fleet_discovery_max_hosts_per_scope) is not int
+            or not 1 <= self.fleet_discovery_max_hosts_per_scope <= 1024
+        ):
+            raise ValueError(
+                "fleet_discovery_max_hosts_per_scope must be in 1..1024"
+            )
 
     def environment_mapping(self) -> dict[str, str]:
         result = {
@@ -394,7 +437,19 @@ class RuntimeUserSettingsStore:
             if not data.get("location_label") and not data.get("location_timezone"):
                 data["location_label"] = "Home"
                 data["location_timezone"] = "America/Chicago"
+        if version < 4:
+            data["fleet_discovery_enabled"] = False
+            data["fleet_discovery_interval_seconds"] = 300
+            data["fleet_discovery_targets"] = []
+            data["fleet_discovery_scopes"] = []
+            data["fleet_discovery_max_hosts_per_scope"] = 256
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
+        data["fleet_discovery_targets"] = tuple(
+            data.get("fleet_discovery_targets", ())
+        )
+        data["fleet_discovery_scopes"] = tuple(
+            data.get("fleet_discovery_scopes", ())
+        )
         data["location_subject"] = LocationSubject(
             data.get("location_subject", "user")
         )
