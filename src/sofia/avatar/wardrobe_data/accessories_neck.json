@@ -1,0 +1,1118 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_neck",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "neck.01.black_choker",
+      "name": "Black technical choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black technical choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.02.violet_choker",
+      "name": "Violet technical choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet technical choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.03.cyan_line_choker",
+      "name": "Cyan-line choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan-line choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.04.crimson_line_choker",
+      "name": "Crimson-line choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-line choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.05.silver_chain_necklace",
+      "name": "Silver chain necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver chain necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.06.violet_pendant_necklace",
+      "name": "Violet pendant necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet pendant necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.07.circuit_pendant",
+      "name": "Circuit pendant necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Circuit pendant necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.08.minimal_black_necklace",
+      "name": "Minimal black necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal black necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.09.crimson_pendant",
+      "name": "Crimson pendant necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson pendant necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.10.cyan_pendant",
+      "name": "Cyan pendant necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan pendant necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.11.soft_violet_collar",
+      "name": "Soft-violet collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft-violet collar, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.12.black_engineer_collar",
+      "name": "Black engineer collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black engineer collar, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.13.silver_ring_choker",
+      "name": "Silver-ring choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-ring choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.14.violet_ring_choker",
+      "name": "Violet-ring choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet-ring choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.15.black_chain_choker",
+      "name": "Black chain choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black chain choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.16.crimson_chain_necklace",
+      "name": "Crimson chain necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson chain necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.17.cyan_chain_necklace",
+      "name": "Cyan chain necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan chain necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.18.late_night_soft_choker",
+      "name": "Late-night soft choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Late-night soft choker, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.19.matte_panel_collar",
+      "name": "Matte panel collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Matte panel collar, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.20.minimal_violet_necklace",
+      "name": "Minimal violet necklace",
+      "garment_type": "necklace",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal violet necklace, a accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.21.private_lace_choker",
+      "name": "Private lace choker",
+      "garment_type": "choker",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private lace choker, a private accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.22.private_sheer_collar",
+      "name": "Private sheer collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer collar, a private accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.23.private_ring_collar",
+      "name": "Private ring collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private ring collar, a private accessory neck piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "neck.24.private_chain_collar",
+      "name": "Private chain collar",
+      "garment_type": "collar",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_neck",
+      "sleeve_length": null,
+      "material": "soft coated textile and lightweight metal",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_neck",
+        "neck",
+        "jewelry",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private chain collar, a private accessory neck piece designed for Sofía's wardrobe."
+    }
+  ]
+}
