@@ -7,6 +7,13 @@ from pathlib import Path
 from threading import RLock
 
 from sofia.avatar.clothing_action import ClothingActionService
+from sofia.avatar.authoring import WardrobeStudio
+from sofia.avatar.wardrobe_generated_store import (
+    GarmentAcceptanceResult,
+    GeneratedWardrobeStore,
+    SofiaGarmentAcceptance,
+)
+from sofia.avatar.wardrobe_prebuild import GarmentBlueprint
 from sofia.avatar.wardrobe_autonomy import WardrobeAutonomyContext
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -495,6 +502,80 @@ class SofiaApplication:
             wardrobe_context=wardrobe_context,
         )
 
+    def _install_presentation_bundle(
+        self,
+        bundle: PresentationRuntimeBundle,
+    ) -> None:
+        """Install one canonical AVATAR bundle across all live presentation paths."""
+        if not isinstance(bundle, PresentationRuntimeBundle):
+            raise TypeError("bundle must be PresentationRuntimeBundle")
+        self._runtime.set_avatar_presentation(bundle.authority)
+        self._runtime.set_avatar_matrix_builder(bundle.matrix_for)
+        self._presentation_bundle = bundle
+        self._clothing_action_service = ClothingActionService(
+            bundle,
+            context_provider=self._wardrobe_autonomy_context,
+            adult_verified=bool(
+                getattr(
+                    self._configuration,
+                    "avatar_private_adult_verified",
+                    False,
+                )
+            ),
+        )
+        self._conversation_service.set_clothing_action_handler(
+            self._clothing_action_service.handle
+        )
+        self._presentation_routine = HeadlessPresentationRoutine(
+            authority=bundle.authority,
+            store=bundle.store,
+            planner=OutfitPlanner(
+                bundle.catalog.wardrobe,
+                bundle.catalog.presets,
+                designs={
+                    blueprint.garment.item_id: blueprint.design
+                    for blueprint in bundle.catalog.blueprints
+                },
+            ),
+        )
+
+    def decide_generated_wardrobe_piece(
+        self,
+        blueprint: GarmentBlueprint,
+        acceptance: SofiaGarmentAcceptance,
+    ) -> GarmentAcceptanceResult:
+        """Apply Sofía's decision and refresh accepted ownership into live AVATAR."""
+        with self._model_lock:
+            bundle = self._presentation_bundle
+            if bundle is None:
+                raise SofiaApplicationError(
+                    "AVATAR presentation must be started before wardrobe ownership decisions."
+                )
+            studio = WardrobeStudio(
+                bundle.catalog,
+                authority=bundle.authority,
+                store=bundle.store,
+                generated_store=GeneratedWardrobeStore(
+                    self._configuration.state_path
+                ),
+            )
+            result = studio.decide_generated_piece(
+                blueprint,
+                acceptance,
+            )
+            if not result.persisted:
+                return result
+            if self._runtime.embodiment is None:
+                raise SofiaApplicationError(
+                    "AVATAR presentation requires canonical embodiment."
+                )
+            refreshed = load_or_bootstrap_presentation(
+                embodiment=self._runtime.embodiment,
+                state_path=self._configuration.state_path,
+            )
+            self._install_presentation_bundle(refreshed)
+            return result
+
     def _evaluate_contextual_presentation(
         self,
         *,
@@ -714,35 +795,7 @@ class SofiaApplication:
                 embodiment=self._runtime.embodiment,
                 state_path=self._configuration.state_path,
             )
-            self._runtime.set_avatar_presentation(bundle.authority)
-            self._runtime.set_avatar_matrix_builder(bundle.matrix_for)
-            self._presentation_bundle = bundle
-            self._clothing_action_service = ClothingActionService(
-                bundle,
-                context_provider=self._wardrobe_autonomy_context,
-                adult_verified=bool(
-                    getattr(
-                        self._configuration,
-                        "avatar_private_adult_verified",
-                        False,
-                    )
-                ),
-            )
-            self._conversation_service.set_clothing_action_handler(
-                self._clothing_action_service.handle
-            )
-            self._presentation_routine = HeadlessPresentationRoutine(
-                authority=bundle.authority,
-                store=bundle.store,
-                planner=OutfitPlanner(
-                    bundle.catalog.wardrobe,
-                    bundle.catalog.presets,
-                    designs={
-                        blueprint.garment.item_id: blueprint.design
-                        for blueprint in bundle.catalog.blueprints
-                    },
-                ),
-            )
+            self._install_presentation_bundle(bundle)
             # Filter internal database noise in *both* pending awareness and
             # the runtime's cognitive context before the first model call.
             # The unfiltered snapshot stays preserved in the observation store.
