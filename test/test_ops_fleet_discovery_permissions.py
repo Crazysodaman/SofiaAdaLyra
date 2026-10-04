@@ -197,7 +197,7 @@ def _ready_fleet_candidate(service, host_id="worker"):
         observed_endpoint_hostname=f"{host_id}.lan",
         observed_endpoint_port=7443,
         capabilities_verified=True,
-        capability_names=("system.inspect",),
+        capability_names=("system.inspect","ops.telemetry"),
     )
     service.discovery_source = _DiscoverySource((observation,))
     service.discover_candidates()
@@ -303,7 +303,7 @@ def test_rediscovery_refreshes_existing_candidate_evidence(tmp_path):
             observed_endpoint_hostname="worker.lan",
             observed_endpoint_port=7443,
             capabilities_verified=True,
-            capability_names=("system.inspect",),
+            capability_names=("system.inspect","ops.telemetry"),
         ),
     ))
     service = OpsToolService(state, discovery_source=source)
@@ -325,7 +325,7 @@ def test_rediscovery_refreshes_existing_candidate_evidence(tmp_path):
             observed_endpoint_hostname="worker.lan",
             observed_endpoint_port=7443,
             capabilities_verified=True,
-            capability_names=("system.inspect",),
+            capability_names=("system.inspect","ops.telemetry"),
         ),
     )
     result = service.discover_candidates()
