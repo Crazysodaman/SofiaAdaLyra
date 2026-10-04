@@ -1615,6 +1615,21 @@ def test_explicit_read_only_operational_requests_are_tool_assisted(content):
     assert turn.relevance_for(MatrixDomain.OPS) is not MatrixRelevance.NONE
 
 
+def test_explicit_fleet_discovery_is_tool_assisted_and_exposes_discovery():
+    env = envelope("Discover Fleet candidates.")
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+    exposure = MatrixToolExposurePlanner().plan(env, turn, authority)
+
+    assert "ops.fleet.discover" in exposure.capabilities
+
+
 def test_hardware_memory_word_is_not_misclassified_as_autobiographical_memory():
     env = envelope(
         "Inspect this computer's CPU, GPU, memory, storage, network adapters, "
