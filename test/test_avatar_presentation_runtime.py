@@ -179,3 +179,20 @@ def test_unrecognized_invalid_snapshot_still_fails_closed(tmp_path):
             embodiment=embodiment(),
             state_path=state_path,
         )
+
+
+def test_bootstrap_resolves_new_light_lab_tech_outfit(tmp_path):
+    bundle = load_or_bootstrap_presentation(
+        embodiment=embodiment(),
+        state_path=tmp_path / "sofia.db",
+    )
+
+    plan = bundle.catalog.preset("outfit.light_lab_tech")
+    assert "top.technical_tank" in plan.item_ids
+
+    matrix = bundle.matrix_for(plan.item_ids)
+    assert matrix.item_ids == plan.item_ids
+    assert (
+        matrix.as_dict()["torso"]["base"]["garment_id"]
+        == "top.technical_tank"
+    )
