@@ -45,6 +45,7 @@ from sofia.cognition.matrix import (
     ResponseStrategy,
     ResponseValidationDisposition,
     TurnEnvelope,
+    split_multi_question,
 )
 
 
@@ -1598,3 +1599,75 @@ def test_explicit_recall_about_ram_still_keeps_memory_domain():
 def test_physical_body_question_reaches_body_evidence_domain(content):
     result = MatrixCoordinator(registry=default_matrix_registry()).evaluate(envelope(content))
     assert result.relevance_for(MatrixDomain.BODY) is MatrixRelevance.REQUIRED
+
+
+def test_multi_question_turn_merges_matrix_domains_and_tools():
+    content = (
+        "what day is it, what is the computer your on, "
+        "can you see other computers?"
+    )
+    env = envelope(content)
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(env)
+
+    assert split_multi_question(content) == (
+        "what day is it",
+        "what is the computer your on",
+        "can you see other computers",
+    )
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is not MatrixRelevance.NONE
+    assert turn.relevance_for(MatrixDomain.MACHINE) is MatrixRelevance.REQUIRED
+    assert turn.relevance_for(MatrixDomain.OPS) is not MatrixRelevance.NONE
+
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+    exposure = MatrixToolExposurePlanner().plan(env, turn, authority)
+    capabilities = set(exposure.capabilities)
+
+    assert "system.inspect" in capabilities
+    assert "machine.list" in capabilities
+    assert "ops.fleet.list" in capabilities
+    assert "remote.nodes" in capabilities
+    assert "network.discover" not in capabilities
+    assert "ops.fleet.discover" not in capabilities
+
+
+def test_multi_question_splitter_preserves_nonquestion_comma_lists():
+    assert split_multi_question(
+        "what hardware has CPU, GPU, RAM and storage?"
+    ) == ("what hardware has CPU, GPU, RAM and storage",)
+
+
+def test_multi_question_action_keeps_action_authority():
+    content = "what time is it, restart Plex"
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope(content))
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is not MatrixRelevance.NONE
+    assert turn.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+
+
+def test_response_matrix_rejects_internal_reasoning_tool_dump():
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content=(
+                "Okay, I see the tool output.\n\n"
+                "### 1. Analysis of the Tool Result\n"
+                "The tool succeeded.\n"
+                "### 2. Constitutional Evaluation\n"
+                "Now I will draft the response."
+            )
+        ),
+        ResponseContract(
+            authority_decision=AuthorityDecision.NOT_REQUIRED,
+        ),
+        EvidenceMatrix(),
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "internal_reasoning_leak" in result.reasons
