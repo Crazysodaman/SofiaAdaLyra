@@ -179,6 +179,7 @@ _READ_ONLY = frozenset({
 
 _SAFE_AUTONOMOUS = frozenset({
     "machine.refresh.local",
+    "ops.fleet.discover",
     "sqlite.state.backup",
     "sqlite.state.wal_checkpoint",
     "sqlite.state.vacuum",
