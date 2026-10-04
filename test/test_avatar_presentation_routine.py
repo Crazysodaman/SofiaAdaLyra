@@ -295,3 +295,63 @@ def test_afternoon_context_moves_out_of_night_lounge(tmp_path):
     assert result.proposal.outfit_id != "night.lounge"
     assert authority.current.outfit_id != "night.lounge"
     assert "late_lounge" not in result.proposal.reasons
+
+
+def test_contextual_routine_repairs_stale_nonmanual_current_outfit(tmp_path):
+    authority, routine = setup(tmp_path)
+    current = authority.current
+    authority.propose_outfit(
+        operation_id="stale.headless.lounge",
+        expected_revision=current.revision,
+        outfit_id="night.lounge",
+        reason="headless_daily_context:late_lounge,ordinary_rotation",
+        daily=False,
+    )
+    authority.commit_text(
+        operation_id="stale.headless.lounge",
+        renderer_unavailable=True,
+    )
+    assert authority.current.outfit_id == "night.lounge"
+    assert authority.last_daily.outfit_id == "day.default"
+
+    result = routine.evaluate(
+        WardrobeContext(
+            datetime(2026, 10, 4, 15, 42, tzinfo=timezone.utc),
+            Season.AUTUMN,
+            Activity.CONVERSATION,
+        ),
+        operation_id="repair.afternoon.current",
+    )
+
+    assert result.changed
+    assert authority.current.outfit_id != "night.lounge"
+    assert authority.current.outfit_id == result.proposal.outfit_id
+
+
+def test_contextual_routine_preserves_explicit_user_outfit_choice(tmp_path):
+    authority, routine = setup(tmp_path)
+    current = authority.current
+    authority.propose_outfit(
+        operation_id="user.lounge.choice",
+        expected_revision=current.revision,
+        outfit_id="night.lounge",
+        reason="user_clothing_action:wear",
+        daily=False,
+    )
+    authority.commit_text(
+        operation_id="user.lounge.choice",
+        renderer_unavailable=True,
+    )
+
+    result = routine.evaluate(
+        WardrobeContext(
+            datetime(2026, 10, 4, 15, 42, tzinfo=timezone.utc),
+            Season.AUTUMN,
+            Activity.CONVERSATION,
+        ),
+        operation_id="respect.user.choice",
+    )
+
+    assert result.changed is False
+    assert result.reason == "user_outfit_choice_active"
+    assert authority.current.outfit_id == "night.lounge"
