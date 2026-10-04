@@ -12,6 +12,7 @@ from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.machine.hardware import create_hardware_discovery
 from sofia.ops.local_telemetry import collect_local_telemetry
+from sofia.distributed.release_agent import create_agent_release_service_from_environment
 from sofia.system.capability import create_local_system_backend
 from sofia.system.model import SystemCapabilityName,SystemCapabilityRequest
 
@@ -135,5 +136,28 @@ def create_default_agent_dispatcher(
         dispatcher.register("container.manage","restart",lambda p:_plain(
             port.restart(str(p["container"]),timeout_seconds=int(p.get("timeout_seconds",10)))
         ))
+
+    release_service=create_agent_release_service_from_environment()
+    if release_service is not None:
+        dispatcher.register(
+            "release.inspect",
+            "current",
+            lambda p:_plain(release_service.current(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "stage",
+            lambda p:_plain(release_service.stage(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "activate",
+            lambda p:_plain(release_service.activate(dict(p))),
+        )
+        dispatcher.register(
+            "release.manage",
+            "rollback",
+            lambda p:_plain(release_service.rollback(dict(p))),
+        )
 
     return dispatcher

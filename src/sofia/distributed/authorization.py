@@ -27,6 +27,9 @@ REMOTE_MUTATION_HOST_CAPABILITIES = {
     ("llm.manage", "load"): "remote.ollama.load",
     ("llm.manage", "unload"): "remote.ollama.unload",
     ("container.manage", "restart"): "remote.container.restart",
+    ("release.manage", "stage"): "remote.release.stage",
+    ("release.manage", "activate"): "remote.release.activate",
+    ("release.manage", "rollback"): "remote.release.rollback",
 }
 
 
@@ -61,6 +64,7 @@ REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("llm.inspect", "models"),
     ("llm.inspect", "running"),
     ("llm.inspect", "show"),
+    ("release.inspect", "current"),
 })
 
 
