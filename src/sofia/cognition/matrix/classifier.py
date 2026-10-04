@@ -288,8 +288,8 @@ class BaselineTurnClassifier:
                     ),
                     _contribution(
                         MatrixDomain.EMOTION,
-                        MatrixRelevance.RELEVANT,
-                        "current modeled emotion can ground the response",
+                        MatrixRelevance.REQUIRED,
+                        "current modeled emotion is required to ground the response",
                     ),
                 ),
             )
@@ -308,8 +308,8 @@ class BaselineTurnClassifier:
                     ),
                     _contribution(
                         MatrixDomain.EMOTION,
-                        MatrixRelevance.RELEVANT,
-                        "current modeled emotion can inform the reply",
+                        MatrixRelevance.REQUIRED,
+                        "current modeled emotion is required to inform the reply",
                     ),
                 ),
             )
