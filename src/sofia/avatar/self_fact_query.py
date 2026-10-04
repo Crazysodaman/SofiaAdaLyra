@@ -336,7 +336,7 @@ class AvatarSelfFactResolver:
             reason = presentation.reason.casefold()
             pieces = ", ".join(presentation.item_names)
             piece_text = (
-                " Current pieces: " + pieces + "."
+                " I'm wearing " + pieces + "."
                 if pieces
                 else ""
             )
@@ -373,32 +373,32 @@ class AvatarSelfFactResolver:
                 details = reason.split(":", 1)[1].split(",")
                 why = []
                 if "late_lounge" in details:
-                    why.append("the trusted local clock is in the late-lounge window")
+                    why.append("it's in my late-lounge window")
                 if "season_and_activity" in details:
-                    why.append("it matches the grounded season and current activity")
+                    why.append("it fits the current season and what I'm doing")
                 if "modeled_emotion_influence" in details:
-                    why.append("modeled emotion gave it a bounded style preference")
+                    why.append("my current mood nudged me toward it")
                 if "garment_environment_context" in details:
                     why.append(
-                        "the grounded garment and environment context supports it"
+                        "the current conditions suit those pieces"
                     )
                 if "weather_missing_or_stale" in details:
                     why.append(
-                        "current weather evidence was missing or stale and was not trusted"
+                        "I left weather out because the evidence was missing or stale"
                     )
                 if "verified_previous_choice" in details:
                     why.append(
-                        "it remained a verified compatible prior choice"
+                        "it was already a verified compatible choice"
                     )
                 if "ordinary_rotation" in details:
-                    why.append("it was the reviewed daily rotation candidate")
+                    why.append("it was one of my reviewed daily options")
                 if "daytime_default" in details:
-                    why.append("it is the reviewed daytime default")
+                    why.append("it's my reviewed daytime default")
                 if why:
                     return AvatarSelfFactAnswer(
                         True,
                         f"I picked my {outfit} because "
-                        + ", and ".join(why)
+                        + "; ".join(why)
                         + "."
                         + piece_text,
                     )
