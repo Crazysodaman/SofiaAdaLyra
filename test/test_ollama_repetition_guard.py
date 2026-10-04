@@ -548,6 +548,27 @@ def test_future_tense_wave_is_retried_as_present_reciprocal_gesture():
 
 
 
+def test_intra_response_repetition_is_retried_once():
+    repeated = (
+        "I'm ready to tweak the look. What do you think? "
+        "I'm ready to tweak the look. What do you think? "
+        "I'm ready to tweak the look. What do you think? "
+        "I'm ready to tweak the look. What do you think? "
+        "I'm ready to tweak the look. What do you think? "
+        "I'm ready to tweak the look. What do you think? "
+    )
+    repaired = "I'd keep it simple and answer the outfit request directly."
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.USER, "Tell me the outfit."),
+    ))
+    client = _Client(repeated, repaired)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+
+
 def test_quality_retry_failure_uses_grounded_fallback_instead_of_bad_draft():
     bad = "The rain is kissing me and brushing across my skin."
     request = CognitiveRequest(messages=(
