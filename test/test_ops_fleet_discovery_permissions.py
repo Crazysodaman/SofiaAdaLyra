@@ -98,3 +98,34 @@ def test_fleet_discovery_tool_has_no_approval_parameter(tmp_path):
         )
     )
     assert result["configured"] is False
+
+
+def test_network_discovery_does_not_persist_fleet_candidate(tmp_path):
+    now = datetime(2026, 10, 4, 20, 5, tzinfo=timezone.utc)
+    source = _DiscoverySource((
+        FleetDiscoveryEvidence(
+            host_id="printer",
+            hostname="printer",
+            platform="unknown",
+            architecture="unknown",
+            observed_at=now,
+            source="test-network-observation",
+            inside_approved_scope=True,
+        ),
+    ))
+    service = OpsToolService(
+        tmp_path / "sofia.db",
+        discovery_source=source,
+    )
+
+    result = service.discover_network()
+
+    assert result["configured"] is True
+    assert result["observed"][0]["host_id"] == "printer"
+    assert service.host("printer") is None
+
+
+def test_network_discovery_is_level_one_read_only():
+    policy = capability_permission_policy("network.discover")
+    assert policy.level is PermissionLevel.OBSERVE_READ
+    assert policy.standing_grant_allowed is False
