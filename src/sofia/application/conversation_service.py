@@ -527,13 +527,33 @@ class ConversationService(ConversationMatrixMixin):
             channel=channel,
         )
 
+        history = self._conversation_store.list_messages(
+            self._session.id
+        )
+        previous_assistant = next(
+            (
+                message
+                for message in reversed(history[:-1])
+                if message.role is ConversationRole.ASSISTANT
+            ),
+            None,
+        )
+
         generation_handler = getattr(
             self,
             "_wardrobe_generation_handler",
             None,
         )
         if generation_handler is not None:
-            generation_reply = generation_handler(content=content)
+            generation_reply = generation_handler(
+                content=content,
+                previous_assistant_content=(
+                    None
+                    if previous_assistant is None
+                    else previous_assistant.content
+                ),
+                principal=principal,
+            )
             if generation_reply is not None:
                 if (
                     not isinstance(generation_reply, str)
@@ -553,9 +573,6 @@ class ConversationService(ConversationMatrixMixin):
 
         clothing_handler = self._clothing_action_handler
         if clothing_handler is not None:
-            history = self._conversation_store.list_messages(
-                self._session.id
-            )
             previous_user = next(
                 (
                     message
