@@ -33,6 +33,12 @@ class PrivatePresentationGrantResolver:
         self._operator_stop_store = (
             operator_stop_store or OperatorStopStore(state_path)
         )
+        self._last_error: str | None = None
+
+    @property
+    def last_error(self) -> str | None:
+        """Return the latest fail-closed host-evidence lookup failure."""
+        return self._last_error
 
     def resolve(
         self,
@@ -48,18 +54,36 @@ class PrivatePresentationGrantResolver:
         if type(explicit_current_opt_in) is not bool:
             raise TypeError("explicit_current_opt_in must be bool")
 
+        owner_verified = (
+            principal is not None
+            and principal.principal_id == SPARKS_PRINCIPAL_ID
+        )
+        private_session = (
+            principal is not None
+            and principal.audience_kind is AudienceKind.PRIVATE
+        )
+        if not (
+            self._adult_verified
+            and owner_verified
+            and private_session
+            and explicit_current_opt_in
+        ):
+            self._last_error = None
+            return None
+
+        try:
+            external_stop_active = self._operator_stop_store.current().active
+        except Exception as exc:
+            self._last_error = type(exc).__name__
+            return None
+        self._last_error = None
+
         grant = PrivatePresentationGrant(
             adult_verified=self._adult_verified,
-            owner_verified=(
-                principal is not None
-                and principal.principal_id == SPARKS_PRINCIPAL_ID
-            ),
-            private_session=(
-                principal is not None
-                and principal.audience_kind is AudienceKind.PRIVATE
-            ),
+            owner_verified=owner_verified,
+            private_session=private_session,
             explicit_current_opt_in=explicit_current_opt_in,
-            external_stop_active=self._operator_stop_store.current().active,
+            external_stop_active=external_stop_active,
         )
         try:
             grant.require()
