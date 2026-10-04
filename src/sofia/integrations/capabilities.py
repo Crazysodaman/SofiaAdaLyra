@@ -21,6 +21,50 @@ from .ollama import OllamaAdapter
 from .sqlite import SQLiteReadAdapter
 from .storage import StorageAdapter
 
+
+@dataclass(frozen=True)
+class IntegrationToolRegistration:
+    capability: Capability
+    handler: Callable[[CapabilityRequest], Any]
+    binding: CognitiveToolBinding
+
+
+def _tool(
+    name: str,
+    description: str,
+    parameters: dict[str, Any],
+    handler: Callable[[dict[str, Any]], Any],
+) -> IntegrationToolRegistration:
+    capability = Capability(name=name, description=description)
+
+    def execute(request: CapabilityRequest):
+        if request.capability.name != name:
+            raise ValueError("capability mismatch")
+        return handler(dict(request.parameters))
+
+    binding = CognitiveToolBinding(
+        definition=CognitiveToolDefinition(
+            name=name.replace(".", "_"),
+            description=description,
+            parameters=parameters,
+        ),
+        capability_name=name,
+    )
+    return IntegrationToolRegistration(capability, execute, binding)
+
+
+def _object(
+    properties: dict[str, Any] | None = None,
+    required: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": properties or {},
+        "required": required or [],
+        "additionalProperties": False,
+    }
+
+
 def _with_execution_approval(
     registration: IntegrationToolRegistration,
     verifier: ExecutionApprovalVerifier,
