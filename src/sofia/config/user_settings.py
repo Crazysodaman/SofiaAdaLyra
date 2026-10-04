@@ -61,6 +61,7 @@ class RuntimeUserSettings:
 
     nws_enabled: bool = False
     nws_location_subject: LocationSubject = LocationSubject.USER
+    nws_station_id: str | None = "KGKY"
     nws_user_agent: str = "SofiaAdaLyra/1.0"
 
     refresh_seconds: int = 300
@@ -232,6 +233,16 @@ class RuntimeUserSettings:
             object.__setattr__(self, "location_latitude", lat)
             object.__setattr__(self, "location_longitude", lon)
 
+        if self.nws_station_id is not None:
+            station = self.nws_station_id.strip().upper()
+            if (
+                not 3 <= len(station) <= 8
+                or not station.isascii()
+                or not station.isalnum()
+            ):
+                raise ValueError("nws_station_id must be a 3-8 character station ID")
+            object.__setattr__(self, "nws_station_id", station)
+
         if (
             not isinstance(self.nws_user_agent, str)
             or not self.nws_user_agent.strip()
@@ -266,6 +277,9 @@ class RuntimeUserSettings:
             ),
             "SOFIA_ENVIRONMENT_NWS_USER_AGENT": self.nws_user_agent,
         }
+        if self.nws_station_id:
+            result["SOFIA_ENVIRONMENT_NWS_STATION_ID"] = self.nws_station_id
+
         if self.location_label and self.location_timezone:
             result.update(
                 {
