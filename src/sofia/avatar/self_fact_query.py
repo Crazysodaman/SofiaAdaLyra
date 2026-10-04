@@ -116,7 +116,8 @@ class AvatarSelfFactResolver:
     _PRESENTATION_REASON_RE = re.compile(
         r"^why\s+(?:(?:did\s+you\s+(?:pick|choose))|"
         r"(?:are\s+you\s+wearing))\s+(?:that|it)$"
-        r"|^why\s+(?:that|this)\s+(?:one|outfit|choice)$",
+        r"|^why\s+(?:that|this)\s+(?:one|outfit|choice)$"
+        r"|^why\s+(?:the|your)\s+outfit$",
         re.IGNORECASE,
     )
 
@@ -333,6 +334,12 @@ class AvatarSelfFactResolver:
 
         if self._is_presentation_reason_query(normalized):
             reason = presentation.reason.casefold()
+            pieces = ", ".join(presentation.item_names)
+            piece_text = (
+                " Current pieces: " + pieces + "."
+                if pieces
+                else ""
+            )
             if presentation.attire is AttireMode.NUDE:
                 if reason.startswith("user_clothing_action:"):
                     return AvatarSelfFactAnswer(
@@ -377,7 +384,10 @@ class AvatarSelfFactResolver:
                 if why:
                     return AvatarSelfFactAnswer(
                         True,
-                        f"I picked my {outfit} because " + ", and ".join(why) + ".",
+                        f"I picked my {outfit} because "
+                        + ", and ".join(why)
+                        + "."
+                        + piece_text,
                     )
                 return AvatarSelfFactAnswer(
                     True,
@@ -393,6 +403,7 @@ class AvatarSelfFactResolver:
                     (
                         f"My {outfit} is the canonical daily default that bootstraps "
                         "the presentation state when no later grounded choice replaces it."
+                        + piece_text
                     ),
                 )
             return AvatarSelfFactAnswer(
@@ -401,6 +412,7 @@ class AvatarSelfFactResolver:
                     f"My current presentation is my {outfit}, but the persisted "
                     "presentation record does not support a more specific human-readable "
                     "reason. I won't make one up."
+                    + piece_text
                 ),
             )
 
