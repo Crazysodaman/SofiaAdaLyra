@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 
+from sofia.safe.permissions import PermissionLevel, capability_permission_policy
+
 from .model import (
     AuthorityDecision,
     AuthorityPlan,
@@ -81,15 +83,6 @@ class MatrixToolExposurePlanner:
             raise TypeError("turn must be TurnMatrix")
         if not isinstance(authority, AuthorityPlan):
             raise TypeError("authority must be AuthorityPlan")
-
-        if (
-            turn.intent is MatrixIntent.ACTION_REQUEST
-            and authority.decision is not AuthorityDecision.ALLOWED
-        ):
-            return ToolExposurePlan(
-                (),
-                "action tools fail closed until matrix authority allows execution",
-            )
 
         text = envelope.content.strip()
         capabilities: list[str] = []
@@ -238,15 +231,33 @@ class MatrixToolExposurePlanner:
                 if _WRITE.search(text):
                     _add(capabilities, "knowledge.document.write")
 
+        if (
+            turn.intent is MatrixIntent.ACTION_REQUEST
+            and authority.decision is not AuthorityDecision.ALLOWED
+        ):
+            capabilities = [
+                capability
+                for capability in capabilities
+                if capability_permission_policy(capability).level
+                in {
+                    PermissionLevel.OBSERVE_READ,
+                    PermissionLevel.SAFE_AUTONOMOUS,
+                }
+            ]
+
         if not capabilities:
             return ToolExposurePlan(
                 (),
-                "turn has no matrix-relevant cognitive capability exposure",
+                (
+                    "turn has no matrix-relevant capability that is autonomous "
+                    "under the central permission policy"
+                ),
             )
         return ToolExposurePlan(
             tuple(capabilities),
             (
                 "matrix relevance selected a bounded capability allowlist; "
-                "host authority still filters and authorizes execution"
+                "Level-1/2 capabilities remain available without action "
+                "approval while host authority still governs Level-3/4 execution"
             ),
         )
