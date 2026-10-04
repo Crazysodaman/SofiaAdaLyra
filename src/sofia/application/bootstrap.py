@@ -740,6 +740,7 @@ class SofiaApplication:
             self._wardrobe_studio = WardrobeStudio(
                 bundle.catalog,
                 authority=bundle.authority,
+                store=bundle.store,
             )
             self._clothing_action_service = ClothingActionService(
                 bundle,
