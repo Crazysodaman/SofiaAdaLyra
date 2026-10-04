@@ -115,6 +115,7 @@ _READ_ONLY = frozenset({
     "process.inspect",
     "system.inspect",
     "network.inspect",
+    "network.discover",
     "service.inspect",
     "hardware.inspect",
     "machine.list",
