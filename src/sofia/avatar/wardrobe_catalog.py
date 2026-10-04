@@ -1482,6 +1482,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         *_load_wardrobe_data_file("tops.json"),
         *_load_wardrobe_data_file("bottoms.json"),
         *_load_wardrobe_data_file("one_pieces.json"),
+        *_load_wardrobe_data_file("footwear.json"),
         _blueprint(
             GarmentDesign(
                 "day.engineer_jacket", "Asymmetric engineer jacket",
@@ -1508,20 +1509,6 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                 ("day", "engineer", "technical"), False,
                 "Black technical crew socks in moisture-wicking knit with "
                 "subtle crimson trim and reinforced heel and toe zones."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "day.work_boots", "Mid-calf engineer boots", "work_boots",
-                "fitted", None, "mid_calf", None,
-                "matte technical leather and textile", "black", "dark_violet",
-                "solid", _no_graphic(),
-                ("grip_sole", "reinforced_toe", "side_zip"),
-                ("day", "engineer", "technical", "footwear"), False,
-                "Matte black mid-calf engineer boots with dark-violet paneling, "
-                "a compact side zip, reinforced toe, and practical grip sole. "
-                "The shape stays sleek rather than heavy."
             ),
             canonical=True,
         ),

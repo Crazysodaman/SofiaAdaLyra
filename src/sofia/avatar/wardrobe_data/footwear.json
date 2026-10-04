@@ -1,0 +1,1974 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "footwear",
+  "profiles": {
+    "work": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "midweight",
+        "texture": "technical_leather_textile",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 0,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 28,
+          "maximum_c": 36,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [
+            "outdoor"
+          ],
+          "poor": [
+            "formal",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "good": [
+            "casual_public",
+            "office"
+          ],
+          "acceptable": [
+            "home"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "work"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "casual": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 5,
+          "preferred_minimum_c": 14,
+          "preferred_maximum_c": 31,
+          "maximum_c": 38,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "casual_public",
+            "office"
+          ],
+          "acceptable": [
+            "outdoor",
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "athletic": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "performance_mesh",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 5,
+          "preferred_minimum_c": 14,
+          "preferred_maximum_c": 34,
+          "maximum_c": 40,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "excellent"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "exercise"
+          ],
+          "good": [
+            "engineering",
+            "lab"
+          ],
+          "acceptable": [
+            "conversation"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work"
+          ],
+          "acceptable": [
+            "smart_casual"
+          ],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "good",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "high",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "wet_weather": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "midweight",
+        "texture": "sealed_waterproof",
+        "breathability": "low",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 0,
+          "preferred_minimum_c": 8,
+          "preferred_maximum_c": 24,
+          "maximum_c": 30,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "good",
+          "mist": "excellent",
+          "drizzle": "excellent",
+          "rain": "excellent",
+          "heavy_rain": "excellent",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "excellent"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "good",
+          "high": "excellent"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "autumn"
+          ],
+          "good": [
+            "winter",
+            "summer"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "outdoor"
+          ],
+          "good": [],
+          "acceptable": [
+            "home",
+            "casual_public"
+          ],
+          "poor": [
+            "office"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work"
+          ],
+          "acceptable": [
+            "smart_casual"
+          ],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "cold_weather": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "heavy",
+        "texture": "insulated_structured",
+        "breathability": "low",
+        "insulation": "high"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -25,
+          "preferred_minimum_c": -15,
+          "preferred_maximum_c": 5,
+          "maximum_c": 14,
+          "thermal_weight": "heavy"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "excellent",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "excellent"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "winter"
+          ],
+          "good": [
+            "autumn"
+          ],
+          "acceptable": [],
+          "poor": [
+            "summer"
+          ],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work"
+          ],
+          "acceptable": [
+            "smart_casual"
+          ],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "high",
+        "ventilation": "low",
+        "skin_contact": "excellent"
+      }
+    },
+    "outdoor": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "midweight",
+        "texture": "rugged_technical",
+        "breathability": "moderate",
+        "insulation": "moderate"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 5,
+          "preferred_maximum_c": 25,
+          "maximum_c": 32,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "outdoor",
+            "engineering"
+          ],
+          "good": [
+            "exercise",
+            "workshop"
+          ],
+          "acceptable": [
+            "conversation"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "outdoor",
+            "workshop"
+          ],
+          "good": [
+            "casual_public"
+          ],
+          "acceptable": [
+            "home"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work"
+          ],
+          "acceptable": [
+            "smart_casual"
+          ],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "acceptable",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "lounge": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_plush",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 8,
+          "preferred_minimum_c": 16,
+          "preferred_maximum_c": 27,
+          "maximum_c": 33,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "none",
+          "absorbency": "moderate",
+          "wet_comfort": "poor"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "excellent",
+        "outdoor": "poor"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation",
+            "sleep"
+          ],
+          "acceptable": [],
+          "poor": [
+            "engineering",
+            "lab",
+            "outdoor",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "private"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [
+            "casual"
+          ],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "excellent",
+          "active_comfort": "poor"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "excellent"
+      }
+    },
+    "summer": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "open_breathable",
+        "breathability": "high",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 18,
+          "preferred_minimum_c": 24,
+          "preferred_maximum_c": 38,
+          "maximum_c": 44,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "excellent"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "summer"
+          ],
+          "good": [
+            "spring"
+          ],
+          "acceptable": [
+            "autumn"
+          ],
+          "poor": [
+            "winter"
+          ],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work"
+          ],
+          "acceptable": [
+            "smart_casual"
+          ],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "good",
+        "flexibility": "high",
+        "compression": "none",
+        "heat_retention": "none",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "smart": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "light",
+        "texture": "smooth_polished",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 5,
+          "preferred_minimum_c": 12,
+          "preferred_maximum_c": 29,
+          "maximum_c": 35,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "moderate",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "formal"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [
+            "office"
+          ],
+          "poor": [
+            "exercise",
+            "workshop"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "office",
+            "casual_public",
+            "formal_event"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [
+            "workshop",
+            "lab"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "smart_casual",
+            "formal"
+          ],
+          "good": [
+            "work"
+          ],
+          "acceptable": [
+            "casual"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "energetic",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "acceptable",
+          "seated_comfort": "good",
+          "active_comfort": "poor"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "low",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "day.work_boots",
+      "name": "Mid-calf engineer boots",
+      "garment_type": "work_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "mid_calf",
+      "sleeve_length": null,
+      "material": "matte technical leather and textile",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_sole",
+        "reinforced_toe",
+        "side_zip"
+      ],
+      "style_tags": [
+        "day",
+        "engineer",
+        "technical",
+        "footwear"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "work",
+      "canonical": true,
+      "description": "Matte black mid-calf engineer boots with dark-violet paneling, a compact side zip, reinforced toe, and practical grip sole. The shape stays sleek rather than heavy."
+    },
+    {
+      "item_id": "foot.black_everyday_sneakers",
+      "name": "Black everyday sneakers",
+      "garment_type": "sneakers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "soft technical mesh and synthetic suede",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "cushioned_sole"
+      ],
+      "style_tags": [
+        "casual",
+        "everyday",
+        "sneakers"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "Low black everyday sneakers with dark-violet trim, soft technical mesh, and a cushioned flexible sole."
+    },
+    {
+      "item_id": "foot.violet_circuit_sneakers",
+      "name": "Violet circuit sneakers",
+      "garment_type": "sneakers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "breathable technical mesh",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "panelled",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "cushioned_sole",
+        "reflective_piping"
+      ],
+      "style_tags": [
+        "technical",
+        "casual",
+        "sneakers"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "Dark-violet low sneakers with cyan circuit-like panel lines, breathable technical mesh, and subtle reflective piping."
+    },
+    {
+      "item_id": "foot.performance_running_shoes",
+      "name": "Performance running shoes",
+      "garment_type": "running_shoes",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "lightweight performance mesh",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "responsive_sole",
+        "heel_lock"
+      ],
+      "style_tags": [
+        "athletic",
+        "running",
+        "performance"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "athletic",
+      "canonical": false,
+      "description": "Black lightweight running shoes with cyan accents, a responsive sole, breathable mesh upper, and secure heel support."
+    },
+    {
+      "item_id": "foot.black_high_tops",
+      "name": "Black technical high-tops",
+      "garment_type": "high_top_sneakers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "high_ankle",
+      "sleeve_length": null,
+      "material": "technical canvas and mesh",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "padded_collar",
+        "grip_sole"
+      ],
+      "style_tags": [
+        "casual",
+        "high_top",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "Black technical high-top sneakers with crimson hardware, padded collars, breathable mesh panels, and a grippy everyday sole."
+    },
+    {
+      "item_id": "foot.violet_ankle_boots",
+      "name": "Violet ankle boots",
+      "garment_type": "ankle_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "matte synthetic leather",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "side_zip",
+        "low_heel"
+      ],
+      "style_tags": [
+        "casual",
+        "boots",
+        "violet"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "Dark-violet ankle boots with black edging, a compact side zip, and a low stable heel for everyday wear."
+    },
+    {
+      "item_id": "foot.black_combat_boots",
+      "name": "Black combat boots",
+      "garment_type": "combat_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "mid_calf",
+      "sleeve_length": null,
+      "material": "matte technical leather",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "lace_front",
+        "grip_sole",
+        "reinforced_toe"
+      ],
+      "style_tags": [
+        "boots",
+        "rugged",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "work",
+      "canonical": false,
+      "description": "Matte black combat-style boots with dark-violet eyelets, reinforced toes, secure lacing, and a rugged grip sole."
+    },
+    {
+      "item_id": "foot.violet_knee_boots",
+      "name": "Dark-violet knee boots",
+      "garment_type": "knee_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "knee",
+      "sleeve_length": null,
+      "material": "soft structured synthetic leather",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "side_zip",
+        "low_heel"
+      ],
+      "style_tags": [
+        "boots",
+        "knee_high",
+        "smart_casual"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "Dark-violet knee-high boots with black trim, a side zip, and a low stable heel for dressier outfits."
+    },
+    {
+      "item_id": "foot.black_rain_boots",
+      "name": "Black technical rain boots",
+      "garment_type": "rain_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "mid_calf",
+      "sleeve_length": null,
+      "material": "sealed matte waterproof polymer",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "sealed_seams",
+        "grip_sole"
+      ],
+      "style_tags": [
+        "rain",
+        "waterproof",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "wet_weather",
+      "canonical": false,
+      "description": "Matte black mid-calf rain boots with sealed construction, cyan pull tabs, and deep wet-weather grip."
+    },
+    {
+      "item_id": "foot.insulated_winter_boots",
+      "name": "Insulated winter boots",
+      "garment_type": "winter_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "mid_calf",
+      "sleeve_length": null,
+      "material": "insulated waterproof technical textile",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "thermal_lining",
+        "snow_grip"
+      ],
+      "style_tags": [
+        "winter",
+        "insulated",
+        "boots"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cold_weather",
+      "canonical": false,
+      "description": "Black insulated winter boots with crimson accents, waterproof technical shells, warm lining, and snow-ready tread."
+    },
+    {
+      "item_id": "foot.technical_hiking_boots",
+      "name": "Technical hiking boots",
+      "garment_type": "hiking_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "mid_calf",
+      "sleeve_length": null,
+      "material": "rugged breathable technical textile",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ankle_support",
+        "trail_grip"
+      ],
+      "style_tags": [
+        "outdoor",
+        "hiking",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "outdoor",
+      "canonical": false,
+      "description": "Black technical hiking boots with dark-violet hardware, supportive ankle construction, breathable panels, and trail-focused grip."
+    },
+    {
+      "item_id": "foot.soft_violet_slippers",
+      "name": "Soft violet slippers",
+      "garment_type": "slippers",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft plush knit",
+      "primary": "dark_violet",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_sole"
+      ],
+      "style_tags": [
+        "lounge",
+        "soft",
+        "slippers"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "lounge",
+      "canonical": false,
+      "description": "Soft dark-violet indoor slippers with pale-violet lining and a quiet flexible sole for late-night lounging."
+    },
+    {
+      "item_id": "foot.black_house_shoes",
+      "name": "Black house shoes",
+      "garment_type": "house_shoes",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft quilted knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "flexible_sole"
+      ],
+      "style_tags": [
+        "home",
+        "lounge",
+        "house_shoes"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "lounge",
+      "canonical": false,
+      "description": "Simple black quilted house shoes with dark-violet edging and a flexible indoor sole."
+    },
+    {
+      "item_id": "foot.violet_sandals",
+      "name": "Dark-violet summer sandals",
+      "garment_type": "sandals",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft technical straps",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_straps"
+      ],
+      "style_tags": [
+        "summer",
+        "sandals",
+        "casual"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "summer",
+      "canonical": false,
+      "description": "Dark-violet open sandals with cyan hardware, soft adjustable straps, and a light flexible sole for hot weather."
+    },
+    {
+      "item_id": "foot.black_slides",
+      "name": "Black lounge slides",
+      "garment_type": "slides",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft molded technical foam",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "cushioned_footbed"
+      ],
+      "style_tags": [
+        "summer",
+        "lounge",
+        "slides"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "summer",
+      "canonical": false,
+      "description": "Minimal black slides with a dark-violet band and a cushioned molded footbed for warm-weather lounging."
+    },
+    {
+      "item_id": "foot.black_flats",
+      "name": "Black soft flats",
+      "garment_type": "flats",
+      "fit": "fitted",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft matte textile",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "flexible_sole"
+      ],
+      "style_tags": [
+        "smart_casual",
+        "flats",
+        "minimal"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "Minimal black flats with dark-violet piping, soft matte textile uppers, and a flexible low-profile sole."
+    },
+    {
+      "item_id": "foot.violet_loafers",
+      "name": "Dark-violet loafers",
+      "garment_type": "loafers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "matte structured synthetic leather",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "low_profile_hardware"
+      ],
+      "style_tags": [
+        "smart_casual",
+        "loafers",
+        "violet"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "Dark-violet loafers with black soles and restrained hardware for office and smart-casual combinations."
+    },
+    {
+      "item_id": "foot.black_heeled_boots",
+      "name": "Black heeled ankle boots",
+      "garment_type": "heeled_boots",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "matte synthetic leather",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "side_zip",
+        "stable_heel"
+      ],
+      "style_tags": [
+        "smart_casual",
+        "heeled_boots",
+        "black"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "Black ankle boots with a stable medium heel, crimson zipper detail, and a clean matte finish."
+    },
+    {
+      "item_id": "foot.violet_dress_heels",
+      "name": "Dark-violet dress heels",
+      "garment_type": "dress_heels",
+      "fit": "fitted",
+      "rise": null,
+      "length": "foot",
+      "sleeve_length": null,
+      "material": "soft matte structured textile",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "stable_heel",
+        "ankle_strap"
+      ],
+      "style_tags": [
+        "formal",
+        "heels",
+        "violet"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "Dark-violet dress heels with restrained cyan hardware, a stable heel, and a slim ankle strap for formal combinations."
+    },
+    {
+      "item_id": "foot.cyan_accent_training_sneakers",
+      "name": "Cyan-accent training sneakers",
+      "garment_type": "running_shoes",
+      "fit": "fitted",
+      "rise": null,
+      "length": "ankle",
+      "sleeve_length": null,
+      "material": "breathable performance mesh",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "lateral_support",
+        "cushioned_sole"
+      ],
+      "style_tags": [
+        "athletic",
+        "training",
+        "sneakers"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "athletic",
+      "canonical": false,
+      "description": "Black training sneakers with bright cyan accents, lateral support, breathable mesh, and a cushioned sole for gym and active use."
+    }
+  ]
+}
