@@ -84,11 +84,6 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     )
     monkeypatch.setattr(
         bootstrap,
-        "WardrobeStudio",
-        lambda catalog, *, authority=None: None,
-    )
-    monkeypatch.setattr(
-        bootstrap,
         "OutfitPlanner",
         lambda wardrobe, presets: None,
     )

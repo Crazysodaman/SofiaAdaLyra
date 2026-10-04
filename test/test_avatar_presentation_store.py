@@ -190,7 +190,7 @@ def test_persist_mutation_compensates_when_verification_fails(
 
     monkeypatch.setattr(
         store,
-        "snapshot_json",
+        "_read_snapshot_json",
         lambda: json.dumps({"schema": "wrong"}),
     )
 

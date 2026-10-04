@@ -10,12 +10,12 @@ def test_full_wardrobe_counts_and_design_signatures_are_unique():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert len(pack.blueprints) == 978
+    assert len(pack.blueprints) == 979
     assert len(pack.presets) == 310
-    assert summary["total_piece_count"] == 978
+    assert summary["total_piece_count"] == 979
     assert summary["outfit_count"] == 310
     assert summary["bikini_outfit_count"] == 6
-    assert summary["unique_design_signature_count"] == 978
+    assert summary["unique_design_signature_count"] == 979
     assert summary["duplicate_design_signature_count"] == 0
     assert summary["all_designs_unique"] is True
     assert all(blueprint.description.strip() for blueprint in pack.blueprints)

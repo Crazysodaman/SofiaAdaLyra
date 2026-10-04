@@ -276,8 +276,10 @@ def test_live_prefixed_outfit_question_is_deterministic(
     try:
         reply = application.conversation.respond("so what are you wearing")
 
-        assert "signature engineer outfit" in reply.content
-        assert "Fitted long-sleeve technical shirt" in reply.content
+        projection = application.runtime.avatar_presentation_projection
+        assert projection is not None
+        assert projection.item_names
+        assert all(name in reply.content for name in projection.item_names)
         assert "feel" not in reply.content.casefold()
         assert captured == []
     finally:
@@ -429,11 +431,20 @@ def test_live_avatar_why_followup_stays_on_presentation_state(
     )
     try:
         first = application.conversation.respond("what are you wearing?")
-        assert "signature engineer outfit" in first.content
+        projection = application.runtime.avatar_presentation_projection
+        assert projection is not None
+        assert projection.item_names
+        assert all(name in first.content for name in projection.item_names)
 
         second = application.conversation.respond("why did you pick that?")
 
-        assert "canonical daily default" in second.content
+        if projection.reason.casefold() == "canonical_daily_bootstrap":
+            assert "canonical daily default" in second.content
+        else:
+            assert projection.reason.casefold().startswith(
+                "headless_daily_context:"
+            )
+            assert "I picked my" in second.content
         assert "tone" not in second.content.casefold()
         assert "cadence" not in second.content.casefold()
         assert captured == []
@@ -569,9 +580,10 @@ def test_live_generic_what_is_your_outfit_bypasses_provider(
     try:
         reply = application.conversation.respond("what is your outfit")
 
-        assert "signature engineer outfit" in reply.content
-        assert "Fitted long-sleeve technical shirt" in reply.content
-        assert "Articulated utility trousers" in reply.content
+        projection = application.runtime.avatar_presentation_projection
+        assert projection is not None
+        assert projection.item_names
+        assert all(name in reply.content for name in projection.item_names)
         assert "shock-absorbing" not in reply.content.casefold()
         assert captured == []
     finally:

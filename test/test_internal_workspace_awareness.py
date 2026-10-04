@@ -129,10 +129,6 @@ def test_application_filters_before_conversation_open_and_delivery(tmp_path, mon
         lambda *, embodiment, state_path: presentation_bundle,
     )
     monkeypatch.setattr(
-        "sofia.application.bootstrap.WardrobeStudio",
-        lambda catalog, *, authority=None: None,
-    )
-    monkeypatch.setattr(
         "sofia.application.bootstrap.OutfitPlanner",
         lambda wardrobe, presets: None,
     )
