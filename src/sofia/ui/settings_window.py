@@ -1127,6 +1127,35 @@ def run_settings_window() -> int:
                 ),
             )
 
+            current_private_authority = (
+                permission_store.private_adult_authority()
+            )
+            requested_private_authority = (
+                bool(private_chat.get()),
+                bool(adult_chat.get()),
+                bool(adult_avatar.get()),
+                bool(adult_external_delivery.get()),
+            )
+            existing_private_authority = (
+                current_private_authority.private_chat,
+                current_private_authority.adult_chat,
+                current_private_authority.adult_avatar,
+                current_private_authority.adult_external_delivery,
+            )
+            private_authority_changed = (
+                requested_private_authority
+                != existing_private_authority
+            )
+            if private_authority_changed and not messagebox.askyesno(
+                "Change protected private/adult authority?",
+                (
+                    "This changes durable Level-5 authority controlled by "
+                    "Sparks. Apply the selected private/adult permissions?"
+                ),
+                parent=root,
+            ):
+                return
+
             if discord_clear_token.get():
                 secrets.clear("discord-token")
             if discord_token_value:
@@ -1141,6 +1170,15 @@ def run_settings_window() -> int:
                 )
 
             now = datetime.now(timezone.utc)
+            if private_authority_changed:
+                permission_store.set_private_adult_authority(
+                    private_chat=requested_private_authority[0],
+                    adult_chat=requested_private_authority[1],
+                    adult_avatar=requested_private_authority[2],
+                    adult_external_delivery=requested_private_authority[3],
+                    updated_by="Sparks",
+                    now=now,
+                )
             configure_windows_startup(updated.start_with_windows)
             runtime_store.save(runtime_updated, at=now)
             store.save(updated, at=now)
@@ -1166,7 +1204,7 @@ def run_settings_window() -> int:
                 else "No stored token"
             )
             status.set(
-                "Saved. Environment changes apply on the next turn; other runtime/integration changes may still require a restart."
+                "Saved. Permission and private/adult authority changes are durable; environment changes apply on the next turn and some integration changes may require a restart."
             )
         except Exception as exc:
             messagebox.showerror(
