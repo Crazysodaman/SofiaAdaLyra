@@ -1,75 +1,31 @@
-"""Host capability authorization wiring and operator-stop policy."""
+"""Host capability authorization wired to the unified permission policy."""
+from __future__ import annotations
+
 from pathlib import Path
-from sofia.authorization.model import (
-    AuthorizationDecision,
-    AuthorizationDomain,
-    FilesystemAuthorizationOperation,
-)
+
 from sofia.config.model import SofiaConfiguration
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.safe.permissions import (
+    PermissionLevel,
+    PermissionStore,
+    capability_permission_policy,
+)
 
 
-_STOP_SAFE_CAPABILITIES = frozenset({
-    'tool.catalog',
-    'codebase.inspect',
-    'filesystem.changes',
-    'filesystem.inspect',
-    'process.inspect',
-    'system.inspect',
-    'network.inspect',
-    'service.inspect',
-    'hardware.inspect',
-    'storage.roots',
-    'storage.usage',
-    'storage.list',
-    'storage.read_text',
-    'knowledge.search',
-    'knowledge.document',
-    'dev.status',
-    'machine.list',
-    'machine.get',
-    'machine.discover.local',
-    'ops.fleet.list',
-    'ops.fleet.get',
-    'ops.telemetry.latest',
-    'ops.placement.choose',
-    'ops.drift.detect',
-    'ops.migration.plan',
-    'remote.nodes',
-    'remote.process.inspect',
-    'remote.system.inspect',
-    'remote.network.inspect',
-    'remote.service.inspect',
-    'remote.hardware.inspect',
-    'remote.vm.list',
-    'remote.vm.get',
-    'remote.container.list',
-    'remote.container.get',
-    'remote.ollama.inference_policy',
-    'remote.ollama.models',
-    'remote.ollama.running',
-    'remote.ollama.show',
-    'ollama.models',
-    'ollama.running',
-    'ollama.model.show',
-    'sqlite.state.tables',
-    'sqlite.state.query',
-    'sqlite.state.integrity',
-    'home_assistant.services',
-    'home_assistant.states',
-    'home_assistant.state',
-    'portainer.endpoints',
-    'portainer.containers',
-    'portainer.container',
-    'jmri.power',
-    'jmri.roster',
-    'jmri.object',
-    'github.repository',
-    'github.issues',
-    'github.file',
-    'github.pull_requests',
-    'discord.status',
+_FILESYSTEM_READ_OPERATIONS = frozenset({
+    "list_directory",
+    "inspect_path",
+    "read_file",
+    "search_files",
 })
+
+
+def _inside_root(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
 
 
 def create_capability_authorizer(
@@ -78,133 +34,73 @@ def create_capability_authorizer(
     configuration: SofiaConfiguration,
     operator_stop: OperatorStopStore,
 ):
-    """Resolve the current runtime at each authorization check; fail closed."""
+    """Resolve runtime authority at execution time and fail closed."""
     filesystem_root = Path(configuration.filesystem_root)
-    def capability_authorized(
-        request,
-    ) -> bool:
-        runtime = runtime_provider()
+    permission_store = PermissionStore(configuration.state_path)
 
-        if runtime is None:
+    def capability_authorized(request) -> bool:
+        if runtime_provider() is None:
             return False
 
+        name = request.capability.name
+        policy = capability_permission_policy(name)
+
+        # Emergency stop blocks every side effect while leaving observation alive.
         if (
             operator_stop.current().active
-            and request.capability.name not in _STOP_SAFE_CAPABILITIES
+            and policy.level is not PermissionLevel.OBSERVE_READ
         ):
             return False
 
-        if request.capability.name == "codebase.inspect":
-            if (
-                request.capability.name
-                not in configuration.standing_allowed_capabilities
-            ):
-                return False
-
+        # Read-only code/filesystem exploration is automatic, but confined to
+        # Sofía's configured project root. Conversation text can never widen it.
+        if name in {"codebase.inspect", "filesystem.inspect"}:
             requested_scope = request.requested_scope
+            if requested_scope is not None:
+                if not isinstance(requested_scope, Path):
+                    return False
+                if not _inside_root(requested_scope, filesystem_root):
+                    return False
+            if name == "filesystem.inspect":
+                operation = request.parameters.get("operation")
+                if operation not in _FILESYSTEM_READ_OPERATIONS:
+                    return False
+            return True
 
-            if requested_scope is None:
+        if policy.level in (
+            PermissionLevel.OBSERVE_READ,
+            PermissionLevel.SAFE_AUTONOMOUS,
+        ):
+            return True
+
+        parameters = dict(request.parameters)
+        approval_id = parameters.get("approval_id")
+        standing_parameters = {
+            key: value
+            for key, value in parameters.items()
+            if key != "approval_id"
+        }
+
+        if policy.level is PermissionLevel.REVERSIBLE_SCOPED:
+            if permission_store.allows_standing(
+                name,
+                standing_parameters,
+            ):
+                return True
+            if isinstance(approval_id, str) and approval_id.strip():
                 return True
 
-            if not isinstance(requested_scope, Path):
-                return False
+        if policy.level is PermissionLevel.PROTECTED:
+            if isinstance(approval_id, str) and approval_id.strip():
+                return True
 
-            try:
-                return (
-                    requested_scope.resolve()
-                    == filesystem_root.resolve()
-                )
-            except (OSError, RuntimeError):
-                return False
+        # Preserve explicitly configured legacy exposure while subsystem-specific
+        # approval verifiers are migrated to the unified store. This does not
+        # bypass integration/DEV exact-approval checks.
+        if name in configuration.standing_allowed_capabilities:
+            return True
 
-        if request.capability.name != "filesystem.inspect":
-            return (
-                request.capability.name
-                in configuration.standing_allowed_capabilities
-            )
-
-        authorization = runtime.filesystem_authorization
-
-        if authorization is None:
-            return False
-
-        if (
-            authorization.domain
-            is not AuthorizationDomain.FILESYSTEM
-        ):
-            return False
-
-        if (
-            authorization.decision
-            is not AuthorizationDecision.ALLOW
-        ):
-            return False
-
-        configured_root = (
-            filesystem_root.resolve()
-        )
-
-        if (
-            authorization.scope.resolve()
-            != configured_root
-        ):
-            return False
-
-        requested_scope = request.requested_scope
-
-        if requested_scope is not None:
-            if not isinstance(
-                requested_scope,
-                Path,
-            ):
-                return False
-
-            try:
-                resolved_requested_scope = (
-                    requested_scope.resolve()
-                )
-            except (
-                OSError,
-                RuntimeError,
-            ):
-                return False
-
-            if (
-                resolved_requested_scope
-                != authorization.scope.resolve()
-            ):
-                return False
-
-        if request.capability.name == "filesystem.inspect":
-            operation = request.parameters.get(
-                "operation"
-            )
-
-            operation_map = {
-                "list_directory": (
-                    FilesystemAuthorizationOperation.LIST_DIRECTORY
-                ),
-                "inspect_path": (
-                    FilesystemAuthorizationOperation.INSPECT_PATH
-                ),
-                "read_file": (
-                    FilesystemAuthorizationOperation.READ_FILE
-                ),
-                "search_files": (
-                    FilesystemAuthorizationOperation.SEARCH_FILES
-                ),
-            }
-
-            authorized_operation = operation_map.get(
-                operation
-            )
-
-            if authorized_operation is None:
-                return False
-
-            if authorized_operation not in authorization.operations:
-                return False
-
-        return True
+        # Level 5 has no cognitive self-authorization path.
+        return False
 
     return capability_authorized
