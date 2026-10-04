@@ -1711,6 +1711,21 @@ def test_multi_question_turn_merges_matrix_domains_and_tools():
     assert "operational.measurement" in keys
 
 
+def test_multi_question_splitter_handles_explain_and_discover_clauses():
+    assert split_multi_question(
+        "what day is it, explain a database transaction?"
+    ) == (
+        "what day is it",
+        "explain a database transaction",
+    )
+    assert split_multi_question(
+        "what day is it, discover Fleet candidates"
+    ) == (
+        "what day is it",
+        "discover Fleet candidates",
+    )
+
+
 def test_multi_question_splitter_preserves_nonquestion_comma_lists():
     assert split_multi_question(
         "what hardware has CPU, GPU, RAM and storage?"
