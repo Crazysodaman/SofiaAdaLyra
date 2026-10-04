@@ -94,5 +94,5 @@ def test_isolated_offer_scene_reaches_actual_provider_request(monkeypatch, tmp_p
     assert request.tools == ()
     assert request.allow_tools is False
     assert 'CURRENT AVATAR PRESENTATION' in system
-    assert '"outfit_id": "engineer.signature"' in system
+    assert '"outfit_id": "day.default"' in system
     assert not list(tmp_path.iterdir())  # TemporaryDirectory cleanup succeeded.
