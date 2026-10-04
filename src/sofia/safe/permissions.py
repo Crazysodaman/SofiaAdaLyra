@@ -154,6 +154,7 @@ _READ_ONLY = frozenset({
     "portainer.container",
     "portainer.container.stats",
     "portainer.info",
+    "portainer.summary",
     "portainer.images",
     "portainer.volumes",
     "portainer.networks",
