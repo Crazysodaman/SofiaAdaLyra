@@ -51,7 +51,7 @@ def test_human_approval_record_and_aware_time_required():
 
 @pytest.mark.parametrize(
     "operation",
-    ("list", "get", "stats", "info", "summary", "images", "volumes", "networks", "stacks"),
+    ("list", "get", "stats", "logs", "info", "summary", "images", "volumes", "networks", "stacks"),
 )
 def test_remote_docker_inspection_operations_are_level_one_reads(operation):
     assert remote_operation_is_read_only("container.inspect", operation) is True
