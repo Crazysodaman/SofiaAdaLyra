@@ -16,8 +16,10 @@ from sofia.ops import (
     FleetDiscoveryEvidence,
     FleetDiscoveryEnrollmentReconciler,
     FleetRegistry,
+    AuthenticatedPeerEvidence,
     FleetEnrollmentApproval,
     FleetEnrollmentService,
+    MachineNodeBinding,
     AgentPackage,
     BootstrapDisposition,
     InstallAuthority,
@@ -485,3 +487,85 @@ def test_mtls_evidence_marks_bootstrap_candidate_agent_present():
     ).bootstrap_candidate()
 
     assert candidate.agent_present is True
+
+
+def test_fleet_enrollment_service_requires_exact_sparks_approval():
+    registry = FleetRegistry()
+    node_id = UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+    key = "c" * 64
+    candidate = FleetHost(
+        host_id="Terra",
+        platform="linux",
+        architecture="x86_64",
+        lifecycle=HostLifecycle.CANDIDATE,
+        trusted=False,
+        telemetry=None,
+        tags=("discovered",),
+        node_id=None,
+    )
+    registry.register_candidate(candidate)
+    enrollment = NodeEnrollment(
+        DistributedNode(node_id, "Terra"),
+        key,
+        NOW,
+        "Sparks",
+    )
+    binding = MachineNodeBinding(
+        host_id="Terra",
+        node_id=node_id,
+        verified_at=NOW,
+        source="mtls-agent-discovery",
+    )
+    peer = AuthenticatedPeerEvidence(
+        node_id=node_id,
+        public_key_sha256=key,
+        observed_at=NOW,
+        verifier="mtls-agent-discovery",
+    )
+    service = FleetEnrollmentService(registry)
+
+    with pytest.raises(PermissionError, match="exact Sparks approval"):
+        service.enroll(
+            candidate,
+            binding=binding,
+            enrollment=enrollment,
+            peer=peer,
+            approval=None,
+        )
+
+    wrong = FleetEnrollmentApproval(
+        approval_id="fleet-enroll-wrong",
+        host_id="Other",
+        node_id=node_id,
+        public_key_sha256=key,
+        approved_by="Sparks",
+        approved_at=NOW,
+    )
+    with pytest.raises(PermissionError, match="does not match"):
+        service.enroll(
+            candidate,
+            binding=binding,
+            enrollment=enrollment,
+            peer=peer,
+            approval=wrong,
+        )
+
+    approval = FleetEnrollmentApproval(
+        approval_id="fleet-enroll-terra",
+        host_id="Terra",
+        node_id=node_id,
+        public_key_sha256=key,
+        approved_by="Sparks",
+        approved_at=NOW,
+    )
+    enrolled = service.enroll(
+        candidate,
+        binding=binding,
+        enrollment=enrollment,
+        peer=peer,
+        approval=approval,
+    )
+
+    assert enrolled.lifecycle is HostLifecycle.ENROLLED
+    assert enrolled.trusted is True
+    assert enrolled.node_id == node_id
