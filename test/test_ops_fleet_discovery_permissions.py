@@ -1,8 +1,16 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
+import pytest
 
 from sofia.capability.model import CapabilityRequest
 from sofia.ops.capability import OpsCapabilitySet, OpsToolService
 from sofia.ops.discovery import FleetDiscoveryEvidence
+from sofia.safe.execution_approval import (
+    ExecutionApproval,
+    ExecutionApprovalVerifier,
+    execution_fingerprint,
+)
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 
 
@@ -168,3 +176,106 @@ def test_network_discovery_and_fleet_candidate_discovery_are_independent(tmp_pat
     fleet = service.discover_candidates()
     assert fleet["created_host_ids"] == ("worker",)
     assert service.host("worker")["trusted"] is False
+
+
+def _ready_fleet_candidate(service, host_id="worker"):
+    now = datetime.now(timezone.utc)
+    node_id = uuid4()
+    key = "a" * 64
+    observation = FleetDiscoveryEvidence(
+        host_id=host_id,
+        hostname=host_id,
+        platform="linux",
+        architecture="x86_64",
+        observed_at=now,
+        source="verified-mtls-test",
+        inside_approved_scope=True,
+        observed_node_id=node_id,
+        observed_public_key_sha256=key,
+        observed_endpoint_hostname=f"{host_id}.lan",
+        observed_endpoint_port=7443,
+        capabilities_verified=True,
+        capability_names=("system.inspect",),
+    )
+    service.discovery_source = _DiscoverySource((observation,))
+    service.discover_candidates()
+    return now, node_id, key
+
+
+def test_fleet_enrollment_requires_exact_one_time_sparks_approval(tmp_path):
+    state = tmp_path / "sofia.db"
+    service = OpsToolService(state)
+    now, node_id, key = _ready_fleet_candidate(service)
+    parameters = {
+        "host_id": "worker",
+        "node_id": str(node_id),
+        "public_key_sha256": key,
+        "endpoint_hostname": "worker.lan",
+        "endpoint_port": 7443,
+    }
+
+    with pytest.raises(PermissionError, match="approval_id"):
+        service.enroll_candidate({**parameters, "approval_id": ""})
+
+    approval = ExecutionApproval(
+        approval_id="fleet-enroll-worker",
+        capability="fleet.enroll",
+        request_fingerprint=execution_fingerprint(
+            "fleet.enroll",
+            parameters,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    ExecutionApprovalVerifier(state).record(approval)
+
+    enrolled = service.enroll_candidate(
+        {**parameters, "approval_id": approval.approval_id}
+    )
+    assert enrolled["trusted"] is True
+    assert enrolled["lifecycle"] == "enrolled"
+    assert enrolled["node_id"] == str(node_id)
+
+    with pytest.raises(PermissionError, match="already consumed"):
+        service.enroll_candidate(
+            {**parameters, "approval_id": approval.approval_id}
+        )
+
+
+def test_fleet_enrollment_approval_cannot_be_replayed_for_changed_identity(tmp_path):
+    state = tmp_path / "sofia.db"
+    service = OpsToolService(state)
+    now, node_id, key = _ready_fleet_candidate(service)
+    approved = {
+        "host_id": "worker",
+        "node_id": str(node_id),
+        "public_key_sha256": key,
+        "endpoint_hostname": "worker.lan",
+        "endpoint_port": 7443,
+    }
+    approval = ExecutionApproval(
+        approval_id="fleet-enroll-exact",
+        capability="fleet.enroll",
+        request_fingerprint=execution_fingerprint(
+            "fleet.enroll",
+            approved,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    ExecutionApprovalVerifier(state).record(approval)
+
+    with pytest.raises(PermissionError):
+        service.enroll_candidate({
+            **approved,
+            "public_key_sha256": "b" * 64,
+            "approval_id": approval.approval_id,
+        })
+
+
+def test_fleet_enrollment_is_level_four_and_never_standing():
+    policy = capability_permission_policy("fleet.enroll")
+    assert policy.level is PermissionLevel.PROTECTED
+    assert policy.standing_grant_allowed is False
