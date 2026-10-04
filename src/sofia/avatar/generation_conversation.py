@@ -5,6 +5,8 @@ from collections.abc import Callable
 import re
 
 from sofia.cognition.matrix.multi_question import split_multi_question
+from sofia.social.model import PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 from .generated_proposal import GarmentGenerationBrief
 from .wardrobe import WardrobeError
@@ -48,10 +50,18 @@ class WardrobeGenerationConversationService:
             [GarmentGenerationBrief],
             tuple[GarmentBlueprint, GarmentAcceptanceResult],
         ],
+        *,
+        resolve_pending: Callable[
+            [str],
+            tuple[GarmentBlueprint, GarmentAcceptanceResult] | None,
+        ] | None = None,
     ) -> None:
         if not callable(generate):
             raise TypeError("generate must be callable")
+        if resolve_pending is not None and not callable(resolve_pending):
+            raise TypeError("resolve_pending must be callable or None")
         self._generate = generate
+        self._resolve_pending = resolve_pending
 
     @staticmethod
     def brief_for(content: str) -> GarmentGenerationBrief | None:
