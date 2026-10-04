@@ -316,15 +316,6 @@ def create_default_configuration(
         layout.state_path
     ).load()
 
-    configured_capabilities = tuple(
-        value.strip()
-        for value in os.environ.get(
-            "SOFIA_ALLOWED_CAPABILITIES",
-            "",
-        ).split(",")
-        if value.strip()
-    )
-
     environment_values = user_settings.environment_mapping()
     if runtime_mode != "production":
         environment_values.update(
@@ -393,7 +384,6 @@ def create_default_configuration(
         "sqlite.state.query",
         "sqlite.state.integrity",
         *environment_capabilities,
-        *configured_capabilities,
     )))
 
     provider_configuration = ProviderConfiguration(
