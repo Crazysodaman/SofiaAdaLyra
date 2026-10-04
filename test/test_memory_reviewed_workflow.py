@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.memory.conversation_originals import ConversationOriginalRetriever
+from sofia.memory.originals import ConversationOriginalRetriever
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.memory.reviewed_workflow import ReviewedMemoryWorkflow
 

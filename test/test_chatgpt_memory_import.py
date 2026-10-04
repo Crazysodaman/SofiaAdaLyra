@@ -12,7 +12,6 @@ from sofia.memory.chatgpt_migration import ChatGPTMemoryMigrationService
 from sofia.memory.import_chatgpt import main as import_chatgpt_main
 from sofia.memory.provenance import CandidateStatus
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.store import MemoryStore
 from sofia.memory.system import MemorySystem
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID, local_sparks_principal
@@ -125,9 +124,7 @@ def test_import_proposes_sparks_scoped_memory_without_cognitive_visibility(
         )
         assert migration.candidates.status(candidate_id) is CandidateStatus.PROPOSED
 
-    memory_store = MemoryStore(state_path)
     memory = MemorySystem(
-        memory_store,
         candidate_store=migration.candidates,
     )
     assert memory.recall_relevant(
@@ -135,7 +132,6 @@ def test_import_proposes_sparks_scoped_memory_without_cognitive_visibility(
         principal=local_sparks_principal(),
     ) == ()
 
-    memory_store.close()
     migration.close()
     store.close()
 
@@ -163,9 +159,7 @@ def test_explicit_sparks_promotion_enters_reviewed_retrieval_and_survives_restar
     store.close()
 
     candidate_store = DurableMemoryCandidateStore(state_path)
-    memory_store = MemoryStore(state_path)
     memory = MemorySystem(
-        memory_store,
         candidate_store=candidate_store,
     )
 

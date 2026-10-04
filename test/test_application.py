@@ -125,7 +125,8 @@ def test_production_application_composes_live_interact_memory_act_environment_an
         application.conversation,
         OptInInteractionConversationService,
     )
-    assert application.runtime.memory_system.uses_reviewed_memory is True
+    from sofia.memory.provenance_store import DurableMemoryCandidateStore
+    assert isinstance(application.runtime.memory_system.candidate_store, DurableMemoryCandidateStore)
     assert isinstance(application.act, SofiaActService)
     assert application.runtime.environment_service is not None
 

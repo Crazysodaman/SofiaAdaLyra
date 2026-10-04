@@ -1,4 +1,4 @@
-"""Read-only, session-scoped original-message selection for future PKG-MEM.
+"""Read-only, session-scoped exact conversation originals.
 
 This module never reads a database, promotes a memory, or authenticates users.
 The caller must establish an authorized session before passing its originals.
@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Iterable
 
 from sofia.conversation.model import ConversationMessage
+from sofia.conversation.store import ConversationStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,3 +92,47 @@ def project_originals(
             selected.append(original)
             remaining -= len(original.content)
     return RetrievalProjection(tuple(selected), tuple(omitted), tuple(missing), budget_characters)
+
+
+@dataclass(frozen=True, slots=True)
+class OriginalRetrievalRequest:
+    """A bounded request for originals inside one already-authorized session."""
+
+    session_id: str
+    message_ids: tuple[str, ...]
+    budget_characters: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.session_id, str) or not self.session_id.strip():
+            raise ValueError("session_id must be a nonempty string")
+        if not isinstance(self.message_ids, tuple):
+            raise TypeError("message_ids must be a tuple")
+        if any(not isinstance(item, str) or not item.strip() for item in self.message_ids):
+            raise ValueError("message_ids must contain nonempty strings")
+        if type(self.budget_characters) is not int or self.budget_characters < 0:
+            raise ValueError("budget_characters must be a nonnegative integer")
+
+
+class ConversationOriginalRetriever:
+    """Read exact originals from one persisted conversation session only."""
+
+    def __init__(self, store: ConversationStore) -> None:
+        if not isinstance(store, ConversationStore):
+            raise TypeError("store must be a ConversationStore")
+        self._store = store
+
+    def retrieve(self, request: OriginalRetrievalRequest) -> RetrievalProjection:
+        if not isinstance(request, OriginalRetrievalRequest):
+            raise TypeError("request must be an OriginalRetrievalRequest")
+
+        # Fail closed instead of treating an unknown session as an empty memory.
+        if self._store.get_session(request.session_id) is None:
+            raise LookupError("authorized conversation session does not exist")
+
+        originals = self._store.list_messages(request.session_id)
+        return project_originals(
+            session_id=request.session_id,
+            originals=originals,
+            requested_ids=request.message_ids,
+            budget_characters=request.budget_characters,
+        )

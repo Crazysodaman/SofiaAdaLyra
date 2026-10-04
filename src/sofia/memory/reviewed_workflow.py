@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sofia.memory.conversation_originals import ConversationOriginalRetriever, OriginalRetrievalRequest
+from sofia.memory.originals import ConversationOriginalRetriever, OriginalRetrievalRequest
 from sofia.memory.provenance import MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.social.store import SocialSessionStore

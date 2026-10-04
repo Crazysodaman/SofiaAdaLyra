@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 from sofia.conversation.model import ConversationMessage, ConversationRole
-from sofia.memory.retrieval_projection import project_originals
+from sofia.memory.originals import project_originals
 
 T = datetime(2026, 9, 21, tzinfo=timezone.utc)
 

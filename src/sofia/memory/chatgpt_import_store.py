@@ -180,19 +180,6 @@ class ChatGPTMemoryImportStore:
             ),
         )
 
-    def has_batch(self, source_digest: str) -> bool:
-        if not isinstance(source_digest, str) or not source_digest.strip():
-            raise ValueError("source_digest must be a nonempty string")
-        with self._lock:
-            row = self._require_connection().execute(
-                """
-                SELECT 1
-                FROM chatgpt_memory_import_batch
-                WHERE source_digest = ?
-                """,
-                (source_digest,),
-            ).fetchone()
-        return row is not None
 
     def original_payload(self, source_digest: str) -> str | None:
         if not isinstance(source_digest, str) or not source_digest.strip():

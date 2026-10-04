@@ -1,10 +1,14 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import uuid4
 from pathlib import Path
 
 import pytest
 
 from sofia.memory.model import MemoryRecord
+from sofia.memory.provenance import MemoryCandidate
+from sofia.memory.originals import SourceMessage
+from sofia.social.principals import local_sparks_principal
 from sofia.cognition.engine import CognitiveEngine
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.providers.test_provider import TestLLMProvider
@@ -414,7 +418,7 @@ def test_composition_passes_state_path_to_memory_store(
 
     runtime = compose(configuration)
 
-    memory_store = runtime.memory_system._store
+    memory_store = runtime.memory_system.candidate_store
 
     assert memory_store._database_path == configuration.state_path
 
@@ -440,21 +444,22 @@ def test_composed_runtime_preserves_memory_across_composition(
 
     first_runtime = compose(first_configuration)
 
-    memory = MemoryRecord(
-        id="memory-1",
-        content="Sofía's memory survives composition.",
-        created_at=datetime.now(),
+    now = datetime.now(timezone.utc)
+    principal = local_sparks_principal()
+    candidate = MemoryCandidate(
+        candidate_id=uuid4(),
+        content="Reviewed memory survives composition.",
+        sources=(SourceMessage("message-1", "session-1", "user", "exact source", now, 0),),
+        created_at=now,
+        principal_id=principal.principal_id,
+        audience_id=principal.audience_id,
     )
-
-    first_runtime.memory_system.remember(memory)
+    candidates = first_runtime.memory_system.candidate_store
+    candidates.propose(candidate)
+    candidates.promote(candidate.candidate_id)
+    first_runtime.memory_system.close()
 
     second_runtime = compose(first_configuration)
-
-    retrieved = second_runtime.memory_system.recall(
-        "memory-1"
-    )
-
-    assert retrieved is not None
-    assert retrieved.id == memory.id
-    assert retrieved.content == memory.content
-    assert retrieved.created_at == memory.created_at
+    retrieved = second_runtime.memory_system.recall_relevant("Reviewed memory", principal=principal)
+    assert retrieved == (MemoryRecord(str(candidate.candidate_id), candidate.content, now),)
+    second_runtime.memory_system.close()

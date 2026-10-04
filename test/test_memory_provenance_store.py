@@ -6,7 +6,7 @@ import pytest
 
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.retrieval_projection import SourceMessage
+from sofia.memory.originals import SourceMessage
 
 
 def candidate():

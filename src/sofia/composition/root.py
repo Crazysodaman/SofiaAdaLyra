@@ -39,7 +39,6 @@ from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
-from sofia.memory.store import MemoryStore
 from sofia.knowledge.access import KnowledgeAccessStore
 from sofia.knowledge.capability import KnowledgeCapabilitySet,create_knowledge_tool_bindings
 from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
@@ -149,16 +148,11 @@ def compose(
         Path(configuration.avatar_path)
     )
 
-    memory_store = MemoryStore(
-        configuration.state_path
-    )
-
     memory_candidate_store = DurableMemoryCandidateStore(
         configuration.state_path
     )
 
     memory_system = MemorySystem(
-        memory_store,
         candidate_store=memory_candidate_store,
         historical_store=ChatGPTExportEvidenceStore(
             configuration.state_path
