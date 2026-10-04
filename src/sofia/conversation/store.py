@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 from threading import RLock
@@ -54,7 +54,11 @@ class ConversationStore:
                 check_same_thread=False,
             )
 
-            self._initialize_database()
+            try:
+                self._initialize_database()
+            except BaseException:
+                self.close()
+                raise
 
     def _initialize_database(self) -> None:
         connection = self._require_connection()
@@ -86,27 +90,25 @@ class ConversationStore:
     def create_session(self) -> ConversationSession:
         with self._lock:
             connection = self._require_connection()
+            with connection:
+                now = datetime.now(timezone.utc)
+                session_id = str(uuid4())
 
-            now = datetime.now(timezone.utc)
-            session_id = str(uuid4())
-
-            connection.execute(
-                """
-                INSERT INTO conversation_sessions (
-                    id,
-                    created_at,
-                    updated_at
+                connection.execute(
+                    """
+                    INSERT INTO conversation_sessions (
+                        id,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?)
+                    """,
+                    (
+                        session_id,
+                        now.isoformat(),
+                        now.isoformat(),
+                    ),
                 )
-                VALUES (?, ?, ?)
-                """,
-                (
-                    session_id,
-                    now.isoformat(),
-                    now.isoformat(),
-                ),
-            )
-
-            connection.commit()
 
         return ConversationSession(
             id=session_id,
@@ -145,47 +147,45 @@ class ConversationStore:
     ) -> None:
         with self._lock:
             connection = self._require_connection()
-
-            connection.execute(
-                """
-                INSERT INTO conversation_messages (
-                    id,
-                    session_id,
-                    role,
-                    content,
-                    created_at
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO conversation_messages (
+                        id,
+                        session_id,
+                        role,
+                        content,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        session_id = excluded.session_id,
+                        role = excluded.role,
+                        content = excluded.content,
+                        created_at = excluded.created_at
+                    """,
+                    (
+                        message.id,
+                        message.session_id,
+                        message.role.value,
+                        message.content,
+                        message.created_at.isoformat(),
+                    ),
                 )
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    session_id = excluded.session_id,
-                    role = excluded.role,
-                    content = excluded.content,
-                    created_at = excluded.created_at
-                """,
-                (
-                    message.id,
-                    message.session_id,
-                    message.role.value,
-                    message.content,
-                    message.created_at.isoformat(),
-                ),
-            )
 
-            connection.execute(
-                """
-                UPDATE conversation_sessions
-                SET updated_at = ?
-                WHERE id = ?
-                AND updated_at < ?
-                """,
-                (
-                    message.created_at.isoformat(),
-                    message.session_id,
-                    message.created_at.isoformat(),
-                ),
-            )
-
-            connection.commit()
+                connection.execute(
+                    """
+                    UPDATE conversation_sessions
+                    SET updated_at = ?
+                    WHERE id = ?
+                    AND updated_at < ?
+                    """,
+                    (
+                        message.created_at.isoformat(),
+                        message.session_id,
+                        message.created_at.isoformat(),
+                    ),
+                )
 
     def list_messages(
         self,
