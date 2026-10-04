@@ -12,6 +12,9 @@ from sofia.avatar.generated_proposal import (
     GarmentGenerationBrief,
     GeneratedGarmentProposalService,
 )
+from sofia.avatar.generation_conversation import (
+    WardrobeGenerationConversationService,
+)
 from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
 from sofia.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
@@ -217,6 +220,9 @@ class SofiaApplication:
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._presentation_routine: HeadlessPresentationRoutine | None = None
         self._clothing_action_service: ClothingActionService | None = None
+        self._wardrobe_generation_service: (
+            WardrobeGenerationConversationService | None
+        ) = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
             conversation=self._conversation_service,
@@ -320,6 +326,15 @@ class SofiaApplication:
         if clothing_actions is not None:
             service.set_clothing_action_handler(
                 clothing_actions.handle
+            )
+        wardrobe_generation = getattr(
+            self,
+            "_wardrobe_generation_service",
+            None,
+        )
+        if wardrobe_generation is not None:
+            service.set_wardrobe_generation_handler(
+                wardrobe_generation.handle
             )
         try:
             service.open()
@@ -530,6 +545,14 @@ class SofiaApplication:
         )
         self._conversation_service.set_clothing_action_handler(
             self._clothing_action_service.handle
+        )
+        self._wardrobe_generation_service = (
+            WardrobeGenerationConversationService(
+                self.generate_wardrobe_piece_from_brief
+            )
+        )
+        self._conversation_service.set_wardrobe_generation_handler(
+            self._wardrobe_generation_service.handle
         )
         self._presentation_routine = HeadlessPresentationRoutine(
             authority=bundle.authority,
