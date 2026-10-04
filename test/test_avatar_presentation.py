@@ -242,3 +242,29 @@ def test_restore_accepts_legacy_dynamic_snapshot_without_private_flag():
     )
 
     assert "dynamic.chat.legacy" in restored.available_outfit_ids
+
+
+
+@pytest.mark.parametrize(
+    "finished",
+    (
+        ["bad operation id"],
+        ["op.same", "op.same"],
+    ),
+)
+def test_restore_rejects_invalid_finished_operation_history(finished):
+    a = authority()
+    snapshot = a.snapshot()
+    snapshot["finished"] = finished
+
+    catalog = build_starter_wardrobe()
+    outfits = {
+        plan.outfit_id: plan.item_ids
+        for plan in catalog.presets
+    }
+    with pytest.raises(PresentationError):
+        PresentationAuthority.restore(
+            catalog.wardrobe,
+            outfits=outfits,
+            snapshot=snapshot,
+        )
