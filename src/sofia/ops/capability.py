@@ -13,7 +13,7 @@ from .desired import Drift,DesiredHostState,DesiredWorkloadPlacement,detect_drif
 from .desired_store import DesiredFleetStateStore
 from .enrollment import FleetEnrollmentService
 from .history import SQLiteTelemetryHistory
-from .migration import MigrationPlan
+from sofia.ops.workload import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
 from .state_registry import StatePlaneFleetRegistry
 from .placement import PlacementEngine

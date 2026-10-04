@@ -7,9 +7,6 @@ from uuid import UUID
 class HostLifecycle(str,Enum):
     CANDIDATE="candidate"; ENROLLED="enrolled"; HEALTHY="healthy"; DEGRADED="degraded"; MAINTENANCE="maintenance"; DRAINING="draining"; QUARANTINED="quarantined"; OFFLINE="offline"; DECOMMISSIONED="decommissioned"
 
-class WorkloadState(str,Enum):
-    STOPPED="stopped"; STARTING="starting"; READY="ready"; DRAINING="draining"; FAILED="failed"
-
 @dataclass(frozen=True)
 class HostTelemetry:
     observed_at:datetime

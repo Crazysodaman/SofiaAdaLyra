@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 from uuid import UUID
 
-from sofia.ops.approval import FleetRemovalApproval
+from sofia.ops.fleet import FleetRemovalApproval
 from sofia.ops.fleet import FleetRegistry
 from sofia.ops.model import FleetHost, HostLifecycle, HostTelemetry
-from sofia.ops.persistence import JsonFleetRegistry
+from sofia.state.atomic_file import retire_legacy_file
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane
 
@@ -59,8 +59,7 @@ class StatePlaneFleetRegistry(FleetRegistry):
         ).encode("utf-8")
 
     @staticmethod
-    def _decode(record: StateRecord) -> FleetHost:
-        raw = json.loads(record.value.decode("utf-8"))
+    def _decode_payload(raw: dict) -> FleetHost:
         telemetry = raw.get("telemetry")
         if telemetry is not None:
             telemetry["observed_at"] = datetime.fromisoformat(
@@ -82,6 +81,10 @@ class StatePlaneFleetRegistry(FleetRegistry):
             ),
         )
 
+    @classmethod
+    def _decode(cls, record: StateRecord) -> FleetHost:
+        return cls._decode_payload(json.loads(record.value.decode("utf-8")))
+
     def _load(self) -> None:
         self._hosts = {
             host.host_id: host
@@ -92,14 +95,29 @@ class StatePlaneFleetRegistry(FleetRegistry):
         }
 
     def _import_legacy_if_needed(self) -> None:
-        if self._hosts:
-            return
         if self.legacy_path is None or not self.legacy_path.is_file():
             return
-        legacy = JsonFleetRegistry(self.legacy_path)
-        for host in legacy.hosts():
-            self._hosts[host.host_id] = host
+        raw = json.loads(self.legacy_path.read_text(encoding="utf-8"))
+        hosts = tuple(self._decode_payload(item) for item in raw.get("hosts", []))
+        if len({host.host_id for host in hosts}) != len(hosts):
+            raise ValueError("duplicate host in legacy Fleet registry")
+        for host in hosts:
+            key = StateKey(namespace=self.NAMESPACE, key=host.host_id)
+            existing = self.state_plane.read(key)
+            if existing is not None:
+                # Canonical later observations win; partial imports must match.
+                if existing.source == "legacy-json:fleet" and self._decode(existing) != host:
+                    raise ValueError("conflicting partial legacy Fleet import")
+                continue
             self._persist(host, source="legacy-json:fleet")
+            self._hosts[host.host_id] = host
+        for host in hosts:
+            record = self.state_plane.read(StateKey(namespace=self.NAMESPACE, key=host.host_id))
+            if record is None:
+                raise RuntimeError("legacy Fleet import did not verify")
+            if record.source == "legacy-json:fleet" and self._decode(record) != host:
+                raise ValueError("conflicting partial legacy Fleet import")
+        retire_legacy_file(self.legacy_path)
 
     def _persist(
         self,
