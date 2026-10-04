@@ -33,6 +33,7 @@ class OpsToolService:
         *,
         state_plane:StatePlane|None=None,
         discovery_source=None,
+        network_discovery_source=None,
     )->None:
         plane=state_plane or SQLiteStatePlane(state_path)
         self.registry=StatePlaneFleetRegistry(
@@ -52,6 +53,7 @@ class OpsToolService:
         self.workloads=WorkloadInstanceStore(state_path)
         self.reconciliation_journal=FleetReconciliationJournal(state_path)
         self.discovery_source=discovery_source
+        self.network_discovery_source=network_discovery_source
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -86,9 +88,9 @@ class OpsToolService:
 
     def discover_network(self)->dict[str,Any]:
         """Observe configured network scopes without changing Fleet membership."""
-        if self.discovery_source is None:
+        if self.network_discovery_source is None:
             return {"configured":False,"observed":()}
-        observations=self.discovery_source.discover()
+        observations=self.network_discovery_source.discover()
         return {
             "configured":True,
             "observed":tuple({
