@@ -13,7 +13,7 @@ from hashlib import sha256
 import json
 import re
 
-from .body_contract import DEFAULT_FIT_ANCHORS
+from .authoring import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from .wardrobe_planner import Activity, OutfitPlan, Season, Weather
 

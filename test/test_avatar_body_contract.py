@@ -2,7 +2,7 @@
 import dataclasses
 import pytest
 
-from sofia.avatar.body_contract import (
+from sofia.avatar.authoring import (
     AuthoringLandmark, BodyAuthoringContract, BodyContractError, BodyRegion,
     DEFAULT_FIT_ANCHORS, FitAnchor, REGION_TO_SLOTS,
 )
