@@ -1,8 +1,13 @@
 """Avatar A0 metadata fixtures, not geometry/cloth simulation/age verification."""
 import pytest
-from sofia.avatar import (
-    Garment, Layer, Outfit, Wardrobe, WardrobeConflict,
-    WardrobeError, VisibilityDenied,
+from sofia.avatar.wardrobe import (
+    Garment,
+    Layer,
+    Outfit,
+    VisibilityDenied,
+    Wardrobe,
+    WardrobeConflict,
+    WardrobeError,
 )
 
 
