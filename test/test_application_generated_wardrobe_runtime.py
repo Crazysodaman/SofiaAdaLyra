@@ -304,3 +304,71 @@ def test_brief_generation_and_independent_acceptance_are_two_cognition_steps(
         bp.garment.item_id == blueprint.garment.item_id
         for bp in app._presentation_bundle.catalog.blueprints
     )
+
+
+def test_pending_sparks_input_causes_new_sofia_decision_before_ownership(
+    tmp_path,
+):
+    state_path = tmp_path / "sofia.db"
+    embodiment = EmbodimentStore(AVATAR_PATH).load()
+    bundle = load_or_bootstrap_presentation(
+        embodiment=embodiment,
+        state_path=state_path,
+    )
+    runtime = _SequenceRuntime(
+        embodiment,
+        responses=(
+            (
+                '{"decision":"ask_sparks","reason":'
+                '"I like it, but I want Sparks\' opinion before deciding."}'
+            ),
+            (
+                '{"decision":"accept","reason":'
+                '"After hearing Sparks, I do want to keep this one."}'
+            ),
+        ),
+    )
+
+    app = object.__new__(SofiaApplication)
+    app._model_lock = RLock()
+    app._configuration = SimpleNamespace(
+        state_path=state_path,
+        avatar_private_adult_verified=False,
+    )
+    app._runtime = runtime
+    app._conversation_service = _Conversation()
+    app._presentation_bundle = bundle
+    app._presentation_routine = None
+    app._clothing_action_service = None
+    app._wardrobe_generation_service = None
+
+    first = app.evaluate_generated_wardrobe_piece(
+        _draft(bundle.catalog)
+    )
+    pending = app.pending_generated_wardrobe_piece()
+
+    assert first.decision is SofiaGarmentDecision.ASK_SPARKS
+    assert first.persisted is False
+    assert pending is not None
+    assert pending.blueprint.garment.item_id == (
+        "generated.sofia.live_refresh_tee"
+    )
+
+    resolved = app.resolve_pending_generated_wardrobe_piece(
+        "Yeah, I think that one suits you."
+    )
+
+    assert resolved is not None
+    blueprint, result = resolved
+    assert blueprint.garment.item_id == "generated.sofia.live_refresh_tee"
+    assert result.decision is SofiaGarmentDecision.ACCEPT
+    assert result.persisted is True
+    assert app.pending_generated_wardrobe_piece() is None
+    assert len(runtime.decision_requests) == 2
+    second_system = "\n".join(
+        message.content
+        for message in runtime.decision_requests[1].messages
+        if message.role.value == "system"
+    )
+    assert "SPARKS PREFERENCE INPUT" in second_system
+    assert "does not force ownership" in second_system
