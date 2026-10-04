@@ -141,3 +141,82 @@ def test_store_wraps_denied_restored_snapshot_as_store_error(tmp_path):
 
     with pytest.raises(PresentationStoreError, match="invalid"):
         store.load(catalog.wardrobe, outfits=outfits)
+
+
+
+def test_persist_mutation_rolls_back_live_authority_when_save_fails(
+    tmp_path,
+    monkeypatch,
+):
+    catalog, outfits, authority = setup_authority()
+    store = PresentationStore(tmp_path / "sofia.db")
+    store.save(authority)
+    before = authority.snapshot()
+
+    def fail_save(_authority):
+        raise PresentationStoreError("synthetic durable failure")
+
+    monkeypatch.setattr(store, "save", fail_save)
+
+    def mutate():
+        authority.propose_outfit(
+            operation_id="op.synthetic.failure",
+            expected_revision=authority.current.revision,
+            outfit_id="lounge.relaxed",
+            reason="synthetic failure",
+            daily=True,
+        )
+        return authority.commit_text(
+            operation_id="op.synthetic.failure",
+            renderer_unavailable=True,
+        )
+
+    with pytest.raises(PresentationStoreError, match="synthetic"):
+        store.persist_mutation(authority, mutate)
+
+    assert authority.snapshot() == before
+    assert authority.pending is None
+
+
+def test_persist_mutation_compensates_when_verification_fails(
+    tmp_path,
+    monkeypatch,
+):
+    catalog, outfits, authority = setup_authority()
+    path = tmp_path / "sofia.db"
+    store = PresentationStore(path)
+    store.save(authority)
+    before = authority.snapshot()
+
+    monkeypatch.setattr(
+        store,
+        "snapshot_json",
+        lambda: json.dumps({"schema": "wrong"}),
+    )
+
+    def mutate():
+        authority.propose_outfit(
+            operation_id="op.synthetic.verify",
+            expected_revision=authority.current.revision,
+            outfit_id="lounge.relaxed",
+            reason="synthetic verification failure",
+            daily=True,
+        )
+        return authority.commit_text(
+            operation_id="op.synthetic.verify",
+            renderer_unavailable=True,
+        )
+
+    with pytest.raises(PresentationStoreError, match="verification"):
+        store.persist_mutation(authority, mutate)
+
+    assert authority.snapshot() == before
+    with sqlite3.connect(path) as db:
+        encoded = db.execute(
+            """
+            SELECT snapshot_json
+            FROM avatar_presentation_state
+            WHERE state_key='canonical'
+            """
+        ).fetchone()[0]
+    assert json.loads(encoded) == before
