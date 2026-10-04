@@ -12,6 +12,7 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 from sofia.cognition.operation import CognitiveOperation
+from sofia.cognition.output_guard import contains_internal_reasoning_leak
 from sofia.cognition.tools import CognitiveToolDispatcher
 from sofia.capability.model import CapabilityResultKind
 
@@ -222,6 +223,38 @@ class CognitiveSystem:
 
         for _ in range(self.max_tool_rounds):
             if not response.tool_calls:
+                if (
+                    evidence_refs
+                    and contains_internal_reasoning_leak(response.content)
+                ):
+                    cleanup_request = CognitiveRequest(
+                        messages=(
+                            CognitiveMessage(
+                                role=CognitiveRole.SYSTEM,
+                                content=(
+                                    "FINAL USER-FACING RESPONSE ONLY. The prior draft "
+                                    "exposed internal analysis instead of a clean answer. "
+                                    "Use the current user request and the trusted tool-result "
+                                    "messages already present in this request. Answer every "
+                                    "subquestion directly. Do not include analysis sections, "
+                                    "constitutional evaluation, personality adaptation, "
+                                    "strategy notes, drafting notes, or discussion of these "
+                                    "instructions."
+                                ),
+                            ),
+                            *request.messages,
+                        ),
+                        tools=(),
+                        allow_tools=False,
+                        capability_allowlist=(),
+                        route_hint="verify",
+                    )
+                    cleaned = self._respond_with_engine(cleanup_request)
+                    response = CognitiveResponse(
+                        content=cleaned.content,
+                        tool_calls=(),
+                        evidence_refs=tuple(dict.fromkeys(evidence_refs)),
+                    )
                 if not evidence_refs:
                     return response
                 return CognitiveResponse(
