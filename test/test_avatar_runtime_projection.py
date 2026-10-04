@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 import pytest
 import sqlite3
 
 from sofia.application import SofiaApplication
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.presentation import (
     AppearanceState,
     AudienceScope,
@@ -196,7 +198,16 @@ def test_current_presentation_overrides_static_clothing_as_current_wear(tmp_path
     assert "CURRENT AVATAR PRESENTATION" in system
     assert "overrides static canonical clothing design as a CURRENT-WEAR fact" in system
     assert '"outfit_id": "night.lounge"' in system
-    assert '"item_names": ["Soft technical bralette", "Soft technical briefs", "Oversized late-night lounge T-shirt", "Fitted circuit running shorts"]' in system
+    catalog = build_starter_wardrobe()
+    night = catalog.preset("night.lounge")
+    expected_names = [
+        garment.name
+        for garment in catalog.wardrobe.garments(night.item_ids)
+    ]
+    assert (
+        '"item_names": ' + json.dumps(expected_names)
+        in system
+    )
     app.shutdown()
 
 
