@@ -29,6 +29,10 @@ _MACHINE = re.compile(r"\b(?:machine|machines|inventory)\b", re.IGNORECASE)
 _FLEET = re.compile(r"\b(?:fleet|telemetry|placement|drift|migration|remote)\b", re.IGNORECASE)
 _FILESYSTEM = re.compile(r"\b(?:file|folder|directory|filesystem)\b", re.IGNORECASE)
 _CODE = re.compile(r"\b(?:code|codebase|source|repository|repo|git\b|github)\b", re.IGNORECASE)
+_SELF_IMPROVE = re.compile(
+    r"\b(?:self[- ]?improv(?:e|ement)|improve\s+yourself|fix\s+yourself|work\s+on\s+yourself|improve\s+your\s+code|fix\s+your\s+code|optimi[sz]e\s+your\s+code)\b",
+    re.IGNORECASE,
+)
 _GITHUB = re.compile(r"\b(?:github|issues?|pull\s+requests?|\bpr\b)\b", re.IGNORECASE)
 _KNOWLEDGE = re.compile(r"\b(?:knowledge|manual|documentation|document|pdf)\b", re.IGNORECASE)
 _HOME_ASSISTANT = re.compile(r"\bhome\s+assistant\b", re.IGNORECASE)
@@ -132,7 +136,7 @@ class MatrixToolExposurePlanner:
             _add(capabilities, "filesystem.inspect")
             if re.search(r"\bchanges?\b", text, re.IGNORECASE):
                 _add(capabilities, "filesystem.changes")
-        if _CODE.search(text):
+        if _CODE.search(text) or _SELF_IMPROVE.search(text):
             _add(capabilities, "codebase.inspect", "dev.status")
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
@@ -245,9 +249,10 @@ class MatrixToolExposurePlanner:
                     _add(capabilities, "remote.ollama.load")
                 if _MODEL_UNLOAD.search(text):
                     _add(capabilities, "remote.ollama.unload")
-            if _CODE.search(text):
+            if _CODE.search(text) or _SELF_IMPROVE.search(text):
                 if (
-                    re.search(r"\bbuild\b", text, re.IGNORECASE)
+                    _SELF_IMPROVE.search(text)
+                    or re.search(r"\bbuild\b", text, re.IGNORECASE)
                     or _WRITE.search(text)
                 ):
                     _add(capabilities, "dev.build")
