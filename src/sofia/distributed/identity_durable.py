@@ -10,7 +10,7 @@ from pathlib import Path
 import sqlite3
 from uuid import UUID
 
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import sqlite3
 from uuid import UUID
 
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
+from sofia.distributed.model import ApprovedEndpoint
 from sofia.distributed.model import NodeEndpoint, NodeTransport
 
 

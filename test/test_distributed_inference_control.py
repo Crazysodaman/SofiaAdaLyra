@@ -1,3 +1,4 @@
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 import sqlite3
 from uuid import uuid4
@@ -16,8 +17,8 @@ from sofia.distributed.capabilities import (
     CapabilityInventory,
     RemoteCapability,
 )
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import ApprovedEndpoint
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.inference import RemoteInferenceResponse
 from sofia.distributed.inference_control import (
     DurableRemoteInferenceControl,
@@ -85,7 +86,7 @@ def _setup(tmp_path, *, grant=True):
     )
     enrollment=NodeEnrollment(
         node,
-        fingerprint_public_key(b"worker-key"),
+        sha256(b"worker-key").hexdigest(),
         NOW,
         "Sparks",
     )

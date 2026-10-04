@@ -16,7 +16,7 @@ from sofia.distributed.agent import RemoteAgentConfig,RemoteAgentDispatcher,Remo
 from sofia.distributed.https_transport import PinnedHttpsRemoteTransport
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.distributed.operator import enroll_node,approve_endpoint,grant_operation,retire_node
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport
 from sofia.distributed.operations import RemoteOperationRequest,RemoteOutcome
 from sofia.distributed.tls import public_key_fingerprint_from_pem_certificate

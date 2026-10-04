@@ -8,14 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from re import fullmatch
 from uuid import UUID
 
 
-class NodeReachability(str, Enum):
-    UNKNOWN = "unknown"
-    REACHABLE = "reachable"
-    UNREACHABLE = "unreachable"
-    DEGRADED = "degraded"
 
 
 class NodeTransport(str, Enum):
@@ -60,39 +56,42 @@ class NodeEndpoint:
 
 
 @dataclass(frozen=True)
-class NodeObservation:
-    """Time-stamped reachability evidence for one *known* node.
+class NodeEnrollment:
+    """Human-provisioned ID/key pin, not a verified remote session."""
 
-    UNREACHABLE means an observed attempt failed; it is not a claim the
-    machine is powered off. UNKNOWN is an explicit absence of a conclusion.
-    Authentication and per-action authorization belong to later boundaries.
-    """
+    node: DistributedNode
+    public_key_sha256: str
+    provisioned_at: datetime
+    recorded_by: str
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.node, DistributedNode):
+            raise TypeError("NodeEnrollment node must be a DistributedNode.")
+        if not isinstance(self.public_key_sha256, str):
+            raise TypeError("NodeEnrollment public_key_sha256 must be a string.")
+        if fullmatch(r"[0-9a-f]{64}", self.public_key_sha256) is None:
+            raise ValueError("NodeEnrollment requires a lowercase SHA-256 hex pin.")
+        if not isinstance(self.provisioned_at, datetime):
+            raise TypeError("NodeEnrollment provisioned_at must be a datetime.")
+        if (self.provisioned_at.tzinfo is None
+                or self.provisioned_at.utcoffset() is None):
+            raise ValueError("NodeEnrollment provisioned_at must be timezone-aware.")
+        if not isinstance(self.recorded_by, str):
+            raise TypeError("NodeEnrollment recorded_by must be a string.")
+        if not self.recorded_by.strip():
+            raise ValueError("NodeEnrollment recorded_by must not be empty.")
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedEndpoint:
     node_id: UUID
-    observed_at: datetime
-    source: str
-    reachability: NodeReachability
-    endpoint: NodeEndpoint | None = None
-    evidence: tuple[str, ...] = ()
+    endpoint: NodeEndpoint
+    approved_by: str
 
     def __post_init__(self) -> None:
         if not isinstance(self.node_id, UUID):
-            raise TypeError("NodeObservation node_id must be a UUID.")
-        if not isinstance(self.observed_at, datetime):
-            raise TypeError("NodeObservation observed_at must be a datetime.")
-        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
-            raise ValueError("NodeObservation observed_at must be timezone-aware.")
-        if not isinstance(self.source, str):
-            raise TypeError("NodeObservation source must be a string.")
-        if not self.source.strip():
-            raise ValueError("NodeObservation source must not be empty.")
-        if not isinstance(self.reachability, NodeReachability):
-            raise TypeError("NodeObservation reachability must be a NodeReachability.")
-        if self.endpoint is not None and not isinstance(self.endpoint, NodeEndpoint):
-            raise TypeError("NodeObservation endpoint must be a NodeEndpoint or None.")
-        if not isinstance(self.evidence, tuple):
-            raise TypeError("NodeObservation evidence must be a tuple.")
-        if any(not isinstance(item, str) or not item.strip() for item in self.evidence):
-            raise ValueError("NodeObservation evidence must contain nonempty strings.")
-        if self.reachability is not NodeReachability.UNKNOWN and not self.evidence:
-            raise ValueError("An observed reachability conclusion requires evidence.")
+            raise TypeError("node_id must be a UUID")
+        if not isinstance(self.endpoint, NodeEndpoint):
+            raise TypeError("endpoint must be a NodeEndpoint")
+        if not isinstance(self.approved_by, str) or not self.approved_by.strip():
+            raise ValueError("approved_by must identify the human approver")

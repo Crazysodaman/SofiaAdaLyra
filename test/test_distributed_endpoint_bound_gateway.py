@@ -1,3 +1,4 @@
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -7,9 +8,9 @@ from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
 from sofia.distributed.durable import DurableRemoteAuthorization, DurableRemoteLedger
 from sofia.distributed.endpoint_bound_gateway import EndpointBoundDurableGateway
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
+from sofia.distributed.model import ApprovedEndpoint
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.distributed.operations import (
     RemoteOperationDenied,
@@ -44,7 +45,7 @@ def setup(tmp_path):
     endpoint = NodeEndpoint("artemis.local", 443, NodeTransport.HTTPS)
     enrollment = NodeEnrollment(
         node=node,
-        public_key_sha256=fingerprint_public_key(b"public"),
+        public_key_sha256=sha256(b"public").hexdigest(),
         provisioned_at=NOW,
         recorded_by="Sparks",
     )

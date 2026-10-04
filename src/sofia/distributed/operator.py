@@ -8,9 +8,9 @@ from uuid import UUID,uuid4
 from sofia.config import create_production_configuration
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.durable import DurableRemoteAuthorization
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
+from sofia.distributed.model import ApprovedEndpoint
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.state_paths import canonical_fleet_state_paths
 from sofia.distributed.model import DistributedNode,NodeEndpoint,NodeTransport

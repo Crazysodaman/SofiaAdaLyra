@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 import pytest
 
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
 from sofia.ops import AuthenticatedPeerEvidence, BackupEvidence, DesiredHostState, DesiredWorkloadPlacement, FleetEnrollmentService, FleetHost, FleetRegistry, FleetRemovalApproval, FleetRemovalApprovalRequired, HostLifecycle, MachineNodeBinding, MaintenanceOperation, MaintenancePolicy, MaintenanceRequest, RecoveryDenied, RecoveryGuard, RestoreVerification, WorkloadInstance, WorkloadPhase, detect_drift
 

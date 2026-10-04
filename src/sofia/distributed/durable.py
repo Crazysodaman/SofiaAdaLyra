@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sofia.distributed.authorization import RemoteAuthorization, RemoteGrant
 from sofia.distributed.capabilities import _aware
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.operations import (
     DistributedGateway, RemoteOperationDenied, RemoteOperationRequest,
     RemoteOperationResult, RemoteOperationUncertain, RemoteTransport,
@@ -46,7 +46,6 @@ class DurableRemoteAuthorization(RemoteAuthorization):
     """
 
     def __init__(self, state_path: Path | str) -> None:
-        super().__init__()
         self._db = _connect(state_path)
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS remote_standing_grant (

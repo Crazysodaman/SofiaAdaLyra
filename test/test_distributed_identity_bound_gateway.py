@@ -1,9 +1,10 @@
+from hashlib import sha256
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
-from sofia.distributed.identity_bound_gateway import IdentityBoundGateway
+from sofia.distributed.endpoint_bound_gateway import IdentityBoundGateway
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.distributed.operations import RemoteOperationDenied, RemoteOperationRequest
 
@@ -13,7 +14,7 @@ class StubGateway:
 
 
 def record(node_id=None,key=b"k"):
-    return NodeEnrollment(DistributedNode(node_id or uuid4(),"Artemis"),fingerprint_public_key(key),datetime.now(timezone.utc),"Sparks")
+    return NodeEnrollment(DistributedNode(node_id or uuid4(),"Artemis"),sha256(key).hexdigest(),datetime.now(timezone.utc),"Sparks")
 
 
 def test_constructor_requires_real_endpoint_gateway(tmp_path):

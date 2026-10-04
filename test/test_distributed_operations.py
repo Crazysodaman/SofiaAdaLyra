@@ -2,6 +2,7 @@
 
 These are NOT authenticated-network integration tests. No sockets or devices.
 """
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -9,7 +10,7 @@ import pytest
 
 from sofia.distributed.authorization import RemoteAuthorization, RemoteGrant
 from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
 from sofia.distributed.operations import (
     DistributedGateway, RemoteOperationDenied, RemoteOperationRequest,
@@ -48,7 +49,7 @@ class FakeTransport(RemoteTransport):
 
 def fixture(*, grant=True):
     node = DistributedNode(uuid4(), "Eos")
-    enrollment = NodeEnrollment(node, fingerprint_public_key(b"test-public-key"), NOW, "operator")
+    enrollment = NodeEnrollment(node, sha256(b"test-public-key").hexdigest(), NOW, "operator")
     request = RemoteOperationRequest(uuid4(), node.node_id, uuid4(),
                                      "hardware.inspect", "summary", {"detail": "short"})
     authorization = RemoteAuthorization()
@@ -87,7 +88,7 @@ def test_authorized_one_shot_remote_report_is_not_local_verification():
 def test_wrong_node_fails_without_contact():
     enrollment, request, transport, gateway = fixture()
     foreign = NodeEnrollment(DistributedNode(uuid4(), "Nyx"),
-                             fingerprint_public_key(b"other-key"), NOW, "operator")
+                             sha256(b"other-key").hexdigest(), NOW, "operator")
     with pytest.raises(RemoteOperationDenied, match="node"):
         gateway.invoke(foreign, request, now=NOW)
     assert transport.calls == []

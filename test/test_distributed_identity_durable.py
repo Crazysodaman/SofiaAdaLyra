@@ -1,9 +1,10 @@
+from hashlib import sha256
 from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode
 
@@ -11,7 +12,7 @@ from sofia.distributed.model import DistributedNode
 def enrollment(node_id=None, key=b"artemis-key"):
     return NodeEnrollment(
         DistributedNode(node_id or uuid4(), "Artemis"),
-        fingerprint_public_key(key),
+        sha256(key).hexdigest(),
         datetime.now(timezone.utc),
         "Sparks",
     )
