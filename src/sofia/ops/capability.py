@@ -165,16 +165,6 @@ class OpsToolService:
                 "Fleet discovery evidence is stale; rediscover before enrollment"
             )
 
-        exact_parameters=dict(expected)
-        approval=self.execution_approvals.consume(
-            approval_id=p["approval_id"],
-            capability="fleet.enroll",
-            parameters=exact_parameters,
-            now=now,
-        )
-        if approval.approved_by!="Sparks":
-            raise PermissionError("Fleet enrollment approval must come from Sparks")
-
         node_id=UUID(expected["node_id"])
         endpoint=NodeEndpoint(
             expected["endpoint_hostname"],
@@ -192,24 +182,40 @@ class OpsToolService:
         endpoints=DurableEndpointPolicy(self.state_path)
         try:
             existing_identity=identities.get(node_id)
-            if existing_identity is None:
-                identities.enroll(enrollment)
-            elif (
-                existing_identity.public_key_sha256
+            if (
+                existing_identity is not None
+                and existing_identity.public_key_sha256
                 != enrollment.public_key_sha256
             ):
                 raise PermissionError(
                     "Fleet node identity differs from approved discovery evidence"
                 )
-
             existing_endpoint=endpoints.get(node_id)
+            if existing_endpoint is not None and existing_endpoint != endpoint:
+                raise PermissionError(
+                    "Fleet endpoint differs from approved discovery evidence"
+                )
+
+            # Consume only after every deterministic trust/evidence preflight
+            # check passes. A stale or conflicting candidate must not burn the
+            # operator's one-time approval.
+            exact_parameters=dict(expected)
+            approval=self.execution_approvals.consume(
+                approval_id=p["approval_id"],
+                capability="fleet.enroll",
+                parameters=exact_parameters,
+                now=now,
+            )
+            if approval.approved_by!="Sparks":
+                raise PermissionError(
+                    "Fleet enrollment approval must come from Sparks"
+                )
+
+            if existing_identity is None:
+                identities.enroll(enrollment)
             if existing_endpoint is None:
                 endpoints.approve(
                     ApprovedEndpoint(node_id,endpoint,"Sparks")
-                )
-            elif existing_endpoint != endpoint:
-                raise PermissionError(
-                    "Fleet endpoint differs from approved discovery evidence"
                 )
         finally:
             identities.close()
