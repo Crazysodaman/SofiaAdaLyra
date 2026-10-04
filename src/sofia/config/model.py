@@ -26,6 +26,7 @@ class ProviderConfiguration:
     temperature: float | None = None
     seed: int | None = None
     context_size: int | None = None
+    max_output_tokens: int | None = None
     thinking: bool | str | None = None
 
     def __post_init__(self) -> None:
@@ -68,6 +69,16 @@ class ProviderConfiguration:
             if self.context_size <= 0:
                 raise ValueError(
                     "ProviderConfiguration context_size must be > 0."
+                )
+
+        if self.max_output_tokens is not None:
+            if not isinstance(self.max_output_tokens, int):
+                raise TypeError(
+                    "ProviderConfiguration max_output_tokens must be an int or None."
+                )
+            if self.max_output_tokens <= 0:
+                raise ValueError(
+                    "ProviderConfiguration max_output_tokens must be > 0."
                 )
 
         if self.thinking is not None:
