@@ -108,6 +108,7 @@ class AdultPrivateAuthority:
 
 _READ_ONLY = frozenset({
     "tool.catalog",
+    "permissions.inspect",
     "codebase.inspect",
     "filesystem.changes",
     "process.inspect",
