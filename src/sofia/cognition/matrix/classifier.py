@@ -134,6 +134,15 @@ _CLOTHING_ACTION = re.compile(
     r"get\s+undressed)\b",
     re.IGNORECASE,
 )
+_WARDROBE_GENERATION_ACTION = re.compile(
+    r"^\s*(?:please\s+)?(?:design|generate|create|make)\s+.*"
+    r"\b(?:garment|clothing|shirt|tee|top|tank|hoodie|sweater|"
+    r"pants|trousers|jeans|shorts|skirt|dress|jumpsuit|romper|"
+    r"bodysuit|bra|bralette|briefs|panties|underwear|socks|"
+    r"stockings|shoes|boots|sandals|slippers|jacket|coat|vest|"
+    r"belt|gloves|bracelet|necklace|choker|collar|accessory)\b",
+    re.IGNORECASE,
+)
 _ACTION_FOLLOWUP = re.compile(
     r"^\s*(?:do\s+it|go\s+ahead|yes[, ]+do\s+it|"
     r"please\s+do\s+it|ok(?:ay)?[, ]+do\s+it)\s*[?.!]*\s*$",
@@ -323,6 +332,7 @@ class BaselineTurnClassifier:
 
         if (
             _CLOTHING_ACTION.search(text)
+            or _WARDROBE_GENERATION_ACTION.search(text)
             or _ACTION.search(text)
             or _PRIMARY_ACTION.search(text)
             or (
@@ -340,6 +350,7 @@ class BaselineTurnClassifier:
             avatar_action = (
                 _AVATAR.search(text) is not None
                 or _CLOTHING_ACTION.search(text) is not None
+                or _WARDROBE_GENERATION_ACTION.search(text) is not None
             )
             interaction_control = (
                 _INTERACTION_CONTROL.fullmatch(text) is not None
