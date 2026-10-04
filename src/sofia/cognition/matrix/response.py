@@ -117,6 +117,12 @@ class MatrixResponseValidator:
         if contains_internal_reasoning_leak(content):
             reasons.append("internal_reasoning_leak")
 
+        if contract.require_grounded_claims:
+            for requirement in evidence.missing_required:
+                reasons.append(
+                    "required_evidence_unavailable:" + requirement.key
+                )
+
         execution_claim = _EXECUTION_CLAIM.search(content)
         receipt_available = (
             evidence.state_for("action.execution_receipt")
@@ -279,6 +285,16 @@ class MatrixResponseValidator:
                 content=(
                     "Current voice-runtime evidence does not support claiming "
                     "that speech output is working."
+                )
+            )
+        if any(
+            reason.startswith("required_evidence_unavailable:")
+            for reason in reasons
+        ):
+            return CognitiveResponse(
+                content=(
+                    "I don't have the required grounded evidence for that "
+                    "current-state answer, so I won't invent it."
                 )
             )
         return CognitiveResponse(
