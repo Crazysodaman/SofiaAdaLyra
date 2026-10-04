@@ -12,6 +12,7 @@ from sofia.integrations.capabilities import create_configured_integration_tools
 from sofia.composition.root import compose
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.safe.permissions import PermissionStore
+from sofia.safe.permission_capability import PermissionInspectionCapability
 from sofia.social.principals import local_sparks_principal
 from sofia.ui.control_center import MASTER_SETTINGS_SECTIONS
 from sofia.ui.settings_window import _optional_expiry_minutes, _permission_scope
@@ -198,3 +199,45 @@ def test_runtime_tool_exposure_reads_new_standing_grants_without_restart(tmp_pat
     )
 
     assert runtime.current_authority().can_use_capability("storage.mkdir") is True
+
+
+def test_permission_inspection_is_owner_private_and_reports_live_state(tmp_path):
+    state = tmp_path / "sofia.db"
+    store = PermissionStore(state)
+    store.grant(
+        "storage.mkdir",
+        scope={"root_index": 0, "path": "docs"},
+        grant_id="inspectable-grant",
+    )
+    capability = PermissionInspectionCapability(store)
+
+    result = capability.execute(
+        CapabilityRequest(
+            capability=capability.capability,
+            parameters={
+                "__principal_id": "principal:sparks",
+                "__audience_id": "local:sparks",
+                "__audience_kind": "private",
+            },
+            requested_scope=None,
+            rationale="inspect my permission state",
+        )
+    )
+
+    assert result["levels"]["1"] == "observe_read"
+    assert result["standing_grants"][0]["grant_id"] == "inspectable-grant"
+    assert result["private_adult"]["adult_external_delivery"] is False
+
+    with pytest.raises(PermissionError, match="owner-only"):
+        capability.execute(
+            CapabilityRequest(
+                capability=capability.capability,
+                parameters={
+                    "__principal_id": "principal:other",
+                    "__audience_id": "private:other",
+                    "__audience_kind": "private",
+                },
+                requested_scope=None,
+                rationale="not the owner",
+            )
+        )
