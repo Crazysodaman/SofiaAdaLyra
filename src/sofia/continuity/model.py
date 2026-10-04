@@ -23,7 +23,6 @@ class ContinuityEventKind(str, Enum):
         "continuity_and_workspace_changed"
     )
     CONTINUITY_STABLE = "continuity_stable"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
@@ -81,13 +80,6 @@ class ContinuityEvent:
             return 0
 
         return self.workspace_changes.total_changes
-
-    @property
-    def has_workspace_changes(self) -> bool:
-        if self.workspace_changes is None:
-            return False
-
-        return self.workspace_changes.has_changes
 
     @property
     def evidence_status(self) -> ContinuityEvidenceStatus:
