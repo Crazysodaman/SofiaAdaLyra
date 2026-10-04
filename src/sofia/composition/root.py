@@ -202,6 +202,7 @@ def compose(
     knowledge_capabilities = KnowledgeCapabilitySet(
         knowledge_service,
         approval_verifier=execution_approval_verifier,
+        permission_store=permission_store,
     )
 
     dev_approval_verifier = DevApprovalVerifier(state_path)
