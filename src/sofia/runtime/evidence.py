@@ -50,12 +50,18 @@ def project_matrix_evidence(
             "avatar.canonical",
             (
                 EvidenceState.AVAILABLE
-                if runtime._embodiment is not None
+                if (
+                    runtime._embodiment is not None
+                    and runtime._avatar_presentation is not None
+                )
                 else EvidenceState.MISSING
             ),
             (
-                "runtime:embodiment"
-                if runtime._embodiment is not None
+                "runtime:avatar-canonical-and-presentation"
+                if (
+                    runtime._embodiment is not None
+                    and runtime._avatar_presentation is not None
+                )
                 else None
             ),
         ),
