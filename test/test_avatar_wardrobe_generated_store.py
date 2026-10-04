@@ -77,3 +77,44 @@ def test_accept_persists_sofia_provenance_and_reloads(tmp_path):
         if bp.garment.item_id == "generated.sofia.soft_tee"
     )
     assert accepted.provenance == "sofia_accepted_generated_design"
+
+
+def test_reject_does_not_save(tmp_path):
+    state_path = tmp_path / "sofia.db"
+    studio = WardrobeStudio(
+        build_starter_wardrobe(),
+        generated_store=GeneratedWardrobeStore(state_path),
+    )
+    result = studio.decide_generated_piece(
+        _draft(studio),
+        SofiaGarmentAcceptance(
+            SofiaGarmentDecision.REJECT,
+            "This design is not one I want to keep.",
+        ),
+    )
+
+    assert result.persisted is False
+    assert result.ask_sparks is False
+    assert not generated_wardrobe_path(state_path).exists()
+
+
+def test_only_acceptance_adds_generated_piece_to_rebuilt_catalog(tmp_path):
+    state_path = tmp_path / "sofia.db"
+    studio = WardrobeStudio(
+        build_starter_wardrobe(),
+        generated_store=GeneratedWardrobeStore(state_path),
+    )
+    draft = _draft(studio)
+
+    studio.decide_generated_piece(
+        draft,
+        SofiaGarmentAcceptance(
+            SofiaGarmentDecision.ACCEPT,
+            "I want to keep this generated piece.",
+        ),
+    )
+
+    rebuilt = build_starter_wardrobe(state_path=state_path)
+    ids = {bp.garment.item_id for bp in rebuilt.blueprints}
+    assert draft.garment.item_id in ids
+    assert len(ids) == 300
