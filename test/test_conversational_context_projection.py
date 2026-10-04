@@ -66,8 +66,20 @@ def test_explicit_constitution_question_receives_full_protected_text():
     assert _SENTINEL in ConversationalContextAssembler().assemble(context).messages[0].content
 
 
-def test_tool_exposure_retains_full_constitution_even_for_casual_user_turn():
+def test_tool_exposure_keeps_bounded_constitution_for_casual_user_turn():
     context = _context()
+    tool = CognitiveToolDefinition(
+        name='read_only_info', description='Read verified information.',
+        parameters={'type': 'object', 'properties': {}},
+    )
+    request = ConversationalContextAssembler().assemble(context, tools=(tool,))
+    assert _SENTINEL not in request.messages[0].content
+    assert 'CONSTITUTION (bounded conversational projection)' in request.messages[0].content
+    assert request.tools == (tool,)
+
+
+def test_explicit_constitution_question_with_tools_still_receives_full_text():
+    context = _context('Explain your Constitution and its amendment process.')
     tool = CognitiveToolDefinition(
         name='read_only_info', description='Read verified information.',
         parameters={'type': 'object', 'properties': {}},
