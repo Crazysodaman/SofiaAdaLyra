@@ -77,6 +77,63 @@ def _verify(args) -> int:
     return 0
 
 
+def sign_release_bundle(
+    release_dir: Path,
+    *,
+    private_key_path: Path,
+    signer_key_id: str,
+    password: bytes | None = None,
+) -> bytes:
+    """Verify, sign and mark one immutable release evidence directory."""
+    if not isinstance(release_dir, Path) or not release_dir.is_dir():
+        raise FileNotFoundError("release evidence directory does not exist")
+    if (
+        not isinstance(signer_key_id, str)
+        or not signer_key_id.strip()
+        or len(signer_key_id) > 128
+    ):
+        raise ValueError("signer_key_id must be a bounded nonempty string")
+    manifest = verify_release_evidence(release_dir)
+    signature_path = release_dir / "release-signature.bin"
+    signature = sign_manifest_file(
+        release_dir / "release-manifest.json",
+        private_key_path=private_key_path,
+        signature_path=signature_path,
+        password=password,
+    )
+    (release_dir / "signer-key-id.txt").write_text(
+        signer_key_id.strip() + "\n",
+        encoding="utf-8",
+    )
+    verified = verify_release_evidence(release_dir)
+    if verified.manifest_sha256 != manifest.manifest_sha256:
+        raise RuntimeError("release manifest changed while signing")
+    return signature
+
+
+def _sign_bundle(args) -> int:
+    password = (
+        None
+        if args.password_env is None
+        else __import__("os").environ.get(args.password_env, "").encode()
+    )
+    if args.password_env is not None and not password:
+        raise ValueError(
+            f"password environment variable {args.password_env!r} is empty"
+        )
+    signature = sign_release_bundle(
+        Path(args.release_dir),
+        private_key_path=Path(args.private_key),
+        signer_key_id=args.signer_key_id,
+        password=password,
+    )
+    print(
+        f"release bundle signed: {args.release_dir} "
+        f"signer={args.signer_key_id} bytes={len(signature)}"
+    )
+    return 0
+
+
 def _sign(args) -> int:
     password = (
         None
@@ -121,6 +178,13 @@ def main(argv: list[str] | None = None) -> int:
     verify = sub.add_parser("verify")
     verify.add_argument("--release-dir", required=True)
     verify.set_defaults(handler=_verify)
+
+    sign_bundle = sub.add_parser("sign-bundle")
+    sign_bundle.add_argument("--release-dir", required=True)
+    sign_bundle.add_argument("--private-key", required=True)
+    sign_bundle.add_argument("--signer-key-id", required=True)
+    sign_bundle.add_argument("--password-env")
+    sign_bundle.set_defaults(handler=_sign_bundle)
 
     sign = sub.add_parser("sign")
     sign.add_argument("--manifest", required=True)

@@ -1,0 +1,88 @@
+name: Release Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Workflow run ID containing the release-candidate artifact
+        required: true
+        type: string
+      signer_key_id:
+        description: Trusted release signer key ID
+        required: true
+        type: string
+
+concurrency:
+  group: release-promotion
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    environment: production-release-signing
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout signing tooling
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install signing tooling
+        shell: pwsh
+        run: python -m pip install -e .
+
+      - name: Download exact release candidate
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: release-candidate-*
+          merge-multiple: true
+          path: release-evidence
+
+      - name: Verify candidate before signing
+        shell: pwsh
+        run: python -m sofia.dev.release_cli verify --release-dir release-evidence
+
+      - name: Sign immutable manifest
+        shell: pwsh
+        env:
+          SOFIA_RELEASE_SIGNING_KEY_PEM_B64: ${{ secrets.SOFIA_RELEASE_SIGNING_KEY_PEM_B64 }}
+          SIGNER_KEY_ID: ${{ inputs.signer_key_id }}
+        run: |
+          if (-not $env:SOFIA_RELEASE_SIGNING_KEY_PEM_B64) {
+            throw "SOFIA_RELEASE_SIGNING_KEY_PEM_B64 is not configured"
+          }
+          $KeyPath = Join-Path $env:RUNNER_TEMP "sofia-release-signing-key.pem"
+          try {
+            [IO.File]::WriteAllBytes(
+              $KeyPath,
+              [Convert]::FromBase64String($env:SOFIA_RELEASE_SIGNING_KEY_PEM_B64)
+            )
+            python -m sofia.dev.release_cli sign-bundle `
+              --release-dir release-evidence `
+              --private-key $KeyPath `
+              --signer-key-id $env:SIGNER_KEY_ID
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          finally {
+            Remove-Item -Force -ErrorAction SilentlyContinue $KeyPath
+          }
+
+      - name: Verify immutable evidence after signing
+        shell: pwsh
+        run: python -m sofia.dev.release_cli verify --release-dir release-evidence
+
+      - name: Upload signed release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-release-${{ inputs.candidate_run_id }}
+          path: release-evidence
+          if-no-files-found: error
+          retention-days: 30
