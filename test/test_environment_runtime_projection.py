@@ -270,3 +270,34 @@ def test_unrelated_runtime_turn_does_not_refresh_environment_provider(tmp_path):
     assert counting.calls == 1
     app.shutdown()
 
+def test_runtime_answers_outfit_time_and_weather_in_one_turn_without_llm(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+    app.start()
+
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=(
+                        "what are u wearing, what time is it, "
+                        "whats the weather?"
+                    ),
+                ),
+            ),
+        )
+    )
+
+    assert "I'm in my" in response.content
+    assert "The pieces are:" in response.content
+    assert "current time" in response.content.casefold()
+    assert "current weather evidence" in response.content.casefold()
+    assert provider.requests == []
+    app.shutdown()
