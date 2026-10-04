@@ -22,6 +22,10 @@ from sofia.avatar.wardrobe_generated_store import (
     SofiaGarmentAcceptance,
 )
 from sofia.avatar.wardrobe_prebuild import GarmentBlueprint
+from sofia.avatar.wardrobe_pending_store import (
+    PendingGeneratedGarment,
+    PendingGeneratedWardrobeStore,
+)
 from sofia.avatar.wardrobe_autonomy import WardrobeAutonomyContext
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
@@ -548,7 +552,8 @@ class SofiaApplication:
         )
         self._wardrobe_generation_service = (
             WardrobeGenerationConversationService(
-                self.generate_wardrobe_piece_from_brief
+                self.generate_wardrobe_piece_from_brief,
+                resolve_pending=self.resolve_pending_generated_wardrobe_piece,
             )
         )
         self._conversation_service.set_wardrobe_generation_handler(
@@ -578,10 +583,70 @@ class SofiaApplication:
             decision = GeneratedGarmentDecisionService(
                 self._runtime.respond
             ).decide(blueprint)
-            return self.decide_generated_wardrobe_piece(
+            result = self.decide_generated_wardrobe_piece(
                 blueprint,
                 decision,
             )
+            pending_store = PendingGeneratedWardrobeStore(
+                self._configuration.state_path
+            )
+            if result.ask_sparks:
+                pending_store.save(blueprint, decision)
+            else:
+                pending_store.clear(
+                    item_id=blueprint.garment.item_id
+                )
+            return result
+
+    def pending_generated_wardrobe_piece(
+        self,
+    ) -> PendingGeneratedGarment | None:
+        """Return the durable generated piece currently awaiting Sparks."""
+        return PendingGeneratedWardrobeStore(
+            self._configuration.state_path
+        ).load()
+
+    def resolve_pending_generated_wardrobe_piece(
+        self,
+        sparks_input: str,
+    ) -> tuple[GarmentBlueprint, GarmentAcceptanceResult] | None:
+        """Use Sparks' input as preference evidence, then let Sofía decide again."""
+        if (
+            not isinstance(sparks_input, str)
+            or not sparks_input.strip()
+            or len(sparks_input.strip()) > 1200
+        ):
+            raise ValueError(
+                "sparks_input must be bounded nonempty text"
+            )
+        with self._model_lock:
+            pending_store = PendingGeneratedWardrobeStore(
+                self._configuration.state_path
+            )
+            pending = pending_store.load()
+            if pending is None:
+                return None
+            decision = GeneratedGarmentDecisionService(
+                self._runtime.respond
+            ).decide_with_sparks_input(
+                pending.blueprint,
+                prior_reason=pending.reason,
+                sparks_input=sparks_input,
+            )
+            result = self.decide_generated_wardrobe_piece(
+                pending.blueprint,
+                decision,
+            )
+            if result.ask_sparks:
+                pending_store.save(
+                    pending.blueprint,
+                    decision,
+                )
+            else:
+                pending_store.clear(
+                    item_id=pending.blueprint.garment.item_id
+                )
+            return pending.blueprint, result
 
     def generate_wardrobe_piece_from_brief(
         self,
