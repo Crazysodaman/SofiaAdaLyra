@@ -1175,6 +1175,304 @@
         "ventilation": "moderate",
         "skin_contact": "good"
       }
+    },
+    "private_lewd": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_brushed",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 10,
+          "preferred_minimum_c": 18,
+          "preferred_maximum_c": 30,
+          "maximum_c": 36,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond",
+            "relaxed"
+          ],
+          "good": [
+            "cozy",
+            "confident"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "excellent",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    },
+    "private_explicit": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_brushed",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 10,
+          "preferred_minimum_c": 18,
+          "preferred_maximum_c": 30,
+          "maximum_c": 36,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond",
+            "relaxed"
+          ],
+          "good": [
+            "cozy",
+            "confident"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "excellent",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
     }
   },
   "garments": [
@@ -1349,37 +1647,38 @@
       "description": "Black stretch-denim shorts with subtle crimson hardware, a familiar five-pocket layout, and a tailored tail opening."
     },
     {
-      "item_id": "bottom.violet_denim_shorts",
-      "name": "Dark-violet denim shorts",
+      "item_id": "bottom.private_cutout_shorts",
+      "name": "Private cutout micro-shorts",
       "garment_type": "denim_shorts",
       "fit": "fitted",
-      "rise": "mid",
+      "rise": "low",
       "length": "short",
       "sleeve_length": null,
-      "material": "softened stretch denim",
+      "material": "soft stretch denim with mesh cutout panels",
       "primary": "dark_violet",
       "accent": "black",
-      "pattern": "solid",
+      "pattern": "panelled",
       "graphic": {
         "enabled": false,
         "placement": null,
         "design": null
       },
       "features": [
-        "five_pocket",
+        "side_cutouts",
         "tail_clearance"
       ],
       "style_tags": [
-        "denim",
-        "casual",
-        "violet"
+        "private",
+        "lewd",
+        "micro_shorts",
+        "cutout"
       ],
-      "private_only": false,
-      "content_rating": "standard",
+      "private_only": true,
+      "content_rating": "lewd",
       "exposure": [],
-      "profile": "denim",
+      "profile": "private_lewd",
       "canonical": false,
-      "description": "Dark-violet stretch-denim shorts with black stitching, a five-pocket cut, and enough give for comfortable everyday movement."
+      "description": "Private low-rise dark-violet micro-shorts with black mesh side cutouts, opaque front coverage, and a fitted tail-aware cut."
     },
     {
       "item_id": "bottom.black_cargo_shorts",
@@ -1481,38 +1780,38 @@
       "description": "Relaxed dark-violet lounge shorts in brushed modal jersey with a soft-violet waistband and a loose, comfortable cut."
     },
     {
-      "item_id": "bottom.black_lounge_shorts",
-      "name": "Black lounge shorts",
-      "garment_type": "lounge_shorts",
-      "fit": "relaxed",
-      "rise": "mid",
-      "length": "short",
+      "item_id": "bottom.private_micro_skirt",
+      "name": "Private micro utility skirt",
+      "garment_type": "skirt",
+      "fit": "fitted",
+      "rise": "low",
+      "length": "micro",
       "sleeve_length": null,
-      "material": "soft cotton-modal knit",
+      "material": "soft technical stretch weave",
       "primary": "black",
-      "accent": "dark_violet",
-      "pattern": "solid",
+      "accent": "crimson",
+      "pattern": "panelled",
       "graphic": {
         "enabled": false,
         "placement": null,
         "design": null
       },
       "features": [
-        "drawstring",
-        "soft_waistband",
+        "side_slit",
         "tail_clearance"
       ],
       "style_tags": [
-        "lounge",
-        "casual",
-        "soft"
+        "private",
+        "lewd",
+        "micro_skirt",
+        "technical"
       ],
-      "private_only": false,
-      "content_rating": "standard",
+      "private_only": true,
+      "content_rating": "lewd",
       "exposure": [],
-      "profile": "lounge",
+      "profile": "private_lewd",
       "canonical": false,
-      "description": "Relaxed black lounge shorts with a soft dark-violet waistband, cotton-modal knit, and a low-profile drawstring."
+      "description": "A private fitted black micro skirt with crimson panel lines, a high side slit, opaque pelvic coverage, and a tailored tail opening."
     },
     {
       "item_id": "bottom.circuit_bike_shorts",
@@ -1548,37 +1847,41 @@
       "description": "Fitted black mid-thigh bike shorts with cyan circuit-panel seams, four-way stretch, and smooth bonded construction."
     },
     {
-      "item_id": "bottom.violet_bike_shorts",
-      "name": "Dark-violet bike shorts",
-      "garment_type": "bike_shorts",
+      "item_id": "bottom.private_open_crotch_shorts",
+      "name": "Private open-crotch shorts",
+      "garment_type": "open_crotch_bottom",
       "fit": "fitted",
       "rise": "mid",
-      "length": "mid_thigh",
+      "length": "short",
       "sleeve_length": null,
-      "material": "soft compression knit",
+      "material": "soft four-way stretch performance knit",
       "primary": "dark_violet",
-      "accent": "black",
-      "pattern": "solid",
+      "accent": "cyan",
+      "pattern": "panelled",
       "graphic": {
         "enabled": false,
         "placement": null,
         "design": null
       },
       "features": [
-        "wide_waistband",
-        "tail_clearance"
+        "open_crotch",
+        "tail_clearance",
+        "side_panels"
       ],
       "style_tags": [
-        "athletic",
-        "casual",
-        "violet"
+        "private",
+        "explicit",
+        "shorts",
+        "open_crotch"
       ],
-      "private_only": false,
-      "content_rating": "standard",
-      "exposure": [],
-      "profile": "athletic",
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "genitals"
+      ],
+      "profile": "private_explicit",
       "canonical": false,
-      "description": "Dark-violet fitted bike shorts with a wide black waistband, soft compression knit, and a clean minimal silhouette."
+      "description": "Private fitted dark-violet shorts with cyan side panels and an open-crotch construction that intentionally leaves the genitals exposed while preserving tail clearance."
     },
     {
       "item_id": "bottom.slim_utility_trousers",
@@ -1615,15 +1918,15 @@
       "description": "Slim black full-length utility trousers with cyan zip details, articulated knees, and a light stretch weave for active technical work."
     },
     {
-      "item_id": "bottom.relaxed_utility_trousers",
-      "name": "Relaxed charcoal utility trousers",
-      "garment_type": "utility_trousers",
-      "fit": "relaxed",
+      "item_id": "bottom.private_open_front_skirt",
+      "name": "Private open-front skirt",
+      "garment_type": "open_crotch_bottom",
+      "fit": "fitted",
       "rise": "mid",
-      "length": "full",
+      "length": "above_knee",
       "sleeve_length": null,
-      "material": "soft technical canvas",
-      "primary": "charcoal",
+      "material": "soft technical drape knit",
+      "primary": "black",
       "accent": "dark_violet",
       "pattern": "solid",
       "graphic": {
@@ -1632,20 +1935,24 @@
         "design": null
       },
       "features": [
-        "utility_pockets",
-        "tail_clearance"
+        "open_front",
+        "tail_clearance",
+        "side_drape"
       ],
       "style_tags": [
-        "utility",
-        "relaxed",
-        "casual"
+        "private",
+        "explicit",
+        "skirt",
+        "open_front"
       ],
-      "private_only": false,
-      "content_rating": "standard",
-      "exposure": [],
-      "profile": "casual",
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "genitals"
+      ],
+      "profile": "private_explicit",
       "canonical": false,
-      "description": "Relaxed charcoal utility trousers in soft technical canvas with dark-violet stitching and practical low-profile pockets."
+      "description": "A private black above-knee skirt with dark-violet side drape and an open-front construction that intentionally leaves the genitals exposed while retaining the side and rear silhouette."
     },
     {
       "item_id": "bottom.black_stretch_jeans",

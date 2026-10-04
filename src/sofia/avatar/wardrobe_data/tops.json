@@ -1177,6 +1177,304 @@
         "ventilation": "high",
         "skin_contact": "excellent"
       }
+    },
+    "private_lewd": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "brushed_soft",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 10,
+          "preferred_minimum_c": 18,
+          "preferred_maximum_c": 29,
+          "maximum_c": 34,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond",
+            "relaxed"
+          ],
+          "good": [
+            "cozy",
+            "confident"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "excellent",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
+    },
+    "private_explicit": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "brushed_soft",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 10,
+          "preferred_minimum_c": 18,
+          "preferred_maximum_c": 29,
+          "maximum_c": 34,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "poor"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "unsuitable"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "summer",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "fond",
+            "relaxed"
+          ],
+          "good": [
+            "cozy",
+            "confident"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "excellent",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "excellent"
+      }
     }
   },
   "garments": [
@@ -1378,36 +1676,38 @@
       "description": "A fitted cropped black technical T-shirt with cyan seam accents, short sleeves, and lightweight stretch panels for warm conditions."
     },
     {
-      "item_id": "top.cropped_lounge_tee",
-      "name": "Relaxed cropped lounge tee",
+      "item_id": "top.private_sheer_crop",
+      "name": "Private sheer-panel crop top",
       "garment_type": "crop_top",
-      "fit": "relaxed",
+      "fit": "fitted",
       "rise": null,
       "length": "cropped",
       "sleeve_length": "short",
-      "material": "soft brushed modal knit",
-      "primary": "dark_violet",
-      "accent": "soft_violet",
-      "pattern": "solid",
+      "material": "opaque stretch knit with sheer mesh side panels",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "panelled",
       "graphic": {
         "enabled": false,
         "placement": null,
         "design": null
       },
       "features": [
-        "soft_hem"
+        "sheer_side_panels",
+        "low_back"
       ],
       "style_tags": [
-        "lounge",
+        "private",
+        "lewd",
         "cropped",
-        "soft"
+        "sheer_panels"
       ],
-      "private_only": false,
-      "content_rating": "standard",
+      "private_only": true,
+      "content_rating": "lewd",
       "exposure": [],
-      "profile": "lounge",
+      "profile": "private_lewd",
       "canonical": false,
-      "description": "A relaxed dark-violet cropped lounge tee in brushed modal knit with short sleeves, soft-violet trim, and an easy drape."
+      "description": "A private fitted black crop top with opaque bust coverage, dark-violet sheer side panels, a low back, and short sleeves. The cut is deliberately provocative while keeping the nipples covered."
     },
     {
       "item_id": "top.fitted_violet_tank",
@@ -1442,16 +1742,16 @@
       "description": "A fitted dark-violet technical tank with cyan edging, a clean racerback cut, and breathable fabric for warm-weather wear."
     },
     {
-      "item_id": "top.loose_summer_tank",
-      "name": "Loose summer tank",
+      "item_id": "top.private_strappy_halter",
+      "name": "Private strappy halter top",
       "garment_type": "tank_top",
-      "fit": "relaxed",
+      "fit": "fitted",
       "rise": null,
-      "length": "hip",
+      "length": "cropped",
       "sleeve_length": null,
-      "material": "ultralight modal jersey",
-      "primary": "black",
-      "accent": "soft_violet",
+      "material": "soft opaque stretch knit with decorative straps",
+      "primary": "dark_violet",
+      "accent": "cyan",
       "pattern": "solid",
       "graphic": {
         "enabled": false,
@@ -1459,19 +1759,22 @@
         "design": null
       },
       "features": [
-        "side_slits"
+        "halter_neck",
+        "decorative_straps",
+        "open_back"
       ],
       "style_tags": [
-        "summer",
-        "casual",
-        "relaxed"
+        "private",
+        "lewd",
+        "strappy",
+        "halter"
       ],
-      "private_only": false,
-      "content_rating": "standard",
+      "private_only": true,
+      "content_rating": "lewd",
       "exposure": [],
-      "profile": "hot_weather",
+      "profile": "private_lewd",
       "canonical": false,
-      "description": "A loose black summer tank in ultralight modal jersey with soft-violet trim and small side slits for airflow."
+      "description": "A private dark-violet halter-style top with opaque bust coverage, cyan decorative straps, and an open back. The silhouette is intentionally provocative while remaining covered."
     },
     {
       "item_id": "top.performance_training_tank",
@@ -1766,48 +2069,53 @@
       "description": "A fitted black technical-knit sweater with subtle circuit-rib texture, cyan micro-accents, and clean ribbed cuffs."
     },
     {
-      "item_id": "top.relaxed_violet_sweater",
-      "name": "Relaxed violet knit sweater",
-      "garment_type": "sweater",
-      "fit": "relaxed",
+      "item_id": "top.private_open_bust_crop",
+      "name": "Private open-bust cropped top",
+      "garment_type": "open_bust_top",
+      "fit": "fitted",
       "rise": null,
-      "length": "hip",
-      "sleeve_length": "long",
-      "material": "soft medium-weight knit",
-      "primary": "dark_violet",
-      "accent": "black",
-      "pattern": "solid",
+      "length": "cropped",
+      "sleeve_length": "short",
+      "material": "soft stretch technical knit",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "panelled",
       "graphic": {
         "enabled": false,
         "placement": null,
         "design": null
       },
       "features": [
-        "soft_cuffs"
+        "open_bust",
+        "support_band",
+        "short_sleeves"
       ],
       "style_tags": [
-        "casual",
-        "cozy",
-        "cool_weather"
+        "private",
+        "explicit",
+        "cropped",
+        "open_bust"
       ],
-      "private_only": false,
-      "content_rating": "standard",
-      "exposure": [],
-      "profile": "cool_weather",
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples"
+      ],
+      "profile": "private_explicit",
       "canonical": false,
-      "description": "A relaxed dark-violet medium-weight sweater with black edging, soft cuffs, and an easy cozy silhouette for cooler days."
+      "description": "A private fitted black cropped top with short sleeves, dark-violet trim, and an open-bust construction that intentionally leaves the nipples exposed."
     },
     {
-      "item_id": "top.smart_black_sweater",
-      "name": "Smart black mock-rib sweater",
-      "garment_type": "sweater",
-      "fit": "tailored",
+      "item_id": "top.private_open_bust_long_sleeve",
+      "name": "Private open-bust long-sleeve top",
+      "garment_type": "open_bust_top",
+      "fit": "fitted",
       "rise": null,
       "length": "hip",
       "sleeve_length": "long",
-      "material": "fine smooth knit",
-      "primary": "black",
-      "accent": "crimson",
+      "material": "soft ribbed stretch knit",
+      "primary": "dark_violet",
+      "accent": "black",
       "pattern": "fine_rib",
       "graphic": {
         "enabled": false,
@@ -1815,19 +2123,24 @@
         "design": null
       },
       "features": [
-        "clean_hem"
+        "open_bust",
+        "long_sleeves",
+        "soft_cuffs"
       ],
       "style_tags": [
-        "smart_casual",
-        "tailored",
-        "minimal"
+        "private",
+        "explicit",
+        "long_sleeve",
+        "open_bust"
       ],
-      "private_only": false,
-      "content_rating": "standard",
-      "exposure": [],
-      "profile": "smart",
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [
+        "nipples"
+      ],
+      "profile": "private_explicit",
       "canonical": false,
-      "description": "A tailored black fine-knit sweater with restrained crimson edging and a subtle rib structure for a cleaner smart-casual look."
+      "description": "A private fitted dark-violet long-sleeve top in soft ribbed knit with black edging and an open-bust front that intentionally leaves the nipples exposed."
     }
   ]
 }
