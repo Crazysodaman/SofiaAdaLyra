@@ -75,3 +75,16 @@ def test_standalone_studio_can_register_in_memory_for_authoring(tmp_path):
     )
 
     assert plan.outfit_id in authority.available_outfit_ids
+
+
+def test_studio_can_author_manual_only_outfit_without_auto_rotation():
+    catalog = build_starter_wardrobe()
+    studio = WardrobeStudio(catalog)
+    plan = studio.compose(
+        outfit_id="manual.test",
+        item_ids=catalog.preset("lounge.relaxed").item_ids,
+        activities=frozenset({Activity.RELAXING}),
+        seasons=frozenset({Season.AUTUMN}),
+        manual_only=True,
+    )
+    assert plan.manual_only is True

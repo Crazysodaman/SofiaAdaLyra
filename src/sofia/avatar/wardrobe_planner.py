@@ -230,6 +230,7 @@ class OutfitPlan:
     private_only: bool = False
     style_tags: tuple[str, ...] = ()
     display_name: str | None = None
+    manual_only: bool = False
 
     def __post_init__(self) -> None:
         _id(self.outfit_id)
@@ -246,7 +247,11 @@ class OutfitPlan:
                 raise WardrobeError(f"invalid outfit {label}")
         if not self.activities or not self.seasons:
             raise WardrobeError("outfit requires activity and seasonal suitability")
-        if type(self.lounge) is not bool or type(self.private_only) is not bool:
+        if (
+            type(self.lounge) is not bool
+            or type(self.private_only) is not bool
+            or type(self.manual_only) is not bool
+        ):
             raise WardrobeError("outfit flags must be boolean")
         if not isinstance(self.style_tags, tuple) or any(
             not isinstance(tag, str) or not tag.strip() or len(tag) > 64 for tag in self.style_tags
@@ -337,8 +342,8 @@ class OutfitPlanner:
         self._plans: dict[str, tuple[OutfitPlan, Outfit]] = {}
         for plan in plans:
             outfit = wardrobe.selection(plan.item_ids)
-            if plan.private_only:
-                # Private outfits need a separate authenticated, explicit workflow.
+            if plan.private_only or plan.manual_only:
+                # Private/manual outfits require an explicit selection workflow.
                 continue
             if outfit.private_only:
                 raise WardrobeError(

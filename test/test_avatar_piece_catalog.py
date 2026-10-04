@@ -33,7 +33,7 @@ def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert summary["generated_piece_count"] == 962
+    assert summary["generated_piece_count"] == 963
     assert summary["adult_private_requires_authorization"] is True
     assert summary["assets_verified"] is False
     assert len(summary["categories"]) == 22
@@ -45,6 +45,8 @@ def test_generated_closet_is_part_of_real_starter_wardrobe_catalog():
             "closet.swim.bikini_bottom",
         }:
             assert counts == {"normal": 6, "adult_private": 0}
+        elif category == "closet.top":
+            assert counts == {"normal": 26, "adult_private": 25}
         else:
             assert counts == {"normal": 25, "adult_private": 25}
 
@@ -104,7 +106,7 @@ def test_manifest_exposes_category_style_and_privacy_without_claiming_assets():
         row for row in manifest["garments"]
         if row["category"].startswith("closet.")
     ]
-    assert len(generated) == 962
+    assert len(generated) == 963
     assert sum(row["private_only"] for row in generated) == 500
     assert all(row["asset_ref"] is None for row in generated)
     assert all(row["style_tags"] for row in generated)

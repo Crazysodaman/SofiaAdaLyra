@@ -7,7 +7,7 @@ renderer, file write, preference invention, or LLM action occurs here.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
 import json
@@ -500,6 +500,7 @@ def generated_bikini_outfits() -> tuple[OutfitPlan, ...]:
                 "two-piece",
             ),
             display_name=_BIKINI_DESIGNS[index - 1][0] + " Bikini",
+            manual_only=True,
         )
         for index in range(1, 7)
     )
@@ -509,6 +510,13 @@ _HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
 DRAFT_STATUS = "proposed_no_mesh_no_verified_asset"
 ALL_SEASONS = frozenset(Season)
+GRAPHIC_TEE_ID = "lounge.graphic_tee"
+GRAPHIC_OUTFIT_ID = "lounge.graphic"
+GRAPHIC_REQUEST_SOURCE_ID = "chat.2026-09-22.request.occasional_graphic_tee"
+SPARKS_LIKED_OUTFIT_SOURCE_IDS = frozenset({
+    "chat.2026-09-22.like.both.engineer",
+    "chat.2026-09-22.like.both.lounge",
+})
 
 
 class RequestStatus(str, Enum):
@@ -792,6 +800,7 @@ class WardrobePrebuild:
                     "seasons": sorted(x.value for x in plan.seasons),
                     "lounge": plan.lounge,
                     "private_only": plan.private_only,
+                    "manual_only": plan.manual_only,
                     "style_tags": list(plan.style_tags),
                 } for plan in self.presets
             ],
@@ -943,6 +952,21 @@ def build_starter_wardrobe() -> WardrobePrebuild:
              "Proposed color and cut, subject to Sparks' style feedback."),
             ("torso.front", "torso.back", "shoulder.left", "shoulder.right"),
             accents=(teal,)),
+        _bp(GRAPHIC_TEE_ID, "Oversized lounge graphic T-shirt", Layer.BASE,
+            ("torso", "left_upper_arm", "right_upper_arm"),
+            ("torso", "left_upper_arm", "right_upper_arm"), "#393047",
+            "soft breathable jersey knit",
+            (
+                "Optional original graphic printed on the front; keep the same relaxed silhouette.",
+                "Graphic placement must allow natural jersey drape and torso deformation.",
+                "Print art is an unapproved design target; no texture or mesh exists yet.",
+            ),
+            ("torso.front", "torso.back", "shoulder.left", "shoulder.right"),
+            accents=(teal,), category="closet.top",
+            style_tags=(
+                "lounge", "optional_graphic_tee", "manual_selection",
+                "print_art_not_approved",
+            )),
         _bp("lounge.sweats", "Relaxed lounge sweatpants", Layer.BASE,
             ("pelvis", "left_leg", "right_leg", "tail"), ("pelvis", "left_leg", "right_leg"), "#55515F",
             "soft stretch fleece or jersey",
@@ -992,6 +1016,16 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         ), frozenset({Activity.RELAXING, Activity.CONVERSATION, Activity.SLEEP}),
             ALL_SEASONS, lounge=True,
             style_tags=("relaxed", "cozy", "soft", "proposed_colors")),
+        OutfitPlan(GRAPHIC_OUTFIT_ID, under + (
+            GRAPHIC_TEE_ID, "lounge.sweats",
+        ), frozenset({Activity.RELAXING, Activity.CONVERSATION, Activity.SLEEP}),
+            ALL_SEASONS, lounge=True,
+            style_tags=(
+                "relaxed", "cozy", "soft", "optional_graphic_tee",
+                "manual_selection", "print_art_not_approved",
+            ),
+            display_name="Graphic Lounge Outfit",
+            manual_only=True),
         OutfitPlan("fallback.covered", under + (
             "fallback.top", "fallback.trousers",
         ), frozenset(Activity), ALL_SEASONS,
@@ -1006,23 +1040,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         StyleInput("engineer.signature", RequestStatus.USER_REQUESTED,
                    "chat.2026-09-22.request.engineer", "Signature engineer wardrobe requested; not a confirmed like."),
         StyleInput("lounge.relaxed", RequestStatus.USER_REQUESTED,
-                   "chat.2026-09-22.request.lounge", "Oversized top and sweatpants requested; not a confirmed like."),
-    )
-    return WardrobePrebuild(wardrobe, blueprints, presets, inputs)
-
-
-# Source-backed starter taste evidence and optional lounge variation are
-# catalog initialization concerns, not separate subsystems.
-
-SPARKS_LIKED_OUTFIT_SOURCE_IDS = frozenset({
-    "chat.2026-09-22.like.both.engineer",
-    "chat.2026-09-22.like.both.lounge",
-})
-
-
-def confirmed_sparks_outfit_likes() -> tuple[StyleInput, ...]:
-    """Outfit likes only; do not infer individual garment or color preferences."""
-    return (
+                   "chat.2026-09-22.request.lounge", "Oversized top and sweatpants requested."),
         StyleInput(
             "engineer.signature", RequestStatus.USER_LIKED,
             "chat.2026-09-22.like.both.engineer",
@@ -1033,135 +1051,10 @@ def confirmed_sparks_outfit_likes() -> tuple[StyleInput, ...]:
             "chat.2026-09-22.like.both.lounge",
             "Sparks answered 'Both' when asked whether he likes the engineer outfit, lounge outfit, both or neither.",
         ),
-    )
-
-
-def with_sparks_outfit_likes(catalog: WardrobePrebuild) -> WardrobePrebuild:
-    """Enrich an existing wardrobe once without overwriting later user input."""
-    if not isinstance(catalog, WardrobePrebuild):
-        raise WardrobeError("a valid wardrobe prebuild is required")
-    existing = {(entry.subject_id, entry.source_id) for entry in catalog.inputs}
-    additions = tuple(
-        record for record in confirmed_sparks_outfit_likes()
-        if (record.subject_id, record.source_id) not in existing
-    )
-    return replace(catalog, inputs=catalog.inputs + additions)
-
-
-def build_sparks_starter_wardrobe() -> WardrobePrebuild:
-    """Build the starter wardrobe with the confirmed Sparks likes already present."""
-    return with_sparks_outfit_likes(build_starter_wardrobe())
-
-
-GRAPHIC_TEE_ID = "lounge.graphic_tee"
-GRAPHIC_OUTFIT_ID = "lounge.graphic"
-GRAPHIC_REQUEST_SOURCE_ID = "chat.2026-09-22.request.occasional_graphic_tee"
-
-
-@dataclass(frozen=True, slots=True)
-class GraphicLoungeVariation:
-    """Separates an explicitly selectable outfit from routine auto-rotation."""
-
-    catalog: WardrobePrebuild
-    optional_plan: OutfitPlan
-    print_concepts: tuple[str, ...]
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.catalog, WardrobePrebuild) or not isinstance(self.optional_plan, OutfitPlan):
-            raise WardrobeError("graphic variation requires catalog and outfit plan")
-        selected = self.catalog.wardrobe.selection(
-            self.optional_plan.item_ids
-        )
-        if (
-            not selected.covered_default
-            or selected.private_only
-            or self.optional_plan.private_only
-        ):
-            raise WardrobeError(
-                "graphic lounge variation must remain covered and public"
-            )
-        if not isinstance(self.print_concepts, tuple) or not self.print_concepts or any(
-            not isinstance(value, str) or not value.strip() for value in self.print_concepts
-        ):
-            raise WardrobeError("graphic print concepts must be nonempty draft descriptions")
-
-    def select_lounge(self, *, graphic_requested: bool = False) -> OutfitPlan:
-        """Plain default; a trusted caller explicitly opts into the occasional graphic.
-
-        The host owns actual rotation timing and confirmation. This method
-        neither changes currently worn state nor selects from untrusted prose.
-        """
-        if type(graphic_requested) is not bool:
-            raise WardrobeError("graphic_requested must be a strict boolean")
-        return self.optional_plan if graphic_requested else self.catalog.preset("lounge.relaxed")
-
-    def manifest(self) -> dict[str, object]:
-        """JSON-ready authoring handoff; no generated print textures or real meshes."""
-        result = self.catalog.manifest()
-        result["optional_outfits"] = [{
-            "outfit_id": self.optional_plan.outfit_id,
-            "item_ids": list(self.optional_plan.item_ids),
-            "style_tags": list(self.optional_plan.style_tags),
-            "selection": "explicit_optional_not_automatic",
-        }]
-        result["graphic_print_concepts"] = list(self.print_concepts)
-        return result
-
-
-def build_graphic_lounge_variation() -> GraphicLoungeVariation:
-    """Build on both outfit likes without interpreting them as a graphic-tee like."""
-    catalog = build_sparks_starter_wardrobe()
-    plain = next(
-        bp for bp in catalog.blueprints if bp.garment.item_id == "lounge.top"
-    )
-    graphic = replace(
-        plain,
-        garment=replace(
-            plain.garment,
-            item_id=GRAPHIC_TEE_ID,
-            name="Oversized lounge graphic T-shirt",
-            asset_ref=None,
-        ),
-        construction=plain.construction + (
-            "Optional original graphic printed on the front; keep the same relaxed silhouette.",
-            "Graphic placement must allow natural jersey drape and torso deformation.",
-            "Print art is an unapproved design target; no texture or mesh exists yet.",
-        ),
-        provenance="design_proposal_review_required",
-    )
-    blueprints: tuple[GarmentBlueprint, ...] = catalog.blueprints + (graphic,)
-    extended = replace(
-        catalog,
-        wardrobe=Wardrobe(tuple(bp.garment for bp in blueprints)),
-        blueprints=blueprints,
-        inputs=catalog.inputs + (
-            StyleInput(
-                GRAPHIC_TEE_ID,
-                RequestStatus.USER_REQUESTED,
-                GRAPHIC_REQUEST_SOURCE_ID,
-                "Sparks approved the lounge concept and requested a graphic T-shirt from time to time; graphic artwork is not yet approved.",
-            ),
+        StyleInput(
+            GRAPHIC_TEE_ID, RequestStatus.USER_REQUESTED,
+            GRAPHIC_REQUEST_SOURCE_ID,
+            "Sparks requested a graphic T-shirt from time to time; graphic artwork is not yet approved.",
         ),
     )
-    lounge = extended.preset("lounge.relaxed")
-    optional_plan = replace(
-        lounge,
-        outfit_id=GRAPHIC_OUTFIT_ID,
-        item_ids=tuple(
-            GRAPHIC_TEE_ID if item_id == "lounge.top" else item_id
-            for item_id in lounge.item_ids
-        ),
-        style_tags=lounge.style_tags + (
-            "optional_graphic_tee", "manual_selection", "print_art_not_approved",
-        ),
-    )
-    return GraphicLoungeVariation(
-        catalog=extended,
-        optional_plan=optional_plan,
-        print_concepts=(
-            "Original minimal fox-and-circuit emblem",
-            "Original schematic-inspired constellation graphic",
-            "Original tiny engineering joke or abstract circuitry",
-        ),
-    )
-
+    return WardrobePrebuild(wardrobe, blueprints, presets, inputs)

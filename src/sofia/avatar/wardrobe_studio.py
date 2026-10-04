@@ -63,6 +63,7 @@ class WardrobeStudio:
         private_only: bool = False,
         style_tags: tuple[str, ...] = (),
         display_name: str | None = None,
+        manual_only: bool = False,
         register: bool = False,
     ) -> OutfitPlan:
         if type(register) is not bool:
@@ -86,6 +87,7 @@ class WardrobeStudio:
             private_only=private_only,
             style_tags=style_tags,
             display_name=display_name,
+            manual_only=manual_only,
         )
         if register:
             if self.authority is None:

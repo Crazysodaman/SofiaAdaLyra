@@ -46,6 +46,7 @@ def test_six_bikini_outfits_are_distinct_complete_two_piece_sets():
     assert len(bikinis) == 6
     assert len({plan.display_name for plan in bikinis}) == 6
     assert all(len(plan.item_ids) == 2 for plan in bikinis)
+    assert all(plan.manual_only for plan in bikinis)
 
     bikini_piece_ids = {
         item_id

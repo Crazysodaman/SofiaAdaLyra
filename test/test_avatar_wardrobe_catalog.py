@@ -72,11 +72,18 @@ def test_manifest_json_serializable_and_explicitly_unbuilt():
     assert json.loads(json.dumps(manifest)) == manifest
 
 
-def test_request_does_not_invent_user_likes():
+def test_style_inputs_distinguish_requests_from_confirmed_likes():
     pack = build_starter_wardrobe()
-    assert len(pack.inputs) == 2
-    assert all(record.status is RequestStatus.USER_REQUESTED for record in pack.inputs)
-    assert not any(record.status is RequestStatus.USER_LIKED for record in pack.inputs)
+    requests = tuple(
+        record for record in pack.inputs
+        if record.status is RequestStatus.USER_REQUESTED
+    )
+    likes = tuple(
+        record for record in pack.inputs
+        if record.status is RequestStatus.USER_LIKED
+    )
+    assert len(requests) == 3
+    assert len(likes) == 2
     assert all(record.source_id.startswith("chat.") for record in pack.inputs)
 
 

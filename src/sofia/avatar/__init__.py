@@ -26,24 +26,19 @@ __all__ += [
 from .wardrobe_catalog import (
     DRAFT_STATUS, GRAPHIC_OUTFIT_ID, GRAPHIC_REQUEST_SOURCE_ID, GRAPHIC_TEE_ID,
     SPARKS_LIKED_OUTFIT_SOURCE_IDS, ClosetCategory, GarmentBlueprint,
-    GraphicLoungeVariation, PieceSpec, RequestStatus, StyleInput,
-    WardrobePrebuild, all_closet_categories, build_graphic_lounge_variation,
-    build_sparks_starter_wardrobe, build_starter_wardrobe,
-    confirmed_sparks_outfit_likes, generated_bikini_outfits,
-    generated_bikini_piece_specs, generated_piece_specs,
-    generated_seasonal_outfits, with_sparks_outfit_likes,
+    PieceSpec, RequestStatus, StyleInput, WardrobePrebuild,
+    all_closet_categories, build_starter_wardrobe,
+    generated_bikini_outfits, generated_bikini_piece_specs,
+    generated_piece_specs, generated_seasonal_outfits,
 )
 
 __all__ += [
     "DRAFT_STATUS", "GRAPHIC_OUTFIT_ID", "GRAPHIC_REQUEST_SOURCE_ID",
     "GRAPHIC_TEE_ID", "SPARKS_LIKED_OUTFIT_SOURCE_IDS", "ClosetCategory",
-    "GarmentBlueprint", "GraphicLoungeVariation", "PieceSpec", "RequestStatus",
-    "StyleInput", "WardrobePrebuild", "all_closet_categories",
-    "build_graphic_lounge_variation", "build_sparks_starter_wardrobe",
-    "build_starter_wardrobe", "confirmed_sparks_outfit_likes",
+    "GarmentBlueprint", "PieceSpec", "RequestStatus", "StyleInput",
+    "WardrobePrebuild", "all_closet_categories", "build_starter_wardrobe",
     "generated_bikini_outfits", "generated_bikini_piece_specs",
     "generated_piece_specs", "generated_seasonal_outfits",
-    "with_sparks_outfit_likes",
 ]
 
 from .presentation import (
