@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from sofia.machine.discovery import MachineDiscoveryResult
 from sofia.machine.hardware import HardwareDiscoveryResult
@@ -13,11 +13,8 @@ from sofia.machine.model import (
 from sofia.machine.observation import (
     ObservationState,
 )
-from sofia.machine.persistence import (
-    MachineInventoryPersistence,
-    deserialize_inventory,
-    serialize_inventory,
-)
+from sofia.machine.persistence import SQLiteMachineInventoryPersistence
+from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
 from sofia.machine.refresh import MachineInventoryRefresher
 
 
@@ -288,15 +285,15 @@ def test_save_load_save_is_semantically_stable(tmp_path) -> None:
         memory_bytes=16 * 1024**3,
     )
 
-    path_a = tmp_path / "inventory-a.json"
-    path_b = tmp_path / "inventory-b.json"
+    path_a = tmp_path / "inventory-a.db"
+    path_b = tmp_path / "inventory-b.db"
 
-    persistence_a = MachineInventoryPersistence(path_a)
+    persistence_a = SQLiteMachineInventoryPersistence(path_a)
     persistence_a.save(inventory)
 
     restored = persistence_a.load()
 
-    persistence_b = MachineInventoryPersistence(path_b)
+    persistence_b = SQLiteMachineInventoryPersistence(path_b)
     persistence_b.save(restored)
 
     assert persistence_a.load() == persistence_b.load()

@@ -6,13 +6,16 @@ proof that the machine is physically present there right now.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
-from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from sofia.state.model import StateClass, StateKey, StateRecord
+from sofia.state.plane import StatePlane
+from sofia.machine.persistence import retire_legacy_file
 
 
 SCHEMA_VERSION = 1
@@ -122,77 +125,136 @@ class MachineLocationRecord:
         )
 
 
-class MachineLocationRegistry:
-    """Atomic JSON persistence for stable per-machine location config."""
+def load_legacy_locations(path: Path) -> tuple[MachineLocationRecord, ...]:
+    """Decode existing JSON for migration; never write a parallel registry."""
+    if not path.exists():
+        return ()
+    try:
+        payload = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "machine location registry contains invalid JSON"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ValueError(
+            "machine location registry root must be an object"
+        )
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError(
+            "unsupported machine location schema_version: "
+            f"{payload.get('schema_version')!r}"
+        )
+    rows = payload.get("locations")
+    if not isinstance(rows, list):
+        raise ValueError(
+            "machine location registry locations must be an array"
+        )
 
-    def __init__(self, path: str | Path) -> None:
-        self.path = Path(path)
-        self._records: dict[str, MachineLocationRecord] = {}
-        if self.path.exists():
-            self._load()
-
-    def _load(self) -> None:
+    loaded: dict[str, MachineLocationRecord] = {}
+    for raw in rows:
+        if not isinstance(raw, dict):
+            raise ValueError(
+                "machine location entry must be an object"
+            )
         try:
-            payload = json.loads(
-                self.path.read_text(encoding="utf-8")
+            updated_at = datetime.fromisoformat(
+                raw["updated_at"]
             )
-        except json.JSONDecodeError as exc:
+            record = MachineLocationRecord(
+                machine_id=raw["machine_id"],
+                hostname=raw["hostname"],
+                label=raw["label"],
+                timezone=raw["timezone"],
+                latitude=raw["latitude"],
+                longitude=raw["longitude"],
+                updated_at=updated_at,
+                source=raw.get("source", "operator"),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
             raise ValueError(
-                "machine location registry contains invalid JSON"
+                "invalid machine location entry"
             ) from exc
-        if not isinstance(payload, dict):
+        if record.machine_id in loaded:
             raise ValueError(
-                "machine location registry root must be an object"
+                "duplicate machine_id in machine location registry"
             )
-        if payload.get("schema_version") != SCHEMA_VERSION:
-            raise ValueError(
-                "unsupported machine location schema_version: "
-                f"{payload.get('schema_version')!r}"
-            )
-        rows = payload.get("locations")
-        if not isinstance(rows, list):
-            raise ValueError(
-                "machine location registry locations must be an array"
-            )
+        loaded[record.machine_id] = record
+    return tuple(loaded[key] for key in sorted(loaded))
 
-        loaded: dict[str, MachineLocationRecord] = {}
-        for raw in rows:
-            if not isinstance(raw, dict):
-                raise ValueError(
-                    "machine location entry must be an object"
-                )
-            try:
-                updated_at = datetime.fromisoformat(
-                    raw["updated_at"]
-                )
-                record = MachineLocationRecord(
-                    machine_id=raw["machine_id"],
-                    hostname=raw["hostname"],
-                    label=raw["label"],
-                    timezone=raw["timezone"],
-                    latitude=raw["latitude"],
-                    longitude=raw["longitude"],
-                    updated_at=updated_at,
-                    source=raw.get("source", "operator"),
-                )
-            except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError(
-                    "invalid machine location entry"
-                ) from exc
-            if record.machine_id in loaded:
-                raise ValueError(
-                    "duplicate machine_id in machine location registry"
-                )
-            loaded[record.machine_id] = record
-        self._records = loaded
 
-    def get(
+class MachineLocationRegistry:
+    """Authoritative machine-location registry with one-time JSON import."""
+
+    NAMESPACE = "machine-location"
+
+    def __init__(
         self,
-        machine_id: str,
-    ) -> MachineLocationRecord | None:
+        state_plane: StatePlane,
+        *,
+        legacy_path: Path | None = None,
+    ) -> None:
+        if not isinstance(state_plane, StatePlane):
+            raise TypeError("state_plane must be a StatePlane")
+        self.state_plane = state_plane
+        self.legacy_path = legacy_path
+        self._import_legacy_if_needed()
+
+    @staticmethod
+    def _encode(record: MachineLocationRecord) -> bytes:
+        return json.dumps(
+            {
+                "machine_id": record.machine_id,
+                "hostname": record.hostname,
+                "label": record.label,
+                "timezone": record.timezone,
+                "latitude": record.latitude,
+                "longitude": record.longitude,
+                "updated_at": record.updated_at.isoformat(),
+                "source": record.source,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+
+    @staticmethod
+    def _decode(record: StateRecord) -> MachineLocationRecord:
+        raw = json.loads(record.value.decode("utf-8"))
+        return MachineLocationRecord(
+            machine_id=raw["machine_id"],
+            hostname=raw["hostname"],
+            label=raw["label"],
+            timezone=raw["timezone"],
+            latitude=raw["latitude"],
+            longitude=raw["longitude"],
+            updated_at=datetime.fromisoformat(raw["updated_at"]),
+            source=raw.get("source", "operator"),
+        )
+
+    def _import_legacy_if_needed(self) -> None:
+        if self.legacy_path is None or not self.legacy_path.is_file():
+            return
+        for record in load_legacy_locations(self.legacy_path):
+            migrated = replace(record, source=f"legacy-json:{record.source}")
+            existing = self.get(record.machine_id)
+            if existing is None:
+                self.set(migrated)
+            elif existing not in (record, migrated):
+                raise RuntimeError("legacy machine location conflicts with canonical state")
+        retire_legacy_file(self.legacy_path)
+
+    def get(self, machine_id: str) -> MachineLocationRecord | None:
         if not isinstance(machine_id, str) or not machine_id.strip():
             raise ValueError("machine_id is required")
-        return self._records.get(machine_id.strip())
+        record = self.state_plane.read(
+            StateKey(
+                namespace=self.NAMESPACE,
+                key=machine_id.strip(),
+            )
+        )
+        return None if record is None else self._decode(record)
 
     def find_hostname(
         self,
@@ -207,58 +269,31 @@ class MachineLocationRegistry:
             if record.hostname.casefold() == wanted
         )
 
-    def set(
-        self,
-        record: MachineLocationRecord,
-    ) -> None:
+    def set(self, record: MachineLocationRecord) -> None:
         if not isinstance(record, MachineLocationRecord):
-            raise TypeError(
-                "record must be MachineLocationRecord"
-            )
-        self._records[record.machine_id] = record
-        self.flush()
+            raise TypeError("record must be MachineLocationRecord")
+        key = StateKey(
+            namespace=self.NAMESPACE,
+            key=record.machine_id,
+        )
+        existing = self.state_plane.read(key)
+        self.state_plane.write(
+            StateRecord(
+                key=key,
+                state_class=StateClass.SHARED_AUTHORITATIVE,
+                revision=1 if existing is None else existing.revision + 1,
+                value=self._encode(record),
+                updated_at=record.updated_at,
+                source=record.source,
+            ),
+            expected_revision=None if existing is None else existing.revision,
+        )
 
     def records(self) -> tuple[MachineLocationRecord, ...]:
         return tuple(
-            self._records[key]
-            for key in sorted(self._records)
+            self._decode(record)
+            for record in self.state_plane.list_namespace(self.NAMESPACE)
         )
-
-    def flush(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "schema_version": SCHEMA_VERSION,
-            "locations": [
-                {
-                    "machine_id": record.machine_id,
-                    "hostname": record.hostname,
-                    "label": record.label,
-                    "timezone": record.timezone,
-                    "latitude": record.latitude,
-                    "longitude": record.longitude,
-                    "updated_at": record.updated_at.isoformat(),
-                    "source": record.source,
-                }
-                for record in self.records()
-            ],
-        }
-        temporary = self.path.with_suffix(
-            self.path.suffix + ".tmp"
-        )
-        try:
-            temporary.write_text(
-                json.dumps(
-                    payload,
-                    indent=2,
-                    sort_keys=True,
-                )
-                + "\n",
-                encoding="utf-8",
-            )
-            temporary.replace(self.path)
-        finally:
-            if temporary.exists():
-                temporary.unlink()
 
 
 def new_machine_location(

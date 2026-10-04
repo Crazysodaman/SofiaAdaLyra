@@ -11,7 +11,7 @@ from sofia.cognition.tools import CognitiveToolBinding
 from .discovery import create_machine_discovery
 from .hardware import HardwareDiscovery,create_hardware_discovery
 from .inventory import MachineInventory
-from .location_state import StatePlaneMachineLocationRegistry
+from .location import MachineLocationRegistry
 from .persistence import SQLiteMachineInventoryPersistence
 from .refresh import MachineInventoryRefresher
 from sofia.state.plane import StatePlane
@@ -45,7 +45,7 @@ class MachineToolService:
             legacy_path=state_path.parent/"machine-inventory.json",
         )
         plane=state_plane or SQLiteStatePlane(state_path)
-        self.location_registry=StatePlaneMachineLocationRegistry(
+        self.location_registry=MachineLocationRegistry(
             plane,
             legacy_path=state_path.parent/"machine-locations.json",
         )

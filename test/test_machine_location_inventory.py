@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sofia.machine.capability import MachineToolService
+from sofia.machine.location_cli import _known_identity
+from sofia.machine.persistence import SQLiteMachineInventoryPersistence
 from sofia.machine.location import new_machine_location
 from sofia.machine.model import (
     HardwareProfile,
@@ -79,3 +81,13 @@ def test_machine_inventory_tool_surfaces_location_without_coordinates(
     )
     assert "latitude" not in result["configured_location"]
     assert "longitude" not in result["configured_location"]
+
+
+def test_location_cli_resolves_production_sqlite_inventory_without_legacy_json(tmp_path):
+    service = MachineToolService(tmp_path / "sofia.db")
+    service.inventory.record(observation())
+    SQLiteMachineInventoryPersistence(tmp_path / "sofia.db").save(service.inventory)
+
+    assert _known_identity(tmp_path, machine_id="machine-1", hostname=None) == ("machine-1", "Artemis")
+    assert _known_identity(tmp_path, machine_id=None, hostname="artemis") == ("machine-1", "Artemis")
+    assert not (tmp_path / "machine-inventory.json").exists()

@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 import json
 
 import pytest
@@ -19,12 +19,8 @@ from sofia.machine.observation import (
     ObservationSource,
     ObservationState,
 )
-from sofia.machine.persistence import (
-    MachineInventoryPersistence,
-    SQLiteMachineInventoryPersistence,
-    deserialize_inventory,
-    serialize_inventory,
-)
+from sofia.machine.persistence import SQLiteMachineInventoryPersistence
+from sofia.machine.inventory_codec import deserialize_inventory, serialize_inventory
 
 
 TIMESTAMP = datetime(
@@ -280,7 +276,7 @@ def test_round_trip_preserves_multiple_machines() -> None:
     )
 
 
-def test_file_persistence_round_trip(
+def test_canonical_persistence_round_trip(
     tmp_path,
 ) -> None:
     inventory = MachineInventory()
@@ -290,10 +286,10 @@ def test_file_persistence_round_trip(
 
     path = (
         tmp_path
-        / "machine-inventory.json"
+        / "machine-inventory.db"
     )
 
-    store = MachineInventoryPersistence(
+    store = SQLiteMachineInventoryPersistence(
         path
     )
 
@@ -312,7 +308,7 @@ def test_file_persistence_round_trip(
     )
 
 
-def test_file_persistence_creates_parent_directory(
+def test_canonical_persistence_creates_parent_directory(
     tmp_path,
 ) -> None:
     inventory = MachineInventory()
@@ -323,10 +319,10 @@ def test_file_persistence_creates_parent_directory(
     path = (
         tmp_path
         / "nested"
-        / "machine-inventory.json"
+        / "machine-inventory.db"
     )
 
-    MachineInventoryPersistence(
+    SQLiteMachineInventoryPersistence(
         path
     ).save(inventory)
 
@@ -353,7 +349,7 @@ def test_legacy_machine_inventory_json_migrates_and_retires(
     inventory = MachineInventory()
     inventory.record(_observation())
     legacy = tmp_path / "machine-inventory.json"
-    MachineInventoryPersistence(legacy).save(inventory)
+    legacy.write_text(json.dumps(serialize_inventory(inventory)), encoding="utf-8")
 
     state = tmp_path / "sofia.db"
     restored = SQLiteMachineInventoryPersistence(
@@ -407,15 +403,11 @@ def test_persistence_does_not_add_authority_or_capability_state(
         / "inventory.json"
     )
 
-    MachineInventoryPersistence(
+    SQLiteMachineInventoryPersistence(
         path
     ).save(inventory)
 
-    raw = json.loads(
-        path.read_text(
-            encoding="utf-8"
-        )
-    )
+    raw = serialize_inventory(SQLiteMachineInventoryPersistence(path).load())
 
     assert "authority" not in raw
     assert "capabilities" not in raw
