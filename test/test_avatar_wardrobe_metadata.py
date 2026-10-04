@@ -1,7 +1,7 @@
 """Avatar A0 metadata fixtures, not geometry/cloth simulation/age verification."""
 import pytest
 from sofia.avatar import (
-    Garment, Layer, PreviewRequest, Wardrobe, WardrobeConflict,
+    Garment, Layer, Outfit, PreviewRequest, Wardrobe, WardrobeConflict,
     WardrobeError, VisibilityDenied,
 )
 
@@ -162,3 +162,21 @@ def test_declared_asset_refs_do_not_prove_actual_renderer_assets():
         w.require_public_ready(state)
     with pytest.raises(VisibilityDenied):
         w.require_public_ready(state, assets_verified_by_renderer="true")
+
+
+
+def test_public_ready_rejects_forged_outfit_metadata():
+    w = outfit()
+    forged = Outfit(
+        item_ids=("missing",),
+        coverage=frozenset({"torso", "pelvis"}),
+        covered_default=True,
+        asset_refs_present=True,
+        private_only=False,
+    )
+
+    with pytest.raises(VisibilityDenied):
+        w.require_public_ready(
+            forged,
+            assets_verified_by_renderer=True,
+        )
