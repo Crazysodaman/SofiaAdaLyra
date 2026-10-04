@@ -15,10 +15,9 @@ from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
 from sofia.avatar.influence import propose_avatar_influence, wardrobe_emotion_influences
-from sofia.avatar.environment_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner
+from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
@@ -144,11 +143,9 @@ def test_one_snapshot_drives_emotion_context_avatar_and_outfit_without_becoming_
     )
     assert "soft-smile" in avatar.expression_tags
 
-    host = HostEnvironmentEvidence.from_environment_snapshot(
+    context = WardrobeContext.from_environment_snapshot(
         snapshot,
         activity=Activity.CONVERSATION,
-    )
-    context = host.planner_context(
         emotion_influences=wardrobe_emotion_influences(influence),
     )
     proposal = OutfitPlanner(
@@ -180,11 +177,11 @@ def test_stale_weather_cannot_influence_avatar_or_wardrobe(tmp_path):
     assert "weather" not in avatar.reasons
     assert "weather-cozy" not in avatar.appearance.style_tags
 
-    host = HostEnvironmentEvidence.from_environment_snapshot(
+    context = WardrobeContext.from_environment_snapshot(
         snapshot,
         activity=Activity.CONVERSATION,
     )
-    assert host.weather is None
+    assert context.weather is None
 
 
 def test_interact_receives_same_context_without_weather_or_emotion_granting_consent(
@@ -328,8 +325,8 @@ def test_future_weather_is_diagnostic_only_and_cannot_influence_shared_context(
     assert influence.temperature_c is None
     assert influence.weather_freshness == "future"
 
-    host = HostEnvironmentEvidence.from_environment_snapshot(
+    context = WardrobeContext.from_environment_snapshot(
         snapshot,
         activity=Activity.CONVERSATION,
     )
-    assert host.weather is None
+    assert context.weather is None

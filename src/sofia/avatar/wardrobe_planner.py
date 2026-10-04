@@ -10,14 +10,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum
 
+from sofia.environment.model import (
+    EnvironmentFreshness,
+    EnvironmentSnapshot,
+    Season,
+)
+
 from .wardrobe import Wardrobe, WardrobeError, WardrobeConflict, Outfit
-
-
-class Season(str, Enum):
-    SPRING = "spring"
-    SUMMER = "summer"
-    AUTUMN = "autumn"
-    WINTER = "winter"
 
 
 class Activity(str, Enum):
@@ -148,6 +147,66 @@ class WardrobeContext:
             or any(not isinstance(item, EmotionStyleInfluence) for item in self.emotion_influences)
         ):
             raise WardrobeError("invalid emotion influences")
+
+    @classmethod
+    def from_environment_snapshot(
+        cls,
+        snapshot: EnvironmentSnapshot,
+        *,
+        activity: Activity,
+        emotion_influences: tuple[EmotionStyleInfluence, ...] = (),
+    ) -> "WardrobeContext":
+        """Adapt canonical ENVIRONMENT evidence for wardrobe planning."""
+        if not isinstance(snapshot, EnvironmentSnapshot):
+            raise WardrobeError("snapshot must be EnvironmentSnapshot")
+        if not isinstance(activity, Activity):
+            raise WardrobeError("activity must be Activity")
+        if snapshot.season is None:
+            raise WardrobeError(
+                "environment snapshot has no grounded season"
+            )
+
+        weather = None
+        source = snapshot.weather
+        if (
+            source is not None
+            and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+        ):
+            condition = source.condition.casefold()
+            wet_tokens = (
+                "rain", "shower", "drizzle", "thunder",
+                "storm", "hail", "sleet", "pour",
+            )
+            cold_tokens = ("snow", "ice", "frost", "freez")
+            temperature = (
+                source.feels_like_c
+                if source.feels_like_c is not None
+                else source.temperature_c
+            )
+            if any(token in condition for token in wet_tokens):
+                wardrobe_weather = Weather.WET
+            elif (
+                any(token in condition for token in cold_tokens)
+                or (temperature is not None and temperature <= 10.0)
+            ):
+                wardrobe_weather = Weather.COLD
+            elif temperature is not None and temperature >= 27.0:
+                wardrobe_weather = Weather.HOT
+            else:
+                wardrobe_weather = Weather.MILD
+            weather = WeatherObservation(
+                condition=wardrobe_weather,
+                observed_at=source.observed_at,
+                source_id=source.source_id,
+            )
+
+        return cls(
+            now=snapshot.user_local_time or snapshot.host_local_time,
+            season=snapshot.season,
+            activity=activity,
+            weather=weather,
+            emotion_influences=emotion_influences,
+        )
 
     @property
     def effective_weather(self) -> Weather | None:

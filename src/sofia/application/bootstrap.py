@@ -12,10 +12,9 @@ from sofia.avatar.clothing_action import (
     ClothingActionService,
     WardrobeAutonomyContext,
 )
-from sofia.avatar.environment_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
-from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner
+from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
 from sofia.avatar.wardrobe_studio import WardrobeStudio
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
@@ -503,11 +502,9 @@ class SofiaApplication:
 
         wardrobe_context = None
         if environment.season is not None:
-            host_environment = HostEnvironmentEvidence.from_environment_snapshot(
+            wardrobe_context = WardrobeContext.from_environment_snapshot(
                 environment,
                 activity=Activity.CONVERSATION,
-            )
-            wardrobe_context = host_environment.planner_context(
                 emotion_influences=wardrobe_emotion_influences(
                     continuity
                 ),
@@ -552,10 +549,6 @@ class SofiaApplication:
                 operation_id=operation_id,
             )
 
-        host_environment = HostEnvironmentEvidence.from_environment_snapshot(
-            environment,
-            activity=Activity.CONVERSATION,
-        )
         emotion_influences = ()
         service = self._conversation_service
         if (
@@ -569,7 +562,9 @@ class SofiaApplication:
             )
             emotion_influences = wardrobe_emotion_influences(continuity)
 
-        context = host_environment.planner_context(
+        context = WardrobeContext.from_environment_snapshot(
+            environment,
+            activity=Activity.CONVERSATION,
             emotion_influences=emotion_influences,
         )
         return routine.evaluate(
