@@ -18,7 +18,7 @@ from sofia.avatar.influence import propose_avatar_influence, wardrobe_emotion_in
 from sofia.avatar.interact_bridge import HostEnvironmentEvidence
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_routine import Activity, OutfitPlanner
+from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import AvatarStore
