@@ -25,6 +25,7 @@ from sofia.operational.model import (
     RuntimeContinuity,
 )
 from sofia.personality.model import PersonalityProfile
+from sofia.safe.permissions import AdultPrivateAuthority
 from sofia.social.model import PrincipalContext
 from sofia.self_model.model import SofiaCoreState
 from sofia.self_model.operational import SofiaOperationalSelfModel
@@ -59,6 +60,7 @@ class CognitiveContext:
     avatar_presentation: PresentationProjection | None = None
     environment_snapshot: EnvironmentSnapshot | None = None
     principal: PrincipalContext | None = None
+    private_adult_authority: AdultPrivateAuthority | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, CognitiveRequest):
@@ -247,6 +249,18 @@ class CognitiveContext:
         ):
             raise TypeError(
                 "CognitiveContext principal must be a PrincipalContext or None."
+            )
+
+        if (
+            self.private_adult_authority is not None
+            and not isinstance(
+                self.private_adult_authority,
+                AdultPrivateAuthority,
+            )
+        ):
+            raise TypeError(
+                "CognitiveContext private_adult_authority must be "
+                "AdultPrivateAuthority or None."
             )
 
 
