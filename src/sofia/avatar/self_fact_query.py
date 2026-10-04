@@ -378,6 +378,18 @@ class AvatarSelfFactResolver:
                     why.append("it matches the grounded season and current activity")
                 if "modeled_emotion_influence" in details:
                     why.append("modeled emotion gave it a bounded style preference")
+                if "garment_environment_context" in details:
+                    why.append(
+                        "the grounded garment and environment context supports it"
+                    )
+                if "weather_missing_or_stale" in details:
+                    why.append(
+                        "current weather evidence was missing or stale and was not trusted"
+                    )
+                if "verified_previous_choice" in details:
+                    why.append(
+                        "it remained a verified compatible prior choice"
+                    )
                 if "ordinary_rotation" in details:
                     why.append("it was the reviewed daily rotation candidate")
                 if "daytime_default" in details:
