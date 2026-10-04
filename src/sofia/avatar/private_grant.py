@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
@@ -29,7 +30,8 @@ class PrivatePresentationGrantResolver:
             raise TypeError(
                 "operator_stop_store must be OperatorStopStore or None"
             )
-        self._adult_verified = adult_verified
+        self._legacy_adult_verified = adult_verified
+        self._permission_store = PermissionStore(state_path)
         self._operator_stop_store = (
             operator_stop_store or OperatorStopStore(state_path)
         )
@@ -62,8 +64,15 @@ class PrivatePresentationGrantResolver:
             principal is not None
             and principal.audience_kind is AudienceKind.PRIVATE
         )
+        authority = self._permission_store.private_adult_authority()
+        adult_verified = (
+            self._legacy_adult_verified
+            if authority.updated_by == "system:bootstrap"
+            else authority.adult_avatar
+        )
         if not (
-            self._adult_verified
+            adult_verified
+            and authority.private_chat
             and owner_verified
             and private_session
             and explicit_current_opt_in
@@ -79,7 +88,7 @@ class PrivatePresentationGrantResolver:
         self._last_error = None
 
         grant = PrivatePresentationGrant(
-            adult_verified=self._adult_verified,
+            adult_verified=adult_verified,
             owner_verified=owner_verified,
             private_session=private_session,
             explicit_current_opt_in=explicit_current_opt_in,
