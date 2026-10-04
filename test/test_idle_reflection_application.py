@@ -74,6 +74,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
         catalog=SimpleNamespace(
             wardrobe=object(),
             presets=(),
+            blueprints=(),
         ),
         matrix_for=lambda item_ids: None,
     )
@@ -85,7 +86,7 @@ def _application(monkeypatch, tmp_path, *, personality=True):
     monkeypatch.setattr(
         bootstrap,
         "OutfitPlanner",
-        lambda wardrobe, presets: None,
+        lambda wardrobe, presets, **kwargs: None,
     )
     monkeypatch.setattr(
         bootstrap,
