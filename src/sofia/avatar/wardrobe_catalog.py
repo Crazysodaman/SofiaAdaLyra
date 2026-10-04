@@ -1,6 +1,7 @@
 """Small reviewed starter wardrobe built from structured garment designs.
 
-The type vocabulary lives in wardrobe_types.py. This catalog contains only
+The type vocabulary lives in wardrobe_types.py; validated JSON loading lives
+in wardrobe_loader.py and prebuild contracts in wardrobe_prebuild.py. This catalog contains only
 pieces Sofía currently owns as design metadata. No blueprint claims a mesh,
 texture, renderer asset, or proof that an item is visibly worn.
 """
@@ -8,41 +9,22 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from .wardrobe_prebuild import (DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID,
+    FALLBACK_OUTFIT_ID, GarmentBlueprint, WardrobePrebuild, StyleInput, RequestStatus)
+from .wardrobe_loader import _load_wardrobe_data_file
 from .wardrobe import Garment, Wardrobe
-from .wardrobe_prebuild import (
-    DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID, FALLBACK_OUTFIT_ID,
-    GarmentBlueprint, WardrobePrebuild, StyleInput, RequestStatus,
-)
-from .wardrobe_design import (
-    ComfortProfile,
-    ContextProfile,
-    EnvironmentProfile,
-    FabricWeight,
-    GarmentDesign,
-    GraphicDesign,
-    HumidityProfile,
-    MaterialProperties,
-    MoistureProfile,
-    MovementProfile,
-    PrecipitationProfile,
-    RatedContext,
-    Suitability,
-    SunlightProfile,
-    TemperatureProfile,
-    TraitLevel,
-    WindProfile,
-    resolve_color,
-    validate_design,
-)
-from .wardrobe_types import garment_type
-from .wardrobe_planner import (
-    Activity,
-    OutfitPlan,
-    Season,
-)
+from .wardrobe_design import ComfortProfile, ContextProfile, EnvironmentProfile, FabricWeight, GarmentDesign, GraphicDesign, HumidityProfile, MaterialProperties, MoistureProfile, MovementProfile, PrecipitationProfile, RatedContext, Suitability, SunlightProfile, TemperatureProfile, TraitLevel, WindProfile, validate_design
+from .wardrobe_planner import Activity, OutfitPlan, Season
 
 
 ALL_SEASONS = frozenset(Season)
+
+
+def _load_underlayer_blueprints() -> tuple[GarmentBlueprint, ...]:
+    return (
+        *_load_wardrobe_data_file("underlayers_upper.json", _blueprint),
+        *_load_wardrobe_data_file("underlayers_lower.json", _blueprint),
+    )
 
 
 def _starter_profiles(
@@ -721,17 +703,23 @@ def _starter_profiles(
     return generic_material, generic_environment, generic_context, generic_comfort
 
 
-def _blueprint(design: GarmentDesign, *, canonical: bool = False) -> GarmentBlueprint:
-    material_properties, environment, context, comfort = _starter_profiles(
-        design.item_id
-    )
-    design = replace(
-        design,
-        material_properties=material_properties,
-        environment=environment,
-        context=context,
-        comfort=comfort,
-    )
+def _blueprint(
+    design: GarmentDesign,
+    *,
+    canonical: bool = False,
+    apply_starter_profiles: bool = True,
+) -> GarmentBlueprint:
+    if apply_starter_profiles:
+        material_properties, environment, context, comfort = _starter_profiles(
+            design.item_id
+        )
+        design = replace(
+            design,
+            material_properties=material_properties,
+            environment=environment,
+            context=context,
+            comfort=comfort,
+        )
     definition = validate_design(design)
     garment = Garment(
         item_id=design.item_id,
@@ -764,84 +752,14 @@ def _no_graphic() -> GraphicDesign:
 
 
 def build_starter_wardrobe() -> WardrobePrebuild:
-    """Build the intentionally small day/night starter closet."""
+    """Build the owned data-backed wardrobe plus canonical outfit presets."""
     blueprints = (
-        _blueprint(
-            GarmentDesign(
-                "base.bralette", "Soft technical bralette", "bralette",
-                "fitted", None, "cropped", None,
-                "soft breathable stretch knit", "black", "dark_violet",
-                "solid", _no_graphic(), ("soft_band",),
-                ("base", "technical", "soft"), False,
-                "A simple black technical bralette in soft breathable stretch "
-                "knit with a dark-violet band. Clean seams and low-profile "
-                "edges keep it comfortable beneath other layers."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "base.briefs", "Soft technical briefs", "briefs",
-                "fitted", "mid", "brief", None,
-                "soft breathable stretch knit", "black", "dark_violet",
-                "solid", _no_graphic(), ("soft_band", "tail_clearance"),
-                ("base", "technical", "soft"), False,
-                "Fitted black technical briefs with a mid rise, soft "
-                "dark-violet waistband, and a comfortable tailored opening "
-                "that preserves unrestricted tail movement."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "day.technical_top", "Fitted technical long-sleeve top",
-                "long_sleeve_tee", "fitted", None, "hip", "long",
-                "breathable performance-knit", "black", "crimson",
-                "panelled",
-                GraphicDesign(True, "left_chest", "small_cyan_circuit_mark"),
-                ("reinforced_seams", "stretch_panels"),
-                ("day", "engineer", "technical", "fitted"), False,
-                "A fitted black long-sleeve technical top cut to the hip in "
-                "breathable performance knit. Crimson seam accents follow the "
-                "shoulders and sides, while a small cyan circuit mark sits on "
-                "the left chest. The silhouette is clean and mobile, with "
-                "reinforced seams and subtle stretch panels."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "day.utility_trousers", "Articulated utility trousers",
-                "utility_trousers", "fitted", "mid", "full", None,
-                "stretch technical weave", "charcoal", "dark_violet",
-                "panelled",
-                _no_graphic(),
-                ("articulated_knees", "utility_pockets", "tail_clearance"),
-                ("day", "engineer", "technical", "utility"), False,
-                "Fitted charcoal utility trousers with a mid rise and full "
-                "length, built from a flexible technical weave. Dark-violet "
-                "panel accents, articulated knees, practical low-profile "
-                "pockets, and a dedicated tail opening keep the look "
-                "functional without becoming bulky."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "day.engineer_jacket", "Asymmetric engineer jacket",
-                "engineer_jacket", "tailored", None, "hip", "long",
-                "matte abrasion-resistant technical shell", "black", "crimson",
-                "asymmetric_panelled", _no_graphic(),
-                ("asymmetric_zip", "reinforced_panels", "cyan_micro_accents", "tail_clearance"),
-                ("day", "engineer", "technical", "outerwear"), False,
-                "A tailored hip-length black engineer jacket with long sleeves "
-                "and an asymmetric front zip. Crimson edge lines, small cyan "
-                "hardware accents, and reinforced shoulder and forearm panels "
-                "give it a practical cyber-engineering look. The rear hem is "
-                "shaped around the tail opening."
-            ),
-            canonical=True,
-        ),
+        *_load_underlayer_blueprints(),
+        *_load_wardrobe_data_file("tops.json", _blueprint),
+        *_load_wardrobe_data_file("bottoms.json", _blueprint),
+        *_load_wardrobe_data_file("one_pieces.json", _blueprint),
+        *_load_wardrobe_data_file("footwear.json", _blueprint),
+        *_load_wardrobe_data_file("outerwear.json", _blueprint),
         _blueprint(
             GarmentDesign(
                 "day.work_socks", "Technical crew socks", "crew_socks",
@@ -852,20 +770,6 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                 ("day", "engineer", "technical"), False,
                 "Black technical crew socks in moisture-wicking knit with "
                 "subtle crimson trim and reinforced heel and toe zones."
-            ),
-            canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "day.work_boots", "Mid-calf engineer boots", "work_boots",
-                "fitted", None, "mid_calf", None,
-                "matte technical leather and textile", "black", "dark_violet",
-                "solid", _no_graphic(),
-                ("grip_sole", "reinforced_toe", "side_zip"),
-                ("day", "engineer", "technical", "footwear"), False,
-                "Matte black mid-calf engineer boots with dark-violet paneling, "
-                "a compact side zip, reinforced toe, and practical grip sole. "
-                "The shape stays sleek rather than heavy."
             ),
             canonical=True,
         ),
@@ -893,37 +797,6 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                 "small practical pouch, and restrained crimson hardware detail."
             ),
             canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "night.lounge_tee", "Oversized late-night lounge T-shirt",
-                "t_shirt", "oversized", None, "upper_thigh", "short",
-                "soft brushed cotton-modal knit", "black", "dark_violet",
-                "solid",
-                GraphicDesign(True, "back_center", "violet_cyan_circuit_fox"),
-                ("dropped_shoulders", "soft_hem"),
-                ("night", "lounge", "soft", "cozy", "graphic"), False,
-                "An oversized black late-night T-shirt in soft brushed "
-                "cotton-modal knit, falling to the upper thigh with short "
-                "sleeves and relaxed dropped shoulders. A dark-violet and cyan "
-                "circuit-fox graphic sits across the upper back, while the "
-                "front stays mostly clean."
-            ),
-        ),
-        _blueprint(
-            GarmentDesign(
-                "night.running_shorts", "Fitted circuit running shorts",
-                "running_shorts", "fitted", "mid", "short", None,
-                "performance-knit", "dark_violet", "cyan", "none",
-                GraphicDesign(True, "left_leg", "small_circuit_mark"),
-                ("drawstring", "side_slits", "tail_clearance"),
-                ("night", "lounge", "athletic", "soft"), False,
-                "Fitted dark-violet running shorts with a mid rise and short "
-                "athletic cut in soft performance knit. Cyan trim picks out the "
-                "side seams, a small circuit mark sits on the left leg, and the "
-                "design includes a drawstring, shallow side slits, and a "
-                "comfortable tail opening."
-            ),
         ),
     )
 

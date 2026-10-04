@@ -21,6 +21,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "sofia.ui" = ["assets/*.ico"]
+"sofia.avatar" = ["wardrobe_data/*.json"]
 
 [tool.pytest.ini_options]
 python_classes = ["*Test"]

@@ -1,34 +1,36 @@
-"""Validated prebuild metadata, reviewed preferences and creator handoff."""
+"""Validated wardrobe prebuild metadata and creator handoff."""
 from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import sha256
 import json
 import re
-
 from .fit import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Wardrobe, WardrobeError
-from .wardrobe_design import GarmentDesign, resolve_color, validate_design
-from .wardrobe_types import garment_type
-from .wardrobe_planner import (
-    OutfitPlan, Preference, PreferenceActor, PreferenceTarget, Sentiment,
-)
+from .wardrobe_design import ContentRating, ExposureZone, GarmentDesign, resolve_color, validate_design
+from sofia.avatar.wardrobe_types import garment_type
+from .wardrobe_planner import OutfitPlan, Preference, PreferenceActor, PreferenceTarget, Sentiment
 
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
 
+
 DRAFT_STATUS = "proposed_no_mesh_no_verified_asset"
+
 
 DAY_DEFAULT_OUTFIT_ID = "day.default"
 
+
 NIGHT_LOUNGE_OUTFIT_ID = "night.lounge"
 
+
 FALLBACK_OUTFIT_ID = "fallback.covered"
+
 
 class RequestStatus(str, Enum):
     USER_REQUESTED = "user_requested"
     USER_LIKED = "user_liked"
     USER_DISLIKED = "user_disliked"
+
 
 @dataclass(frozen=True, slots=True)
 class StyleInput:
@@ -49,6 +51,7 @@ class StyleInput:
             raise WardrobeError("style input status must be typed")
         if not isinstance(self.detail, str) or not self.detail.strip():
             raise WardrobeError("style input requires a concrete detail")
+
 
 @dataclass(frozen=True, slots=True)
 class GarmentBlueprint:
@@ -130,9 +133,18 @@ class GarmentBlueprint:
     def category(self) -> str:
         # Preserve precise undergarment semantics for conversational queries
         # while the creator itself remains type/family driven.
-        if self.design.garment_type == "bralette":
+        bra_types = {
+            "bralette", "wireless_bra", "sports_bra", "longline_bralette",
+            "triangle_bralette", "plunge_bra", "bandeau", "open_cup_bra",
+        }
+        panty_types = {
+            "briefs", "hipster", "boyshort", "bikini_brief",
+            "cheeky_brief", "thong", "athletic_brief",
+            "open_crotch_briefs",
+        }
+        if self.design.garment_type in bra_types:
             return "closet.bra"
-        if self.design.garment_type == "briefs":
+        if self.design.garment_type in panty_types:
             return "closet.panty"
         family = garment_type(self.design.garment_type).family.value
         return f"closet.{family}"
@@ -144,6 +156,14 @@ class GarmentBlueprint:
     @property
     def private_only(self) -> bool:
         return self.design.private_only
+
+    @property
+    def content_rating(self) -> ContentRating:
+        return self.design.content_rating
+
+    @property
+    def exposure(self) -> tuple[ExposureZone, ...]:
+        return self.design.exposure
 
     @property
     def description(self) -> str:
@@ -170,6 +190,8 @@ class GarmentBlueprint:
             "features": self.design.features,
             "style_tags": self.design.style_tags,
             "private_only": self.design.private_only,
+            "content_rating": self.design.content_rating.value,
+            "exposure": tuple(zone.value for zone in self.design.exposure),
             "material_properties": self.design.material_properties.as_dict(),
             "environment": self.design.environment.as_dict(),
             "context": self.design.context.as_dict(),
@@ -183,6 +205,7 @@ class GarmentBlueprint:
             ensure_ascii=False,
         ).encode("utf-8")
         return sha256(encoded).hexdigest()
+
 
 @dataclass(frozen=True, slots=True)
 class WardrobePrebuild:
@@ -365,6 +388,8 @@ class WardrobePrebuild:
                     "ear_clearance": bp.garment.ear_clearance,
                     "asset_ref": None,
                     "private_only": bp.private_only,
+                    "content_rating": bp.content_rating.value,
+                    "exposure": [zone.value for zone in bp.exposure],
                     "provenance": bp.provenance,
                     "design_signature": bp.design_signature,
                     "description": bp.design.description,

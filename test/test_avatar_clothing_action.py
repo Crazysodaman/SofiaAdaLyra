@@ -16,7 +16,7 @@ from sofia.avatar.presentation_store import (
     PresentationStoreError,
 )
 from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
-from sofia.avatar.wardrobe import Layer
+from sofia.avatar.wardrobe import Layer, Wardrobe
 from sofia.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
@@ -35,8 +35,8 @@ from sofia.safe.operator_stop import OperatorStopStore
 from sofia.social.principals import local_sparks_principal
 
 
-def bundle(tmp_path):
-    catalog = build_starter_wardrobe()
+def bundle(tmp_path, *, catalog=None):
+    catalog = build_starter_wardrobe() if catalog is None else catalog
     authority = PresentationAuthority(
         catalog.wardrobe,
         outfits={
@@ -200,7 +200,12 @@ def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
 
 
 def test_swap_boots_keeps_current_pair_when_no_replacement_exists(tmp_path):
-    runtime_bundle = bundle(tmp_path)
+    catalog = build_starter_wardrobe()
+    preset_ids = {item for plan in catalog.presets for item in plan.item_ids}
+    blueprints = tuple(bp for bp in catalog.blueprints if bp.garment.item_id in preset_ids)
+    catalog = replace(catalog, blueprints=blueprints,
+                      wardrobe=Wardrobe(tuple(bp.garment for bp in blueprints)))
+    runtime_bundle = bundle(tmp_path, catalog=catalog)
     service = ClothingActionService(runtime_bundle)
 
     reply = service.handle(
@@ -487,3 +492,16 @@ def test_dynamic_clothing_change_rolls_back_registration_when_save_fails(
     assert runtime_bundle.authority.snapshot() == before
     assert runtime_bundle.authority.available_outfit_ids == before_outfits
     assert runtime_bundle.authority.pending is None
+
+
+def test_swap_boots_uses_expanded_public_inventory(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(runtime_bundle)
+    reply = service.handle(content="swap your boots", previous_user_content=None,
+                           operation_id="test.swap.expanded.boots")
+    assert reply is not None and "The change is committed" in reply
+    current = runtime_bundle.authority.current
+    assert "day.work_boots" not in current.item_ids
+    selection = runtime_bundle.catalog.wardrobe.selection(current.item_ids)
+    assert selection.covered_default and not selection.private_only
+    assert persisted_authority(runtime_bundle).current == current

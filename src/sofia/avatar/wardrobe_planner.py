@@ -6,7 +6,7 @@ are covered, non-private outfits, even for an authenticated private session.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum
 
@@ -727,6 +727,11 @@ class OutfitPlanner:
             result = 6 if context.season in plan.seasons else -6
             profile_score, _ = self._outfit_profile_score(plan, context)
             result += profile_score
+            # Profile and outfit-tag scoring share one grounded emotion budget.
+            neutral_score, _ = self._outfit_profile_score(
+                plan, replace(context, emotion_influences=())
+            ) if context.emotion_influences else (profile_score, False)
+            profile_emotion_bias = max(0, profile_score - neutral_score)
             if plan.weather:
                 if weather is None:
                     # Do not choose a weather-specialized outfit from missing
@@ -762,7 +767,7 @@ class OutfitPlanner:
             for influence in context.emotion_influences:
                 if plan_tags.intersection(influence.style_tags):
                     emotion_bias += float(influence.intensity)
-            result += min(3, round(emotion_bias * 3))
+            result += min(max(0, 3 - profile_emotion_bias), round(emotion_bias * 3))
             result -= sum(4 for record in recent[-7:] if record.outfit_id == plan.outfit_id)
             return result
 

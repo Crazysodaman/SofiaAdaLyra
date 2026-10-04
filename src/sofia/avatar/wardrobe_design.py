@@ -521,6 +521,17 @@ class ComfortProfile:
         }
 
 
+class ContentRating(str, Enum):
+    STANDARD = "standard"
+    LEWD = "lewd"
+    EXPLICIT = "explicit"
+
+
+class ExposureZone(str, Enum):
+    NIPPLES = "nipples"
+    GENITALS = "genitals"
+
+
 @dataclass(frozen=True, slots=True)
 class GarmentDesign:
     """Creator-facing structured design for one actual wardrobe piece."""
@@ -541,6 +552,8 @@ class GarmentDesign:
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
     description: str = ""
+    content_rating: ContentRating = ContentRating.STANDARD
+    exposure: tuple[ExposureZone, ...] = ()
     material_properties: MaterialProperties = field(
         default_factory=MaterialProperties
     )
@@ -595,6 +608,21 @@ class GarmentDesign:
                 raise WardrobeError(f"invalid {label}")
         if type(self.private_only) is not bool:
             raise WardrobeError("private_only must be boolean")
+        if not isinstance(self.content_rating, ContentRating):
+            raise WardrobeError("content_rating must be ContentRating")
+        if (
+            not isinstance(self.exposure, tuple)
+            or len(set(self.exposure)) != len(self.exposure)
+            or any(not isinstance(zone, ExposureZone) for zone in self.exposure)
+        ):
+            raise WardrobeError("exposure must be unique typed exposure zones")
+        if (
+            self.content_rating in {ContentRating.LEWD, ContentRating.EXPLICIT}
+            and not self.private_only
+        ):
+            raise WardrobeError("lewd/explicit garments must be private-only")
+        if self.exposure and self.content_rating is not ContentRating.EXPLICIT:
+            raise WardrobeError("intentional exposure requires explicit rating")
         if not isinstance(self.material_properties, MaterialProperties):
             raise WardrobeError("invalid material properties")
         if not isinstance(self.environment, EnvironmentProfile):
@@ -637,5 +665,19 @@ def validate_design(design: GarmentDesign) -> GarmentTypeDefinition:
     if design.graphic.enabled and not definition.supports_graphic:
         raise WardrobeError(
             f"{design.garment_type} does not support graphics"
+        )
+    if (
+        ExposureZone.NIPPLES in design.exposure
+        and "torso" in definition.coverage
+    ):
+        raise WardrobeError(
+            "nipple-exposing garment type cannot claim torso coverage"
+        )
+    if (
+        ExposureZone.GENITALS in design.exposure
+        and "pelvis" in definition.coverage
+    ):
+        raise WardrobeError(
+            "genital-exposing garment type cannot claim pelvis coverage"
         )
     return definition
