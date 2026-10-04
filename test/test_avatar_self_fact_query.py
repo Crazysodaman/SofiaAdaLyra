@@ -459,3 +459,38 @@ def test_generic_what_is_your_outfit_is_deterministic_authoritative_fact():
     assert "Articulated utility trousers" in result.content
     assert "shock-absorbing" not in result.content.casefold()
     assert "everything is maintained" not in result.content.casefold()
+
+def test_short_why_the_outfit_uses_only_committed_reason_and_pieces():
+    embodiment, projection, _ = sources()
+    lounge = replace(
+        projection,
+        outfit_id="night.lounge",
+        item_names=(
+            "Relaxed lounge bralette",
+            "Soft lounge boyshort panties",
+            "Oversized late-night lounge T-shirt",
+            "Fitted circuit running shorts",
+            "Soft violet slippers",
+        ),
+        reason=(
+            "headless_daily_context:covered_candidate,"
+            "season_and_activity,late_lounge,"
+            "garment_environment_context"
+        ),
+    )
+
+    result = AvatarSelfFactResolver().resolve(
+        "why the outfit",
+        embodiment=embodiment,
+        presentation=lounge,
+        available_outfit_ids=("day.default", "night.lounge"),
+    )
+
+    assert result.recognized
+    assert "trusted local clock" in result.content
+    assert "grounded season and current activity" in result.content
+    assert "Oversized late-night lounge T-shirt" in result.content
+    assert "Fitted circuit running shorts" in result.content
+    assert "jacket" not in result.content.casefold()
+    assert "utility belt" not in result.content.casefold()
+    assert "everyday engineer" not in result.content.casefold()
