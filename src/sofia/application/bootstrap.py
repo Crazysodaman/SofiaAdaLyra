@@ -77,6 +77,7 @@ from sofia.cognition.model_lifecycle import ModelLifecycleWorker
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
+from sofia.ops.backup_topology import backup_topology_enabled
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -1008,6 +1009,7 @@ class SofiaApplication:
                 or presentation_runtime_enabled
                 or fleet_discovery_enabled
                 or fleet_reconciliation_enabled
+                or backup_topology_enabled()
             )
             if background_needed:
                 if not isinstance(self._conversation_service, EmotionalConversationService):

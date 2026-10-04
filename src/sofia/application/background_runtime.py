@@ -19,6 +19,10 @@ from sofia.application.fleet_runtime import (
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.ops.backup_topology import (
+    backup_topology_interval_seconds,
+    create_backup_topology_from_environment,
+)
 from sofia.ops.discovery import FleetDiscoveryCoordinator, FleetDiscoveryEnrollmentReconciler
 from sofia.personality.influence import ContinuityInfluence
 from sofia.run.heartbeat import ApplicationHeartbeat
@@ -41,6 +45,10 @@ def create_background_coordinator(
     act_service = getattr(application, "_act_service", None)
     ops_service = getattr(application._runtime, "ops_service", None)
     fleet_discovery_enabled = fleet_discovery_source is not None
+    backup_topology = create_backup_topology_from_environment(
+        state_path=Path(application._configuration.state_path),
+        state_plane=application._runtime.state_plane,
+    )
     coordinator = ApplicationBackgroundCoordinator(
         service=application._conversation_service,
         state_path=Path(application._configuration.state_path),
@@ -156,6 +164,16 @@ def create_background_coordinator(
             interval_seconds=float(
                 application._configuration.fleet_discovery.interval_seconds
             ),
+        )
+
+    if backup_topology is not None:
+        def run_backup_topology(now):
+            return backup_topology.run(now=now)
+
+        coordinator.set_task(
+            "backup_topology",
+            run_backup_topology,
+            interval_seconds=backup_topology_interval_seconds(),
         )
 
     if fleet_reconciliation_enabled:
