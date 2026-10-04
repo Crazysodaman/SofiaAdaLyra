@@ -802,6 +802,156 @@ def test_required_read_only_preflight_never_autocalls_parameterized_tool():
     assert called == []
 
 
+def test_required_tool_preflight_executes_zero_argument_safe_autonomous_capability():
+    capability = Capability(
+        name="ops.fleet.discover",
+        description="Discover Fleet candidates.",
+    )
+    capability_system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+    called = []
+    capability_system.register(
+        capability=capability,
+        handler=lambda request: called.append(request) or {
+            "candidates": [{"host_id": "candidate-a"}],
+        },
+    )
+    dispatcher = CognitiveToolDispatcher(
+        gateway=CapabilityGateway(capability_system=capability_system),
+        bindings=(
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="discover_fleet_candidates",
+                    description="Discover Fleet candidates.",
+                    parameters={
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="ops.fleet.discover",
+            ),
+        ),
+    )
+
+    class EvidenceFirstEngine(CognitiveEngine):
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            assert any(
+                message.role is CognitiveRole.TOOL
+                and "candidate-a" in message.content
+                for message in request.messages
+            )
+            return CognitiveResponse(content="Found candidate-a.")
+
+    system = CognitiveSystem(
+        engine=EvidenceFirstEngine(),
+        tool_dispatcher=dispatcher,
+    )
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="TRUSTED TOOL EVIDENCE REQUIREMENT",
+                        ),
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Discover Fleet candidates.",
+                        ),
+                    ),
+                    allow_tools=True,
+                    capability_allowlist=("ops.fleet.discover",),
+                    route_hint="deep",
+                )
+            ),
+            authority=Authority(
+                allowed_capabilities=("ops.fleet.discover",),
+            ),
+        )
+    )
+
+    assert response.content == "Found candidate-a."
+    assert response.evidence_refs == ("capability:ops.fleet.discover",)
+    assert len(called) == 1
+
+
+def test_required_tool_preflight_never_autocalls_protected_zero_argument_capability():
+    capability = Capability(
+        name="local.host.reboot",
+        description="Reboot the local host.",
+    )
+    capability_system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+    called = []
+    capability_system.register(
+        capability=capability,
+        handler=lambda request: called.append(request) or {"rebooted": True},
+    )
+    dispatcher = CognitiveToolDispatcher(
+        gateway=CapabilityGateway(capability_system=capability_system),
+        bindings=(
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="reboot_local_host",
+                    description="Reboot the local host.",
+                    parameters={
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="local.host.reboot",
+            ),
+        ),
+    )
+
+    class NoToolEngine(CognitiveEngine):
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            assert not any(
+                message.role is CognitiveRole.TOOL
+                for message in request.messages
+            )
+            return CognitiveResponse(content="No automatic reboot.")
+
+    system = CognitiveSystem(
+        engine=NoToolEngine(),
+        tool_dispatcher=dispatcher,
+    )
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="TRUSTED TOOL EVIDENCE REQUIREMENT",
+                        ),
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content="Reboot this host.",
+                        ),
+                    ),
+                    allow_tools=True,
+                    capability_allowlist=("local.host.reboot",),
+                    route_hint="deep",
+                )
+            ),
+            authority=Authority(
+                allowed_capabilities=("local.host.reboot",),
+            ),
+        )
+    )
+
+    assert response.content == "No automatic reboot."
+    assert called == []
+
+
 def test_required_read_only_preflight_dispatches_all_zero_argument_reads():
     capability_system = CapabilitySystem(
         authorization_checker=lambda request: True,
