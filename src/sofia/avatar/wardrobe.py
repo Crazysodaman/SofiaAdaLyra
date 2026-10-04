@@ -223,13 +223,28 @@ class Wardrobe:
     def require_public_ready(
         self, outfit: Outfit, *, assets_verified_by_renderer: bool = False
     ) -> None:
-        """Conservative display gate; only a trusted renderer verifies actual assets."""
-        if (not isinstance(outfit, Outfit) or not outfit.covered_default
-                or outfit.private_only
-                or not outfit.asset_refs_present
-                or type(assets_verified_by_renderer) is not bool
-                or not assets_verified_by_renderer):
-            raise VisibilityDenied("public/default outfit requires coverage and verified assets")
+        """Conservative display gate backed by this wardrobe's own metadata."""
+        if not isinstance(outfit, Outfit):
+            raise VisibilityDenied(
+                "public/default outfit requires a validated wardrobe selection"
+            )
+        try:
+            authoritative = self.selection(outfit.item_ids)
+        except (WardrobeError, WardrobeConflict) as exc:
+            raise VisibilityDenied(
+                "public/default outfit is not a valid wardrobe selection"
+            ) from exc
+        if (
+            authoritative != outfit
+            or not authoritative.covered_default
+            or authoritative.private_only
+            or not authoritative.asset_refs_present
+            or type(assets_verified_by_renderer) is not bool
+            or not assets_verified_by_renderer
+        ):
+            raise VisibilityDenied(
+                "public/default outfit requires coverage and verified assets"
+            )
 
     def restricted_preview(self, *, request: PreviewRequest) -> None:
         if not isinstance(request, PreviewRequest):
