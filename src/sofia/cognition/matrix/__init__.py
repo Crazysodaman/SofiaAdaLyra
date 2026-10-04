@@ -12,6 +12,7 @@ from .influence import (
     InfluenceSurface,
 )
 from .response import MatrixResponsePlanner, MatrixResponseValidator
+from .multi_question import merge_question_turns, split_multi_question
 from .expression_plan import EmbodiedExpressionPlan, EmbodiedExpressionPlanner, recent_expression_ids
 from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
@@ -90,6 +91,8 @@ __all__ = [
     "MatrixEvidenceResolver",
     "MatrixResponsePlanner",
     "MatrixResponseValidator",
+    "merge_question_turns",
+    "split_multi_question",
     "MatrixRoutingPlanner",
     "MatrixPrivacyPlanner",
     "MatrixToolExposurePlanner",
