@@ -260,6 +260,48 @@ class CognitiveContextAssembler:
                     f"Display name: {context.principal.display_name}"
                 )
 
+        if context.private_adult_authority is not None:
+            authority = context.private_adult_authority
+            sections.extend(
+                [
+                    "",
+                    "PRIVATE / ADULT AUTHORITY",
+                    (
+                        "These are trusted host-owned privacy permissions for "
+                        "the authenticated private owner context. They are not "
+                        "inferred from chat text and they never create consent, "
+                        "desire, relationship status, or permission for a "
+                        "specific represented interaction."
+                    ),
+                    (
+                        "Private chat authorized: "
+                        + ("yes" if authority.private_chat else "no")
+                    ),
+                    (
+                        "Adult chat authorized: "
+                        + ("yes" if authority.adult_chat else "no")
+                    ),
+                    (
+                        "Adult/private avatar authorized: "
+                        + ("yes" if authority.adult_avatar else "no")
+                    ),
+                    (
+                        "Adult/private external delivery authorized: "
+                        + (
+                            "yes"
+                            if authority.adult_external_delivery
+                            else "no"
+                        )
+                    ),
+                    (
+                        "If adult chat authority is off, do not escalate into "
+                        "adult/private-adult content from stored state or "
+                        "presentation context. External delivery remains denied "
+                        "unless its separate authority is explicitly on."
+                    ),
+                ]
+            )
+
         if context.identity is not None:
             sections.extend(
                 [
