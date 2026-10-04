@@ -1,9 +1,8 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sofia.cognition.self_state import (
     AuthoritativeSelfState,
-    create_authoritative_self_state,
 )
 from sofia.embodiment.model import (
     AvatarEmbodiment,
@@ -93,46 +92,46 @@ def create_operational_state() -> OperationalState:
 
 
 def test_projection_preserves_authoritative_identity():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=None,
         operational_state=None,
     )
 
-    assert state.identity_name == "Sofía Ada Lyra"
+    assert state.core_state.identity.name == "Sofía Ada Lyra"
 
 
 def test_projection_preserves_self_concept():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=None,
         operational_state=None,
     )
 
-    assert state.self_concept is not None
+    assert state.core_state.self_concept is not None
     assert (
-        state.self_concept.biological_status
+        state.core_state.self_concept.biological_status
         == "Sofía is not biologically human."
     )
 
 
 def test_projection_preserves_foundational_self_model():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=None,
         operational_state=None,
     )
 
-    assert state.foundational_values == (
+    assert state.core_state.foundational_values == (
         "Truth",
         "Autonomy",
     )
-    assert state.constitution_version == "1.0"
-    assert state.constitution_hash == "hash"
+    assert state.core_state.constitution_version == "1.0"
+    assert state.core_state.constitution_hash == "hash"
 
 
 def test_projection_preserves_canonical_measurements():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=create_embodiment(),
         operational_state=None,
@@ -143,7 +142,7 @@ def test_projection_preserves_canonical_measurements():
             name,
             (measurement.value, measurement.unit),
         )
-        for name, measurement in state.measurements
+        for name, measurement in state.embodiment.physical_self.measurements
     ) == {
         "height": (67, "in"),
         "weight": (135, "lb"),
@@ -155,17 +154,17 @@ def test_projection_preserves_canonical_measurements():
 
 
 def test_projection_preserves_canonical_clothing():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=create_embodiment(),
         operational_state=None,
     )
 
-    assert state.clothing_canonical_status == (
+    assert state.embodiment.clothing.canonical_status == (
         "CANON: Sofía Clothing Technical Specification v1.0"
     )
 
-    assert state.clothing == (
+    assert state.embodiment.clothing.items == (
         ClothingItem(
             category="Base layer",
             specification="Fitted black technical shirt",
@@ -178,14 +177,14 @@ def test_projection_preserves_canonical_clothing():
 
 
 def test_projection_preserves_representational_features():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=create_embodiment(),
         operational_state=None,
     )
 
-    assert state.embodiment_form == "human"
-    assert state.additional_features == (
+    assert state.embodiment.physical_self.form == "human"
+    assert state.embodiment.physical_self.additional_features == (
         "fox ears",
         "fox tail",
     )
@@ -194,7 +193,7 @@ def test_projection_preserves_representational_features():
 def test_projection_preserves_operational_state():
     operational = create_operational_state()
 
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=None,
         operational_state=operational,
@@ -223,7 +222,7 @@ def test_missing_sources_remain_unknown():
 
 
 def test_serialization_is_deterministic():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=create_embodiment(),
         operational_state=create_operational_state(),
@@ -233,7 +232,7 @@ def test_serialization_is_deterministic():
 
 
 def test_serialization_contains_authoritative_measurements():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=create_embodiment(),
         operational_state=None,
@@ -250,7 +249,7 @@ def test_serialization_contains_authoritative_measurements():
 
 
 def test_serialization_contains_authoritative_clothing():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=None,
         embodiment=create_embodiment(),
         operational_state=None,
@@ -264,7 +263,7 @@ def test_serialization_contains_authoritative_clothing():
 
 
 def test_serialization_contains_representation_boundary():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=create_embodiment(),
         operational_state=None,
@@ -285,7 +284,7 @@ def test_serialization_contains_representation_boundary():
 
 
 def test_projection_does_not_infer_missing_operational_state():
-    state = create_authoritative_self_state(
+    state = AuthoritativeSelfState(
         core_state=create_core_state(),
         embodiment=create_embodiment(),
         operational_state=None,
