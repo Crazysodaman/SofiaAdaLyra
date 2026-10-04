@@ -6,7 +6,7 @@ import pytest
 from sofia.embodiment.store import AvatarStore
 from sofia.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
 from sofia.interaction.registry import (
-    ACTION_DEFINITIONS, CATALOG_VERSION, EMOTION_EXTENSIONS,
+    ACTION_DEFINITIONS, CATALOG_VERSION,
     EXPRESSION_DEFINITIONS, GESTURE_DEFINITIONS, InteractionCatalog,
     catalog_for_engine, normalize_alias,
 )
@@ -82,7 +82,6 @@ def test_separate_gestures_actions_expressions_and_no_unknown_fallback(catalog):
     assert len(GESTURE_DEFINITIONS) >= 20
     assert len(ACTION_DEFINITIONS) >= 15
     assert len(EXPRESSION_DEFINITIONS) >= 20
-    assert {"embarrassment", "humiliation", "sexual-arousal"} <= EMOTION_EXTENSIONS
 
 
 def test_registry_is_immutable_and_does_not_change_runtime_engine(catalog):

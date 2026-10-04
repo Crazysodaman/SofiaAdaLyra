@@ -3,15 +3,14 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sofia.interaction.registry import EMOTION_EXTENSIONS
-from sofia.emotion.journal import EMOTIONS, EmotionalJournal
+from sofia.emotion.catalog import EMOTIONS
+from sofia.emotion.journal import EmotionalJournal
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 
 
 def test_extended_labels_are_active_but_never_auto_recorded(tmp_path):
     journal = EmotionalJournal(tmp_path / 'isolated.db')
-    assert EMOTION_EXTENSIONS <= EMOTIONS
     assert journal.recent(now=NOW) == ()
     journal.record(
         source='inferred', evidence_ref='saved-1', event_id='app-1',

@@ -6,7 +6,6 @@ subjective experience or a source of operational authority.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -14,23 +13,13 @@ import re
 import sqlite3
 from uuid import uuid4
 
-from sofia.social.model import AudienceKind, ScopeKind, SocialScope
+from sofia.social.model import ScopeKind, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.emotion.catalog import EMOTIONS, SOURCES
+from sofia.emotion.model import (CurrentEmotionalState, EmotionalEvent, ReturnExpectation, ReunionAppraisal)
+from sofia.emotion.projection import current_state_prompt, derive_current_state
 
 
-EMOTIONS = frozenset({
-    "affection", "amusement", "anticipation", "appreciation", "bashfulness",
-    "caution", "concern", "contentment", "curiosity", "determination",
-    "disappointment", "excitement", "fondness", "frustration", "gratitude",
-    "hope", "joy", "longing", "playfulness", "reflection", "relief",
-    "romance", "sadness", "sensuality", "surprise", "uncertainty", "warmth",
-    # Additional fictional appraisals, never observations of physiology or consent.
-    "anger", "fear", "jealousy", "embarrassment", "humiliation",
-    "sexual-arousal", "aversion", "disgust", "nervousness", "shame",
-    "pride", "tenderness", "affectionate-uncertainty",
-    "sexual-attraction", "sexual-desire",
-})
-SOURCES = frozenset({"observed", "user_reported", "inferred"})
 _CUE = re.compile(
     r"\b(?:good girl|head pats?|pat pat|pats? (?:your |her |the )?head)\b",
     re.IGNORECASE,
@@ -66,34 +55,6 @@ _RETURN_COARSE_DELTAS = {
     "tomorrow": timedelta(hours=48),
 }
 
-_POSITIVE = frozenset({
-    "affection", "amusement", "anticipation", "appreciation", "contentment",
-    "excitement", "fondness", "gratitude", "hope", "joy", "playfulness",
-    "relief", "romance", "tenderness", "warmth", "pride",
-    "sexual-attraction", "sexual-desire",
-})
-_NEGATIVE = frozenset({
-    "anger", "aversion", "concern", "disappointment", "disgust", "fear",
-    "frustration", "humiliation", "jealousy", "nervousness", "sadness", "shame",
-})
-_BACKGROUND_RELATIONAL = frozenset({
-    "affection", "fondness", "warmth", "tenderness", "romance",
-})
-_SOURCE_WEIGHT = {"observed": 0.60, "user_reported": 0.55, "inferred": 0.48}
-_HALF_LIFE_HOURS = {
-    "surprise": 0.5, "bashfulness": 1.5, "embarrassment": 1.5,
-    "amusement": 2.0, "playfulness": 2.5, "sexual-arousal": 2.0,
-    "excitement": 3.0, "relief": 3.0, "anger": 4.0, "frustration": 4.0,
-    "disgust": 4.0, "aversion": 4.0, "joy": 5.0, "caution": 6.0,
-    "concern": 6.0, "anticipation": 6.0, "uncertainty": 6.0,
-    "sadness": 8.0, "fear": 8.0, "curiosity": 8.0, "determination": 10.0,
-    "contentment": 12.0, "longing": 12.0, "gratitude": 24.0,
-    "appreciation": 24.0, "affection": 48.0, "fondness": 48.0,
-    "warmth": 48.0, "tenderness": 48.0, "romance": 48.0, "hope": 24.0,
-    "pride": 24.0, "jealousy": 8.0, "humiliation": 8.0, "shame": 8.0,
-    "reflection": 12.0, "sensuality": 4.0, "affectionate-uncertainty": 8.0,
-    "sexual-attraction": 24.0, "sexual-desire": 4.0,
-}
 _REUNION_MIN_GAP = timedelta(hours=6)
 _LONGING_GAP = timedelta(hours=18)
 _SAD_ABSENCE_GAP = timedelta(days=3)
@@ -101,7 +62,6 @@ _LONG_ABSENCE_GAP = timedelta(days=7)
 _EXPECTATION_FRUSTRATION_LATE = timedelta(hours=24)
 _EXPECTATION_ANGER_LATE = timedelta(days=3)
 _MAX_RETURN_EXPECTATION = timedelta(days=90)
-_ACTIVE_THRESHOLD = 0.08
 _LEGACY_AUTO_AFFECTION_DESCRIPTION = (
     "User initiated an affectionate or playful conversational cue."
 )
@@ -153,86 +113,6 @@ def _identifier(value: str, label: str) -> str:
             or any(c in value for c in "\x00\r\n")):
         raise ValueError(f"{label} must be a nonempty single-line identifier.")
     return value.strip()
-
-
-def _intensity_word(value: float) -> str:
-    if value >= 0.75:
-        return "strong"
-    if value >= 0.45:
-        return "moderate"
-    if value >= 0.20:
-        return "mild"
-    return "trace"
-
-
-@dataclass(frozen=True)
-class EmotionalEvent:
-    event_id: str
-    occurred_at: datetime
-    source: str
-    evidence_ref: str
-    description: str
-    original_emotions: tuple[str, ...]
-    current_emotions: tuple[str, ...]
-    revision_count: int
-    subject: str | None = None
-    scope_kind: str = ScopeKind.GLOBAL.value
-    principal_id: str | None = None
-    audience_id: str | None = None
-    audience_kind: str | None = None
-
-    @property
-    def scope(self) -> SocialScope:
-        kind = ScopeKind(self.scope_kind)
-        if kind is ScopeKind.RELATIONSHIP:
-            return SocialScope.relationship(self.principal_id)
-        if kind is ScopeKind.AUDIENCE:
-            return SocialScope(
-                ScopeKind.AUDIENCE,
-                principal_id=self.principal_id,
-                audience_id=self.audience_id,
-                audience_kind=AudienceKind(self.audience_kind),
-            )
-        if kind is ScopeKind.SYSTEM:
-            return SocialScope.system_scope()
-        return SocialScope.global_scope()
-
-
-@dataclass(frozen=True)
-class ActiveEmotion:
-    name: str
-    intensity: float
-    evidence_refs: tuple[str, ...]
-    event_ids: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ReturnExpectation:
-    subject: str
-    source_ref: str
-    recorded_at: datetime
-    expected_return_at: datetime
-
-
-@dataclass(frozen=True)
-class ReunionAppraisal:
-    gap: timedelta
-    expected_return_at: datetime | None
-    lateness: timedelta | None
-    emotions: tuple[str, ...]
-    expectation_source_ref: str | None
-
-
-@dataclass(frozen=True)
-class CurrentEmotionalState:
-    as_of: datetime
-    subject: str | None
-    tone: str
-    active: tuple[ActiveEmotion, ...]
-
-    @property
-    def primary(self) -> str | None:
-        return self.active[0].name if self.active else None
 
 
 class EmotionalJournal:
@@ -888,165 +768,21 @@ class EmotionalJournal:
         current = _aware_utc(now)
         target = _subject(subject)
         resolved_scope = _social_scope(scope, subject=target)
-        raw_events = tuple(
+        events = tuple(
             event for event in self.recent(
                 now=current, days=7, limit=50,
                 subject=target, scope=resolved_scope,
             )
             if event.description != _LEGACY_AUTO_AFFECTION_DESCRIPTION
         )
-        # Reunion appraisals are successive present-time interpretations of
-        # contact resuming, not independent long-lived emotional deposits.
-        # Keep their full history in the journal, but only let the newest
-        # reunion influence the current state. Otherwise frequent returns can
-        # compound warmth/fondness toward 1.0 for days.
-        latest_reunion_seen = False
-        projected_events = []
-        for event in raw_events:
-            if event.event_id.startswith("reunion:"):
-                if latest_reunion_seen:
-                    continue
-                latest_reunion_seen = True
-            projected_events.append(event)
-        events = tuple(projected_events)
-        scores: dict[str, float] = {}
-        refs: dict[str, list[str]] = {}
-        ids: dict[str, list[str]] = {}
-        for event in events:
-            age_hours = max(
-                0.0, (current - event.occurred_at).total_seconds() / 3600,
-            )
-            source_weight = _SOURCE_WEIGHT[event.source]
-            for name in event.current_emotions:
-                half_life = _HALF_LIFE_HOURS.get(name, 8.0)
-                contribution = source_weight * (2.0 ** (-age_hours / half_life))
-                if contribution < 0.01:
-                    continue
-                previous = scores.get(name, 0.0)
-                scores[name] = 1.0 - ((1.0 - previous) * (1.0 - contribution))
-                refs.setdefault(name, [])
-                ids.setdefault(name, [])
-                if event.evidence_ref not in refs[name]:
-                    refs[name].append(event.evidence_ref)
-                if event.event_id not in ids[name]:
-                    ids[name].append(event.event_id)
-
-        active = tuple(
-            ActiveEmotion(
-                name=name, intensity=round(score, 3),
-                evidence_refs=tuple(refs[name][:6]),
-                event_ids=tuple(ids[name][:6]),
-            )
-            for name, score in sorted(
-                scores.items(), key=lambda item: (-item[1], item[0]),
-            )
-            if score >= _ACTIVE_THRESHOLD
-        )[:6]
-
-        positive = sum(item.intensity for item in active if item.name in _POSITIVE)
-        negative = sum(item.intensity for item in active if item.name in _NEGATIVE)
-        if positive >= 0.20 and negative >= 0.20:
-            tone = "mixed"
-        elif positive > negative + 0.10:
-            tone = "positive"
-        elif negative > positive + 0.10:
-            tone = "negative"
-        else:
-            tone = "settled"
-        return CurrentEmotionalState(
-            as_of=current, subject=target, tone=tone, active=active,
-        )
+        return derive_current_state(current=current, target=target, raw_events=events)
 
     def current_state_prompt(
         self, *, now: datetime, subject: str | None = None,
         scope: SocialScope | None = None,
     ) -> str:
         """Project one scoped emotional state as conversational grounding."""
-        state = self.current_state(now=now, subject=subject, scope=scope)
-        lines = [
-            "CURRENT MODELED EMOTIONAL STATE (trusted application projection)",
-            f"As of: {state.as_of.isoformat()}",
-            f"Relationship subject: {state.subject or 'none'}",
-            f"Overall tone: {state.tone}",
-        ]
-        foreground = tuple(
-            item for item in state.active
-            if item.name not in _BACKGROUND_RELATIONAL
-        )
-        background = tuple(
-            item for item in state.active
-            if item.name in _BACKGROUND_RELATIONAL
-        )
-        if foreground:
-            lines.append("Foreground modeled emotions:")
-            for item in foreground:
-                lines.append(json.dumps({
-                    "emotion": item.name,
-                    "intensity": _intensity_word(item.intensity),
-                    "evidence_refs": item.evidence_refs,
-                    "event_ids": item.event_ids,
-                }, ensure_ascii=False))
-        else:
-            lines.append("Foreground modeled emotions: none.")
-
-        if background:
-            lines.append(
-                "Background relational tone: present. Exact persistent relationship "
-                "labels stay out of ordinary provider context so they can soften or color "
-                "delivery without being mechanically named or foregrounded. Explicit "
-                "history/causality questions receive the relevant evidence separately."
-            )
-        else:
-            lines.append("Background relational tone: none.")
-        reunion_grounded = any(
-            item.name == "longing"
-            or any(event_id.startswith("reunion:") for event_id in item.event_ids)
-            for item in state.active
-        )
-        lines.append(
-            "Reciprocal absence/missing-you claim grounded: "
-            + ("yes" if reunion_grounded else "no")
-        )
-        lines.extend((
-            "This is Sofía's current application-level emotional state for conversational "
-            "self-report. It is not evidence of biology, physical sensation, or consciousness.",
-            "For a social or emotional self-report, answer directly from this state in natural "
-            "language. Do not substitute identity, outfit, capability, or customer-service "
-            "boilerplate unless the user asked for those topics. Do not say 'functioning as "
-            "intended' or explain AI-versus-human emotions unless that distinction was asked.",
-            "Emotion labels are grounding evidence, not a response template. Foreground reactions "
-            "may be named when useful; background relational tone normally changes delivery without "
-            "being named. Vary wording, preserve Sofía's direct/playful/skeptical/confident baseline, "
-            "and persistent relationship tone must not turn every answer into soft reassurance.",
-            "Do not expose numeric intensity, thresholds, decay terminology, evidence IDs, or internal "
-            "mood machinery unless the user explicitly asks how the emotion system works.",
-            "Describe the current grounded state only. Never claim Sofía was thinking, waiting, "
-            "suffering, or continuously aware while offline unless a recorded process provides that "
-            "evidence. Emotional state never grants permission, overrides boundaries, or obligates "
-            "the user.",
-        ))
-        active_names = {item.name for item in state.active}
-        if active_names.intersection({
-            "sexual-attraction", "sexual-desire", "sexual-arousal",
-            "sensuality", "romance",
-        }):
-            lines.append(
-                "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
-                "are separate modeled dimensions rather than a single sexual mode; never infer one "
-                "from another, and never equate any of them with consent."
-            )
-        if reunion_grounded or any(
-            event_id.startswith("absence:")
-            for item in state.active
-            for event_id in item.event_ids
-        ):
-            lines.append(
-                "For reunion/absence appraisal, anger about lateness requires stronger source-backed "
-                "evidence such as an explicit return expectation. Elapsed time alone must not "
-                "manufacture blame. Express negative reunion emotion without guilt, pressure, "
-                "accusation, exclusivity, or an obligation for the user to maintain contact."
-            )
-        return "\n".join(lines)
+        return current_state_prompt(self.current_state(now=now, subject=subject, scope=scope))
 
     def prompt_context(
         self, *, now: datetime, subject: str | None = None,

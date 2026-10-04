@@ -21,7 +21,8 @@ from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.emotion.clarification import ClarificationJournal
-from sofia.emotion.journal import CurrentEmotionalState, EmotionalJournal
+from sofia.emotion.model import CurrentEmotionalState
+from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
