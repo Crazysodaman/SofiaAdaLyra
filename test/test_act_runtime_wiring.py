@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import sqlite3
 
-import sofia.application.act_runtime as act_runtime
+import sofia.application.act_service as act_service
 from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
 from sofia.application.act_service import SofiaActService
 from sofia.act.outreach import Policy
@@ -19,7 +19,7 @@ def test_production_act_delivery_requires_explicit_opt_in(tmp_path, monkeypatch)
 
     service = SofiaActService(tmp_path / "state.db")
 
-    assert act_runtime.configure_act_delivery_from_environment(service) is False
+    assert act_service.configure_act_delivery_from_environment(service) is False
     assert service.delivery_enabled is False
 
 
@@ -37,7 +37,7 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
             calls.append(("call", domain, service, data))
 
     monkeypatch.setattr(
-        act_runtime,
+        act_service,
         "HomeAssistantAdapter",
         FakeHomeAssistantAdapter,
     )
@@ -52,7 +52,7 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
     state_path = tmp_path / "state.db"
     state_path.touch()
     service = SofiaActService(state_path)
-    assert act_runtime.configure_act_delivery_from_environment(service) is True
+    assert act_service.configure_act_delivery_from_environment(service) is True
     assert service.delivery_enabled is True
 
     service.set_local_timezone("America/Chicago")

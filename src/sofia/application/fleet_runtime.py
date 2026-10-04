@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
-import os
 
-from sofia.application.act_service import SofiaActService
+from sofia.application.act_service import (
+    SofiaActService, notification_destination_from_environment,
+)
 from sofia.ops.bootstrap import (
     AgentPackage,
     BootstrapDisposition,
@@ -33,20 +34,10 @@ def configure_fleet_enrollment_notices(
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
 
-    destination = os.environ.get(
-        "SOFIA_NOTIFICATION_HA_SERVICE",
-        "",
-    ).strip()
+    destination = notification_destination_from_environment()
     if not destination:
         ops_service.enrollment.set_enrolled_notifier(None)
         return False
-    if (
-        "/" in destination
-        or not destination.replace("_", "").replace("-", "").isalnum()
-    ):
-        raise ValueError(
-            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
-        )
 
     def enrolled(host, binding, enrollment, peer) -> None:
         observed = peer.observed_at
@@ -125,19 +116,9 @@ def create_fleet_candidate_notifier(
     """Return a deduped notice callback for newly discovered untrusted hosts."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = os.environ.get(
-        "SOFIA_NOTIFICATION_HA_SERVICE",
-        "",
-    ).strip()
+    destination = notification_destination_from_environment()
     if not destination:
         return None
-    if (
-        "/" in destination
-        or not destination.replace("_", "").replace("-", "").isalnum()
-    ):
-        raise ValueError(
-            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
-        )
 
     def discovered(host, observation) -> None:
         observed = observation.observed_at
@@ -221,19 +202,9 @@ def create_fleet_bootstrap_plan_notifier(
     """Notify Sparks only when a candidate needs explicit bootstrap action."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = os.environ.get(
-        "SOFIA_NOTIFICATION_HA_SERVICE",
-        "",
-    ).strip()
+    destination = notification_destination_from_environment()
     if not destination:
         return None
-    if (
-        "/" in destination
-        or not destination.replace("_", "").replace("-", "").isalnum()
-    ):
-        raise ValueError(
-            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
-        )
 
     def notify(plan) -> None:
         if plan.disposition is not BootstrapDisposition.ASK_OPERATOR:
@@ -276,19 +247,9 @@ def create_fleet_reconciliation_notifier(
     """Notify Sparks once for each newly observed Fleet drift proposal."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = os.environ.get(
-        "SOFIA_NOTIFICATION_HA_SERVICE",
-        "",
-    ).strip()
+    destination = notification_destination_from_environment()
     if not destination:
         return None
-    if (
-        "/" in destination
-        or not destination.replace("_", "").replace("-", "").isalnum()
-    ):
-        raise ValueError(
-            "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
-        )
 
     def notify(record: FleetReconciliationRecord) -> None:
         if not isinstance(record, FleetReconciliationRecord):

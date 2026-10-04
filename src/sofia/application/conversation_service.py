@@ -32,7 +32,6 @@ from sofia.cognition.matrix import (
 )
 from sofia.application.conversation_matrix import (
     ConversationMatrixMixin,
-    _inherit_last_turn_domains,
     _matrix_context_window,
 )
 from sofia.filesystem.orchestrator import (
@@ -310,26 +309,7 @@ class ConversationService(ConversationMatrixMixin):
             principal=None,
         )
 
-        assistant_message = ConversationMessage(
-            id=str(uuid4()),
-            session_id=self._session.id,
-            role=ConversationRole.ASSISTANT,
-            content=response.content,
-            created_at=datetime.now(timezone.utc),
-        )
-
-        self._conversation_store.save(assistant_message)
-
-        self._session = (
-            self._conversation_store.get_session(
-                self._session.id
-            )
-        )
-
-        if self._session is None:
-            raise RuntimeError(
-                "ConversationService lost its active session."
-            )
+        self._persist_response(response)
 
         self._runtime.consume_continuity_awareness()
 
@@ -572,21 +552,7 @@ class ConversationService(ConversationMatrixMixin):
                 response = CognitiveResponse(
                     content=clothing_reply.strip()
                 )
-                assistant_message = ConversationMessage(
-                    id=str(uuid4()),
-                    session_id=self._session.id,
-                    role=ConversationRole.ASSISTANT,
-                    content=response.content,
-                    created_at=datetime.now(timezone.utc),
-                )
-                self._conversation_store.save(assistant_message)
-                self._session = self._conversation_store.get_session(
-                    self._session.id
-                )
-                if self._session is None:
-                    raise RuntimeError(
-                        "ConversationService lost its active session."
-                    )
+                self._persist_response(response)
                 return response
 
         authorization = (
@@ -673,6 +639,12 @@ class ConversationService(ConversationMatrixMixin):
             principal=principal,
         )
 
+        self._persist_response(response)
+
+        return response
+
+    def _persist_response(self, response: CognitiveResponse) -> None:
+        """Save a settled reply and reload the same canonical session."""
         assistant_message = ConversationMessage(
             id=str(uuid4()),
             session_id=self._session.id,
@@ -693,8 +665,6 @@ class ConversationService(ConversationMatrixMixin):
             raise RuntimeError(
                 "ConversationService lost its active session."
             )
-
-        return response
 
     def _finalize_response(
         self,

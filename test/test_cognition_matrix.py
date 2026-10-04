@@ -7,7 +7,7 @@ from sofia.authority.model import Authority
 from sofia.cognition.model import CognitiveResponse
 
 from sofia.cognition.matrix.defaults import default_matrix_registry
-from sofia.application.conversation_service import _inherit_last_turn_domains
+from sofia.application.conversation_matrix import _inherit_last_turn_domains
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,

@@ -11,7 +11,6 @@ from sofia.cognition.model import (
     CognitiveResponse,
 )
 from sofia.cognition.matrix import (
-    AuthorityDecision,
     AuthorityPlan,
     CognitionExecutionStep,
     CognitionExecutionTrace,
@@ -28,16 +27,13 @@ from sofia.cognition.matrix import (
     MatrixEvidenceResolver,
     MatrixResponsePlanner,
     MatrixResponseValidator,
-    MatrixIntent,
     MatrixRelevance,
-    MatrixRoute,
     MatrixRoutingPlanner,
     MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
     ResponseContract,
-    ResponseStrategy,
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
@@ -166,6 +162,12 @@ class ConversationMatrixMixin:
         self._matrix_privacy_planner = MatrixPrivacyPlanner()
         self._matrix_tool_exposure_planner = MatrixToolExposurePlanner()
         self._matrix_trace_store: MatrixTraceStore | None = None
+        self._reset_matrix_turn()
+        self._matrix_execution_baseline_serial = 0
+        self._last_matrix_error: str | None = None
+
+    def _reset_matrix_turn(self) -> None:
+        """Clear derived state for one turn, retaining planners and trace storage."""
         self._current_matrix_message_id: str | None = None
         self._current_matrix_envelope: TurnEnvelope | None = None
         self._current_turn_matrix: TurnMatrix | None = None
@@ -179,8 +181,6 @@ class ConversationMatrixMixin:
         self._current_routing_plan: RoutingPlan | None = None
         self._current_cognition_execution: CognitionExecutionTrace | None = None
         self._current_contextual_influence = None
-        self._matrix_execution_baseline_serial = 0
-        self._last_matrix_error: str | None = None
 
     def _open_matrix_trace_store(self) -> None:
         self._matrix_trace_store = MatrixTraceStore(
@@ -430,19 +430,7 @@ class ConversationMatrixMixin:
         channel: str,
     ) -> None:
         """Plan the turn matrix and persist a provisional pre-response trace."""
-        self._current_matrix_message_id = None
-        self._current_matrix_envelope = None
-        self._current_turn_matrix = None
-        self._current_context_plan = None
-        self._current_evidence_matrix = None
-        self._current_authority_plan = None
-        self._current_privacy_plan = None
-        self._current_tool_exposure_plan = None
-        self._current_response_contract = None
-        self._current_response_validation = None
-        self._current_routing_plan = None
-        self._current_cognition_execution = None
-        self._current_contextual_influence = None
+        self._reset_matrix_turn()
         execution_reader = getattr(
             self._runtime,
             "cognition_routing_execution",
@@ -549,18 +537,7 @@ class ConversationMatrixMixin:
             self._last_matrix_error = None
         except Exception as exc:
             # Matrix telemetry/context failure must never make chat unavailable.
-            self._current_matrix_message_id = None
-            self._current_matrix_envelope = None
-            self._current_turn_matrix = None
-            self._current_context_plan = None
-            self._current_evidence_matrix = None
-            self._current_authority_plan = None
-            self._current_privacy_plan = None
-            self._current_tool_exposure_plan = None
-            self._current_response_contract = None
-            self._current_response_validation = None
-            self._current_routing_plan = None
-            self._current_cognition_execution = None
+            self._reset_matrix_turn()
             self._last_matrix_error = type(exc).__name__
 
     def _record_current_matrix_trace(self) -> None:

@@ -1,4 +1,5 @@
-﻿from importlib.metadata import PackageNotFoundError
+"""Installed distribution metadata shared by runtime, application and release tools."""
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import metadata
 
 

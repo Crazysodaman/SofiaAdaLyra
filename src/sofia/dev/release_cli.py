@@ -7,7 +7,7 @@ from pathlib import Path
 import platform
 import sys
 
-from sofia.application.metadata import application_version
+from sofia.package_metadata import application_version
 from sofia.config.model import CURRENT_CONFIGURATION_SCHEMA_VERSION
 from sofia.dev.release_signing import sign_manifest_file
 from sofia.dev.supply_chain import (

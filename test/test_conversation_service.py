@@ -1,4 +1,4 @@
-﻿from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1133,7 +1133,7 @@ def test_matrix_context_window_filters_excluded_domains_across_history_policies(
 def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
     from datetime import datetime, timezone
 
-    from sofia.application.conversation_service import _inherit_last_turn_domains
+    from sofia.application.conversation_matrix import _inherit_last_turn_domains
     from sofia.cognition.matrix import (
         MatrixContextPlanner,
         MatrixCoordinator,
