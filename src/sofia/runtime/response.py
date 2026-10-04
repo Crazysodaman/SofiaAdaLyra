@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from dataclasses import replace
+import re
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
@@ -182,6 +183,92 @@ def respond_with_runtime_context(
     presentation = runtime.avatar_projection_for(
         principal=principal,
     )
+
+    query_parts = _deterministic_query_parts(user_content)
+    environment_service = getattr(
+        runtime,
+        "_environment_service",
+        None,
+    )
+    if len(query_parts) > 1:
+        composite_answers: list[str] = []
+        composite_environment_snapshot = None
+        refresh_composite_environment = any(
+            environment_details_relevant(part)
+            for part in query_parts
+        )
+        for part in query_parts:
+            if (
+                include_domain(MatrixDomain.AVATAR)
+                and runtime._embodiment is not None
+                and presentation is not None
+                and runtime._avatar_presentation is not None
+            ):
+                self_fact = runtime._avatar_self_fact_resolver.resolve(
+                    part,
+                    embodiment=runtime._embodiment,
+                    presentation=presentation,
+                    available_outfit_ids=(
+                        runtime._avatar_presentation.available_outfit_ids
+                    ),
+                    wardrobe_matrix=runtime._avatar_matrix_for(
+                        presentation
+                    ),
+                )
+                if self_fact.recognized:
+                    if (
+                        runtime._avatar_self_fact_resolver.allows_private_projection(
+                            part
+                        )
+                        and (
+                            privacy_plan is None
+                            or privacy_plan.allow_private_presentation_candidate
+                        )
+                    ):
+                        private_grant = runtime._private_presentation_grants.resolve(
+                            principal=principal,
+                            explicit_current_opt_in=True,
+                        )
+                        if private_grant is not None:
+                            private_presentation = runtime.avatar_projection_for(
+                                principal=principal,
+                                private_grant=private_grant,
+                            )
+                            if private_presentation is not None:
+                                self_fact = runtime._avatar_self_fact_resolver.resolve(
+                                    part,
+                                    embodiment=runtime._embodiment,
+                                    presentation=private_presentation,
+                                    available_outfit_ids=(
+                                        runtime._avatar_presentation.available_outfit_ids
+                                    ),
+                                    wardrobe_matrix=runtime._avatar_matrix_for(
+                                        private_presentation
+                                    ),
+                                )
+                    composite_answers.append(self_fact.content)
+                    continue
+
+            if (
+                environment_service is not None
+                and include_domain(MatrixDomain.ENVIRONMENT)
+                and runtime._environment_query_resolver.might_match(part)
+            ):
+                if composite_environment_snapshot is None:
+                    composite_environment_snapshot = environment_service.snapshot(
+                        refresh_providers=refresh_composite_environment,
+                    )
+                environment_answer = runtime._environment_query_resolver.resolve(
+                    part,
+                    snapshot=composite_environment_snapshot,
+                )
+                if environment_answer.recognized:
+                    composite_answers.append(environment_answer.content)
+
+        if len(composite_answers) >= 2:
+            return CognitiveResponse(
+                content="\n".join(composite_answers)
+            )
     if (
         user_content
         and include_domain(MatrixDomain.AVATAR)
@@ -439,3 +526,18 @@ def _latest_user_content(
             return message.content
 
     return ""
+
+def _deterministic_query_parts(content: str) -> tuple[str, ...]:
+    """Split compact multi-fact questions without changing normal prose routing."""
+    if not isinstance(content, str) or not content.strip():
+        return ()
+    parts = re.split(
+        r"\s*(?:[,;]+|\?+)\s*|\s+\band\b\s+",
+        content.strip(),
+        flags=re.IGNORECASE,
+    )
+    return tuple(
+        part.strip(" \t\r\n?!.")
+        for part in parts
+        if part.strip(" \t\r\n?!.")
+    )
