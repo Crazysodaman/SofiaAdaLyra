@@ -5,9 +5,9 @@ import pytest
 
 from sofia.avatar.wardrobe import Garment, Layer, Wardrobe, WardrobeError
 from sofia.avatar.wardrobe_planner import (
-    Activity, Cadence, ChangeOrigin, EmotionStyleInfluence, OutfitPlan, OutfitPlanner,
+    Activity, Cadence, EmotionStyleInfluence, OutfitPlan, OutfitPlanner,
     Preference, PreferenceActor, PreferenceTarget, Season, Sentiment, WardrobeContext,
-    Weather, WeatherObservation, WornEvidence, appraise_clothing_change, period_key,
+    Weather, WeatherObservation, WornEvidence, period_key,
 )
 
 UTC = timezone.utc
@@ -229,28 +229,6 @@ def test_uncovered_automatic_outfit_rejected():
 def test_no_activity_match_fails_without_improvised_outfit():
     with pytest.raises(WardrobeError, match="fallback"):
         OutfitPlanner(wardrobe(), plans()).suggest(ctx(activity=Activity.FORMAL))
-
-
-def test_choice_and_accident_have_distinct_optional_appraisals():
-    bare = wardrobe().selection(("tee",))
-    chosen = appraise_clothing_change(origin=ChangeOrigin.CHOSEN, proposed_outfit=bare, private_context=True)
-    accident = appraise_clothing_change(origin=ChangeOrigin.UNINTENDED, proposed_outfit=bare, private_context=True)
-    assert "possible_excitement" in chosen.cue_candidates
-    assert "possible_embarrassment" in accident.cue_candidates
-    assert chosen.requires_covered_recovery and accident.requires_covered_recovery
-    assert not chosen.may_publish and not accident.may_publish
-
-
-def test_covered_choice_no_forced_embarrassment():
-    clothed = wardrobe().selection(("tee", "sweats"))
-    result = appraise_clothing_change(origin=ChangeOrigin.CHOSEN, proposed_outfit=clothed)
-    assert not result.requires_covered_recovery and "possible_embarrassment" not in result.cue_candidates
-
-
-def test_appraisal_never_means_consent():
-    unclothed = wardrobe().selection(())
-    outcome = appraise_clothing_change(origin=ChangeOrigin.UNINTENDED, proposed_outfit=unclothed)
-    assert outcome.requires_covered_recovery and outcome.may_publish is False
 
 
 @pytest.mark.parametrize("invalid", [None, "2026-09-21", datetime(2026, 9, 21)])

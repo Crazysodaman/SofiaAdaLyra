@@ -17,7 +17,7 @@ from sofia.environment.model import (
 )
 from sofia.personality.influence import ContinuityInfluence
 
-from .wardrobe import Wardrobe, WardrobeError, WardrobeConflict, Outfit
+from .wardrobe import Wardrobe, WardrobeError, Outfit
 
 
 class Activity(str, Enum):
@@ -59,10 +59,6 @@ class Sentiment(IntEnum):
     LIKE = 1
     LOVE = 2
 
-
-class ChangeOrigin(str, Enum):
-    CHOSEN = "chosen"
-    UNINTENDED = "unintended"
 
 
 def _id(value: str) -> str:
@@ -314,14 +310,6 @@ class OutfitProposal:
     requires_renderer_verification: bool = True
 
 
-@dataclass(frozen=True, slots=True)
-class ClothingAppraisal:
-    """Optional expressive *candidates*, never an asserted emotion or consent."""
-    origin: ChangeOrigin
-    cue_candidates: tuple[str, ...]
-    requires_covered_recovery: bool
-    may_publish: bool = False
-
 
 def period_key(now: datetime, cadence: Cadence) -> str:
     _aware(now)
@@ -459,21 +447,6 @@ class OutfitPlanner:
         if context.weather is not None and weather is None:
             reasons += ("weather_missing_or_stale",)
         return OutfitProposal(best_plan.outfit_id, best_outfit, key, reasons)
-
-
-def appraise_clothing_change(
-    *, origin: ChangeOrigin, proposed_outfit: Outfit, private_context: bool = False
-) -> ClothingAppraisal:
-    if not isinstance(origin, ChangeOrigin) or not isinstance(proposed_outfit, Outfit) or type(private_context) is not bool:
-        raise WardrobeError("invalid clothing appraisal input")
-    uncovered = not proposed_outfit.covered_default
-    if origin is ChangeOrigin.UNINTENDED:
-        cues = ("surprise", "self_consciousness", "possible_embarrassment") if uncovered else ("surprise", "adjustment")
-    elif private_context:
-        cues = ("possible_comfort", "confidence", "possible_excitement") if uncovered else ("comfort", "confidence")
-    else:
-        cues = ("review_privacy", "possible_self_consciousness") if uncovered else ("confidence", "practicality")
-    return ClothingAppraisal(origin, cues, requires_covered_recovery=uncovered)
 
 
 def wardrobe_emotion_influences(

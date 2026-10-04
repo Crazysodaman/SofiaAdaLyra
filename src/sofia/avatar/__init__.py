@@ -1,25 +1,25 @@
 """Headless representation metadata; not a rendered avatar or an art asset."""
 from .wardrobe import (
-    Garment, Layer, Outfit, PreviewRequest, Wardrobe, WardrobeError,
+    Garment, Layer, Outfit, Wardrobe, WardrobeError,
     WardrobeConflict, VisibilityDenied,
 )
 __all__ = [
-    "Garment", "Layer", "Outfit", "PreviewRequest", "Wardrobe",
+    "Garment", "Layer", "Outfit", "Wardrobe",
     "WardrobeError", "WardrobeConflict", "VisibilityDenied",
 ]
 
 from .wardrobe_planner import (
-    Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
+    Activity, Cadence, OutfitPlan, OutfitPlanner,
     OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
     Sentiment, WardrobeContext, Weather, WeatherObservation, WornEvidence,
-    appraise_clothing_change, period_key, wardrobe_emotion_influences,
+    period_key, wardrobe_emotion_influences,
 )
 
 __all__ += [
-    "Activity", "Cadence", "ChangeOrigin", "ClothingAppraisal", "OutfitPlan",
+    "Activity", "Cadence", "OutfitPlan",
     "OutfitPlanner", "OutfitProposal", "Preference", "PreferenceActor",
     "PreferenceTarget", "Season", "Sentiment", "WardrobeContext", "Weather",
-    "WeatherObservation", "WornEvidence", "appraise_clothing_change", "period_key",
+    "WeatherObservation", "WornEvidence", "period_key",
     "wardrobe_emotion_influences",
 ]
 

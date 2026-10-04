@@ -1,7 +1,7 @@
 """Avatar A0 metadata fixtures, not geometry/cloth simulation/age verification."""
 import pytest
 from sofia.avatar import (
-    Garment, Layer, Outfit, PreviewRequest, Wardrobe, WardrobeConflict,
+    Garment, Layer, Outfit, Wardrobe, WardrobeConflict,
     WardrobeError, VisibilityDenied,
 )
 
@@ -105,33 +105,6 @@ def test_explicit_ear_tail_clearance_allowed():
                           coverage=("torso",), tail_clearance=True)))
     assert len(w.selection(("hood", "coat")).item_ids) == 2
 
-
-@pytest.mark.parametrize("preview", [
-    PreviewRequest(),
-    PreviewRequest(adult_verified=True),
-    PreviewRequest(adult_verified=True, owner_verified=True),
-    PreviewRequest(adult_verified=True, owner_verified=True, private_local_session=True),
-    PreviewRequest(True, True, True, True, True),
-])
-def test_restricted_preview_denies_unknown_or_incomplete_facts(preview):
-    with pytest.raises(VisibilityDenied):
-        outfit().restricted_preview(request=preview)
-
-
-def test_restricted_preview_requires_all_verified_facts_and_no_stop():
-    preview = PreviewRequest(True, True, True, True, False)
-    outfit().restricted_preview(request=preview)
-
-
-@pytest.mark.parametrize("bad", [None, "true", 1])
-def test_restricted_preview_rejects_nonboolean_trusted_facts(bad):
-    with pytest.raises(WardrobeError):
-        PreviewRequest(adult_verified=bad)
-
-
-def test_non_preview_object_denied():
-    with pytest.raises(VisibilityDenied):
-        outfit().restricted_preview(request="yes")
 
 
 @pytest.mark.parametrize("bad", ["", "bad name", "x" * 129, None])

@@ -139,29 +139,6 @@ class Outfit:
     private_only: bool
 
 
-@dataclass(frozen=True)
-class PreviewRequest:
-    """Trusted adapter-supplied facts, not user text or LLM claims."""
-    adult_verified: bool = False
-    owner_verified: bool = False
-    private_local_session: bool = False
-    explicit_current_opt_in: bool = False
-    external_stop_active: bool = False
-
-    def __post_init__(self) -> None:
-        if any(type(value) is not bool for value in (
-            self.adult_verified, self.owner_verified, self.private_local_session,
-            self.explicit_current_opt_in, self.external_stop_active
-        )):
-            raise WardrobeError("preview facts must be strict booleans")
-
-    def allow_restricted_preview(self) -> None:
-        if (not self.adult_verified or not self.owner_verified
-                or not self.private_local_session or not self.explicit_current_opt_in
-                or self.external_stop_active):
-            raise VisibilityDenied("restricted preview is not authorized")
-
-
 class Wardrobe:
     """Immutable catalogue and checked layer selection with no side effects."""
 
@@ -245,8 +222,3 @@ class Wardrobe:
             raise VisibilityDenied(
                 "public/default outfit requires coverage and verified assets"
             )
-
-    def restricted_preview(self, *, request: PreviewRequest) -> None:
-        if not isinstance(request, PreviewRequest):
-            raise VisibilityDenied("restricted preview requires verified session facts")
-        request.allow_restricted_preview()
