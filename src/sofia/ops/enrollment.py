@@ -17,6 +17,31 @@ class MachineNodeBinding:
         if self.verified_at.tzinfo is None: raise ValueError("verified_at must be timezone-aware")
 
 @dataclass(frozen=True)
+class FleetEnrollmentApproval:
+    """Exact Sparks approval for promoting one discovered host into Fleet trust."""
+    approval_id:str
+    host_id:str
+    node_id:UUID
+    public_key_sha256:str
+    approved_by:str
+    approved_at:datetime
+
+    def __post_init__(self):
+        if not isinstance(self.approval_id,str) or not self.approval_id.strip():
+            raise ValueError("approval_id is required")
+        if not isinstance(self.host_id,str) or not self.host_id.strip():
+            raise ValueError("host_id is required")
+        if not isinstance(self.node_id,UUID):
+            raise TypeError("node_id must be UUID")
+        if fullmatch(r"[0-9a-f]{64}",self.public_key_sha256) is None:
+            raise ValueError("approval public key must be lowercase SHA-256")
+        if self.approved_by!="Sparks":
+            raise PermissionError("Fleet enrollment approval must come from Sparks")
+        if self.approved_at.tzinfo is None or self.approved_at.utcoffset() is None:
+            raise ValueError("approved_at must be timezone-aware")
+
+
+@dataclass(frozen=True)
 class AuthenticatedPeerEvidence:
     node_id:UUID; public_key_sha256:str; observed_at:datetime; verifier:str
     def __post_init__(self):
@@ -43,7 +68,25 @@ class FleetEnrollmentService:
         if notifier is not None and not callable(notifier):
             raise TypeError("notifier must be callable or None")
         self.enrolled_notifier=notifier
-    def enroll(self,candidate:FleetHost,*,binding:MachineNodeBinding,enrollment:NodeEnrollment,peer:AuthenticatedPeerEvidence)->FleetHost:
+    def enroll(
+        self,
+        candidate:FleetHost,
+        *,
+        binding:MachineNodeBinding,
+        enrollment:NodeEnrollment,
+        peer:AuthenticatedPeerEvidence,
+        approval:FleetEnrollmentApproval,
+    )->FleetHost:
+        if not isinstance(approval,FleetEnrollmentApproval):
+            raise PermissionError("Fleet enrollment requires exact Sparks approval")
+        if (
+            approval.host_id!=candidate.host_id
+            or approval.node_id!=enrollment.node.node_id
+            or approval.public_key_sha256!=enrollment.public_key_sha256
+        ):
+            raise PermissionError(
+                "Fleet enrollment approval does not match discovered host identity"
+            )
         if candidate.lifecycle is not HostLifecycle.CANDIDATE: raise ValueError("fleet enrollment starts from a candidate")
         if candidate.trusted: raise ValueError("candidate must enter authenticated enrollment untrusted")
         if candidate.host_id!=binding.host_id: raise PermissionError("binding is for a different machine")
