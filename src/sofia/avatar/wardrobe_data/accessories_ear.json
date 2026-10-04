@@ -1,0 +1,1094 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_ear",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "ultralight",
+        "texture": "smooth_hardware",
+        "breathability": "moderate",
+        "insulation": "none"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "none",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "acceptable"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "low",
+        "heat_retention": "none",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "ear.01.black_ear_cuffs",
+      "name": "Black fox-ear cuffs",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black fox-ear cuffs, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.02.violet_ear_cuffs",
+      "name": "Violet fox-ear cuffs",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet fox-ear cuffs, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.03.cyan_tip_clips",
+      "name": "Cyan tip clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan tip clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.04.crimson_tip_clips",
+      "name": "Crimson tip clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson tip clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.05.silver_ear_rings",
+      "name": "Silver ear rings",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver ear rings, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.06.circuit_ear_chain",
+      "name": "Circuit ear chains",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Circuit ear chains, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.07.violet_charm_clips",
+      "name": "Violet charm clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet charm clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.08.black_chain_cuffs",
+      "name": "Black chain cuffs",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black chain cuffs, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.09.cyan_signal_clips",
+      "name": "Cyan signal clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan signal clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.10.crimson_signal_clips",
+      "name": "Crimson signal clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson signal clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.11.minimal_ear_bands",
+      "name": "Minimal ear bands",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal ear bands, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.12.soft_violet_ribbons",
+      "name": "Soft-violet ear ribbons",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft-violet ear ribbons, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.13.silver_point_cuffs",
+      "name": "Silver point cuffs",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver point cuffs, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.14.black_violet_ear_chain",
+      "name": "Black-violet ear chain",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black-violet ear chain, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.15.tiny_circuit_charms",
+      "name": "Tiny circuit charms",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Tiny circuit charms, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.16.crimson_drop_charms",
+      "name": "Crimson drop charms",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson drop charms, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.17.cyan_drop_charms",
+      "name": "Cyan drop charms",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan drop charms, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.18.matte_ear_guards",
+      "name": "Matte ear guards",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Matte ear guards, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.19.engineer_ear_clips",
+      "name": "Engineer ear clips",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Engineer ear clips, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.20.late_night_ear_ribbons",
+      "name": "Late-night ear ribbons",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Late-night ear ribbons, a accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.21.private_sheer_ear_ribbons",
+      "name": "Private sheer ear ribbons",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer ear ribbons, a private accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.22.private_bell_ear_cuffs",
+      "name": "Private bell ear cuffs",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private bell ear cuffs, a private accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.23.private_chain_ear_set",
+      "name": "Private chain ear set",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private chain ear set, a private accessory ear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "ear.24.private_ring_and_chain_ear_set",
+      "name": "Private ring-and-chain ear set",
+      "garment_type": "ear_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_ear",
+      "sleeve_length": null,
+      "material": "lightweight coated metal and soft textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ear_clearance"
+      ],
+      "style_tags": [
+        "accessory_ear",
+        "ear",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private ring-and-chain ear set, a private accessory ear piece designed for Sofía's wardrobe."
+    }
+  ]
+}
