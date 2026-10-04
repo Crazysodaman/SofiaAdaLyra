@@ -6,7 +6,12 @@ from dataclasses import replace
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
 from sofia.cognition.matrix.multi_question import split_multi_question
-from sofia.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.cognition.operation import CognitiveOperation
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.environment.prompt import environment_details_relevant
@@ -192,6 +197,7 @@ def respond_with_runtime_context(
     )
     if len(query_parts) > 1:
         composite_answers: list[str] = []
+        composite_pairs: list[tuple[str, str]] = []
         composite_environment_snapshot = None
         refresh_composite_environment = any(
             environment_details_relevant(part)
@@ -247,6 +253,7 @@ def respond_with_runtime_context(
                                     ),
                                 )
                     composite_answers.append(self_fact.content)
+                    composite_pairs.append((part, self_fact.content))
                     continue
 
             if (
@@ -264,10 +271,45 @@ def respond_with_runtime_context(
                 )
                 if environment_answer.recognized:
                     composite_answers.append(environment_answer.content)
+                    composite_pairs.append((part, environment_answer.content))
 
-        if len(composite_answers) >= 2:
+        if (
+            composite_answers
+            and len(composite_answers) == len(query_parts)
+        ):
             return CognitiveResponse(
                 content="\n".join(composite_answers)
+            )
+        if composite_pairs:
+            resolved_lines = [
+                "TRUSTED DETERMINISTIC SUBQUESTION ANSWERS",
+                (
+                    "Some clauses in the current multi-question turn were "
+                    "answered directly by authoritative host resolvers. Include "
+                    "these facts in the final answer and answer the remaining "
+                    "clauses from their proper matrix/tool evidence. Do not "
+                    "omit a clause merely because another clause was easier."
+                ),
+            ]
+            for clause, answer in composite_pairs:
+                resolved_lines.extend(
+                    (
+                        f"Clause: {clause}",
+                        f"Authoritative answer: {answer}",
+                    )
+                )
+            request = CognitiveRequest(
+                messages=(
+                    CognitiveMessage(
+                        role=CognitiveRole.SYSTEM,
+                        content="\n".join(resolved_lines),
+                    ),
+                    *request.messages,
+                ),
+                tools=request.tools,
+                allow_tools=request.allow_tools,
+                capability_allowlist=request.capability_allowlist,
+                route_hint=request.route_hint,
             )
     if (
         user_content
