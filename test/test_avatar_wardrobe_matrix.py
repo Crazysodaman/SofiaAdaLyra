@@ -11,9 +11,9 @@ def test_full_wardrobe_counts_and_design_signatures_are_unique():
     summary = pack.closet_summary()
 
     assert len(pack.blueprints) == 979
-    assert len(pack.presets) == 310
+    assert len(pack.presets) == 311
     assert summary["total_piece_count"] == 979
-    assert summary["outfit_count"] == 310
+    assert summary["outfit_count"] == 311
     assert summary["bikini_outfit_count"] == 6
     assert summary["unique_design_signature_count"] == 979
     assert summary["duplicate_design_signature_count"] == 0
