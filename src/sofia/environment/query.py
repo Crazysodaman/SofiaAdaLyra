@@ -235,9 +235,15 @@ class EnvironmentQueryResolver:
                 if snapshot.user_local_time is not None
                 else "on the host machine"
             )
+            readable = (
+                f"{local.strftime('%A, %B')} {local.day}, {local.year}"
+            )
             return EnvironmentQueryAnswer(
                 True,
-                f"The current date {qualifier} is {local.date().isoformat()}.",
+                (
+                    f"The current date {qualifier} is {readable} "
+                    f"({local.date().isoformat()})."
+                ),
             )
 
         if normalized in forms._LOCATION_FORMS:
