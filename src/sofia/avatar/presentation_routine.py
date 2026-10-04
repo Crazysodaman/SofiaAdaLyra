@@ -100,18 +100,27 @@ class HeadlessPresentationRoutine:
             if late_lounge
             else "headless_daily_context:daytime_default,season_unknown"
         )
-        self.authority.propose_outfit(
-            operation_id=operation_id,
-            expected_revision=current.revision,
-            outfit_id=target,
-            reason=reason,
-            daily=True,
+        def mutate() -> PresentationState:
+            self.authority.propose_outfit(
+                operation_id=operation_id,
+                expected_revision=current.revision,
+                outfit_id=target,
+                reason=reason,
+                daily=True,
+            )
+            return self.authority.commit_text(
+                operation_id=operation_id,
+                renderer_unavailable=True,
+            )
+
+        state = self.store.persist_mutation(
+            self.authority,
+            mutate,
         )
-        state = self.authority.commit_text(
-            operation_id=operation_id,
-            renderer_unavailable=True,
-        )
-        self.store.save(self.authority)
+        if not isinstance(state, PresentationState):
+            raise RuntimeError(
+                "daypart presentation mutation returned invalid state"
+            )
         return PresentationRoutineResult(
             changed=True,
             deferred_private=False,
@@ -154,18 +163,27 @@ class HeadlessPresentationRoutine:
                 reason="daily_outfit_already_current",
             )
 
-        self.authority.propose_outfit(
-            operation_id=operation_id,
-            expected_revision=current.revision,
-            outfit_id=proposal.outfit_id,
-            reason="headless_daily_context:" + ",".join(proposal.reasons),
-            daily=True,
+        def mutate() -> PresentationState:
+            self.authority.propose_outfit(
+                operation_id=operation_id,
+                expected_revision=current.revision,
+                outfit_id=proposal.outfit_id,
+                reason="headless_daily_context:" + ",".join(proposal.reasons),
+                daily=True,
+            )
+            return self.authority.commit_text(
+                operation_id=operation_id,
+                renderer_unavailable=True,
+            )
+
+        state = self.store.persist_mutation(
+            self.authority,
+            mutate,
         )
-        state = self.authority.commit_text(
-            operation_id=operation_id,
-            renderer_unavailable=True,
-        )
-        self.store.save(self.authority)
+        if not isinstance(state, PresentationState):
+            raise RuntimeError(
+                "daily presentation mutation returned invalid state"
+            )
         return PresentationRoutineResult(
             changed=True,
             deferred_private=False,
