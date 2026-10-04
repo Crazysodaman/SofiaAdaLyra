@@ -1,18 +1,35 @@
 """Read-only cognitive surface for OPS fleet state, telemetry and planning."""
 from __future__ import annotations
 from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.model import (
+    ApprovedEndpoint,
+    DistributedNode,
+    NodeEndpoint,
+    NodeEnrollment,
+    NodeTransport,
+)
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
 
 from .activity import HostActivityStore
 from .desired import Drift,DesiredHostState,DesiredWorkloadPlacement,detect_drift
 from .desired_store import DesiredFleetStateStore
 from .discovery import FleetDiscoveryCoordinator
-from .enrollment import FleetEnrollmentService
+from .enrollment import (
+    AuthenticatedPeerEvidence,
+    FleetEnrollmentApproval,
+    FleetEnrollmentService,
+    MachineNodeBinding,
+)
 from .history import SQLiteTelemetryHistory
 from sofia.ops.workload import MigrationPlan
 from .model import HostLifecycle,WorkloadContract
@@ -35,7 +52,8 @@ class OpsToolService:
         discovery_source=None,
         network_discovery_source=None,
     )->None:
-        plane=state_plane or SQLiteStatePlane(state_path)
+        self.state_path=Path(state_path)
+        plane=state_plane or SQLiteStatePlane(self.state_path)
         self.registry=StatePlaneFleetRegistry(
             plane,
             legacy_path=state_path.parent/"fleet.json",
@@ -54,6 +72,7 @@ class OpsToolService:
         self.reconciliation_journal=FleetReconciliationJournal(state_path)
         self.discovery_source=discovery_source
         self.network_discovery_source=network_discovery_source
+        self.execution_approvals=ExecutionApprovalVerifier(self.state_path)
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -73,6 +92,154 @@ class OpsToolService:
 
     def fleet(self)->tuple[dict[str,Any],...]:
         return tuple(self._host(host) for host in self.registry.hosts())
+
+    @staticmethod
+    def _tag_value(tags:tuple[str,...],prefix:str)->str|None:
+        for tag in tags:
+            if tag.startswith(prefix):
+                return tag[len(prefix):]
+        return None
+
+    def enrollment_evidence(self,host_id:str)->dict[str,Any]|None:
+        host=self.registry.host(host_id)
+        if host is None or host.lifecycle is not HostLifecycle.CANDIDATE:
+            return None
+        node_id=self._tag_value(host.tags,"observed-node:")
+        key=self._tag_value(host.tags,"observed-key:")
+        endpoint_host=self._tag_value(host.tags,"observed-endpoint-host:")
+        endpoint_port=self._tag_value(host.tags,"observed-endpoint-port:")
+        observed_at=self._tag_value(host.tags,"observed-at:")
+        return {
+            "host_id":host.host_id,
+            "trusted":host.trusted,
+            "node_id":node_id,
+            "public_key_sha256":key,
+            "endpoint_hostname":endpoint_host,
+            "endpoint_port":None if endpoint_port is None else int(endpoint_port),
+            "observed_at":observed_at,
+            "capabilities_verified":"capabilities-verified" in host.tags,
+            "ready":bool(
+                not host.trusted
+                and node_id
+                and key
+                and endpoint_host
+                and endpoint_port
+                and observed_at
+                and "capabilities-verified" in host.tags
+            ),
+        }
+
+    def enroll_candidate(self,p:dict[str,Any])->dict[str,Any]:
+        host_id=p["host_id"]
+        candidate=self.registry.host(host_id)
+        if candidate is None:
+            raise KeyError(f"unknown Fleet candidate: {host_id}")
+        if candidate.lifecycle is not HostLifecycle.CANDIDATE or candidate.trusted:
+            raise PermissionError("Fleet enrollment requires an untrusted candidate")
+
+        evidence=self.enrollment_evidence(host_id)
+        if evidence is None or evidence["ready"] is not True:
+            raise PermissionError(
+                "Fleet candidate lacks verified mTLS discovery evidence"
+            )
+
+        expected={
+            "host_id":host_id,
+            "node_id":p["node_id"],
+            "public_key_sha256":p["public_key_sha256"],
+            "endpoint_hostname":p["endpoint_hostname"],
+            "endpoint_port":int(p["endpoint_port"]),
+        }
+        for key,value in expected.items():
+            if evidence[key] != value:
+                raise PermissionError(
+                    f"Fleet enrollment evidence changed for {key}"
+                )
+
+        observed_at=datetime.fromisoformat(evidence["observed_at"])
+        if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+            raise PermissionError("Fleet discovery timestamp is not trustworthy")
+        now=datetime.now(timezone.utc)
+        if now-observed_at.astimezone(timezone.utc) > timedelta(minutes=30):
+            raise PermissionError(
+                "Fleet discovery evidence is stale; rediscover before enrollment"
+            )
+
+        exact_parameters=dict(expected)
+        approval=self.execution_approvals.consume(
+            approval_id=p["approval_id"],
+            capability="fleet.enroll",
+            parameters=exact_parameters,
+            now=now,
+        )
+        if approval.approved_by!="Sparks":
+            raise PermissionError("Fleet enrollment approval must come from Sparks")
+
+        node_id=UUID(expected["node_id"])
+        endpoint=NodeEndpoint(
+            expected["endpoint_hostname"],
+            expected["endpoint_port"],
+            NodeTransport.HTTPS,
+        )
+        enrollment=NodeEnrollment(
+            DistributedNode(node_id,host_id),
+            expected["public_key_sha256"],
+            observed_at,
+            "Sparks",
+        )
+
+        identities=DurableNodeIdentityRegistry(self.state_path)
+        endpoints=DurableEndpointPolicy(self.state_path)
+        try:
+            existing_identity=identities.get(node_id)
+            if existing_identity is None:
+                identities.enroll(enrollment)
+            elif (
+                existing_identity.public_key_sha256
+                != enrollment.public_key_sha256
+            ):
+                raise PermissionError(
+                    "Fleet node identity differs from approved discovery evidence"
+                )
+
+            existing_endpoint=endpoints.get(node_id)
+            if existing_endpoint is None:
+                endpoints.approve(
+                    ApprovedEndpoint(node_id,endpoint,"Sparks")
+                )
+            elif existing_endpoint != endpoint:
+                raise PermissionError(
+                    "Fleet endpoint differs from approved discovery evidence"
+                )
+        finally:
+            identities.close()
+            endpoints.close()
+
+        enrolled=self.enrollment.enroll(
+            candidate,
+            binding=MachineNodeBinding(
+                host_id,
+                node_id,
+                observed_at,
+                "verified-mtls-discovery",
+            ),
+            enrollment=enrollment,
+            peer=AuthenticatedPeerEvidence(
+                node_id,
+                expected["public_key_sha256"],
+                observed_at,
+                "verified-mtls-discovery",
+            ),
+            approval=FleetEnrollmentApproval(
+                approval.approval_id,
+                host_id,
+                node_id,
+                expected["public_key_sha256"],
+                approval.approved_by,
+                approval.approved_at,
+            ),
+        )
+        return self._host(enrolled)
 
     def host(self,host_id:str)->dict[str,Any]|None:
         host=self.registry.host(host_id)
@@ -319,12 +486,14 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
             "ops.fleet.list":"List durable OPS fleet hosts and current state. Read-only.",
             "ops.fleet.get":"Inspect one durable OPS fleet host. Read-only.",
+            "ops.fleet.enrollment_evidence":"Inspect exact discovery evidence for one untrusted Fleet candidate. Read-only.",
+            "fleet.enroll":"Promote one exact untrusted Fleet candidate into trusted membership using one-time Sparks approval.",
             "ops.fleet.discover":"Run bounded configured Fleet/network discovery and persist only untrusted candidate observations. Safe-autonomous; never enrolls or trusts a machine.",
             "network.discover":"Observe configured network scopes and return discovered computers/devices without changing Fleet state. Read-only.",
             "ops.telemetry.latest":"Read the latest durable telemetry for one fleet host. Read-only.",
@@ -341,6 +510,8 @@ class OpsCapabilitySet:
         p=dict(request.parameters); name=request.capability.name
         if name=="ops.fleet.list": return self.service.fleet()
         if name=="ops.fleet.get": return self.service.host(p["host_id"])
+        if name=="ops.fleet.enrollment_evidence": return self.service.enrollment_evidence(p["host_id"])
+        if name=="fleet.enroll": return self.service.enroll_candidate(p)
         if name=="ops.fleet.discover": return self.service.discover_candidates()
         if name=="network.discover": return self.service.discover_network()
         if name=="ops.telemetry.latest": return self.service.telemetry_latest(p["host_id"])
@@ -365,6 +536,18 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
         b("list_fleet_hosts","ops.fleet.list","List OPS fleet hosts and durable state. Read-only."),
         b("inspect_fleet_host","ops.fleet.get","Inspect one OPS fleet host. Read-only.",
           {"host_id":{"type":"string"}},("host_id",)),
+        b("inspect_fleet_enrollment_evidence","ops.fleet.enrollment_evidence","Inspect exact verified discovery evidence for one untrusted Fleet candidate.",
+          {"host_id":{"type":"string"}},("host_id",)),
+        b("enroll_fleet_candidate","fleet.enroll","Enroll one exact verified Fleet candidate. Requires a one-time Sparks approval bound to host, node, key, and endpoint.",
+          {
+            "host_id":{"type":"string"},
+            "node_id":{"type":"string"},
+            "public_key_sha256":{"type":"string"},
+            "endpoint_hostname":{"type":"string"},
+            "endpoint_port":{"type":"integer"},
+            "approval_id":{"type":"string"},
+          },
+          ("host_id","node_id","public_key_sha256","endpoint_hostname","endpoint_port","approval_id")),
         b("discover_fleet_candidates","ops.fleet.discover","Run configured bounded discovery and record only untrusted candidate observations. Never enrolls or trusts a machine."),
         b("discover_network_computers","network.discover","Observe configured network scopes and return discovered computers/devices without adding them to Fleet."),
         b("inspect_fleet_telemetry","ops.telemetry.latest","Read latest durable telemetry for one fleet host. Read-only.",
