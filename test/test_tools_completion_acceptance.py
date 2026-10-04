@@ -75,12 +75,17 @@ def test_default_configuration_exposes_only_safe_core_tool_classes(monkeypatch):
     assert "hyperv.vm.stop" not in allowed
 
 
-def test_explicit_environment_capability_grant_is_added(monkeypatch):
-    monkeypatch.setenv("SOFIA_ALLOWED_CAPABILITIES","dev.build,dev.apply,github.pull_request.create")
+def test_environment_cannot_widen_canonical_permission_authority(monkeypatch):
+    monkeypatch.setenv(
+        "SOFIA_ALLOWED_CAPABILITIES",
+        "dev.build,dev.apply,github.pull_request.create",
+    )
     cfg=create_default_configuration()
+    # Level 2 remains automatic because the central policy says so.
     assert "dev.build" in cfg.standing_allowed_capabilities
-    assert "dev.apply" in cfg.standing_allowed_capabilities
-    assert "github.pull_request.create" in cfg.standing_allowed_capabilities
+    # Environment text cannot mint Level 3/4 authority.
+    assert "dev.apply" not in cfg.standing_allowed_capabilities
+    assert "github.pull_request.create" not in cfg.standing_allowed_capabilities
 
 
 def test_composition_registers_core_tool_families(tmp_path):
