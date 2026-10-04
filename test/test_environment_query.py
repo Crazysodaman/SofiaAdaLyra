@@ -53,6 +53,19 @@ def test_direct_time_uses_evidenced_timezone_not_host_assumption():
     assert "America/Chicago" in answer.content
 
 
+def test_direct_day_query_includes_weekday_and_iso_date():
+    snapshot = EnvironmentService(config()).snapshot(now=NOW)
+    answer = EnvironmentQueryResolver().resolve(
+        "what day is it?",
+        snapshot=snapshot,
+    )
+
+    assert answer.recognized
+    assert "Friday, September 25, 2026" in answer.content
+    assert "2026-09-25" in answer.content
+    assert "America/Chicago" in answer.content
+
+
 def test_direct_location_distinguishes_configured_from_current():
     snapshot = EnvironmentService(config()).snapshot(now=NOW)
     answer = EnvironmentQueryResolver().resolve(
