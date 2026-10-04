@@ -35,6 +35,8 @@ from sofia.continuity.model import (
     create_continuity_event,
 )
 from sofia.embodiment.model import Embodiment
+from sofia.distributed.authorization import remote_host_capability_name
+from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
 from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.query import EnvironmentQueryResolver
@@ -606,6 +608,23 @@ class SofiaRuntime:
 
     def current_authority(self) -> Authority:
         """Return live host authority for the current cognitive operation."""
+        remote_capabilities = []
+        remote_authorization = DurableRemoteAuthorization(
+            self._configuration.state_path
+        )
+        try:
+            for grant in remote_authorization.active_grants(
+                now=datetime.now(timezone.utc)
+            ):
+                capability = remote_host_capability_name(
+                    grant.capability,
+                    grant.operation,
+                )
+                if capability is not None:
+                    remote_capabilities.append(capability)
+        finally:
+            remote_authorization.close()
+
         live_capabilities = tuple(
             dict.fromkeys(
                 automatic_capabilities()
@@ -615,6 +634,7 @@ class SofiaRuntime:
                         active_only=True
                     )
                 )
+                + tuple(remote_capabilities)
             )
         )
         return Authority(

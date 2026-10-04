@@ -15,6 +15,30 @@ from uuid import UUID
 from sofia.distributed.capabilities import _aware, _identifier
 
 
+REMOTE_MUTATION_HOST_CAPABILITIES = {
+    ("service.manage", "start"): "remote.service.start",
+    ("service.manage", "stop"): "remote.service.stop",
+    ("service.manage", "restart"): "remote.service.restart",
+    ("system.manage", "reboot"): "remote.host.reboot",
+    ("package.manage", "update"): "remote.package.update",
+    ("vm.manage", "start"): "remote.vm.start",
+    ("vm.manage", "stop"): "remote.vm.stop",
+    ("llm.manage", "pull"): "remote.ollama.pull",
+    ("llm.manage", "load"): "remote.ollama.load",
+    ("llm.manage", "unload"): "remote.ollama.unload",
+    ("container.manage", "restart"): "remote.container.restart",
+}
+
+
+def remote_host_capability_name(
+    capability: str,
+    operation: str,
+) -> str | None:
+    _identifier(capability, "Remote capability")
+    _identifier(operation, "Remote operation")
+    return REMOTE_MUTATION_HOST_CAPABILITIES.get((capability, operation))
+
+
 REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("system.inspect", "process"),
     ("system.inspect", "system"),

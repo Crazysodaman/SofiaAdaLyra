@@ -62,3 +62,32 @@ def test_remote_container_restart_is_not_read_only():
         "container.manage",
         "restart",
     ) is False
+
+
+def test_active_grants_lists_current_grants_across_nodes(tmp_path):
+    from datetime import timedelta
+    from uuid import uuid4
+
+    from sofia.distributed.authorization import RemoteGrant
+    from sofia.distributed.durable import DurableRemoteAuthorization
+
+    now = datetime.now(timezone.utc)
+    store = DurableRemoteAuthorization(tmp_path / "sofia.db")
+    try:
+        first = RemoteGrant(
+            uuid4(), uuid4(), "service.manage", "restart",
+            "Sparks", now + timedelta(hours=1),
+        )
+        second = RemoteGrant(
+            uuid4(), uuid4(), "container.manage", "restart",
+            "Sparks", now + timedelta(hours=1),
+        )
+        store.add_approved_grant(first)
+        store.add_approved_grant(second)
+        grants = store.active_grants(now=now)
+        assert {item.grant_id for item in grants} == {
+            first.grant_id,
+            second.grant_id,
+        }
+    finally:
+        store.close()

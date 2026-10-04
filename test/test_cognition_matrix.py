@@ -351,6 +351,27 @@ def test_tool_exposure_keeps_safe_autonomous_dev_build_without_action_approval()
     assert "dev.push" not in plan.capabilities
 
 
+def test_remote_level_four_tool_is_exposed_only_with_exact_host_authority():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("restart the remote service")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            allowed_capabilities=("remote.service.restart",),
+        ),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "remote.service.restart" in plan.capabilities
+    assert "local.service.restart" not in plan.capabilities
+
+
 def test_level_three_standing_grant_keeps_reversible_tool_exposed():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())

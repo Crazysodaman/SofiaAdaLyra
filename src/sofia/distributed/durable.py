@@ -172,6 +172,36 @@ class DurableRemoteAuthorization(RemoteAuthorization):
         self.add_approved_grant(grant)
         return grant
 
+    def active_grants(self, *, now: datetime) -> tuple[RemoteGrant, ...]:
+        _aware(now, "now")
+        rows = self._db.execute(
+            """SELECT grant_id, node_id, capability, operation, approved_by, expires_at
+               FROM remote_standing_grant
+               WHERE revoked = 0
+               ORDER BY node_id, capability, operation"""
+        ).fetchall()
+        grants = []
+        for grant_id, node_id, capability, operation, approved_by, expiry in rows:
+            try:
+                expires_at = datetime.fromisoformat(expiry)
+                _aware(expires_at, "expires_at")
+                parsed_node = UUID(node_id)
+                parsed_grant = UUID(grant_id)
+            except (TypeError, ValueError):
+                continue
+            if now < expires_at:
+                grants.append(
+                    RemoteGrant(
+                        parsed_grant,
+                        parsed_node,
+                        capability,
+                        operation,
+                        approved_by,
+                        expires_at,
+                    )
+                )
+        return tuple(grants)
+
     def active_grants_for_node(self, node_id: UUID, *, now: datetime) -> tuple[RemoteGrant, ...]:
         _aware(now, "now")
         if not isinstance(node_id, UUID):

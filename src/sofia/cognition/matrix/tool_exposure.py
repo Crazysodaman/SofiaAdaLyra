@@ -338,7 +338,10 @@ class MatrixToolExposurePlanner:
                     }
                     or (
                         capability_permission_policy(capability).level
-                        is PermissionLevel.REVERSIBLE_SCOPED
+                        in {
+                            PermissionLevel.REVERSIBLE_SCOPED,
+                            PermissionLevel.PROTECTED,
+                        }
                         and authority.can_use_capability(capability)
                     )
                 )
