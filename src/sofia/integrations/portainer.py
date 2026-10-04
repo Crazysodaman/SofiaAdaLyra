@@ -21,6 +21,29 @@ class PortainerAdapter:
         data=self.http.request("GET",f"/api/endpoints/{self.endpoint_id}/docker/containers/{container_id}/json")
         if not isinstance(data,dict): raise RuntimeError("invalid Docker inspect response")
         return data
+    def container_logs(
+        self,
+        container_id:str,
+        *,
+        tail:int=200,
+        max_bytes:int=262144,
+    )->str:
+        if not container_id.strip() or "/" in container_id:
+            raise ValueError("invalid container_id")
+        if type(tail) is not int or not 1 <= tail <= 5000:
+            raise ValueError("tail must be in 1..5000")
+        return self.http.request_text(
+            "GET",
+            f"/api/endpoints/{self.endpoint_id}/docker/containers/{container_id}/logs",
+            query={
+                "stdout":"true",
+                "stderr":"true",
+                "timestamps":"true",
+                "tail":str(tail),
+            },
+            max_bytes=max_bytes,
+        )
+
     def container_stats(self,container_id:str)->dict[str,Any]:
         if not container_id.strip() or "/" in container_id: raise ValueError("invalid container_id")
         data=self.http.request(
