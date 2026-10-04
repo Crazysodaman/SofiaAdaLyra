@@ -12,8 +12,10 @@ from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
 from .wardrobe_design import (
     ComfortProfile,
+    ContentRating,
     ContextProfile,
     EnvironmentProfile,
+    ExposureZone,
     GarmentDesign,
     GraphicDesign,
     MaterialProperties,
@@ -42,6 +44,8 @@ class GarmentDesignRequest:
     features: tuple[str, ...]
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
+    content_rating: ContentRating = ContentRating.STANDARD
+    exposure: tuple[ExposureZone, ...] = ()
     description: str = ""
     material_properties: MaterialProperties = field(
         default_factory=MaterialProperties
@@ -168,6 +172,8 @@ class WardrobeStudio:
             features=request.features,
             style_tags=request.style_tags,
             private_only=request.private_only,
+            content_rating=request.content_rating,
+            exposure=request.exposure,
             description=request.description,
             material_properties=request.material_properties,
             environment=request.environment,

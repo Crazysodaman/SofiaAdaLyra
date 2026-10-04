@@ -16,8 +16,10 @@ from .fit import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Wardrobe, WardrobeError
 from .wardrobe_design import (
     ComfortProfile,
+    ContentRating,
     ContextProfile,
     EnvironmentProfile,
+    ExposureZone,
     FabricWeight,
     GarmentDesign,
     GraphicDesign,
@@ -163,9 +165,18 @@ class GarmentBlueprint:
     def category(self) -> str:
         # Preserve precise undergarment semantics for conversational queries
         # while the creator itself remains type/family driven.
-        if self.design.garment_type == "bralette":
+        bra_types = {
+            "bralette", "wireless_bra", "sports_bra", "longline_bralette",
+            "triangle_bralette", "plunge_bra", "bandeau", "open_cup_bra",
+        }
+        panty_types = {
+            "briefs", "hipster", "boyshort", "bikini_brief",
+            "cheeky_brief", "thong", "athletic_brief",
+            "open_crotch_briefs",
+        }
+        if self.design.garment_type in bra_types:
             return "closet.bra"
-        if self.design.garment_type == "briefs":
+        if self.design.garment_type in panty_types:
             return "closet.panty"
         family = garment_type(self.design.garment_type).family.value
         return f"closet.{family}"
@@ -177,6 +188,14 @@ class GarmentBlueprint:
     @property
     def private_only(self) -> bool:
         return self.design.private_only
+
+    @property
+    def content_rating(self) -> ContentRating:
+        return self.design.content_rating
+
+    @property
+    def exposure(self) -> tuple[ExposureZone, ...]:
+        return self.design.exposure
 
     @property
     def description(self) -> str:
@@ -203,6 +222,8 @@ class GarmentBlueprint:
             "features": self.design.features,
             "style_tags": self.design.style_tags,
             "private_only": self.design.private_only,
+            "content_rating": self.design.content_rating.value,
+            "exposure": tuple(zone.value for zone in self.design.exposure),
             "material_properties": self.design.material_properties.as_dict(),
             "environment": self.design.environment.as_dict(),
             "context": self.design.context.as_dict(),
@@ -399,6 +420,8 @@ class WardrobePrebuild:
                     "ear_clearance": bp.garment.ear_clearance,
                     "asset_ref": None,
                     "private_only": bp.private_only,
+                    "content_rating": bp.content_rating.value,
+                    "exposure": [zone.value for zone in bp.exposure],
                     "provenance": bp.provenance,
                     "design_signature": bp.design_signature,
                     "description": bp.design.description,

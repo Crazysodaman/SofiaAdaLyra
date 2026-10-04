@@ -29,6 +29,8 @@ class WardrobeMatrixCell:
     style_tags: tuple[str, ...]
     design_signature: str
     private_only: bool
+    content_rating: str
+    exposure: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +81,8 @@ class WardrobeSlotMatrix:
                         "style_tags": list(cell.style_tags),
                         "design_signature": cell.design_signature,
                         "private_only": cell.private_only,
+                        "content_rating": cell.content_rating,
+                        "exposure": list(cell.exposure),
                     }
                 )
                 for layer in Layer
@@ -124,6 +128,8 @@ def build_wardrobe_matrix(
                     style_tags=blueprint.style_tags,
                     design_signature=blueprint.design_signature,
                     private_only=blueprint.private_only,
+                    content_rating=blueprint.content_rating.value,
+                    exposure=tuple(zone.value for zone in blueprint.exposure),
                 )
             )
 

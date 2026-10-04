@@ -570,6 +570,17 @@ class ComfortProfile:
         }
 
 
+class ContentRating(str, Enum):
+    STANDARD = "standard"
+    LEWD = "lewd"
+    EXPLICIT = "explicit"
+
+
+class ExposureZone(str, Enum):
+    NIPPLES = "nipples"
+    GENITALS = "genitals"
+
+
 @dataclass(frozen=True, slots=True)
 class GarmentDesign:
     """Creator-facing structured design for one actual wardrobe piece."""
@@ -589,6 +600,8 @@ class GarmentDesign:
     features: tuple[str, ...]
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
+    content_rating: ContentRating = ContentRating.STANDARD
+    exposure: tuple[ExposureZone, ...] = ()
     description: str = ""
     material_properties: MaterialProperties = field(
         default_factory=MaterialProperties
@@ -644,6 +657,21 @@ class GarmentDesign:
                 raise WardrobeError(f"invalid {label}")
         if type(self.private_only) is not bool:
             raise WardrobeError("private_only must be boolean")
+        if not isinstance(self.content_rating, ContentRating):
+            raise WardrobeError("content_rating must be ContentRating")
+        if (
+            not isinstance(self.exposure, tuple)
+            or len(set(self.exposure)) != len(self.exposure)
+            or any(not isinstance(zone, ExposureZone) for zone in self.exposure)
+        ):
+            raise WardrobeError("exposure must be unique typed exposure zones")
+        if (
+            self.content_rating in {ContentRating.LEWD, ContentRating.EXPLICIT}
+            and not self.private_only
+        ):
+            raise WardrobeError("lewd/explicit garments must be private-only")
+        if self.exposure and self.content_rating is not ContentRating.EXPLICIT:
+            raise WardrobeError("intentional exposure requires explicit rating")
         if not isinstance(self.material_properties, MaterialProperties):
             raise WardrobeError("invalid material properties")
         if not isinstance(self.environment, EnvironmentProfile):
@@ -695,6 +723,105 @@ GARMENT_TYPES: tuple[GarmentTypeDefinition, ...] = (
           graphic=False),
     _type("briefs", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
           ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("wireless_bra", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("sports_bra", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("longline_bralette", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("triangle_bralette", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("plunge_bra", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("bandeau", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back"),
+          graphic=False),
+    _type("camisole", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back")),
+    _type("base_tank", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back")),
+    _type("base_top", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back")),
+    _type("base_tee", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso", "left_upper_arm", "right_upper_arm"),
+          ("torso", "left_upper_arm", "right_upper_arm"),
+          ("torso.front", "torso.back", "shoulder.left", "shoulder.right"),
+          sleeves=True),
+    _type("compression_top", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), ("torso",), ("torso.front", "torso.back")),
+    _type("thermal_top", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso", "left_upper_arm", "right_upper_arm",
+           "left_forearm", "right_forearm"),
+          ("torso", "left_upper_arm", "right_upper_arm",
+           "left_forearm", "right_forearm"),
+          ("torso.front", "torso.back", "shoulder.left", "shoulder.right",
+           "forearm.left", "forearm.right"),
+          sleeves=True),
+    _type("open_cup_bra", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("torso",), (), ("torso.front", "torso.back"),
+          graphic=False),
+
+    _type("hipster", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("boyshort", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("bikini_brief", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("cheeky_brief", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("thong", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("athletic_brief", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), ("pelvis",),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("compression_shorts", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "left_thigh", "right_thigh", "tail"),
+          ("pelvis", "left_thigh", "right_thigh"),
+          ("pelvis.coverage", "thigh.left", "thigh.right",
+           "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("liner_shorts", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "left_thigh", "right_thigh", "tail"),
+          ("pelvis", "left_thigh", "right_thigh"),
+          ("pelvis.coverage", "thigh.left", "thigh.right",
+           "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("slip_shorts", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "left_thigh", "right_thigh", "tail"),
+          ("pelvis", "left_thigh", "right_thigh"),
+          ("pelvis.coverage", "thigh.left", "thigh.right",
+           "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("base_leggings", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "left_leg", "right_leg", "tail"),
+          ("pelvis", "left_leg", "right_leg"),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("thermal_leggings", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "left_leg", "right_leg", "tail"),
+          ("pelvis", "left_leg", "right_leg"),
+          ("pelvis.coverage", "tail.opening.clearance"),
+          rise=True, graphic=False, tail=True),
+    _type("open_crotch_briefs", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
+          ("pelvis", "tail"), (),
           ("pelvis.coverage", "tail.opening.clearance"),
           rise=True, graphic=False, tail=True),
     _type("ankle_socks", GarmentFamily.UNDERWEAR, Layer.UNDERWEAR,
@@ -938,5 +1065,19 @@ def validate_design(design: GarmentDesign) -> GarmentTypeDefinition:
     if design.graphic.enabled and not definition.supports_graphic:
         raise WardrobeError(
             f"{design.garment_type} does not support graphics"
+        )
+    if (
+        ExposureZone.NIPPLES in design.exposure
+        and "torso" in definition.coverage
+    ):
+        raise WardrobeError(
+            "nipple-exposing garment type cannot claim torso coverage"
+        )
+    if (
+        ExposureZone.GENITALS in design.exposure
+        and "pelvis" in definition.coverage
+    ):
+        raise WardrobeError(
+            "genital-exposing garment type cannot claim pelvis coverage"
         )
     return definition
