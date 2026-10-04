@@ -184,6 +184,35 @@ def test_portainer_adapter_supports_bounded_read_only_inventory_and_stats():
     assert fake.calls[-1][2]["query"]["endpointId"] == 2
 
 
+def test_portainer_summary_reports_running_stopped_and_unhealthy():
+    adapter=PortainerAdapter("http://portainer.local","key",2)
+    fake=FakeHttp([
+        {
+            "Containers":3,
+            "ContainersRunning":2,
+            "ContainersStopped":1,
+            "Images":8,
+            "ServerVersion":"27.0",
+            "OperatingSystem":"Debian",
+            "Architecture":"x86_64",
+        },
+        [
+            {"Id":"a","Names":["/healthy"],"State":"running","Status":"Up 1 hour"},
+            {"Id":"b","Names":["/bad"],"State":"running","Status":"Up 1 hour (unhealthy)"},
+            {"Id":"c","Names":["/stopped"],"State":"exited","Status":"Exited (0)"},
+        ],
+    ])
+    adapter.http=fake
+
+    summary=adapter.summary()
+
+    assert summary["observed_container_count"]==3
+    assert summary["running"]==("bad","healthy")
+    assert summary["stopped"]==("stopped",)
+    assert summary["unhealthy"]==("bad",)
+    assert summary["engine"]["server_version"]=="27.0"
+
+
 def test_jmri_adapter_power_and_roster_are_typed():
     adapter=JmriAdapter("http://jmri.local:12080")
     fake=FakeHttp([[{"type":"power"}],[{"type":"roster"}],{"type":"power"}]); adapter.http=fake
