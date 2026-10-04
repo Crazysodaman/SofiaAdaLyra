@@ -9,7 +9,7 @@ from time import monotonic, sleep
 from typing import Protocol
 from uuid import uuid4
 
-from .model import VoiceProsodyProfile
+from .prosody_matrix import VoiceProsodyProfile
 
 
 class TTSPlaybackState(str, Enum):

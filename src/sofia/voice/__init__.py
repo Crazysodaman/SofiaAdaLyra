@@ -1,16 +1,7 @@
 """Voice runtime, TTS and expression planning."""
 from .factory import create_tts_service_from_environment
 from .matrix import VoiceMatrixEvaluator
-from .model import (
-    VoiceInputMode,
-    VoiceProsodyProfile,
-    VoiceRuntimeDisposition,
-    VoiceRuntimePlan,
-    VoiceRuntimeSignals,
-    VoiceUrgency,
-)
-from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan
-from .runtime_matrix import VoiceRuntimeMatrix
+from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan, VoiceProsodyProfile, VoiceUrgency
 from .sapi import WindowsSapiBackend
 from .tts import (
     TTSBackendProbe,
@@ -27,15 +18,10 @@ __all__ = [
     "TTSPlaybackState",
     "TTSStatus",
     "TextToSpeechService",
-    "VoiceInputMode",
     "VoiceMatrixEvaluator",
     "VoiceProsodyMatrix",
     "VoiceProsodyPlan",
     "VoiceProsodyProfile",
-    "VoiceRuntimeDisposition",
-    "VoiceRuntimeMatrix",
-    "VoiceRuntimePlan",
-    "VoiceRuntimeSignals",
     "VoiceUrgency",
     "WindowsSapiBackend",
     "create_tts_service_from_environment",
