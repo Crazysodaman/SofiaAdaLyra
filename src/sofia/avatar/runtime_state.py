@@ -88,16 +88,15 @@ def _migrate_legacy_bootstrap_colors(
     ):
         return authority
 
-    migrated = PresentationAuthority(
+    snapshot = authority.snapshot()
+    for key in ("current", "last_daily"):
+        appearance = snapshot[key]["appearance"]
+        appearance["hair_color"] = hair_name
+        appearance["tail_color"] = tail_name
+    migrated = PresentationAuthority.restore(
         wardrobe,
         outfits=outfits,
-        canonical_daily_outfit_id="engineer.signature",
-        initial_appearance=AppearanceState(
-            hairstyle=current.appearance.hairstyle,
-            hair_color=hair_name,
-            tail_color=tail_name,
-            style_tags=current.appearance.style_tags,
-        ),
+        snapshot=snapshot,
     )
     store.save(migrated)
     return migrated
