@@ -244,6 +244,19 @@ def test_tool_exposure_selects_only_relevant_read_capability():
     assert plan.allow_tools is True
 
 
+def test_tool_exposure_exposes_live_permission_inspection_for_authority_questions():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("what permissions do you have?")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "permissions.inspect" in plan.capabilities
+    assert plan.allow_tools is True
+
+
 def test_tool_exposure_keeps_read_only_inspection_for_unapproved_action():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
