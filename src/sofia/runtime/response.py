@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from dataclasses import replace
-import re
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix import ContextPlan, MatrixDomain, PrivacyProjectionPlan
+from sofia.cognition.matrix.multi_question import split_multi_question
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
 from sofia.cognition.operation import CognitiveOperation
 from sofia.config.cognitive_models import CognitiveModelSelection
@@ -528,16 +528,7 @@ def _latest_user_content(
     return ""
 
 def _deterministic_query_parts(content: str) -> tuple[str, ...]:
-    """Split compact multi-fact questions without changing normal prose routing."""
+    """Use the same clause boundaries as the message matrix."""
     if not isinstance(content, str) or not content.strip():
         return ()
-    parts = re.split(
-        r"\s*(?:[,;]+|\?+)\s*|\s+\band\b\s+",
-        content.strip(),
-        flags=re.IGNORECASE,
-    )
-    return tuple(
-        part.strip(" \t\r\n?!.")
-        for part in parts
-        if part.strip(" \t\r\n?!.")
-    )
+    return split_multi_question(content)
