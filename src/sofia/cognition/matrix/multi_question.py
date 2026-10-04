@@ -18,11 +18,15 @@ _QUESTION_START = (
     r"(?:(?:please\s+)?(?:what|what's|whats|which|where|when|why|how|who|whose|"
     r"can|could|would|will|should|do|does|did|is|are|am|have|has|"
     r"inspect|list|show|check|summarize|restart|reboot|start|stop|"
-    r"wear|change|remove|add|scan|find))"
+    r"wear|change|remove|add|scan|find|design|generate|create|make))"
 )
 _BOUNDARY = re.compile(
-    r"\s*(?:\?+|;+|,(?=\s*" + _QUESTION_START + r"\b)|"
-    r"\band\b(?=\s*" + _QUESTION_START + r"\b))\s*",
+    r"\s*(?:"
+    r"\?+\s*(?:and\s+)?(?=" + _QUESTION_START + r"\b)|"
+    r";+|"
+    r",(?=\s*" + _QUESTION_START + r"\b)|"
+    r"\band\b(?=\s*" + _QUESTION_START + r"\b)"
+    r")\s*",
     re.IGNORECASE,
 )
 
