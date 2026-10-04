@@ -40,8 +40,17 @@ from .repair_plan import FleetRepairPlanner
 from .reconciliation_journal import FleetReconciliationJournal
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from .workload_store import WorkloadInstanceStore
+from .migration import WorkloadMigrationExecutor, MigrationJournal
+from .workload_backend import (
+    TypedWorkloadBackend,
+    WorkloadExecutionCatalog,
+    WorkloadOutcomeUncertain,
+)
 from sofia.state.plane import StatePlane
 from sofia.state.sqlite_plane import SQLiteStatePlane
+import os
+from sofia.distributed.agent_tools import create_default_agent_dispatcher
+from sofia.distributed.capability import create_configured_remote_fleet_service
 
 class OpsToolService:
     def __init__(
@@ -73,6 +82,40 @@ class OpsToolService:
         self.discovery_source=discovery_source
         self.network_discovery_source=network_discovery_source
         self.execution_approvals=ExecutionApprovalVerifier(self.state_path)
+        self.migration_executor=None
+        catalog_file=os.environ.get("SOFIA_WORKLOAD_CATALOG_FILE","").strip()
+        if catalog_file:
+            catalog=WorkloadExecutionCatalog.from_file(Path(catalog_file))
+            local_host_id=os.environ.get("SOFIA_LOCAL_HOST_ID","").strip()
+            local_dispatcher=create_default_agent_dispatcher()
+            remote_service=create_configured_remote_fleet_service(self.state_path)
+
+            def invoke_workload(host_id,capability,operation,parameters):
+                if local_host_id and host_id==local_host_id:
+                    result=local_dispatcher.execute(capability,operation,parameters)
+                    import json as _json
+                    return {
+                        "outcome":"reported_success",
+                        "message":_json.dumps(result,default=str,ensure_ascii=False)
+                        if result is not None else "{}",
+                        "result":result,
+                    }
+                if remote_service is None:
+                    raise RuntimeError(
+                        "remote workload execution requires configured pinned-mTLS Fleet transport"
+                    )
+                return remote_service.invoke(
+                    str(self.registry.host(host_id).node_id),
+                    capability,
+                    operation,
+                    parameters,
+                )
+
+            self.migration_executor=WorkloadMigrationExecutor(
+                backend=TypedWorkloadBackend(catalog,invoke_workload),
+                state_plane=plane,
+                instance_store=self.workloads,
+            )
 
     @staticmethod
     def _host(host)->dict[str,Any]:
@@ -471,6 +514,82 @@ class OpsToolService:
             "observed":receipt.observed,
         }
 
+    def migration_receipt(self,migration_id:str)->dict[str,Any]|None:
+        plane=getattr(self.registry,"state_plane",None)
+        if plane is None:
+            return None
+        return MigrationJournal(plane).get(migration_id)
+
+    def execute_migration(self,p:dict[str,Any])->dict[str,Any]:
+        if self.migration_executor is None:
+            raise RuntimeError(
+                "workload execution is not configured; set SOFIA_WORKLOAD_CATALOG_FILE"
+            )
+        contract=self._workload(p["workload"])
+        managed=ManagedWorkload(
+            contract,
+            StateMode(p.get("state_mode","stateless")),
+            checkpoint_required=bool(p.get("checkpoint_required",False)),
+            failure_domain_spread=bool(p.get("failure_domain_spread",False)),
+        )
+        plan=MigrationPlan(
+            p["migration_id"],
+            managed,
+            p["source_host_id"],
+            p["target_host_id"],
+        )
+        # Deterministic preflight happens before consuming exact approval.
+        self.migration_executor.preflight(plan)
+        hosts={host.host_id:host for host in self.registry.hosts()}
+        source=hosts.get(plan.source_host_id)
+        target=hosts.get(plan.target_host_id)
+        if source is None or target is None:
+            raise KeyError("migration source/target must be Fleet members")
+        if (
+            not source.trusted or not target.trusted
+            or source.lifecycle not in {HostLifecycle.ENROLLED,HostLifecycle.HEALTHY}
+            or target.lifecycle not in {HostLifecycle.ENROLLED,HostLifecycle.HEALTHY}
+        ):
+            raise PermissionError("migration requires trusted active Fleet hosts")
+        decision=self.placement.choose(
+            contract,
+            tuple(hosts.values()),
+            activities={
+                host.host_id:self.activity.state(host.host_id)
+                for host in hosts.values()
+            },
+        )
+        if plan.target_host_id not in decision.eligible_hosts:
+            reason=dict(decision.rejected).get(plan.target_host_id,"not eligible")
+            raise PermissionError(f"migration target is not eligible: {reason}")
+
+        now=datetime.now(timezone.utc)
+        exact={
+            "migration_id":plan.migration_id,
+            "workload":p["workload"],
+            "source_host_id":plan.source_host_id,
+            "target_host_id":plan.target_host_id,
+            "state_mode":managed.state_mode.value,
+            "checkpoint_required":managed.checkpoint_required,
+            "failure_domain_spread":managed.failure_domain_spread,
+        }
+        approval=self.execution_approvals.consume(
+            approval_id=p["approval_id"],
+            capability="ops.migration.execute",
+            parameters=exact,
+            now=now,
+        )
+        if approval.approved_by!="Sparks":
+            raise PermissionError("migration execution approval must come from Sparks")
+        result=self.migration_executor.execute(plan)
+        return {
+            "migration_id":result.migration_id,
+            "stage":result.stage.value,
+            "lease_epoch":result.lease_epoch,
+            "checkpoint_ref":result.checkpoint_ref,
+            "receipt_count":len(result.receipts),
+        }
+
     def migration_plan(self,p:dict[str,Any])->dict[str,Any]:
         contract=self._workload(p["workload"])
         managed=ManagedWorkload(
@@ -492,7 +611,7 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.migration.execute","ops.migration.receipt","ops.maintenance.receipt")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -509,6 +628,8 @@ class OpsCapabilitySet:
             "ops.reconcile.preview":"Preview canonical durable Fleet desired/observed drift and non-authoritative repair proposals. Read-only.",
             "ops.reconcile.active":"Read active deduplicated Fleet reconciliation observations. Read-only.",
             "ops.migration.plan":"Construct a migration plan without executing it. Read-only planning.",
+            "ops.migration.execute":"Execute one exact approved workload migration through typed workload bindings.",
+            "ops.migration.receipt":"Read durable workload migration stage/receipts. Read-only.",
             "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
         }
         return tuple(Capability(name,descriptions[name]) for name in self.NAMES)
@@ -527,6 +648,8 @@ class OpsCapabilitySet:
         if name=="ops.reconcile.preview": return self.service.reconciliation_preview()
         if name=="ops.reconcile.active": return self.service.active_reconciliation()
         if name=="ops.migration.plan": return self.service.migration_plan(p)
+        if name=="ops.migration.execute": return self.service.execute_migration(p)
+        if name=="ops.migration.receipt": return self.service.migration_receipt(p["migration_id"])
         if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
         raise ValueError("unsupported OPS capability")
 
@@ -575,6 +698,14 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
            "target_host_id":{"type":"string"},"state_mode":{"type":"string"},
            "checkpoint_required":{"type":"boolean"},"failure_domain_spread":{"type":"boolean"}},
           ("migration_id","workload","source_host_id","target_host_id")),
+        b("execute_workload_migration","ops.migration.execute","Execute one exact approved workload migration using typed host workload operations.",
+          {"migration_id":{"type":"string"},"workload":workload,"source_host_id":{"type":"string"},
+           "target_host_id":{"type":"string"},"state_mode":{"type":"string"},
+           "checkpoint_required":{"type":"boolean"},"failure_domain_spread":{"type":"boolean"},
+           "approval_id":{"type":"string"}},
+          ("migration_id","workload","source_host_id","target_host_id","approval_id")),
+        b("inspect_workload_migration","ops.migration.receipt","Read durable workload migration stage and receipts.",
+          {"migration_id":{"type":"string"}},("migration_id",)),
         b("inspect_maintenance_receipt","ops.maintenance.receipt","Read one durable verified maintenance receipt.",
           {"request_id":{"type":"string"}},("request_id",)),
     )

@@ -24,7 +24,7 @@ class WorkloadInstance:
         if not all((self.instance_id.strip(),self.workload_id.strip(),self.version.strip(),self.host_id.strip())): raise ValueError("workload instance identity required")
 
 class MigrationStage(str,Enum):
-    PLANNED="planned"; DRAINED="drained"; CHECKPOINTED="checkpointed"; TARGET_STARTED="target_started"; READY="ready"; SOURCE_FENCED="source_fenced"; COMPLETED="completed"; ROLLED_BACK="rolled_back"
+    PLANNED="planned"; DRAINED="drained"; CHECKPOINTED="checkpointed"; TARGET_STARTED="target_started"; READY="ready"; SOURCE_FENCED="source_fenced"; COMPLETED="completed"; ROLLED_BACK="rolled_back"; FAILED="failed"; OUTCOME_UNCERTAIN="outcome_uncertain"
 
 @dataclass(frozen=True)
 class MigrationPlan:

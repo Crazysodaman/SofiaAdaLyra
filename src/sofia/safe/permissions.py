@@ -131,6 +131,7 @@ _READ_ONLY = frozenset({
     "ops.reconcile.preview",
     "ops.reconcile.active",
     "ops.migration.plan",
+    "ops.migration.receipt",
     "ops.maintenance.receipt",
     "remote.nodes",
     "remote.process.inspect",
@@ -230,6 +231,7 @@ _REVERSIBLE = frozenset({
 
 _PROTECTED = frozenset({
     "fleet.enroll",
+    "ops.migration.execute",
     "home_assistant.service.call",
     "github.pull_request.merge",
     "discord.revoke",
