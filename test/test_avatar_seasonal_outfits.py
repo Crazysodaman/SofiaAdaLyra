@@ -197,3 +197,31 @@ def test_composed_outfit_can_register_present_and_survive_snapshot_restore(tmp_p
     )
     assert restored.current.outfit_id == "studio.spring.custom.01"
     assert "studio.spring.custom.01" in restored.available_outfit_ids
+
+
+
+def test_seasonal_outfit_combinations_are_distinct_across_all_seasons():
+    outfits = generated_seasonal_outfits()
+
+    normal = [
+        plan.item_ids
+        for plan in outfits
+        if not plan.lounge and not plan.private_only
+    ]
+    lounge = [
+        plan.item_ids
+        for plan in outfits
+        if plan.lounge and not plan.private_only
+    ]
+    private = [
+        plan.item_ids
+        for plan in outfits
+        if plan.private_only
+    ]
+
+    assert len(normal) == 100
+    assert len(set(normal)) == 100
+    assert len(lounge) == 100
+    assert len(set(lounge)) == 100
+    assert len(private) == 100
+    assert len(set(private)) == 100
