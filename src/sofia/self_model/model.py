@@ -1,6 +1,6 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.identity.model import SofiaIdentity
 
 

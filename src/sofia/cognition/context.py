@@ -7,7 +7,7 @@ from sofia.cognition.grounding import (
 )
 from sofia.cognition.model import CognitiveRequest
 from sofia.cognition.self_state import AuthoritativeSelfState
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.continuity.model import (
     ContinuityEvent,
     create_continuity_event,

@@ -1,4 +1,4 @@
-﻿from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 
 import pytest
@@ -9,7 +9,7 @@ from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.identity.model import SofiaIdentity
 from sofia.memory.model import MemoryRecord
 from sofia.personality.model import PersonalityProfile

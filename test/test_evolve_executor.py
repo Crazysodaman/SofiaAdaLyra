@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.evolve import (
     AmendmentApproval,

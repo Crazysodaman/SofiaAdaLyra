@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_production_configuration
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore

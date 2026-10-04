@@ -21,7 +21,7 @@ from sofia.composition.authorization import create_capability_authorizer
 from sofia.composition.engines import create_cognitive_engine, create_model_lifecycle
 from sofia.config.model import SofiaConfiguration
 from sofia.config.reviewed_projection import apply_reviewed_configuration
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation

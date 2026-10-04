@@ -1,12 +1,9 @@
-﻿import pytest
+import pytest
 from hashlib import sha256
 from pathlib import Path
 
-from sofia.constitution.integrity import (
-    ConstitutionIntegrityError,
-    ConstitutionIntegrityVerifier,
-)
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
+from sofia.constitution.store import Constitution
 from sofia.constitution.store import ConstitutionStore
 
 

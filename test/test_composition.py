@@ -18,7 +18,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.memory.system import MemorySystem
