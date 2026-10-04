@@ -553,11 +553,19 @@ class PresentationAuthority:
         if daily.revision > current.revision:
             raise PresentationError("daily fallback cannot be newer than current")
         finished = snapshot.get("finished", [])
-        if not isinstance(finished, list) or any(not isinstance(x, str) for x in finished):
+        if not isinstance(finished, list):
             raise PresentationError("invalid finished operation list")
+        validated_finished = [
+            _id(value, "finished operation ID")
+            for value in finished
+        ]
+        if len(validated_finished) != len(set(validated_finished)):
+            raise PresentationError(
+                "finished operation list contains duplicates"
+            )
         authority._current = current
         authority._last_daily = daily
-        authority._finished = set(finished)
+        authority._finished = set(validated_finished)
         return authority
 
     def restore_snapshot(self, snapshot: dict[str, Any]) -> None:
