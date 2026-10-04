@@ -88,10 +88,9 @@ class WardrobeStudio:
             display_name=display_name,
         )
         if register:
-            if self.authority is None or self.store is None:
+            if self.authority is None:
                 raise WardrobeError(
-                    "registered composition requires live presentation "
-                    "authority and durable store"
+                    "registered composition requires live presentation authority"
                 )
 
             def mutate() -> None:
@@ -101,10 +100,17 @@ class WardrobeStudio:
                     private_only=plan.private_only,
                 )
 
-            self.store.persist_mutation(
-                self.authority,
-                mutate,
-            )
+            if self.store is None:
+                # Standalone authoring callers may intentionally work only in
+                # memory and serialize the authority snapshot themselves.
+                mutate()
+            else:
+                # Production application wiring supplies the canonical store,
+                # so live registration is durable-or-rollback.
+                self.store.persist_mutation(
+                    self.authority,
+                    mutate,
+                )
         return plan
 
     def design_piece(
