@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.output_guard import contains_internal_reasoning_leak
 
 from .model import (
     AuthorityDecision,
@@ -62,14 +63,6 @@ _UNSUPPORTED_WEATHER_CLAIM = re.compile(
     r"temperature\s+(?:is|at)\s+-?\d+)",
     re.IGNORECASE,
 )
-_INTERNAL_REASONING_LEAK = re.compile(
-    r"(?im)^\s*(?:#{1,6}\s*)?(?:\d+\.\s*)?"
-    r"(?:analysis\s+of\s+the\s+tool\s+result|constitutional\s+evaluation|"
-    r"personality\s+adaptation|strategic\s+intent|drafting\s+the\s+response)\b"
-    r"|^\s*okay,?\s+i\s+see\s+the\s+tool\s+output\b"
-    r"|^\s*let(?:'|’)s\s+analy[sz]e\b",
-    re.IGNORECASE | re.MULTILINE,
-)
 _VOICE_RUNTIME_CLAIM = re.compile(
     r"(?:\b(?:voice|speech|microphone|mic|speaker|tts|stt)\b"
     r".{0,48}\b(?:working|ready|available|healthy|running|enabled|connected)\b"
@@ -121,7 +114,7 @@ class MatrixResponseValidator:
         content = response.content.strip()
         reasons: list[str] = []
 
-        if _INTERNAL_REASONING_LEAK.search(content):
+        if contains_internal_reasoning_leak(content):
             reasons.append("internal_reasoning_leak")
 
         execution_claim = _EXECUTION_CLAIM.search(content)
