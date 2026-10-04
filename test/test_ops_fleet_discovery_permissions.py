@@ -4,6 +4,8 @@ from uuid import uuid4
 import pytest
 
 from sofia.capability.model import CapabilityRequest
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
+from sofia.distributed.model import DistributedNode, NodeEnrollment
 from sofia.ops.capability import OpsCapabilitySet, OpsToolService
 from sofia.ops.discovery import FleetDiscoveryEvidence
 from sofia.safe.execution_approval import (
@@ -332,3 +334,56 @@ def test_rediscovery_refreshes_existing_candidate_evidence(tmp_path):
     assert result["existing_host_ids"] == ("worker",)
     assert second["observed_at"] == fresh.isoformat()
     assert second["ready"] is True
+
+
+def test_fleet_conflict_rejects_before_one_time_approval_is_consumed(tmp_path):
+    state = tmp_path / "sofia.db"
+    service = OpsToolService(state)
+    now, node_id, key = _ready_fleet_candidate(service)
+    parameters = {
+        "host_id": "worker",
+        "node_id": str(node_id),
+        "public_key_sha256": key,
+        "endpoint_hostname": "worker.lan",
+        "endpoint_port": 7443,
+    }
+    approval = ExecutionApproval(
+        approval_id="fleet-enroll-conflict",
+        capability="fleet.enroll",
+        request_fingerprint=execution_fingerprint(
+            "fleet.enroll",
+            parameters,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    verifier.record(approval)
+
+    identities = DurableNodeIdentityRegistry(state)
+    try:
+        identities.enroll(
+            NodeEnrollment(
+                DistributedNode(node_id, "different-worker"),
+                "d" * 64,
+                now,
+                "Sparks",
+            )
+        )
+    finally:
+        identities.close()
+
+    with pytest.raises(PermissionError, match="identity differs"):
+        service.enroll_candidate(
+            {**parameters, "approval_id": approval.approval_id}
+        )
+
+    # Preflight rejection must leave the exact one-time approval unused.
+    consumed = verifier.consume(
+        approval_id=approval.approval_id,
+        capability="fleet.enroll",
+        parameters=parameters,
+        now=now + timedelta(seconds=1),
+    )
+    assert consumed.approval_id == approval.approval_id
