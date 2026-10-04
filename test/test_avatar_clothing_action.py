@@ -16,7 +16,7 @@ from sofia.avatar.presentation_store import (
     PresentationStoreError,
 )
 from sofia.avatar.presentation_runtime import PresentationRuntimeBundle
-from sofia.avatar.wardrobe import Layer, Wardrobe
+from sofia.avatar.wardrobe import Layer, Wardrobe, normalize_slots
 from sofia.avatar.wardrobe_planner import (
     Activity,
     EmotionStyleInfluence,
@@ -215,7 +215,8 @@ def test_swap_boots_keeps_current_pair_when_no_replacement_exists(tmp_path):
         and (
             bp.garment.item_id == current_boot.item_id
             or bp.garment.layer is not current_boot.layer
-            or bp.garment.slots != current_boot.slots
+            or frozenset(normalize_slots(bp.garment.slots))
+            != frozenset(normalize_slots(current_boot.slots))
         )
     )
     available_ids = {

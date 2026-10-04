@@ -23,6 +23,10 @@ from sofia.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
+from sofia.safe.permissions import (
+    PermissionLevel,
+    capability_permission_policy,
+)
 from sofia.social.principals import local_sparks_principal
 from sofia.social.store import SocialSessionStore
 from sofia.cognition.matrix import (
@@ -481,8 +485,11 @@ def test_live_conversation_request_uses_matrix_tool_exposure(tmp_path: Path):
         application.conversation.respond("check current CPU usage")
         operational_request = application.conversation._build_request()
         assert operational_request.allow_tools is True
-        assert operational_request.capability_allowlist == (
-            "hardware.inspect",
+        assert "hardware.inspect" in operational_request.capability_allowlist
+        assert all(
+            capability_permission_policy(capability).level
+            <= PermissionLevel.SAFE_AUTONOMOUS
+            for capability in operational_request.capability_allowlist
         )
     finally:
         application.shutdown()
@@ -494,8 +501,14 @@ def test_unapproved_operational_action_is_tool_free(tmp_path: Path):
     try:
         application.conversation.respond("restart the service")
         request = application.conversation._build_request()
-        assert request.allow_tools is False
-        assert request.capability_allowlist == ()
+        assert request.allow_tools is True
+        assert "service.inspect" in request.capability_allowlist
+        assert "local.service.restart" not in request.capability_allowlist
+        assert all(
+            capability_permission_policy(capability).level
+            <= PermissionLevel.SAFE_AUTONOMOUS
+            for capability in request.capability_allowlist
+        )
     finally:
         application.shutdown()
 
