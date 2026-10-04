@@ -141,7 +141,18 @@ class MatrixToolExposurePlanner:
         if _HOME_ASSISTANT.search(text):
             _add(capabilities, "home_assistant.services", "home_assistant.states", "home_assistant.state")
         if _PORTAINER.search(text):
-            _add(capabilities, "portainer.endpoints", "portainer.containers", "portainer.container")
+            _add(
+                capabilities,
+                "portainer.endpoints",
+                "portainer.containers",
+                "portainer.container",
+                "portainer.container.stats",
+                "portainer.info",
+                "portainer.images",
+                "portainer.volumes",
+                "portainer.networks",
+                "portainer.stacks",
+            )
         if _JMRI.search(text):
             _add(capabilities, "jmri.power", "jmri.roster", "jmri.object")
         if _DISCORD.search(text):
