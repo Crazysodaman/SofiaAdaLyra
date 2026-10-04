@@ -298,7 +298,7 @@ def test_configured_service_catalog_registers_homelab_tools(tmp_path,monkeypatch
     monkeypatch.setenv("SOFIA_GITHUB_REPOSITORY","owner/repo")
     names={x.capability.name for x in create_configured_integration_tools(filesystem_root=tmp_path,state_path=tmp_path/"sofia.db")}
     assert {"home_assistant.states","home_assistant.service.call","portainer.containers",
-            "portainer.container.stats","portainer.info","portainer.images",
+            "portainer.container.stats","portainer.info","portainer.summary","portainer.images",
             "portainer.volumes","portainer.networks","portainer.stacks",
             "portainer.container.restart","jmri.power","jmri.power.set","github.repository",
             "github.pull_request.create","github.pull_request.merge"} <= names
