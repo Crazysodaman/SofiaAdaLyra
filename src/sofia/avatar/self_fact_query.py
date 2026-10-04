@@ -366,6 +366,7 @@ class AvatarSelfFactResolver:
                         f"I didn't independently select my {outfit} as an automatic "
                         "wardrobe choice. It was committed from an explicit clothing "
                         "action in the conversation."
+                        + piece_text
                     ),
                 )
             if reason.startswith("headless_daily_context:"):
@@ -395,6 +396,7 @@ class AvatarSelfFactResolver:
                         f"My {outfit} came from the headless daily wardrobe planner's "
                         "trusted contextual selection. I don't have a more specific "
                         "grounded reason to add."
+                        + piece_text
                     ),
                 )
             if reason == "canonical_daily_bootstrap":
