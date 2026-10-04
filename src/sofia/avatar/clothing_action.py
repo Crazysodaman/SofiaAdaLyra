@@ -584,19 +584,26 @@ class ClothingActionService:
         grant: PrivatePresentationGrant,
     ) -> str:
         current = self.bundle.authority.current
-        self.bundle.authority.propose_nude(
-            operation_id=operation_id,
-            expected_revision=current.revision,
-            reason="user_clothing_action:undress",
-            grant=grant,
+
+        def mutate() -> PresentationState:
+            self.bundle.authority.propose_nude(
+                operation_id=operation_id,
+                expected_revision=current.revision,
+                reason="user_clothing_action:undress",
+                grant=grant,
+            )
+            return self.bundle.authority.commit_text(
+                operation_id=operation_id,
+                renderer_unavailable=True,
+                grant=grant,
+            )
+
+        state = self.bundle.store.persist_mutation(
+            self.bundle.authority,
+            mutate,
         )
-        state = self.bundle.authority.commit_text(
-            operation_id=operation_id,
-            renderer_unavailable=True,
-            grant=grant,
-        )
-        self.bundle.store.save(self.bundle.authority)
-        self._verify_persisted(state)
+        if not isinstance(state, PresentationState):
+            raise RuntimeError("nude presentation mutation returned invalid state")
         if self.bundle.current_matrix().item_ids:
             raise RuntimeError("nude presentation matrix must contain no garments")
         return (
@@ -955,30 +962,41 @@ class ClothingActionService:
                 + alternative
             )
 
-        if outfit_id is None:
+        dynamic_outfit = outfit_id is None
+        if dynamic_outfit:
             suffix = re.sub(r"[^A-Za-z0-9]", "", operation_id)[-40:]
             outfit_id = f"dynamic.chat.{suffix}"
-            self.bundle.authority.register_outfit(
-                outfit_id=outfit_id,
-                item_ids=selected.item_ids,
+        committed_outfit_id = outfit_id
+        if committed_outfit_id is None:
+            raise RuntimeError("wardrobe mutation requires an outfit ID")
+
+        def mutate() -> PresentationState:
+            if dynamic_outfit:
+                self.bundle.authority.register_outfit(
+                    outfit_id=committed_outfit_id,
+                    item_ids=selected.item_ids,
+                    private_only=needs_private,
+                )
+            self.bundle.authority.propose_outfit(
+                operation_id=operation_id,
+                expected_revision=current.revision,
+                outfit_id=committed_outfit_id,
+                reason=f"user_clothing_action:{intent.kind.value}",
                 private_only=needs_private,
+                daily=False,
+            )
+            return self.bundle.authority.commit_text(
+                operation_id=operation_id,
+                renderer_unavailable=True,
+                grant=grant,
             )
 
-        self.bundle.authority.propose_outfit(
-            operation_id=operation_id,
-            expected_revision=current.revision,
-            outfit_id=outfit_id,
-            reason=f"user_clothing_action:{intent.kind.value}",
-            private_only=needs_private,
-            daily=False,
+        state = self.bundle.store.persist_mutation(
+            self.bundle.authority,
+            mutate,
         )
-        state = self.bundle.authority.commit_text(
-            operation_id=operation_id,
-            renderer_unavailable=True,
-            grant=grant,
-        )
-        self.bundle.store.save(self.bundle.authority)
-        self._verify_persisted(state)
+        if not isinstance(state, PresentationState):
+            raise RuntimeError("wardrobe mutation returned invalid state")
 
         matrix = self.bundle.current_matrix()
         if matrix.item_ids != state.item_ids:
@@ -995,18 +1013,3 @@ class ClothingActionService:
             + ", ".join(names)
             + "."
         )
-
-    def _verify_persisted(self, state: PresentationState) -> None:
-        restored = self.bundle.store.load(
-            self.bundle.catalog.wardrobe,
-            outfits=self._base_outfits,
-        )
-        persisted = restored.current
-        if (
-            persisted.revision != state.revision
-            or persisted.outfit_id != state.outfit_id
-            or persisted.item_ids != state.item_ids
-        ):
-            raise RuntimeError(
-                "wardrobe state commit could not be verified in canonical storage"
-            )
