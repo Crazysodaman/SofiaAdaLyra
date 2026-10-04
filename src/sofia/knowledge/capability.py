@@ -6,6 +6,11 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.permissions import (
+    PermissionLevel,
+    PermissionStore,
+    capability_permission_policy,
+)
 from .service import KnowledgeService
 
 class KnowledgeCapabilitySet:
@@ -20,20 +25,39 @@ class KnowledgeCapabilitySet:
         service:KnowledgeService,
         *,
         approval_verifier:ExecutionApprovalVerifier,
+        permission_store:PermissionStore,
     )->None:
         if not isinstance(approval_verifier,ExecutionApprovalVerifier):
             raise TypeError("approval_verifier must be ExecutionApprovalVerifier")
+        if not isinstance(permission_store,PermissionStore):
+            raise TypeError("permission_store must be PermissionStore")
         self.service=service
         self.approval_verifier=approval_verifier
+        self.permission_store=permission_store
 
     def _authorize(self,name:str,p:dict[str,Any])->None:
         if name not in self._MUTATING:
+            return
+        policy=capability_permission_policy(name)
+        if policy.level is PermissionLevel.SAFE_AUTONOMOUS:
             return
         approval_id=p.pop("approval_id",None)
         approval_parameters=dict(p)
         approval_parameters.pop("__principal_id",None)
         approval_parameters.pop("__audience_id",None)
         approval_parameters.pop("__audience_kind",None)
+        if (
+            policy.level is PermissionLevel.REVERSIBLE_SCOPED
+            and self.permission_store.allows_standing(
+                name,
+                approval_parameters,
+            )
+        ):
+            return
+        if policy.level is PermissionLevel.NEVER_SELF_AUTHORIZED:
+            raise PermissionError(
+                "authority-changing knowledge operation cannot self-authorize"
+            )
         self.approval_verifier.consume(
             approval_id=approval_id or "",
             capability=name,
@@ -78,13 +102,14 @@ def create_knowledge_tool_bindings()->tuple[CognitiveToolBinding,...]:
     def binding(tool_name,capability_name,description,properties,required=()):
         props=dict(properties)
         req=list(required)
-        if capability_name in {
-            "knowledge.ingest.text",
-            "knowledge.ingest.pdf",
-            "knowledge.document.write",
+        policy=capability_permission_policy(capability_name)
+        if policy.level in {
+            PermissionLevel.REVERSIBLE_SCOPED,
+            PermissionLevel.PROTECTED,
         }:
             props["approval_id"]={"type":"string"}
-            req.append("approval_id")
+            if policy.level is PermissionLevel.PROTECTED:
+                req.append("approval_id")
         return CognitiveToolBinding(
             definition=CognitiveToolDefinition(
                 name=tool_name,description=description,
