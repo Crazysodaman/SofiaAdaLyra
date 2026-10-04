@@ -48,6 +48,20 @@ def _registration(registrations, name):
     return next(item for item in registrations if item.capability.name == name)
 
 
+def _configuration(tmp_path):
+    return SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=(),
+    )
+
+
 def test_permissions_section_is_exposed_in_master_tray_settings():
     assert "Permissions" in MASTER_SETTINGS_SECTIONS
 
