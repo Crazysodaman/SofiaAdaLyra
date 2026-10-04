@@ -16,7 +16,7 @@ IDENTITY_PATH = (
     PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
 )
 AVATAR_PATH = (
-    PROJECT_ROOT / "src" / "sofia" / "data" / "avatar.json"
+    PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 )
 
 

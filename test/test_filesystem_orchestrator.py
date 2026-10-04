@@ -46,7 +46,7 @@ AVATAR_PATH = (
     PROJECT_ROOT
     / "src"
     / "sofia"
-    / "data"
+    / "embodiment"
     / "avatar.json"
 )
 

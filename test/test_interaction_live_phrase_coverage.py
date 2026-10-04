@@ -10,7 +10,7 @@ from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 NOW = datetime(2026, 9, 21, 22, tzinfo=timezone.utc)
 
 

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1] / 'src' / 'sofia'
 def _left_ear_decision():
     from datetime import datetime, timezone
 
-    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load())
     decision = engine.from_text(
         content='*pats your left ear*', message_id='isolated-ear',
         session_id='isolated-session', occurred_at=datetime(2026, 9, 21, tzinfo=timezone.utc),

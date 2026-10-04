@@ -11,7 +11,7 @@ from sofia.embodiment.store import EmbodimentStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR_PATH = ROOT / "src" / "sofia" / "data" / "avatar.json"
+AVATAR_PATH = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 def embodiment():

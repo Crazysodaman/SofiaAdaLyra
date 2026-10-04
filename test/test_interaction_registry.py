@@ -11,7 +11,7 @@ from sofia.interaction.registry import (
     catalog_for_engine, normalize_alias,
 )
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 @pytest.fixture

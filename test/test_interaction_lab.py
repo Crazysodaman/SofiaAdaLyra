@@ -8,7 +8,7 @@ from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.core import InteractionEngine
 from test.interaction_lab_support import InteractionLab, LabScene, LabStep, MAX_STEPS
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 

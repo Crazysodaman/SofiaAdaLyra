@@ -39,7 +39,7 @@ class ReviewFinding:
     reason: str
 
 _PROTECTED_COMPONENTS=frozenset({".git",".env","state","secret","secrets","credentials","backups","backup"})
-_PROTECTED_ROOTS=(("src","sofia","constitution"),("src","sofia","identity"),("src","sofia","data"))
+_PROTECTED_ROOTS=(("src","sofia","constitution"),("src","sofia","identity"),("src","sofia","embodiment","avatar.json"))
 _PROTECTED_SUFFIXES=(".db",".sqlite",".sqlite3",".pem",".key")
 
 def inspect(proposal: ChangeProposal) -> tuple[ReviewFinding, ...]:

@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def sources():
-    embodiment = EmbodimentStore(ROOT / "src" / "sofia" / "data" / "avatar.json").load()
+    embodiment = EmbodimentStore(ROOT / "src" / "sofia" / "embodiment" / "avatar.json").load()
     catalog = build_starter_wardrobe()
     outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
     authority = PresentationAuthority(

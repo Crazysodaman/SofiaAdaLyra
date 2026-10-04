@@ -21,7 +21,7 @@ from sofia.interaction.registry import catalog_for_engine
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR = ROOT / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 27, 22, 0, tzinfo=timezone.utc)
 
 

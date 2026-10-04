@@ -19,7 +19,7 @@ from sofia.interaction.chat import (
     representational_experience_followup_prompt,
 )
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 def _service(

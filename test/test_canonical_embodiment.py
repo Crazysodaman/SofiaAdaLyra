@@ -13,7 +13,7 @@ CANONICAL_AVATAR = (
     PROJECT_ROOT
     / "src"
     / "sofia"
-    / "data"
+    / "embodiment"
     / "avatar.json"
 )
 

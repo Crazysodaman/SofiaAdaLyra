@@ -25,7 +25,7 @@ def test_focused_comparison_preserves_everything_except_action_prose(case, text,
         identity=IdentityStore(ROOT / 'identity' / 'identity.json').load(),
         personality=PersonalityStore(ROOT / 'personality' / 'personality.json').load(),
         constitution=ConstitutionStore(ROOT / 'constitution' / 'constitution.md').load(),
-        embodiment=EmbodimentStore(ROOT / 'data' / 'avatar.json').load(),
+        embodiment=EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load(),
     )
     focused = focused_variant(case=case, assembled=original)
     assert original.tools == focused.tools == ()

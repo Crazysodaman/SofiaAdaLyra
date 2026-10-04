@@ -11,7 +11,7 @@ from sofia.interaction.body_discussion import body_discussion_prompt
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
 
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 

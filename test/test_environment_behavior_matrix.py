@@ -33,7 +33,7 @@ from sofia.personality.influence import ContinuityInfluence, daypart
 
 
 ROOT = Path(__file__).resolve().parents[1]
-AVATAR = ROOT / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 # 03:30 UTC is 22:30 local on the previous date in America/Chicago here.
 NOW = datetime(2026, 9, 28, 3, 30, tzinfo=timezone.utc)
 

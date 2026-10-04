@@ -16,7 +16,7 @@ from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
 from sofia.interaction.live_guard import unsupported_composite_gesture
 
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 

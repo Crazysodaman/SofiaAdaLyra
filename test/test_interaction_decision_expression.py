@@ -32,13 +32,13 @@ def _static(case, text):
         identity=IdentityStore(ROOT / 'identity' / 'identity.json').load(),
         personality=PersonalityStore(ROOT / 'personality' / 'personality.json').load(),
         constitution=ConstitutionStore(ROOT / 'constitution' / 'constitution.md').load(),
-        embodiment=EmbodimentStore(ROOT / 'data' / 'avatar.json').load(),
+        embodiment=EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load(),
     )
     return request
 
 
 def _gesture(text, *, stopped=False):
-    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / "embodiment" / 'avatar.json').load())
     decision = engine.from_text(
         content=text, message_id='synthetic-evidence',
         session_id='synthetic-session',

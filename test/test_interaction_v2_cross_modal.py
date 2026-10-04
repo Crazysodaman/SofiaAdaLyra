@@ -9,7 +9,7 @@ from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.registry import CATALOG_VERSION
 
 NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
-AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avatar.json'
+AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / "embodiment" / 'avatar.json'
 
 
 def test_text_and_synthetic_expanded_verbs_share_semantics():

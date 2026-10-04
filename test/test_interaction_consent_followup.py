@@ -11,7 +11,7 @@ from sofia.conversation.model import ConversationRole
 from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 
-AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avatar.json"
+AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "embodiment" / "avatar.json"
 NOW = datetime(2026, 9, 23, 22, 0, tzinfo=timezone.utc)
 
 

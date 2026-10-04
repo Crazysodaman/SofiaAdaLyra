@@ -27,7 +27,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONSTITUTION_PATH = PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.md"
 HASH_PATH = PROJECT_ROOT / "src" / "sofia" / "constitution" / "constitution.sha256"
 IDENTITY_PATH = PROJECT_ROOT / "src" / "sofia" / "identity" / "identity.json"
-AVATAR_PATH = PROJECT_ROOT / "src" / "sofia" / "data" / "avatar.json"
+AVATAR_PATH = PROJECT_ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 class CapturingProvider(LLMProvider):
