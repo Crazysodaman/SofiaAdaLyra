@@ -12,7 +12,7 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
-from sofia.dev.approval import DevOperation
+from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
 from sofia.dev.capability import (
     DevCandidateStore,
     DevToolService,
@@ -21,6 +21,7 @@ from sofia.dev.capability import (
 from sofia.dev.workflow import EngineeringCandidate
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
+from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
@@ -707,3 +708,29 @@ def test_consumed_execution_approval_disappears_from_live_authority(tmp_path):
     authority = runtime.current_authority()
 
     assert "local.host.reboot" not in authority.allowed_capabilities
+
+
+def test_live_authority_includes_active_dev_approval(tmp_path):
+    state = tmp_path / "sofia.db"
+    runtime = compose(_configuration(tmp_path))
+    now = datetime.now(timezone.utc)
+    parameters = {
+        "proposal_id": "candidate-1",
+    }
+    approval = DevApproval(
+        approval_id="dev-apply-once",
+        operation=DevOperation.APPLY,
+        proposal_id="candidate-1",
+        request_fingerprint=dev_request_fingerprint(
+            DevOperation.APPLY,
+            parameters,
+        ),
+        approved_by="Sparks",
+        approved_at=now,
+        expires_at=now + timedelta(minutes=15),
+    )
+    DevApprovalVerifier(state).record(approval)
+
+    authority = runtime.current_authority()
+
+    assert "dev.apply" in authority.allowed_capabilities

@@ -84,6 +84,56 @@ class DevApprovalVerifier:
                     event_id=f"dev-approval-recorded:{approval.approval_id}",
                 )
 
+    def active_capabilities(
+        self,
+        *,
+        now: datetime,
+    ) -> tuple[str, ...]:
+        """Return live DEV capability names backed by active Sparks approvals."""
+        if not isinstance(now, datetime):
+            raise TypeError("now must be a datetime")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        moment = now.astimezone(timezone.utc)
+        with closing(self._connect()) as db:
+            rows = db.execute(
+                """
+                SELECT operation, approved_by, approved_at, expires_at
+                FROM safe_dev_approval
+                WHERE consumed_at IS NULL
+                ORDER BY operation, approved_at
+                """
+            ).fetchall()
+        values = []
+        for operation, approved_by, approved_at_raw, expires_at_raw in rows:
+            if approved_by != "Sparks":
+                continue
+            try:
+                approved_at = datetime.fromisoformat(approved_at_raw)
+                expires_at = datetime.fromisoformat(expires_at_raw)
+                parsed = DevOperation(operation)
+            except (TypeError, ValueError):
+                continue
+            if (
+                approved_at.tzinfo is None
+                or approved_at.utcoffset() is None
+                or expires_at.tzinfo is None
+                or expires_at.utcoffset() is None
+            ):
+                continue
+            if not (
+                approved_at.astimezone(timezone.utc)
+                <= moment
+                < expires_at.astimezone(timezone.utc)
+            ):
+                continue
+            if parsed is DevOperation.BUILD:
+                continue
+            capability = f"dev.{parsed.value}"
+            if capability not in values:
+                values.append(capability)
+        return tuple(values)
+
     def consume(
         self,
         *,
