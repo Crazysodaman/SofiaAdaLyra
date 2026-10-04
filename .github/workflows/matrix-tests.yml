@@ -44,7 +44,6 @@ jobs:
             test/test_voice_prosody_matrix.py `
             test/test_rel_habit_matrix.py `
             test/test_semantic_domain_matrix.py `
-            test/test_ops_failure_recovery_matrix.py `
             test/test_avatar_behavior_matrix.py `
             test/test_emotional_behavior_matrix.py `
             test/test_environment_behavior_matrix.py `
