@@ -200,7 +200,18 @@ class MatrixToolExposurePlanner:
             if _HARDWARE.search(text):
                 _add(capabilities, "remote.hardware.inspect")
             if _PORTAINER.search(text):
-                _add(capabilities, "remote.container.list", "remote.container.get")
+                _add(
+                    capabilities,
+                    "remote.container.list",
+                    "remote.container.get",
+                    "remote.container.stats",
+                    "remote.container.info",
+                    "remote.container.summary",
+                    "remote.container.images",
+                    "remote.container.volumes",
+                    "remote.container.networks",
+                    "remote.container.stacks",
+                )
             if _OLLAMA.search(text):
                 _add(capabilities, "remote.ollama.inference_policy", "remote.ollama.models", "remote.ollama.running", "remote.ollama.show")
 
