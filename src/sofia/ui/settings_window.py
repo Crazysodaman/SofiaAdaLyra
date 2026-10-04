@@ -144,7 +144,6 @@ def run_settings_window() -> int:
     secrets = ProtectedSecretStore.for_state_path(config.state_path)
     permission_store = PermissionStore(config.state_path)
     execution_approvals = ExecutionApprovalVerifier(config.state_path)
-    fleet_ops = OpsToolService(config.state_path)
     private_authority = permission_store.private_adult_authority()
     activity = HostActivityStore(config.state_path)
     current = store.enforce_canonical_local_chat(
@@ -943,6 +942,7 @@ def run_settings_window() -> int:
     def refresh_fleet_candidates() -> None:
         for item in fleet_tree.get_children():
             fleet_tree.delete(item)
+        fleet_ops = OpsToolService(config.state_path)
         for host in fleet_ops.fleet():
             if host["lifecycle"] != "candidate" or host["trusted"]:
                 continue
@@ -980,6 +980,7 @@ def run_settings_window() -> int:
             )
             return
         host_id = selected[0]
+        fleet_ops = OpsToolService(config.state_path)
         evidence = fleet_ops.enrollment_evidence(host_id)
         if evidence is None or evidence["ready"] is not True:
             messagebox.showerror(
