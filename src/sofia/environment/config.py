@@ -174,6 +174,8 @@ class EnvironmentConfiguration:
                 "nws_location_subject must be LocationSubject"
             )
         if self.nws_station_id is not None:
+            if not isinstance(self.nws_station_id, str):
+                raise TypeError("nws_station_id must be a string or None")
             station = self.nws_station_id.strip().upper()
             if (
                 not 3 <= len(station) <= 8
