@@ -7,6 +7,7 @@ import re
 from sofia.cognition.matrix.multi_question import split_multi_question
 
 from .generated_proposal import GarmentGenerationBrief
+from .wardrobe import WardrobeError
 from .wardrobe_design import ContentRating
 from .wardrobe_generated_store import (
     GarmentAcceptanceResult,
@@ -83,7 +84,13 @@ class WardrobeGenerationConversationService:
         brief = self.brief_for(content)
         if brief is None:
             return None
-        blueprint, result = self._generate(brief)
+        try:
+            blueprint, result = self._generate(brief)
+        except WardrobeError:
+            return (
+                "I couldn't turn that into a valid new garment after validation, "
+                "so I didn't add anything to my wardrobe."
+            )
         name = blueprint.garment.name
 
         if result.decision is SofiaGarmentDecision.ACCEPT:
