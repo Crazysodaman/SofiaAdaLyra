@@ -158,14 +158,17 @@ class CognitiveSystem:
 
         evidence_refs: list[str] = []
 
-        # Explicit matrix-classified inspection/list turns require current
-        # evidence. Do not depend on a small local model deciding whether to
-        # call a zero-argument read-only tool: the host selects and executes
-        # only reviewed read-only capabilities, then the model summarizes the
-        # observed results. All dispatch still goes through normal authority.
+        # Explicit matrix-classified operational turns require current evidence.
+        # Do not depend on a small local model deciding whether to call a
+        # zero-argument tool: the host may preflight only reviewed Level-1 reads
+        # and Level-2 safe-autonomous capabilities selected for this turn.
+        # Level 3+ and parameterized tools remain model/operator supplied.
         tool_requirement = any(
             message.role is CognitiveRole.SYSTEM
-            and "TRUSTED READ-ONLY TOOL REQUIREMENT" in message.content
+            and (
+                "TRUSTED TOOL EVIDENCE REQUIREMENT" in message.content
+                or "TRUSTED READ-ONLY TOOL REQUIREMENT" in message.content
+            )
             for message in request.messages
         )
         if (
@@ -173,7 +176,7 @@ class CognitiveSystem:
             and self.tool_dispatcher is not None
             and request.capability_allowlist
         ):
-            automatic_calls = self.tool_dispatcher.automatic_read_only_calls(
+            automatic_calls = self.tool_dispatcher.automatic_evidence_calls(
                 operation.authority,
                 allowed_capabilities=request.capability_allowlist,
             )
@@ -195,7 +198,7 @@ class CognitiveSystem:
                         )
                     except Exception as exc:
                         raise CognitiveSystemError(
-                            "Automatic read-only cognitive tool dispatch failed."
+                            "Automatic cognitive tool evidence preflight failed."
                         ) from exc
                     if result.kind is CapabilityResultKind.SUCCESS:
                         evidence_refs.append(
