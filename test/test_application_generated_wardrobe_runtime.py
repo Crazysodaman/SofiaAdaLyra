@@ -56,9 +56,13 @@ class _SequenceRuntime(_Runtime):
 class _Conversation:
     def __init__(self):
         self.clothing_handler = None
+        self.generation_handler = None
 
     def set_clothing_action_handler(self, handler):
         self.clothing_handler = handler
+
+    def set_wardrobe_generation_handler(self, handler):
+        self.generation_handler = handler
 
 
 def _draft(catalog):
