@@ -527,7 +527,11 @@ class ConversationService(ConversationMatrixMixin):
             channel=channel,
         )
 
-        generation_handler = self._wardrobe_generation_handler
+        generation_handler = getattr(
+            self,
+            "_wardrobe_generation_handler",
+            None,
+        )
         if generation_handler is not None:
             generation_reply = generation_handler(content=content)
             if generation_reply is not None:
