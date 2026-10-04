@@ -125,6 +125,9 @@ class FakePortainer:
     def container_stats(self, container):
         return {"container": container, "cpu_stats": {}}
 
+    def container_logs(self, container, *, tail=200):
+        return {"container": container, "tail": tail, "logs": ["ok"]}
+
     def info(self):
         return {"ServerVersion": "27.0"}
 
@@ -165,6 +168,7 @@ def test_agent_portainer_advertises_expanded_read_only_docker_surface(
         "list",
         "get",
         "stats",
+        "logs",
         "info",
         "summary",
         "images",
