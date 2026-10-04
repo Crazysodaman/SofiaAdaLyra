@@ -1,0 +1,1098 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_legwear",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "legwear.01.ribbed_black_thigh_highs",
+      "name": "Ribbed black thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Ribbed black thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.02.violet_circuit_thigh_highs",
+      "name": "Violet circuit thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet circuit thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.03.charcoal_utility_stockings",
+      "name": "Charcoal utility stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Charcoal utility stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.04.soft_violet_stockings",
+      "name": "Soft-violet stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft-violet stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.05.crimson_top_thigh_highs",
+      "name": "Crimson-top thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-top thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.06.cyan_trim_thigh_highs",
+      "name": "Cyan-trim thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan-trim thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.07.black_leg_warmers",
+      "name": "Black technical leg warmers",
+      "garment_type": "leg_warmers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black technical leg warmers, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.08.violet_leg_warmers",
+      "name": "Violet lounge leg warmers",
+      "garment_type": "leg_warmers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet lounge leg warmers, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.09.silver_line_stockings",
+      "name": "Silver-line stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-line stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.10.mesh_panel_thigh_highs",
+      "name": "Mesh-panel thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Mesh-panel thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.11.thermal_leg_warmers",
+      "name": "Thermal leg warmers",
+      "garment_type": "leg_warmers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Thermal leg warmers, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.12.athletic_thigh_highs",
+      "name": "Athletic thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Athletic thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.13.matte_black_stockings",
+      "name": "Matte black stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Matte black stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.14.circuit_seam_stockings",
+      "name": "Circuit-seam stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Circuit-seam stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.15.cozy_rib_leg_warmers",
+      "name": "Cozy rib leg warmers",
+      "garment_type": "leg_warmers",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cozy rib leg warmers, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.16.violet_gradient_thigh_highs",
+      "name": "Violet-gradient thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet-gradient thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.17.charcoal_cyan_stockings",
+      "name": "Charcoal-and-cyan stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Charcoal-and-cyan stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.18.crimson_band_stockings",
+      "name": "Crimson-band stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-band stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.19.technical_compression_thigh_highs",
+      "name": "Technical compression thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Technical compression thigh-highs, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.20.late_night_soft_stockings",
+      "name": "Late-night soft stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "stretch technical hosiery",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "legwear",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Late-night soft stockings, a accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.21.private_sheer_violet_thigh_highs",
+      "name": "Private sheer violet thigh-highs",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "sheer stretch hosiery",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "intimate",
+        "legwear",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer violet thigh-highs, a private accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.22.private_lace_top_stockings",
+      "name": "Private lace-top stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "sheer stretch hosiery",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_band"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "intimate",
+        "legwear",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private lace-top stockings, a private accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.23.private_strap_frame_stockings",
+      "name": "Private strap-frame stockings",
+      "garment_type": "stockings",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "sheer stretch hosiery",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "intimate",
+        "legwear",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private strap-frame stockings, a private accessory legwear piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "legwear.24.private_open_panel_leg_harness",
+      "name": "Private open-panel leg harness",
+      "garment_type": "thigh_highs",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_legwear",
+      "sleeve_length": null,
+      "material": "sheer stretch hosiery",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "reinforced_seam"
+      ],
+      "style_tags": [
+        "accessory_legwear",
+        "intimate",
+        "legwear",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private open-panel leg harness, a private accessory legwear piece designed for Sofía's wardrobe."
+    }
+  ]
+}
