@@ -6,7 +6,7 @@ texture, renderer asset, or proof that an item is visibly worn.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from hashlib import sha256
 import json
@@ -15,8 +15,23 @@ import re
 from .authoring import DEFAULT_FIT_ANCHORS
 from .wardrobe import Garment, Wardrobe, WardrobeError
 from .wardrobe_design import (
+    ComfortProfile,
+    ContextProfile,
+    EnvironmentProfile,
+    FabricWeight,
     GarmentDesign,
     GraphicDesign,
+    HumidityProfile,
+    MaterialProperties,
+    MoistureProfile,
+    MovementProfile,
+    PrecipitationProfile,
+    RatedContext,
+    Suitability,
+    SunlightProfile,
+    TemperatureProfile,
+    TraitLevel,
+    WindProfile,
     garment_type,
     resolve_color,
     validate_design,
@@ -188,6 +203,10 @@ class GarmentBlueprint:
             "features": self.design.features,
             "style_tags": self.design.style_tags,
             "private_only": self.design.private_only,
+            "material_properties": self.design.material_properties.as_dict(),
+            "environment": self.design.environment.as_dict(),
+            "context": self.design.context.as_dict(),
+            "comfort": self.design.comfort.as_dict(),
             "description": self.design.description,
         }
         encoded = json.dumps(
@@ -368,7 +387,10 @@ class WardrobePrebuild:
                     },
                     "features": list(bp.design.features),
                     "style_tags": list(bp.design.style_tags),
-                    "description": bp.design.description,
+                    "material_properties": bp.design.material_properties.as_dict(),
+                    "environment": bp.design.environment.as_dict(),
+                    "context": bp.design.context.as_dict(),
+                    "comfort": bp.design.comfort.as_dict(),
                     "slots": list(bp.garment.slots),
                     "coverage": list(bp.garment.coverage),
                     "fit_anchors": list(bp.fit_anchors),
@@ -379,6 +401,7 @@ class WardrobePrebuild:
                     "private_only": bp.private_only,
                     "provenance": bp.provenance,
                     "design_signature": bp.design_signature,
+                    "description": bp.design.description,
                 }
                 for bp in self.blueprints
             ],
@@ -408,7 +431,693 @@ class WardrobePrebuild:
         }
 
 
+def _starter_profiles(
+    item_id: str,
+) -> tuple[
+    MaterialProperties,
+    EnvironmentProfile,
+    ContextProfile,
+    ComfortProfile,
+]:
+    """Return reviewed creator/environment metadata for one starter garment."""
+
+    generic_context = ContextProfile(
+        dayparts=RatedContext(
+            good=("morning", "afternoon", "evening", "night", "late_night"),
+        ),
+        seasons=RatedContext(
+            good=("spring", "summer", "autumn", "winter"),
+        ),
+        activities=RatedContext(
+            good=("conversation", "relaxing"),
+            acceptable=("engineering", "lab", "sleep", "formal"),
+        ),
+        settings=RatedContext(
+            good=("home", "private", "casual_public"),
+            acceptable=("workshop", "lab", "office", "outdoor"),
+        ),
+        formality=RatedContext(
+            good=("lounge", "casual"),
+            acceptable=("work", "smart_casual"),
+            poor=("formal",),
+        ),
+        movement=MovementProfile(
+            mobility=Suitability.GOOD,
+            seated_comfort=Suitability.GOOD,
+            active_comfort=Suitability.GOOD,
+        ),
+    )
+    generic_environment = EnvironmentProfile(
+        temperature=TemperatureProfile(
+            5.0, 15.0, 28.0, 38.0, FabricWeight.LIGHT
+        ),
+        precipitation=PrecipitationProfile(
+            dry=Suitability.EXCELLENT,
+            mist=Suitability.GOOD,
+            drizzle=Suitability.ACCEPTABLE,
+            rain=Suitability.POOR,
+            heavy_rain=Suitability.UNSUITABLE,
+            snow=Suitability.POOR,
+        ),
+        moisture=MoistureProfile(
+            quick_dry=True,
+            water_resistance=TraitLevel.LOW,
+            absorbency=TraitLevel.LOW,
+            wet_comfort=Suitability.ACCEPTABLE,
+        ),
+        humidity=HumidityProfile(
+            low=Suitability.GOOD,
+            moderate=Suitability.EXCELLENT,
+            high=Suitability.GOOD,
+        ),
+        wind=WindProfile(
+            resistance=TraitLevel.LOW,
+            strong_wind=Suitability.POOR,
+        ),
+        sunlight=SunlightProfile(
+            direct_sun=Suitability.GOOD,
+            uv_protection=TraitLevel.LOW,
+        ),
+        indoor=Suitability.EXCELLENT,
+        outdoor=Suitability.GOOD,
+    )
+    generic_material = MaterialProperties(
+        stretch=TraitLevel.MODERATE,
+        fabric_weight=FabricWeight.LIGHT,
+        texture="smooth",
+        breathability=TraitLevel.HIGH,
+        insulation=TraitLevel.LOW,
+    )
+    generic_comfort = ComfortProfile(
+        softness=TraitLevel.HIGH,
+        flexibility=TraitLevel.HIGH,
+        compression=TraitLevel.LOW,
+        heat_retention=TraitLevel.LOW,
+        ventilation=TraitLevel.HIGH,
+        skin_contact=Suitability.EXCELLENT,
+    )
+
+    if item_id in {"base.bralette", "base.briefs"}:
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.HIGH,
+                fabric_weight=FabricWeight.LIGHT,
+                texture="soft_smooth",
+                breathability=TraitLevel.HIGH,
+                insulation=TraitLevel.LOW,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    5.0, 16.0, 30.0, 40.0, FabricWeight.LIGHT
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.EXCELLENT,
+                    high=Suitability.GOOD,
+                ),
+                indoor=Suitability.EXCELLENT,
+                outdoor=Suitability.ACCEPTABLE,
+            ),
+            generic_context,
+            generic_comfort,
+        )
+
+    if item_id == "day.technical_top":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.HIGH,
+                fabric_weight=FabricWeight.LIGHT,
+                texture="smooth_technical",
+                breathability=TraitLevel.HIGH,
+                insulation=TraitLevel.LOW,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    6.0, 13.0, 25.0, 31.0, FabricWeight.LIGHT
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.GOOD,
+                    drizzle=Suitability.GOOD,
+                    rain=Suitability.ACCEPTABLE,
+                    heavy_rain=Suitability.POOR,
+                    snow=Suitability.POOR,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=True,
+                    water_resistance=TraitLevel.LOW,
+                    absorbency=TraitLevel.LOW,
+                    wet_comfort=Suitability.GOOD,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.EXCELLENT,
+                    high=Suitability.GOOD,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.LOW,
+                    strong_wind=Suitability.POOR,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.GOOD,
+                    uv_protection=TraitLevel.LOW,
+                ),
+                indoor=Suitability.EXCELLENT,
+                outdoor=Suitability.GOOD,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("morning", "afternoon", "evening"),
+                    good=("night",),
+                    acceptable=("late_night",),
+                ),
+                seasons=RatedContext(
+                    excellent=("spring", "autumn"),
+                    good=("summer", "winter"),
+                ),
+                activities=RatedContext(
+                    excellent=("engineering", "lab"),
+                    good=("conversation", "workshop"),
+                    acceptable=("relaxing",),
+                    poor=("sleep", "formal"),
+                ),
+                settings=RatedContext(
+                    excellent=("workshop", "lab"),
+                    good=("office", "casual_public", "home"),
+                    acceptable=("outdoor",),
+                ),
+                formality=RatedContext(
+                    excellent=("work",),
+                    good=("casual", "smart_casual"),
+                    poor=("formal", "lounge"),
+                ),
+                emotion_styles=RatedContext(
+                    good=("focused", "energetic", "confident"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.EXCELLENT,
+                    seated_comfort=Suitability.GOOD,
+                    active_comfort=Suitability.EXCELLENT,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.MODERATE,
+                flexibility=TraitLevel.HIGH,
+                compression=TraitLevel.LOW,
+                heat_retention=TraitLevel.LOW,
+                ventilation=TraitLevel.HIGH,
+                skin_contact=Suitability.GOOD,
+            ),
+        )
+
+    if item_id == "day.utility_trousers":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.HIGH,
+                fabric_weight=FabricWeight.MIDWEIGHT,
+                texture="smooth_woven",
+                breathability=TraitLevel.MODERATE,
+                insulation=TraitLevel.MODERATE,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    0.0, 10.0, 24.0, 32.0, FabricWeight.MIDWEIGHT
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.GOOD,
+                    drizzle=Suitability.GOOD,
+                    rain=Suitability.ACCEPTABLE,
+                    heavy_rain=Suitability.POOR,
+                    snow=Suitability.ACCEPTABLE,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=True,
+                    water_resistance=TraitLevel.MODERATE,
+                    absorbency=TraitLevel.LOW,
+                    wet_comfort=Suitability.GOOD,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.EXCELLENT,
+                    high=Suitability.ACCEPTABLE,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.MODERATE,
+                    strong_wind=Suitability.GOOD,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.GOOD,
+                    uv_protection=TraitLevel.MODERATE,
+                ),
+                indoor=Suitability.EXCELLENT,
+                outdoor=Suitability.EXCELLENT,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("morning", "afternoon", "evening"),
+                    good=("night",),
+                    acceptable=("late_night",),
+                ),
+                seasons=RatedContext(
+                    excellent=("spring", "autumn", "winter"),
+                    good=("summer",),
+                ),
+                activities=RatedContext(
+                    excellent=("engineering", "lab", "workshop"),
+                    good=("conversation", "casual"),
+                    acceptable=("relaxing",),
+                    poor=("sleep", "formal"),
+                ),
+                settings=RatedContext(
+                    excellent=("workshop", "lab", "outdoor"),
+                    good=("office", "casual_public", "home"),
+                ),
+                formality=RatedContext(
+                    excellent=("work",),
+                    good=("casual",),
+                    acceptable=("smart_casual",),
+                    poor=("formal", "lounge"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.EXCELLENT,
+                    seated_comfort=Suitability.GOOD,
+                    active_comfort=Suitability.EXCELLENT,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.MODERATE,
+                flexibility=TraitLevel.HIGH,
+                compression=TraitLevel.LOW,
+                heat_retention=TraitLevel.MODERATE,
+                ventilation=TraitLevel.MODERATE,
+                skin_contact=Suitability.GOOD,
+            ),
+        )
+
+    if item_id == "day.engineer_jacket":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.MODERATE,
+                fabric_weight=FabricWeight.MIDWEIGHT,
+                texture="matte_shell",
+                breathability=TraitLevel.LOW,
+                insulation=TraitLevel.MODERATE,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    -8.0, 4.0, 18.0, 25.0, FabricWeight.MIDWEIGHT
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.EXCELLENT,
+                    drizzle=Suitability.EXCELLENT,
+                    rain=Suitability.GOOD,
+                    heavy_rain=Suitability.ACCEPTABLE,
+                    snow=Suitability.GOOD,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=True,
+                    water_resistance=TraitLevel.HIGH,
+                    absorbency=TraitLevel.LOW,
+                    wet_comfort=Suitability.GOOD,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.EXCELLENT,
+                    moderate=Suitability.GOOD,
+                    high=Suitability.POOR,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.HIGH,
+                    strong_wind=Suitability.EXCELLENT,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.POOR,
+                    uv_protection=TraitLevel.HIGH,
+                ),
+                indoor=Suitability.ACCEPTABLE,
+                outdoor=Suitability.EXCELLENT,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("morning", "afternoon", "evening"),
+                    good=("night",),
+                    poor=("late_night",),
+                ),
+                seasons=RatedContext(
+                    excellent=("autumn", "winter"),
+                    good=("spring",),
+                    poor=("summer",),
+                ),
+                activities=RatedContext(
+                    excellent=("engineering", "lab", "workshop"),
+                    good=("conversation", "outdoor"),
+                    poor=("relaxing", "sleep"),
+                ),
+                settings=RatedContext(
+                    excellent=("workshop", "lab", "outdoor"),
+                    good=("office", "casual_public"),
+                    acceptable=("home",),
+                ),
+                formality=RatedContext(
+                    excellent=("work",),
+                    good=("smart_casual",),
+                    acceptable=("casual",),
+                    poor=("lounge",),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.GOOD,
+                    seated_comfort=Suitability.ACCEPTABLE,
+                    active_comfort=Suitability.GOOD,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.LOW,
+                flexibility=TraitLevel.MODERATE,
+                compression=TraitLevel.LOW,
+                heat_retention=TraitLevel.MODERATE,
+                ventilation=TraitLevel.LOW,
+                skin_contact=Suitability.ACCEPTABLE,
+            ),
+        )
+
+    if item_id in {"day.work_socks", "day.fingerless_gloves", "day.utility_belt"}:
+        return (
+            generic_material,
+            generic_environment,
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("morning", "afternoon", "evening"),
+                    good=("night",),
+                    acceptable=("late_night",),
+                ),
+                seasons=RatedContext(
+                    good=("spring", "summer", "autumn", "winter"),
+                ),
+                activities=RatedContext(
+                    excellent=("engineering", "lab", "workshop"),
+                    good=("conversation",),
+                    acceptable=("relaxing",),
+                    poor=("sleep", "formal"),
+                ),
+                settings=RatedContext(
+                    excellent=("workshop", "lab"),
+                    good=("office", "casual_public", "home"),
+                ),
+                formality=RatedContext(
+                    excellent=("work",),
+                    good=("casual",),
+                    acceptable=("smart_casual",),
+                    poor=("formal", "lounge"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.GOOD,
+                    seated_comfort=Suitability.GOOD,
+                    active_comfort=Suitability.GOOD,
+                ),
+            ),
+            generic_comfort,
+        )
+
+    if item_id == "day.work_boots":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.LOW,
+                fabric_weight=FabricWeight.HEAVY,
+                texture="matte_structured",
+                breathability=TraitLevel.LOW,
+                insulation=TraitLevel.MODERATE,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    -10.0, 3.0, 22.0, 31.0, FabricWeight.HEAVY
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.EXCELLENT,
+                    drizzle=Suitability.EXCELLENT,
+                    rain=Suitability.EXCELLENT,
+                    heavy_rain=Suitability.GOOD,
+                    snow=Suitability.GOOD,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=False,
+                    water_resistance=TraitLevel.HIGH,
+                    absorbency=TraitLevel.LOW,
+                    wet_comfort=Suitability.GOOD,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.GOOD,
+                    high=Suitability.POOR,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.HIGH,
+                    strong_wind=Suitability.EXCELLENT,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.ACCEPTABLE,
+                    uv_protection=TraitLevel.HIGH,
+                ),
+                indoor=Suitability.GOOD,
+                outdoor=Suitability.EXCELLENT,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("morning", "afternoon", "evening"),
+                    good=("night",),
+                    poor=("late_night",),
+                ),
+                seasons=RatedContext(
+                    excellent=("autumn", "winter"),
+                    good=("spring",),
+                    acceptable=("summer",),
+                ),
+                activities=RatedContext(
+                    excellent=("engineering", "lab", "workshop", "outdoor"),
+                    good=("conversation",),
+                    poor=("relaxing", "sleep", "formal"),
+                ),
+                settings=RatedContext(
+                    excellent=("workshop", "lab", "outdoor"),
+                    good=("casual_public",),
+                    acceptable=("home", "office"),
+                ),
+                formality=RatedContext(
+                    excellent=("work",),
+                    good=("casual",),
+                    poor=("lounge", "formal"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.GOOD,
+                    seated_comfort=Suitability.ACCEPTABLE,
+                    active_comfort=Suitability.EXCELLENT,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.LOW,
+                flexibility=TraitLevel.MODERATE,
+                compression=TraitLevel.LOW,
+                heat_retention=TraitLevel.MODERATE,
+                ventilation=TraitLevel.LOW,
+                skin_contact=Suitability.ACCEPTABLE,
+            ),
+        )
+
+    if item_id == "night.lounge_tee":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.MODERATE,
+                fabric_weight=FabricWeight.LIGHT,
+                texture="soft_brushed",
+                breathability=TraitLevel.HIGH,
+                insulation=TraitLevel.LOW,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    10.0, 18.0, 28.0, 34.0, FabricWeight.LIGHT
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.GOOD,
+                    drizzle=Suitability.ACCEPTABLE,
+                    rain=Suitability.POOR,
+                    heavy_rain=Suitability.UNSUITABLE,
+                    snow=Suitability.UNSUITABLE,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=False,
+                    water_resistance=TraitLevel.LOW,
+                    absorbency=TraitLevel.MODERATE,
+                    wet_comfort=Suitability.POOR,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.EXCELLENT,
+                    high=Suitability.GOOD,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.LOW,
+                    strong_wind=Suitability.POOR,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.ACCEPTABLE,
+                    uv_protection=TraitLevel.LOW,
+                ),
+                indoor=Suitability.EXCELLENT,
+                outdoor=Suitability.ACCEPTABLE,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("evening", "night", "late_night"),
+                    acceptable=("morning", "afternoon"),
+                ),
+                seasons=RatedContext(
+                    excellent=("spring", "summer"),
+                    good=("autumn",),
+                    acceptable=("winter",),
+                ),
+                activities=RatedContext(
+                    excellent=("relaxing", "sleep", "gaming", "casual_home"),
+                    good=("conversation",),
+                    poor=("engineering", "lab", "workshop"),
+                    unsuitable=("formal",),
+                ),
+                settings=RatedContext(
+                    excellent=("home", "private"),
+                    acceptable=("casual_public",),
+                    poor=("office", "workshop", "lab", "outdoor"),
+                    unsuitable=("formal_event",),
+                ),
+                formality=RatedContext(
+                    excellent=("lounge", "casual"),
+                    poor=("work", "smart_casual"),
+                    unsuitable=("formal",),
+                ),
+                emotion_styles=RatedContext(
+                    excellent=("relaxed", "cozy", "playful"),
+                    good=("fond", "settled"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.EXCELLENT,
+                    seated_comfort=Suitability.EXCELLENT,
+                    active_comfort=Suitability.GOOD,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.HIGH,
+                flexibility=TraitLevel.HIGH,
+                compression=TraitLevel.NONE,
+                heat_retention=TraitLevel.LOW,
+                ventilation=TraitLevel.HIGH,
+                skin_contact=Suitability.EXCELLENT,
+            ),
+        )
+
+    if item_id == "night.running_shorts":
+        return (
+            MaterialProperties(
+                stretch=TraitLevel.HIGH,
+                fabric_weight=FabricWeight.LIGHT,
+                texture="smooth_performance",
+                breathability=TraitLevel.HIGH,
+                insulation=TraitLevel.LOW,
+            ),
+            EnvironmentProfile(
+                temperature=TemperatureProfile(
+                    14.5, 20.0, 32.0, 38.0, FabricWeight.LIGHT
+                ),
+                precipitation=PrecipitationProfile(
+                    dry=Suitability.EXCELLENT,
+                    mist=Suitability.EXCELLENT,
+                    drizzle=Suitability.GOOD,
+                    rain=Suitability.ACCEPTABLE,
+                    heavy_rain=Suitability.POOR,
+                    snow=Suitability.UNSUITABLE,
+                ),
+                moisture=MoistureProfile(
+                    quick_dry=True,
+                    water_resistance=TraitLevel.LOW,
+                    absorbency=TraitLevel.LOW,
+                    wet_comfort=Suitability.GOOD,
+                ),
+                humidity=HumidityProfile(
+                    low=Suitability.GOOD,
+                    moderate=Suitability.EXCELLENT,
+                    high=Suitability.EXCELLENT,
+                ),
+                wind=WindProfile(
+                    resistance=TraitLevel.LOW,
+                    strong_wind=Suitability.POOR,
+                ),
+                sunlight=SunlightProfile(
+                    direct_sun=Suitability.GOOD,
+                    uv_protection=TraitLevel.LOW,
+                ),
+                indoor=Suitability.EXCELLENT,
+                outdoor=Suitability.GOOD,
+            ),
+            ContextProfile(
+                dayparts=RatedContext(
+                    excellent=("evening", "night", "late_night"),
+                    acceptable=("morning", "afternoon"),
+                ),
+                seasons=RatedContext(
+                    excellent=("spring", "summer"),
+                    good=("autumn",),
+                    poor=("winter",),
+                ),
+                activities=RatedContext(
+                    excellent=("relaxing", "exercise", "gaming", "casual_home"),
+                    good=("conversation", "sleep", "casual_outing"),
+                    poor=("engineering", "lab", "workshop"),
+                    unsuitable=("formal",),
+                ),
+                settings=RatedContext(
+                    excellent=("home", "private"),
+                    good=("casual_public", "outdoor"),
+                    poor=("workshop", "lab", "office"),
+                    unsuitable=("formal_event",),
+                ),
+                formality=RatedContext(
+                    excellent=("lounge", "casual"),
+                    poor=("work", "smart_casual"),
+                    unsuitable=("formal",),
+                ),
+                emotion_styles=RatedContext(
+                    excellent=("relaxed", "playful", "energetic", "cozy"),
+                    good=("fond", "settled"),
+                ),
+                movement=MovementProfile(
+                    mobility=Suitability.EXCELLENT,
+                    seated_comfort=Suitability.EXCELLENT,
+                    active_comfort=Suitability.EXCELLENT,
+                ),
+            ),
+            ComfortProfile(
+                softness=TraitLevel.HIGH,
+                flexibility=TraitLevel.HIGH,
+                compression=TraitLevel.MODERATE,
+                heat_retention=TraitLevel.LOW,
+                ventilation=TraitLevel.HIGH,
+                skin_contact=Suitability.EXCELLENT,
+            ),
+        )
+
+    return generic_material, generic_environment, generic_context, generic_comfort
+
+
 def _blueprint(design: GarmentDesign, *, canonical: bool = False) -> GarmentBlueprint:
+    material_properties, environment, context, comfort = _starter_profiles(
+        design.item_id
+    )
+    design = replace(
+        design,
+        material_properties=material_properties,
+        environment=environment,
+        context=context,
+        comfort=comfort,
+    )
     definition = validate_design(design)
     garment = Garment(
         item_id=design.item_id,

@@ -6,7 +6,7 @@ preferences, grant private access, or claim that authored pieces are worn.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import re
 
@@ -187,8 +187,12 @@ from .presentation import PresentationAuthority
 from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
 from .wardrobe_design import (
+    ComfortProfile,
+    ContextProfile,
+    EnvironmentProfile,
     GarmentDesign,
     GraphicDesign,
+    MaterialProperties,
     all_garment_types,
     validate_design,
 )
@@ -215,6 +219,14 @@ class GarmentDesignRequest:
     style_tags: tuple[str, ...] = ()
     private_only: bool = False
     description: str = ""
+    material_properties: MaterialProperties = field(
+        default_factory=MaterialProperties
+    )
+    environment: EnvironmentProfile = field(
+        default_factory=EnvironmentProfile
+    )
+    context: ContextProfile = field(default_factory=ContextProfile)
+    comfort: ComfortProfile = field(default_factory=ComfortProfile)
 
 
 class WardrobeStudio:
@@ -333,6 +345,10 @@ class WardrobeStudio:
             style_tags=request.style_tags,
             private_only=request.private_only,
             description=request.description,
+            material_properties=request.material_properties,
+            environment=request.environment,
+            context=request.context,
+            comfort=request.comfort,
         )
         definition = validate_design(design)
         garment = Garment(
