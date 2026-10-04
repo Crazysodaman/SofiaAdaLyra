@@ -1,4 +1,4 @@
-"""Cognitive tools for authenticated, exact-grant remote fleet operations."""
+"""Cognitive tools for authenticated remote Fleet observation and governed changes."""
 from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -13,6 +13,7 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.safe.operator_stop import OperatorStopStore
 
+from .authorization import remote_operation_is_read_only
 from .endpoint_policy_durable import DurableEndpointPolicy
 from .https_transport import PinnedHttpsRemoteTransport
 from .operations import RemoteOperationRequest
@@ -126,9 +127,19 @@ class RemoteFleetToolService:
                 operation=operation,
                 now=now,
             )
+            if grant is None and remote_operation_is_read_only(
+                capability,
+                operation,
+            ):
+                grant=control.authorization.ensure_read_only_policy_grant(
+                    node_id=node_id,
+                    capability=capability,
+                    operation=operation,
+                    now=now,
+                )
             if grant is None:
                 raise PermissionError(
-                    "no active exact-scope human grant for remote operation"
+                    "no active exact-scope human grant for remote change"
                 )
             request=RemoteOperationRequest(
                 uuid4(),
@@ -269,10 +280,10 @@ def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegis
             remote_capability="package.manage",remote_operation="update",
             properties={**node,"package":{"type":"string"}},required=("node_id","package")),
         _registration(service,capability_name="remote.vm.list",tool_name="list_remote_vms",
-            description="List Hyper-V VMs on an enrolled remote node. Read-only when granted.",
+            description="List Hyper-V VMs on an enrolled remote node. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="vm.inspect",remote_operation="list",properties=node,required=("node_id",)),
         _registration(service,capability_name="remote.vm.get",tool_name="inspect_remote_vm",
-            description="Inspect one Hyper-V VM on an enrolled remote node. Read-only when granted.",
+            description="Inspect one Hyper-V VM on an enrolled remote node. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="vm.inspect",remote_operation="get",
             properties={**node,"vm":{"type":"string"}},required=("node_id","vm")),
         _registration(service,capability_name="remote.vm.start",tool_name="start_remote_vm",
@@ -287,13 +298,13 @@ def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegis
             description="Read the exact Ollama model allowlist accepted for cognitive inference on one enrolled remote node.",
             remote_capability="llm.inspect",remote_operation="inference_policy",properties=node,required=("node_id",)),
         _registration(service,capability_name="remote.ollama.models",tool_name="list_remote_ollama_models",
-            description="List installed Ollama models on one enrolled remote node. Read-only when granted.",
+            description="List installed Ollama models on one enrolled remote node. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="llm.inspect",remote_operation="models",properties=node,required=("node_id",)),
         _registration(service,capability_name="remote.ollama.running",tool_name="list_remote_running_models",
-            description="List resident Ollama models on one enrolled remote node. Read-only when granted.",
+            description="List resident Ollama models on one enrolled remote node. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="llm.inspect",remote_operation="running",properties=node,required=("node_id",)),
         _registration(service,capability_name="remote.ollama.show",tool_name="inspect_remote_ollama_model",
-            description="Inspect one exact Ollama model on an enrolled remote node. Read-only when granted.",
+            description="Inspect one exact Ollama model on an enrolled remote node. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="llm.inspect",remote_operation="show",
             properties={**node,"model":{"type":"string"}},required=("node_id","model")),
         _registration(service,capability_name="remote.ollama.pull",tool_name="install_remote_ollama_model",
@@ -309,10 +320,10 @@ def create_configured_remote_fleet_tools(state_path:Path)->tuple[RemoteToolRegis
             remote_capability="llm.manage",remote_operation="unload",
             properties={**node,"model":{"type":"string"}},required=("node_id","model")),
         _registration(service,capability_name="remote.container.list",tool_name="list_remote_containers",
-            description="List containers through the configured agent-side Portainer endpoint. Read-only when granted.",
+            description="List containers through the configured agent-side Portainer endpoint. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="container.inspect",remote_operation="list",properties=node,required=("node_id",)),
         _registration(service,capability_name="remote.container.get",tool_name="inspect_remote_container",
-            description="Inspect one container through the configured agent-side Portainer endpoint. Read-only when granted.",
+            description="Inspect one container through the configured agent-side Portainer endpoint. Read-only on an enrolled trusted node; no per-use approval.",
             remote_capability="container.inspect",remote_operation="get",
             properties={**node,"container":{"type":"string"}},required=("node_id","container")),
         _registration(service,capability_name="remote.container.restart",tool_name="restart_remote_container",
