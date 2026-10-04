@@ -11,6 +11,7 @@ from uuid import UUID
 
 from .agent import RemoteAgentConfig, RemoteAgentServer
 from .agent_tools import create_default_agent_dispatcher
+from .release_agent import AgentReleaseService
 from .inference_service import (
     LocalOllamaInferenceService,
     RemoteInferencePolicy,
@@ -42,6 +43,11 @@ _CONFIG_KEYS = frozenset(
         "inference_models",
         "inference_max_context_size",
         "inference_allow_tools",
+        "release_state_path",
+        "release_root",
+        "release_inbox",
+        "release_trusted_key_file",
+        "release_trusted_key_id",
     }
 )
 
@@ -85,6 +91,22 @@ def _resolve_path(base: Path, value: Any, label: str) -> Path:
     return path.resolve()
 
 
+def _optional_environment_path(name: str) -> Path | None:
+    value = os.environ.get(name, "").strip()
+    return None if not value else Path(value)
+
+
+def _optional_config_path(
+    base: Path,
+    payload: dict[str, Any],
+    key: str,
+) -> Path | None:
+    value = payload.get(key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    return _resolve_path(base, value, key)
+
+
 def configuration_from_environment() -> RemoteAgentConfig:
     for name in _REQUIRED:
         _required(name)
@@ -117,6 +139,25 @@ def configuration_from_environment() -> RemoteAgentConfig:
             "SOFIA_AGENT_INFERENCE_ALLOW_TOOLS",
             "1",
         ).strip().casefold() not in {"0","false","off"},
+        release_state_path=_optional_environment_path(
+            "SOFIA_AGENT_RELEASE_STATE_PATH"
+        ),
+        release_root=_optional_environment_path(
+            "SOFIA_AGENT_RELEASE_ROOT"
+        ),
+        release_inbox=_optional_environment_path(
+            "SOFIA_AGENT_RELEASE_INBOX"
+        ),
+        release_trusted_key_file=_optional_environment_path(
+            "SOFIA_AGENT_RELEASE_TRUSTED_KEY_FILE"
+        ),
+        release_trusted_key_id=(
+            os.environ.get(
+                "SOFIA_AGENT_RELEASE_TRUSTED_KEY_ID",
+                "",
+            ).strip()
+            or None
+        ),
     )
 
 
@@ -181,6 +222,30 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
             "inference_allow_tools",
             True,
         ),
+        release_state_path=_optional_config_path(
+            base,
+            payload,
+            "release_state_path",
+        ),
+        release_root=_optional_config_path(
+            base,
+            payload,
+            "release_root",
+        ),
+        release_inbox=_optional_config_path(
+            base,
+            payload,
+            "release_inbox",
+        ),
+        release_trusted_key_file=_optional_config_path(
+            base,
+            payload,
+            "release_trusted_key_file",
+        ),
+        release_trusted_key_id=(
+            str(payload.get("release_trusted_key_id", "")).strip()
+            or None
+        ),
     )
 
 
@@ -201,10 +266,26 @@ def create_agent_server(config: RemoteAgentConfig) -> RemoteAgentServer:
             ),
         )
     )
+    release_service = (
+        None
+        if config.release_state_path is None
+        else AgentReleaseService(
+            state_path=config.release_state_path,
+            release_root=(
+                config.release_root
+                if config.release_root is not None
+                else config.release_state_path.parent / "release-runtime"
+            ),
+            inbox_root=config.release_inbox,
+            trusted_key_file=config.release_trusted_key_file,
+            trusted_key_id=config.release_trusted_key_id,
+        )
+    )
     return RemoteAgentServer(
         config,
         create_default_agent_dispatcher(
             inference_models=config.inference_models,
+            release_service=release_service,
         ),
         inference_handler=None if inference is None else inference.infer,
     )

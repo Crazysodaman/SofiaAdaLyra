@@ -56,6 +56,11 @@ class RemoteAgentConfig:
     inference_models:tuple[str,...]=()
     inference_max_context_size:int=65536
     inference_allow_tools:bool=True
+    release_state_path:Path|None=None
+    release_root:Path|None=None
+    release_inbox:Path|None=None
+    release_trusted_key_file:Path|None=None
+    release_trusted_key_id:str|None=None
     def __post_init__(self):
         if not self.node_name.strip(): raise ValueError("node_name required")
         if not 1<=self.listen_port<=65535: raise ValueError("listen_port out of range")
@@ -75,6 +80,48 @@ class RemoteAgentConfig:
             raise ValueError("inference_max_context_size must be in 512..1048576")
         if type(self.inference_allow_tools) is not bool:
             raise TypeError("inference_allow_tools must be bool")
+        release_required=(
+            self.release_state_path,
+            self.release_inbox,
+            self.release_trusted_key_file,
+            self.release_trusted_key_id,
+        )
+        if any(value is not None for value in release_required) and not all(
+            value is not None for value in release_required
+        ):
+            raise ValueError(
+                "release management requires state path, inbox, trusted key file "
+                "and trusted key ID together"
+            )
+        if self.release_root is not None and not all(
+            value is not None for value in release_required
+        ):
+            raise ValueError(
+                "release_root requires complete release management configuration"
+            )
+        for name in (
+            "release_state_path",
+            "release_root",
+            "release_inbox",
+            "release_trusted_key_file",
+        ):
+            value=getattr(self,name)
+            if value is not None and not isinstance(value,Path):
+                raise TypeError(f"{name} must be Path or None")
+        if self.release_trusted_key_id is not None:
+            if (
+                not isinstance(self.release_trusted_key_id,str)
+                or not self.release_trusted_key_id.strip()
+                or len(self.release_trusted_key_id)>128
+            ):
+                raise ValueError(
+                    "release_trusted_key_id must be bounded nonempty text"
+                )
+            object.__setattr__(
+                self,
+                "release_trusted_key_id",
+                self.release_trusted_key_id.strip(),
+            )
 
 class RemoteAgentDispatcher:
     def __init__(self)->None:

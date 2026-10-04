@@ -130,3 +130,35 @@ def test_file_config_rejects_duplicate_inference_models(tmp_path):
 
     with pytest.raises(ValueError, match="duplicates"):
         configuration_from_file(path)
+
+
+def test_file_config_release_management_is_opt_in_and_resolves_paths(tmp_path):
+    path = _write_config(
+        tmp_path,
+        release_state_path="state/sofia.db",
+        release_root="runtime/releases",
+        release_inbox="releases/inbox",
+        release_trusted_key_file="certs/release-public.pem",
+        release_trusted_key_id="production-release",
+    )
+
+    config = configuration_from_file(path)
+
+    assert config.release_state_path == (tmp_path / "state" / "sofia.db").resolve()
+    assert config.release_root == (tmp_path / "runtime" / "releases").resolve()
+    assert config.release_inbox == (tmp_path / "releases" / "inbox").resolve()
+    assert config.release_trusted_key_file == (
+        tmp_path / "certs" / "release-public.pem"
+    ).resolve()
+    assert config.release_trusted_key_id == "production-release"
+
+
+def test_file_config_rejects_partial_release_management(tmp_path):
+    path = _write_config(
+        tmp_path,
+        release_state_path="state/sofia.db",
+        release_inbox="releases/inbox",
+    )
+
+    with pytest.raises(ValueError, match="release management requires"):
+        configuration_from_file(path)

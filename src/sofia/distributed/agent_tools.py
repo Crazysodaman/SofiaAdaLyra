@@ -29,6 +29,7 @@ def _plain(value:Any)->Any:
 def create_default_agent_dispatcher(
     *,
     inference_models: tuple[str, ...] = (),
+    release_service=None,
 )->RemoteAgentDispatcher:
     dispatcher=RemoteAgentDispatcher()
     backend=create_local_system_backend()
@@ -137,7 +138,8 @@ def create_default_agent_dispatcher(
             port.restart(str(p["container"]),timeout_seconds=int(p.get("timeout_seconds",10)))
         ))
 
-    release_service=create_agent_release_service_from_environment()
+    if release_service is None:
+        release_service=create_agent_release_service_from_environment()
     if release_service is not None:
         dispatcher.register(
             "release.inspect",
