@@ -9,6 +9,8 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.dev.approval import DevOperation
+from sofia.dev.capability import DevToolService, create_dev_tool_bindings
 from sofia.knowledge.capability import KnowledgeCapabilitySet
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
@@ -371,3 +373,38 @@ def test_level_three_knowledge_write_honors_exact_standing_scope(tmp_path):
     )
     with pytest.raises(PermissionError, match="approval_id"):
         capabilities.execute(other)
+
+
+def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not():
+    class ApprovalProbe:
+        def consume(self, **_kwargs):
+            raise AssertionError("safe-autonomous build must not consume approval")
+
+    service = DevToolService.__new__(DevToolService)
+    service.approval_verifier = ApprovalProbe()
+
+    service._authorize(
+        DevOperation.BUILD,
+        {"proposal_id": "candidate-1"},
+    )
+
+    with pytest.raises(PermissionError, match="approval_id"):
+        service._authorize(
+            DevOperation.APPLY,
+            {"proposal_id": "candidate-1"},
+        )
+
+
+def test_dev_build_tool_schema_does_not_require_or_offer_approval_id():
+    bindings = {
+        item.capability_name: item
+        for item in create_dev_tool_bindings()
+    }
+    build = bindings["dev.build"].definition.parameters
+    assert "approval_id" not in build["properties"]
+    assert "approval_id" not in build["required"]
+
+    for protected in ("dev.apply", "dev.rollback", "dev.commit", "dev.push"):
+        schema = bindings[protected].definition.parameters
+        assert "approval_id" in schema["properties"]
+        assert "approval_id" in schema["required"]
