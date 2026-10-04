@@ -108,7 +108,7 @@ _HOST_HARDWARE_BUNDLE = re.compile(
     re.IGNORECASE,
 )
 _READ_ONLY_OPERATION = re.compile(
-    r"^\s*(?:please\s+)?(?:inspect|list|show|check|summarize)\b",
+    r"^\s*(?:please\s+)?(?:inspect|list|show|check|summarize|discover|scan|find)\b",
     re.IGNORECASE,
 )
 _READ_ONLY_OPERATION_QUESTION = re.compile(
