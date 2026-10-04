@@ -710,14 +710,11 @@ class OutfitPlanner:
         key = period_key(context.now, cadence)
         compatible = [
             (plan, outfit) for plan, outfit in self._plans.values()
-            if (
-                context.activity in plan.activities
-                and context.season in plan.seasons
-            )
+            if context.activity in plan.activities
         ]
         if not compatible:
             raise WardrobeError(
-                "no activity-and-season-compatible covered outfit; "
+                "no activity-compatible covered outfit; "
                 "host must use verified fallback"
             )
         recent = tuple(sorted((w for w in worn if timedelta(0) <= (
@@ -770,7 +767,8 @@ class OutfitPlanner:
             return result
 
         # Stable within a cadence window IF previous verified wear is still
-        # activity/season/weather compatible. A weather change may replace it.
+        # activity/weather/physical-context compatible. Season is a preference,
+        # not a veto; actual measured conditions may outweigh the calendar.
         same_period = [w for w in recent if period_key(w.occurred_at.astimezone(context.now.tzinfo), cadence) == key]
         if same_period:
             last = max(same_period, key=lambda w: w.occurred_at.astimezone(timezone.utc))
@@ -781,7 +779,7 @@ class OutfitPlanner:
                     p,
                     context,
                 )
-                if context.season in p.seasons and (weather is None or not p.weather or weather in p.weather) and (
+                if (weather is None or not p.weather or weather in p.weather) and (
                     not p.lounge or context.lounge_window
                 ) and not physically_unsuitable:
                     return OutfitProposal(p.outfit_id, prior[1], key, ("verified_previous_choice",))

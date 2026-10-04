@@ -320,6 +320,13 @@ class HumidityProfile:
     moderate: Suitability = Suitability.UNSPECIFIED
     high: Suitability = Suitability.UNSPECIFIED
 
+    def __post_init__(self) -> None:
+        if any(
+            not isinstance(value, Suitability)
+            for value in (self.low, self.moderate, self.high)
+        ):
+            raise WardrobeError("invalid humidity suitability")
+
     def rating(self, humidity_percent: float | None) -> Suitability:
         if humidity_percent is None:
             return Suitability.UNSPECIFIED
@@ -343,6 +350,12 @@ class WindProfile:
     resistance: TraitLevel = TraitLevel.UNSPECIFIED
     strong_wind: Suitability = Suitability.UNSPECIFIED
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.resistance, TraitLevel):
+            raise WardrobeError("invalid wind resistance")
+        if not isinstance(self.strong_wind, Suitability):
+            raise WardrobeError("invalid strong-wind suitability")
+
     def as_dict(self) -> dict[str, str]:
         return {
             "resistance": self.resistance.value,
@@ -354,6 +367,12 @@ class WindProfile:
 class SunlightProfile:
     direct_sun: Suitability = Suitability.UNSPECIFIED
     uv_protection: TraitLevel = TraitLevel.UNSPECIFIED
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.direct_sun, Suitability):
+            raise WardrobeError("invalid direct-sun suitability")
+        if not isinstance(self.uv_protection, TraitLevel):
+            raise WardrobeError("invalid UV protection")
 
     def as_dict(self) -> dict[str, str]:
         return {
@@ -459,6 +478,17 @@ class MovementProfile:
     seated_comfort: Suitability = Suitability.UNSPECIFIED
     active_comfort: Suitability = Suitability.UNSPECIFIED
 
+    def __post_init__(self) -> None:
+        if any(
+            not isinstance(value, Suitability)
+            for value in (
+                self.mobility,
+                self.seated_comfort,
+                self.active_comfort,
+            )
+        ):
+            raise WardrobeError("invalid movement suitability")
+
     def as_dict(self) -> dict[str, str]:
         return {
             "mobility": self.mobility.value,
@@ -476,6 +506,22 @@ class ContextProfile:
     formality: RatedContext = field(default_factory=RatedContext)
     emotion_styles: RatedContext = field(default_factory=RatedContext)
     movement: MovementProfile = field(default_factory=MovementProfile)
+
+    def __post_init__(self) -> None:
+        if any(
+            not isinstance(value, RatedContext)
+            for value in (
+                self.dayparts,
+                self.seasons,
+                self.activities,
+                self.settings,
+                self.formality,
+                self.emotion_styles,
+            )
+        ):
+            raise WardrobeError("invalid rated garment context")
+        if not isinstance(self.movement, MovementProfile):
+            raise WardrobeError("invalid movement profile")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -497,6 +543,21 @@ class ComfortProfile:
     heat_retention: TraitLevel = TraitLevel.UNSPECIFIED
     ventilation: TraitLevel = TraitLevel.UNSPECIFIED
     skin_contact: Suitability = Suitability.UNSPECIFIED
+
+    def __post_init__(self) -> None:
+        if any(
+            not isinstance(value, TraitLevel)
+            for value in (
+                self.softness,
+                self.flexibility,
+                self.compression,
+                self.heat_retention,
+                self.ventilation,
+            )
+        ):
+            raise WardrobeError("invalid comfort trait level")
+        if not isinstance(self.skin_contact, Suitability):
+            raise WardrobeError("invalid skin-contact suitability")
 
     def as_dict(self) -> dict[str, str]:
         return {

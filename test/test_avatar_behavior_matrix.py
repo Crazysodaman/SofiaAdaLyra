@@ -150,7 +150,7 @@ def test_grounded_fondness_can_reinforce_lounge_when_context_already_fits():
     assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
     assert "modeled_emotion_influence" in result.reasons
 
-def test_season_remains_a_hard_compatibility_constraint():
+def test_season_is_a_preference_not_a_hard_rejection():
     catalog = build_starter_wardrobe()
     spring_only = (
         OutfitPlan(
@@ -160,17 +160,26 @@ def test_season_remains_a_hard_compatibility_constraint():
             frozenset({Season.SPRING}),
         ),
     )
-    local = OutfitPlanner(catalog.wardrobe, spring_only)
+    local = OutfitPlanner(
+        catalog.wardrobe,
+        spring_only,
+        designs={
+            blueprint.garment.item_id: blueprint.design
+            for blueprint in catalog.blueprints
+        },
+    )
 
-    with pytest.raises(WardrobeError, match="season"):
-        local.suggest(
-            WardrobeContext(
-                DAY,
-                Season.WINTER,
-                Activity.CONVERSATION,
-            )
+    result = local.suggest(
+        WardrobeContext(
+            DAY,
+            Season.WINTER,
+            Activity.CONVERSATION,
+            outdoor_temperature_c=20.0,
+            weather_condition="Clear",
         )
+    )
 
+    assert result.outfit_id == "spring.only"
 
 def test_automatic_choices_remain_public_and_covered():
     catalog = build_starter_wardrobe()
