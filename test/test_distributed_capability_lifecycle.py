@@ -238,7 +238,17 @@ def test_enrolled_remote_read_only_inspection_needs_no_human_grant(
         FakeControl,
     )
 
-    result = _service(tmp_path).invoke(
+    service = _service(tmp_path)
+    monkeypatch.setattr(
+        service,
+        "_ops_host_for_node",
+        lambda requested: (
+            SimpleNamespace(host_id="worker")
+            if requested == node_id
+            else None
+        ),
+    )
+    result = service.invoke(
         str(node_id),
         "system.inspect",
         "hardware",
@@ -317,11 +327,80 @@ def test_remote_mutation_without_human_grant_stays_denied(
         FakeControl,
     )
 
+    service = _service(tmp_path)
+    monkeypatch.setattr(
+        service,
+        "_ops_host_for_node",
+        lambda requested: (
+            SimpleNamespace(host_id="worker")
+            if requested == node_id
+            else None
+        ),
+    )
     with pytest.raises(PermissionError, match="human grant"):
-        _service(tmp_path).invoke(
+        service.invoke(
             str(node_id),
             "service.manage",
             "restart",
             {"name": "example"},
         )
     assert invoked == []
+
+
+def test_remote_tools_reject_identity_record_without_ops_fleet_membership(
+    tmp_path,
+    monkeypatch,
+):
+    node_id = uuid4()
+    opened = []
+
+    class FakeEndpointPolicy:
+        def __init__(self, _path):
+            opened.append("endpoint")
+        def get(self, _node_id):
+            return SimpleNamespace()
+        def close(self):
+            pass
+
+    class FakeTransport:
+        def __init__(self, endpoint_lookup, **_kwargs):
+            assert callable(endpoint_lookup)
+
+    class FakeControl:
+        def __init__(self, **_kwargs):
+            opened.append("control")
+        def close(self):
+            pass
+
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableEndpointPolicy",
+        FakeEndpointPolicy,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "PinnedHttpsRemoteTransport",
+        FakeTransport,
+    )
+    monkeypatch.setattr(
+        fleet_capability,
+        "DurableRemoteControl",
+        FakeControl,
+    )
+
+    service = _service(tmp_path)
+    monkeypatch.setattr(
+        service,
+        "_ops_host_for_node",
+        lambda _requested: None,
+    )
+
+    with pytest.raises(PermissionError, match="OPS Fleet member"):
+        service.invoke(
+            str(node_id),
+            "system.inspect",
+            "hardware",
+            {},
+        )
+    # Admission fails before any remote control/session is opened.
+    assert opened == []
