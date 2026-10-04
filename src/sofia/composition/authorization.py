@@ -108,13 +108,9 @@ def create_capability_authorizer(
             if isinstance(approval_id, str) and approval_id.strip():
                 return True
 
-        # Preserve explicitly configured legacy exposure while subsystem-specific
-        # approval verifiers are migrated to the unified store. This does not
-        # bypass integration/DEV exact-approval checks.
-        if name in configuration.standing_allowed_capabilities:
-            return True
-
-        # Level 5 has no cognitive self-authorization path.
+        # Legacy standing capability configuration is intentionally ignored.
+        # The canonical permission store and exact approval verifiers are the
+        # only mutation authorities.
         return False
 
     return capability_authorized
