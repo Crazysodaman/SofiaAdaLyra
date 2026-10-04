@@ -397,6 +397,25 @@ def test_dev_build_is_safe_autonomous_but_production_dev_changes_are_not():
         )
 
 
+def test_dev_candidate_history_tools_are_level_one_read_only():
+    from sofia.safe.permissions import (
+        PermissionLevel,
+        capability_permission_policy,
+    )
+
+    bindings = {
+        item.capability_name: item
+        for item in create_dev_tool_bindings()
+    }
+    for capability in ("dev.candidates.list", "dev.candidate.get"):
+        assert (
+            capability_permission_policy(capability).level
+            is PermissionLevel.OBSERVE_READ
+        )
+        schema = bindings[capability].definition.parameters
+        assert "approval_id" not in schema["properties"]
+
+
 def test_dev_build_tool_schema_does_not_require_or_offer_approval_id():
     bindings = {
         item.capability_name: item
