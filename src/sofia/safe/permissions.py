@@ -218,6 +218,7 @@ _REVERSIBLE = frozenset({
 })
 
 _PROTECTED = frozenset({
+    "fleet.enroll",
     "home_assistant.service.call",
     "github.pull_request.merge",
     "discord.revoke",
