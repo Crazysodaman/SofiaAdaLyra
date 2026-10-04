@@ -107,6 +107,19 @@ def _optional_config_path(
     return _resolve_path(base, value, key)
 
 
+def _optional_config_text(
+    payload: dict[str, Any],
+    key: str,
+) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{key} must be text")
+    value = value.strip()
+    return value or None
+
+
 def configuration_from_environment() -> RemoteAgentConfig:
     for name in _REQUIRED:
         _required(name)
@@ -242,9 +255,9 @@ def configuration_from_file(path: Path | str) -> RemoteAgentConfig:
             payload,
             "release_trusted_key_file",
         ),
-        release_trusted_key_id=(
-            str(payload.get("release_trusted_key_id", "")).strip()
-            or None
+        release_trusted_key_id=_optional_config_text(
+            payload,
+            "release_trusted_key_id",
         ),
     )
 

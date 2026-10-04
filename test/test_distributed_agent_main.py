@@ -162,3 +162,16 @@ def test_file_config_rejects_partial_release_management(tmp_path):
 
     with pytest.raises(ValueError, match="release management requires"):
         configuration_from_file(path)
+
+
+def test_file_config_rejects_null_release_signer_id(tmp_path):
+    path = _write_config(
+        tmp_path,
+        release_state_path="state/sofia.db",
+        release_inbox="releases/inbox",
+        release_trusted_key_file="certs/release-public.pem",
+        release_trusted_key_id=None,
+    )
+
+    with pytest.raises(ValueError, match="release management requires"):
+        configuration_from_file(path)

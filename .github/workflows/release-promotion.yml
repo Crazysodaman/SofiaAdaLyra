@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Workflow run ID containing the release-candidate artifact
+        description: Successful Release Candidate Build workflow run ID
         required: true
         type: string
       signer_key_id:
@@ -25,17 +25,10 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: Checkout signing tooling
-        uses: actions/checkout@v7
-
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-
-      - name: Install signing tooling
-        shell: pwsh
-        run: python -m pip install -e .
 
       - name: Download exact release candidate
         uses: actions/download-artifact@v8
@@ -45,6 +38,42 @@ jobs:
           pattern: release-candidate-*
           merge-multiple: true
           path: release-evidence
+
+      - name: Bind evidence to successful main candidate run
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ManifestPath = Join-Path $PWD "release-evidence\release-manifest.json"
+          if (-not (Test-Path $ManifestPath)) {
+            throw "release candidate manifest is missing"
+          }
+          $Manifest = Get-Content -Raw $ManifestPath | ConvertFrom-Json
+          $Run = gh api "repos/${{ github.repository }}/actions/runs/${{ inputs.candidate_run_id }}" | ConvertFrom-Json
+          if ($Run.name -ne "Release Candidate Build") {
+            throw "candidate_run_id is not a Release Candidate Build"
+          }
+          if ($Run.conclusion -ne "success") {
+            throw "candidate workflow did not succeed"
+          }
+          if ($Run.head_branch -ne "main") {
+            throw "production signing only accepts main candidates"
+          }
+          if ($Run.head_sha -ne $Manifest.git_revision) {
+            throw "candidate artifact git revision does not match workflow run"
+          }
+          "RELEASE_GIT_REVISION=$($Manifest.git_revision)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Checkout exact candidate signing tooling
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_GIT_REVISION }}
+          fetch-depth: 1
+          path: release-tooling
+
+      - name: Install exact candidate signing tooling
+        shell: pwsh
+        run: python -m pip install -e .\release-tooling
 
       - name: Verify candidate before signing
         shell: pwsh
@@ -65,10 +94,7 @@ jobs:
               $KeyPath,
               [Convert]::FromBase64String($env:SOFIA_RELEASE_SIGNING_KEY_PEM_B64)
             )
-            python -m sofia.dev.release_cli sign-bundle `
-              --release-dir release-evidence `
-              --private-key $KeyPath `
-              --signer-key-id $env:SIGNER_KEY_ID
+            python -m sofia.dev.release_cli sign-bundle --release-dir release-evidence --private-key $KeyPath --signer-key-id $env:SIGNER_KEY_ID
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           finally {
