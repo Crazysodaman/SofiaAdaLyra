@@ -1,0 +1,1847 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "outerwear",
+  "profiles": {
+    "technical": {
+      "material_properties": {
+        "stretch": "high",
+        "fabric_weight": "midweight",
+        "texture": "abrasion_resistant_shell",
+        "breathability": "moderate",
+        "insulation": "moderate"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -2,
+          "preferred_minimum_c": 6,
+          "preferred_maximum_c": 20,
+          "maximum_c": 28,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [
+            "summer"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "good": [
+            "conversation",
+            "outdoor"
+          ],
+          "acceptable": [
+            "relaxing"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "good": [
+            "office",
+            "casual_public"
+          ],
+          "acceptable": [
+            "home"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "work"
+          ],
+          "good": [
+            "casual",
+            "smart_casual"
+          ],
+          "acceptable": [],
+          "poor": [
+            "lounge",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "acceptable",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "casual": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 5,
+          "preferred_minimum_c": 12,
+          "preferred_maximum_c": 24,
+          "maximum_c": 31,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [
+            "summer"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "home",
+            "casual_public",
+            "office"
+          ],
+          "acceptable": [
+            "outdoor",
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work"
+          ],
+          "poor": [
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "wind": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "ultralight",
+        "texture": "wind_resistant_shell",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 5,
+          "preferred_minimum_c": 12,
+          "preferred_maximum_c": 24,
+          "maximum_c": 31,
+          "thermal_weight": "ultralight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "moderate",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "high",
+          "strong_wind": "excellent"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "autumn"
+          ],
+          "good": [
+            "summer",
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "home",
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "formal"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "excellent",
+          "seated_comfort": "good",
+          "active_comfort": "excellent"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "rain": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "sealed_waterproof_shell",
+        "breathability": "moderate",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 2,
+          "preferred_minimum_c": 9,
+          "preferred_maximum_c": 22,
+          "maximum_c": 29,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "good",
+          "mist": "excellent",
+          "drizzle": "excellent",
+          "rain": "excellent",
+          "heavy_rain": "excellent",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "excellent"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "good",
+          "high": "excellent"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [
+            "summer"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "outdoor"
+          ],
+          "good": [
+            "casual_public"
+          ],
+          "acceptable": [
+            "home",
+            "office"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "formal"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "cool_weather": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "midweight",
+        "texture": "soft_warm_structured",
+        "breathability": "moderate",
+        "insulation": "moderate"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 4,
+          "preferred_maximum_c": 17,
+          "maximum_c": 24,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "moderate",
+          "absorbency": "moderate",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "autumn",
+            "winter"
+          ],
+          "good": [
+            "spring"
+          ],
+          "acceptable": [],
+          "poor": [
+            "summer"
+          ],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "home",
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "formal"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "low",
+        "skin_contact": "excellent"
+      }
+    },
+    "cold_weather": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "heavy",
+        "texture": "insulated_weather_shell",
+        "breathability": "low",
+        "insulation": "high"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -25,
+          "preferred_minimum_c": -12,
+          "preferred_maximum_c": 6,
+          "maximum_c": 14,
+          "thermal_weight": "heavy"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "excellent",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "excellent"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "high",
+          "absorbency": "low",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "excellent",
+          "moderate": "good",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "high",
+          "strong_wind": "excellent"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "winter"
+          ],
+          "good": [
+            "autumn"
+          ],
+          "acceptable": [],
+          "poor": [
+            "summer"
+          ],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [],
+          "good": [
+            "conversation",
+            "engineering",
+            "lab",
+            "workshop"
+          ],
+          "acceptable": [
+            "relaxing",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [],
+          "good": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "acceptable": [
+            "home",
+            "private"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [],
+          "good": [
+            "casual",
+            "work",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "formal"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "high",
+        "ventilation": "low",
+        "skin_contact": "excellent"
+      }
+    },
+    "smart": {
+      "material_properties": {
+        "stretch": "low",
+        "fabric_weight": "midweight",
+        "texture": "smooth_tailored",
+        "breathability": "moderate",
+        "insulation": "moderate"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -2,
+          "preferred_minimum_c": 6,
+          "preferred_maximum_c": 20,
+          "maximum_c": 27,
+          "thermal_weight": "midweight"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "low",
+          "absorbency": "moderate",
+          "wet_comfort": "good"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "good",
+        "outdoor": "excellent"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [
+            "summer"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "formal"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [
+            "engineering",
+            "lab"
+          ],
+          "poor": [
+            "exercise",
+            "workshop"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "office",
+            "casual_public",
+            "formal_event"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [
+            "workshop",
+            "lab"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "smart_casual",
+            "formal"
+          ],
+          "good": [
+            "work"
+          ],
+          "acceptable": [
+            "casual"
+          ],
+          "poor": [
+            "lounge"
+          ],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "settled"
+          ],
+          "good": [
+            "focused"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "moderate",
+        "flexibility": "moderate",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "good"
+      }
+    },
+    "lounge": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_knit",
+        "breathability": "moderate",
+        "insulation": "moderate"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": 4,
+          "preferred_minimum_c": 12,
+          "preferred_maximum_c": 24,
+          "maximum_c": 30,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "good",
+          "rain": "acceptable",
+          "heavy_rain": "poor",
+          "snow": "acceptable"
+        },
+        "moisture": {
+          "quick_dry": false,
+          "water_resistance": "none",
+          "absorbency": "moderate",
+          "wet_comfort": "poor"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "acceptable"
+        },
+        "wind": {
+          "resistance": "moderate",
+          "strong_wind": "good"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "moderate"
+        },
+        "indoor": "excellent",
+        "outdoor": "poor"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [],
+          "good": [
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [],
+          "good": [
+            "spring",
+            "autumn",
+            "winter"
+          ],
+          "acceptable": [
+            "summer"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing"
+          ],
+          "good": [
+            "conversation"
+          ],
+          "acceptable": [],
+          "poor": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "private"
+          ],
+          "good": [],
+          "acceptable": [],
+          "poor": [
+            "office",
+            "workshop",
+            "lab",
+            "outdoor"
+          ],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [
+            "work",
+            "smart_casual"
+          ],
+          "unsuitable": [
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [],
+          "good": [
+            "focused",
+            "confident",
+            "settled",
+            "energetic"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "acceptable",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "none",
+        "heat_retention": "moderate",
+        "ventilation": "moderate",
+        "skin_contact": "excellent"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "day.engineer_jacket",
+      "name": "Asymmetric engineer jacket",
+      "garment_type": "engineer_jacket",
+      "fit": "tailored",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "matte abrasion-resistant technical shell",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "asymmetric_panelled",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "asymmetric_zip",
+        "reinforced_panels",
+        "cyan_micro_accents",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "day",
+        "engineer",
+        "technical",
+        "outerwear"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "technical",
+      "canonical": true,
+      "description": "A tailored hip-length black engineer jacket with long sleeves and an asymmetric front zip. Crimson edge lines, small cyan hardware accents, and reinforced shoulder and forearm panels give it a practical cyber-engineering look. The rear hem is shaped around the tail opening."
+    },
+    {
+      "item_id": "outer.black_bomber",
+      "name": "Black casual bomber jacket",
+      "garment_type": "bomber_jacket",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "soft matte technical twill",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ribbed_cuffs",
+        "front_zip"
+      ],
+      "style_tags": [
+        "casual",
+        "bomber",
+        "black"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A fitted black bomber jacket with dark-violet ribbed cuffs, a clean front zip, and a soft matte technical-twill shell."
+    },
+    {
+      "item_id": "outer.violet_bomber",
+      "name": "Dark-violet circuit bomber",
+      "garment_type": "bomber_jacket",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "light technical twill",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "panelled",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "ribbed_cuffs",
+        "cyan_piping"
+      ],
+      "style_tags": [
+        "casual",
+        "bomber",
+        "violet",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A relaxed dark-violet bomber with cyan panel piping, ribbed cuffs, and a light technical-twill body for cool evenings."
+    },
+    {
+      "item_id": "outer.cyan_windbreaker",
+      "name": "Cyan-accent windbreaker",
+      "garment_type": "windbreaker",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "ultralight wind-resistant shell",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "packable_hood",
+        "elastic_cuffs"
+      ],
+      "style_tags": [
+        "wind",
+        "technical",
+        "lightweight"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "wind",
+      "canonical": false,
+      "description": "An ultralight black windbreaker with cyan accents, elastic cuffs, and a compact packable hood for breezy weather."
+    },
+    {
+      "item_id": "outer.black_rain_shell",
+      "name": "Black technical rain shell",
+      "garment_type": "rain_jacket",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "sealed waterproof breathable shell",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "sealed_seams",
+        "storm_hood",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "rain",
+        "waterproof",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "rain",
+      "canonical": false,
+      "description": "A black waterproof rain shell with dark-violet trim, sealed seams, a storm hood, and rear shaping around the tail opening."
+    },
+    {
+      "item_id": "outer.cropped_cyber_jacket",
+      "name": "Cropped cyber jacket",
+      "garment_type": "cropped_jacket",
+      "fit": "fitted",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": "long",
+      "material": "smooth technical shell",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "panelled",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "asymmetric_zip",
+        "structured_shoulders"
+      ],
+      "style_tags": [
+        "cropped",
+        "cyber",
+        "technical"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A fitted cropped black jacket with cyan panel seams, an asymmetric zip, and lightly structured shoulders for a sharper cyber-tech silhouette."
+    },
+    {
+      "item_id": "outer.black_denim_jacket",
+      "name": "Black denim jacket",
+      "garment_type": "denim_jacket",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "softened black stretch denim",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "metal_buttons",
+        "chest_pockets"
+      ],
+      "style_tags": [
+        "denim",
+        "casual",
+        "black"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A fitted black stretch-denim jacket with restrained crimson hardware, classic chest pockets, and softened construction for easier movement."
+    },
+    {
+      "item_id": "outer.violet_denim_jacket",
+      "name": "Dark-violet denim jacket",
+      "garment_type": "denim_jacket",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "soft dark-violet stretch denim",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "metal_buttons",
+        "chest_pockets"
+      ],
+      "style_tags": [
+        "denim",
+        "casual",
+        "violet"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A relaxed dark-violet denim jacket with black stitching and hardware, softened for everyday casual layering."
+    },
+    {
+      "item_id": "outer.black_leather_jacket",
+      "name": "Black fitted leather jacket",
+      "garment_type": "leather_jacket",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "matte flexible synthetic leather",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "asymmetric_zip",
+        "zip_cuffs"
+      ],
+      "style_tags": [
+        "leather",
+        "edgy",
+        "smart_casual"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cool_weather",
+      "canonical": false,
+      "description": "A fitted matte-black leather-style jacket with crimson zipper details, an asymmetric front, and flexible panels through the shoulders."
+    },
+    {
+      "item_id": "outer.violet_fleece_jacket",
+      "name": "Violet fleece jacket",
+      "garment_type": "fleece_jacket",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "soft technical fleece",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "high_collar",
+        "zip_pockets"
+      ],
+      "style_tags": [
+        "fleece",
+        "cozy",
+        "cool_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cool_weather",
+      "canonical": false,
+      "description": "A relaxed dark-violet technical fleece jacket with a soft high collar, black trim, and zip pockets for cool casual weather."
+    },
+    {
+      "item_id": "outer.long_lounge_cardigan",
+      "name": "Long soft lounge cardigan",
+      "garment_type": "cardigan",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "upper_thigh",
+      "sleeve_length": "long",
+      "material": "soft brushed knit",
+      "primary": "dark_violet",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "open_front",
+        "soft_cuffs"
+      ],
+      "style_tags": [
+        "lounge",
+        "cardigan",
+        "soft"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "lounge",
+      "canonical": false,
+      "description": "A long relaxed dark-violet cardigan in brushed knit with an open front, soft-violet edging, and loose comfortable sleeves."
+    },
+    {
+      "item_id": "outer.technical_utility_vest",
+      "name": "Technical utility vest",
+      "garment_type": "utility_vest",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "light technical ripstop",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "low_profile_pockets",
+        "front_zip"
+      ],
+      "style_tags": [
+        "utility",
+        "technical",
+        "vest"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "technical",
+      "canonical": false,
+      "description": "A fitted black technical utility vest with cyan zip details and compact low-profile pockets for light engineering work."
+    },
+    {
+      "item_id": "outer.violet_puffer_vest",
+      "name": "Dark-violet puffer vest",
+      "garment_type": "puffer_vest",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "light insulated quilted shell",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "stand_collar",
+        "zip_pockets"
+      ],
+      "style_tags": [
+        "puffer",
+        "vest",
+        "cool_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cool_weather",
+      "canonical": false,
+      "description": "A fitted dark-violet quilted puffer vest with black trim, a low stand collar, and light insulation for cool weather."
+    },
+    {
+      "item_id": "outer.black_winter_parka",
+      "name": "Black winter parka",
+      "garment_type": "parka",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "upper_thigh",
+      "sleeve_length": "long",
+      "material": "insulated waterproof technical shell",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "insulated_hood",
+        "storm_cuffs",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "winter",
+        "parka",
+        "weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cold_weather",
+      "canonical": false,
+      "description": "A black insulated upper-thigh parka with dark-violet trim, a warm storm hood, sealed cuffs, and rear shaping for the tail."
+    },
+    {
+      "item_id": "outer.technical_trench",
+      "name": "Technical black trench coat",
+      "garment_type": "trench_coat",
+      "fit": "tailored",
+      "rise": null,
+      "length": "knee",
+      "sleeve_length": "long",
+      "material": "water-resistant tailored technical weave",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "belted_waist",
+        "storm_flap",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "trench",
+        "technical",
+        "smart"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "A tailored black knee-length technical trench with crimson hardware, a clean belt, weather flap, and split rear construction around the tail."
+    },
+    {
+      "item_id": "outer.long_violet_coat",
+      "name": "Long dark-violet coat",
+      "garment_type": "long_coat",
+      "fit": "tailored",
+      "rise": null,
+      "length": "knee",
+      "sleeve_length": "long",
+      "material": "soft structured wool-blend technical knit",
+      "primary": "dark_violet",
+      "accent": "black",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "high_collar",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "coat",
+        "smart",
+        "violet"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "A tailored dark-violet knee-length coat with a clean high collar, black edging, and a rear split shaped around the tail."
+    },
+    {
+      "item_id": "outer.smart_black_coat",
+      "name": "Smart black fitted coat",
+      "garment_type": "coat",
+      "fit": "tailored",
+      "rise": null,
+      "length": "upper_thigh",
+      "sleeve_length": "long",
+      "material": "smooth structured technical wool",
+      "primary": "black",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "hidden_buttons",
+        "tail_clearance"
+      ],
+      "style_tags": [
+        "coat",
+        "smart_casual",
+        "black"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "A fitted black upper-thigh coat with hidden buttons, dark-violet lining accents, and a polished smart-casual silhouette."
+    },
+    {
+      "item_id": "outer.violet_cape",
+      "name": "Dark-violet shoulder cape",
+      "garment_type": "cape",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": null,
+      "material": "soft structured drape knit",
+      "primary": "dark_violet",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "shoulder_clasp"
+      ],
+      "style_tags": [
+        "cape",
+        "dramatic",
+        "smart"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "smart",
+      "canonical": false,
+      "description": "A dark-violet hip-length shoulder cape with a soft structured drape and restrained cyan clasp, designed as a dramatic but clean outer layer."
+    },
+    {
+      "item_id": "outer.light_cropped_jacket",
+      "name": "Light black cropped jacket",
+      "garment_type": "cropped_jacket",
+      "fit": "relaxed",
+      "rise": null,
+      "length": "cropped",
+      "sleeve_length": "long",
+      "material": "light soft-shell knit",
+      "primary": "black",
+      "accent": "soft_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "soft_cuffs",
+        "front_zip"
+      ],
+      "style_tags": [
+        "cropped",
+        "casual",
+        "lightweight"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "casual",
+      "canonical": false,
+      "description": "A relaxed cropped black jacket in light soft-shell knit with soft-violet trim, a simple front zip, and comfortable cuffs."
+    },
+    {
+      "item_id": "outer.insulated_bomber",
+      "name": "Insulated technical bomber",
+      "garment_type": "bomber_jacket",
+      "fit": "fitted",
+      "rise": null,
+      "length": "hip",
+      "sleeve_length": "long",
+      "material": "light insulated technical shell",
+      "primary": "black",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "insulated_panels",
+        "ribbed_cuffs"
+      ],
+      "style_tags": [
+        "bomber",
+        "technical",
+        "cold_weather"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "cold_weather",
+      "canonical": false,
+      "description": "A fitted black bomber jacket with crimson details, light insulated panels, and ribbed cuffs for colder casual conditions."
+    }
+  ]
+}

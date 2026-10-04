@@ -1483,22 +1483,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
         *_load_wardrobe_data_file("bottoms.json"),
         *_load_wardrobe_data_file("one_pieces.json"),
         *_load_wardrobe_data_file("footwear.json"),
-        _blueprint(
-            GarmentDesign(
-                "day.engineer_jacket", "Asymmetric engineer jacket",
-                "engineer_jacket", "tailored", None, "hip", "long",
-                "matte abrasion-resistant technical shell", "black", "crimson",
-                "asymmetric_panelled", _no_graphic(),
-                ("asymmetric_zip", "reinforced_panels", "cyan_micro_accents", "tail_clearance"),
-                ("day", "engineer", "technical", "outerwear"), False,
-                "A tailored hip-length black engineer jacket with long sleeves "
-                "and an asymmetric front zip. Crimson edge lines, small cyan "
-                "hardware accents, and reinforced shoulder and forearm panels "
-                "give it a practical cyber-engineering look. The rear hem is "
-                "shaped around the tail opening."
-            ),
-            canonical=True,
-        ),
+        *_load_wardrobe_data_file("outerwear.json"),
         _blueprint(
             GarmentDesign(
                 "day.work_socks", "Technical crew socks", "crew_socks",
