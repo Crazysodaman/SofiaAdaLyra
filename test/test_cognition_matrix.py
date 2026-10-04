@@ -1733,3 +1733,15 @@ def test_response_matrix_rejects_internal_reasoning_tool_dump():
 
     assert result.disposition is ResponseValidationDisposition.RETRY
     assert "internal_reasoning_leak" in result.reasons
+
+
+def test_garment_generation_is_avatar_action_not_avatar_query():
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(
+        envelope("design yourself a new soft violet hoodie")
+    )
+
+    assert turn.intent is MatrixIntent.ACTION_REQUEST
+    assert turn.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+    assert turn.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
