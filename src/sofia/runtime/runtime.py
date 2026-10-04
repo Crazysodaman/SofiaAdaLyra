@@ -608,8 +608,7 @@ class SofiaRuntime:
         """Return live host authority for the current cognitive operation."""
         live_capabilities = tuple(
             dict.fromkeys(
-                self._configuration.standing_allowed_capabilities
-                + automatic_capabilities()
+                automatic_capabilities()
                 + tuple(
                     grant.capability
                     for grant in self._permission_store.grants(
