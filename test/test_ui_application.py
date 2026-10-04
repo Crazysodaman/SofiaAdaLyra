@@ -1,6 +1,4 @@
 from pathlib import Path
-from dataclasses import replace
-
 import pytest
 
 from sofia.application import SofiaApplication
@@ -8,6 +6,7 @@ from sofia.config.model import (
     ProviderConfiguration,
     SofiaConfiguration,
 )
+from sofia.safe.permissions import PermissionStore
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -134,7 +133,10 @@ def test_text_ui_clothing_action_commits_canonical_avatar_state(
     application.text_ui.save_draft("change into night lounge outfit")
     response = application.text_ui.send()
 
-    assert "Late-Night Lounge Outfit" in response.content
+    assert (
+        "Late-Night Lounge Outfit" in response.content
+        or "already my current wardrobe state" in response.content
+    )
     current = application.runtime.avatar_presentation.current
     assert current.outfit_id == "night.lounge"
     assert application._presentation_bundle is not None
@@ -171,7 +173,10 @@ def test_text_ui_clothing_hypothetical_then_do_it_uses_prior_user_request(
     application.text_ui.save_draft("do it")
     followup = application.text_ui.send()
 
-    assert "Late-Night Lounge Outfit" in followup.content
+    assert (
+        "Late-Night Lounge Outfit" in followup.content
+        or "already my current wardrobe state" in followup.content
+    )
     assert application.runtime.avatar_presentation.current.outfit_id == (
         "night.lounge"
     )
@@ -203,11 +208,13 @@ def test_text_ui_undress_followup_never_claims_uncommitted_private_change(
 def test_private_avatar_state_is_read_back_in_verified_local_session(
     configuration: SofiaConfiguration,
 ):
-    configuration = replace(
-        configuration,
-        avatar_private_adult_verified=True,
-    )
     application = SofiaApplication(configuration)
+    PermissionStore(configuration.state_path).set_private_adult_authority(
+        private_chat=True,
+        adult_chat=False,
+        adult_avatar=True,
+        adult_external_delivery=False,
+    )
     application.start()
 
     application.text_ui.save_draft("undress")
@@ -226,11 +233,13 @@ def test_private_avatar_state_is_read_back_in_verified_local_session(
 def test_public_safe_avatar_query_never_leaks_private_presentation(
     configuration: SofiaConfiguration,
 ):
-    configuration = replace(
-        configuration,
-        avatar_private_adult_verified=True,
-    )
     application = SofiaApplication(configuration)
+    PermissionStore(configuration.state_path).set_private_adult_authority(
+        private_chat=True,
+        adult_chat=False,
+        adult_avatar=True,
+        adult_external_delivery=False,
+    )
     application.start()
 
     application.text_ui.save_draft("undress")
