@@ -442,6 +442,28 @@ Canonical permission state belongs in `sofia.db`.
 
 The tray Settings permission UI must read and mutate that same canonical state.
 
+### Canonical authority implementation
+
+Production authority is now derived from exactly two standing sources:
+
+1. Capabilities explicitly classified as Level 1 or Level 2 in
+   `sofia.safe.permissions`.
+2. Active scoped Level-3 grants in `sofia.db`.
+
+Level-4 operations require exact subsystem approval evidence. Level-5 operations
+have no cognitive self-authorization path.
+
+Legacy `SOFIA_ALLOWED_CAPABILITIES`, old standing-capability configuration, and
+the previous protected-extra list are not execution-authority sources. Runtime
+composition normalizes standing authority back to the central permission policy.
+
+The live tool catalog reads current runtime authority, so Level-3 grants and
+revocations are visible without restarting Sofía.
+
+Production composition also fails closed when a registered capability has no
+explicit permission classification. This prevents new capabilities from silently
+falling into an accidental authority level.
+
 ## Final contract
 
 Sofía may autonomously:
