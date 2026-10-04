@@ -146,6 +146,12 @@ class GarmentBlueprint:
 
     @property
     def category(self) -> str:
+        # Preserve precise undergarment semantics for conversational queries
+        # while the creator itself remains type/family driven.
+        if self.design.garment_type == "bralette":
+            return "closet.bra"
+        if self.design.garment_type == "briefs":
+            return "closet.panty"
         family = garment_type(self.design.garment_type).family.value
         return f"closet.{family}"
 

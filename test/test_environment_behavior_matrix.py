@@ -100,7 +100,7 @@ def presentation_authority():
     return catalog, PresentationAuthority(
         catalog.wardrobe,
         outfits={plan.outfit_id: plan.item_ids for plan in catalog.presets},
-        canonical_daily_outfit_id="engineer.signature",
+        canonical_daily_outfit_id="day.default",
         initial_appearance=AppearanceState(
             "long layered",
             "deep crimson",
@@ -148,7 +148,7 @@ def test_one_snapshot_drives_emotion_context_avatar_and_outfit_without_becoming_
         catalog.wardrobe,
         catalog.presets,
     ).suggest(context)
-    assert proposal.outfit_id == "lounge.relaxed"
+    assert proposal.outfit_id == "night.lounge"
 
 
 def test_stale_weather_cannot_influence_avatar_or_wardrobe(tmp_path):

@@ -141,13 +141,14 @@ def test_current_outfit_recognizes_chat_shorthand():
         assert "day engineer outfit" in result.content
 
 
-def test_discord_panties_question_never_relabels_engineer_trousers():
-    result = answer("show me ur panties")
-    assert result.recognized
-    assert "doesn't identify a specific panties item" in result.content
-    assert "won't substitute my trousers" in result.content
-    assert "cannot generate images containing nudity" not in result.content
 
+def test_panties_question_uses_explicit_briefs_in_current_presentation():
+    result = answer("show me ur panties")
+
+    assert result.recognized
+    assert "Soft technical briefs" in result.content
+    assert "trousers" not in result.content.casefold()
+    assert "not evidence that an image was rendered" in result.content
 
 def test_underwear_display_uses_explicit_projected_item_when_present():
     embodiment, projection, _ = sources()
@@ -245,7 +246,8 @@ def test_current_outfit_recognizes_live_typo_and_followup_wording():
         assert "day engineer outfit" in result.content
 
 
-def test_panties_detail_question_uses_matrix_and_never_invents_color():
+
+def test_panties_detail_question_uses_exact_matrix_metadata():
     embodiment, projection, _ = sources()
     catalog = build_starter_wardrobe()
     result = AvatarSelfFactResolver().resolve(
@@ -259,35 +261,33 @@ def test_panties_detail_question_uses_matrix_and_never_invents_color():
     )
 
     assert result.recognized
-    assert "doesn't identify a specific panties item" in result.content
+    assert "Soft technical briefs" in result.content
+    assert "#0B0D12" in result.content
+    assert "soft breathable stretch knit" in result.content
     assert "sky-blue" not in result.content
     assert "floral" not in result.content
 
 
-def test_panties_detail_question_reports_exact_matrix_metadata_when_present():
+def test_panties_matrix_category_resolves_to_briefs_blueprint():
     embodiment, projection, _ = sources()
     catalog = build_starter_wardrobe()
-    panty = catalog.pieces(category="closet.panty", private_only=True)[0]
-    private_projection = replace(
-        projection,
-        item_ids=(panty.garment.item_id,),
-        item_names=(panty.garment.name,),
-        private_fallback_used=False,
+    briefs = next(
+        bp for bp in catalog.blueprints
+        if bp.garment.item_id == "base.briefs"
     )
-    matrix = build_wardrobe_matrix(catalog, private_projection.item_ids)
+    matrix = build_wardrobe_matrix(catalog, projection.item_ids)
 
     result = AvatarSelfFactResolver().resolve(
         "what color panties do you have on describe them",
         embodiment=embodiment,
-        presentation=private_projection,
+        presentation=projection,
         wardrobe_matrix=matrix,
     )
 
     assert result.recognized
-    assert panty.garment.name in result.content
-    assert panty.description in result.content
-    assert panty.primary_hex in result.content
-
+    assert briefs.garment.name in result.content
+    assert briefs.description in result.content
+    assert briefs.primary_hex in result.content
 
 def test_panties_question_in_nude_private_state_reports_no_clothing():
     embodiment, projection, _ = sources()
