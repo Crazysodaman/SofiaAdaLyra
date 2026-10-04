@@ -70,6 +70,7 @@ from sofia.self_model.model import (
     SofiaCoreState,
     create_core_state,
 )
+from sofia.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.self_model.operational import (
     SofiaOperationalSelfModel,
 )
@@ -138,6 +139,7 @@ class SofiaRuntime:
         self._cognitive_system = cognitive_system
         self._capability_system = capability_system
         self._configuration = configuration
+        self._permission_store = PermissionStore(configuration.state_path)
         self._private_presentation_grants = PrivatePresentationGrantResolver(
             state_path=configuration.state_path,
             adult_verified=configuration.avatar_private_adult_verified,
@@ -603,15 +605,22 @@ class SofiaRuntime:
             ) from exc
 
     def current_authority(self) -> Authority:
-        """Return the host authority used for a current cognitive operation."""
-        return Authority(
-            can_inspect_filesystem=(
-                self._filesystem_authorization is not None
-                and self._filesystem_inspector.authorized
-            ),
-            allowed_capabilities=(
+        """Return live host authority for the current cognitive operation."""
+        live_capabilities = tuple(
+            dict.fromkeys(
                 self._configuration.standing_allowed_capabilities
-            ),
+                + automatic_capabilities()
+                + tuple(
+                    grant.capability
+                    for grant in self._permission_store.grants(
+                        active_only=True
+                    )
+                )
+            )
+        )
+        return Authority(
+            can_inspect_filesystem=self._filesystem_inspector.authorized,
+            allowed_capabilities=live_capabilities,
         )
 
     def matrix_evidence_availability(
