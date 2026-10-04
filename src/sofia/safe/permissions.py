@@ -181,6 +181,8 @@ _SAFE_AUTONOMOUS = frozenset({
     "sqlite.state.backup",
     "sqlite.state.wal_checkpoint",
     "sqlite.state.vacuum",
+    "knowledge.ingest.text",
+    "knowledge.ingest.pdf",
 })
 
 _REVERSIBLE = frozenset({
@@ -200,15 +202,7 @@ _REVERSIBLE = frozenset({
     "storage.mkdir",
     "storage.copy",
     "storage.move",
-    "remote.service.start",
-    "remote.service.stop",
-    "remote.service.restart",
-    "remote.vm.start",
-    "remote.vm.stop",
-    "remote.container.restart",
-    "remote.ollama.pull",
-    "remote.ollama.load",
-    "remote.ollama.unload",
+    "knowledge.document.write",
 })
 
 _PROTECTED = frozenset({
@@ -218,11 +212,17 @@ _PROTECTED = frozenset({
     "local.host.reboot",
     "local.package.update",
     "storage.delete",
+    "remote.service.start",
+    "remote.service.stop",
+    "remote.service.restart",
+    "remote.vm.start",
+    "remote.vm.stop",
+    "remote.container.restart",
+    "remote.ollama.pull",
+    "remote.ollama.load",
+    "remote.ollama.unload",
     "remote.host.reboot",
     "remote.package.update",
-    "knowledge.ingest.text",
-    "knowledge.ingest.pdf",
-    "knowledge.document.write",
     "dev.apply",
     "dev.rollback",
     "dev.commit",
