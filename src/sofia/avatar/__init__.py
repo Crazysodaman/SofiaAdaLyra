@@ -50,7 +50,6 @@ from .presentation import (
 from .presentation_store import PresentationStore, PresentationStoreError
 from .runtime_state import (
     PresentationRuntimeBundle, load_or_bootstrap_presentation,
-    presentation_state_path,
 )
 from .wardrobe_planner import EmotionStyleInfluence
 
@@ -60,7 +59,7 @@ __all__ += [
     "PresentationError", "PresentationProjection", "PresentationState",
     "PrivatePresentationGrant", "PresentationStore", "PresentationStoreError",
     "PresentationRuntimeBundle", "load_or_bootstrap_presentation",
-    "presentation_state_path", "EmotionStyleInfluence",
+    "EmotionStyleInfluence",
 ]
 
 from .presentation_routine import HeadlessPresentationRoutine, PresentationRoutineResult

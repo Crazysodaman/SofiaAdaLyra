@@ -128,11 +128,9 @@ def test_production_application_composes_live_interact_memory_act_environment_an
     assert application.runtime.memory_system.uses_reviewed_memory is True
     assert isinstance(application.act, SofiaActService)
     assert application.runtime.environment_service is not None
-    assert application.wardrobe_studio is None
 
     application.start()
     try:
-        assert application.wardrobe_studio is not None
         assert application.runtime.avatar_presentation is not None
         assert hasattr(application.conversation, "current_emotional_state")
     finally:

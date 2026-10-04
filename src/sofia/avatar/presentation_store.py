@@ -191,22 +191,5 @@ class PresentationStore:
                 "presentation state is invalid"
             ) from exc
 
-    def snapshot_json(self) -> str | None:
-        try:
-            with closing(sqlite3.connect(self.path, timeout=10.0)) as db, db:
-                row = db.execute(
-                    """
-                    SELECT snapshot_json
-                    FROM avatar_presentation_state
-                    WHERE state_key=?
-                    """,
-                    (self._KEY,),
-                ).fetchone()
-        except sqlite3.Error as exc:
-            raise PresentationStoreError(
-                "failed to inspect presentation state"
-            ) from exc
-        return None if row is None else str(row[0])
-
     def exists(self) -> bool:
         return self.snapshot_json() is not None

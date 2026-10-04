@@ -17,7 +17,6 @@ from sofia.avatar.wardrobe_planner import (
     WardrobeContext,
     wardrobe_emotion_influences,
 )
-from sofia.avatar.wardrobe_studio import WardrobeStudio
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
@@ -214,7 +213,6 @@ class SofiaApplication:
         self._model_lifecycle_worker: ModelLifecycleWorker | None = None
         self._presentation_bundle: PresentationRuntimeBundle | None = None
         self._presentation_routine: HeadlessPresentationRoutine | None = None
-        self._wardrobe_studio: WardrobeStudio | None = None
         self._clothing_action_service: ClothingActionService | None = None
         self._ui_draft_store = UIDraftStore(configuration.state_path)
         self._text_ui = UITextClient(
@@ -394,10 +392,6 @@ class SofiaApplication:
             profile=profile,
         )
 
-    @property
-    def wardrobe_studio(self) -> WardrobeStudio | None:
-        """Return the live AVATAR design/composition studio after startup."""
-        return self._wardrobe_studio
 
     @staticmethod
     def _environment_fingerprint(
@@ -634,7 +628,6 @@ class SofiaApplication:
 
         self._presentation_bundle = None
         self._presentation_routine = None
-        self._wardrobe_studio = None
         self._clothing_action_service = None
         try:
             self._conversation_service.set_clothing_action_handler(None)
@@ -734,11 +727,6 @@ class SofiaApplication:
             self._runtime.set_avatar_presentation(bundle.authority)
             self._runtime.set_avatar_matrix_builder(bundle.matrix_for)
             self._presentation_bundle = bundle
-            self._wardrobe_studio = WardrobeStudio(
-                bundle.catalog,
-                authority=bundle.authority,
-                store=bundle.store,
-            )
             self._clothing_action_service = ClothingActionService(
                 bundle,
                 context_provider=self._wardrobe_autonomy_context,
@@ -1212,7 +1200,6 @@ class SofiaApplication:
                 self._runtime.set_avatar_matrix_builder(None)
                 self._presentation_bundle = None
                 self._presentation_routine = None
-                self._wardrobe_studio = None
                 self._clothing_action_service = None
                 self._conversation_service.set_clothing_action_handler(None)
                 self._conversation_service.close()

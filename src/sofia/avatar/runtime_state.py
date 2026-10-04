@@ -102,12 +102,7 @@ def _migrate_legacy_bootstrap_colors(
     return migrated
 
 
-def presentation_state_path(state_path: str | Path) -> Path:
-    """Return the canonical SQLite database that owns AVATAR presentation."""
-    return Path(state_path)
-
-
-def legacy_presentation_state_path(state_path: str | Path) -> Path:
+def _legacy_presentation_state_path(state_path: str | Path) -> Path:
     state = Path(state_path)
     return state.parent / "avatar-presentation.json"
 
@@ -181,10 +176,10 @@ def load_or_bootstrap_presentation(
 ) -> PresentationRuntimeBundle:
     catalog = build_starter_wardrobe()
     outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
-    store = PresentationStore(presentation_state_path(state_path))
+    store = PresentationStore(Path(state_path))
     _migrate_legacy_presentation_state(
         store=store,
-        legacy_path=legacy_presentation_state_path(state_path),
+        legacy_path=_legacy_presentation_state_path(state_path),
         wardrobe=catalog.wardrobe,
         outfits=outfits,
     )
