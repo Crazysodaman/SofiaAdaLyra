@@ -1612,38 +1612,6 @@
       "description": "A relaxed black cotton-modal T-shirt with soft-violet neckline and sleeve trim, designed as an easy everyday casual top."
     },
     {
-      "item_id": "top.oversized_crimson_graphic_tee",
-      "name": "Oversized crimson schematic tee",
-      "garment_type": "t_shirt",
-      "fit": "oversized",
-      "rise": null,
-      "length": "upper_thigh",
-      "sleeve_length": "short",
-      "material": "brushed cotton jersey",
-      "primary": "black",
-      "accent": "crimson",
-      "pattern": "solid",
-      "graphic": {
-        "enabled": true,
-        "placement": "back_center",
-        "design": "crimson_engineering_schematic"
-      },
-      "features": [
-        "dropped_shoulders"
-      ],
-      "style_tags": [
-        "graphic",
-        "oversized",
-        "casual"
-      ],
-      "private_only": false,
-      "content_rating": "standard",
-      "exposure": [],
-      "profile": "lounge",
-      "canonical": false,
-      "description": "An oversized black graphic T-shirt with a crimson engineering-schematic print across the back, dropped shoulders, and a soft upper-thigh hem."
-    },
-    {
       "item_id": "top.cropped_technical_tee",
       "name": "Cropped technical T-shirt",
       "garment_type": "crop_top",
