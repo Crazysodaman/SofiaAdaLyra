@@ -113,7 +113,7 @@ def test_late_night_context_selects_lounge():
     assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
 
 
-def test_grounded_fondness_can_nudge_lounge_without_overriding_engineering():
+def test_grounded_fondness_does_not_override_daypart_or_engineering():
     emotion = wardrobe_emotion_influences(influence("fondness", 1.0))
     conversation = planner().suggest(
         WardrobeContext(
@@ -132,10 +132,23 @@ def test_grounded_fondness_can_nudge_lounge_without_overriding_engineering():
         )
     )
 
-    assert conversation.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
-    assert "modeled_emotion_influence" in conversation.reasons
+    assert conversation.outfit_id == DAY_DEFAULT_OUTFIT_ID
     assert engineering.outfit_id == DAY_DEFAULT_OUTFIT_ID
 
+
+def test_grounded_fondness_can_reinforce_lounge_when_context_already_fits():
+    emotion = wardrobe_emotion_influences(influence("fondness", 1.0))
+    result = planner().suggest(
+        WardrobeContext(
+            NIGHT,
+            Season.AUTUMN,
+            Activity.CONVERSATION,
+            emotion_influences=emotion,
+        )
+    )
+
+    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
+    assert "modeled_emotion_influence" in result.reasons
 
 def test_season_remains_a_hard_compatibility_constraint():
     catalog = build_starter_wardrobe()
