@@ -87,6 +87,14 @@ _INTERACTION_FOLLOWUP = re.compile(
     r"(?:doing\s+)?(?:it|that|this)\s*[?.!]*\s*$",
     re.IGNORECASE,
 )
+_EXPRESSION_FOLLOWUP = re.compile(
+    r"^\s*(?:so\s+)?(?:no\s+)?(?:"
+    r"tail\s+(?:wag(?:s|ging)?|swish(?:es|ing)?|flick(?:s|ing)?|movement)|"
+    r"ears?\s+(?:twitch(?:es|ing)?|perk(?:s|ing)?|flick(?:s|ing)?)|"
+    r"smile|grin|blush|gesture|expression"
+    r")(?:\s+or\s+anything)?\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
 _MEMORY = re.compile(
     r"\b(?:remember|remembered|memory|earlier|last\s+time|"
     r"what\s+did\s+i\s+say|what\s+did\s+we\s+talk)\b",
@@ -133,6 +141,12 @@ _CLOTHING_ACTION = re.compile(
     r"take\s+off|take\s+.+?\s+off|remove|swap|switch|undress|"
     r"get\s+undressed)\b",
     re.IGNORECASE,
+)
+_CLOTHING_CONSTRAINED_ACTION = re.compile(
+    r"\b(?:outfit|loungewear|night\s*wear|nightwear)\b.{0,96}"
+    r"\b(?:without|no)\s+(?:a\s+)?(?:bra|bralette|panties|panty|"
+    r"briefs|underwear)\b",
+    re.IGNORECASE | re.DOTALL,
 )
 _WARDROBE_GENERATION_ACTION = re.compile(
     r"^\s*(?:please\s+)?(?:design|generate|create|make)\s+.*"
@@ -235,6 +249,31 @@ class BaselineTurnClassifier:
                 ),
             )
 
+        if _EXPRESSION_FOLLOWUP.fullmatch(text):
+            return TurnMatrix(
+                intent=MatrixIntent.GENERAL,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.LAST_TURN,
+                response_strategy=ResponseStrategy.GENERATIVE,
+                domains=(
+                    _contribution(
+                        MatrixDomain.AVATAR,
+                        MatrixRelevance.REQUIRED,
+                        "short represented-expression follow-up",
+                    ),
+                    _contribution(
+                        MatrixDomain.EMOTION,
+                        MatrixRelevance.RELEVANT,
+                        "current modeled emotion can ground embodied expression",
+                    ),
+                    _contribution(
+                        MatrixDomain.INTERACTION,
+                        MatrixRelevance.CONTEXTUAL,
+                        "represented expression may continue the prior exchange",
+                    ),
+                ),
+            )
+
         if _PERCEIVED_SELF_STATE.fullmatch(text):
             return TurnMatrix(
                 intent=MatrixIntent.SOCIAL_CHECKIN,
@@ -332,6 +371,7 @@ class BaselineTurnClassifier:
 
         if (
             _CLOTHING_ACTION.search(text)
+            or _CLOTHING_CONSTRAINED_ACTION.search(text)
             or _WARDROBE_GENERATION_ACTION.search(text)
             or _ACTION.search(text)
             or _PRIMARY_ACTION.search(text)
@@ -350,6 +390,7 @@ class BaselineTurnClassifier:
             avatar_action = (
                 _AVATAR.search(text) is not None
                 or _CLOTHING_ACTION.search(text) is not None
+                or _CLOTHING_CONSTRAINED_ACTION.search(text) is not None
                 or _WARDROBE_GENERATION_ACTION.search(text) is not None
             )
             interaction_control = (
