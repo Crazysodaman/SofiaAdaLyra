@@ -215,7 +215,7 @@ def test_permission_inspection_is_owner_private_and_reports_live_state(tmp_path)
         CapabilityRequest(
             capability=capability.capability,
             parameters={
-                "__principal_id": "principal:sparks",
+                "__principal_id": "person:sparks",
                 "__audience_id": "local:sparks",
                 "__audience_kind": "private",
             },
