@@ -357,10 +357,46 @@ class WardrobeContext:
 
     @property
     def effective_weather(self) -> Weather | None:
-        if self.weather is None:
-            return None
-        age = self.now.astimezone(timezone.utc) - self.weather.observed_at.astimezone(timezone.utc)
-        return self.weather.condition if timedelta(0) <= age <= timedelta(hours=6) else None
+        if self.weather is not None:
+            age = (
+                self.now.astimezone(timezone.utc)
+                - self.weather.observed_at.astimezone(timezone.utc)
+            )
+            if timedelta(0) <= age <= timedelta(hours=6):
+                return self.weather.condition
+
+        condition = (self.weather_condition or "").casefold()
+        temperature = self.effective_temperature_c
+        if any(
+            token in condition
+            for token in (
+                "rain",
+                "shower",
+                "drizzle",
+                "thunder",
+                "storm",
+                "hail",
+                "sleet",
+                "pour",
+            )
+        ):
+            return Weather.WET
+        if (
+            any(
+                token in condition
+                for token in ("snow", "ice", "frost", "freez")
+            )
+            or (
+                temperature is not None
+                and temperature <= 10.0
+            )
+        ):
+            return Weather.COLD
+        if temperature is not None and temperature >= 27.0:
+            return Weather.HOT
+        if self.weather_condition is not None or temperature is not None:
+            return Weather.MILD
+        return None
 
     @property
     def effective_temperature_c(self) -> float | None:
@@ -723,6 +759,27 @@ class OutfitPlanner:
                 "no activity-compatible covered outfit; "
                 "host must use verified fallback"
             )
+
+        physical_environment_grounded = any(
+            value is not None
+            for value in (
+                context.effective_temperature_c,
+                context.precipitation_kind,
+                context.wind_kph,
+            )
+        )
+        if physical_environment_grounded and self._designs:
+            suitable = [
+                entry
+                for entry in compatible
+                if not self._outfit_profile_score(
+                    entry[0],
+                    context,
+                )[1]
+            ]
+            if suitable:
+                compatible = suitable
+
         recent = tuple(sorted((w for w in worn if timedelta(0) <= (
             context.now.astimezone(timezone.utc) - w.occurred_at.astimezone(timezone.utc)
         ) <= timedelta(days=90)), key=lambda w: (w.occurred_at.astimezone(timezone.utc), w.renderer_receipt_id)))
