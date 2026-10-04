@@ -263,7 +263,7 @@ def test_panties_detail_question_uses_exact_matrix_metadata():
     assert result.recognized
     assert "Soft technical briefs" in result.content
     assert "#0B0D12" in result.content
-    assert "soft breathable stretch knit" in result.content
+    assert "comfortable tailored opening" in result.content
     assert "sky-blue" not in result.content
     assert "floral" not in result.content
 
