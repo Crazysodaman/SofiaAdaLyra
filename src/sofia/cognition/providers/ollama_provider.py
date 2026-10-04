@@ -115,6 +115,8 @@ class OllamaProvider(LLMProvider):
             options["seed"] = self.configuration.seed
         if self.configuration.context_size is not None:
             options["num_ctx"] = self.configuration.context_size
+        if self.configuration.max_output_tokens is not None:
+            options["num_predict"] = self.configuration.max_output_tokens
         return options
 
     @staticmethod
