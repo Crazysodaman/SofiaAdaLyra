@@ -123,6 +123,7 @@ _READ_ONLY = frozenset({
     "machine.discover.local",
     "ops.fleet.list",
     "ops.fleet.get",
+    "ops.fleet.enrollment_evidence",
     "ops.telemetry.latest",
     "ops.placement.choose",
     "ops.drift.detect",
