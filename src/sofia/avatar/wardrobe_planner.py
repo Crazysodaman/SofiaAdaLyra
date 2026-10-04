@@ -709,8 +709,14 @@ class OutfitPlanner:
             raise WardrobeError("duplicate renderer receipts")
         key = period_key(context.now, cadence)
         compatible = [
-            (plan, outfit) for plan, outfit in self._plans.values()
+            (plan, outfit)
+            for plan, outfit in self._plans.values()
             if context.activity in plan.activities
+            and not (
+                plan.lounge
+                and "night" in plan.style_tags
+                and not context.lounge_window
+            )
         ]
         if not compatible:
             raise WardrobeError(
