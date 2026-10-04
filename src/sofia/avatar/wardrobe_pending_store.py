@@ -63,6 +63,16 @@ class PendingGeneratedWardrobeStore:
                 "only ASK_SPARKS decisions belong in pending wardrobe state"
             )
 
+        existing = self.load()
+        if (
+            existing is not None
+            and existing.blueprint.garment.item_id
+            != blueprint.garment.item_id
+        ):
+            raise WardrobeError(
+                "another generated garment is already awaiting Sparks input"
+            )
+
         profile_id = GeneratedWardrobeStore._profile_id(blueprint)
         row = GeneratedWardrobeStore._row(
             blueprint,
