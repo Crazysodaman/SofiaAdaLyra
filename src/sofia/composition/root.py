@@ -49,7 +49,6 @@ from sofia.machine.capability import HardwareInspectionCapability,MachineCapabil
 from sofia.machine.discovery import create_machine_discovery
 from sofia.machine.location import MachineLocationRegistry
 from sofia.ops.capability import OpsCapabilitySet,OpsToolService,create_ops_tool_bindings
-from sofia.safe.capability_policy import protected_capability_extras
 from sofia.safe.dev_approval import DevApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.operator_stop import OperatorStopStore
@@ -112,28 +111,11 @@ def compose(
         configuration,
         state_plane,
     )
-    protected_extras = protected_capability_extras(state_plane)
     permission_store = PermissionStore(state_path)
-    permission_extras = tuple(
-        dict.fromkeys(
-            automatic_capabilities()
-            + tuple(
-                grant.capability
-                for grant in permission_store.grants(active_only=True)
-            )
-        )
+    configuration = replace(
+        configuration,
+        standing_allowed_capabilities=automatic_capabilities(),
     )
-    if protected_extras or permission_extras:
-        configuration = replace(
-            configuration,
-            standing_allowed_capabilities=tuple(
-                dict.fromkeys(
-                    configuration.standing_allowed_capabilities
-                    + protected_extras
-                    + permission_extras
-                )
-            ),
-        )
     configuration = _configuration_with_persistent_host_location(
         configuration,
         state_plane,
@@ -347,7 +329,11 @@ def compose(
 
     tool_catalog_capability = ToolCatalogCapability(
         capability_system,
-        configuration.standing_allowed_capabilities,
+        lambda: (
+            runtime_holder["runtime"]
+            .current_authority()
+            .allowed_capabilities
+        ),
     )
     capability_system.register(
         capability=tool_catalog_capability.capability,
