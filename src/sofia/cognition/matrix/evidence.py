@@ -61,69 +61,88 @@ class MatrixEvidencePlanner:
                     EvidenceRequirement(key, kind, required)
                 )
 
-        if (
-            turn.relevance_for(MatrixDomain.ENVIRONMENT)
-            is not MatrixRelevance.NONE
-        ):
+        environment_relevance = turn.relevance_for(MatrixDomain.ENVIRONMENT)
+        if environment_relevance is not MatrixRelevance.NONE:
             text = "" if envelope is None else envelope.content
+            environment_required = (
+                environment_relevance is MatrixRelevance.REQUIRED
+            )
             if envelope is None:
-                require("environment.current", EvidenceKind.CURRENT)
+                require(
+                    "environment.current",
+                    EvidenceKind.CURRENT,
+                    required=environment_required,
+                )
             else:
                 matched = False
                 if _WEATHER.search(text):
                     require(
                         "environment.weather.current",
                         EvidenceKind.CURRENT,
+                        required=environment_required,
                     )
                     matched = True
                 if _CLOCK.search(text):
                     require(
                         "environment.clock.current",
                         EvidenceKind.CURRENT,
+                        required=environment_required,
                     )
                     matched = True
                 if _LOCATION.search(text):
                     require(
                         "environment.location.current",
                         EvidenceKind.CURRENT,
+                        required=environment_required,
                     )
                     matched = True
                 if _CALENDAR.search(text):
                     require(
                         "environment.calendar.current",
                         EvidenceKind.CURRENT,
+                        required=environment_required,
                     )
                     matched = True
                 if not matched:
-                    require("environment.current", EvidenceKind.CURRENT)
+                    require(
+                        "environment.current",
+                        EvidenceKind.CURRENT,
+                        required=environment_required,
+                    )
 
-        if (
-            turn.relevance_for(MatrixDomain.AVATAR)
-            is not MatrixRelevance.NONE
-        ):
-            require("avatar.canonical", EvidenceKind.CANONICAL)
-        if (
-            turn.relevance_for(MatrixDomain.INTERACTION)
-            is not MatrixRelevance.NONE
-        ):
+        avatar_relevance = turn.relevance_for(MatrixDomain.AVATAR)
+        if avatar_relevance is not MatrixRelevance.NONE:
+            require(
+                "avatar.canonical",
+                EvidenceKind.CANONICAL,
+                required=(
+                    avatar_relevance is MatrixRelevance.REQUIRED
+                    or turn.intent is MatrixIntent.ACTION_REQUEST
+                ),
+            )
+
+        interaction_relevance = turn.relevance_for(MatrixDomain.INTERACTION)
+        if interaction_relevance is not MatrixRelevance.NONE:
             require(
                 "interaction.interpretation",
                 EvidenceKind.CANONICAL,
+                required=interaction_relevance is MatrixRelevance.REQUIRED,
             )
-        if (
-            turn.relevance_for(MatrixDomain.EMOTION)
-            is not MatrixRelevance.NONE
-        ):
+
+        emotion_relevance = turn.relevance_for(MatrixDomain.EMOTION)
+        if emotion_relevance is not MatrixRelevance.NONE:
             require(
                 "emotion.current",
                 EvidenceKind.CURRENT,
-                required=False,
+                required=emotion_relevance is MatrixRelevance.REQUIRED,
             )
-        if (
-            turn.relevance_for(MatrixDomain.MEMORY)
-            is not MatrixRelevance.NONE
-        ):
-            require("memory.retrieval", EvidenceKind.REMEMBERED)
+        memory_relevance = turn.relevance_for(MatrixDomain.MEMORY)
+        if memory_relevance is not MatrixRelevance.NONE:
+            require(
+                "memory.retrieval",
+                EvidenceKind.REMEMBERED,
+                required=memory_relevance is MatrixRelevance.REQUIRED,
+            )
         rel_relevance = turn.relevance_for(MatrixDomain.REL)
         if rel_relevance is not MatrixRelevance.NONE:
             require(
@@ -138,18 +157,20 @@ class MatrixEvidencePlanner:
                 EvidenceKind.REMEMBERED,
                 required=habit_relevance is MatrixRelevance.REQUIRED,
             )
-        if (
-            turn.relevance_for(MatrixDomain.VOICE)
-            is not MatrixRelevance.NONE
-        ):
-            require("voice.runtime.current", EvidenceKind.CURRENT)
-        if (
-            turn.relevance_for(MatrixDomain.COGNITION)
-            is not MatrixRelevance.NONE
-        ):
+        voice_relevance = turn.relevance_for(MatrixDomain.VOICE)
+        if voice_relevance is not MatrixRelevance.NONE:
+            require(
+                "voice.runtime.current",
+                EvidenceKind.CURRENT,
+                required=voice_relevance is MatrixRelevance.REQUIRED,
+            )
+
+        cognition_relevance = turn.relevance_for(MatrixDomain.COGNITION)
+        if cognition_relevance is not MatrixRelevance.NONE:
             require(
                 "cognition.configuration",
                 EvidenceKind.CANONICAL,
+                required=cognition_relevance is MatrixRelevance.REQUIRED,
             )
         if (
             turn.relevance_for(MatrixDomain.MACHINE)
@@ -161,11 +182,13 @@ class MatrixEvidencePlanner:
                 "operational.measurement",
                 EvidenceKind.MEASURED,
             )
-        if (
-            turn.relevance_for(MatrixDomain.CONTINUITY)
-            is not MatrixRelevance.NONE
-        ):
-            require("continuity.current", EvidenceKind.CURRENT)
+        continuity_relevance = turn.relevance_for(MatrixDomain.CONTINUITY)
+        if continuity_relevance is not MatrixRelevance.NONE:
+            require(
+                "continuity.current",
+                EvidenceKind.CURRENT,
+                required=continuity_relevance is MatrixRelevance.REQUIRED,
+            )
         if turn.intent is MatrixIntent.ACTION_REQUEST:
             require(
                 "action.execution_receipt",
