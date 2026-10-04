@@ -135,6 +135,8 @@ def run_settings_window() -> int:
     store = DesktopControlSettingsStore(config.state_path)
     runtime_store = RuntimeUserSettingsStore(config.state_path)
     secrets = ProtectedSecretStore.for_state_path(config.state_path)
+    permission_store = PermissionStore(config.state_path)
+    private_authority = permission_store.private_adult_authority()
     activity = HostActivityStore(config.state_path)
     current = store.enforce_canonical_local_chat(
         at=datetime.now(timezone.utc),
@@ -276,6 +278,22 @@ def run_settings_window() -> int:
     current_location_age = tk.StringVar(
         value=str(runtime.current_location_max_age_seconds)
     )
+
+    private_chat = tk.BooleanVar(value=private_authority.private_chat)
+    adult_chat = tk.BooleanVar(value=private_authority.adult_chat)
+    adult_avatar = tk.BooleanVar(value=private_authority.adult_avatar)
+    adult_external_delivery = tk.BooleanVar(
+        value=private_authority.adult_external_delivery
+    )
+    grant_capability = tk.StringVar(
+        value=(
+            grantable_capabilities()[0]
+            if grantable_capabilities()
+            else ""
+        )
+    )
+    grant_scope = tk.StringVar(value="{}")
+    grant_expiry_minutes = tk.StringVar(value="")
 
     general = frames["General"]
     ttk.Label(
