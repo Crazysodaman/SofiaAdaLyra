@@ -12,7 +12,7 @@ from .wardrobe_planner import (
     Activity, Cadence, ChangeOrigin, ClothingAppraisal, OutfitPlan, OutfitPlanner,
     OutfitProposal, Preference, PreferenceActor, PreferenceTarget, Season,
     Sentiment, WardrobeContext, Weather, WeatherObservation, WornEvidence,
-    appraise_clothing_change, period_key,
+    appraise_clothing_change, period_key, wardrobe_emotion_influences,
 )
 
 __all__ += [
@@ -20,6 +20,7 @@ __all__ += [
     "OutfitPlanner", "OutfitProposal", "Preference", "PreferenceActor",
     "PreferenceTarget", "Season", "Sentiment", "WardrobeContext", "Weather",
     "WeatherObservation", "WornEvidence", "appraise_clothing_change", "period_key",
+    "wardrobe_emotion_influences",
 ]
 
 from .wardrobe_catalog import (
@@ -87,15 +88,3 @@ from .self_fact_query import AvatarSelfFactAnswer, AvatarSelfFactResolver
 
 __all__ += ["AvatarSelfFactAnswer", "AvatarSelfFactResolver"]
 
-
-from .influence import (
-    AvatarInfluenceProposal,
-    propose_avatar_influence,
-    wardrobe_emotion_influences,
-)
-
-__all__ += [
-    "AvatarInfluenceProposal",
-    "propose_avatar_influence",
-    "wardrobe_emotion_influences",
-]

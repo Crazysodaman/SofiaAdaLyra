@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sofia.avatar.influence import wardrobe_emotion_influences
+from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
 from sofia.avatar.wardrobe import WardrobeError
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import (

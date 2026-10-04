@@ -14,7 +14,8 @@ import pytest
 from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
-from sofia.avatar.influence import propose_avatar_influence, wardrobe_emotion_influences
+from sofia.avatar.wardrobe_planner import wardrobe_emotion_influences
+from sofia.cognition.matrix.expression_plan import EmbodiedExpressionPlanner
 from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
@@ -131,17 +132,12 @@ def test_one_snapshot_drives_emotion_context_avatar_and_outfit_without_becoming_
     } == {"fondness"}
 
     catalog, authority = presentation_authority()
-    avatar = propose_avatar_influence(
-        current=authority.current,
+    expression = EmbodiedExpressionPlanner().plan(
+        message_id="environment-matrix-current",
         influence=influence,
     )
-    assert {"local_daypart", "season", "weather", "modeled_emotion"} <= set(
-        avatar.reasons
-    )
-    assert {"late-night", "season:autumn", "weather-cozy"} <= set(
-        avatar.appearance.style_tags
-    )
-    assert "soft-smile" in avatar.expression_tags
+    assert {"daypart", "weather"} <= set(expression.active_signals)
+    assert expression.primary is not None
 
     context = WardrobeContext.from_environment_snapshot(
         snapshot,
@@ -170,12 +166,11 @@ def test_stale_weather_cannot_influence_avatar_or_wardrobe(tmp_path):
     assert "Weather freshness: stale" in influence.prompt()
 
     catalog, authority = presentation_authority()
-    avatar = propose_avatar_influence(
-        current=authority.current,
+    expression = EmbodiedExpressionPlanner().plan(
+        message_id="environment-matrix-stale",
         influence=influence,
     )
-    assert "weather" not in avatar.reasons
-    assert "weather-cozy" not in avatar.appearance.style_tags
+    assert "weather" not in expression.active_signals
 
     context = WardrobeContext.from_environment_snapshot(
         snapshot,

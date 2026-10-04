@@ -15,6 +15,7 @@ from sofia.environment.model import (
     EnvironmentSnapshot,
     Season,
 )
+from sofia.personality.influence import ContinuityInfluence
 
 from .wardrobe import Wardrobe, WardrobeError, WardrobeConflict, Outfit
 
@@ -473,3 +474,38 @@ def appraise_clothing_change(
     else:
         cues = ("review_privacy", "possible_self_consciousness") if uncovered else ("confidence", "practicality")
     return ClothingAppraisal(origin, cues, requires_covered_recovery=uncovered)
+
+
+def wardrobe_emotion_influences(
+    influence: ContinuityInfluence,
+) -> tuple[EmotionStyleInfluence, ...]:
+    """Translate grounded modeled emotion into bounded wardrobe style bias."""
+    if not isinstance(influence, ContinuityInfluence):
+        raise TypeError("influence must be ContinuityInfluence")
+    if (
+        influence.primary_emotion is None
+        or influence.primary_intensity < 0.20
+        or not influence.primary_emotion_evidence_refs
+    ):
+        return ()
+
+    emotion = influence.primary_emotion
+    if emotion in {"joy", "excitement", "playfulness", "amusement"}:
+        tags = ("playful", "bright")
+    elif emotion in {"fondness", "affection", "warmth", "tenderness"}:
+        tags = ("soft", "cozy")
+    elif emotion in {"determination", "frustration", "anger"}:
+        tags = ("focused", "practical")
+    elif emotion in {"bashfulness", "embarrassment", "nervousness"}:
+        tags = ("soft", "reserved")
+    else:
+        tags = ("contextual",)
+
+    return (
+        EmotionStyleInfluence(
+            emotion=emotion,
+            intensity=influence.primary_intensity,
+            style_tags=tags,
+            evidence_refs=influence.primary_emotion_evidence_refs,
+        ),
+    )

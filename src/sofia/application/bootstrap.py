@@ -7,14 +7,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 
-from sofia.avatar.influence import wardrobe_emotion_influences
 from sofia.avatar.clothing_action import (
     ClothingActionService,
     WardrobeAutonomyContext,
 )
 from sofia.avatar.presentation_routine import HeadlessPresentationRoutine
 from sofia.avatar.presentation_store import PresentationStoreError
-from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
+from sofia.avatar.wardrobe_planner import (
+    Activity,
+    OutfitPlanner,
+    WardrobeContext,
+    wardrobe_emotion_influences,
+)
 from sofia.avatar.wardrobe_studio import WardrobeStudio
 from sofia.avatar.runtime_state import (
     PresentationRuntimeBundle,
