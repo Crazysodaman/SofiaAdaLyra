@@ -101,7 +101,7 @@ def test_public_safe_outfit_quick_tool_wording_is_authoritative():
 
     assert result.recognized
     assert "day engineer outfit" in result.content
-    assert "outfit ID: engineer.signature" in result.content
+    assert "outfit ID: day.default" in result.content
     assert "deep crimson hair" in result.content
     assert "dark violet tail" in result.content
     assert "style tags: canonical, engineer" in result.content
