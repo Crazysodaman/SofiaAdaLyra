@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
+from uuid import uuid4
 
 from sofia.config import create_production_configuration
 from sofia.config.model_catalog import (
@@ -20,6 +21,12 @@ from sofia.config.user_settings import (
 from sofia.environment.model import LocationSubject
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import ActivityMode, HostActivityStore
+from sofia.ops.capability import OpsToolService
+from sofia.safe.execution_approval import (
+    ExecutionApproval,
+    ExecutionApprovalVerifier,
+    execution_fingerprint,
+)
 from sofia.safe.secret_store import ProtectedSecretStore
 from sofia.safe.permissions import (
     PermissionStore,
@@ -136,6 +143,8 @@ def run_settings_window() -> int:
     runtime_store = RuntimeUserSettingsStore(config.state_path)
     secrets = ProtectedSecretStore.for_state_path(config.state_path)
     permission_store = PermissionStore(config.state_path)
+    execution_approvals = ExecutionApprovalVerifier(config.state_path)
+    fleet_ops = OpsToolService(config.state_path)
     private_authority = permission_store.private_adult_authority()
     activity = HostActivityStore(config.state_path)
     current = store.enforce_canonical_local_chat(
@@ -726,7 +735,7 @@ def run_settings_window() -> int:
         grants_frame,
         columns=("capability", "scope", "expires", "state"),
         show="headings",
-        height=7,
+        height=5,
     )
     permission_tree.heading("capability", text="Capability")
     permission_tree.heading("scope", text="Scope")
@@ -900,6 +909,154 @@ def run_settings_window() -> int:
         command=refresh_permission_grants,
     ).pack(side="left", padx=(6, 0))
     refresh_permission_grants()
+
+    fleet_frame = ttk.LabelFrame(
+        permissions,
+        text="Fleet candidates",
+        padding=8,
+    )
+    fleet_frame.pack(fill="both", expand=True, pady=(10, 0))
+    ttk.Label(
+        fleet_frame,
+        text=(
+            "Discovery is automatic/read-only. Adding a computer to Fleet is "
+            "a protected trust change and always requires your exact approval."
+        ),
+        wraplength=690,
+    ).pack(anchor="w", pady=(0, 6))
+    fleet_tree = ttk.Treeview(
+        fleet_frame,
+        columns=("host", "node", "endpoint", "state"),
+        show="headings",
+        height=4,
+    )
+    fleet_tree.heading("host", text="Candidate")
+    fleet_tree.heading("node", text="Observed node")
+    fleet_tree.heading("endpoint", text="Observed endpoint")
+    fleet_tree.heading("state", text="Enrollment")
+    fleet_tree.column("host", width=140, stretch=True)
+    fleet_tree.column("node", width=210, stretch=True)
+    fleet_tree.column("endpoint", width=190, stretch=True)
+    fleet_tree.column("state", width=130, stretch=False)
+    fleet_tree.pack(fill="both", expand=True, pady=(0, 6))
+
+    def refresh_fleet_candidates() -> None:
+        for item in fleet_tree.get_children():
+            fleet_tree.delete(item)
+        for host in fleet_ops.fleet():
+            if host["lifecycle"] != "candidate" or host["trusted"]:
+                continue
+            evidence = fleet_ops.enrollment_evidence(host["host_id"])
+            if evidence is None:
+                continue
+            node = evidence["node_id"] or "not observed"
+            endpoint = (
+                "not observed"
+                if not evidence["endpoint_hostname"]
+                else (
+                    f'{evidence["endpoint_hostname"]}:'
+                    f'{evidence["endpoint_port"]}'
+                )
+            )
+            state_text = (
+                "ready for approval"
+                if evidence["ready"]
+                else "needs verified agent"
+            )
+            fleet_tree.insert(
+                "",
+                "end",
+                iid=host["host_id"],
+                values=(host["host_id"], node, endpoint, state_text),
+            )
+
+    def approve_fleet_candidate() -> None:
+        selected = fleet_tree.selection()
+        if len(selected) != 1:
+            messagebox.showinfo(
+                "Select a Fleet candidate",
+                "Select one discovered candidate to approve.",
+                parent=root,
+            )
+            return
+        host_id = selected[0]
+        evidence = fleet_ops.enrollment_evidence(host_id)
+        if evidence is None or evidence["ready"] is not True:
+            messagebox.showerror(
+                "Candidate is not enrollment-ready",
+                (
+                    "This candidate needs fresh verified Fleet-agent identity, "
+                    "certificate, endpoint, and capability evidence first."
+                ),
+                parent=root,
+            )
+            return
+        exact = {
+            "host_id": host_id,
+            "node_id": evidence["node_id"],
+            "public_key_sha256": evidence["public_key_sha256"],
+            "endpoint_hostname": evidence["endpoint_hostname"],
+            "endpoint_port": evidence["endpoint_port"],
+        }
+        key = exact["public_key_sha256"]
+        if not messagebox.askyesno(
+            "Approve Fleet enrollment?",
+            (
+                "Trust and add this exact computer to Sofía's Fleet?\n\n"
+                f"Host: {host_id}\n"
+                f"Node ID: {exact['node_id']}\n"
+                f"Endpoint: {exact['endpoint_hostname']}:"
+                f"{exact['endpoint_port']}\n"
+                f"Certificate key: {key}\n\n"
+                "This is a protected Level-4 trust change. The approval is "
+                "one-time and cannot be reused for another identity."
+            ),
+            parent=root,
+        ):
+            return
+        try:
+            now = datetime.now(timezone.utc)
+            approval = ExecutionApproval(
+                approval_id=str(uuid4()),
+                capability="fleet.enroll",
+                request_fingerprint=execution_fingerprint(
+                    "fleet.enroll",
+                    exact,
+                ),
+                approved_by="Sparks",
+                approved_at=now,
+                expires_at=now + timedelta(minutes=15),
+            )
+            execution_approvals.record(approval)
+            result = fleet_ops.enroll_candidate({
+                **exact,
+                "approval_id": approval.approval_id,
+            })
+            refresh_fleet_candidates()
+            status.set(
+                f"Fleet candidate {result['host_id']} enrolled with exact "
+                "one-time Sparks approval."
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Fleet enrollment failed",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    fleet_buttons = ttk.Frame(fleet_frame)
+    fleet_buttons.pack(fill="x")
+    ttk.Button(
+        fleet_buttons,
+        text="Approve & enroll selected",
+        command=approve_fleet_candidate,
+    ).pack(side="left")
+    ttk.Button(
+        fleet_buttons,
+        text="Refresh candidates",
+        command=refresh_fleet_candidates,
+    ).pack(side="left", padx=(6, 0))
+    refresh_fleet_candidates()
 
     descriptions = {
         "Sofía": (
