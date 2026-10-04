@@ -77,7 +77,7 @@ Status:
 | Hardware | Run light benchmark | 2 | PERSONAL | ➕ |
 | Hardware | Heavy stress test | 3 | PERSONAL | ➕ |
 | Network | Inspect local networking | 1 | PRIVATE | ✅ |
-| Network | Scan an approved LAN/subnet | 1 | PRIVATE | ✅ `network.discover` is non-persistent observation |
+| Network | Scan an approved LAN/subnet | 1 | PRIVATE | ✅ `network.discover` is non-persistent observation and works independently of Fleet enablement |
 | Network | Ping/reachability checks | 1 | PRIVATE | ✅/🟡 |
 | Network | Detect computers/devices | 1 | PRIVATE | ✅ |
 | Network | Resolve hostname/platform evidence | 1 | PRIVATE | ✅ |
@@ -99,7 +99,7 @@ Status:
 | Fleet | Migration planning | 1 | PRIVATE | ✅ |
 | Fleet | Refresh telemetry automatically | 2 | PRIVATE | 🟡 |
 | Fleet | Mark node temporarily stale/unreachable | 2 | PRIVATE | ➕ Observation, not removal |
-| Fleet | Enroll/add computer to Fleet | 4 | PRIVATE | 🔀 Always ask |
+| Fleet | Enroll/add computer to Fleet | 4 | PRIVATE | ✅ Exact one-time Sparks approval; tray Permissions can approve a selected verified candidate |
 | Fleet | Trust machine identity/key | 4 | PRIVATE | 🔀 Exact approval |
 | Fleet | Install Fleet agent | 4 | PRIVATE | ✅/🔀 Exact machine/package approval |
 | Fleet | Rekey Fleet node | 4 | PRIVATE | ✅/🟡 |
@@ -123,6 +123,7 @@ Status:
 | Docker / Portainer | Read logs | 1 | PRIVATE | ➕ |
 | Docker / Portainer | Inspect health | 1 | PRIVATE | ➕ |
 | Docker / Portainer | Inspect CPU/RAM/network stats | 1 | PRIVATE | ✅ Container stats through Portainer |
+| Docker / Portainer | Inspect engine/container health summary | 1 | PRIVATE | ✅ Engine version/counts plus running/stopped/unhealthy container summary |
 | Docker / Portainer | Inspect images | 1 | PRIVATE | ✅ |
 | Docker / Portainer | Inspect volumes/networks | 1 | PRIVATE | ✅ |
 | Docker / Portainer | List Portainer stacks | 1 | PRIVATE | ✅ Stack inventory only; Compose/YAML content remains a separate config capability |
@@ -208,6 +209,7 @@ Status:
 | Git / GitHub / DEV | Force-push/reset shared history | 4 | PRIVATE | ➕ |
 | Self-improvement | Detect bugs/problems | 1 | PRIVATE | 🟡 |
 | Self-improvement | Inspect source | 1 | PRIVATE | ✅ |
+| Self-improvement | List/inspect prior isolated DEV candidates | 1 | PRIVATE | ✅ Durable candidate summaries and patch inspection |
 | Self-improvement | Analyze telemetry/test failures | 1 | PRIVATE | ✅/🟡 |
 | Self-improvement | Propose improvement | 1 | PRIVATE | 🟡 |
 | Self-improvement | Build patch in sandbox | 2 | PRIVATE | ✅ |
@@ -476,13 +478,19 @@ Current autonomous exploration capabilities include:
 - `ops.fleet.discover` at Level 2: bounded configured discovery may create or
   refresh an **untrusted candidate** only. It cannot trust or enroll that host.
 - `network.discover` at Level 1: observe configured network scopes without
-  persisting Fleet membership.
+  persisting Fleet membership, independently of whether Fleet auto-discovery is
+  enabled.
+- `fleet.enroll` at Level 4: exact candidate/node/key/endpoint evidence plus a
+  one-time Sparks approval is required. The tray Permissions page can issue that
+  approval for a selected verified candidate.
 - `hardware.inspect`, `machine.list`, `machine.get`, and
   `remote.hardware.inspect` at Level 1.
 - Docker/Portainer reads at Level 1: endpoints, containers, container inspect,
-  container stats, Docker info, images, volumes, networks, and stack inventory.
-- `codebase.inspect` and `dev.status` at Level 1 plus `dev.build` at Level 2.
-  Candidate building/testing remains isolated from the real workspace.
+  container stats, Docker info, health summary, images, volumes, networks, and
+  stack inventory.
+- `codebase.inspect`, `dev.status`, `dev.candidates.list`, and
+  `dev.candidate.get` at Level 1 plus `dev.build` at Level 2. Candidate
+  building/testing remains isolated from the real workspace.
 - `dev.apply`, `dev.rollback`, `dev.commit`, and `dev.push` remain
   protected Level 4 operations.
 
