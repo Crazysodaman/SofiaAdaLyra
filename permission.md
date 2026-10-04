@@ -110,11 +110,11 @@ Status:
 | Remote machines | Inspect remote process/system/network/services | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote hardware | 1 | PRIVATE | ✅ |
 | Remote machines | Inspect remote VMs | 1 | PRIVATE | ✅ |
-| Remote machines | Inspect remote containers | 1 | PRIVATE | ✅ List/get/stats/info/health summary/images/volumes/networks/stacks; active trusted OPS Fleet membership required |
+| Remote machines | Inspect remote containers | 1 | PRIVATE | ✅ List/get/stats/bounded logs/info/health summary/images/volumes/networks/stacks; active trusted OPS Fleet membership required |
 | Remote machines | Inspect remote Ollama | 1 | PRIVATE | ✅ |
-| Remote machines | Restart exact service | 3 | PRIVATE | ✅ Scoped standing grant |
-| Remote machines | Start/stop exact VM | 3 | PRIVATE | ✅ Scoped standing grant |
-| Remote machines | Restart exact container | 3 | PRIVATE | ✅ Scoped standing grant |
+| Remote machines | Restart exact service | 4 | PRIVATE | ✅ Exact approval required by current remote-control policy |
+| Remote machines | Start/stop exact VM | 4 | PRIVATE | ✅ Exact approval required by current remote-control policy |
+| Remote machines | Restart exact container | 4 | PRIVATE | ✅ Exact approval required by current remote-control policy |
 | Remote machines | Reboot host | 4 | PRIVATE | ✅ |
 | Remote machines | Package update | 4 | PRIVATE | ✅ |
 | Docker / Portainer | List endpoints | 1 | PRIVATE | ✅ |
