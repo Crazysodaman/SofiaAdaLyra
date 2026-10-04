@@ -81,6 +81,12 @@ def create_capability_authorizer(
         ):
             return True
 
+        # Level 5 is a hard host boundary. Environment configuration, legacy
+        # standing capability lists, model output, and standing grants can
+        # never turn authority-changing operations into self-authorized tools.
+        if policy.level is PermissionLevel.NEVER_SELF_AUTHORIZED:
+            return False
+
         parameters = dict(request.parameters)
         approval_id = parameters.get("approval_id")
         standing_parameters = {
