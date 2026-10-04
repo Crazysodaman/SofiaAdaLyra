@@ -6,6 +6,8 @@ from sofia.avatar.generation_conversation import (
 from sofia.avatar.generated_proposal import GarmentGenerationBrief
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_design import ContentRating, GraphicDesign
+from sofia.social.model import AudienceKind, PrincipalContext
+from sofia.social.principals import local_sparks_principal
 from sofia.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
     SofiaGarmentDecision,
@@ -117,3 +119,78 @@ def test_non_wardrobe_make_request_is_not_hijacked():
     assert service.handle(
         content="make the server faster"
     ) is None
+
+
+def test_only_authenticated_sparks_can_resolve_pending_generation():
+    blueprint = _blueprint()
+    ask_result = GarmentAcceptanceResult(
+        SofiaGarmentDecision.ASK_SPARKS,
+        False,
+        True,
+        "I want Sparks' opinion before I decide.",
+    )
+    accepted = GarmentAcceptanceResult(
+        SofiaGarmentDecision.ACCEPT,
+        True,
+        False,
+        "After hearing Sparks, I want to keep it.",
+    )
+    resolved_inputs = []
+
+    service = WardrobeGenerationConversationService(
+        lambda brief: (blueprint, ask_result),
+        resolve_pending=lambda value: (
+            resolved_inputs.append(value) or (blueprint, accepted)
+        ),
+    )
+    first = service.handle(
+        content="design yourself a new violet tee"
+    )
+    assert "genuinely unsure" in first
+
+    stranger = PrincipalContext(
+        principal_id="person:someone-else",
+        audience_id="shared:test",
+        audience_kind=AudienceKind.SHARED,
+    )
+    assert service.handle(
+        content="yeah keep it",
+        previous_assistant_content=first,
+        principal=stranger,
+    ) is None
+    assert resolved_inputs == []
+
+    second = service.handle(
+        content="yeah keep it",
+        previous_assistant_content=first,
+        principal=local_sparks_principal(),
+    )
+    assert resolved_inputs == ["yeah keep it"]
+    assert "want to keep it" in second
+    assert "part of my wardrobe" in second
+
+
+def test_pending_followup_requires_immediately_previous_ask_reply():
+    blueprint = _blueprint()
+    called = []
+    service = WardrobeGenerationConversationService(
+        lambda brief: (
+            blueprint,
+            GarmentAcceptanceResult(
+                SofiaGarmentDecision.ASK_SPARKS,
+                False,
+                True,
+                "I am unsure.",
+            ),
+        ),
+        resolve_pending=lambda value: (
+            called.append(value) or None
+        ),
+    )
+
+    assert service.handle(
+        content="yes",
+        previous_assistant_content="Sure, what else?",
+        principal=local_sparks_principal(),
+    ) is None
+    assert called == []
