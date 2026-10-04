@@ -40,7 +40,7 @@ jobs:
             test/test_memory_promoted_retrieval.py `
             test/test_memory_runtime_wiring.py `
             test/test_voice_matrix.py `
-            test/test_voice_runtime_matrix.py `
+            test/test_voice_tts.py `
             test/test_voice_prosody_matrix.py `
             test/test_rel_habit_matrix.py `
             test/test_semantic_domain_matrix.py `
