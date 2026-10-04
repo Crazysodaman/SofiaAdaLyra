@@ -11,7 +11,10 @@ from uuid import UUID,uuid4
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
+from sofia.ops.model import HostLifecycle
+from sofia.ops.state_registry import StatePlaneFleetRegistry
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.state.sqlite_plane import SQLiteStatePlane
 
 from .authorization import remote_operation_is_read_only
 from .endpoint_policy_durable import DurableEndpointPolicy
@@ -43,6 +46,28 @@ class RemoteFleetToolService:
         self._client_private_key=Path(client_private_key)
         self._max_inventory_age=max_inventory_age
         self._operator_stop=OperatorStopStore(self._state_path)
+
+    def _ops_host_for_node(self, node_id: UUID):
+        """Return the active trusted OPS Fleet host bound to this node."""
+        registry = StatePlaneFleetRegistry(
+            SQLiteStatePlane(self._state_path),
+            legacy_path=self._state_path.parent / "fleet.json",
+        )
+        matches = tuple(
+            host
+            for host in registry.hosts()
+            if host.node_id == node_id
+        )
+        if len(matches) != 1:
+            return None
+        host = matches[0]
+        if (
+            not host.trusted
+            or host.lifecycle
+            in {HostLifecycle.CANDIDATE, HostLifecycle.DECOMMISSIONED}
+        ):
+            return None
+        return host
 
     @contextmanager
     def _control_session(self, *, timeout_seconds: float = 10.0):
@@ -76,6 +101,8 @@ class RemoteFleetToolService:
         out=[]
         with self._control_session() as control:
             for enrollment in control.identities.active():
+                if self._ops_host_for_node(enrollment.node.node_id) is None:
+                    continue
                 endpoint=control.endpoints.get(enrollment.node.node_id)
                 grants=control.authorization.active_grants_for_node(
                     enrollment.node.node_id,
@@ -106,6 +133,10 @@ class RemoteFleetToolService:
         } and self._operator_stop.current().active:
             raise PermissionError("operator stop is active")
         node_id=UUID(node_id_text)
+        if self._ops_host_for_node(node_id) is None:
+            raise PermissionError(
+                "node is not an active trusted OPS Fleet member"
+            )
         now=datetime.now(timezone.utc)
         timeout_seconds=10.0
         if capability=="llm.manage":
