@@ -799,6 +799,66 @@ def test_cross_domain_avatar_change_with_weather_requires_authority():
     )
 
 
+def test_evidence_requiredness_tracks_domain_relevance():
+    hru = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("hru"))
+    hru_evidence = MatrixEvidencePlanner().plan(hru, envelope("hru"))
+    hru_keys = {item.key: item for item in hru_evidence.requirements}
+    assert hru_keys["emotion.current"].required is True
+
+    avatar_query = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("what are you wearing?"))
+    avatar_evidence = MatrixEvidencePlanner().plan(
+        avatar_query,
+        envelope("what are you wearing?"),
+    )
+    avatar_keys = {item.key: item for item in avatar_evidence.requirements}
+    assert avatar_keys["avatar.canonical"].required is True
+    assert avatar_keys["interaction.interpretation"].required is False
+
+    avatar_action = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("change into night lounge outfit"))
+    action_evidence = MatrixEvidencePlanner().plan(
+        avatar_action,
+        envelope("change into night lounge outfit"),
+    )
+    action_keys = {item.key: item for item in action_evidence.requirements}
+    assert action_keys["avatar.canonical"].required is True
+
+
+def test_response_matrix_rejects_any_missing_required_grounding():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "avatar.canonical",
+                EvidenceKind.CANONICAL,
+                required=True,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "avatar.canonical",
+                EvidenceState.MISSING,
+            ),
+        ),
+    )
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(content="I'm wearing a jacket."),
+        ResponseContract(require_grounded_claims=True),
+        evidence,
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert (
+        "required_evidence_unavailable:avatar.canonical"
+        in result.reasons
+    )
+
+
 def test_evidence_matrix_requires_measurement_for_network_status():
     turn = MatrixCoordinator(
         registry=default_matrix_registry()
