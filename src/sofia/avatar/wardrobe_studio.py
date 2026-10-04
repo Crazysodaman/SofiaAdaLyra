@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .presentation import PresentationAuthority
+from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
 from .wardrobe_catalog import GarmentBlueprint, WardrobePrebuild
 from .wardrobe_piece_catalog import all_closet_categories
@@ -33,13 +34,19 @@ class WardrobeStudio:
         catalog: WardrobePrebuild,
         *,
         authority: PresentationAuthority | None = None,
+        store: PresentationStore | None = None,
     ) -> None:
         if not isinstance(catalog, WardrobePrebuild):
             raise TypeError("catalog must be WardrobePrebuild")
         if authority is not None and not isinstance(authority, PresentationAuthority):
             raise TypeError("authority must be PresentationAuthority or None")
+        if store is not None and not isinstance(store, PresentationStore):
+            raise TypeError("store must be PresentationStore or None")
+        if store is not None and authority is None:
+            raise ValueError("store requires live presentation authority")
         self.catalog = catalog
         self.authority = authority
+        self.store = store
         self._categories = {
             category.category_id: category
             for category in all_closet_categories()
@@ -81,14 +88,22 @@ class WardrobeStudio:
             display_name=display_name,
         )
         if register:
-            if self.authority is None:
+            if self.authority is None or self.store is None:
                 raise WardrobeError(
-                    "registered composition requires live presentation authority"
+                    "registered composition requires live presentation "
+                    "authority and durable store"
                 )
-            self.authority.register_outfit(
-                outfit_id=plan.outfit_id,
-                item_ids=plan.item_ids,
-                private_only=plan.private_only,
+
+            def mutate() -> None:
+                self.authority.register_outfit(
+                    outfit_id=plan.outfit_id,
+                    item_ids=plan.item_ids,
+                    private_only=plan.private_only,
+                )
+
+            self.store.persist_mutation(
+                self.authority,
+                mutate,
             )
         return plan
 
