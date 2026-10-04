@@ -1,0 +1,1094 @@
+{
+  "schema": "sofia.avatar.wardrobe.garments.v1",
+  "category": "accessory_hand_wrist",
+  "profiles": {
+    "standard": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "good": [
+            "night",
+            "late_night"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "conversation",
+            "casual"
+          ],
+          "good": [
+            "engineering",
+            "lab",
+            "relaxing",
+            "gaming",
+            "travel"
+          ],
+          "acceptable": [
+            "formal",
+            "outdoor",
+            "workshop"
+          ],
+          "poor": [
+            "exercise",
+            "sleep"
+          ],
+          "unsuitable": []
+        },
+        "settings": {
+          "excellent": [
+            "home",
+            "casual_public"
+          ],
+          "good": [
+            "office",
+            "lab"
+          ],
+          "acceptable": [
+            "workshop",
+            "outdoor",
+            "private",
+            "formal_event"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "formality": {
+          "excellent": [
+            "casual"
+          ],
+          "good": [
+            "lounge",
+            "smart_casual"
+          ],
+          "acceptable": [
+            "work",
+            "formal"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "emotion_styles": {
+          "excellent": [
+            "confident",
+            "playful"
+          ],
+          "good": [
+            "focused",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    },
+    "private": {
+      "material_properties": {
+        "stretch": "moderate",
+        "fabric_weight": "light",
+        "texture": "soft_structured",
+        "breathability": "high",
+        "insulation": "low"
+      },
+      "environment": {
+        "temperature": {
+          "minimum_c": -5,
+          "preferred_minimum_c": 10,
+          "preferred_maximum_c": 30,
+          "maximum_c": 40,
+          "thermal_weight": "light"
+        },
+        "precipitation": {
+          "dry": "excellent",
+          "mist": "good",
+          "drizzle": "acceptable",
+          "rain": "poor",
+          "heavy_rain": "unsuitable",
+          "snow": "poor"
+        },
+        "moisture": {
+          "quick_dry": true,
+          "water_resistance": "low",
+          "absorbency": "low",
+          "wet_comfort": "acceptable"
+        },
+        "humidity": {
+          "low": "good",
+          "moderate": "excellent",
+          "high": "good"
+        },
+        "wind": {
+          "resistance": "low",
+          "strong_wind": "acceptable"
+        },
+        "sunlight": {
+          "direct_sun": "good",
+          "uv_protection": "low"
+        },
+        "indoor": "excellent",
+        "outdoor": "good"
+      },
+      "context": {
+        "dayparts": {
+          "excellent": [
+            "evening",
+            "night",
+            "late_night"
+          ],
+          "good": [
+            "afternoon"
+          ],
+          "acceptable": [
+            "morning"
+          ],
+          "poor": [],
+          "unsuitable": []
+        },
+        "seasons": {
+          "excellent": [
+            "spring",
+            "summer",
+            "autumn"
+          ],
+          "good": [
+            "winter"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "activities": {
+          "excellent": [
+            "relaxing",
+            "conversation"
+          ],
+          "good": [
+            "gaming"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "engineering",
+            "lab",
+            "workshop",
+            "formal",
+            "outdoor",
+            "travel",
+            "exercise"
+          ]
+        },
+        "settings": {
+          "excellent": [
+            "private"
+          ],
+          "good": [
+            "home"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "casual_public",
+            "office",
+            "workshop",
+            "lab",
+            "outdoor",
+            "formal_event"
+          ]
+        },
+        "formality": {
+          "excellent": [
+            "lounge"
+          ],
+          "good": [
+            "casual"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": [
+            "work",
+            "smart_casual",
+            "formal"
+          ]
+        },
+        "emotion_styles": {
+          "excellent": [
+            "playful",
+            "confident"
+          ],
+          "good": [
+            "fond",
+            "relaxed"
+          ],
+          "acceptable": [],
+          "poor": [],
+          "unsuitable": []
+        },
+        "movement": {
+          "mobility": "good",
+          "seated_comfort": "good",
+          "active_comfort": "good"
+        }
+      },
+      "comfort": {
+        "softness": "high",
+        "flexibility": "high",
+        "compression": "low",
+        "heat_retention": "low",
+        "ventilation": "high",
+        "skin_contact": "good"
+      }
+    }
+  },
+  "garments": [
+    {
+      "item_id": "hand.01.black_tech_bracelets",
+      "name": "Black technical bracelets",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black technical bracelets, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.02.violet_circuit_cuffs",
+      "name": "Violet circuit cuffs",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet circuit cuffs, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.03.cyan_status_band",
+      "name": "Cyan status wristband",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan status wristband, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.04.crimson_wrap_bracelets",
+      "name": "Crimson wrap bracelets",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson wrap bracelets, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.05.silver_link_bracelets",
+      "name": "Silver-link bracelets",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver-link bracelets, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.06.matte_utility_cuffs",
+      "name": "Matte utility cuffs",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Matte utility cuffs, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.07.soft_violet_wrist_wraps",
+      "name": "Soft-violet wrist wraps",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft-violet wrist wraps, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.08.black_fingerless_gloves",
+      "name": "Black fingerless gloves",
+      "garment_type": "fingerless_gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black fingerless gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.09.violet_fingerless_gloves",
+      "name": "Violet fingerless gloves",
+      "garment_type": "fingerless_gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet fingerless gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.10.cyan_trim_gloves",
+      "name": "Cyan-trim gloves",
+      "garment_type": "gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_palms"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Cyan-trim gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.11.charcoal_grip_gloves",
+      "name": "Charcoal grip gloves",
+      "garment_type": "gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_palms"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Charcoal grip gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.12.crimson_stitch_gloves",
+      "name": "Crimson-stitch gloves",
+      "garment_type": "gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_palms"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Crimson-stitch gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.13.engineering_wrist_guard",
+      "name": "Engineering wrist guards",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Engineering wrist guards, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.14.lab_wrist_band",
+      "name": "Lab wrist bands",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Lab wrist bands, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.15.slim_circuit_bangle",
+      "name": "Slim circuit bangles",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Slim circuit bangles, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.16.violet_chain_bracelet",
+      "name": "Violet chain bracelets",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Violet chain bracelets, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.17.black_leather_wristbands",
+      "name": "Black leather wristbands",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Black leather wristbands, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.18.silver_data_cuffs",
+      "name": "Silver data cuffs",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Silver data cuffs, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.19.soft_lounge_wristbands",
+      "name": "Soft lounge wristbands",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Soft lounge wristbands, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.20.minimal_black_gloves",
+      "name": "Minimal black gloves",
+      "garment_type": "gloves",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "stretch technical textile",
+      "primary": "soft_violet",
+      "accent": null,
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "grip_palms"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "standard"
+      ],
+      "private_only": false,
+      "content_rating": "standard",
+      "exposure": [],
+      "profile": "standard",
+      "canonical": false,
+      "description": "Minimal black gloves, a accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.21.private_sheer_wrist_wraps",
+      "name": "Private sheer wrist wraps",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "black",
+      "accent": "cyan",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private sheer wrist wraps, a private accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.22.private_lace_cuffs",
+      "name": "Private lace cuffs",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "dark_violet",
+      "accent": "crimson",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "lewd",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "lewd",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private lace cuffs, a private accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.23.private_restraint_style_cuffs",
+      "name": "Private restraint-style cuffs",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "charcoal",
+      "accent": "silver",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private restraint-style cuffs, a private accessory hand wrist piece designed for Sofía's wardrobe."
+    },
+    {
+      "item_id": "hand.24.private_chain_wrist_set",
+      "name": "Private chain wrist set",
+      "garment_type": "wrist_accessory",
+      "fit": "fitted",
+      "rise": null,
+      "length": "accessory_hand_wrist",
+      "sleeve_length": null,
+      "material": "soft coated metal and textile",
+      "primary": "crimson",
+      "accent": "dark_violet",
+      "pattern": "solid",
+      "graphic": {
+        "enabled": false,
+        "placement": null,
+        "design": null
+      },
+      "features": [
+        "adjustable_fit"
+      ],
+      "style_tags": [
+        "accessory_hand_wrist",
+        "hand_wrist",
+        "explicit",
+        "private"
+      ],
+      "private_only": true,
+      "content_rating": "explicit",
+      "exposure": [],
+      "profile": "private",
+      "canonical": false,
+      "description": "Private chain wrist set, a private accessory hand wrist piece designed for Sofía's wardrobe."
+    }
+  ]
+}
