@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from .multi_question import merge_question_turns, split_multi_question
 from .model import (
     DomainContribution,
     HistoryPolicy,
@@ -110,6 +111,11 @@ _READ_ONLY_OPERATION = re.compile(
     r"^\s*(?:please\s+)?(?:inspect|list|show|check|summarize)\b",
     re.IGNORECASE,
 )
+_READ_ONLY_OPERATION_QUESTION = re.compile(
+    r"^\s*(?:what|which|where|how\s+many|can\s+(?:you|u)|"
+    r"do\s+(?:you|u)|are\s+there)\b",
+    re.IGNORECASE,
+)
 _MIXED_ENVIRONMENT_OPERATIONAL = re.compile(
     r"(?=.*\b(?:time|day|date|weather|temperature|forecast|timezone|season)\b)"
     r"(?=.*\b(?:computer|computers|host|hosts|machine|machines|fleet|"
@@ -176,6 +182,24 @@ class BaselineTurnClassifier:
         if not isinstance(envelope, TurnEnvelope):
             raise TypeError("envelope must be TurnEnvelope")
         text = envelope.content.strip()
+
+        parts = split_multi_question(text)
+        if len(parts) > 1:
+            subturns = []
+            for index, part in enumerate(parts, start=1):
+                subturns.append(
+                    self.classify(
+                        TurnEnvelope(
+                            message_id=f"{envelope.message_id}:q{index}",
+                            session_id=envelope.session_id,
+                            content=part,
+                            created_at=envelope.created_at,
+                            principal_id=envelope.principal_id,
+                            channel=envelope.channel,
+                        )
+                    )
+                )
+            return merge_question_turns(tuple(subturns))
 
         if _INTERACTION_FOLLOWUP.fullmatch(text):
             return TurnMatrix(
@@ -471,7 +495,10 @@ class BaselineTurnClassifier:
                 history_policy=HistoryPolicy.NONE,
                 response_strategy=(
                     ResponseStrategy.TOOL_ASSISTED
-                    if _READ_ONLY_OPERATION.search(text)
+                    if (
+                        _READ_ONLY_OPERATION.search(text)
+                        or _READ_ONLY_OPERATION_QUESTION.search(text)
+                    )
                     else ResponseStrategy.HYBRID
                 ),
                 domains=(
@@ -545,7 +572,10 @@ class BaselineTurnClassifier:
                 history_policy=HistoryPolicy.NONE,
                 response_strategy=(
                     ResponseStrategy.TOOL_ASSISTED
-                    if _READ_ONLY_OPERATION.search(text)
+                    if (
+                        _READ_ONLY_OPERATION.search(text)
+                        or _READ_ONLY_OPERATION_QUESTION.search(text)
+                    )
                     else ResponseStrategy.HYBRID
                 ),
                 domains=(
