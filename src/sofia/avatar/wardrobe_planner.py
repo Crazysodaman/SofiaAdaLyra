@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum, IntEnum
 
 from sofia.environment.model import (
+    DaylightState,
     EnvironmentFreshness,
     EnvironmentSnapshot,
     Season,
@@ -18,6 +19,7 @@ from sofia.environment.model import (
 from sofia.personality.influence import ContinuityInfluence
 
 from .wardrobe import Wardrobe, WardrobeError, Outfit
+from .wardrobe_design import GarmentDesign, Suitability
 
 
 class Activity(str, Enum):
@@ -27,6 +29,12 @@ class Activity(str, Enum):
     RELAXING = "relaxing"
     SLEEP = "sleep"
     FORMAL = "formal"
+    EXERCISE = "exercise"
+    GAMING = "gaming"
+    CASUAL = "casual"
+    OUTDOOR = "outdoor"
+    WORKSHOP = "workshop"
+    TRAVEL = "travel"
 
 
 class Weather(str, Enum):
@@ -34,6 +42,44 @@ class Weather(str, Enum):
     COLD = "cold"
     WET = "wet"
     MILD = "mild"
+
+
+class EnvironmentMode(str, Enum):
+    INDOOR = "indoor"
+    OUTDOOR = "outdoor"
+
+
+class WearSetting(str, Enum):
+    HOME = "home"
+    PRIVATE = "private"
+    CASUAL_PUBLIC = "casual_public"
+    WORKSHOP = "workshop"
+    LAB = "lab"
+    OFFICE = "office"
+    OUTDOOR = "outdoor"
+    FORMAL_EVENT = "formal_event"
+
+
+class Formality(str, Enum):
+    LOUNGE = "lounge"
+    CASUAL = "casual"
+    WORK = "work"
+    SMART_CASUAL = "smart_casual"
+    FORMAL = "formal"
+
+
+class MovementDemand(str, Enum):
+    REST = "rest"
+    SEATED = "seated"
+    LIGHT = "light"
+    ACTIVE = "active"
+    HIGH_MOBILITY = "high_mobility"
+
+
+class SunExposure(str, Enum):
+    SHADE = "shade"
+    INDIRECT = "indirect"
+    DIRECT = "direct"
 
 
 class Cadence(str, Enum):
@@ -127,11 +173,25 @@ class EmotionStyleInfluence:
 
 @dataclass(frozen=True, slots=True)
 class WardrobeContext:
-    now: datetime  # trusted host-local clock; never inferred from chat text
-    season: Season  # trusted host-selected locale/hemisphere; not hardcoded month
+    now: datetime
+    season: Season
     activity: Activity
     weather: WeatherObservation | None = None
     emotion_influences: tuple[EmotionStyleInfluence, ...] = ()
+    outdoor_temperature_c: float | None = None
+    feels_like_c: float | None = None
+    outdoor_humidity_percent: float | None = None
+    wind_kph: float | None = None
+    precipitation_mm: float | None = None
+    weather_condition: str | None = None
+    daylight_state: DaylightState | None = None
+    indoor_temperature_c: float | None = None
+    indoor_humidity_percent: float | None = None
+    environment_mode: EnvironmentMode | None = None
+    setting: WearSetting | None = None
+    formality: Formality | None = None
+    movement: MovementDemand | None = None
+    sun_exposure: SunExposure | None = None
 
     def __post_init__(self) -> None:
         _aware(self.now)
@@ -144,6 +204,39 @@ class WardrobeContext:
             or any(not isinstance(item, EmotionStyleInfluence) for item in self.emotion_influences)
         ):
             raise WardrobeError("invalid emotion influences")
+        numeric_bounds = {
+            "outdoor_temperature_c": (-120.0, 80.0),
+            "feels_like_c": (-120.0, 80.0),
+            "outdoor_humidity_percent": (0.0, 100.0),
+            "wind_kph": (0.0, 600.0),
+            "precipitation_mm": (0.0, 5000.0),
+            "indoor_temperature_c": (-80.0, 80.0),
+            "indoor_humidity_percent": (0.0, 100.0),
+        }
+        for name, (minimum, maximum) in numeric_bounds.items():
+            value = getattr(self, name)
+            if value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise WardrobeError(f"{name} must be numeric or None")
+            if not minimum <= float(value) <= maximum:
+                raise WardrobeError(f"{name} outside supported bounds")
+        if self.weather_condition is not None and (
+            not isinstance(self.weather_condition, str)
+            or not self.weather_condition.strip()
+            or len(self.weather_condition) > 80
+        ):
+            raise WardrobeError("invalid weather condition")
+        for value, expected, label in (
+            (self.daylight_state, DaylightState, "daylight state"),
+            (self.environment_mode, EnvironmentMode, "environment mode"),
+            (self.setting, WearSetting, "wear setting"),
+            (self.formality, Formality, "formality"),
+            (self.movement, MovementDemand, "movement demand"),
+            (self.sun_exposure, SunExposure, "sun exposure"),
+        ):
+            if value is not None and not isinstance(value, expected):
+                raise WardrobeError(f"invalid {label}")
 
     @classmethod
     def from_environment_snapshot(
@@ -152,6 +245,11 @@ class WardrobeContext:
         *,
         activity: Activity,
         emotion_influences: tuple[EmotionStyleInfluence, ...] = (),
+        environment_mode: EnvironmentMode | None = None,
+        setting: WearSetting | None = None,
+        formality: Formality | None = None,
+        movement: MovementDemand | None = None,
+        sun_exposure: SunExposure | None = None,
     ) -> "WardrobeContext":
         """Adapt canonical ENVIRONMENT evidence for wardrobe planning."""
         if not isinstance(snapshot, EnvironmentSnapshot):
@@ -165,20 +263,25 @@ class WardrobeContext:
 
         weather = None
         source = snapshot.weather
-        if (
-            source is not None
-            and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
-        ):
-            condition = source.condition.casefold()
+        current_weather = (
+            source
+            if (
+                source is not None
+                and snapshot.weather_freshness is EnvironmentFreshness.CURRENT
+            )
+            else None
+        )
+        if current_weather is not None:
+            condition = current_weather.condition.casefold()
             wet_tokens = (
                 "rain", "shower", "drizzle", "thunder",
                 "storm", "hail", "sleet", "pour",
             )
             cold_tokens = ("snow", "ice", "frost", "freez")
             temperature = (
-                source.feels_like_c
-                if source.feels_like_c is not None
-                else source.temperature_c
+                current_weather.feels_like_c
+                if current_weather.feels_like_c is not None
+                else current_weather.temperature_c
             )
             if any(token in condition for token in wet_tokens):
                 wardrobe_weather = Weather.WET
@@ -193,16 +296,63 @@ class WardrobeContext:
                 wardrobe_weather = Weather.MILD
             weather = WeatherObservation(
                 condition=wardrobe_weather,
-                observed_at=source.observed_at,
-                source_id=source.source_id,
+                observed_at=current_weather.observed_at,
+                source_id=current_weather.source_id,
             )
 
+        indoor = (
+            snapshot.indoor
+            if (
+                snapshot.indoor is not None
+                and snapshot.indoor_freshness is EnvironmentFreshness.CURRENT
+            )
+            else None
+        )
         return cls(
             now=snapshot.user_local_time or snapshot.host_local_time,
             season=snapshot.season,
             activity=activity,
             weather=weather,
             emotion_influences=emotion_influences,
+            outdoor_temperature_c=(
+                None if current_weather is None
+                else current_weather.temperature_c
+            ),
+            feels_like_c=(
+                None if current_weather is None
+                else current_weather.feels_like_c
+            ),
+            outdoor_humidity_percent=(
+                None if current_weather is None
+                else current_weather.humidity_percent
+            ),
+            wind_kph=(
+                None if current_weather is None
+                else current_weather.wind_kph
+            ),
+            precipitation_mm=(
+                None if current_weather is None
+                else current_weather.precipitation_mm
+            ),
+            weather_condition=(
+                None if current_weather is None
+                else current_weather.condition
+            ),
+            daylight_state=(
+                None if snapshot.daylight is None
+                else snapshot.daylight.state
+            ),
+            indoor_temperature_c=(
+                None if indoor is None else indoor.temperature_c
+            ),
+            indoor_humidity_percent=(
+                None if indoor is None else indoor.humidity_percent
+            ),
+            environment_mode=environment_mode,
+            setting=setting,
+            formality=formality,
+            movement=movement,
+            sun_exposure=sun_exposure,
         )
 
     @property
@@ -211,6 +361,66 @@ class WardrobeContext:
             return None
         age = self.now.astimezone(timezone.utc) - self.weather.observed_at.astimezone(timezone.utc)
         return self.weather.condition if timedelta(0) <= age <= timedelta(hours=6) else None
+
+    @property
+    def effective_temperature_c(self) -> float | None:
+        if (
+            self.environment_mode is EnvironmentMode.INDOOR
+            and self.indoor_temperature_c is not None
+        ):
+            return float(self.indoor_temperature_c)
+        if self.feels_like_c is not None:
+            return float(self.feels_like_c)
+        if self.outdoor_temperature_c is not None:
+            return float(self.outdoor_temperature_c)
+        return None
+
+    @property
+    def effective_humidity_percent(self) -> float | None:
+        if (
+            self.environment_mode is EnvironmentMode.INDOOR
+            and self.indoor_humidity_percent is not None
+        ):
+            return float(self.indoor_humidity_percent)
+        if self.outdoor_humidity_percent is not None:
+            return float(self.outdoor_humidity_percent)
+        return None
+
+    @property
+    def precipitation_kind(self) -> str | None:
+        condition = (self.weather_condition or "").casefold()
+        amount = self.precipitation_mm
+        if any(token in condition for token in ("snow", "sleet", "ice")):
+            return "snow"
+        if any(token in condition for token in ("downpour", "heavy rain", "pour", "storm", "thunder")):
+            return "heavy_rain"
+        if "drizzle" in condition:
+            return "drizzle"
+        if any(token in condition for token in ("mist", "fog")):
+            return "mist"
+        if any(token in condition for token in ("rain", "shower")):
+            return "rain"
+        if amount is not None:
+            if amount >= 10.0:
+                return "heavy_rain"
+            if amount > 0.0:
+                return "drizzle"
+        if self.weather_condition is not None:
+            return "dry"
+        return None
+
+    @property
+    def daypart(self) -> str:
+        hour = self.now.hour
+        if 5 <= hour < 12:
+            return "morning"
+        if 12 <= hour < 17:
+            return "afternoon"
+        if 17 <= hour < 21:
+            return "evening"
+        if 21 <= hour <= 23:
+            return "night"
+        return "late_night"
 
     @property
     def lounge_window(self) -> bool:
@@ -331,14 +541,33 @@ def period_key(now: datetime, cadence: Cadence) -> str:
 class OutfitPlanner:
     """Deterministic covered-outfit suggestion with separate sourced taste signals."""
 
-    def __init__(self, wardrobe: Wardrobe, plans: tuple[OutfitPlan, ...]):
+    def __init__(
+        self,
+        wardrobe: Wardrobe,
+        plans: tuple[OutfitPlan, ...],
+        *,
+        designs: dict[str, GarmentDesign] | None = None,
+    ):
         if not isinstance(wardrobe, Wardrobe) or not isinstance(plans, tuple) or not plans:
             raise WardrobeError("wardrobe and nonempty outfit plans are required")
         if any(not isinstance(plan, OutfitPlan) for plan in plans):
             raise WardrobeError("invalid outfit plan")
         if len({plan.outfit_id for plan in plans}) != len(plans):
             raise WardrobeError("duplicate outfit ID")
+        if designs is None:
+            designs = {}
+        if (
+            not isinstance(designs, dict)
+            or any(
+                not isinstance(item_id, str)
+                or not isinstance(design, GarmentDesign)
+                or design.item_id != item_id
+                for item_id, design in designs.items()
+            )
+        ):
+            raise WardrobeError("invalid garment design map")
         self._wardrobe = wardrobe
+        self._designs = dict(designs)
         self._plans: dict[str, tuple[OutfitPlan, Outfit]] = {}
         for plan in plans:
             outfit = wardrobe.selection(plan.item_ids)
@@ -354,6 +583,111 @@ class OutfitPlanner:
             self._plans[plan.outfit_id] = plan, outfit
         if not self._plans:
             raise WardrobeError("no covered automatic outfits")
+
+    @staticmethod
+    def _movement_rating(design: GarmentDesign, demand: MovementDemand | None) -> Suitability:
+        if demand is None:
+            return Suitability.UNSPECIFIED
+        movement = design.context.movement
+        if demand in (MovementDemand.REST, MovementDemand.SEATED):
+            return movement.seated_comfort
+        if demand is MovementDemand.HIGH_MOBILITY:
+            return min(
+                (movement.mobility, movement.active_comfort),
+                key=lambda item: item.score,
+            )
+        return movement.active_comfort
+
+    @staticmethod
+    def _design_score(
+        design: GarmentDesign,
+        context: WardrobeContext,
+    ) -> tuple[int, bool]:
+        """Return bounded item score and whether physical evidence says unsuitable."""
+        result = 0
+        physically_unsuitable = False
+        environment = design.environment
+        preferences = design.context
+
+        temperature = environment.temperature.suitability_for(
+            context.effective_temperature_c
+        )
+        if temperature is Suitability.UNSUITABLE:
+            physically_unsuitable = True
+        result += temperature.score * 3
+
+        precipitation = environment.precipitation.rating(
+            context.precipitation_kind or ""
+        )
+        if precipitation is Suitability.UNSUITABLE:
+            physically_unsuitable = True
+        result += precipitation.score * 3
+
+        humidity = environment.humidity.rating(
+            context.effective_humidity_percent
+        )
+        result += humidity.score
+
+        if context.wind_kph is not None and context.wind_kph >= 35.0:
+            wind = environment.wind.strong_wind
+            if wind is Suitability.UNSUITABLE:
+                physically_unsuitable = True
+            result += wind.score * 2
+
+        if context.environment_mode is EnvironmentMode.INDOOR:
+            result += environment.indoor.score * 2
+        elif context.environment_mode is EnvironmentMode.OUTDOOR:
+            result += environment.outdoor.score * 2
+
+        if context.sun_exposure is SunExposure.DIRECT:
+            result += environment.sunlight.direct_sun.score
+
+        result += preferences.dayparts.rating(context.daypart).score
+        result += preferences.seasons.rating(context.season.value).score
+        result += preferences.activities.rating(context.activity.value).score * 2
+        result += preferences.settings.rating(
+            None if context.setting is None else context.setting.value
+        ).score * 2
+        result += preferences.formality.rating(
+            None if context.formality is None else context.formality.value
+        ).score * 2
+        result += OutfitPlanner._movement_rating(
+            design,
+            context.movement,
+        ).score * 2
+
+        emotion_bias = 0.0
+        for influence in context.emotion_influences:
+            candidates = (influence.emotion,) + influence.style_tags
+            best = max(
+                (
+                    preferences.emotion_styles.rating(value).score
+                    for value in candidates
+                ),
+                default=0,
+            )
+            if best > 0:
+                emotion_bias += best * float(influence.intensity)
+        result += min(3, round(emotion_bias))
+        return result, physically_unsuitable
+
+    def _outfit_profile_score(
+        self,
+        plan: OutfitPlan,
+        context: WardrobeContext,
+    ) -> tuple[int, bool]:
+        scored = [
+            self._design_score(design, context)
+            for item_id in plan.item_ids
+            if (design := self._designs.get(item_id)) is not None
+        ]
+        if not scored:
+            return 0, False
+        average = round(sum(score for score, _ in scored) / len(scored))
+        physically_unsuitable = any(flag for _, flag in scored)
+        if physically_unsuitable:
+            average -= 8
+        return average, physically_unsuitable
 
     def suggest(
         self,
@@ -394,6 +728,8 @@ class OutfitPlanner:
         def score(entry: tuple[OutfitPlan, Outfit]) -> int:
             plan, _ = entry
             result = 6 if context.season in plan.seasons else -6
+            profile_score, _ = self._outfit_profile_score(plan, context)
+            result += profile_score
             if plan.weather:
                 if weather is None:
                     # Do not choose a weather-specialized outfit from missing
@@ -441,12 +777,18 @@ class OutfitPlanner:
             prior = self._plans.get(last.outfit_id)
             if prior and any(p.outfit_id == last.outfit_id for p, _ in compatible):
                 p = prior[0]
+                _, physically_unsuitable = self._outfit_profile_score(
+                    p,
+                    context,
+                )
                 if context.season in p.seasons and (weather is None or not p.weather or weather in p.weather) and (
                     not p.lounge or context.lounge_window
-                ):
+                ) and not physically_unsuitable:
                     return OutfitProposal(p.outfit_id, prior[1], key, ("verified_previous_choice",))
         best_plan, best_outfit = sorted(compatible, key=lambda entry: (-score(entry), entry[0].outfit_id))[0]
         reasons = ("covered_candidate", "season_and_activity", "late_lounge" if best_plan.lounge and context.lounge_window else "ordinary_rotation")
+        if self._designs:
+            reasons += ("garment_environment_context",)
         if any(set(best_plan.style_tags).intersection(item.style_tags) for item in context.emotion_influences):
             reasons += ("modeled_emotion_influence",)
         if context.weather is not None and weather is None:

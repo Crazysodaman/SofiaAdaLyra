@@ -13,6 +13,10 @@ from sofia.avatar.wardrobe_catalog import (
 )
 from sofia.avatar.wardrobe_planner import (
     Activity,
+    EnvironmentMode,
+    Formality,
+    MovementDemand,
+    WearSetting,
     OutfitPlan,
     OutfitPlanner,
     Season,
@@ -32,7 +36,14 @@ NIGHT = datetime(2026, 7, 15, 22, 30, tzinfo=UTC)
 
 def planner():
     catalog = build_starter_wardrobe()
-    return OutfitPlanner(catalog.wardrobe, catalog.presets)
+    return OutfitPlanner(
+        catalog.wardrobe,
+        catalog.presets,
+        designs={
+            blueprint.garment.item_id: blueprint.design
+            for blueprint in catalog.blueprints
+        },
+    )
 
 
 def influence(emotion: str | None = None, intensity: float = 0.0):
@@ -166,3 +177,64 @@ def test_automatic_choices_remain_public_and_covered():
     assert selected.private_only is False
     assert outfit.private_only is False
     assert outfit.covered_default is True
+
+
+def test_measured_hot_weather_can_outweigh_daypart_for_casual_conversation():
+    result = planner().suggest(
+        WardrobeContext(
+            DAY,
+            Season.SUMMER,
+            Activity.CONVERSATION,
+            outdoor_temperature_c=32.0,
+            feels_like_c=32.0,
+            outdoor_humidity_percent=78.0,
+            weather_condition="Clear",
+            environment_mode=EnvironmentMode.OUTDOOR,
+            setting=WearSetting.CASUAL_PUBLIC,
+            formality=Formality.CASUAL,
+            movement=MovementDemand.LIGHT,
+        )
+    )
+
+    assert result.outfit_id == NIGHT_LOUNGE_OUTFIT_ID
+    assert "garment_environment_context" in result.reasons
+
+
+def test_engineering_activity_still_blocks_lounge_even_when_day_outfit_is_hot():
+    result = planner().suggest(
+        WardrobeContext(
+            DAY,
+            Season.SUMMER,
+            Activity.ENGINEERING,
+            outdoor_temperature_c=32.0,
+            feels_like_c=34.0,
+            outdoor_humidity_percent=75.0,
+            weather_condition="Clear",
+            environment_mode=EnvironmentMode.OUTDOOR,
+            setting=WearSetting.WORKSHOP,
+            formality=Formality.WORK,
+            movement=MovementDemand.ACTIVE,
+        )
+    )
+
+    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID
+
+
+def test_cold_late_night_can_reject_short_lounge_outfit():
+    result = planner().suggest(
+        WardrobeContext(
+            NIGHT,
+            Season.WINTER,
+            Activity.CONVERSATION,
+            outdoor_temperature_c=8.0,
+            feels_like_c=6.0,
+            outdoor_humidity_percent=55.0,
+            weather_condition="Clear",
+            environment_mode=EnvironmentMode.OUTDOOR,
+            setting=WearSetting.CASUAL_PUBLIC,
+            formality=Formality.CASUAL,
+            movement=MovementDemand.LIGHT,
+        )
+    )
+
+    assert result.outfit_id == DAY_DEFAULT_OUTFIT_ID

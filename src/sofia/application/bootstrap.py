@@ -754,6 +754,10 @@ class SofiaApplication:
                 planner=OutfitPlanner(
                     bundle.catalog.wardrobe,
                     bundle.catalog.presets,
+                    designs={
+                        blueprint.garment.item_id: blueprint.design
+                        for blueprint in bundle.catalog.blueprints
+                    },
                 ),
             )
             # Filter internal database noise in *both* pending awareness and
