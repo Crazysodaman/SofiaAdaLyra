@@ -243,6 +243,43 @@ Fleet cognition allows cognitive placement to a remote authorized host while kee
 
 ---
 
+## October 4, 2026 — Architecture cleanup, unified permissions, Fleet/read tooling, CI reconciliation
+
+A large current-main cleanup/audit removed unwired prototypes, consolidated ownership boundaries, and then completed the operator permission/exploration chain.
+
+Key results:
+
+- canonical five-level permission policy implemented in `sofia.safe.permissions`;
+- durable standing grants and private/adult authority stored in canonical `sofia.db`;
+- tray **Settings → Permissions** wired to the same canonical state;
+- Level 1 read-only capabilities exposed without repeated approval;
+- bounded Level 2 autonomous capabilities exposed without repeated approval;
+- Level 3 uses scoped standing/exact grants;
+- Level 4 requires exact action/target approval;
+- Level 5 authority-changing operations remain never-self-authorized;
+- bounded Fleet discovery may create or refresh **untrusted candidates only**;
+- Fleet enrollment/add-machine is Level 4 and requires exact one-time Sparks approval bound to candidate/node/key/endpoint evidence;
+- Fleet trust conflicts are preflighted before approval consumption;
+- remote tools require trusted active OPS Fleet membership, not partial enrollment state;
+- local and enrolled-remote hardware inspection are Level 1;
+- approved-scope `network.discover` is Level 1, non-persistent, and independent of automatic Fleet candidate discovery;
+- Docker/Portainer read-only inspection now covers endpoints, containers, inspect, stats, engine info, health summary, images, volumes, networks, stacks and bounded recent logs locally and on trusted enrolled remote nodes;
+- DEV source/status/candidate inspection are Level 1; isolated `dev.build` is Level 2; apply/rollback/commit/push remain Level 4;
+- permission-aware matrix authority now preserves exact host grants and truthful execution receipts;
+- stale UI/SAFE/DEV/CORE test harnesses were repaired without weakening production permission or AVATAR type boundaries.
+
+CI evidence at audited head `fc533aaf`:
+
+- Platform Compatibility: **green** on Windows/Linux, Python 3.12/3.14;
+- Matrix Tests: **green**;
+- `pkg_safe`, `pkg_dev`, `pkg_ops`, `pkg_net`, `pkg_integrate`, `pkg_ui`, `pkg_avatar`, and most other package gates: **green**;
+- full Manual Verification: **3375 passed, 1 failed, 6 deselected**;
+- the single full-suite assertion failure is `test_environment_runtime_projection.py::test_runtime_preserves_partial_deterministic_multi_question_answers`;
+- `pkg_core` is red only because that ENVIRONMENT regression is intentionally cross-owned by CORE;
+- `pkg_body` is separately red because the current marker selects zero BODY tests and pytest exits nonzero.
+
+This also exposed a documentation bookkeeping error: the repository now has **22 package/test families**, because **VOICE** has its own `pkg_voice` marker and CI gate.
+
 # 3. Matrix architecture
 
 The matrix architecture was added so each user turn can be handled using explicit typed decisions instead of one giant prompt stuffed with everything Sofía knows.
@@ -336,7 +373,7 @@ On **2026-10-01**, the D–I matrix slice was accepted with:
 - actual model/host/route diagnostics recorded;
 - Desktop/Discord/Terminal provenance covered.
 
-Voice parity remains deferred because voice does not yet exist.
+Voice live-channel parity remains deferred, but VOICE now has a real runtime/capability + prosody matrix foundation and its own `pkg_voice` package gate.
 
 ---
 
@@ -493,7 +530,13 @@ Current limitation:
 
 Current SAFE code includes:
 
-- fail-closed capability policy;
+- unified five-level capability permission policy;
+- canonical durable grants/private-adult authority in `sofia.db`;
+- permission CLI and tray Permissions UI;
+- automatic Level-1 read and explicitly classified Level-2 exposure;
+- scoped Level-3 standing grants;
+- exact Level-4 approvals;
+- Level-5 never-self-authorized authority changes;
 - execution approval;
 - DEV approval;
 - EVOLVE approval;
@@ -587,10 +630,12 @@ The repository contains:
 
 Automatic discovery is now wired into the application background coordinator when configured.
 
+Current-main Fleet discovery now automatically creates/refreshes untrusted candidates only; exact enrollment/add-machine is Level 4 and requires Sparks approval. Approved-scope read-only network discovery remains independent from candidate persistence, and enrolled remote inspection requires trusted active OPS membership.
+
 Current missing Fleet work is mainly real deployment/acceptance and later-state architecture:
 
-- heterogeneous real-host acceptance;
-- continuous maintenance;
+- heterogeneous Windows/Linux/Pi live acceptance;
+- continuous maintenance and key rotation/revocation drills;
 - distributed worker runtime;
 - concrete general workload backend;
 - replicated state;
@@ -704,17 +749,25 @@ MPFB/Blender model work belongs to this phase.
 
 # 15. Voice
 
-Voice is still a genuine unimplemented workstream.
+VOICE is now a first-class package/test family rather than an entirely absent workstream.
 
-No production source currently provides:
+Current source includes:
 
-- STT;
-- TTS;
-- microphone pipeline;
-- output-device handling;
-- VAD;
+- voice runtime/capability modeling;
+- TTS plumbing on Windows;
+- evidence-linked prosody controls;
+- VOICE cognition/matrix ownership;
+- explicit enable/disable and fallback semantics;
+- package-level regression coverage.
+
+Still incomplete or awaiting supervised live acceptance:
+
+- microphone/STT pipeline;
+- robust input-device handling and VAD;
 - interruption/barge-in;
-- voice channel parity.
+- natural voice-quality tuning;
+- Desktop/Discord live voice-channel parity;
+- end-to-end evidence that spoken output/listening status matches real devices and engines.
 
 ---
 
@@ -817,21 +870,24 @@ Sofía currently has code foundations for the following capability families.
 
 ## Machine / Fleet
 
-- machine discovery;
+- machine discovery and inventory;
 - system/process/network/service/hardware inspection;
-- Fleet inventory;
-- remote inspection;
-- telemetry;
-- placement;
-- migration planning;
-- discovery/enrollment foundation;
+- Level-1 approved-scope network discovery that does not persist Fleet membership;
+- Level-2 bounded Fleet candidate discovery that persists only untrusted candidates;
+- exact Level-4 Sparks approval for Fleet enrollment/add-machine;
+- trusted-membership requirement for remote tools;
+- local and enrolled-remote hardware inspection;
+- Fleet telemetry, placement and migration planning;
+- remote Docker/Portainer read-only inspection;
 - remote Ollama/model lifecycle.
 
 ## Development
 
-- codebase inspection;
+- Level-1 codebase/status/candidate inspection;
 - filesystem observation;
-- DEV status/change workflow;
+- durable self-improvement candidate history;
+- isolated Level-2 `dev.build`;
+- protected Level-4 apply/rollback/commit/push;
 - Git/GitHub-oriented development surfaces;
 - release architecture.
 
@@ -889,13 +945,13 @@ pytest -q -m "pkg_environment and not integration"
 pytest -q -m "pkg_interact and not integration"
 ```
 
-Package markers currently exist for 21 package families.
+Package markers currently exist for **22 package families**.
 
 ---
 
 # 19. Current package roster
 
-The repository now defines **21 package markers**:
+The repository now defines **22 package markers**, confirmed by `pyproject.toml`, `test/conftest.py`, and the Package Tests workflow:
 
 1. CORE
 2. INTERACT
@@ -903,23 +959,24 @@ The repository now defines **21 package markers**:
 4. SOCIAL
 5. NET
 6. UI
-7. RUN
-8. OPS
-9. ACT
-10. REL
-11. AVATAR
-12. DEV
-13. BODY
-14. EVOLVE
-15. CLEAN
-16. KNOW
-17. INTEGRATE
-18. ENVIRONMENT
-19. HABIT
-20. SAFE
-21. VERIFY
+7. VOICE
+8. RUN
+9. OPS
+10. ACT
+11. REL
+12. AVATAR
+13. DEV
+14. BODY
+15. EVOLVE
+16. CLEAN
+17. KNOW
+18. INTEGRATE
+19. ENVIRONMENT
+20. HABIT
+21. SAFE
+22. VERIFY
 
-Older ROADMAP text that says 19 or 20 packages is stale.
+Older ROADMAP/PROJECT_HISTORY text that says 19, 20, or 21 packages is historical and superseded for current planning.
 
 ---
 
@@ -928,73 +985,40 @@ Older ROADMAP text that says 19 or 20 packages is stale.
 Audited current `main` head:
 
 ```text
-57b76f41aa2c70da28be4b05368de8606761b3fb
+fc533aafab25bffc6248406484d4b672a6e7e41f
 ```
 
-Latest workflows:
+Current workflows:
 
-- Matrix Tests: **success**
-- Package Tests top-level workflow: **success, but misleading**
-- Manual Verification: **failure**
+- Platform Compatibility: **success** across Windows/Linux, Python 3.12/3.14;
+- Matrix Tests: **success**;
+- Package Tests: **failure**, with failures isolated to BODY/ENVIRONMENT plus CORE's intentional cross-ownership of the same ENVIRONMENT assertion;
+- Manual Verification: **failure** with **3375 passed, 1 failed, 6 deselected**.
 
-The full non-integration verification result was:
+The single full-verification assertion failure is:
 
 ```text
-3304 passed
-15 failed
-6 deselected
+test/test_environment_runtime_projection.py::
+test_runtime_preserves_partial_deterministic_multi_question_answers
 ```
 
-The 15 failures currently cluster into three causes.
-
-### A. Provider live-regression test isolation
-
-Several tests monkeypatch Ollama response generation but model lifecycle still tries to make the configured real model ready.
-
-Observed failure:
+The expected trusted deterministic subquestion material is missing from the provider-visible system context for the mixed turn:
 
 ```text
-CognitiveEngineError:
-configured primary model could not be made ready
+what day is it, explain a database transaction?
 ```
 
-### B. Stale idle-reflection test doubles
+Package details relevant to the October 4 permission/Fleet work:
 
-Idle-reflection tests construct a minimal fake configuration containing only `state_path`, but application startup now reads `configuration.fleet_discovery`.
+- `pkg_safe`: **success**;
+- `pkg_dev`: **success**;
+- `pkg_ops`: **success**;
+- `pkg_net`: **success**;
+- `pkg_integrate`: **success**;
+- `pkg_core`: **failure only because the ENVIRONMENT test is also CORE-marked**;
+- `pkg_body`: **failure because zero BODY tests are currently selected**.
 
-Observed failure:
-
-```text
-AttributeError:
-'types.SimpleNamespace' object has no attribute 'fleet_discovery'
-```
-
-### C. One stale network response assertion
-
-Current grounded fallback says:
-
-```text
-I don't have the required current measurement evidence
-to make that operational claim.
-```
-
-while the test still expects older wording.
-
----
-
-## CI masking bug
-
-`.github/workflows/package-tests.yml` currently uses:
-
-```yaml
-continue-on-error: true
-```
-
-on package jobs.
-
-As a result `pkg_core` failed while the overall Package Tests workflow still showed success.
-
-This must be changed so package failure causes the gate to fail.
+The older CI masking bug is closed. Package jobs no longer use `continue-on-error: true`; package failures now fail the workflow.
 
 ---
 
@@ -1002,75 +1026,79 @@ This must be changed so package failure causes the gate to fail.
 
 ## P0 — correctness / verification
 
-- fix current 15 verification failures;
-- fix `pkg_core`;
-- remove CI failure masking;
-- rerun exact-head full verification;
-- live Venus desktop/Discord acceptance after the green gate.
+- fix the ENVIRONMENT mixed-question deterministic-subanswer regression;
+- restore at least one meaningful BODY-owned package test (or deliberately redefine BODY package ownership) so `pkg_body` does not fail from zero selected tests;
+- rerun exact-head Package Tests and Manual Verification;
+- run live Venus/Artemis canaries for the completed Permissions → Fleet → Hardware → Network → Docker → DEV chain.
 
 ## P1 — RUN/service reliability
 
-- restore/build current Windows service installer;
-- install runtime service;
-- install watchdog host;
-- verify service command uses the accepted active release;
-- exercise crash/restart/backoff/rollback.
+- verify the installed Windows runtime service command/path against current accepted source;
+- verify/install the watchdog host from current source rather than historical service wrappers;
+- exercise crash/restart/backoff and active-release startup;
+- add automatic bad-release rollback/controlled forward-fix evidence.
 
 ## P1 — backup/recovery
 
-- independent backup system;
-- protected-state backup;
-- state-database backup;
-- restore rehearsal;
-- semantic validation after restore;
-- define RPO/RTO.
+- independent canonical-state backup;
+- protected-state/trust-root backup;
+- restore into a clean environment;
+- semantic integrity validation after restore;
+- define and measure RPO/RTO;
+- bare-metal recovery rehearsal.
 
-## P1 — Fleet
+## P1 — Fleet live acceptance
 
-- supervised Artemis discovery/enrollment;
+- supervised Artemis candidate discovery and exact enrollment approval;
 - Linux host acceptance;
 - Raspberry Pi-class acceptance;
-- key rotation/rekey;
+- key rotation/rekey/revocation;
 - quarantine/duplicate/spoof rejection;
-- continuous monitoring/maintenance.
+- continuous monitoring/maintenance;
+- useful one-time ACT enrollment/change notifications.
 
 ## P2 — distributed execution
 
-- general distributed-worker runtime;
-- durable task scheduling;
-- task leases;
-- worker heartbeat;
+- concrete general workload backend;
+- durable task scheduling/leases;
+- worker heartbeat/readiness;
 - result/receipt handling;
-- concrete workload backend;
-- real migration canary.
+- real drain/checkpoint/start/fence migration canary;
+- cross-host singleton fencing.
 
-## P2 — replicated state
+## P2 — replicated authoritative state
 
 - second independent data-bearing location;
 - one-writer contract;
-- cross-host fencing;
-- replica health;
+- witness/equivalent fencing authority;
+- replica health/freshness;
 - partition behavior;
-- failover;
-- recovery tests.
+- failover and stale-writer rejection;
+- independent versioned backup and recovery tests.
 
 ## P2 — release supply chain
 
-- dependency lock;
-- SBOM;
+- generated dependency lock;
+- repository SBOM;
 - build provenance;
-- reproducible artifact;
-- signer workflow;
-- canary;
-- staged rollout;
-- convergence proof.
+- reproducible immutable artifact;
+- signer workflow and trust-root custody;
+- canary/update rings;
+- staged Fleet rollout;
+- convergence proof;
+- automatic rollback/forward-fix.
 
 ## P3 — interface/embodiment
 
-- avatar renderer;
-- voice;
-- mobile/web if still desired;
-- Gaia physical integration.
+- graphical avatar renderer and animation receipts;
+- live voice/STT/device/channel acceptance and natural-quality tuning;
+- mobile/web only if still desired;
+- Gaia physical integration with hardware E-stop.
+
+## Later — general web/search
+
+- keep general browsing/search separately authorized and last;
+- NWS remains a narrow approved ENVIRONMENT exception, not a general web grant.
 
 ---
 
@@ -1409,7 +1437,7 @@ After the current regression gate is green:
 4. **DEV + KNOW + INTEGRATE + BODY domain refinement**
 5. **Release compatibility matrix**
 6. **Fleet failure/recovery matrix**
-7. Extend channel parity to voice only after voice actually exists
+7. Extend live voice channel parity after STT/TTS/device acceptance is proven
 
 This gives the matrix architecture more precision without turning it into another giant monolith.
 
@@ -1454,33 +1482,7 @@ The matrix expansion was subsequently completed on `main` in this order:
 
 The dedicated Matrix Tests closure gate passed **405/405** on commit `130aa735`. Actual live STT/TTS adapters and Desktop/Discord voice-channel parity remain later interface work, not missing matrix foundations.
 
-The current package/test ownership roster is treated as **21 families**:
-
-```text
-CORE
-INTERACT
-MEM
-SOCIAL
-NET
-UI
-RUN
-OPS
-ACT
-REL
-AVATAR
-DEV
-BODY
-EVOLVE
-CLEAN
-KNOW
-INTEGRATE
-ENVIRONMENT
-HABIT
-SAFE
-VERIFY
-```
-
-Older 20-package roadmap references are historical and are superseded for current planning.
+At that checkpoint the package/test roster was treated as 21 families. **Current main has 22**, because VOICE now has its own `pkg_voice` marker and CI gate. The current roster is documented in section 19 above; older 20/21-family references are historical.
 
 ## AVATAR clothing-request autonomy clarification
 
@@ -1523,7 +1525,7 @@ Future richer autonomy may also support a counter-proposal/alternative outfit.
 
 The intended autonomy decision is context-aware. Trusted current **weather**, **time/daypart**, and **modeled emotion** should influence whether Sofía accepts the requested outfit, declines it, or counter-proposes another option. Those inputs are influences only: they do not become authority, consent, or private-presentation grants. Stale or unknown weather must not be treated as current evidence.
 
-At this checkpoint the current `WardrobeAutonomyPolicy.decide()` contract does **not yet receive those environment/emotion inputs**, so this behavior is a documented implementation gap rather than a completed capability.
+That earlier gap is now closed: current wardrobe autonomy receives trusted contextual influence through the shared contextual-influence contract. Weather/time/daypart/season/emotion remain bounded influences only and never become authority, consent, or private-presentation grants.
 
 The default public wardrobe policy currently accepts valid public requests, which is why the existing feature already behaves successfully in normal cases. That default acceptance must never be interpreted as the user having direct state authority.
 
