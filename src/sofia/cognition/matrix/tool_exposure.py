@@ -184,6 +184,18 @@ class MatrixToolExposurePlanner:
                 "portainer.volumes",
                 "portainer.networks",
                 "portainer.stacks",
+                "ops.fleet.list",
+                "ops.fleet.get",
+                "remote.nodes",
+                "remote.container.list",
+                "remote.container.get",
+                "remote.container.stats",
+                "remote.container.info",
+                "remote.container.summary",
+                "remote.container.images",
+                "remote.container.volumes",
+                "remote.container.networks",
+                "remote.container.stacks",
             )
         if _JMRI.search(text):
             _add(capabilities, "jmri.power", "jmri.roster", "jmri.object")
