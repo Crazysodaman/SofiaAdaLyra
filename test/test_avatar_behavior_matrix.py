@@ -272,5 +272,5 @@ def test_cold_late_night_can_reject_short_lounge_outfit():
     )
 
     selected = build_starter_wardrobe().preset(result.outfit_id)
-    assert Weather.COLD in selected.weather
     assert selected.lounge is False
+    assert "garment_environment_context" in result.reasons
