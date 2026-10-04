@@ -25,15 +25,21 @@ class KnowledgeCapabilitySet:
         service:KnowledgeService,
         *,
         approval_verifier:ExecutionApprovalVerifier,
-        permission_store:PermissionStore,
+        permission_store:PermissionStore|None=None,
     )->None:
         if not isinstance(approval_verifier,ExecutionApprovalVerifier):
             raise TypeError("approval_verifier must be ExecutionApprovalVerifier")
-        if not isinstance(permission_store,PermissionStore):
-            raise TypeError("permission_store must be PermissionStore")
+        if permission_store is not None and not isinstance(
+            permission_store,PermissionStore
+        ):
+            raise TypeError("permission_store must be PermissionStore or None")
         self.service=service
         self.approval_verifier=approval_verifier
-        self.permission_store=permission_store
+        self.permission_store=(
+            permission_store
+            if permission_store is not None
+            else PermissionStore(approval_verifier.path)
+        )
 
     def _authorize(self,name:str,p:dict[str,Any])->None:
         if name not in self._MUTATING:
