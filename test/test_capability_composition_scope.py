@@ -266,7 +266,7 @@ def test_composed_capability_rejects_non_path_scope(
     assert result.evidence is None
 
 
-def test_composed_capability_rejects_without_standing_authorization(
+def test_composed_read_only_capability_is_automatic_without_standing_grant(
     tmp_path,
 ):
     configuration = replace(
@@ -289,5 +289,5 @@ def test_composed_capability_rejects_without_standing_authorization(
         )
     )
 
-    assert result.kind is CapabilityResultKind.UNAUTHORIZED
-    assert result.evidence is None
+    assert result.kind is CapabilityResultKind.SUCCESS
+    assert result.evidence is not None
