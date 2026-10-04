@@ -8,6 +8,10 @@ from threading import RLock
 
 from sofia.avatar.clothing_action import ClothingActionService
 from sofia.avatar.generated_decision import GeneratedGarmentDecisionService
+from sofia.avatar.generated_proposal import (
+    GarmentGenerationBrief,
+    GeneratedGarmentProposalService,
+)
 from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
 from sofia.avatar.wardrobe_generated_store import (
     GarmentAcceptanceResult,
@@ -554,6 +558,21 @@ class SofiaApplication:
             return self.decide_generated_wardrobe_piece(
                 blueprint,
                 decision,
+            )
+
+    def generate_wardrobe_piece_from_brief(
+        self,
+        brief: GarmentGenerationBrief,
+    ) -> tuple[GarmentBlueprint, GarmentAcceptanceResult]:
+        """Generate a proposal, then require Sofía's independent ownership decision."""
+        if not isinstance(brief, GarmentGenerationBrief):
+            raise TypeError("brief must be GarmentGenerationBrief")
+        with self._model_lock:
+            request = GeneratedGarmentProposalService(
+                self._runtime.respond
+            ).generate(brief)
+            return self.generate_and_evaluate_wardrobe_piece(
+                request
             )
 
     def generate_and_evaluate_wardrobe_piece(
