@@ -21,7 +21,7 @@ from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_planner import Activity, OutfitPlanner, WardrobeContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation, EnvironmentConfiguration
 from sofia.environment.astronomy import season_for
 from sofia.environment.model import EnvironmentFreshness, Season, WeatherObservation
@@ -210,7 +210,7 @@ def test_interact_receives_same_context_without_weather_or_emotion_granting_cons
     service = object.__new__(ExpandedConversationService)
     service._runtime = SimpleNamespace(
         personality=object(),
-        embodiment=AvatarStore(AVATAR).load(),
+        embodiment=EmbodimentStore(AVATAR).load(),
         configuration=SimpleNamespace(state_path=tmp_path / "matrix.db"),
         environment_service=FixedEnvironment(snapshot),
     )

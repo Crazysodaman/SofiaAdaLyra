@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     from sofia.config.defaults import create_production_configuration
     from sofia.constitution.integrity import ConstitutionIntegrityVerifier
     from sofia.constitution.store import ConstitutionStore
-    from sofia.embodiment.store import AvatarStore
+    from sofia.embodiment.store import EmbodimentStore
     from sofia.identity.store import IdentityStore
     from sofia.personality.store import PersonalityStore
 
@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     ConstitutionIntegrityVerifier(config.constitution_hash_path).verify(constitution)
     identity = IdentityStore(config.identity_path).load()
     personality = PersonalityStore(config.personality_path).load()
-    embodiment = AvatarStore(config.avatar_path).load()
+    embodiment = EmbodimentStore(config.avatar_path).load()
     intent = parse_user_action(OFFER, message_id='counterfactual-synthetic-offer')
     if intent is None or intent.modality != 'offered' or intent.action_id != 'hug':
         raise RuntimeError('The reviewed exact synthetic hug offer is no longer classified.')

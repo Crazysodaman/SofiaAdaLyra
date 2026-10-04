@@ -8,7 +8,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.expanded_service import ExpandedConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -35,7 +35,7 @@ def state(tmp_path):
         ):
             cx.execute('INSERT INTO conversation_messages VALUES (?,?,?,?,?)',
                        (id_, 'session-1', role, text, NOW.isoformat()))
-    embodiment = AvatarStore(AVATAR).load()
+    embodiment = EmbodimentStore(AVATAR).load()
     attested = VerifiedInteractionState(db, catalog_for_engine(NaturalInteractionEngine(embodiment)))
     service = object.__new__(ExpandedConversationService)
     service._session = SimpleNamespace(id='session-1')

@@ -11,7 +11,7 @@ from sofia.avatar.presentation import (
 from sofia.avatar.self_fact_query import AvatarSelfFactResolver
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_matrix import build_wardrobe_matrix
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from pathlib import Path
 
 
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def sources():
-    embodiment = AvatarStore(ROOT / "src" / "sofia" / "data" / "avatar.json").load()
+    embodiment = EmbodimentStore(ROOT / "src" / "sofia" / "data" / "avatar.json").load()
     catalog = build_starter_wardrobe()
     outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
     authority = PresentationAuthority(

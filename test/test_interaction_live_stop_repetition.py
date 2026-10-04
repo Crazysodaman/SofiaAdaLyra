@@ -10,7 +10,7 @@ import pytest
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
 from sofia.conversation.store import ConversationStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService, interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
@@ -32,7 +32,7 @@ def service_for_test(tmp_path):
     service._last_user_activity = monotonic()
     service._runtime = SimpleNamespace(
         configuration=SimpleNamespace(state_path=path),
-        embodiment=AvatarStore(AVATAR).load(),
+        embodiment=EmbodimentStore(AVATAR).load(),
         personality=object(),
         respond=lambda *_args, **_kwargs: pytest.fail('Guarded action must not call the LLM'),
     )
@@ -120,7 +120,7 @@ def test_discussion_quotes_and_single_actions_are_not_compound_guards(content):
 
 
 def test_single_accepted_gesture_requests_fresh_contextual_wording():
-    engine = NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    engine = NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
     decision = engine.from_text(content='Sofía, I gently pat your left ear',
                                 message_id='one', session_id='session', occurred_at=NOW)
     assert decision is not None and decision.status == 'accepted'

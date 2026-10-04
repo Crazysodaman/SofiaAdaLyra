@@ -10,13 +10,13 @@ from sofia.embodiment.model import (
     RobotEmbodiment,
 )
 from sofia.embodiment.store import (
-    AvatarStore,
+    EmbodimentStore,
     EmbodimentStoreError,
 )
 
 __all__ = [
     "AvatarEmbodiment",
-    "AvatarStore",
+    "EmbodimentStore",
     "ClothingItem",
     "ClothingSpecification",
     "ComputerEmbodiment",

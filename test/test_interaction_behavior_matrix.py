@@ -13,7 +13,7 @@ import sqlite3
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger
@@ -27,7 +27,7 @@ NOW = datetime(2026, 9, 27, 22, 0, tzinfo=timezone.utc)
 
 @pytest.fixture
 def engine():
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    return NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 @pytest.mark.parametrize(

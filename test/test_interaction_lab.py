@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.core import InteractionEngine
 from test.interaction_lab_support import InteractionLab, LabScene, LabStep, MAX_STEPS
 
@@ -14,7 +14,7 @@ NOW = datetime(2026, 9, 20, 21, tzinfo=timezone.utc)
 
 @pytest.fixture
 def lab():
-    return InteractionLab(InteractionEngine(AvatarStore(AVATAR).load()))
+    return InteractionLab(InteractionEngine(EmbodimentStore(AVATAR).load()))
 
 
 def step(name, mode, **kwargs):

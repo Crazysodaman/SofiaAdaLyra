@@ -8,7 +8,7 @@ import pytest
 from sofia.application.emotional_conversation import EmotionalConversationService
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.conversation.model import ConversationRole
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import InteractiveConversationService
 from sofia.interaction.grammar import NaturalInteractionEngine
 from sofia.interaction.ledger import InteractionLedger, control_command
@@ -19,7 +19,7 @@ AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avata
 
 @pytest.fixture
 def engine():
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    return NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ def _chat(monkeypatch, tmp_path, content, message_id='saved-1'):
     monkeypatch.setattr(InteractiveConversationService, 'messages', lambda self: (user,))
     service = object.__new__(InteractiveConversationService)
     service._runtime = SimpleNamespace(personality=object(),
-        embodiment=AvatarStore(AVATAR).load(),
+        embodiment=EmbodimentStore(AVATAR).load(),
         configuration=SimpleNamespace(state_path=tmp_path / 'sofia.db'))
     return service, original, user
 

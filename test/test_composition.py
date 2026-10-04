@@ -1,4 +1,4 @@
-﻿import hashlib
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
@@ -16,7 +16,7 @@ from sofia.config.model import (
 )
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.memory.system import MemorySystem
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.model import RuntimeState
@@ -103,18 +103,18 @@ def test_composition_wires_personality_store():
     )
 
 
-def test_composition_wires_avatar_store():
+def test_composition_wires_embodiment_store():
     configuration = create_configuration()
 
     runtime = compose(configuration)
 
     assert isinstance(
-        runtime.avatar_store,
-        AvatarStore,
+        runtime._embodiment_store,
+        EmbodimentStore,
     )
 
     assert (
-        runtime.avatar_store.path
+        runtime._embodiment_store.path
         == configuration.avatar_path
     )
 

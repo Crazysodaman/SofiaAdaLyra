@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.core import InteractionEngine
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -16,7 +16,7 @@ AVATAR = Path(__file__).resolve().parents[1] / 'src' / 'sofia' / 'data' / 'avata
 
 @pytest.fixture
 def engine():
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    return NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 def test_every_canonical_region_has_same_recognition_not_blanket_denial(engine):

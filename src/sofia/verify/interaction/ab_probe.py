@@ -20,7 +20,7 @@ from sofia.cognition.providers.ollama_provider import OllamaProvider
 from sofia.config.defaults import create_production_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.body_discussion import body_discussion_prompt
@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     ConstitutionIntegrityVerifier(configuration.constitution_hash_path).verify(constitution)
     identity = IdentityStore(configuration.identity_path).load()
     personality = PersonalityStore(configuration.personality_path).load()
-    embodiment = AvatarStore(configuration.avatar_path).load()
+    embodiment = EmbodimentStore(configuration.avatar_path).load()
     provider = OllamaProvider(configuration.provider)
     print('INTERACT A/B: synthetic inputs only; SQLite and conversation history are untouched.')
     print('B is a bounded static assembled approximation, NOT the exact live runtime prompt.')

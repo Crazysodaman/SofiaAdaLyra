@@ -1,4 +1,4 @@
-﻿import json
+import json
 from pathlib import Path
 
 from sofia.state.atomic_file import atomic_write_text
@@ -20,7 +20,7 @@ class EmbodimentStoreError(Exception):
     """Raised when embodiment persistence fails."""
 
 
-class AvatarStore:
+class EmbodimentStore:
     """
     Persists Sofía's embodiment definition.
 
@@ -38,7 +38,7 @@ class AvatarStore:
     def save(self, embodiment: Embodiment) -> None:
         if not isinstance(embodiment, Embodiment):
             raise TypeError(
-                "AvatarStore embodiment must be an Embodiment."
+                "EmbodimentStore embodiment must be an Embodiment."
             )
 
         data = {

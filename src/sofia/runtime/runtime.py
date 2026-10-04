@@ -39,7 +39,7 @@ from sofia.continuity.model import (
 )
 from sofia.embodiment.model import Embodiment
 from sofia.embodiment.measurement_query import MeasurementQueryResolver
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.query import EnvironmentQueryResolver
 from sofia.environment.service import EnvironmentService
 from sofia.filesystem.changes import (
@@ -99,7 +99,7 @@ class SofiaRuntime:
         integrity_verifier: ConstitutionIntegrityVerifier,
         identity_store: IdentityStore,
         personality_store: PersonalityStore,
-        avatar_store: AvatarStore,
+        embodiment_store: EmbodimentStore,
         memory_system: MemorySystem,
         cognitive_system: CognitiveSystem,
         ops_service: OpsToolService,
@@ -131,7 +131,7 @@ class SofiaRuntime:
         self._integrity_verifier = integrity_verifier
         self._identity_store = identity_store
         self._personality_store = personality_store
-        self._avatar_store = avatar_store
+        self._embodiment_store = embodiment_store
         if not isinstance(ops_service, OpsToolService):
             raise TypeError(
                 "SofiaRuntime ops_service must be an OpsToolService."
@@ -275,10 +275,6 @@ class SofiaRuntime:
         self,
     ) -> PersonalityStore:
         return self._personality_store
-
-    @property
-    def avatar_store(self) -> AvatarStore:
-        return self._avatar_store
 
     @property
     def embodiment(self) -> Embodiment | None:
@@ -526,7 +522,7 @@ class SofiaRuntime:
 
             identity = self._identity_store.load()
             personality = self._personality_store.load()
-            embodiment = self._avatar_store.load()
+            embodiment = self._embodiment_store.load()
 
             core_state = create_core_state(
                 identity=identity,

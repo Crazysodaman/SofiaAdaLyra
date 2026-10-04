@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.action_grammar import parse_user_action
 from sofia.interaction.chat import interaction_prompt
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -15,7 +15,7 @@ NOW = datetime(2026, 9, 21, 22, tzinfo=timezone.utc)
 
 
 def _engine():
-    return NaturalInteractionEngine(AvatarStore(AVATAR).load())
+    return NaturalInteractionEngine(EmbodimentStore(AVATAR).load())
 
 
 def _interpret(content, *, stopped=False):

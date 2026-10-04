@@ -23,7 +23,7 @@ from sofia.config.model import SofiaConfiguration
 from sofia.config.reviewed_projection import apply_reviewed_configuration
 from sofia.constitution.integrity import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
@@ -152,7 +152,7 @@ def compose(
         Path(configuration.personality_path)
     )
 
-    avatar_store = AvatarStore(
+    embodiment_store = EmbodimentStore(
         Path(configuration.avatar_path)
     )
 
@@ -436,7 +436,7 @@ def compose(
         integrity_verifier=integrity_verifier,
         identity_store=identity_store,
         personality_store=personality_store,
-        avatar_store=avatar_store,
+        embodiment_store=embodiment_store,
         memory_system=memory_system,
         cognitive_system=cognitive_system,
         ops_service=ops_service,

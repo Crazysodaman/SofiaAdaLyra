@@ -7,7 +7,7 @@ from sofia.avatar.presentation import AppearanceState, PresentationAuthority
 from sofia.avatar.presentation_store import PresentationStore
 from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +15,7 @@ AVATAR_PATH = ROOT / "src" / "sofia" / "data" / "avatar.json"
 
 
 def embodiment():
-    return AvatarStore(AVATAR_PATH).load()
+    return EmbodimentStore(AVATAR_PATH).load()
 
 
 def test_new_bootstrap_prefers_semantic_color_names(tmp_path):

@@ -6,7 +6,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveRole
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore
 from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.grammar import NaturalInteractionEngine
@@ -28,7 +28,7 @@ def test_probe_constructs_static_context_with_identical_synthetic_user_input(cas
         identity=IdentityStore(ROOT / 'identity' / 'identity.json').load(),
         personality=PersonalityStore(ROOT / 'personality' / 'personality.json').load(),
         constitution=ConstitutionStore(ROOT / 'constitution' / 'constitution.md').load(),
-        embodiment=AvatarStore(ROOT / 'data' / 'avatar.json').load(),
+        embodiment=EmbodimentStore(ROOT / 'data' / 'avatar.json').load(),
     )
     assert minimal.messages[-1].role is assembled.messages[-1].role is CognitiveRole.USER
     assert minimal.messages[-1].content == assembled.messages[-1].content == text
@@ -51,7 +51,7 @@ def test_probe_constructs_static_context_with_identical_synthetic_user_input(cas
 
 
 def test_canonical_engine_requires_a_side_for_singular_ear():
-    engine = NaturalInteractionEngine(AvatarStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / 'data' / 'avatar.json').load())
     ambiguous = engine.from_text(
         content='*pats your ear*', message_id='ear-1',
         session_id='synthetic-session', occurred_at=datetime.now(timezone.utc),

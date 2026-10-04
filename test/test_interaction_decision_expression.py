@@ -9,7 +9,7 @@ import pytest
 
 from sofia.cognition.model import CognitiveResponse, CognitiveRole
 from sofia.constitution.store import ConstitutionStore
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.identity.store import IdentityStore
 from sofia.verify.interaction.ab_probe import build_pair
 from sofia.interaction.action_grammar import parse_user_action
@@ -32,13 +32,13 @@ def _static(case, text):
         identity=IdentityStore(ROOT / 'identity' / 'identity.json').load(),
         personality=PersonalityStore(ROOT / 'personality' / 'personality.json').load(),
         constitution=ConstitutionStore(ROOT / 'constitution' / 'constitution.md').load(),
-        embodiment=AvatarStore(ROOT / 'data' / 'avatar.json').load(),
+        embodiment=EmbodimentStore(ROOT / 'data' / 'avatar.json').load(),
     )
     return request
 
 
 def _gesture(text, *, stopped=False):
-    engine = NaturalInteractionEngine(AvatarStore(ROOT / 'data' / 'avatar.json').load())
+    engine = NaturalInteractionEngine(EmbodimentStore(ROOT / 'data' / 'avatar.json').load())
     decision = engine.from_text(
         content=text, message_id='synthetic-evidence',
         session_id='synthetic-session',

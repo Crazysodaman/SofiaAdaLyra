@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from sofia.embodiment.store import AvatarStore
+from sofia.embodiment.store import EmbodimentStore
 from sofia.interaction.core import GESTURES as LIVE_GESTURES, InteractionEngine
 from sofia.interaction.registry import (
     ACTION_DEFINITIONS, CATALOG_VERSION,
@@ -16,7 +16,7 @@ AVATAR = Path(__file__).resolve().parents[1] / "src" / "sofia" / "data" / "avata
 
 @pytest.fixture
 def catalog():
-    engine = InteractionEngine(AvatarStore(AVATAR).load())
+    engine = InteractionEngine(EmbodimentStore(AVATAR).load())
     return catalog_for_engine(engine), engine
 
 
