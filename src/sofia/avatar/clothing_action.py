@@ -814,11 +814,19 @@ class ClothingActionService:
             wanted = f"swim.bikini.{int(bikini.group(1)):02d}"
             return self.bundle.catalog.preset(wanted)
 
-        aliases: dict[str, object] = {}
+        aliases: dict[str, list[OutfitPlan]] = {}
         for plan in self.bundle.catalog.presets:
-            aliases[_normalize(plan.outfit_id)] = plan
-            if plan.display_name:
-                aliases[_normalize(plan.display_name)] = plan
+            for alias in (
+                _normalize(plan.outfit_id),
+                (
+                    None
+                    if not plan.display_name
+                    else _normalize(plan.display_name)
+                ),
+            ):
+                if alias is None:
+                    continue
+                aliases.setdefault(alias, []).append(plan)
 
         explicit = {
             "engineer outfit": "engineer.signature",
@@ -831,7 +839,8 @@ class ClothingActionService:
         }
         if query in explicit:
             return self.bundle.catalog.preset(explicit[query])
-        return aliases.get(query)
+        matches = aliases.get(query, ())
+        return matches[0] if len(matches) == 1 else None
 
     def _resolve_blueprint(
         self,
