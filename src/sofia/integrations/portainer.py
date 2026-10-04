@@ -54,6 +54,43 @@ class PortainerAdapter:
         )
         if not isinstance(data,list): raise RuntimeError("invalid Portainer stacks response")
         return data
+    def summary(self)->dict[str,Any]:
+        info=self.info()
+        containers=self.containers(all_containers=True)
+        running=[]
+        stopped=[]
+        unhealthy=[]
+        for item in containers:
+            names=item.get("Names") or ()
+            name=(
+                str(names[0]).lstrip("/")
+                if isinstance(names,list) and names
+                else str(item.get("Id",""))[:12]
+            )
+            state=str(item.get("State","")).casefold()
+            status=str(item.get("Status",""))
+            if state=="running":
+                running.append(name)
+            else:
+                stopped.append(name)
+            if "unhealthy" in status.casefold():
+                unhealthy.append(name)
+        return {
+            "endpoint_id":self.endpoint_id,
+            "engine": {
+                "containers":info.get("Containers"),
+                "containers_running":info.get("ContainersRunning"),
+                "containers_stopped":info.get("ContainersStopped"),
+                "images":info.get("Images"),
+                "server_version":info.get("ServerVersion"),
+                "operating_system":info.get("OperatingSystem"),
+                "architecture":info.get("Architecture"),
+            },
+            "observed_container_count":len(containers),
+            "running":tuple(sorted(running)),
+            "stopped":tuple(sorted(stopped)),
+            "unhealthy":tuple(sorted(unhealthy)),
+        }
     def restart(self,container_id:str,*,timeout_seconds:int=10)->None:
         if not container_id.strip() or "/" in container_id: raise ValueError("invalid container_id")
         if timeout_seconds<0 or timeout_seconds>300: raise ValueError("timeout_seconds out of range")
