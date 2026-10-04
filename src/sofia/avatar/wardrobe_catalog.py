@@ -1479,23 +1479,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
     """Build the intentionally small day/night starter closet."""
     blueprints = (
         *_load_underlayer_blueprints(),
-        _blueprint(
-            GarmentDesign(
-                "day.technical_top", "Fitted technical long-sleeve top",
-                "long_sleeve_tee", "fitted", None, "hip", "long",
-                "breathable performance-knit", "black", "crimson",
-                "panelled",
-                GraphicDesign(True, "left_chest", "small_cyan_circuit_mark"),
-                ("reinforced_seams", "stretch_panels"),
-                ("day", "engineer", "technical", "fitted"), False,
-                "A fitted black long-sleeve technical top cut to the hip in "
-                "breathable performance knit. Crimson seam accents follow the "
-                "shoulders and sides, while a small cyan circuit mark sits on "
-                "the left chest. The silhouette is clean and mobile, with "
-                "reinforced seams and subtle stretch panels."
-            ),
-            canonical=True,
-        ),
+        *_load_wardrobe_data_file("tops.json"),
         _blueprint(
             GarmentDesign(
                 "day.utility_trousers", "Articulated utility trousers",
@@ -1580,22 +1564,6 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                 "small practical pouch, and restrained crimson hardware detail."
             ),
             canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "night.lounge_tee", "Oversized late-night lounge T-shirt",
-                "t_shirt", "oversized", None, "upper_thigh", "short",
-                "soft brushed cotton-modal knit", "black", "dark_violet",
-                "solid",
-                GraphicDesign(True, "back_center", "violet_cyan_circuit_fox"),
-                ("dropped_shoulders", "soft_hem"),
-                ("night", "lounge", "soft", "cozy", "graphic"), False,
-                "An oversized black late-night T-shirt in soft brushed "
-                "cotton-modal knit, falling to the upper thigh with short "
-                "sleeves and relaxed dropped shoulders. A dark-violet and cyan "
-                "circuit-fox graphic sits across the upper back, while the "
-                "front stays mostly clean."
-            ),
         ),
         _blueprint(
             GarmentDesign(

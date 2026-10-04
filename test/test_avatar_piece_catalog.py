@@ -42,9 +42,9 @@ def test_owned_closet_includes_data_backed_underlayers():
     pack = build_starter_wardrobe()
     summary = pack.closet_summary()
 
-    assert len(pack.blueprints) == 57
+    assert len(pack.blueprints) == 75
     assert len(pack.presets) == 3
-    assert summary["starter_piece_count"] == 57
+    assert summary["starter_piece_count"] == 75
     assert summary["outfit_count"] == 3
     assert summary["all_designs_unique"] is True
 

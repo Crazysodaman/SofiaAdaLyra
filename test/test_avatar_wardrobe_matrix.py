@@ -14,8 +14,8 @@ def test_starter_design_signatures_are_unique():
     pack = build_starter_wardrobe()
     signatures = [bp.design_signature for bp in pack.blueprints]
 
-    assert len(signatures) == 57
-    assert len(set(signatures)) == 57
+    assert len(signatures) == 75
+    assert len(set(signatures)) == 75
     assert all(len(signature) == 64 for signature in signatures)
     assert all(bp.description.strip() for bp in pack.blueprints)
 
