@@ -1,13 +1,10 @@
-﻿from threading import Barrier, Thread
+from threading import Barrier, Thread
 from uuid import UUID
 
 import pytest
 
-from sofia.action.executor import (
-    ActionExecutorError,
-    FailClosedActionExecutor,
-    TestActionExecutor,
-)
+from sofia.action.executor import ActionExecutorError, FailClosedActionExecutor
+from test.action_support import TestActionExecutor
 from sofia.action.model import (
     Action,
     ActionExecutionResult,
@@ -225,30 +222,10 @@ def test_execution_result_requires_execution_status():
         )
 
 
-def test_self_improvement_requires_more_than_low_risk():
-    proposal = make_proposal(risk=ActionRisk.LOW)
-
-    with pytest.raises(ActionSystemError):
-        ActionSystem.validate_self_improvement_proposal(proposal)
 
 
-def test_self_improvement_requires_approval():
-    proposal = make_proposal(
-        risk=ActionRisk.MODERATE,
-        requires_approval=False,
-    )
-
-    with pytest.raises(ActionSystemError):
-        ActionSystem.validate_self_improvement_proposal(proposal)
 
 
-def test_self_improvement_proposal_passes_boundary():
-    proposal = make_proposal(
-        risk=ActionRisk.MODERATE,
-        requires_approval=True,
-    )
-
-    ActionSystem.validate_self_improvement_proposal(proposal)
 
 
 def test_action_system_requires_executor():

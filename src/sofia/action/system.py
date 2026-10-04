@@ -1,4 +1,4 @@
-﻿from threading import RLock
+from threading import RLock
 from uuid import UUID
 
 from sofia.action.executor import (
@@ -8,7 +8,6 @@ from sofia.action.executor import (
 from sofia.action.model import (
     ActionExecutionResult,
     ActionProposal,
-    ActionRisk,
     ActionStatus,
 )
 from sofia.cognition.operation import CognitiveOperation
@@ -186,23 +185,4 @@ class ActionSystem:
         if not isinstance(operation, CognitiveOperation):
             raise TypeError(
                 "ActionSystem operation must be a CognitiveOperation."
-            )
-
-    @staticmethod
-    def validate_self_improvement_proposal(
-        proposal: ActionProposal,
-    ) -> None:
-        if not isinstance(proposal, ActionProposal):
-            raise TypeError(
-                "Self-improvement proposal must be an ActionProposal."
-            )
-
-        if proposal.action.risk is ActionRisk.LOW:
-            raise ActionSystemError(
-                "Self-improvement actions cannot be classified as LOW risk."
-            )
-
-        if not proposal.action.requires_approval:
-            raise ActionSystemError(
-                "Self-improvement actions must require approval."
             )

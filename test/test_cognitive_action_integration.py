@@ -1,8 +1,8 @@
-﻿from uuid import UUID
+from uuid import UUID
 
 import pytest
 
-from sofia.action.executor import TestActionExecutor
+from test.action_support import TestActionExecutor
 from sofia.action.model import (
     Action,
     ActionProposal,
