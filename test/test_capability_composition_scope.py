@@ -1,4 +1,4 @@
-﻿from dataclasses import replace
+from dataclasses import replace
 import hashlib
 from pathlib import Path
 
@@ -9,8 +9,8 @@ from sofia.authorization.evaluator import (
 )
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import CapabilityResultKind
-from sofia.capability.proposal import CapabilityProposal
-from sofia.codebase.codebase import CODEBASE_INSPECT_CAPABILITY
+from sofia.capability.model import CapabilityProposal
+from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY
 from sofia.composition.root import compose
 from sofia.config.model import (
     ProviderConfiguration,

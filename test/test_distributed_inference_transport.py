@@ -1,3 +1,4 @@
+from hashlib import sha256
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -14,7 +15,7 @@ from sofia.distributed.https_transport import (
     HttpsTransportError,
     PinnedHttpsRemoteTransport,
 )
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,
@@ -29,7 +30,7 @@ def _fixture():
     node=DistributedNode(uuid4(),"Worker")
     enrollment=NodeEnrollment(
         node,
-        fingerprint_public_key(b"worker-key"),
+        sha256(b"worker-key").hexdigest(),
         NOW,
         "Sparks",
     )
@@ -82,7 +83,7 @@ def test_https_transport_rejects_inference_for_wrong_enrollment():
     enrollment,request=_fixture()
     foreign=NodeEnrollment(
         DistributedNode(uuid4(),"Foreign"),
-        fingerprint_public_key(b"foreign-key"),
+        sha256(b"foreign-key").hexdigest(),
         NOW,
         "Sparks",
     )

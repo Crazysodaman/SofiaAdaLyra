@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from .change_review import ChangeProposal, ReviewFinding, ReviewState, inspect
 from .opencode import (
     EngineeringExecutionRequest,
     EngineeringExecutionResult,
@@ -11,7 +10,7 @@ from .opencode import (
     OpenCodeCommand,
     OpenCodeExecutionError,
 )
-from .workspace import WorkspaceGuard, WorkspaceViolation
+from sofia.dev.opencode import WorkspaceGuard, WorkspaceViolation
 from .git_workspace import (
     GitSnapshot,
     GitWorkspace,
@@ -23,29 +22,25 @@ from .git_workspace import (
 from .workflow import EngineeringCandidate, EngineeringWorkflow
 
 __all__ = [
-    "ChangeProposal",
-    "ReviewFinding",
-    "ReviewState",
-    "inspect",
-    "EngineeringExecutionRequest",
-    "EngineeringExecutionResult",
-    "OpenCodeAdapter",
-    "OpenCodeCommand",
-    "OpenCodeExecutionError",
     "WorkspaceGuard",
     "WorkspaceViolation",
-    "GitSnapshot",
-    "GitWorkspace",
-    "GitWorkspaceError",
-    "DirtyScopeError",
-    "ChangeScopeError",
-    "path_in_scope",
-    "EngineeringCandidate",
-    "EngineeringWorkflow",
-    "DevCandidateStore",
-    "DevToolService",
-    "DevCapabilitySet",
-    "create_dev_tool_bindings",
+    'EngineeringExecutionRequest',
+    'EngineeringExecutionResult',
+    'OpenCodeAdapter',
+    'OpenCodeCommand',
+    'OpenCodeExecutionError',
+    'GitSnapshot',
+    'GitWorkspace',
+    'GitWorkspaceError',
+    'DirtyScopeError',
+    'ChangeScopeError',
+    'path_in_scope',
+    'EngineeringCandidate',
+    'EngineeringWorkflow',
+    'DevCandidateStore',
+    'DevToolService',
+    'DevCapabilitySet',
+    'create_dev_tool_bindings',
 ]
 
 

@@ -3,6 +3,7 @@ from importlib.resources import files
 import json
 
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_types import garment_type
 from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
 
 
@@ -52,7 +53,7 @@ def test_loaded_explicit_one_pieces_do_not_claim_exposed_regions():
     explicit = [
         bp for bp in catalog.blueprints
         if bp.content_rating is ContentRating.EXPLICIT
-        and bp.garment.family.value == "one_piece"
+        and garment_type(bp.design.garment_type).family.value == "one_piece"
     ]
 
     assert len(explicit) == 4

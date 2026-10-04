@@ -8,7 +8,7 @@ from typing import Callable,Any
 from uuid import UUID
 
 from sofia.distributed.capabilities import CapabilityInventory,RemoteCapability
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.inference import (
     RemoteInferenceRequest,
     RemoteInferenceResponse,

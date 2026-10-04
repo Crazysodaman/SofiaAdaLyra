@@ -5,14 +5,14 @@ from dataclasses import replace
 import pytest
 
 from sofia.avatar.wardrobe import Layer, VisibilityDenied, WardrobeError
-from sofia.avatar.wardrobe_catalog import (
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_prebuild import (
     DAY_DEFAULT_OUTFIT_ID,
     DRAFT_STATUS,
     FALLBACK_OUTFIT_ID,
     NIGHT_LOUNGE_OUTFIT_ID,
     RequestStatus,
     StyleInput,
-    build_starter_wardrobe,
 )
 
 

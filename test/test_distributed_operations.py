@@ -2,14 +2,16 @@
 
 These are NOT authenticated-network integration tests. No sockets or devices.
 """
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.authorization import RemoteAuthorization, RemoteGrant
+from sofia.distributed.authorization import RemoteGrant
+from test.distributed_support import remote_authorization
 from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
 from sofia.distributed.operations import (
     DistributedGateway, RemoteOperationDenied, RemoteOperationRequest,
@@ -46,12 +48,12 @@ class FakeTransport(RemoteTransport):
             "remote reported completion")
 
 
-def fixture(*, grant=True):
+def fixture(remote_authorization, *, grant=True):
     node = DistributedNode(uuid4(), "Eos")
-    enrollment = NodeEnrollment(node, fingerprint_public_key(b"test-public-key"), NOW, "operator")
+    enrollment = NodeEnrollment(node, sha256(b"test-public-key").hexdigest(), NOW, "operator")
     request = RemoteOperationRequest(uuid4(), node.node_id, uuid4(),
                                      "hardware.inspect", "summary", {"detail": "short"})
-    authorization = RemoteAuthorization()
+    authorization = remote_authorization
     if grant:
         authorization.add_approved_grant(RemoteGrant(
             request.grant_id, node.node_id, request.capability,
@@ -65,16 +67,16 @@ def fixture(*, grant=True):
     return enrollment, request, transport, gateway
 
 
-def test_denial_prevents_even_network_authentication():
-    enrollment, request, transport, gateway = fixture(grant=False)
+def test_denial_prevents_even_network_authentication(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization, grant=False)
     with pytest.raises(RemoteOperationDenied, match="grant"):
         gateway.invoke(enrollment, request, now=NOW)
     assert transport.calls == []
     assert gateway.audit_events[-1][1] == "denied:no_grant"
 
 
-def test_authorized_one_shot_remote_report_is_not_local_verification():
-    enrollment, request, transport, gateway = fixture()
+def test_authorized_one_shot_remote_report_is_not_local_verification(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     result = gateway.invoke(enrollment, request, now=NOW)
     assert result.outcome is RemoteOutcome.REPORTED_SUCCESS
     assert transport.calls == ["authenticate", "discover", "execute"]
@@ -84,18 +86,18 @@ def test_authorized_one_shot_remote_report_is_not_local_verification():
     assert transport.calls.count("execute") == 1
 
 
-def test_wrong_node_fails_without_contact():
-    enrollment, request, transport, gateway = fixture()
+def test_wrong_node_fails_without_contact(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     foreign = NodeEnrollment(DistributedNode(uuid4(), "Nyx"),
-                             fingerprint_public_key(b"other-key"), NOW, "operator")
+                             sha256(b"other-key").hexdigest(), NOW, "operator")
     with pytest.raises(RemoteOperationDenied, match="node"):
         gateway.invoke(foreign, request, now=NOW)
     assert transport.calls == []
 
 
 @pytest.mark.parametrize("mode", ["auth", "wrong_inventory", "stale_inventory", "missing_capability"])
-def test_fails_closed_before_execute(mode):
-    enrollment, request, transport, gateway = fixture()
+def test_fails_closed_before_execute(mode, remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     if mode == "auth":
         transport.authenticated = False
     elif mode == "wrong_inventory":
@@ -112,8 +114,8 @@ def test_fails_closed_before_execute(mode):
 
 
 
-def test_small_authenticated_inventory_future_skew_is_allowed():
-    enrollment, request, transport, gateway = fixture()
+def test_small_authenticated_inventory_future_skew_is_allowed(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     transport.inventory = CapabilityInventory(
         request.node_id,
         NOW + timedelta(seconds=2),
@@ -125,8 +127,8 @@ def test_small_authenticated_inventory_future_skew_is_allowed():
     assert transport.calls == ["authenticate", "discover", "execute"]
 
 
-def test_excessive_authenticated_inventory_future_skew_is_denied():
-    enrollment, request, transport, gateway = fixture()
+def test_excessive_authenticated_inventory_future_skew_is_denied(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     transport.inventory = CapabilityInventory(
         request.node_id,
         NOW + timedelta(seconds=6),
@@ -137,8 +139,8 @@ def test_excessive_authenticated_inventory_future_skew_is_denied():
         gateway.invoke(enrollment, request, now=NOW)
     assert "execute" not in transport.calls
 
-def test_transport_error_is_uncertain_and_never_retried():
-    enrollment, request, transport, gateway = fixture()
+def test_transport_error_is_uncertain_and_never_retried(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     transport.failure = TimeoutError("maybe executed")
     with pytest.raises(RemoteOperationUncertain, match="do not retry"):
         gateway.invoke(enrollment, request, now=NOW)
@@ -148,16 +150,16 @@ def test_transport_error_is_uncertain_and_never_retried():
     assert transport.calls.count("execute") == 1
 
 
-def test_mismatched_result_is_uncertain():
-    enrollment, request, transport, gateway = fixture()
+def test_mismatched_result_is_uncertain(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     transport.result = RemoteOperationResult(uuid4(), request.node_id,
                                               RemoteOutcome.REPORTED_SUCCESS, "mismatched")
     with pytest.raises(RemoteOperationUncertain, match="Mismatched"):
         gateway.invoke(enrollment, request, now=NOW)
 
 
-def test_remote_reported_failure_is_preserved_not_promoted_to_success():
-    enrollment, request, transport, gateway = fixture()
+def test_remote_reported_failure_is_preserved_not_promoted_to_success(remote_authorization):
+    enrollment, request, transport, gateway = fixture(remote_authorization)
     transport.result = RemoteOperationResult(request.request_id, request.node_id,
                                               RemoteOutcome.REPORTED_FAILURE, "failed")
     assert gateway.invoke(enrollment, request, now=NOW).outcome is RemoteOutcome.REPORTED_FAILURE

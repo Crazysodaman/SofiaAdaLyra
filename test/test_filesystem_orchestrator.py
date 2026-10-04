@@ -218,9 +218,9 @@ def test_outside_scope_remains_unauthorized(
 
     authorize_runtime(application)
 
-    results = orchestrator.process(
-        "read C:\\outside\\secret.txt"
-    )
+    outside = tmp_path / "outside" / "secret.txt"
+    assert not outside.is_relative_to(PROJECT_ROOT)
+    results = orchestrator.process(f"read {outside}")
 
     assert len(results) == 1
     assert (

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from .wardrobe import LEAF_SLOTS, Layer, WardrobeError, normalize_slots
 
 if TYPE_CHECKING:
-    from .wardrobe_catalog import WardrobePrebuild
+    from .wardrobe_prebuild import WardrobePrebuild
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +96,7 @@ def build_wardrobe_matrix(
     item_ids: tuple[str, ...],
 ) -> WardrobeSlotMatrix:
     """Project a validated outfit selection into all authoritative matrix cells."""
-    from .wardrobe_catalog import WardrobePrebuild
+    from .wardrobe_prebuild import WardrobePrebuild
 
     if not isinstance(catalog, WardrobePrebuild):
         raise TypeError("catalog must be WardrobePrebuild")

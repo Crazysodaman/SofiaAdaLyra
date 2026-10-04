@@ -7,11 +7,11 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
+from sofia.act.history import delivery_history
 from sofia.act.delivery import DeliveryOutcome, DeliveryPayload, SendResult
 from sofia.act.outreach import (
     Candidate,
     Decision,
-    History,
     Importance,
     OutreachCategory,
     Policy,
@@ -213,87 +213,6 @@ class SystemNoticeQueue:
             float(salience),
         )
 
-    def _history(
-        self,
-        db: sqlite3.Connection,
-        *,
-        recipient_id: str,
-        channel: str,
-        destination: str,
-        now: datetime,
-    ) -> History:
-        rows = db.execute(
-            """
-            SELECT notice_id AS candidate_id,finished_at,category
-            FROM act_system_notice
-            WHERE recipient_id=? AND channel=? AND destination=?
-              AND status='delivered'
-            ORDER BY finished_at,candidate_id
-            """,
-            (recipient_id, channel, destination),
-        ).fetchall()
-        operational_times = [
-            datetime.fromisoformat(row["finished_at"]).astimezone(timezone.utc)
-            for row in rows
-            if row["finished_at"] is not None
-            and row["category"] == OutreachCategory.OPERATIONAL.value
-        ]
-        social_notice_times = [
-            datetime.fromisoformat(row["finished_at"]).astimezone(timezone.utc)
-            for row in rows
-            if row["finished_at"] is not None
-            and row["category"] == OutreachCategory.SOCIAL.value
-        ]
-
-        has_delivery_attempts = db.execute(
-            "SELECT 1 FROM sqlite_master "
-            "WHERE type='table' AND name='act_delivery_attempts'"
-        ).fetchone() is not None
-        social_delivery_rows = []
-        if has_delivery_attempts:
-            social_delivery_rows = db.execute(
-                """
-                SELECT message_id AS candidate_id,finished_at
-                FROM act_delivery_attempts
-                WHERE recipient_id=? AND channel=? AND destination=?
-                  AND status='delivered'
-                ORDER BY finished_at,candidate_id
-                """,
-                (recipient_id, channel, destination),
-            ).fetchall()
-        social_delivery_times = [
-            datetime.fromisoformat(row["finished_at"]).astimezone(timezone.utc)
-            for row in social_delivery_rows
-            if row["finished_at"] is not None
-        ]
-
-        social_times = sorted(social_notice_times + social_delivery_times)
-        all_times = sorted(operational_times + social_times)
-        all_ids = frozenset(
-            [row["candidate_id"] for row in rows]
-            + [row["candidate_id"] for row in social_delivery_rows]
-        )
-        day = now.date().isoformat()
-
-        def today_count(values):
-            return sum(
-                1 for value in values
-                if value.date().isoformat() == day
-            )
-
-        return History(
-            delivered_candidate_ids=all_ids,
-            last_delivered_at=all_times[-1] if all_times else None,
-            delivered_today=today_count(all_times),
-            delivered_day_utc=day if all_times else None,
-            social_last_delivered_at=social_times[-1] if social_times else None,
-            social_delivered_today=today_count(social_times),
-            operational_last_delivered_at=(
-                operational_times[-1] if operational_times else None
-            ),
-            operational_delivered_today=today_count(operational_times),
-        )
-
     def _finish_delivery(
         self,
         *,
@@ -415,7 +334,7 @@ class SystemNoticeQueue:
                         importance=Importance(row["importance"]),
                         salience=float(row["salience"]),
                     )
-                    history = self._history(
+                    history = delivery_history(
                         db,
                         recipient_id=row["recipient_id"],
                         channel=row["channel"],

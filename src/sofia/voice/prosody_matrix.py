@@ -2,7 +2,31 @@
 from dataclasses import dataclass
 from sofia.cognition.matrix import ContextualInfluenceMatrix,ContextualInfluencePlan,InfluenceMode,InfluenceSignal,InfluenceSurface
 from sofia.personality.influence import ContinuityInfluence
-from .model import VoiceProsodyProfile,VoiceUrgency
+from enum import Enum
+
+class VoiceUrgency(str, Enum):
+    NORMAL="normal"; IMPORTANT="important"; URGENT="urgent"
+
+@dataclass(frozen=True, slots=True)
+class VoiceProsodyProfile:
+    rate_scale: float=1.0
+    pitch_semitones: float=0.0
+    energy_scale: float=1.0
+    volume_scale: float=1.0
+    pause_scale: float=1.0
+    tone_tags: tuple[str,...]=()
+    ambient_context: tuple[str,...]=()
+    def __post_init__(self):
+        bounds={"rate_scale":(0.75,1.25),"pitch_semitones":(-2.0,2.0),"energy_scale":(0.60,1.40),"volume_scale":(0.60,1.30),"pause_scale":(0.70,1.40)}
+        for name,(lo,hi) in bounds.items():
+            v=getattr(self,name)
+            if not isinstance(v,(int,float)) or isinstance(v,bool): raise TypeError(f"{name} must be numeric")
+            if not lo <= float(v) <= hi: raise ValueError(f"{name} must be in [{lo}, {hi}]")
+        for name in ("tone_tags","ambient_context"):
+            vals=getattr(self,name)
+            if not isinstance(vals,tuple): raise TypeError(f"{name} must be a tuple")
+            if any(not isinstance(v,str) or not v.strip() for v in vals): raise ValueError(f"{name} must contain nonempty strings")
+
 
 @dataclass(frozen=True, slots=True)
 class VoiceProsodyPlan:

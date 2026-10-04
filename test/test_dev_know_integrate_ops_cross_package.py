@@ -1,29 +1,10 @@
 from datetime import datetime, timezone
-import pytest
+from sofia.capability import Capability, CapabilitySystem
+from sofia.capability.model import CapabilityRequest, CapabilityResultKind
 
-from sofia.dev import ChangeProposal, ReviewState, inspect
-from sofia.integrate import AdapterManifest, AdapterRegistry, SideEffectClass, ToolInvocation
-from sofia.knowledge import KnowledgeDocument, KnowledgeFact, KnowledgeStore, SourceKind
 from sofia.ops import FleetHost, FleetRegistry, HostLifecycle, HostTelemetry, PlacementEngine, WorkloadContract
 
 
-class PlacementAdapter:
-    manifest = AdapterManifest(
-        "ops.placement.choose", "1", "PKG-OPS", SideEffectClass.READ_ONLY,
-        ("fleet.inspect",), {}, {}
-    )
-
-    def __init__(self, hosts):
-        self._hosts = hosts
-
-    def invoke(self, arguments):
-        workload = WorkloadContract(
-            arguments["workload_id"], "1",
-            tuple(arguments["supported_platforms"]),
-            tuple(arguments["supported_architectures"]),
-        )
-        decision = PlacementEngine().choose(workload, self._hosts)
-        return {"workload_id": decision.workload_id, "host_id": decision.host_id}
 
 
 def _healthy_host(host_id="venus", cpu=10):
@@ -34,57 +15,54 @@ def _healthy_host(host_id="venus", cpu=10):
     )
 
 
-def test_knowledge_provenance_can_anchor_dev_proposal():
-    now = datetime.now(timezone.utc)
-    store = KnowledgeStore()
-    document = KnowledgeDocument("doc-1", SourceKind.REPOSITORY, "repo://src/sofia/x.py", "abc123", now, "hash")
-    store.register_document(document)
-    fact = KnowledgeFact("fact-1", "doc-1", "implementation requires bounded adapter", "L10-L20", now)
-    store.record_fact(fact)
-
-    proposal = ChangeProposal(
-        "proposal-1", "a" * 40, ("src/sofia/integrate/example.py",),
-        (fact.fact_id,), "add bounded adapter", "run focused tests", "revert commit",
-    )
-    findings = inspect(proposal)
-    assert store.fact(proposal.source_evidence_ids[0]) == fact
-    assert findings[0].state is ReviewState.REQUIRES_REVIEW
 
 
-def test_ops_is_exposed_through_typed_integrate_adapter():
-    registry = AdapterRegistry()
-    registry.register(PlacementAdapter((_healthy_host(),)))
-    receipt = registry.invoke(ToolInvocation(
-        "invoke-1", "ops.placement.choose",
-        {"workload_id": "worker", "supported_platforms": ["windows"], "supported_architectures": ["x86_64"]},
-        True,
-    ))
-    assert receipt.succeeded
-    assert receipt.output == {"workload_id": "worker", "host_id": "venus"}
 
 
-def test_integrate_still_blocks_unauthorized_ops_tool():
-    registry = AdapterRegistry()
-    registry.register(PlacementAdapter((_healthy_host(),)))
-    with pytest.raises(PermissionError):
-        registry.invoke(ToolInvocation(
-            "invoke-2", "ops.placement.choose",
-            {"workload_id": "worker", "supported_platforms": ["windows"], "supported_architectures": ["x86_64"]},
-            False,
-        ))
+
+
+
+
+
+
+
+def _placement_system(hosts, *, authorized=True):
+    system = CapabilitySystem(lambda request: authorized)
+    capability = Capability("ops.placement.choose", "Choose a trusted healthy host")
+    def place(request):
+        arguments = request.parameters
+        workload = WorkloadContract(arguments["workload_id"], "1",
+                                    tuple(arguments["supported_platforms"]),
+                                    tuple(arguments["supported_architectures"]))
+        decision = PlacementEngine().choose(workload, hosts)
+        return {"workload_id": decision.workload_id, "host_id": decision.host_id}
+    system.register(capability, place)
+    return system, CapabilityRequest(capability,
+        {"workload_id": "worker", "supported_platforms": ["windows"],
+         "supported_architectures": ["x86_64"]}, None, "inspect placement")
+
+
+def test_ops_placement_uses_canonical_capability_boundary():
+    system, request = _placement_system((_healthy_host(),))
+    result = system.execute(request)
+    assert result.kind is CapabilityResultKind.SUCCESS
+    assert result.evidence == {"workload_id": "worker", "host_id": "venus"}
+
+
+def test_capability_still_blocks_unauthorized_ops_tool():
+    system, request = _placement_system((_healthy_host(),), authorized=False)
+    result = system.execute(request)
+    assert result.kind is CapabilityResultKind.UNAUTHORIZED
+    assert result.evidence is None
 
 
 def test_ops_trust_boundary_survives_tool_layer():
-    untrusted = FleetHost("candidate", "windows", "x86_64", HostLifecycle.ENROLLED, False, _healthy_host().telemetry)
-    registry = AdapterRegistry()
-    registry.register(PlacementAdapter((untrusted,)))
-    receipt = registry.invoke(ToolInvocation(
-        "invoke-3", "ops.placement.choose",
-        {"workload_id": "worker", "supported_platforms": ["windows"], "supported_architectures": ["x86_64"]},
-        True,
-    ))
-    assert receipt.succeeded
-    assert receipt.output["host_id"] is None
+    untrusted = FleetHost("candidate", "windows", "x86_64", HostLifecycle.ENROLLED,
+                         False, _healthy_host().telemetry)
+    system, request = _placement_system((untrusted,))
+    result = system.execute(request)
+    assert result.kind is CapabilityResultKind.SUCCESS
+    assert result.evidence["host_id"] is None
 
 
 def test_machine_removal_cannot_be_smuggled_through_general_tool_authority():
@@ -93,26 +71,14 @@ def test_machine_removal_cannot_be_smuggled_through_general_tool_authority():
     fleet.transition("node", HostLifecycle.ENROLLED)
     fleet.transition("node", HostLifecycle.QUARANTINED)
     fleet.transition("node", HostLifecycle.DRAINING)
-
-    class RemovalAdapter:
-        manifest = AdapterManifest("ops.host.remove", "1", "PKG-OPS", SideEffectClass.DESTRUCTIVE, ("fleet.remove",), {}, {})
-        def invoke(self, arguments):
-            return fleet.transition(arguments["host_id"], HostLifecycle.DECOMMISSIONED)
-
-    registry = AdapterRegistry()
-    registry.register(RemovalAdapter())
-    receipt = registry.invoke(ToolInvocation("invoke-4", "ops.host.remove", {"host_id": "node"}, True))
-    assert not receipt.succeeded
-    assert "FleetRemovalApprovalRequired" in receipt.error
-    assert fleet.host("node").lifecycle is HostLifecycle.DRAINING
-
-
-def test_relocated_embodiment_baseline_remains_protected_from_dev_changes():
-    proposal = ChangeProposal(
-        "baseline-move", "a" * 40,
-        ("src/sofia/embodiment/avatar.json", "src/sofia/embodiment/model.py"),
-        ("reviewed-source",), "inspect baseline and model", "run package gate", "revert checkpoint",
+    capability = Capability("ops.host.remove", "Remove Fleet host")
+    system = CapabilitySystem(lambda request: True)
+    system.register(capability, lambda request: fleet.transition(
+        request.parameters["host_id"], HostLifecycle.DECOMMISSIONED))
+    result = system.execute(CapabilityRequest(capability, {"host_id": "node"}, None, "remove node"))
+    assert result.kind is CapabilityResultKind.FAILED
+    assert result.error == (
+        "Capability execution failed: "
+        "final fleet removal requires exact Sparks approval evidence"
     )
-    findings = inspect(proposal)
-    assert findings[0].state is ReviewState.BLOCKED_PROTECTED
-    assert findings[1].state is ReviewState.REQUIRES_REVIEW
+    assert fleet.host("node").lifecycle is HostLifecycle.DRAINING

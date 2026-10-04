@@ -1,6 +1,6 @@
-﻿import pytest
+import pytest
 
-from sofia.action.executor import TestActionExecutor
+from test.action_support import TestActionExecutor
 from sofia.action.model import Action, ActionProposal, ActionRisk
 from sofia.action.system import ActionSystem, ActionSystemError
 from sofia.authority.model import Authority

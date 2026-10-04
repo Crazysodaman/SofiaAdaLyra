@@ -10,8 +10,8 @@ from pathlib import Path
 from sofia.distributed.durable import DurableRemoteAuthorization, DurableRemoteLedger
 from sofia.distributed.endpoint_bound_gateway import EndpointBoundDurableGateway
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity import NodeEnrollment
-from sofia.distributed.identity_bound_gateway import IdentityBoundGateway
+from sofia.distributed.model import NodeEnrollment
+from sofia.distributed.endpoint_bound_gateway import IdentityBoundGateway
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import NodeEndpoint
 from sofia.distributed.operations import RemoteOperationRequest, RemoteOperationResult, RemoteTransport

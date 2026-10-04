@@ -9,10 +9,6 @@ import sqlite3
 from uuid import uuid4
 
 
-class AuditChainError(RuntimeError):
-    pass
-
-
 class AuditChain:
     """Append-only API with SHA-256 hash chaining for protected audit evidence."""
 

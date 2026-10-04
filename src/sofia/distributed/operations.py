@@ -21,7 +21,7 @@ from sofia.distributed.authorization import RemoteAuthorization
 from sofia.distributed.capabilities import (
     CapabilityInventory, _aware, _identifier, inventory_is_current,
 )
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 
 Scalar = str | int | float | bool | None
 _FORBIDDEN = frozenset({"command", "commands", "cmd", "shell", "script",

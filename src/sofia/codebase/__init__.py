@@ -1,12 +1,9 @@
-﻿from sofia.codebase.analyzers import (
+from sofia.codebase.analyzers import (
     CodebaseAnalyzer,
     CodebaseAnalyzerRegistry,
     create_default_analyzer_registry,
 )
-from sofia.codebase.codebase import (
-    CODEBASE_INSPECT_CAPABILITY,
-    CodebaseCapability,
-)
+from sofia.codebase.capability import CODEBASE_INSPECT_CAPABILITY, CodebaseCapability
 from sofia.codebase.evidence import (
     format_codebase_evidence,
 )

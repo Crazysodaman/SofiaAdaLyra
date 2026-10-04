@@ -26,11 +26,8 @@ from sofia.cognition.routing import RoutingCognitiveEngine, RoutingExecution
 from sofia.cognition.system import CognitiveSystem
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
-from sofia.constitution.integrity import (
-    ConstitutionIntegrityError,
-    ConstitutionIntegrityVerifier,
-)
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import ConstitutionIntegrityError, ConstitutionIntegrityVerifier
+from sofia.constitution.store import Constitution
 from sofia.constitution.store import ConstitutionStore
 from sofia.continuity.model import (
     ContinuityEvent,

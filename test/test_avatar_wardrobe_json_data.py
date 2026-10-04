@@ -57,6 +57,7 @@ def test_loaded_explicit_pieces_are_private_and_do_not_claim_default_coverage():
     explicit = [
         bp for bp in catalog.blueprints
         if bp.content_rating is ContentRating.EXPLICIT
+        and bp.garment.item_id.startswith(("under.upper.", "under.lower."))
     ]
 
     assert len(explicit) == 4

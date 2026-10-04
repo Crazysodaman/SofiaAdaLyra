@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime, timezone
 from uuid import UUID
@@ -56,7 +56,7 @@ def create_personality() -> PersonalityProfile:
 
 
 def create_constitution():
-    from sofia.constitution.model import Constitution
+    from sofia.constitution.store import Constitution
 
     return Constitution(
         version="1.0",

@@ -1,7 +1,7 @@
-﻿import pytest
+import pytest
 from datetime import datetime, timezone
 
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 
 
 def test_constitution_can_be_created():

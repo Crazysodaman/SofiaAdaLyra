@@ -7,7 +7,7 @@ from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.filesystem.changes import FilesystemChangeEvent
 from sofia.identity.model import SofiaIdentity
 from sofia.personality.model import PersonalityProfile

@@ -1,12 +1,6 @@
 from datetime import datetime,timezone
 from pathlib import Path
-import pytest
 
-from sofia.capability import Capability,CapabilitySystem
-from sofia.integrate import (
-    AdapterActivationStore,AdapterDisabledError,AdapterManifest,CapabilitySystemAdapter,DuplicateInvocationError,
-    GovernedAdapterRegistry,InvocationContext,JsonlReceiptLedger,SchemaValidationError,SideEffectClass,ToolInvocation,validate_object,
-)
 from sofia.knowledge import (
     DocumentDisposition,KnowledgeDocument,KnowledgeFact,SQLiteKnowledgeLifecycle,KnowledgeRetriever,
     KnowledgeStore,SourceKind,
@@ -39,31 +33,8 @@ def test_lifecycle_supersession_and_invalidation_are_durable(tmp_path:Path):
     assert again.status("old").replaced_by=="new"
     assert again.status("new").disposition is DocumentDisposition.INVALID
 
-class Echo:
-    manifest=AdapterManifest("echo","1","tests",SideEffectClass.READ_ONLY,("ops.inspect",),
-        {"type":"object","required":["value"],"properties":{"value":{}},"additionalProperties":False},
-        {"type":"object","required":["echo"],"properties":{"echo":{}},"additionalProperties":False})
-    def invoke(self,arguments): return {"echo":arguments["value"]}
 
-def test_governed_registry_requires_enable_capability_side_effect_and_dedupes(tmp_path:Path):
-    ledger=JsonlReceiptLedger(tmp_path/"receipts.jsonl"); reg=GovernedAdapterRegistry(ledger); reg.register(Echo())
-    req=ToolInvocation("i1","echo",{"value":"x"},True)
-    ctx=InvocationContext("Sparks",frozenset({"ops.inspect"}),frozenset({SideEffectClass.READ_ONLY}))
-    with pytest.raises(AdapterDisabledError): reg.invoke(req,ctx)
-    reg.enable("echo","1")
-    with pytest.raises(PermissionError):
-        reg.invoke(req,InvocationContext("Sparks",frozenset(),frozenset({SideEffectClass.READ_ONLY})))
-    receipt=reg.invoke(req,ctx); assert receipt.succeeded and receipt.output=={"echo":"x"}
-    assert JsonlReceiptLedger(tmp_path/"receipts.jsonl").get("i1") is not None
-    with pytest.raises(DuplicateInvocationError): reg.invoke(req,ctx)
 
-def test_capability_adapter_uses_existing_authority_boundary():
-    system=CapabilitySystem(lambda request: True)
-    cap=Capability("system.inspect","inspect system")
-    system.register(cap,lambda request: {"hostname":"venus"})
-    adapter=CapabilitySystemAdapter(system,tool_id="system.inspect.adapter",capability_name="system.inspect")
-    out=adapter.invoke({})
-    assert out["kind"]=="success" and out["evidence"]["hostname"]=="venus"
 
 def test_invalidated_document_is_not_retrieved(tmp_path:Path):
     store=KnowledgeStore()
@@ -74,16 +45,3 @@ def test_invalidated_document_is_not_retrieved(tmp_path:Path):
     lifecycle.register("d-invalid")
     lifecycle.invalidate("d-invalid")
     assert KnowledgeRetriever(store,lifecycle).search("breaker")==()
-
-def test_adapter_activation_version_survives_restart(tmp_path:Path):
-    path=tmp_path/"activation.json"
-    activation=AdapterActivationStore(path)
-    reg=GovernedAdapterRegistry(JsonlReceiptLedger(tmp_path/"receipts.jsonl"),activations=activation)
-    reg.register(Echo())
-    reg.enable("echo","1")
-    assert AdapterActivationStore(path).version("echo")=="1"
-
-def test_schema_validator_rejects_nested_wrong_type():
-    schema={"type":"object","required":["count"],"properties":{"count":{"type":"integer","minimum":1}}}
-    with pytest.raises(SchemaValidationError):
-        validate_object(schema,{"count":"1"})

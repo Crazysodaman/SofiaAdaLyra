@@ -11,10 +11,7 @@ from dataclasses import dataclass
 
 from .presentation import AttireMode, PresentationAuthority, PresentationState
 from .presentation_store import PresentationStore
-from .wardrobe_catalog import (
-    DAY_DEFAULT_OUTFIT_ID,
-    NIGHT_LOUNGE_OUTFIT_ID,
-)
+from .wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID
 from .wardrobe_planner import (
     Cadence,
     OutfitPlanner,

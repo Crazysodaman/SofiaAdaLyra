@@ -7,6 +7,7 @@ existing durable authorization/replay gateway is allowed to proceed.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 
 from sofia.distributed.durable import (
     DurableDistributedGateway,
@@ -14,7 +15,7 @@ from sofia.distributed.durable import (
     DurableRemoteLedger,
 )
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import NodeEndpoint
 from sofia.distributed.operations import (
     RemoteOperationDenied,
@@ -64,3 +65,20 @@ class EndpointBoundDurableGateway:
         if not self._endpoint_policy.permits(node_id, endpoint):
             raise RemoteOperationDenied("endpoint is not durably approved for node")
         return self._gateway.invoke(enrollment, request, now=now)
+
+
+class IdentityBoundGateway:
+    def __init__(self, identities: DurableNodeIdentityRegistry, gateway: EndpointBoundDurableGateway) -> None:
+        if not isinstance(identities, DurableNodeIdentityRegistry):
+            raise TypeError("identities must be a DurableNodeIdentityRegistry")
+        if not isinstance(gateway, EndpointBoundDurableGateway):
+            raise TypeError("gateway must be an EndpointBoundDurableGateway")
+        self._identities=identities
+        self._gateway=gateway
+
+    def invoke(self, enrollment: NodeEnrollment, endpoint: NodeEndpoint,
+               request: RemoteOperationRequest, *, now: datetime) -> RemoteOperationResult:
+        active=self._identities.get(request.node_id)
+        if active is None or active != enrollment:
+            raise RemoteOperationDenied("node enrollment is absent, retired, or does not match durable identity")
+        return self._gateway.invoke(enrollment, endpoint, request, now=now)

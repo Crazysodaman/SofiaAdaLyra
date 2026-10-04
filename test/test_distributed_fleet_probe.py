@@ -8,10 +8,10 @@ import pytest
 import sofia.distributed.fleet_probe as probe_module
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.durable import DurableRemoteAuthorization
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
+from sofia.distributed.model import ApprovedEndpoint
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.fleet_probe import FleetNodeProbe, _parameters, _paths
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.distributed.operations import RemoteOutcome

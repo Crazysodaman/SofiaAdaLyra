@@ -2,13 +2,13 @@
 from __future__ import annotations
 import os,platform
 from dataclasses import dataclass
+from enum import Enum
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any,Callable
 from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
-from sofia.integrate.model import SideEffectClass
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from .github import GitHubAdapter
 from .discord import DiscordOperatorAdapter
@@ -20,6 +20,9 @@ from .portainer import PortainerAdapter
 from .ollama import OllamaAdapter
 from .sqlite import SQLiteReadAdapter
 from .storage import StorageAdapter
+
+class SideEffectClass(str,Enum):
+    READ_ONLY="read_only"; REVERSIBLE_WRITE="reversible_write"; DESTRUCTIVE="destructive"; EXTERNAL_COMMUNICATION="external_communication"
 
 @dataclass(frozen=True)
 class IntegrationToolRegistration:

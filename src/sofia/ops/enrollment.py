@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID
 from re import fullmatch
 from typing import Callable
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from .fleet import FleetRegistry
 from .model import FleetHost,HostLifecycle
 

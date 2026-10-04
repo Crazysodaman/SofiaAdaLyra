@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
@@ -145,25 +145,4 @@ class ApplicationHeartbeatStore:
             database_writable=bool(row[4]),
             background_running=bool(row[5]),
             detail=row[6],
-        )
-
-    def is_fresh_ready(
-        self,
-        *,
-        now: datetime,
-        max_age: timedelta = timedelta(minutes=3),
-    ) -> bool:
-        current = self.current()
-        if current is None:
-            return False
-        moment = _utc(now)
-        if not isinstance(max_age, timedelta) or max_age <= timedelta(0):
-            raise ValueError("max_age must be positive")
-        age = moment - current.recorded_at.astimezone(timezone.utc)
-        if age < timedelta(0) or age > max_age:
-            return False
-        return (
-            current.ready
-            and current.database_writable
-            and current.runtime_state.casefold() == "ready"
         )

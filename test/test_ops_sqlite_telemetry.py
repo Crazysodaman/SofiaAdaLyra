@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import json
 
-from sofia.ops.history import TelemetryHistory, SQLiteTelemetryHistory
+from sofia.ops.history import SQLiteTelemetryHistory
 from sofia.ops.model import HostTelemetry
 
 
@@ -30,9 +30,14 @@ def test_sqlite_telemetry_round_trip_uses_canonical_database(tmp_path):
 
 def test_legacy_jsonl_telemetry_migrates_and_retires(tmp_path):
     legacy = tmp_path / "ops-telemetry.jsonl"
-    old = TelemetryHistory(legacy)
-    old.append("venus", telemetry(11.0))
-    old.append("venus", telemetry(12.5))
+    from dataclasses import asdict
+    rows = []
+    for cpu in (11.0, 12.5):
+        row = asdict(telemetry(cpu))
+        row["observed_at"] = NOW.isoformat()
+        row["host_id"] = "venus"
+        rows.append(json.dumps(row))
+    legacy.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
     state = tmp_path / "sofia.db"
     history = SQLiteTelemetryHistory(

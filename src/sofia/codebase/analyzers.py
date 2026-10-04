@@ -1,11 +1,7 @@
-﻿from pathlib import Path
+from pathlib import Path
 from typing import Protocol
 
-from sofia.codebase.model import (
-    CodebaseFile,
-    PythonModule,
-    SourceFileKind,
-)
+from sofia.codebase.model import SourceFileKind
 
 
 class CodebaseAnalyzer(Protocol):
@@ -170,55 +166,4 @@ def create_default_analyzer_registry() -> CodebaseAnalyzerRegistry:
         analyzers=(
             PythonAnalyzer(),
         ),
-    )
-
-
-def python_module_from_analysis(
-    result: object,
-) -> PythonModule | None:
-    """
-    Extract Python evidence from an analyzer result.
-
-    This compatibility boundary lets the current evidence model
-    continue exposing PythonModule while the analyzer architecture
-    remains language-neutral.
-    """
-    if isinstance(result, PythonModule):
-        return result
-
-    return None
-
-
-def file_from_path(
-    path: Path,
-    analyzer_registry: CodebaseAnalyzerRegistry,
-) -> CodebaseFile:
-    """
-    Create core file metadata using the analyzer registry.
-    """
-    if not isinstance(path, Path):
-        raise TypeError(
-            "path must be a Path."
-        )
-
-    if not isinstance(
-        analyzer_registry,
-        CodebaseAnalyzerRegistry,
-    ):
-        raise TypeError(
-            "analyzer_registry must be a "
-            "CodebaseAnalyzerRegistry."
-        )
-
-    try:
-        size = path.stat().st_size
-    except OSError as exc:
-        raise OSError(
-            f"Unable to inspect source file metadata: {path}"
-        ) from exc
-
-    return CodebaseFile(
-        path=path,
-        kind=analyzer_registry.classify(path),
-        size_bytes=size,
     )

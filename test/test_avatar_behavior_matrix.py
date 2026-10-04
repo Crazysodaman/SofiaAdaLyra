@@ -6,11 +6,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from sofia.avatar.wardrobe import WardrobeError
-from sofia.avatar.wardrobe_catalog import (
-    DAY_DEFAULT_OUTFIT_ID,
-    NIGHT_LOUNGE_OUTFIT_ID,
-    build_starter_wardrobe,
-)
+from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, NIGHT_LOUNGE_OUTFIT_ID
 from sofia.avatar.wardrobe_planner import (
     Activity,
     EnvironmentMode,

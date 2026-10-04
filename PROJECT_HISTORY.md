@@ -109,7 +109,7 @@ External-system architecture was introduced:
 ```text
 External System
     ↓
-ExternalIntegrationAdapter
+ExternalIntegrationAdapter (historical prototype; retired in Phase 9, see docs/development/external-cleanup-report.md)
     ↓
 Structured Observation
 ```

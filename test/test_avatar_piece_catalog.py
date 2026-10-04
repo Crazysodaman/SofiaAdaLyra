@@ -1,6 +1,6 @@
 """Structured wardrobe type vocabulary and starter-closet contracts."""
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
-from sofia.avatar.wardrobe_design import all_garment_types, garment_type
+from sofia.avatar.wardrobe_types import all_garment_types, garment_type
 
 
 def test_creator_vocabulary_has_real_garment_types_not_style_permutations():

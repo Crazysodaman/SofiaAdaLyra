@@ -1,15 +1,10 @@
-"""PKG-UI text-first and workbench primitives.
+"""PKG-UI text-first desktop, tray and draft primitives.
 
 UI presents and transports already-authorized Sofía interaction. It does not
 own identity, cognition, memory, authentication, interaction semantics, or
 external-action authority.
 """
 
-from sofia.ui.delivery import (
-    ExpressionDelivery,
-    PresentationChannel,
-    PresentationStatus,
-)
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.drafts import UIDraft, UIDraftStore
 from sofia.ui.quick_tools import (
@@ -27,17 +22,6 @@ from sofia.ui.theme import (
     canonical_theme,
     theme_signals_from_sources,
 )
-from sofia.ui.workbench import (
-    AccessDenied,
-    ConflictError,
-    Entry,
-    EntryKind,
-    EntryStatus,
-    Item,
-    ItemKind,
-    Workbench,
-    WorkbenchError,
-)
 from sofia.ui.control_center import (
     DesktopControlSettings,
     DesktopControlSettingsStore,
@@ -54,13 +38,32 @@ from sofia.ui.control_center import (
     tray_menu_labels,
 )
 __all__ = [
-    "AccessDenied","AdaptiveThemePolicy","ConflictError","ConversationLoop","DesktopWorkbenchController",
-    "Entry","EntryKind","EntryStatus","ExpressionDelivery","Item","ItemKind",
-    "PresentationChannel","PresentationStatus","QUICK_TOOLS","QuickTool",
-    "ThemePalette","ThemeSignals","UIDraft","UIDraftStore","UITextClient","UITextMessage",
-    "Workbench","WorkbenchError","canonical_theme","quick_tool_by_label",
-    "quick_tool_labels","theme_signals_from_sources","DesktopControlSettings",
-    "DesktopControlSettingsStore","GameMode","MASTER_SETTINGS_SECTIONS","RemoteChatMode",
-    "ServiceAction","ServiceKind","ServiceTarget","TrayCommand","TrayStatus",
-    "tray_command_enabled","tray_command_requires_confirmation","tray_menu_labels",
+    'AdaptiveThemePolicy',
+    'ConversationLoop',
+    'DesktopWorkbenchController',
+    'QUICK_TOOLS',
+    'QuickTool',
+    'ThemePalette',
+    'ThemeSignals',
+    'UIDraft',
+    'UIDraftStore',
+    'UITextClient',
+    'UITextMessage',
+    'canonical_theme',
+    'quick_tool_by_label',
+    'quick_tool_labels',
+    'theme_signals_from_sources',
+    'DesktopControlSettings',
+    'DesktopControlSettingsStore',
+    'GameMode',
+    'MASTER_SETTINGS_SECTIONS',
+    'RemoteChatMode',
+    'ServiceAction',
+    'ServiceKind',
+    'ServiceTarget',
+    'TrayCommand',
+    'TrayStatus',
+    'tray_command_enabled',
+    'tray_command_requires_confirmation',
+    'tray_menu_labels',
 ]

@@ -1,23 +1,15 @@
-"""PKG-OPS fleet telemetry, lifecycle, orchestration and failover primitives."""
-from .model import HostLifecycle,HostTelemetry,FleetHost,WorkloadContract,WorkloadState
+"""PKG-OPS fleet telemetry, lifecycle and bounded planning."""
+from .model import HostLifecycle,HostTelemetry,FleetHost,WorkloadContract
 from .fleet import FleetRegistry,FleetRemovalApprovalRequired
 from .placement import PlacementDecision,PlacementEngine
-from .approval import FleetRemovalApproval
-from .history import TelemetryHistory
-from .lease import AuthorityLease,LeaseTable,SplitBrainRisk
-from .durable_lease import JsonLeaseTable
+from sofia.ops.fleet import FleetRemovalApproval
+from .history import SQLiteTelemetryHistory
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
-from .migration import MigrationCoordinator,MigrationPlan,MigrationStage
-from .orchestrator import MigrationExecutionError,MigrationOutcomeUncertain,MigrationReceipt,WorkloadOrchestrator
-from .failover import FailoverCoordinator,FailureDomain,PromotionDenied,PromotionEvidence,PromotionGuard
-from .failure_matrix import (
-    FleetFailure,FleetFailureRecoveryMatrix,FleetHostState,FleetRecoveryDecision,
-    FleetRecoveryEvidence,FleetWorkloadState,RecoveryDisposition,
-)
+from sofia.ops.workload import MigrationPlan, MigrationStage
 from .desired import DesiredHostState,DesiredWorkloadPlacement,Drift,detect_drift
 from .maintenance import MaintenanceOperation,MaintenancePolicy,MaintenanceRequest
 from .enrollment import AuthenticatedPeerEvidence,FleetEnrollmentService,MachineNodeBinding
-from .recovery import BackupEvidence,HostUpdateAssignment,RecoveryDenied,RecoveryGuard,RestoreVerification,UpdatePlanner,UpdateRing
+from .recovery import BackupEvidence,RecoveryDenied,RecoveryGuard,RestoreVerification
 from .activity import ActivityMode,HostActivityObservation,HostActivityState,HostActivityStore,detect_windows_game
 from .agent_discovery import (
     AgentDiscoveryTarget,
@@ -41,28 +33,62 @@ from .bootstrap import (
     FleetBootstrapExecutor,FleetBootstrapPlanner,InstallAuthority,InstallReceipt,
 )
 
-__all__=[
-    "HostLifecycle","HostTelemetry","FleetHost","WorkloadContract","WorkloadState",
-    "FleetRegistry","FleetRemovalApprovalRequired","PlacementDecision","PlacementEngine",
-    "FleetRemovalApproval","TelemetryHistory","AuthorityLease","LeaseTable","SplitBrainRisk",
-    "ManagedWorkload","StateMode","WorkloadInstance","WorkloadPhase","MigrationCoordinator",
-    "MigrationPlan","MigrationStage","FailureDomain","PromotionDenied","PromotionEvidence",
-    "PromotionGuard","FleetFailure","FleetFailureRecoveryMatrix","FleetHostState",
-    "FleetRecoveryDecision","FleetRecoveryEvidence","FleetWorkloadState","RecoveryDisposition",
-    "DesiredHostState","DesiredWorkloadPlacement","Drift","detect_drift",
-    "MaintenanceOperation","MaintenancePolicy","MaintenanceRequest","AuthenticatedPeerEvidence",
-    "FleetEnrollmentService","MachineNodeBinding","BackupEvidence","HostUpdateAssignment",
-    "RecoveryDenied","RecoveryGuard","RestoreVerification","UpdatePlanner","UpdateRing",
-    "JsonLeaseTable","MigrationExecutionError","MigrationOutcomeUncertain","MigrationReceipt",
-    "WorkloadOrchestrator","FailoverCoordinator","ActivityMode","HostActivityObservation",
-    "HostActivityState","HostActivityStore","detect_windows_game","AgentPackage","AgentInstaller",
-    "BootstrapCandidate","BootstrapDisposition","BootstrapPlan","FleetBootstrapExecutor",
-    "FleetBootstrapPlanner","InstallAuthority","InstallReceipt",
-    "AgentDiscoveryTarget","CombinedFleetDiscoverySource",
-    "MtlsAgentDiscoverySource","ScopedHostPresenceDiscoverySource",
-    "ScopedMtlsAgentDiscoverySource",
-    "FleetDiscoveryBootstrapCoordinator","FleetDiscoveryBootstrapResult",
-    "FleetDiscoveryCoordinator","FleetDiscoveryEvidence",
-    "FleetDiscoveryEnrollmentReconciler","FleetDiscoveryEnrollmentResult",
-    "FleetDiscoveryResult","FleetDiscoverySource",
+__all__ = [
+    'HostLifecycle',
+    'HostTelemetry',
+    'FleetHost',
+    'WorkloadContract',
+    'FleetRegistry',
+    'FleetRemovalApprovalRequired',
+    'PlacementDecision',
+    'PlacementEngine',
+    'FleetRemovalApproval',
+    'SQLiteTelemetryHistory',
+    'ManagedWorkload',
+    'StateMode',
+    'WorkloadInstance',
+    'WorkloadPhase',
+    'MigrationPlan',
+    'MigrationStage',
+    'DesiredHostState',
+    'DesiredWorkloadPlacement',
+    'Drift',
+    'detect_drift',
+    'MaintenanceOperation',
+    'MaintenancePolicy',
+    'MaintenanceRequest',
+    'AuthenticatedPeerEvidence',
+    'FleetEnrollmentService',
+    'MachineNodeBinding',
+    'BackupEvidence',
+    'RecoveryDenied',
+    'RecoveryGuard',
+    'RestoreVerification',
+    'ActivityMode',
+    'HostActivityObservation',
+    'HostActivityState',
+    'HostActivityStore',
+    'detect_windows_game',
+    'AgentPackage',
+    'AgentInstaller',
+    'BootstrapCandidate',
+    'BootstrapDisposition',
+    'BootstrapPlan',
+    'FleetBootstrapExecutor',
+    'FleetBootstrapPlanner',
+    'InstallAuthority',
+    'InstallReceipt',
+    'AgentDiscoveryTarget',
+    'CombinedFleetDiscoverySource',
+    'MtlsAgentDiscoverySource',
+    'ScopedHostPresenceDiscoverySource',
+    'ScopedMtlsAgentDiscoverySource',
+    'FleetDiscoveryBootstrapCoordinator',
+    'FleetDiscoveryBootstrapResult',
+    'FleetDiscoveryCoordinator',
+    'FleetDiscoveryEvidence',
+    'FleetDiscoveryEnrollmentReconciler',
+    'FleetDiscoveryEnrollmentResult',
+    'FleetDiscoveryResult',
+    'FleetDiscoverySource',
 ]

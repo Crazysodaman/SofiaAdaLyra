@@ -3,6 +3,7 @@ from importlib.resources import files
 import json
 
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
+from sofia.avatar.wardrobe_types import garment_type
 from sofia.avatar.wardrobe_design import ContentRating, ExposureZone
 
 
@@ -33,11 +34,11 @@ def test_loaded_explicit_tops_and_bottoms_do_not_claim_exposed_coverage():
     ]
     tops = [
         bp for bp in private
-        if bp.garment.family.value == "top"
+        if garment_type(bp.design.garment_type).family.value == "top"
     ]
     bottoms = [
         bp for bp in private
-        if bp.garment.family.value == "bottom"
+        if garment_type(bp.design.garment_type).family.value == "bottom"
     ]
 
     assert sum(bp.content_rating is ContentRating.LEWD for bp in tops) == 2

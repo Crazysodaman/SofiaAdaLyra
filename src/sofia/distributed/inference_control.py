@@ -22,7 +22,7 @@ from sofia.distributed.capabilities import (
 )
 from sofia.distributed.durable import DurableRemoteAuthorization
 from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
-from sofia.distributed.identity import NodeEnrollment
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.inference import (
     RemoteInferenceRequest,

@@ -7,7 +7,7 @@ from sofia.action.system import ActionSystem
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.capability.system import CapabilitySystem
-from sofia.codebase.codebase import CodebaseCapability
+from sofia.codebase.capability import CodebaseCapability
 from sofia.codebase.inspector import CodebaseInspector
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.conversation_assembler import ConversationalContextAssembler
@@ -21,7 +21,7 @@ from sofia.composition.authorization import create_capability_authorizer
 from sofia.composition.engines import create_cognitive_engine, create_model_lifecycle
 from sofia.config.model import SofiaConfiguration
 from sofia.config.reviewed_projection import apply_reviewed_configuration
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation

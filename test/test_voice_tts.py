@@ -1,4 +1,4 @@
-from sofia.voice.model import VoiceProsodyProfile
+from sofia.voice.prosody_matrix import VoiceProsodyProfile
 from sofia.voice.tts import (
     TTSBackendProbe,
     TTSPlaybackReceipt,

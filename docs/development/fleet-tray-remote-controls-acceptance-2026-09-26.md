@@ -1,3 +1,7 @@
+> OPS cleanup update: unused machine/remote/telemetry bridges, synthetic failure decisions and lease/failover/execution prototypes are retired. Production Fleet state and telemetry use canonical stores; legacy JSON is migration input only. See [OPS cleanup report](ops-cleanup-report.md).
+
+> Cleanup update: unwired `ui.delivery`, headless `ui.workbench`, remote-chat transport/endpoint/authority and Fleet tray-control prototypes were retired. The desktop and tray remain live; remote-chat settings are accepted only for legacy normalization to local mode. Historical candidate descriptions below are not current wiring. See [UI cleanup report](ui-cleanup-report.md).
+
 # Fleet / Windows tray / remote-client acceptance candidate
 
 **Date:** 2026-09-26  

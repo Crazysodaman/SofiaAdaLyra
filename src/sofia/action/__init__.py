@@ -1,9 +1,4 @@
-from sofia.action.executor import (
-    ActionExecutor,
-    ActionExecutorError,
-    FailClosedActionExecutor,
-    TestActionExecutor,
-)
+from sofia.action.executor import ActionExecutor, ActionExecutorError, FailClosedActionExecutor
 from sofia.action.model import (
     Action,
     ActionExecutionResult,
@@ -24,5 +19,4 @@ __all__ = [
     "ActionStatus",
     "ActionSystem",
     "ActionSystemError",
-    "TestActionExecutor",
 ]

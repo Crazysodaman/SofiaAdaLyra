@@ -1,10 +1,11 @@
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
 from sofia.distributed.authorization import RemoteGrant
 from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
-from sofia.distributed.endpoint_policy import ApprovedEndpoint
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import ApprovedEndpoint
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode, NodeEndpoint, NodeTransport
 from sofia.distributed.operations import RemoteOperationDenied, RemoteOperationRequest, RemoteOperationResult, RemoteOutcome, RemoteTransport
 from sofia.distributed.remote_control import DurableRemoteControl
@@ -23,7 +24,7 @@ def test_full_admission_chain_requires_durable_identity_endpoint_and_grant(tmp_p
     node=DistributedNode(uuid4(),"Artemis"); transport=Transport(node)
     ctl=DurableRemoteControl(transport=transport,identity_path=tmp_path/"i.db",endpoint_path=tmp_path/"e.db",
         authorization_path=tmp_path/"a.db",ledger_path=tmp_path/"l.db",max_inventory_age=timedelta(minutes=5))
-    enrollment=NodeEnrollment(node,fingerprint_public_key(b"k"),NOW,"Sparks")
+    enrollment=NodeEnrollment(node,sha256(b"k").hexdigest(),NOW,"Sparks")
     endpoint=NodeEndpoint("artemis.local",443,NodeTransport.HTTPS)
     grant=RemoteGrant(uuid4(),node.node_id,"system.inspect","read","Sparks",NOW+timedelta(hours=1))
     request=RemoteOperationRequest(uuid4(),node.node_id,grant.grant_id,"system.inspect","read",{})

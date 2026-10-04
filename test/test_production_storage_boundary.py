@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 import re
 
 from sofia.config import (
@@ -115,7 +116,10 @@ def test_windows_production_layout_defaults_to_programdata(
     monkeypatch.delenv("SOFIA_STATE_ROOT", raising=False)
     monkeypatch.delenv("SOFIA_PROTECTED_ROOT", raising=False)
     monkeypatch.setenv("PROGRAMDATA", str(program_data))
-    monkeypatch.setattr(layout_module.os, "name", "nt")
+    monkeypatch.setattr(
+        layout_module, "os",
+        SimpleNamespace(name="nt", environ=layout_module.os.environ),
+    )
 
     layout = RuntimeStorageLayout.from_environment(
         repository_root,

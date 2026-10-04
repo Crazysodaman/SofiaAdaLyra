@@ -19,7 +19,6 @@ from .wardrobe_design import (
     GarmentDesign,
     GraphicDesign,
     MaterialProperties,
-    all_garment_types,
     validate_design,
 )
 from .wardrobe_planner import Activity, OutfitPlan, Season
@@ -67,7 +66,7 @@ class WardrobeStudio:
         authority: PresentationAuthority | None = None,
         store: PresentationStore | None = None,
     ) -> None:
-        from .wardrobe_catalog import WardrobePrebuild
+        from .wardrobe_prebuild import WardrobePrebuild
 
         if not isinstance(catalog, WardrobePrebuild):
             raise TypeError("catalog must be WardrobePrebuild")
@@ -80,10 +79,6 @@ class WardrobeStudio:
         self.catalog = catalog
         self.authority = authority
         self.store = store
-        self._garment_types = {
-            item.type_id: item
-            for item in all_garment_types()
-        }
 
     def compose(
         self,
@@ -140,8 +135,8 @@ class WardrobeStudio:
                 # memory and serialize the authority snapshot themselves.
                 mutate()
             else:
-                # Production application wiring supplies the canonical store,
-                # so live registration is durable-or-rollback.
+                # Callers supplying the canonical store get durable-or-rollback
+                # registration. No frontend currently wires this creator API.
                 self.store.persist_mutation(
                     self.authority,
                     mutate,
@@ -152,7 +147,7 @@ class WardrobeStudio:
         self,
         request: GarmentDesignRequest,
     ) -> "GarmentBlueprint":
-        from .wardrobe_catalog import GarmentBlueprint
+        from .wardrobe_prebuild import GarmentBlueprint
 
         if not isinstance(request, GarmentDesignRequest):
             raise TypeError("request must be GarmentDesignRequest")

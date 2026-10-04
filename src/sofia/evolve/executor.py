@@ -19,7 +19,7 @@ import sqlite3
 import tempfile
 from uuid import UUID
 
-from sofia.constitution.integrity import ConstitutionIntegrityVerifier
+from sofia.constitution.store import ConstitutionIntegrityVerifier
 from sofia.constitution.store import ConstitutionStore
 from sofia.identity.store import IdentityStore
 

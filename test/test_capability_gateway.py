@@ -1,13 +1,11 @@
-﻿from sofia.capability.gateway import (
+from sofia.capability.gateway import (
     CapabilityGateway,
 )
 from sofia.capability.model import (
     Capability,
     CapabilityResultKind,
 )
-from sofia.capability.proposal import (
-    CapabilityProposal,
-)
+from sofia.capability.model import CapabilityProposal
 from sofia.capability.system import (
     CapabilitySystem,
 )

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 
-from .model import VoiceProsodyProfile
+from .prosody_matrix import VoiceProsodyProfile
 from .sapi import WindowsSapiBackend
 
 

@@ -39,7 +39,9 @@ def test_bottoms_cover_short_trouser_legging_denim_and_skirt_roles():
             "cargo_shorts", "lounge_shorts", "bike_shorts",
             "utility_trousers", "jeans", "leggings", "skirt"} <= types
     assert {"technical", "lounge", "hot_weather", "athletic",
-            "denim", "casual", "smart"} <= profiles
+            "denim", "casual", "smart"} <= raw["profiles"].keys()
+    assert {"private_lewd", "private_explicit"} <= profiles
+    assert profiles <= raw["profiles"].keys()
 
 
 def test_all_bottoms_keep_tail_clearance():

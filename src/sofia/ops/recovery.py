@@ -1,8 +1,7 @@
-"""Recovery, backup evidence and staged update policy for fleet operations."""
+"""Recovery objectives and backup evidence for fleet operations."""
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from re import fullmatch
 
 class RecoveryDenied(PermissionError): pass
@@ -74,17 +73,3 @@ class RecoveryGuard:
         if backup.backup_id!=restore.backup_id: raise RecoveryDenied("restore evidence is for another backup")
         if not restore.succeeded: raise RecoveryDenied("backup has not passed independent restore verification")
         if backup.failure_domain==target_failure_domain: raise RecoveryDenied("backup is not isolated from target failure domain")
-
-class UpdateRing(str,Enum):
-    CANARY="canary"; EARLY="early"; GENERAL="general"
-
-@dataclass(frozen=True)
-class HostUpdateAssignment:
-    host_id:str; ring:UpdateRing
-
-class UpdatePlanner:
-    def order(self,assignments:tuple[HostUpdateAssignment,...])->tuple[HostUpdateAssignment,...]:
-        rank={UpdateRing.CANARY:0,UpdateRing.EARLY:1,UpdateRing.GENERAL:2}
-        return tuple(sorted(assignments,key=lambda a:(rank[a.ring],a.host_id)))
-    def next_ring_allowed(self,completed_ring:UpdateRing,*,health_verified:bool,rollback_ready:bool)->bool:
-        return health_verified and rollback_ready and completed_ring in (UpdateRing.CANARY,UpdateRing.EARLY)

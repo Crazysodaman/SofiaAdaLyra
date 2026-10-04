@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sofia.cognition.assembler import CognitiveContextAssembler
@@ -8,7 +8,7 @@ from sofia.cognition.model import (
     CognitiveRequest,
     CognitiveRole,
 )
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.embodiment.model import (
     CurrentEmbodiment,
     Embodiment,

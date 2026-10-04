@@ -7,7 +7,7 @@ from sofia.cognition.conversation_assembler import ConversationalContextAssemble
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveRole, CognitiveToolDefinition,
 )
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.identity.model import SofiaIdentity
 from sofia.personality.model import PersonalityProfile
 from sofia.self_model.model import create_core_state

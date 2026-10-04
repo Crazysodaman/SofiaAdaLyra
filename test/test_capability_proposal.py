@@ -1,6 +1,6 @@
-﻿import pytest
+import pytest
 
-from sofia.capability.proposal import CapabilityProposal
+from sofia.capability.model import CapabilityProposal
 
 
 def test_capability_proposal_contains_structured_invocation():

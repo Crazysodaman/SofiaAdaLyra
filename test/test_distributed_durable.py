@@ -1,4 +1,5 @@
 """22I offline persistence tests. Fake transport is NOT network authentication."""
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -9,7 +10,7 @@ from sofia.distributed.capabilities import CapabilityInventory, RemoteCapability
 from sofia.distributed.durable import (
     DurableDistributedGateway, DurableRemoteAuthorization, DurableRemoteLedger,
 )
-from sofia.distributed.identity import NodeEnrollment, fingerprint_public_key
+from sofia.distributed.model import NodeEnrollment
 from sofia.distributed.model import DistributedNode
 from sofia.distributed.operations import (
     RemoteOperationDenied, RemoteOperationRequest, RemoteOperationResult,
@@ -51,7 +52,7 @@ def setup(tmp_path):
     database = tmp_path / "state.sqlite3"
     node = DistributedNode(uuid4(), "Artemis")
     enrollment = NodeEnrollment(
-        node, fingerprint_public_key(b"fake-public-key"), NOW, "Sparks")
+        node, sha256(b"fake-public-key").hexdigest(), NOW, "Sparks")
     request = RemoteOperationRequest(uuid4(), node.node_id, uuid4(),
                                      "system.inspect", "summary", {})
     authorization = DurableRemoteAuthorization(database)
@@ -207,7 +208,7 @@ def test_wrong_node_denies_without_contact_even_with_valid_grant(tmp_path):
     _, enrollment, request, auth, ledger, transport, gateway = setup(tmp_path)
     auth.add_approved_grant(grant_for(request))
     foreign = NodeEnrollment(
-        DistributedNode(uuid4(), "Nyx"), fingerprint_public_key(b"foreign"),
+        DistributedNode(uuid4(), "Nyx"), sha256(b"foreign").hexdigest(),
         NOW, "Sparks")
     with pytest.raises(RemoteOperationDenied, match="Node mismatch"):
         gateway.invoke(foreign, request, now=NOW)

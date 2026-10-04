@@ -1,9 +1,9 @@
-﻿from sofia.capability.model import (
+from sofia.capability.model import (
     CapabilityRequest,
     CapabilityResult,
     CapabilityResultKind,
 )
-from sofia.capability.proposal import CapabilityProposal
+from sofia.capability.model import CapabilityProposal
 from sofia.capability.system import (
     CapabilityResolutionError,
     CapabilitySystem,

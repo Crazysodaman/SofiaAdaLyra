@@ -1,3 +1,1 @@
-from sofia.verify.release import ReleaseEvidence
-
-__all__ = ["ReleaseEvidence"]
+"""Explicit verification tools; importing this package runs no checks."""

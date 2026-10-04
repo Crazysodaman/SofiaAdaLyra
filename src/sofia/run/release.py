@@ -104,11 +104,6 @@ class ReleaseManager:
                 "release configuration schema is incompatible with this runtime"
             )
 
-    def candidate_path(self, release_id: str) -> Path:
-        manifest = self.store.candidate(release_id)
-        if manifest is None:
-            raise KeyError(f"unknown release candidate: {release_id}")
-        return self.releases_dir / manifest.release_id
 
     def stage(
         self,

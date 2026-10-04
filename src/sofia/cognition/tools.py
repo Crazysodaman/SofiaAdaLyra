@@ -1,4 +1,4 @@
-﻿from dataclasses import asdict,dataclass,is_dataclass
+from dataclasses import asdict,dataclass,is_dataclass
 from pathlib import Path
 from enum import Enum
 import json
@@ -7,7 +7,7 @@ from typing import Any
 from sofia.authority.model import Authority
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.model import CapabilityResult
-from sofia.capability.proposal import CapabilityProposal
+from sofia.capability.model import CapabilityProposal
 from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,

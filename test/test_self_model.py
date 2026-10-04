@@ -1,7 +1,7 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from uuid import UUID
 
-from sofia.constitution.model import Constitution
+from sofia.constitution.store import Constitution
 from sofia.identity.model import SofiaIdentity
 from sofia.self_model.model import (
     Relationship,
