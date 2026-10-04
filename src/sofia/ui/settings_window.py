@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import ipaddress
 import json
 import sqlite3
 from uuid import uuid4
@@ -119,6 +120,30 @@ def _permission_scope(value: str) -> dict:
     if not isinstance(parsed, dict):
         raise ValueError("Permission scope must be a JSON object")
     return parsed
+
+
+def _csv_values(value: str) -> tuple[str, ...]:
+    values = []
+    for raw in value.split(","):
+        item = raw.strip()
+        if item and item not in values:
+            values.append(item)
+    return tuple(values)
+
+
+def _network_scopes(value: str) -> tuple[str, ...]:
+    scopes = []
+    for raw in _csv_values(value):
+        try:
+            network = ipaddress.ip_network(raw, strict=False)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid discovery scope {raw!r}; use CIDR such as 192.168.1.0/24"
+            ) from exc
+        normalized = str(network)
+        if normalized not in scopes:
+            scopes.append(normalized)
+    return tuple(scopes)
 
 
 def _optional_expiry_minutes(value: str) -> int | None:
@@ -286,6 +311,22 @@ def run_settings_window() -> int:
     indoor_age = tk.StringVar(value=str(runtime.indoor_max_age_seconds))
     current_location_age = tk.StringVar(
         value=str(runtime.current_location_max_age_seconds)
+    )
+
+    fleet_discovery_enabled = tk.BooleanVar(
+        value=runtime.fleet_discovery_enabled
+    )
+    fleet_discovery_scopes = tk.StringVar(
+        value=", ".join(runtime.fleet_discovery_scopes)
+    )
+    fleet_discovery_targets = tk.StringVar(
+        value=", ".join(runtime.fleet_discovery_targets)
+    )
+    fleet_discovery_interval = tk.StringVar(
+        value=str(runtime.fleet_discovery_interval_seconds)
+    )
+    fleet_discovery_max_hosts = tk.StringVar(
+        value=str(runtime.fleet_discovery_max_hosts_per_scope)
     )
 
     private_chat = tk.BooleanVar(value=private_authority.private_chat)
@@ -663,6 +704,47 @@ def run_settings_window() -> int:
             weather_frame,
             textvariable=variable,
         ).pack(anchor="w", fill="x", pady=(2, 6))
+
+    fleet_settings = frames["Fleet"]
+    ttk.Label(
+        fleet_settings,
+        text=(
+            "Approved scopes power read-only network discovery. Fleet "
+            "auto-discovery may additionally record untrusted candidates, but "
+            "adding/trusting a computer still requires exact approval."
+        ),
+        wraplength=720,
+    ).pack(anchor="w", pady=(0, 8))
+    ttk.Checkbutton(
+        fleet_settings,
+        text="Enable automatic Fleet candidate discovery",
+        variable=fleet_discovery_enabled,
+    ).pack(anchor="w", pady=(0, 8))
+    for label, variable in (
+        (
+            "Approved network scopes (comma-separated CIDR)",
+            fleet_discovery_scopes,
+        ),
+        (
+            "Explicit Fleet-agent targets (optional, comma-separated)",
+            fleet_discovery_targets,
+        ),
+        ("Discovery interval seconds (minimum 30)", fleet_discovery_interval),
+        ("Maximum hosts per scope (1-1024)", fleet_discovery_max_hosts),
+    ):
+        ttk.Label(fleet_settings, text=label).pack(anchor="w")
+        ttk.Entry(
+            fleet_settings,
+            textvariable=variable,
+        ).pack(anchor="w", fill="x", pady=(2, 8))
+    ttk.Label(
+        fleet_settings,
+        text=(
+            "Read-only network discovery can use approved scopes even when "
+            "automatic Fleet candidate discovery is disabled."
+        ),
+        wraplength=720,
+    ).pack(anchor="w")
 
     permissions = frames["Permissions"]
     ttk.Label(
@@ -1074,10 +1156,6 @@ def run_settings_window() -> int:
             "ACT policy controls are not yet exposed as owner-editable "
             "settings. Existing authority and stop rules remain in force."
         ),
-        "Fleet": (
-            "Fleet enrollment and maintenance controls remain governed by "
-            "OPS/RUN workflows rather than free-form settings."
-        ),
         "Avatar": (
             "Avatar and wardrobe controls will appear here when their "
             "persistent owner-setting surface is ready."
@@ -1187,6 +1265,22 @@ def run_settings_window() -> int:
                     "user/site location subject"
                 )
 
+            parsed_fleet_scopes = _network_scopes(
+                fleet_discovery_scopes.get()
+            )
+            parsed_fleet_targets = _csv_values(
+                fleet_discovery_targets.get()
+            )
+            if (
+                fleet_discovery_enabled.get()
+                and not parsed_fleet_scopes
+                and not parsed_fleet_targets
+            ):
+                raise ValueError(
+                    "Enabled Fleet discovery requires at least one approved "
+                    "network scope or explicit agent target"
+                )
+
             runtime_updated = RuntimeUserSettings(
                 provider_model=provider_model.get().strip(),
                 provider_context_size=_positive(
@@ -1289,6 +1383,19 @@ def run_settings_window() -> int:
                 current_location_max_age_seconds=_positive(
                     current_location_age.get(),
                     "Current-location max age",
+                ),
+                fleet_discovery_enabled=bool(
+                    fleet_discovery_enabled.get()
+                ),
+                fleet_discovery_interval_seconds=_positive(
+                    fleet_discovery_interval.get(),
+                    "Fleet discovery interval seconds",
+                ),
+                fleet_discovery_targets=parsed_fleet_targets,
+                fleet_discovery_scopes=parsed_fleet_scopes,
+                fleet_discovery_max_hosts_per_scope=_positive(
+                    fleet_discovery_max_hosts.get(),
+                    "Fleet discovery maximum hosts per scope",
                 ),
             )
 
