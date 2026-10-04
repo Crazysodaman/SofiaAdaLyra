@@ -2,10 +2,12 @@
 
 Only locally approved grants can authorize a requested node/capability/operation.
 No enrollment, advertised capability, prompt, or connectivity grants permission.
-Grants are in-memory and must be reapproved after process restart.
+Production grants are persisted by DurableRemoteAuthorization; this module
+defines the admission interface and immutable grant contract.
 """
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -32,30 +34,18 @@ class RemoteGrant:
         _aware(self.expires_at, "Grant expires_at")
 
 
-class RemoteAuthorization:
-    """No implicit grants; explicit user approval is external to this object."""
+class RemoteAuthorization(ABC):
+    """Exact-scope admission interface; implementations own grant persistence."""
 
-    def __init__(self) -> None:
-        self._grants: dict[UUID, RemoteGrant] = {}
-
+    @abstractmethod
     def add_approved_grant(self, grant: RemoteGrant) -> None:
-        if not isinstance(grant, RemoteGrant):
-            raise TypeError("grant must be a RemoteGrant.")
-        if grant.grant_id in self._grants:
-            raise ValueError("Grant ID already exists; implicit renewal is forbidden.")
-        self._grants[grant.grant_id] = grant
+        raise NotImplementedError
 
+    @abstractmethod
     def revoke(self, grant_id: UUID) -> None:
-        if not isinstance(grant_id, UUID):
-            raise TypeError("grant_id must be a UUID.")
-        self._grants.pop(grant_id, None)
+        raise NotImplementedError
 
+    @abstractmethod
     def permits(self, grant_id: UUID, *, node_id: UUID, capability: str,
                 operation: str, now: datetime) -> bool:
-        _aware(now, "now")
-        if not isinstance(grant_id, UUID) or not isinstance(node_id, UUID):
-            return False
-        grant = self._grants.get(grant_id)
-        return bool(grant is not None and grant.node_id == node_id
-                    and grant.capability == capability and grant.operation == operation
-                    and now < grant.expires_at)
+        raise NotImplementedError

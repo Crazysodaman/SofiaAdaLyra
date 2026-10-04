@@ -4,13 +4,14 @@ from uuid import uuid4
 
 import pytest
 
-from sofia.distributed.authorization import RemoteAuthorization, RemoteGrant
+from sofia.distributed.authorization import RemoteGrant
+from test.distributed_support import remote_authorization
 
 NOW = datetime(2026, 9, 20, tzinfo=timezone.utc)
 
 
-def test_default_deny_and_exact_scope():
-    auth = RemoteAuthorization()
+def test_default_deny_and_exact_scope(remote_authorization):
+    auth = remote_authorization
     node, grant_id = uuid4(), uuid4()
     fields = dict(grant_id=grant_id, node_id=node, capability="system.inspect",
                   operation="summary", now=NOW)
@@ -28,10 +29,10 @@ def test_default_deny_and_exact_scope():
     assert not auth.permits(**fields)
 
 
-def test_duplicate_approval_for_same_grant_refused():
+def test_duplicate_approval_for_same_grant_refused(remote_authorization):
     grant = RemoteGrant(uuid4(), uuid4(), "system.inspect", "summary", "operator",
                         NOW + timedelta(seconds=1))
-    auth = RemoteAuthorization()
+    auth = remote_authorization
     auth.add_approved_grant(grant)
     with pytest.raises(ValueError, match="already exists"):
         auth.add_approved_grant(grant)
