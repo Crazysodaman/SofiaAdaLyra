@@ -164,6 +164,7 @@ class MatrixToolExposurePlanner:
                 "portainer.container",
                 "portainer.container.stats",
                 "portainer.info",
+                "portainer.summary",
                 "portainer.images",
                 "portainer.volumes",
                 "portainer.networks",
