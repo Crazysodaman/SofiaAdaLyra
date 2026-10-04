@@ -257,6 +257,27 @@ def test_tool_exposure_exposes_live_permission_inspection_for_authority_question
     assert plan.allow_tools is True
 
 
+def test_hardware_question_exposes_local_inventory_and_remote_read_paths():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("what hardware does Eos have?")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+
+    plan = planner.plan(env, turn, authority)
+
+    assert {
+        "hardware.inspect",
+        "machine.list",
+        "machine.get",
+        "ops.fleet.list",
+        "ops.fleet.get",
+        "remote.nodes",
+        "remote.hardware.inspect",
+    }.issubset(set(plan.capabilities))
+    assert plan.allow_tools is True
+
+
 def test_tool_exposure_keeps_read_only_inspection_for_unapproved_action():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
