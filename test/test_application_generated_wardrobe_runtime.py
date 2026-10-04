@@ -12,6 +12,7 @@ from sofia.avatar.wardrobe_generated_store import (
     SofiaGarmentDecision,
 )
 from sofia.embodiment.store import EmbodimentStore
+from sofia.cognition.model import CognitiveResponse
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,10 +20,18 @@ AVATAR_PATH = ROOT / "src" / "sofia" / "embodiment" / "avatar.json"
 
 
 class _Runtime:
-    def __init__(self, embodiment):
+    def __init__(self, embodiment, decision_content=None):
         self.embodiment = embodiment
         self.presentation = None
         self.matrix_builder = None
+        self.decision_content = decision_content
+        self.decision_requests = []
+
+    def respond(self, request):
+        self.decision_requests.append(request)
+        if self.decision_content is None:
+            raise AssertionError("unexpected wardrobe cognition request")
+        return CognitiveResponse(content=self.decision_content)
 
     def set_avatar_presentation(self, authority):
         self.presentation = authority
@@ -133,6 +142,78 @@ def test_unsure_generated_piece_does_not_refresh_or_persist(tmp_path):
         ),
     )
 
+    assert result.ask_sparks is True
+    assert result.persisted is False
+    assert app._presentation_bundle is bundle
+
+
+def test_live_sofia_acceptance_decision_persists_and_refreshes(tmp_path):
+    state_path = tmp_path / "sofia.db"
+    embodiment = EmbodimentStore(AVATAR_PATH).load()
+    bundle = load_or_bootstrap_presentation(
+        embodiment=embodiment,
+        state_path=state_path,
+    )
+
+    app = object.__new__(SofiaApplication)
+    app._model_lock = RLock()
+    app._configuration = SimpleNamespace(
+        state_path=state_path,
+        avatar_private_adult_verified=False,
+    )
+    app._runtime = _Runtime(
+        embodiment,
+        decision_content=(
+            '{"decision":"accept","reason":'
+            '"I like this soft technical tee enough to keep it."}'
+        ),
+    )
+    app._conversation_service = _Conversation()
+    app._presentation_bundle = bundle
+    app._presentation_routine = None
+    app._clothing_action_service = None
+
+    result = app.evaluate_generated_wardrobe_piece(
+        _draft(bundle.catalog)
+    )
+
+    assert result.decision is SofiaGarmentDecision.ACCEPT
+    assert result.persisted is True
+    assert len(app._runtime.decision_requests) == 1
+    assert any(
+        bp.garment.item_id == "generated.sofia.live_refresh_tee"
+        for bp in app._presentation_bundle.catalog.blueprints
+    )
+
+
+def test_invalid_live_sofia_decision_asks_sparks_without_mutation(tmp_path):
+    state_path = tmp_path / "sofia.db"
+    embodiment = EmbodimentStore(AVATAR_PATH).load()
+    bundle = load_or_bootstrap_presentation(
+        embodiment=embodiment,
+        state_path=state_path,
+    )
+
+    app = object.__new__(SofiaApplication)
+    app._model_lock = RLock()
+    app._configuration = SimpleNamespace(
+        state_path=state_path,
+        avatar_private_adult_verified=False,
+    )
+    app._runtime = _Runtime(
+        embodiment,
+        decision_content="I dunno, maybe?",
+    )
+    app._conversation_service = _Conversation()
+    app._presentation_bundle = bundle
+    app._presentation_routine = None
+    app._clothing_action_service = None
+
+    result = app.evaluate_generated_wardrobe_piece(
+        _draft(bundle.catalog)
+    )
+
+    assert result.decision is SofiaGarmentDecision.ASK_SPARKS
     assert result.ask_sparks is True
     assert result.persisted is False
     assert app._presentation_bundle is bundle
