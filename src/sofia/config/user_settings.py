@@ -245,6 +245,8 @@ class RuntimeUserSettings:
             object.__setattr__(self, "location_longitude", lon)
 
         if self.nws_station_id is not None:
+            if not isinstance(self.nws_station_id, str):
+                raise TypeError("nws_station_id must be a string or None")
             station = self.nws_station_id.strip().upper()
             if (
                 not 3 <= len(station) <= 8
