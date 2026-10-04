@@ -39,6 +39,10 @@ _VM = re.compile(r"\b(?:hyper[- ]?v|virtual\s+machines?|\bvms?\b)\b", re.IGNOREC
 _STORAGE = re.compile(r"\b(?:storage|nas|disk\s+usage|shares?)\b", re.IGNORECASE)
 _SQLITE = re.compile(r"\b(?:sqlite|database|\bdb\b)\b", re.IGNORECASE)
 _TOOL_CATALOG = re.compile(r"\b(?:tools?|capabilities|what\s+can\s+you\s+do)\b", re.IGNORECASE)
+_PERMISSIONS = re.compile(
+    r"\b(?:permissions?|authority|standing\s+grants?|what\s+(?:are\s+you|you(?:'|’)re)\s+allowed\s+to\s+do)\b",
+    re.IGNORECASE,
+)
 
 _START = re.compile(r"\bstart\b", re.IGNORECASE)
 _STOP = re.compile(r"\bstop\b", re.IGNORECASE)
@@ -135,6 +139,8 @@ class MatrixToolExposurePlanner:
             _add(capabilities, "sqlite.state.tables", "sqlite.state.query", "sqlite.state.integrity")
         if _TOOL_CATALOG.search(text):
             _add(capabilities, "tool.catalog")
+        if _PERMISSIONS.search(text):
+            _add(capabilities, "permissions.inspect")
 
         remote = bool(re.search(r"\bremote\b", text, re.IGNORECASE))
         if remote:
