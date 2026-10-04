@@ -54,18 +54,26 @@ def create_capability_authorizer(
 
         # Read-only code/filesystem exploration is automatic, but confined to
         # Sofía's configured project root. Conversation text can never widen it.
-        if name in {"codebase.inspect", "filesystem.inspect"}:
+        if name == "codebase.inspect":
+            requested_scope = request.requested_scope
+            if requested_scope is None:
+                return True
+            if not isinstance(requested_scope, Path):
+                return False
+            try:
+                return requested_scope.resolve() == filesystem_root.resolve()
+            except (OSError, RuntimeError):
+                return False
+
+        if name == "filesystem.inspect":
             requested_scope = request.requested_scope
             if requested_scope is not None:
                 if not isinstance(requested_scope, Path):
                     return False
                 if not _inside_root(requested_scope, filesystem_root):
                     return False
-            if name == "filesystem.inspect":
-                operation = request.parameters.get("operation")
-                if operation not in _FILESYSTEM_READ_OPERATIONS:
-                    return False
-            return True
+            operation = request.parameters.get("operation")
+            return operation in _FILESYSTEM_READ_OPERATIONS
 
         if policy.level in (
             PermissionLevel.OBSERVE_READ,
