@@ -110,6 +110,7 @@ _READ_ONLY = frozenset({
     "tool.catalog",
     "permissions.inspect",
     "codebase.inspect",
+    "filesystem.inspect",
     "filesystem.changes",
     "process.inspect",
     "system.inspect",
@@ -183,6 +184,7 @@ _SAFE_AUTONOMOUS = frozenset({
     "sqlite.state.vacuum",
     "knowledge.ingest.text",
     "knowledge.ingest.pdf",
+    "dev.build",
 })
 
 _REVERSIBLE = frozenset({
