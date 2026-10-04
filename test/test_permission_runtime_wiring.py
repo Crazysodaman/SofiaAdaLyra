@@ -259,6 +259,12 @@ def test_permission_inspection_is_owner_private_and_reports_live_state(tmp_path)
     )
 
     assert result["levels"]["1"] == "observe_read"
+    assert "network.discover" in result["capabilities_by_level"]["1"]
+    assert "remote.hardware.inspect" in result["capabilities_by_level"]["1"]
+    assert "portainer.summary" in result["capabilities_by_level"]["1"]
+    assert "dev.build" in result["capabilities_by_level"]["2"]
+    assert "fleet.enroll" in result["capabilities_by_level"]["4"]
+    assert "permissions.grant" in result["capabilities_by_level"]["5"]
     assert result["standing_grants"][0]["grant_id"] == "inspectable-grant"
     assert result["private_adult"]["adult_external_delivery"] is False
 
