@@ -56,6 +56,10 @@ _REBOOT = re.compile(r"\breboot\b", re.IGNORECASE)
 _UPDATE = re.compile(r"\b(?:update|upgrade)\b", re.IGNORECASE)
 _REFRESH = re.compile(r"\brefresh\b", re.IGNORECASE)
 _DISCOVER = re.compile(r"\b(?:discover|scan|find|look\s+for|search\s+for)\b", re.IGNORECASE)
+_FLEET_ENROLL = re.compile(
+    r"\b(?:add|enroll|join|trust)\b.*\bfleet\b|\bfleet\b.*\b(?:add|enroll|join|trust)\b",
+    re.IGNORECASE,
+)
 _CREATE = re.compile(r"\bcreate\b", re.IGNORECASE)
 _MERGE = re.compile(r"\bmerge\b", re.IGNORECASE)
 _WRITE = re.compile(r"\b(?:write|edit|change)\b", re.IGNORECASE)
@@ -124,6 +128,8 @@ class MatrixToolExposurePlanner:
                 _add(capabilities, "ops.fleet.discover")
         if _FLEET.search(text):
             _add(capabilities, "ops.fleet.list", "ops.fleet.get", "ops.telemetry.latest", "remote.nodes")
+            if _FLEET_ENROLL.search(text):
+                _add(capabilities, "ops.fleet.enrollment_evidence", "fleet.enroll")
             if _DISCOVER.search(text):
                 _add(capabilities, "ops.fleet.discover")
             if re.search(r"\bplacement\b", text, re.IGNORECASE):
