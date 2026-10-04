@@ -120,7 +120,7 @@ Status:
 | Docker / Portainer | List endpoints | 1 | PRIVATE | ✅ |
 | Docker / Portainer | List containers | 1 | PRIVATE | ✅ |
 | Docker / Portainer | Inspect container | 1 | PRIVATE | ✅ |
-| Docker / Portainer | Read logs | 1 | PRIVATE | ➕ |
+| Docker / Portainer | Read bounded recent logs | 1 | PRIVATE | ✅ Local and enrolled-remote Portainer paths |
 | Docker / Portainer | Inspect health | 1 | PRIVATE | ✅ Engine/container health summary includes running/stopped/unhealthy state |
 | Docker / Portainer | Inspect CPU/RAM/network stats | 1 | PRIVATE | ✅ Container stats through Portainer |
 | Docker / Portainer | Inspect engine/container health summary | 1 | PRIVATE | ✅ Engine version/counts plus running/stopped/unhealthy container summary |
