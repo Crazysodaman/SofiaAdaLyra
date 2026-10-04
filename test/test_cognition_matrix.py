@@ -267,7 +267,7 @@ def test_tool_exposure_keeps_read_only_inspection_for_unapproved_action():
 def test_tool_exposure_keeps_safe_autonomous_dev_build_without_action_approval():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
-    env = envelope("build a code fix in an isolated worktree")
+    env = envelope("edit the code in an isolated worktree to fix this")
     turn = coordinator.evaluate(env)
     authority = MatrixAuthorityPlanner().plan(
         env,
