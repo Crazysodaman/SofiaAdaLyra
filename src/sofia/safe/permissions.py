@@ -290,6 +290,11 @@ def capability_permission_policy(capability: str) -> CapabilityPermissionPolicy:
     )
 
 
+def automatic_capabilities() -> tuple[str, ...]:
+    """Capabilities exposed without per-use approval."""
+    return tuple(sorted(_READ_ONLY | _SAFE_AUTONOMOUS))
+
+
 def grantable_capabilities() -> tuple[str, ...]:
     return tuple(sorted(_REVERSIBLE))
 
