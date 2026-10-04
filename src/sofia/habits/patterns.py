@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from math import exp
 from typing import Mapping
@@ -91,14 +91,6 @@ class HabitPattern:
         ):
             raise ValueError("evidence_refs must be a distinct tuple of at most 64 IDs")
 
-    @property
-    def coverage_ratio(self) -> float:
-        if self.observable_count == 0:
-            return 0.0
-        return min(
-            1.0,
-            (self.support_count + self.contradiction_count) / self.observable_count,
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,44 +177,3 @@ class HabitConfidence:
         if confidence >= 0.55 and support_count >= 4:
             return HabitLifecycle.ESTABLISHED
         return HabitLifecycle.TENTATIVE
-
-    @classmethod
-    def reappraise(
-        cls,
-        pattern: HabitPattern,
-        *,
-        now: datetime,
-        support_delta: int = 0,
-        contradiction_delta: int = 0,
-        observable_delta: int = 0,
-        evidence_ref: str | None = None,
-    ) -> HabitPattern:
-        if not isinstance(pattern, HabitPattern):
-            raise TypeError("pattern must be HabitPattern")
-        support = pattern.support_count + support_delta
-        contradiction = pattern.contradiction_count + contradiction_delta
-        observable = pattern.observable_count + observable_delta
-        if min(support, contradiction, observable) < 0:
-            raise ValueError("reappraisal cannot make counts negative")
-        confidence = cls.score(
-            support_count=support,
-            contradiction_count=contradiction,
-            observable_count=observable,
-            last_seen=pattern.last_seen,
-            now=now,
-        )
-        refs = pattern.evidence_refs
-        if evidence_ref is not None and evidence_ref not in refs:
-            refs = (*refs, evidence_ref)[-64:]
-        return replace(
-            pattern,
-            support_count=support,
-            contradiction_count=contradiction,
-            observable_count=observable,
-            confidence=confidence,
-            lifecycle=cls.lifecycle(
-                confidence=confidence,
-                support_count=support,
-            ),
-            evidence_refs=refs,
-        )

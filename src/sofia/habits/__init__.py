@@ -1,5 +1,4 @@
 from sofia.habits.continuity import HabitContinuityCoordinator
-from sofia.habits.controls import HabitExplanation, HabitUserControls
 from sofia.habits.engine import HabitPatternEngine, pattern_signature
 from sofia.habits.expectations import (
     ExpectationStatus,
@@ -22,8 +21,7 @@ from sofia.habits.patterns import (
     HabitPattern,
     HabitSuppression,
 )
-from sofia.habits.recorder import HabitObservationRecorder
-from sofia.habits.store import HabitObservationStore
+from sofia.habits.store import HabitObservationRecorder, HabitObservationStore
 
 __all__ = [
     "CadenceKind",
@@ -35,7 +33,6 @@ __all__ = [
     "HabitExpectation",
     "HabitExpectationEngine",
     "HabitExpectationStore",
-    "HabitExplanation",
     "HabitLifecycle",
     "HabitObservation",
     "HabitObservationRecorder",
@@ -44,7 +41,6 @@ __all__ = [
     "HabitPatternEngine",
     "HabitPatternStore",
     "HabitSuppression",
-    "HabitUserControls",
     "ObservationCoverage",
     "SourceQuality",
     "pattern_signature",
