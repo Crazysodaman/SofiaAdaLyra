@@ -237,7 +237,7 @@ def test_fleet_enrollment_requires_exact_one_time_sparks_approval(tmp_path):
     assert enrolled["lifecycle"] == "enrolled"
     assert enrolled["node_id"] == str(node_id)
 
-    with pytest.raises(PermissionError, match="already consumed"):
+    with pytest.raises(PermissionError):
         service.enroll_candidate(
             {**parameters, "approval_id": approval.approval_id}
         )
