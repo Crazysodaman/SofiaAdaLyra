@@ -800,3 +800,123 @@ def test_required_read_only_preflight_never_autocalls_parameterized_tool():
 
     assert response.content == "No automatic call was possible."
     assert called == []
+
+
+def test_required_read_only_preflight_dispatches_all_zero_argument_reads():
+    capability_system = CapabilitySystem(
+        authorization_checker=lambda request: True,
+    )
+    for capability, payload in (
+        (
+            Capability(
+                name="system.inspect",
+                description="Inspect the local system.",
+            ),
+            {"host": "Venus"},
+        ),
+        (
+            Capability(
+                name="machine.list",
+                description="List known machines.",
+            ),
+            {"machines": ["Venus", "Artemis"]},
+        ),
+    ):
+        capability_system.register(
+            capability=capability,
+            handler=lambda request, value=payload: value,
+        )
+
+    dispatcher = CognitiveToolDispatcher(
+        gateway=CapabilityGateway(
+            capability_system=capability_system
+        ),
+        bindings=(
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="inspect_system",
+                    description="Inspect the local system.",
+                    parameters={
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="system.inspect",
+            ),
+            CognitiveToolBinding(
+                definition=CognitiveToolDefinition(
+                    name="list_known_machines",
+                    description="List known machines.",
+                    parameters={
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                ),
+                capability_name="machine.list",
+            ),
+        ),
+    )
+
+    class MultiEvidenceEngine(CognitiveEngine):
+        def respond(self, request: CognitiveRequest) -> CognitiveResponse:
+            tool_messages = tuple(
+                message
+                for message in request.messages
+                if message.role is CognitiveRole.TOOL
+            )
+            assert len(tool_messages) == 2
+            combined = "\n".join(
+                message.content for message in tool_messages
+            )
+            assert "Venus" in combined
+            assert "Artemis" in combined
+            return CognitiveResponse(
+                content="I have both local-system and known-machine evidence."
+            )
+
+    system = CognitiveSystem(
+        engine=MultiEvidenceEngine(),
+        tool_dispatcher=dispatcher,
+    )
+    response = system.respond(
+        CognitiveOperation(
+            context=CognitiveContext(
+                request=CognitiveRequest(
+                    messages=(
+                        CognitiveMessage(
+                            role=CognitiveRole.SYSTEM,
+                            content="TRUSTED READ-ONLY TOOL REQUIREMENT",
+                        ),
+                        CognitiveMessage(
+                            role=CognitiveRole.USER,
+                            content=(
+                                "What computer are you on, and what other "
+                                "computers can you already see?"
+                            ),
+                        ),
+                    ),
+                    allow_tools=True,
+                    capability_allowlist=(
+                        "system.inspect",
+                        "machine.list",
+                    ),
+                    route_hint="deep",
+                )
+            ),
+            authority=Authority(
+                allowed_capabilities=(
+                    "system.inspect",
+                    "machine.list",
+                ),
+            ),
+        )
+    )
+
+    assert response.evidence_refs == (
+        "capability:system.inspect",
+        "capability:machine.list",
+    )
