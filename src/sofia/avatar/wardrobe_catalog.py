@@ -1480,23 +1480,7 @@ def build_starter_wardrobe() -> WardrobePrebuild:
     blueprints = (
         *_load_underlayer_blueprints(),
         *_load_wardrobe_data_file("tops.json"),
-        _blueprint(
-            GarmentDesign(
-                "day.utility_trousers", "Articulated utility trousers",
-                "utility_trousers", "fitted", "mid", "full", None,
-                "stretch technical weave", "charcoal", "dark_violet",
-                "panelled",
-                _no_graphic(),
-                ("articulated_knees", "utility_pockets", "tail_clearance"),
-                ("day", "engineer", "technical", "utility"), False,
-                "Fitted charcoal utility trousers with a mid rise and full "
-                "length, built from a flexible technical weave. Dark-violet "
-                "panel accents, articulated knees, practical low-profile "
-                "pockets, and a dedicated tail opening keep the look "
-                "functional without becoming bulky."
-            ),
-            canonical=True,
-        ),
+        *_load_wardrobe_data_file("bottoms.json"),
         _blueprint(
             GarmentDesign(
                 "day.engineer_jacket", "Asymmetric engineer jacket",
@@ -1564,21 +1548,6 @@ def build_starter_wardrobe() -> WardrobePrebuild:
                 "small practical pouch, and restrained crimson hardware detail."
             ),
             canonical=True,
-        ),
-        _blueprint(
-            GarmentDesign(
-                "night.running_shorts", "Fitted circuit running shorts",
-                "running_shorts", "fitted", "mid", "short", None,
-                "performance-knit", "dark_violet", "cyan", "none",
-                GraphicDesign(True, "left_leg", "small_circuit_mark"),
-                ("drawstring", "side_slits", "tail_clearance"),
-                ("night", "lounge", "athletic", "soft"), False,
-                "Fitted dark-violet running shorts with a mid rise and short "
-                "athletic cut in soft performance knit. Cyan trim picks out the "
-                "side seams, a small circuit mark sits on the left leg, and the "
-                "design includes a drawstring, shallow side slits, and a "
-                "comfortable tail opening."
-            ),
         ),
     )
 
