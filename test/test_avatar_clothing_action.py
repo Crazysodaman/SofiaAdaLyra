@@ -32,6 +32,7 @@ from sofia.cognition.matrix import (
 )
 from sofia.personality.influence import ContinuityInfluence
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.safe.permissions import PermissionStore
 from sofia.social.principals import local_sparks_principal
 
 
@@ -202,9 +203,26 @@ def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
 def test_swap_boots_keeps_current_pair_when_no_replacement_exists(tmp_path):
     catalog = build_starter_wardrobe()
     preset_ids = {item for plan in catalog.presets for item in plan.item_ids}
-    blueprints = tuple(bp for bp in catalog.blueprints if bp.garment.item_id in preset_ids)
-    catalog = replace(catalog, blueprints=blueprints,
-                      wardrobe=Wardrobe(tuple(bp.garment for bp in blueprints)))
+    current_boot = next(
+        bp.garment
+        for bp in catalog.blueprints
+        if bp.garment.item_id == "day.work_boots"
+    )
+    blueprints = tuple(
+        bp
+        for bp in catalog.blueprints
+        if bp.garment.item_id in preset_ids
+        and (
+            bp.garment.item_id == current_boot.item_id
+            or bp.garment.layer is not current_boot.layer
+            or bp.garment.slots != current_boot.slots
+        )
+    )
+    catalog = replace(
+        catalog,
+        blueprints=blueprints,
+        wardrobe=Wardrobe(tuple(bp.garment for bp in blueprints)),
+    )
     runtime_bundle = bundle(tmp_path, catalog=catalog)
     service = ClothingActionService(runtime_bundle)
 
@@ -384,10 +402,15 @@ def test_unrelated_text_is_not_a_clothing_action(tmp_path):
 
 def test_verified_private_sparks_session_can_commit_and_restore_nude_state(tmp_path):
     runtime_bundle = bundle(tmp_path)
-    service = ClothingActionService(
-        runtime_bundle,
-        adult_verified=True,
+    PermissionStore(
+        runtime_bundle.store.database_path
+    ).set_private_adult_authority(
+        private_chat=True,
+        adult_chat=True,
+        adult_avatar=True,
+        adult_external_delivery=False,
     )
+    service = ClothingActionService(runtime_bundle)
 
     reply = service.handle(
         content="undress",
@@ -409,6 +432,14 @@ def test_verified_private_sparks_session_can_commit_and_restore_nude_state(tmp_p
 
 def test_operator_stop_blocks_private_presentation_even_when_adult_verified(tmp_path):
     runtime_bundle = bundle(tmp_path)
+    PermissionStore(
+        runtime_bundle.store.database_path
+    ).set_private_adult_authority(
+        private_chat=True,
+        adult_chat=True,
+        adult_avatar=True,
+        adult_external_delivery=False,
+    )
     stop = OperatorStopStore(runtime_bundle.store.database_path)
     stop.set(
         active=True,
@@ -417,7 +448,6 @@ def test_operator_stop_blocks_private_presentation_even_when_adult_verified(tmp_
     )
     service = ClothingActionService(
         runtime_bundle,
-        adult_verified=True,
         operator_stop_store=stop,
     )
     original = runtime_bundle.authority.current
