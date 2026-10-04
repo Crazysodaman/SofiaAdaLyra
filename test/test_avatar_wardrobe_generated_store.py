@@ -117,4 +117,8 @@ def test_only_acceptance_adds_generated_piece_to_rebuilt_catalog(tmp_path):
     rebuilt = build_starter_wardrobe(state_path=state_path)
     ids = {bp.garment.item_id for bp in rebuilt.blueprints}
     assert draft.garment.item_id in ids
-    assert len(ids) == 300
+    baseline_ids = {
+        bp.garment.item_id
+        for bp in build_starter_wardrobe().blueprints
+    }
+    assert len(ids) == len(baseline_ids) + 1
