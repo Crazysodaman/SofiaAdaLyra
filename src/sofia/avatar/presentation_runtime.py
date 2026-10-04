@@ -48,27 +48,20 @@ def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:
     )
 
 
-def _migrate_obsolete_wardrobe_snapshot(
+def _authority_from_obsolete_snapshot(
     *,
-    store: PresentationStore,
+    snapshot: dict[str, object],
+    embodiment: Embodiment,
     wardrobe,
     outfits: dict[str, tuple[str, ...]],
 ) -> PresentationAuthority | None:
-    """Reset recognized pre-v2 wardrobe state onto the new starter closet."""
-    raw = store._read_snapshot_json()
-    if raw is None:
-        return None
-    try:
-        snapshot = json.loads(raw)
-    except (TypeError, json.JSONDecodeError):
-        return None
-    if not isinstance(snapshot, dict):
-        return None
+    """Convert a recognized pre-v2 wardrobe snapshot to the new catalog."""
     canonical = snapshot.get("canonical_daily_outfit_id")
     current = snapshot.get("current")
     daily = snapshot.get("last_daily")
     if not isinstance(current, dict) or not isinstance(daily, dict):
         return None
+
     ids = (canonical, current.get("outfit_id"), daily.get("outfit_id"))
     legacy_exact = {
         "engineer.signature",
@@ -92,14 +85,73 @@ def _migrate_obsolete_wardrobe_snapshot(
     appearance_data = current.get("appearance")
     if not isinstance(appearance_data, dict):
         appearance_data = daily.get("appearance")
-    appearance = PresentationAuthority._appearance_from_dict(appearance_data)
+    if not isinstance(appearance_data, dict):
+        return None
+
+    normalized_appearance = dict(appearance_data)
+    canonical_appearance = dict(embodiment.physical_self.appearance)
+    hair_hex = canonical_appearance.get("hair_hex")
+    tail_hex = canonical_appearance.get("tail_hex")
+    hair_name = canonical_appearance.get("hair_color")
+    tail_name = canonical_appearance.get("tail_color")
+    if (
+        isinstance(hair_name, str)
+        and normalized_appearance.get("hair_color") == hair_hex
+    ):
+        normalized_appearance["hair_color"] = hair_name
+    if (
+        isinstance(tail_name, str)
+        and normalized_appearance.get("tail_color") == tail_hex
+    ):
+        normalized_appearance["tail_color"] = tail_name
+
+    appearance = PresentationAuthority._appearance_from_dict(
+        normalized_appearance
+    )
     authority = PresentationAuthority(
         wardrobe,
         outfits=outfits,
         canonical_daily_outfit_id=DAY_DEFAULT_OUTFIT_ID,
         initial_appearance=appearance,
     )
-    store.save(authority)
+
+    finished = snapshot.get("finished", [])
+    if isinstance(finished, list):
+        migrated_snapshot = authority.snapshot()
+        migrated_snapshot["finished"] = finished
+        authority = PresentationAuthority.restore(
+            wardrobe,
+            outfits=outfits,
+            snapshot=migrated_snapshot,
+        )
+    return authority
+
+
+def _migrate_obsolete_wardrobe_snapshot(
+    *,
+    store: PresentationStore,
+    embodiment: Embodiment,
+    wardrobe,
+    outfits: dict[str, tuple[str, ...]],
+) -> PresentationAuthority | None:
+    raw = store._read_snapshot_json()
+    if raw is None:
+        return None
+    try:
+        snapshot = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(snapshot, dict):
+        return None
+
+    authority = _authority_from_obsolete_snapshot(
+        snapshot=snapshot,
+        embodiment=embodiment,
+        wardrobe=wardrobe,
+        outfits=outfits,
+    )
+    if authority is not None:
+        store.save(authority)
     return authority
 
 def _legacy_presentation_state_path(state_path: str | Path) -> Path:
@@ -134,17 +186,29 @@ def _migrate_legacy_presentation_state(
     *,
     store: PresentationStore,
     legacy_path: Path,
+    embodiment: Embodiment,
     wardrobe,
     outfits: dict[str, tuple[str, ...]],
 ) -> None:
     if not legacy_path.is_file():
         return
 
-    legacy_authority = PresentationAuthority.restore(
-        wardrobe,
-        outfits=outfits,
-        snapshot=_legacy_snapshot(legacy_path),
-    )
+    snapshot = _legacy_snapshot(legacy_path)
+    try:
+        legacy_authority = PresentationAuthority.restore(
+            wardrobe,
+            outfits=outfits,
+            snapshot=snapshot,
+        )
+    except Exception:
+        legacy_authority = _authority_from_obsolete_snapshot(
+            snapshot=snapshot,
+            embodiment=embodiment,
+            wardrobe=wardrobe,
+            outfits=outfits,
+        )
+        if legacy_authority is None:
+            raise
     if store.exists():
         canonical = store.load(wardrobe, outfits=outfits)
         if canonical.snapshot() != legacy_authority.snapshot():
@@ -180,6 +244,7 @@ def load_or_bootstrap_presentation(
     _migrate_legacy_presentation_state(
         store=store,
         legacy_path=_legacy_presentation_state_path(state_path),
+        embodiment=embodiment,
         wardrobe=catalog.wardrobe,
         outfits=outfits,
     )
@@ -189,6 +254,7 @@ def load_or_bootstrap_presentation(
         except PresentationStoreError:
             authority = _migrate_obsolete_wardrobe_snapshot(
                 store=store,
+                embodiment=embodiment,
                 wardrobe=catalog.wardrobe,
                 outfits=outfits,
             )
