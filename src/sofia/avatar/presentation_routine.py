@@ -91,7 +91,15 @@ class HeadlessPresentationRoutine:
                 state=current,
                 reason="daypart_fallback_outfit_unavailable",
             )
-        if self.authority.last_daily.outfit_id == target:
+        if current.reason.startswith("user_clothing_action:"):
+            return PresentationRoutineResult(
+                changed=False,
+                deferred_private=False,
+                proposal=None,
+                state=current,
+                reason="user_outfit_choice_active",
+            )
+        if current.outfit_id == target:
             return PresentationRoutineResult(
                 changed=False,
                 deferred_private=False,
@@ -159,7 +167,15 @@ class HeadlessPresentationRoutine:
             preferences=preferences,
             worn=worn,
         )
-        if self.authority.last_daily.outfit_id == proposal.outfit_id:
+        if current.reason.startswith("user_clothing_action:"):
+            return PresentationRoutineResult(
+                changed=False,
+                deferred_private=False,
+                proposal=proposal,
+                state=current,
+                reason="user_outfit_choice_active",
+            )
+        if current.outfit_id == proposal.outfit_id:
             return PresentationRoutineResult(
                 changed=False,
                 deferred_private=False,
