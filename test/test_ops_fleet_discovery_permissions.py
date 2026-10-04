@@ -279,3 +279,56 @@ def test_fleet_enrollment_is_level_four_and_never_standing():
     policy = capability_permission_policy("fleet.enroll")
     assert policy.level is PermissionLevel.PROTECTED
     assert policy.standing_grant_allowed is False
+
+
+def test_rediscovery_refreshes_existing_candidate_evidence(tmp_path):
+    state = tmp_path / "sofia.db"
+    node_id = uuid4()
+    key = "c" * 64
+    old = datetime.now(timezone.utc) - timedelta(hours=2)
+    fresh = datetime.now(timezone.utc)
+    source = _DiscoverySource((
+        FleetDiscoveryEvidence(
+            host_id="worker",
+            hostname="worker",
+            platform="linux",
+            architecture="x86_64",
+            observed_at=old,
+            source="verified-mtls-test",
+            inside_approved_scope=True,
+            observed_node_id=node_id,
+            observed_public_key_sha256=key,
+            observed_endpoint_hostname="worker.lan",
+            observed_endpoint_port=7443,
+            capabilities_verified=True,
+            capability_names=("system.inspect",),
+        ),
+    ))
+    service = OpsToolService(state, discovery_source=source)
+    service.discover_candidates()
+    first = service.enrollment_evidence("worker")
+    assert first["observed_at"] == old.isoformat()
+
+    source.observations = (
+        FleetDiscoveryEvidence(
+            host_id="worker",
+            hostname="worker",
+            platform="linux",
+            architecture="x86_64",
+            observed_at=fresh,
+            source="verified-mtls-test",
+            inside_approved_scope=True,
+            observed_node_id=node_id,
+            observed_public_key_sha256=key,
+            observed_endpoint_hostname="worker.lan",
+            observed_endpoint_port=7443,
+            capabilities_verified=True,
+            capability_names=("system.inspect",),
+        ),
+    )
+    result = service.discover_candidates()
+    second = service.enrollment_evidence("worker")
+
+    assert result["existing_host_ids"] == ("worker",)
+    assert second["observed_at"] == fresh.isoformat()
+    assert second["ready"] is True
