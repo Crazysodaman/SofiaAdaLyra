@@ -318,6 +318,27 @@ def test_tool_exposure_keeps_safe_autonomous_dev_build_without_action_approval()
     assert "dev.push" not in plan.capabilities
 
 
+def test_self_improvement_exposes_inspection_and_isolated_build_only():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("work on self-improvement and improve your code")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(can_respond=True, can_propose_actions=True),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert "codebase.inspect" in plan.capabilities
+    assert "dev.status" in plan.capabilities
+    assert "dev.build" in plan.capabilities
+    assert "dev.apply" not in plan.capabilities
+    assert "dev.commit" not in plan.capabilities
+    assert "dev.push" not in plan.capabilities
+
+
 def test_tool_exposure_allows_only_service_family_for_allowed_restart():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
