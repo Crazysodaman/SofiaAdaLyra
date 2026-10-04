@@ -2,6 +2,8 @@
 from dataclasses import replace
 from datetime import datetime, timezone
 
+import pytest
+
 from sofia.avatar.clothing_action import (
     ClothingActionService,
     WardrobeAutonomyContext,
@@ -9,7 +11,10 @@ from sofia.avatar.clothing_action import (
     WardrobeAutonomyPolicy,
 )
 from sofia.avatar.presentation import AppearanceState, AttireMode, PresentationAuthority
-from sofia.avatar.presentation_store import PresentationStore
+from sofia.avatar.presentation_store import (
+    PresentationStore,
+    PresentationStoreError,
+)
 from sofia.avatar.runtime_state import PresentationRuntimeBundle
 from sofia.avatar.wardrobe import Layer
 from sofia.avatar.wardrobe_routine import (
@@ -541,3 +546,30 @@ def test_ambiguous_outfit_display_name_fails_closed(tmp_path):
     assert reply is not None
     assert "couldn't resolve" in reply
     assert runtime_bundle.authority.current == original
+
+
+
+def test_dynamic_clothing_change_rolls_back_registration_when_save_fails(
+    tmp_path,
+    monkeypatch,
+):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(runtime_bundle)
+    before = runtime_bundle.authority.snapshot()
+    before_outfits = runtime_bundle.authority.available_outfit_ids
+
+    def fail_save(_authority):
+        raise PresentationStoreError("synthetic clothing save failure")
+
+    monkeypatch.setattr(runtime_bundle.store, "save", fail_save)
+
+    with pytest.raises(PresentationStoreError, match="synthetic"):
+        service.handle(
+            content="take off your jacket",
+            previous_user_content=None,
+            operation_id="test.rollback.dynamic",
+        )
+
+    assert runtime_bundle.authority.snapshot() == before
+    assert runtime_bundle.authority.available_outfit_ids == before_outfits
+    assert runtime_bundle.authority.pending is None
