@@ -40,6 +40,7 @@ jobs:
           path: release-evidence
 
       - name: Bind evidence to successful main candidate run
+        id: bind
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,12 +63,12 @@ jobs:
           if ($Run.head_sha -ne $Manifest.git_revision) {
             throw "candidate artifact git revision does not match workflow run"
           }
-          "RELEASE_GIT_REVISION=$($Manifest.git_revision)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "release_git_revision=$($Manifest.git_revision)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Checkout exact candidate signing tooling
         uses: actions/checkout@v7
         with:
-          ref: ${{ env.RELEASE_GIT_REVISION }}
+          ref: ${{ steps.bind.outputs.release_git_revision }}
           fetch-depth: 1
           path: release-tooling
 
