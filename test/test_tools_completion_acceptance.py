@@ -21,8 +21,8 @@ from sofia.integrations.ollama import OllamaAdapter
 from sofia.integrations.portainer import PortainerAdapter
 from sofia.integrations.sqlite import SQLiteReadAdapter
 from sofia.integrations.storage import StorageAdapter
-from sofia.knowledge.lifecycle import KnowledgeLifecycle
-from sofia.knowledge.persistence import JsonKnowledgeStore
+from sofia.knowledge.lifecycle import SQLiteKnowledgeLifecycle
+from sofia.knowledge.persistence import SQLiteKnowledgeStore
 from sofia.knowledge.service import KnowledgeService
 from sofia.filesystem.change_capability import FilesystemChangesCapability
 from sofia.filesystem.observation import FilesystemObservationStore
@@ -111,8 +111,8 @@ def test_ungranted_mutating_dev_tool_is_denied(tmp_path):
 def test_knowledge_ingest_search_and_idempotency(tmp_path):
     source=tmp_path/"manual.txt"
     source.write_text("alpha breaker torque\nbeta wiring note\n",encoding="utf-8")
-    store=JsonKnowledgeStore(tmp_path/"knowledge.json")
-    lifecycle=KnowledgeLifecycle(tmp_path/"knowledge-lifecycle.json")
+    store=SQLiteKnowledgeStore(tmp_path/"knowledge.json")
+    lifecycle=SQLiteKnowledgeLifecycle(tmp_path/"knowledge-lifecycle.json")
     service=KnowledgeService(tmp_path,store,lifecycle)
     first=service.ingest_text("manual.txt",version="v1")
     second=service.ingest_text("manual.txt",version="v1")
@@ -124,7 +124,7 @@ def test_knowledge_ingest_search_and_idempotency(tmp_path):
 
 
 def test_knowledge_authoring_is_root_bounded(tmp_path):
-    service=KnowledgeService(tmp_path,JsonKnowledgeStore(tmp_path/"k.json"),KnowledgeLifecycle(tmp_path/"l.json"))
+    service=KnowledgeService(tmp_path,SQLiteKnowledgeStore(tmp_path/"k.json"),SQLiteKnowledgeLifecycle(tmp_path/"l.json"))
     result=service.write_document("docs/test.md","# test")
     assert result["path"]=="docs/test.md"
     assert (tmp_path/"docs"/"test.md").read_text(encoding="utf-8")=="# test"
@@ -373,7 +373,7 @@ def test_notification_tool_is_registered_only_when_ha_notify_service_configured(
 
 def test_knowledge_same_bytes_different_versions_keep_distinct_provenance(tmp_path):
     source=tmp_path/"manual.txt"; source.write_text("same content",encoding="utf-8")
-    service=KnowledgeService(tmp_path,JsonKnowledgeStore(tmp_path/"k.json"),KnowledgeLifecycle(tmp_path/"l.json"))
+    service=KnowledgeService(tmp_path,SQLiteKnowledgeStore(tmp_path/"k.json"),SQLiteKnowledgeLifecycle(tmp_path/"l.json"))
     first=service.ingest_text("manual.txt",version="rev-a")
     second=service.ingest_text("manual.txt",version="rev-b")
     assert first["document_id"]!=second["document_id"]
@@ -388,8 +388,8 @@ def test_knowledge_pdf_identity_includes_declared_version(tmp_path):
         writer.write(handle)
     service=KnowledgeService(
         tmp_path,
-        JsonKnowledgeStore(tmp_path/"pdf-knowledge.json"),
-        KnowledgeLifecycle(tmp_path/"pdf-lifecycle.json"),
+        SQLiteKnowledgeStore(tmp_path/"pdf-knowledge.json"),
+        SQLiteKnowledgeLifecycle(tmp_path/"pdf-lifecycle.json"),
     )
     first=service.ingest_pdf("manual.pdf",version="rev-a")
     second=service.ingest_pdf("manual.pdf",version="rev-b")
