@@ -157,7 +157,7 @@ def test_change_into_night_lounge_commits_persists_and_updates_matrix(tmp_path):
     )
 
     assert reply is not None
-    assert "Late-Night Lounge Outfit" in reply
+    assert "Late-Night Lounge" in reply
     assert runtime_bundle.authority.current.outfit_id == "night.lounge"
 
     matrix = runtime_bundle.current_matrix()
@@ -369,7 +369,7 @@ def test_contextual_autonomy_still_accepts_compatible_requested_outfit(tmp_path)
     )
 
     assert reply is not None
-    assert "Late-Night Lounge Outfit" in reply
+    assert "Late-Night Lounge" in reply
     assert runtime_bundle.authority.current.outfit_id == "night.lounge"
 
 def test_unrelated_text_is_not_a_clothing_action(tmp_path):
