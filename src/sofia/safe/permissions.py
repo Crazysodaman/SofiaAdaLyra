@@ -240,6 +240,23 @@ _NEVER_SELF_AUTHORIZED = frozenset({
 })
 
 
+def explicitly_classified_capabilities() -> frozenset[str]:
+    """Return capability names assigned an intentional project permission level."""
+    return frozenset(
+        _READ_ONLY
+        | _SAFE_AUTONOMOUS
+        | _REVERSIBLE
+        | _PROTECTED
+        | _NEVER_SELF_AUTHORIZED
+    )
+
+
+def is_explicitly_classified(capability: str) -> bool:
+    if not isinstance(capability, str) or not capability.strip():
+        return False
+    return capability in explicitly_classified_capabilities()
+
+
 def capability_permission_policy(capability: str) -> CapabilityPermissionPolicy:
     if not isinstance(capability, str) or not capability.strip():
         raise ValueError("capability must be nonempty")
