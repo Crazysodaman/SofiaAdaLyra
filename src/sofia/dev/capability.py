@@ -160,9 +160,16 @@ class DevToolService:
         parameters: dict[str, Any],
     ) -> None:
         proposal_id = parameters.get("proposal_id")
-        approval_id = parameters.get("approval_id")
         if not isinstance(proposal_id, str) or not proposal_id.strip():
-            raise PermissionError("DEV mutation requires proposal_id")
+            raise PermissionError("DEV operation requires proposal_id")
+
+        # Building/testing a candidate happens only in the isolated detached
+        # worktree and is Level-2 safe-autonomous. Applying that patch to the
+        # real workspace, rollback, commit, and push remain exact approvals.
+        if operation is DevOperation.BUILD:
+            return
+
+        approval_id = parameters.get("approval_id")
         if not isinstance(approval_id, str) or not approval_id.strip():
             raise PermissionError("DEV mutation requires approval_id")
         self.approval_verifier.consume(
@@ -284,8 +291,8 @@ class DevCapabilitySet:
                 "Read-only."
             ),
             "dev.build": (
-                "Build an exact approved candidate in an isolated OpenCode "
-                "worktree."
+                "Build and test a bounded candidate in an isolated OpenCode "
+                "worktree. Safe-autonomous; does not modify the real workspace."
             ),
             "dev.apply": (
                 "Apply one exact approved reviewed candidate to the real "
@@ -360,10 +367,9 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
         binding(
             "build_dev_candidate",
             "dev.build",
-            "Build an exact operator-approved candidate in an isolated worktree.",
+            "Build and test a bounded candidate in an isolated worktree without modifying the real workspace.",
             {
                 **proposal,
-                **approval,
                 "base_sha": {"type": "string"},
                 "prompt": {"type": "string"},
                 "allowed_paths": {
@@ -378,7 +384,6 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
             },
             (
                 "proposal_id",
-                "approval_id",
                 "base_sha",
                 "prompt",
                 "allowed_paths",
