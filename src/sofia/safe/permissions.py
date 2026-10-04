@@ -178,6 +178,8 @@ _READ_ONLY = frozenset({
     "knowledge.search",
     "knowledge.document",
     "dev.status",
+    "dev.candidates.list",
+    "dev.candidate.get",
     "hyperv.vms",
     "hyperv.vm",
     "environment.nws.read",
