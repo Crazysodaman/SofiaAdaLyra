@@ -30,6 +30,16 @@ def derive_current_state(
     # Keep their full history in the journal, but only let the newest
     # reunion influence the current state. Otherwise frequent returns can
     # compound warmth/fondness toward 1.0 for days.
+    reunion_events = tuple(
+        event for event in raw_events
+        if event.event_id.startswith("reunion:")
+    )
+    latest_reunion_at = (
+        None
+        if not reunion_events
+        else max(event.occurred_at for event in reunion_events)
+    )
+
     latest_reunion_seen = False
     projected_events = []
     for event in raw_events:
@@ -37,6 +47,15 @@ def derive_current_state(
             if latest_reunion_seen:
                 continue
             latest_reunion_seen = True
+        if (
+            latest_reunion_at is not None
+            and event.event_id.startswith("absence:")
+            and event.occurred_at <= latest_reunion_at
+        ):
+            # The reunion is the present-time appraisal for the completed gap.
+            # Keep the older absence row in durable history, but do not let it
+            # continue contributing as though the subject were still absent.
+            continue
         projected_events.append(event)
     events = tuple(projected_events)
     scores: dict[str, float] = {}
@@ -125,6 +144,11 @@ def current_state_prompt(state: CurrentEmotionalState) -> str:
         )
     else:
         lines.append("Background relational tone: none.")
+    reunion_active = any(
+        event_id.startswith("reunion:")
+        for item in state.active
+        for event_id in item.event_ids
+    )
     reunion_grounded = any(
         item.name == "longing"
         or any(event_id.startswith("reunion:") for event_id in item.event_ids)
@@ -161,6 +185,13 @@ def current_state_prompt(state: CurrentEmotionalState) -> str:
             "Sexual attraction, desire, arousal, sensuality, romance, affection, and comfort "
             "are separate modeled dimensions rather than a single sexual mode; never infer one "
             "from another, and never equate any of them with consent."
+        )
+    if reunion_active:
+        lines.append(
+            "A current reunion appraisal means contact has already resumed. The relationship "
+            "subject is present in the current exchange. Lingering longing, sadness, fondness, "
+            "relief, or anticipation may color the present response, but never describe the "
+            "subject as still absent, still awaited, not yet here, or not yet talking."
         )
     if reunion_grounded or any(
         event_id.startswith("absence:")
