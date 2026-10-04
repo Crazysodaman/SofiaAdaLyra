@@ -254,3 +254,68 @@ def test_nws_provider_prefers_current_station_over_stale_nearest_station():
     assert weather.condition == "Fresh"
     assert weather.source_id == "nws:KFRESH"
 
+def test_nws_provider_uses_explicit_station_without_nearby_station_discovery():
+    client = FakeNwsAdapter(
+        {
+            "/points/32.5000,-97.1000": {
+                "properties": {
+                    "forecast": "https://api.weather.gov/gridpoints/FWD/1,2/forecast",
+                    "observationStations": (
+                        "https://api.weather.gov/gridpoints/FWD/1,2/stations"
+                    ),
+                }
+            },
+            "https://api.weather.gov/gridpoints/FWD/1,2/forecast": {
+                "properties": {"periods": []}
+            },
+            "https://api.weather.gov/stations/KGKY/observations/latest": {
+                "properties": {
+                    "timestamp": "2026-09-26T11:55:00+00:00",
+                    "textDescription": "Partly Cloudy",
+                    "temperature": {
+                        "value": 24.0,
+                        "unitCode": "wmoUnit:degC",
+                    },
+                    "relativeHumidity": {
+                        "value": 60.0,
+                        "unitCode": "wmoUnit:percent",
+                    },
+                    "windSpeed": {
+                        "value": 4.0,
+                        "unitCode": "wmoUnit:m_s-1",
+                    },
+                }
+            },
+        }
+    )
+    config = EnvironmentConfiguration(
+        location=ConfiguredLocation(
+            label="Homelab",
+            timezone="America/Chicago",
+            subject=LocationSubject.USER,
+            latitude=32.5,
+            longitude=-97.1,
+        ),
+        nws_enabled=True,
+        nws_location_subject=LocationSubject.USER,
+        nws_station_id="kgky",
+        nws_user_agent="SofiaAdaLyra-test",
+    )
+
+    weather = NwsEnvironmentProvider(
+        client,
+        config,
+    ).observe(now=NOW).weather
+
+    assert weather is not None
+    assert weather.source_id == "nws:KGKY"
+    assert weather.location_label == "Homelab"
+    assert config.nws_station_id == "KGKY"
+    assert (
+        "https://api.weather.gov/gridpoints/FWD/1,2/stations"
+        not in client.requests
+    )
+    assert (
+        "https://api.weather.gov/stations/KGKY/observations/latest"
+        in client.requests
+    )
