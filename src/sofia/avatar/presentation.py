@@ -560,6 +560,33 @@ class PresentationAuthority:
         authority._finished = set(finished)
         return authority
 
+    def restore_snapshot(self, snapshot: dict[str, Any]) -> None:
+        """Restore a previously settled snapshot into this live authority.
+
+        This is a compensating in-memory rollback primitive for host-owned
+        persistence transactions. It preserves object identity so runtime,
+        clothing, and presentation-routine references continue to point at the
+        same authority after a failed durable save.
+        """
+        base_outfits = {
+            outfit_id: item_ids
+            for outfit_id, item_ids in self._outfits.items()
+            if outfit_id not in self._dynamic_outfits
+        }
+        restored = type(self).restore(
+            self._wardrobe,
+            outfits=base_outfits,
+            snapshot=snapshot,
+        )
+        self._outfits = dict(restored._outfits)
+        self._private_outfits = restored._private_outfits
+        self._dynamic_outfits = dict(restored._dynamic_outfits)
+        self._canonical_daily_outfit_id = restored._canonical_daily_outfit_id
+        self._current = restored._current
+        self._last_daily = restored._last_daily
+        self._pending = None
+        self._finished = set(restored._finished)
+
     def _begin(self, operation_id: str, expected_revision: int) -> None:
         _id(operation_id, "operation ID")
         if operation_id in self._finished:
