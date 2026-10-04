@@ -10,7 +10,7 @@ from sofia.avatar.presentation import (
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
 from sofia.avatar.wardrobe_catalog import generated_seasonal_outfits
 from sofia.avatar.wardrobe_planner import Activity, Season
-from sofia.avatar.wardrobe_studio import GarmentDesignRequest, WardrobeStudio
+from sofia.avatar.authoring import GarmentDesignRequest, WardrobeStudio
 
 
 def grant():
