@@ -77,12 +77,12 @@ Status:
 | Hardware | Run light benchmark | 2 | PERSONAL | ➕ |
 | Hardware | Heavy stress test | 3 | PERSONAL | ➕ |
 | Network | Inspect local networking | 1 | PRIVATE | ✅ |
-| Network | Scan an approved LAN/subnet | 1 | PRIVATE | ✅ |
+| Network | Scan an approved LAN/subnet | 1 | PRIVATE | ✅ `network.discover` is non-persistent observation |
 | Network | Ping/reachability checks | 1 | PRIVATE | ✅/🟡 |
 | Network | Detect computers/devices | 1 | PRIVATE | ✅ |
 | Network | Resolve hostname/platform evidence | 1 | PRIVATE | ✅ |
 | Network | Port/service presence scan on approved subnet | 1 | PRIVATE | ✅ Bounded approved discovery only |
-| Network | Build persistent discovered-device inventory | 2 | PRIVATE | 🟡 |
+| Network | Build persistent discovered-device inventory | 2 | PRIVATE | ✅ `ops.fleet.discover` may persist only untrusted Fleet candidates |
 | Network | Identify unknown/new device and notify | 2 | PRIVATE | 🟡 |
 | Network | Change DNS/routes/interface settings | 4 | PRIVATE | ➕ |
 | Network | Configure VLANs/firewall | 4 | PRIVATE | ➕ |
@@ -90,7 +90,7 @@ Status:
 | Fleet | Inspect Fleet machine | 1 | PRIVATE | ✅ |
 | Fleet | Inspect telemetry | 1 | PRIVATE | ✅ |
 | Fleet | Discover Fleet-capable agent | 1 | PRIVATE | ✅ |
-| Fleet | Discover untrusted candidate | 1/2 | PRIVATE | ✅ Observation plus durable candidate record |
+| Fleet | Discover untrusted candidate | 1/2 | PRIVATE | ✅ Read-only network observation is Level 1; durable untrusted candidate registration is Level 2 |
 | Fleet | Verify mTLS identity/capabilities | 1 | PRIVATE | ✅ Does not grant trust |
 | Fleet | Placement analysis | 1 | PRIVATE | ✅ |
 | Fleet | Drift detection | 1 | PRIVATE | ✅ |
@@ -122,10 +122,10 @@ Status:
 | Docker / Portainer | Inspect container | 1 | PRIVATE | ✅ |
 | Docker / Portainer | Read logs | 1 | PRIVATE | ➕ |
 | Docker / Portainer | Inspect health | 1 | PRIVATE | ➕ |
-| Docker / Portainer | Inspect CPU/RAM/network stats | 1 | PRIVATE | ➕ |
-| Docker / Portainer | Inspect images | 1 | PRIVATE | ➕ |
-| Docker / Portainer | Inspect volumes/networks | 1 | PRIVATE | ➕ |
-| Docker / Portainer | Inspect Compose/stack configuration | 1 | PRIVATE | ➕ |
+| Docker / Portainer | Inspect CPU/RAM/network stats | 1 | PRIVATE | ✅ Container stats through Portainer |
+| Docker / Portainer | Inspect images | 1 | PRIVATE | ✅ |
+| Docker / Portainer | Inspect volumes/networks | 1 | PRIVATE | ✅ |
+| Docker / Portainer | List Portainer stacks | 1 | PRIVATE | ✅ Stack inventory only; Compose/YAML content remains a separate config capability |
 | Docker / Portainer | Restart container | 3 | PRIVATE | ✅ |
 | Docker / Portainer | Start/stop container | 3 | PRIVATE | ➕ |
 | Docker / Portainer | Pull image | 3 | PRIVATE | ➕ |
@@ -463,6 +463,31 @@ revocations are visible without restarting Sofía.
 Production composition also fails closed when a registered capability has no
 explicit permission classification. This prevents new capabilities from silently
 falling into an accidental authority level.
+
+## Current implementation notes
+
+The central permission engine now directly governs the capability surfaces used by
+composition, cognitive tool exposure, integration execution, runtime authority,
+the tray Permissions UI, Fleet discovery, hardware inspection, network discovery,
+Docker inspection, and the isolated DEV build path.
+
+Current autonomous exploration capabilities include:
+
+- `ops.fleet.discover` at Level 2: bounded configured discovery may create or
+  refresh an **untrusted candidate** only. It cannot trust or enroll that host.
+- `network.discover` at Level 1: observe configured network scopes without
+  persisting Fleet membership.
+- `hardware.inspect`, `machine.list`, `machine.get`, and
+  `remote.hardware.inspect` at Level 1.
+- Docker/Portainer reads at Level 1: endpoints, containers, container inspect,
+  container stats, Docker info, images, volumes, networks, and stack inventory.
+- `codebase.inspect` and `dev.status` at Level 1 plus `dev.build` at Level 2.
+  Candidate building/testing remains isolated from the real workspace.
+- `dev.apply`, `dev.rollback`, `dev.commit`, and `dev.push` remain
+  protected Level 4 operations.
+
+Fleet candidate promotion remains deliberately separate from discovery:
+**adding/trusting/enrolling a computer into Fleet requires exact Sparks approval.**
 
 ## Final contract
 
