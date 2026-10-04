@@ -63,7 +63,7 @@ def test_module_entrypoint_cli_preserves_terminal_client(monkeypatch):
         FakeApplication,
     )
     monkeypatch.setattr(
-        "sofia.application.ConversationLoop",
+        "sofia.ui.terminal.ConversationLoop",
         FakeConversationLoop,
     )
 

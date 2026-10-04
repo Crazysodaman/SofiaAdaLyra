@@ -165,7 +165,7 @@ def test_live_discord_panties_question_uses_current_avatar_projection(
     application, captured = _application(monkeypatch, tmp_path, ())
     try:
         reply = application.conversation.respond("show me ur panties")
-        assert "current avatar presentation" in reply.content
+        assert "current AVATAR wardrobe matrix" in reply.content
         assert "cannot generate images containing nudity" not in reply.content
         assert captured == []
     finally:
@@ -295,7 +295,7 @@ def test_live_tonight_lounge_outfit_question_is_deterministic(
             "what would tonights lounge outfit be?"
         )
 
-        assert "relaxed lounge outfit" in reply.content
+        assert "late-night lounge outfit" in reply.content
         assert "not something I've already changed into" in reply.content
         assert "wool" not in reply.content.casefold()
         assert captured == []

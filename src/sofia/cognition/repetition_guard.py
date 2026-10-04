@@ -215,6 +215,8 @@ _FALSE_HOST_ACCESS_DENIAL = re.compile(
     r"\b(?:i\s+(?:cannot|can't|can(?:not|'t))\s+(?:inspect|access)|"
     r"i\s+do\s+not\s+have\s+direct\s+access|"
     r"i\s+don't\s+have\s+direct\s+access|"
+    r"i\s+am\s+an?\s+ai\s+(?:model|assistant).{0,48}"
+    r"\b(?:do\s+not|don't)\s+have\s+direct\s+access|"
     r"unable\s+to\s+(?:inspect|access))\b.{0,140}"
     r"\b(?:computer|hardware|operating\s+system|host|network|"
     r"storage|fleet|machine|system)\b",
@@ -469,6 +471,11 @@ def response_quality_issue(
     if concise_turn and len(_normalized(content).split()) > 90:
         return "overlong_simple_social_turn"
     if (
+        _EMOTION_SELF_REPORT.search(user)
+        and _repeats_previous_short_self_report(request, response)
+    ):
+        return "repeated_emotion_self_report"
+    if (
         (
             _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip()) is not None
             or _EMOTION_SELF_REPORT.search(user) is not None
@@ -483,8 +490,6 @@ def response_quality_issue(
     ):
         return "future_reciprocal_wave"
     if _EMOTION_SELF_REPORT.search(user):
-        if _repeats_previous_short_self_report(request, response):
-            return "repeated_emotion_self_report"
         if _EMOTION_IMPLEMENTATION_LEAK.search(content):
             return "emotion_implementation_leak"
         if _EMOTION_TEMPORAL_OVERCLAIM.search(content):
