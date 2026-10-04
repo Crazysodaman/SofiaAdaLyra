@@ -292,6 +292,10 @@ class OutfitPlanner:
             if plan.private_only:
                 # Private outfits need a separate authenticated, explicit workflow.
                 continue
+            if outfit.private_only:
+                raise WardrobeError(
+                    "automatic outfit cannot contain private-only garments"
+                )
             if not outfit.covered_default:
                 raise WardrobeError("automatic outfit must cover torso and pelvis")
             self._plans[plan.outfit_id] = plan, outfit
