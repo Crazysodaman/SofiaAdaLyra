@@ -80,6 +80,11 @@ def test_default_runtime_sends_canonical_state_with_context_budget(tmp_path):
         sent = client.requests[0]
         assert sent["model"] == default.provider.model
         assert sent["options"]["num_ctx"] == default.provider.context_size
+        assert (
+            sent["options"]["num_predict"]
+            == default.provider.max_output_tokens
+        )
+        assert default.provider.max_output_tokens is not None
         assert sent["think"] is default.provider.thinking
         assert sent["messages"][0]["role"] == "system"
         system = sent["messages"][0]["content"]
