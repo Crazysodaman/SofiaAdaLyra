@@ -1,7 +1,8 @@
 """Tkinter master settings window for the Sofía desktop/tray client."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import json
 import sqlite3
 
 from sofia.config import create_production_configuration
@@ -20,6 +21,11 @@ from sofia.environment.model import LocationSubject
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.safe.permissions import (
+    PermissionStore,
+    capability_permission_policy,
+    grantable_capabilities,
+)
 from .control_center import (
     DesktopControlSettings,
     DesktopControlSettingsStore,
@@ -93,6 +99,31 @@ def _optional_float(value: str, label: str) -> float | None:
         return float(stripped)
     except ValueError as exc:
         raise ValueError(f"{label} must be numeric") from exc
+
+
+def _permission_scope(value: str) -> dict:
+    stripped = value.strip()
+    if not stripped:
+        return {}
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Permission scope must be valid JSON") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Permission scope must be a JSON object")
+    return parsed
+
+
+def _optional_expiry_minutes(value: str) -> int | None:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if not stripped.isascii() or not stripped.isdigit():
+        raise ValueError("Grant expiry must be whole minutes or blank")
+    minutes = int(stripped)
+    if minutes <= 0:
+        raise ValueError("Grant expiry must be positive")
+    return minutes
 
 
 def run_settings_window() -> int:
