@@ -15,6 +15,30 @@ from uuid import UUID
 from sofia.distributed.capabilities import _aware, _identifier
 
 
+REMOTE_READ_ONLY_OPERATIONS = frozenset({
+    ("system.inspect", "process"),
+    ("system.inspect", "system"),
+    ("system.inspect", "network"),
+    ("system.inspect", "service"),
+    ("system.inspect", "hardware"),
+    ("vm.inspect", "list"),
+    ("vm.inspect", "get"),
+    ("container.inspect", "list"),
+    ("container.inspect", "get"),
+    ("llm.inspect", "inference_policy"),
+    ("llm.inspect", "models"),
+    ("llm.inspect", "running"),
+    ("llm.inspect", "show"),
+})
+
+
+def remote_operation_is_read_only(capability: str, operation: str) -> bool:
+    """Return whether a typed remote operation is project Level-1 observation."""
+    _identifier(capability, "Remote capability")
+    _identifier(operation, "Remote operation")
+    return (capability, operation) in REMOTE_READ_ONLY_OPERATIONS
+
+
 @dataclass(frozen=True)
 class RemoteGrant:
     grant_id: UUID
@@ -30,7 +54,7 @@ class RemoteGrant:
         _identifier(self.capability, "Grant capability")
         _identifier(self.operation, "Grant operation")
         if not isinstance(self.approved_by, str) or not self.approved_by.strip():
-            raise ValueError("Grant must identify its human approver.")
+            raise ValueError("Grant must identify its approving authority.")
         _aware(self.expires_at, "Grant expires_at")
 
 
