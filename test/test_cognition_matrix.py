@@ -860,6 +860,43 @@ def test_response_matrix_rejects_execution_claim_without_authority():
     assert "execution_claim_without_action_authority" in result.reasons
 
 
+def test_response_matrix_accepts_host_receipt_when_matrix_still_requires_approval():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "action.execution_receipt",
+                EvidenceKind.EXECUTION_RECEIPT,
+                required=False,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "action.execution_receipt",
+                EvidenceState.AVAILABLE,
+                "execution-receipt:dev.build",
+            ),
+        ),
+    )
+    turn = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("improve your code"))
+    authority = AuthorityPlan(
+        AuthorityDecision.REQUIRES_APPROVAL,
+        requested_action="improve your code",
+        reason="generic host action authority is proposal-only",
+    )
+    contract = MatrixResponsePlanner().plan(turn, evidence, authority)
+
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(content="I built and tested an isolated candidate."),
+        contract,
+        evidence,
+    )
+
+    assert contract.requires_execution_receipt is True
+    assert result.disposition is ResponseValidationDisposition.PASS
+
+
 def test_response_matrix_accepts_execution_claim_with_authority_and_receipt():
     evidence = EvidenceMatrix(
         requirements=(
