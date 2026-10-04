@@ -75,3 +75,24 @@ def test_private_rope_harness_outfit_uses_full_harness_as_underlayer():
     assert plan.manual_only is True
     assert selection.private_only is True
     assert selection.covered_default is False
+
+
+def test_light_lab_tech_uses_valid_technical_tank():
+    pack = build_starter_wardrobe()
+    plan = pack.preset("outfit.light_lab_tech")
+    by_id = {bp.garment.item_id: bp for bp in pack.blueprints}
+
+    assert "top.technical_tank" in plan.item_ids
+    tank = by_id["top.technical_tank"]
+    assert tank.design.garment_type == "tank_top"
+    assert tank.design.sleeve_length is None
+    assert tank.private_only is False
+    assert tank.content_rating is ContentRating.STANDARD
+
+
+def test_every_saved_outfit_reference_resolves_in_current_catalog():
+    pack = build_starter_wardrobe()
+    known = {bp.garment.item_id for bp in pack.blueprints}
+
+    for plan in pack.presets:
+        assert set(plan.item_ids) <= known
