@@ -179,6 +179,14 @@ class WardrobeGenerationConversationService:
         brief = self.brief_for(content)
         if brief is None:
             return None
+        if (
+            principal is None
+            or principal.principal_id != SPARKS_PRINCIPAL_ID
+        ):
+            return (
+                "I only accept durable generated-wardrobe requests from "
+                "authenticated Sparks context."
+            )
         try:
             blueprint, result = self._generate(brief)
         except WardrobeError:
