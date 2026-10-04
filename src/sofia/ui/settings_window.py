@@ -650,6 +650,257 @@ def run_settings_window() -> int:
             textvariable=variable,
         ).pack(anchor="w", fill="x", pady=(2, 6))
 
+    permissions = frames["Permissions"]
+    ttk.Label(
+        permissions,
+        text=(
+            "One permission engine governs observation, safe maintenance, "
+            "standing reversible grants, protected actions, and authority "
+            "changes. Read-only work never needs a per-use approval."
+        ),
+        wraplength=720,
+    ).pack(anchor="w", pady=(0, 8))
+
+    levels_frame = ttk.LabelFrame(
+        permissions,
+        text="Permission levels",
+        padding=8,
+    )
+    levels_frame.pack(anchor="w", fill="x", pady=(0, 10))
+    for level_text in (
+        "1  Observe / Read — automatic, bounded read-only work.",
+        "2  Safe Autonomous — bounded maintenance and internal housekeeping.",
+        "3  Reversible / Scoped — standing grant or exact one-time approval.",
+        "4  Protected / High Impact — exact approval for the action.",
+        "5  Never Self-Authorized — only Sparks may change authority.",
+    ):
+        ttk.Label(
+            levels_frame,
+            text=level_text,
+            wraplength=690,
+        ).pack(anchor="w", pady=1)
+
+    privacy_frame = ttk.LabelFrame(
+        permissions,
+        text="Private / adult authority",
+        padding=8,
+    )
+    privacy_frame.pack(anchor="w", fill="x", pady=(0, 10))
+    ttk.Checkbutton(
+        privacy_frame,
+        text="Allow private owner chat context",
+        variable=private_chat,
+    ).pack(anchor="w", pady=2)
+    ttk.Checkbutton(
+        privacy_frame,
+        text="Allow adult chat in authenticated private owner context",
+        variable=adult_chat,
+    ).pack(anchor="w", pady=2)
+    ttk.Checkbutton(
+        privacy_frame,
+        text="Allow adult/private avatar presentation in private owner context",
+        variable=adult_avatar,
+    ).pack(anchor="w", pady=2)
+    ttk.Checkbutton(
+        privacy_frame,
+        text="Allow adult/private content through external delivery channels",
+        variable=adult_external_delivery,
+    ).pack(anchor="w", pady=2)
+    ttk.Label(
+        privacy_frame,
+        text=(
+            "These are privacy/authorization boundaries, not consent. "
+            "External delivery stays separate so private chat/avatar authority "
+            "does not silently spill into Discord, notifications, or public UI."
+        ),
+        wraplength=690,
+    ).pack(anchor="w", pady=(6, 0))
+
+    grants_frame = ttk.LabelFrame(
+        permissions,
+        text="Standing Level-3 grants",
+        padding=8,
+    )
+    grants_frame.pack(fill="both", expand=True)
+    permission_tree = ttk.Treeview(
+        grants_frame,
+        columns=("capability", "scope", "expires", "state"),
+        show="headings",
+        height=7,
+    )
+    permission_tree.heading("capability", text="Capability")
+    permission_tree.heading("scope", text="Scope")
+    permission_tree.heading("expires", text="Expires")
+    permission_tree.heading("state", text="State")
+    permission_tree.column("capability", width=220, stretch=True)
+    permission_tree.column("scope", width=260, stretch=True)
+    permission_tree.column("expires", width=130, stretch=False)
+    permission_tree.column("state", width=80, stretch=False)
+    permission_tree.pack(fill="both", expand=True, pady=(0, 8))
+
+    grant_form = ttk.Frame(grants_frame)
+    grant_form.pack(fill="x")
+    ttk.Label(grant_form, text="Capability").grid(
+        row=0, column=0, sticky="w"
+    )
+    ttk.Combobox(
+        grant_form,
+        textvariable=grant_capability,
+        values=grantable_capabilities(),
+        state="readonly",
+        width=34,
+    ).grid(row=1, column=0, sticky="ew", padx=(0, 6))
+    ttk.Label(grant_form, text="Scope JSON").grid(
+        row=0, column=1, sticky="w"
+    )
+    ttk.Entry(
+        grant_form,
+        textvariable=grant_scope,
+        width=42,
+    ).grid(row=1, column=1, sticky="ew", padx=(0, 6))
+    ttk.Label(grant_form, text="Expiry minutes (blank = standing)").grid(
+        row=0, column=2, sticky="w"
+    )
+    ttk.Entry(
+        grant_form,
+        textvariable=grant_expiry_minutes,
+        width=18,
+    ).grid(row=1, column=2, sticky="ew")
+    grant_form.columnconfigure(1, weight=1)
+    ttk.Label(
+        grants_frame,
+        text=(
+            'Scope is an exact parameter subset. Example: '
+            '{"container_id":"mealie"} or {"name":"SofiaAdaLyra"}. '
+            "An empty {} scope grants that capability broadly."
+        ),
+        wraplength=690,
+    ).pack(anchor="w", pady=(6, 6))
+
+    def refresh_permission_grants() -> None:
+        for item in permission_tree.get_children():
+            permission_tree.delete(item)
+        now = datetime.now(timezone.utc)
+        for grant in permission_store.grants(active_only=False):
+            if grant.revoked_at is not None:
+                state_text = "revoked"
+            elif not grant.is_active_at(now):
+                state_text = "expired"
+            else:
+                state_text = "active"
+            permission_tree.insert(
+                "",
+                "end",
+                iid=grant.grant_id,
+                values=(
+                    grant.capability,
+                    json.dumps(
+                        grant.scope,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    (
+                        "never"
+                        if grant.expires_at is None
+                        else grant.expires_at.astimezone(
+                            timezone.utc
+                        ).strftime("%Y-%m-%d %H:%M UTC")
+                    ),
+                    state_text,
+                ),
+            )
+
+    def grant_standing_permission() -> None:
+        try:
+            capability = grant_capability.get().strip()
+            scope = _permission_scope(grant_scope.get())
+            minutes = _optional_expiry_minutes(
+                grant_expiry_minutes.get()
+            )
+            policy = capability_permission_policy(capability)
+            if not messagebox.askyesno(
+                "Grant standing permission?",
+                (
+                    f"Grant Level {int(policy.level)} permission for:\n\n"
+                    f"{capability}\n\n"
+                    f"Scope: {json.dumps(scope, sort_keys=True)}\n\n"
+                    "This changes Sofía's durable authority."
+                ),
+                parent=root,
+            ):
+                return
+            now = datetime.now(timezone.utc)
+            permission_store.grant(
+                capability,
+                scope=scope,
+                granted_by="Sparks",
+                expires_at=(
+                    None
+                    if minutes is None
+                    else now + timedelta(minutes=minutes)
+                ),
+                now=now,
+            )
+            refresh_permission_grants()
+            status.set(
+                "Standing permission granted. Runtime authority reads it live."
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Permission not granted",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    def revoke_standing_permission() -> None:
+        selected = permission_tree.selection()
+        if len(selected) != 1:
+            messagebox.showinfo(
+                "Select a grant",
+                "Select one standing permission to revoke.",
+                parent=root,
+            )
+            return
+        grant_id = selected[0]
+        if not messagebox.askyesno(
+            "Revoke standing permission?",
+            "Revoke the selected durable standing permission?",
+            parent=root,
+        ):
+            return
+        try:
+            permission_store.revoke(
+                grant_id,
+                revoked_by="Sparks",
+            )
+            refresh_permission_grants()
+            status.set("Standing permission revoked.")
+        except Exception as exc:
+            messagebox.showerror(
+                "Permission not revoked",
+                f"{type(exc).__name__}: {exc}",
+                parent=root,
+            )
+
+    grant_buttons = ttk.Frame(grants_frame)
+    grant_buttons.pack(fill="x")
+    ttk.Button(
+        grant_buttons,
+        text="Grant",
+        command=grant_standing_permission,
+    ).pack(side="left")
+    ttk.Button(
+        grant_buttons,
+        text="Revoke selected",
+        command=revoke_standing_permission,
+    ).pack(side="left", padx=(6, 0))
+    ttk.Button(
+        grant_buttons,
+        text="Refresh",
+        command=refresh_permission_grants,
+    ).pack(side="left", padx=(6, 0))
+    refresh_permission_grants()
+
     descriptions = {
         "Sofía": (
             "Identity and personality authority are protected elsewhere. "
