@@ -11,6 +11,10 @@ from dataclasses import dataclass
 
 from .presentation import AttireMode, PresentationAuthority, PresentationState
 from .presentation_store import PresentationStore
+from .wardrobe_catalog import (
+    DAY_DEFAULT_OUTFIT_ID,
+    NIGHT_LOUNGE_OUTFIT_ID,
+)
 from .wardrobe_planner import (
     Cadence,
     OutfitPlanner,
@@ -77,7 +81,11 @@ class HeadlessPresentationRoutine:
             )
 
         late_lounge = now.hour >= 21 or now.hour < 6
-        target = "lounge.relaxed" if late_lounge else "engineer.signature"
+        target = (
+            NIGHT_LOUNGE_OUTFIT_ID
+            if late_lounge
+            else DAY_DEFAULT_OUTFIT_ID
+        )
         if target not in self.authority.available_outfit_ids:
             return PresentationRoutineResult(
                 changed=False,

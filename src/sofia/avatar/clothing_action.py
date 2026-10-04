@@ -458,14 +458,6 @@ class ClothingActionService:
         if not query:
             return None
 
-        bikini = re.search(
-            r"\bbikini\s*(?:number\s*)?#?\s*0?([1-6])\b",
-            query,
-        )
-        if bikini is not None:
-            wanted = f"swim.bikini.{int(bikini.group(1)):02d}"
-            return self.bundle.catalog.preset(wanted)
-
         aliases: dict[str, list[OutfitPlan]] = {}
         for plan in self.bundle.catalog.presets:
             for alias in (
@@ -481,12 +473,16 @@ class ClothingActionService:
                 aliases.setdefault(alias, []).append(plan)
 
         explicit = {
-            "engineer outfit": "engineer.signature",
-            "signature engineer outfit": "engineer.signature",
-            "signature outfit": "engineer.signature",
-            "light engineer outfit": "engineer.light",
-            "lounge outfit": "lounge.relaxed",
-            "relaxed lounge outfit": "lounge.relaxed",
+            "day outfit": "day.default",
+            "default day outfit": "day.default",
+            "engineer outfit": "day.default",
+            "signature engineer outfit": "day.default",
+            "signature outfit": "day.default",
+            "night outfit": "night.lounge",
+            "night lounge outfit": "night.lounge",
+            "late night lounge outfit": "night.lounge",
+            "lounge outfit": "night.lounge",
+            "relaxed lounge outfit": "night.lounge",
             "covered fallback outfit": "fallback.covered",
         }
         if query in explicit:

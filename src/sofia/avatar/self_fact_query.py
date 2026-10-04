@@ -59,31 +59,14 @@ def _normalize(query: str) -> str:
 
 def _friendly_outfit(outfit_id: str | None) -> str:
     names = {
-        "engineer.signature": "signature engineer outfit",
-        "engineer.light": "light engineer outfit",
-        "lounge.relaxed": "relaxed lounge outfit",
+        "day.default": "day engineer outfit",
+        "night.lounge": "late-night lounge outfit",
         "fallback.covered": "covered fallback outfit",
-        "swim.bikini.01": "Cyberwave Triangle Bikini",
-        "swim.bikini.02": "Violet Halter Bikini",
-        "swim.bikini.03": "Crimson Sport Bikini",
-        "swim.bikini.04": "Midnight Asymmetric Bikini",
-        "swim.bikini.05": "Teal Ring Bikini",
-        "swim.bikini.06": "Crimson Violet Colorblock Bikini",
     }
     if outfit_id is None:
         return "current outfit"
     if outfit_id.startswith("dynamic.chat."):
         return "custom outfit variation"
-    if outfit_id.startswith("seasonal."):
-        parts = outfit_id.split(".")
-        if len(parts) == 4 and parts[3].isdigit():
-            season, kind, number = parts[1], parts[2], parts[3]
-            kind_name = {
-                "normal": "Everyday",
-                "lounge": "Lounge",
-                "private": "Private",
-            }.get(kind, kind.replace("_", " ").title())
-            return f"{season.title()} {kind_name} {number}"
     return names.get(outfit_id, "custom outfit variation")
 
 
@@ -649,8 +632,8 @@ class AvatarSelfFactResolver:
             )
 
         if normalized in self._TONIGHT_OUTFIT_FORMS:
-            if "lounge.relaxed" in available_outfit_ids:
-                candidate = _friendly_outfit("lounge.relaxed")
+            if "night.lounge" in available_outfit_ids:
+                candidate = _friendly_outfit("night.lounge")
                 return AvatarSelfFactAnswer(
                     True,
                     (

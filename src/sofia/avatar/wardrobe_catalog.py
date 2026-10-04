@@ -1,9 +1,8 @@
-"""Offline garment blueprints and covered outfit presets for Sofía.
+"""Small reviewed starter wardrobe built from structured garment designs.
 
-These are design proposals, not mesh assets or evidence that anything is worn.
-Canonical clothing details are transcribed as authoring targets; lounge/fallback
-colors and construction remain proposed until visually reviewed. No network,
-renderer, file write, preference invention, or LLM action occurs here.
+The type vocabulary lives in wardrobe_design.py. This catalog contains only
+pieces Sofía currently owns as design metadata. No blueprint claims a mesh,
+texture, renderer asset, or proof that an item is visibly worn.
 """
 from __future__ import annotations
 
@@ -14,7 +13,14 @@ import json
 import re
 
 from .authoring import DEFAULT_FIT_ANCHORS
-from .wardrobe import Garment, Layer, Wardrobe, WardrobeError
+from .wardrobe import Garment, Wardrobe, WardrobeError
+from .wardrobe_design import (
+    GarmentDesign,
+    GraphicDesign,
+    garment_type,
+    resolve_color,
+    validate_design,
+)
 from .wardrobe_planner import (
     Activity,
     OutfitPlan,
@@ -23,509 +29,16 @@ from .wardrobe_planner import (
     PreferenceTarget,
     Season,
     Sentiment,
-    Weather,
 )
 
-# Closet inventory families, seasonal presets, and swimwear live here so all
-# catalog construction shares one set of wardrobe invariants.
-
-@dataclass(frozen=True, slots=True)
-class ClosetCategory:
-    category_id: str
-    label: str
-    noun: str
-    private_noun: str
-    layer: Layer
-    slots: tuple[str, ...]
-    coverage: tuple[str, ...]
-    fit_anchors: tuple[str, ...]
-    tail_clearance: bool = False
-    ear_clearance: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class PieceSpec:
-    item_id: str
-    name: str
-    description: str
-    category: str
-    layer: Layer
-    slots: tuple[str, ...]
-    coverage: tuple[str, ...]
-    primary_hex: str
-    accent_hexes: tuple[str, ...]
-    material: str
-    construction: tuple[str, ...]
-    fit_anchors: tuple[str, ...]
-    style_tags: tuple[str, ...]
-    private_only: bool
-    tail_clearance: bool = False
-    ear_clearance: bool = False
-
-
-CLOSET_CATEGORIES: tuple[ClosetCategory, ...] = (
-    ClosetCategory("closet.underwear_top", "Undergarment tops", "bralette", "lingerie top", Layer.UNDERWEAR, ("torso",), ("torso",), ("torso.front", "torso.back")),
-    ClosetCategory("closet.underwear_bottom", "Undergarment bottoms", "brief", "lingerie bottom", Layer.UNDERWEAR, ("pelvis",), ("pelvis",), ("pelvis.coverage",)),
-    ClosetCategory("closet.top", "Tops", "top", "private top", Layer.BASE, ("torso", "left_upper_arm", "right_upper_arm"), ("torso", "left_upper_arm", "right_upper_arm"), ("torso.front", "torso.back", "shoulder.left", "shoulder.right")),
-    ClosetCategory("closet.bottom", "Bottoms", "bottom", "private bottom", Layer.BASE, ("pelvis", "left_leg", "right_leg", "tail"), ("pelvis", "left_leg", "right_leg"), ("pelvis.coverage", "tail.opening.clearance"), tail_clearance=True),
-    ClosetCategory("closet.one_piece", "One-piece clothing", "one-piece", "private one-piece", Layer.BASE, ("torso", "pelvis", "left_leg", "right_leg", "tail"), ("torso", "pelvis", "left_leg", "right_leg"), ("torso.front", "torso.back", "pelvis.coverage", "tail.opening.clearance"), tail_clearance=True),
-    ClosetCategory("closet.outerwear", "Outerwear", "jacket", "private wrap", Layer.OUTER, ("torso", "left_shoulder", "right_shoulder", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm", "tail"), ("torso", "left_shoulder", "right_shoulder", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"), ("torso.front", "torso.back", "shoulder.left", "shoulder.right", "tail.opening.clearance"), tail_clearance=True),
-    ClosetCategory("closet.footwear", "Footwear", "footwear", "private footwear", Layer.BASE, ("left_foot", "right_foot", "left_ankle", "right_ankle", "left_calf", "right_calf"), ("left_foot", "right_foot", "left_ankle", "right_ankle", "left_calf", "right_calf"), ("foot.left", "foot.right")),
-    ClosetCategory("closet.legwear", "Legwear", "legwear", "private legwear", Layer.MID, ("left_leg", "right_leg", "left_thigh", "right_thigh", "left_calf", "right_calf"), ("left_leg", "right_leg", "left_thigh", "right_thigh", "left_calf", "right_calf"), ("thigh.left", "thigh.right", "calf.left", "calf.right")),
-    ClosetCategory("closet.handwear", "Handwear", "gloves", "private gloves", Layer.ACCESSORY, ("left_hand", "right_hand", "left_fingers", "right_fingers"), ("left_hand", "right_hand", "left_fingers", "right_fingers"), ("wrist.left", "wrist.right")),
-    ClosetCategory("closet.forearm_wrist", "Forearm and wrist pieces", "wrist piece", "private wrist piece", Layer.ACCESSORY, ("left_forearm", "right_forearm", "left_wrist", "right_wrist"), ("left_forearm", "right_forearm", "left_wrist", "right_wrist"), ("forearm.left", "forearm.right", "wrist.left", "wrist.right")),
-    ClosetCategory("closet.headwear", "Headwear", "headpiece", "private headpiece", Layer.ACCESSORY, ("head", "left_ear", "right_ear"), ("head",), ("head.crown", "ear.left", "ear.right"), ear_clearance=True),
-    ClosetCategory("closet.neckwear", "Neckwear", "neck piece", "choker", Layer.ACCESSORY, ("neck",), ("neck",), ("neck.center",)),
-    ClosetCategory("closet.waistwear", "Waist pieces", "belt", "private waist piece", Layer.ACCESSORY, ("waist",), ("waist",), ("waist.front",)),
-    ClosetCategory("closet.backwear", "Back and harness pieces", "back piece", "fashion harness", Layer.ACCESSORY, ("back", "left_shoulder", "right_shoulder"), (), ("torso.back", "shoulder.left", "shoulder.right")),
-    ClosetCategory("closet.ear_accessory", "Ear accessories", "ear accessory", "private ear accessory", Layer.ACCESSORY, ("left_ear", "right_ear"), (), ("ear.left", "ear.right"), ear_clearance=True),
-    ClosetCategory("closet.tail_accessory", "Tail accessories", "tail accessory", "private tail accessory", Layer.ACCESSORY, ("tail",), (), ("tail.base", "tail.mid"), tail_clearance=True),
-    ClosetCategory("closet.hair_accessory", "Hair accessories", "hair accessory", "private hair accessory", Layer.ACCESSORY, ("hair",), (), ("head.crown",)),
-    ClosetCategory("closet.shoulder_accessory", "Shoulder pieces", "shoulder piece", "private shoulder piece", Layer.ACCESSORY, ("left_shoulder", "right_shoulder"), ("left_shoulder", "right_shoulder"), ("shoulder.left", "shoulder.right")),
-)
-
-SPECIAL_PRIVATE_CATEGORIES: tuple[ClosetCategory, ...] = (
-    ClosetCategory(
-        "closet.bra", "Bras", "bra", "bra", Layer.UNDERWEAR,
-        ("torso",), (), ("torso.front", "torso.back"),
-    ),
-    ClosetCategory(
-        "closet.panty", "Panties", "panties", "panties", Layer.UNDERWEAR,
-        ("pelvis",), (), ("pelvis.coverage",),
-    ),
-)
-
-
-def all_closet_categories() -> tuple[ClosetCategory, ...]:
-    return CLOSET_CATEGORIES + SPECIAL_PRIVATE_CATEGORIES
-
-
-NORMAL_STYLES: tuple[str, ...] = (
-    "classic", "casual", "utility", "technical", "lounge",
-    "athletic", "soft-knit", "ribbed", "layered", "minimalist",
-    "oversized", "fitted", "weatherproof", "thermal", "lightweight",
-    "streetwear", "cyber", "crimson-trim", "violet-accent", "teal-accent",
-    "charcoal", "weekend", "workshop", "travel", "evening",
-)
-
-PRIVATE_STYLES: tuple[str, ...] = (
-    "lace", "satin", "sheer-mesh", "strappy", "cutout",
-    "backless", "plunge", "minimal", "garter", "fishnet",
-    "velvet", "glossy", "harness", "ribbon", "corset-inspired",
-    "boudoir", "translucent", "high-cut", "side-tie", "open-back",
-    "halter", "chokered", "ruched", "silk", "midnight",
-)
-
-_PALETTE: tuple[str, ...] = (
-    "#0B0D12", "#171A21", "#8B1E3F", "#3A245C", "#19D3C5",
-    "#5B2333", "#2C1B47", "#30343F", "#6A1B4D", "#1E4D5C",
-)
-
-_NORMAL_STYLE_DETAILS: tuple[str, ...] = (
-    "clean straight seams with restrained hardware",
-    "soft relaxed shaping with easy everyday proportions",
-    "reinforced utility seams with compact functional detailing",
-    "precise technical paneling with low-profile fasteners",
-    "soft drape and rounded comfort-focused shaping",
-    "streamlined athletic contouring with flexible edge binding",
-    "fine-gauge knit texture with softly finished edges",
-    "vertical rib structure with subtle stretch definition",
-    "layer-aware cut lines designed to sit cleanly under outer pieces",
-    "minimal seam count with a deliberately uncluttered silhouette",
-    "generous volume balanced by controlled cuffs and hems",
-    "close tailored shaping with articulated movement allowance",
-    "sealed-looking panel lines and storm-ready trim language",
-    "insulated-looking quilting or brushed texture cues",
-    "reduced bulk with narrow hems and airy construction cues",
-    "streetwear proportions with graphic seam placement",
-    "angular cyber detailing with small luminous-accent style cues",
-    "crimson-edged seam emphasis against a dark main field",
-    "violet piping and panel breaks used as the dominant accent",
-    "teal micro-accents concentrated at closures and trim points",
-    "charcoal tonal blocking with matte-on-matte contrast",
-    "comfortable weekend proportions with simple finished edges",
-    "workshop-inspired reinforcement zones and practical attachment cues",
-    "travel-oriented low-bulk construction with secure pocket language",
-    "clean evening lines with slightly sharper tailoring and finish",
-)
-
-_PRIVATE_STYLE_DETAILS: tuple[str, ...] = (
-    "lace-inspired edgework with floral geometric trim cues",
-    "smooth satin-like sheen with softly rounded seam transitions",
-    "fine mesh-inspired panel language layered with opaque structural bands",
-    "multiple narrow strap lines arranged in a deliberate geometric pattern",
-    "strategic cutout-style negative-space panels bounded by finished edges",
-    "open-back styling with the front structure carrying most of the visual weight",
-    "deep angular neckline styling balanced by stable side structure",
-    "very simple linework with minimal trim and hardware",
-    "garter-inspired attachment detailing used as a fashion motif",
-    "fishnet-inspired open-grid texture cues paired with solid binding",
-    "velvet-like matte depth with plush-looking edge finish",
-    "high-gloss panel treatment contrasted against matte binding",
-    "harness-inspired crossing bands arranged as decorative structure",
-    "ribbon-like tie accents with small bow or knot details",
-    "corset-inspired vertical seam channels without implying rigid construction",
-    "boudoir-inspired soft drape, scalloped trim, and decorative edging",
-    "translucent-style panel cues combined with opaque boundary trim",
-    "high-cut leg-line styling with clean continuous edge binding",
-    "side-tie styling with paired knot or bow details",
-    "open-back styling with narrow support bands and a clean front",
-    "halter-style neck routing with a defined central front line",
-    "choker-linked styling that visually connects neckline and garment trim",
-    "ruched gathering concentrated at selected seams for texture",
-    "silk-like fluid sheen with narrow polished hems",
-    "midnight-themed dark tonal blocking with violet and teal micro-accents",
-)
-
-_STYLE_DETAILS = {
-    **dict(zip(NORMAL_STYLES, _NORMAL_STYLE_DETAILS, strict=True)),
-    **dict(zip(PRIVATE_STYLES, _PRIVATE_STYLE_DETAILS, strict=True)),
-}
-
-
-def _piece(
-    category: ClosetCategory,
-    *,
-    index: int,
-    style: str,
-    private_only: bool,
-) -> PieceSpec:
-    visibility = "private" if private_only else "normal"
-    noun = category.private_noun if private_only else category.noun
-    color = _PALETTE[(index - 1) % len(_PALETTE)]
-    accent = _PALETTE[index % len(_PALETTE)]
-    coverage = () if private_only else category.coverage
-    detail = _STYLE_DETAILS[style]
-    material = (
-        f"soft stretch fashion textile tuned for {style.replace('-', ' ')} styling"
-        if private_only
-        else f"opaque wearable textile tuned for {style.replace('-', ' ')} styling"
-    )
-    description = (
-        f"{style.replace('-', ' ').title()} {noun} in {color} with {accent} accents; "
-        f"{detail}. Built around the {category.label.casefold()} slot pattern."
-    )
-    construction = (
-        (
-            "Adult/private wardrobe design metadata; no renderer asset is implied.",
-            f"Distinct design cue: {detail}.",
-            "Private-only classification is independent of emotion, attraction or consent.",
-            "Fit must preserve fox-ear/tail clearance where the mapped rig slot requires it.",
-        )
-        if private_only
-        else (
-            "Mix-and-match wardrobe design metadata; no renderer asset is implied.",
-            f"Distinct design cue: {detail}.",
-            "Normal/public eligibility still depends on full outfit coverage and verified assets.",
-            "Fit must preserve fox-ear/tail clearance where the mapped rig slot requires it.",
-        )
-    )
-    return PieceSpec(
-        item_id=f"closet.{visibility}.{category.category_id.split('.', 1)[1]}.{index:02d}",
-        name=f"{style.replace('-', ' ').title()} {noun.title()}",
-        description=description,
-        category=category.category_id,
-        layer=category.layer,
-        slots=category.slots,
-        coverage=coverage,
-        primary_hex=color,
-        accent_hexes=(accent,),
-        material=material,
-        construction=construction,
-        fit_anchors=category.fit_anchors,
-        style_tags=(
-            visibility,
-            category.category_id.split(".", 1)[1],
-            style,
-            "adult-private" if private_only else "everyday",
-        ),
-        private_only=private_only,
-        tail_clearance=category.tail_clearance,
-        ear_clearance=category.ear_clearance,
-    )
-
-
-def generated_piece_specs() -> tuple[PieceSpec, ...]:
-    """Return the generated closet, including explicit bra/panty families."""
-    pieces: list[PieceSpec] = []
-    for category in CLOSET_CATEGORIES:
-        pieces.extend(
-            _piece(category, index=index, style=style, private_only=False)
-            for index, style in enumerate(NORMAL_STYLES, start=1)
-        )
-        pieces.extend(
-            _piece(category, index=index, style=style, private_only=True)
-            for index, style in enumerate(PRIVATE_STYLES, start=1)
-        )
-    for category in SPECIAL_PRIVATE_CATEGORIES:
-        pieces.extend(
-            _piece(category, index=index, style=style, private_only=True)
-            for index, style in enumerate(PRIVATE_STYLES, start=1)
-        )
-    return tuple(pieces)
-
-
-_SEASON_INDEX = {
-    Season.SPRING: 0,
-    Season.SUMMER: 1,
-    Season.AUTUMN: 2,
-    Season.WINTER: 3,
-}
-
-
-def _shift(index: int, offset: int) -> int:
-    return ((index - 1 + offset) % 25) + 1
-
-
-def _n(kind: str, index: int) -> str:
-    return f"closet.normal.{kind}.{index:02d}"
-
-
-def _p(kind: str, index: int) -> str:
-    return f"closet.private.{kind}.{index:02d}"
-
-
-def _seasonal_normal(season: Season, index: int) -> OutfitPlan:
-    season_index = _SEASON_INDEX[season]
-    items = (
-        "underlayer.top",
-        "underlayer.bottom",
-        _n("top", index),
-        _n("bottom", _shift(index, 2 + season_index * 3)),
-        _n("footwear", _shift(index, 4 + season_index * 5)),
-        _n("neckwear", _shift(index, 8 + season_index * 7)),
-    )
-    if season in {Season.SPRING, Season.AUTUMN, Season.WINTER}:
-        items += (
-            _n(
-                "outerwear",
-                _shift(index, 12 + season_index * 11),
-            ),
-        )
-    return OutfitPlan(
-        f"seasonal.{season.value}.normal.{index:02d}",
-        items,
-        frozenset({Activity.CONVERSATION, Activity.FORMAL}),
-        frozenset({season}),
-        style_tags=("seasonal", "normal", season.value),
-        display_name=f"{season.value.title()} Everyday {index:02d}",
-    )
-
-
-def _seasonal_lounge(season: Season, index: int) -> OutfitPlan:
-    season_index = _SEASON_INDEX[season]
-    items = (
-        "underlayer.top",
-        "underlayer.bottom",
-        _n("top", _shift(index, 4)),
-        _n("bottom", _shift(index, 9 + season_index * 3)),
-        _n(
-            "hair_accessory",
-            _shift(index, 13 + season_index * 5),
-        ),
-    )
-    if season is Season.WINTER:
-        items += (_n("legwear", _shift(index, 2)),)
-    return OutfitPlan(
-        f"seasonal.{season.value}.lounge.{index:02d}",
-        items,
-        frozenset({Activity.CONVERSATION, Activity.RELAXING, Activity.SLEEP}),
-        frozenset({season}),
-        lounge=True,
-        style_tags=("seasonal", "lounge", "cozy", "soft", season.value),
-        display_name=f"{season.value.title()} Lounge {index:02d}",
-    )
-
-
-def _seasonal_private(season: Season, index: int) -> OutfitPlan:
-    season_index = _SEASON_INDEX[season]
-    items = (
-        _p("bra", index),
-        _p("panty", _shift(index, 5 + season_index * 3)),
-        _p("legwear", _shift(index, 10 + season_index * 5)),
-        _p("neckwear", _shift(index, 15 + season_index * 7)),
-        _p("footwear", _shift(index, 20 + season_index * 9)),
-    )
-    return OutfitPlan(
-        f"seasonal.{season.value}.private.{index:02d}",
-        items,
-        frozenset({Activity.CONVERSATION, Activity.RELAXING}),
-        frozenset({season}),
-        private_only=True,
-        style_tags=("seasonal", "adult-private", "intimate-style", season.value),
-        display_name=f"{season.value.title()} Private {index:02d}",
-    )
-
-
-def generated_seasonal_outfits() -> tuple[OutfitPlan, ...]:
-    outfits: list[OutfitPlan] = []
-    for season in Season:
-        for index in range(1, 26):
-            outfits.append(_seasonal_normal(season, index))
-            outfits.append(_seasonal_lounge(season, index))
-            outfits.append(_seasonal_private(season, index))
-    return tuple(outfits)
-
-
-_BIKINI_DESIGNS: tuple[
-    tuple[str, str, str, str, str, str],
-    ...,
-] = (
-    (
-        "Cyberwave Triangle",
-        "#0B0D12",
-        "#19D3C5",
-        "triangle-cut top with crisp teal edge piping",
-        "mid-rise bottom with matching teal edge piping and a tail-clearance notch",
-        "matte chlorine-resistant stretch swim knit",
-    ),
-    (
-        "Violet Halter",
-        "#3A245C",
-        "#19D3C5",
-        "halter-neck top with a softly curved neckline and teal clasp detail",
-        "high-waist bottom with violet contour seams and a clean tail opening",
-        "smooth violet swim jersey with resilient stretch",
-    ),
-    (
-        "Crimson Sport",
-        "#8B1E3F",
-        "#171A21",
-        "sport-style crossback top with charcoal support bands",
-        "secure hipster-cut bottom with charcoal side panels and tail clearance",
-        "structured performance swim knit",
-    ),
-    (
-        "Midnight Asymmetric",
-        "#171A21",
-        "#3A245C",
-        "one-shoulder top with a diagonal violet panel break",
-        "asymmetric-waist bottom with a single violet side accent and tail clearance",
-        "matte black swim fabric with satin-finish contrast panels",
-    ),
-    (
-        "Teal Ring",
-        "#19D3C5",
-        "#0B0D12",
-        "scoop-neck top with small dark ring connectors at the straps",
-        "high-cut bottom with matching dark ring side details and tail clearance",
-        "smooth teal stretch swim fabric with matte hardware",
-    ),
-    (
-        "Crimson Violet Colorblock",
-        "#5B2333",
-        "#3A245C",
-        "bandeau-style top with violet color blocking and removable-looking strap cues",
-        "side-tie-style bottom with violet panels, compact knots, and tail clearance",
-        "soft colorblocked swim knit with reinforced edge binding",
-    ),
-)
-
-
-def generated_bikini_piece_specs() -> tuple[PieceSpec, ...]:
-    """Return twelve garments that form six visually distinct bikini sets."""
-    pieces: list[PieceSpec] = []
-    for index, (
-        label,
-        primary,
-        accent,
-        top_detail,
-        bottom_detail,
-        material,
-    ) in enumerate(_BIKINI_DESIGNS, start=1):
-        key = f"{index:02d}"
-        pieces.append(
-            PieceSpec(
-                item_id=f"closet.swim.bikini.{key}.top",
-                name=f"{label} Bikini Top",
-                description=(
-                    f"{label} two-piece swimwear top in {primary} with {accent} "
-                    f"accents; {top_detail}."
-                ),
-                category="closet.swim.bikini_top",
-                layer=Layer.BASE,
-                slots=("torso",),
-                coverage=("torso",),
-                primary_hex=primary,
-                accent_hexes=(accent,),
-                material=material,
-                construction=(
-                    f"Distinct bikini design {key}: {top_detail}.",
-                    "Swimwear metadata only; no renderer asset is implied.",
-                ),
-                fit_anchors=("torso.front", "torso.back"),
-                style_tags=("swimwear", "bikini", f"bikini-{key}", "top"),
-                private_only=False,
-            )
-        )
-        pieces.append(
-            PieceSpec(
-                item_id=f"closet.swim.bikini.{key}.bottom",
-                name=f"{label} Bikini Bottom",
-                description=(
-                    f"{label} two-piece swimwear bottom in {primary} with {accent} "
-                    f"accents; {bottom_detail}."
-                ),
-                category="closet.swim.bikini_bottom",
-                layer=Layer.BASE,
-                slots=("pelvis", "tail"),
-                coverage=("pelvis",),
-                primary_hex=primary,
-                accent_hexes=(accent,),
-                material=material,
-                construction=(
-                    f"Distinct bikini design {key}: {bottom_detail}.",
-                    "Tail opening is part of the reviewed metadata design.",
-                    "Swimwear metadata only; no renderer asset is implied.",
-                ),
-                fit_anchors=("pelvis.coverage", "tail.opening.clearance"),
-                style_tags=("swimwear", "bikini", f"bikini-{key}", "bottom"),
-                private_only=False,
-                tail_clearance=True,
-            )
-        )
-    return tuple(pieces)
-
-
-def generated_bikini_outfits() -> tuple[OutfitPlan, ...]:
-    """Return six complete bikini outfit templates."""
-    return tuple(
-        OutfitPlan(
-            outfit_id=f"swim.bikini.{index:02d}",
-            item_ids=(
-                f"closet.swim.bikini.{index:02d}.top",
-                f"closet.swim.bikini.{index:02d}.bottom",
-            ),
-            activities=frozenset({
-                Activity.RELAXING,
-                Activity.CONVERSATION,
-            }),
-            seasons=frozenset(Season),
-            weather=frozenset({Weather.HOT, Weather.MILD}),
-            style_tags=(
-                "swimwear",
-                "bikini",
-                f"bikini-{index:02d}",
-                "two-piece",
-            ),
-            display_name=_BIKINI_DESIGNS[index - 1][0] + " Bikini",
-            manual_only=True,
-        )
-        for index in range(1, 7)
-    )
-
-
-_HEX = re.compile(r"#[0-9a-fA-F]{6}\Z")
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z", re.ASCII)
+
 DRAFT_STATUS = "proposed_no_mesh_no_verified_asset"
 ALL_SEASONS = frozenset(Season)
-GRAPHIC_TEE_ID = "lounge.graphic_tee"
-GRAPHIC_OUTFIT_ID = "lounge.graphic"
-GRAPHIC_REQUEST_SOURCE_ID = "chat.2026-09-22.request.occasional_graphic_tee"
-SPARKS_LIKED_OUTFIT_SOURCE_IDS = frozenset({
-    "chat.2026-09-22.like.both.engineer",
-    "chat.2026-09-22.like.both.lounge",
-})
+
+DAY_DEFAULT_OUTFIT_ID = "day.default"
+NIGHT_LOUNGE_OUTFIT_ID = "night.lounge"
+FALLBACK_OUTFIT_ID = "fallback.covered"
 
 
 class RequestStatus(str, Enum):
@@ -535,88 +48,141 @@ class RequestStatus(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class GarmentBlueprint:
-    garment: Garment
-    primary_hex: str
-    accent_hexes: tuple[str, ...]
-    material: str
-    construction: tuple[str, ...]
-    fit_anchors: tuple[str, ...]
-    provenance: str = "design_proposal_review_required"
-    category: str = "legacy"
-    style_tags: tuple[str, ...] = ()
-    private_only: bool = False
-    description: str = ""
+class StyleInput:
+    """Source-backed request or taste. Request does not imply LIKE."""
+
+    subject_id: str
+    status: RequestStatus
+    source_id: str
+    detail: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.garment, Garment) or self.garment.asset_ref is not None:
+        if not all(
+            isinstance(value, str) and _ID.fullmatch(value)
+            for value in (self.subject_id, self.source_id)
+        ):
+            raise WardrobeError("style input requires sourced typed identity")
+        if not isinstance(self.status, RequestStatus):
+            raise WardrobeError("style input status must be typed")
+        if not isinstance(self.detail, str) or not self.detail.strip():
+            raise WardrobeError("style input requires a concrete detail")
+
+
+@dataclass(frozen=True, slots=True)
+class GarmentBlueprint:
+    """One structured garment design plus its low-level wardrobe projection."""
+
+    garment: Garment
+    design: GarmentDesign
+    provenance: str = "design_proposal_review_required"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.garment, Garment):
+            raise WardrobeError("blueprint requires Garment")
+        if self.garment.asset_ref is not None:
             raise WardrobeError("blueprints must refer to unbuilt garment assets")
-        if not isinstance(self.primary_hex, str) or not _HEX.fullmatch(self.primary_hex):
-            raise WardrobeError("invalid garment primary color")
-        if not isinstance(self.accent_hexes, tuple) or any(
-            not isinstance(x, str) or not _HEX.fullmatch(x) for x in self.accent_hexes
-        ):
-            raise WardrobeError("invalid garment accent color")
-        if not isinstance(self.material, str) or not self.material.strip():
-            raise WardrobeError("material specification is required")
-        if not isinstance(self.construction, tuple) or not self.construction or any(
-            not isinstance(x, str) or not x.strip() for x in self.construction
-        ):
-            raise WardrobeError("construction notes are required")
-        if not isinstance(self.fit_anchors, tuple) or not self.fit_anchors or any(
-            not isinstance(x, str) or not _ID.fullmatch(x) for x in self.fit_anchors
-        ) or len(set(self.fit_anchors)) != len(self.fit_anchors):
-            raise WardrobeError("fit anchors must be unique stable identifiers")
-        if self.provenance not in {"canonical_clothing_design", "design_proposal_review_required"}:
+        if not isinstance(self.design, GarmentDesign):
+            raise WardrobeError("blueprint requires GarmentDesign")
+        definition = validate_design(self.design)
+        if self.garment.item_id != self.design.item_id:
+            raise WardrobeError("garment and design IDs must match")
+        if self.garment.name != self.design.name:
+            raise WardrobeError("garment and design names must match")
+        if self.garment.layer is not definition.layer:
+            raise WardrobeError("garment layer must match garment type")
+        if self.garment.slots != definition.slots:
+            raise WardrobeError("garment slots must match garment type")
+        if self.garment.coverage != definition.coverage:
+            raise WardrobeError("garment coverage must match garment type")
+        if self.garment.private_only != self.design.private_only:
+            raise WardrobeError("garment and design privacy must match")
+        if self.provenance not in {
+            "canonical_clothing_design",
+            "design_proposal_review_required",
+        }:
             raise WardrobeError("unknown design provenance")
-        if not isinstance(self.category, str) or _ID.fullmatch(self.category) is None:
-            raise WardrobeError("invalid garment category")
-        if (
-            not isinstance(self.style_tags, tuple)
-            or len(set(self.style_tags)) != len(self.style_tags)
-            or any(not isinstance(tag, str) or not tag.strip() or len(tag) > 64
-                   for tag in self.style_tags)
-        ):
-            raise WardrobeError("invalid garment style tags")
-        if type(self.private_only) is not bool:
-            raise WardrobeError("private_only must be boolean")
-        if self.private_only != self.garment.private_only:
-            raise WardrobeError("blueprint privacy must match garment privacy")
-        if not self.description:
-            object.__setattr__(
-                self,
-                "description",
-                (
-                    f"{self.garment.name} in {self.primary_hex}; "
-                    f"{self.material}. {self.construction[0]}"
-                ),
+
+    @property
+    def primary_hex(self) -> str:
+        return resolve_color(self.design.primary)
+
+    @property
+    def accent_hexes(self) -> tuple[str, ...]:
+        return (
+            ()
+            if self.design.accent is None
+            else (resolve_color(self.design.accent),)
+        )
+
+    @property
+    def material(self) -> str:
+        return self.design.material
+
+    @property
+    def construction(self) -> tuple[str, ...]:
+        details = [
+            "Structured wardrobe design metadata; no renderer asset is implied.",
+        ]
+        if self.design.features:
+            details.append(
+                "Features: " + ", ".join(
+                    feature.replace("_", " ")
+                    for feature in self.design.features
+                ) + "."
             )
-        if (
-            not isinstance(self.description, str)
-            or not self.description.strip()
-            or len(self.description) > 1200
-        ):
-            raise WardrobeError("garment description must be bounded nonempty text")
+        if self.design.graphic.enabled:
+            details.append(
+                "Graphic: "
+                + str(self.design.graphic.design).replace("_", " ")
+                + " at "
+                + str(self.design.graphic.placement).replace("_", " ")
+                + "."
+            )
+        return tuple(details)
+
+    @property
+    def fit_anchors(self) -> tuple[str, ...]:
+        return garment_type(self.design.garment_type).fit_anchors
+
+    @property
+    def category(self) -> str:
+        family = garment_type(self.design.garment_type).family.value
+        return f"closet.{family}"
+
+    @property
+    def style_tags(self) -> tuple[str, ...]:
+        return self.design.style_tags
+
+    @property
+    def private_only(self) -> bool:
+        return self.design.private_only
+
+    @property
+    def description(self) -> str:
+        return self.design.description
 
     @property
     def design_signature(self) -> str:
-        """Stable visual-design fingerprint that intentionally excludes item_id."""
         payload = {
-            "name": self.garment.name,
-            "description": self.description,
-            "layer": self.garment.layer.name,
-            "slots": self.garment.slots,
-            "coverage": self.garment.coverage,
-            "tail_clearance": self.garment.tail_clearance,
-            "ear_clearance": self.garment.ear_clearance,
-            "primary_hex": self.primary_hex,
-            "accent_hexes": self.accent_hexes,
-            "material": self.material,
-            "construction": self.construction,
-            "fit_anchors": self.fit_anchors,
-            "category": self.category,
-            "style_tags": self.style_tags,
-            "private_only": self.private_only,
+            "name": self.design.name,
+            "garment_type": self.design.garment_type,
+            "fit": self.design.fit,
+            "rise": self.design.rise,
+            "length": self.design.length,
+            "sleeve_length": self.design.sleeve_length,
+            "material": self.design.material,
+            "primary": self.design.primary,
+            "accent": self.design.accent,
+            "pattern": self.design.pattern,
+            "graphic": {
+                "enabled": self.design.graphic.enabled,
+                "placement": self.design.graphic.placement,
+                "design": self.design.graphic.design,
+            },
+            "features": self.design.features,
+            "style_tags": self.design.style_tags,
+            "private_only": self.design.private_only,
+            "description": self.design.description,
         }
         encoded = json.dumps(
             payload,
@@ -625,23 +191,6 @@ class GarmentBlueprint:
             ensure_ascii=False,
         ).encode("utf-8")
         return sha256(encoded).hexdigest()
-
-
-@dataclass(frozen=True, slots=True)
-class StyleInput:
-    """Source-backed request or taste. Request does not imply LIKE."""
-    subject_id: str
-    status: RequestStatus
-    source_id: str
-    detail: str
-
-    def __post_init__(self) -> None:
-        if not all(isinstance(x, str) and _ID.fullmatch(x) for x in (
-            self.subject_id, self.source_id
-        )) or not isinstance(self.status, RequestStatus):
-            raise WardrobeError("style input requires sourced typed identity")
-        if not isinstance(self.detail, str) or not self.detail.strip():
-            raise WardrobeError("style input requires a concrete detail")
 
 
 @dataclass(frozen=True, slots=True)
@@ -654,39 +203,42 @@ class WardrobePrebuild:
     def __post_init__(self) -> None:
         if not isinstance(self.wardrobe, Wardrobe):
             raise WardrobeError("missing wardrobe")
-        if not isinstance(self.blueprints, tuple) or any(
-            not isinstance(bp, GarmentBlueprint) for bp in self.blueprints
+        if (
+            not isinstance(self.blueprints, tuple)
+            or any(not isinstance(bp, GarmentBlueprint) for bp in self.blueprints)
         ):
             raise WardrobeError("invalid garment blueprints")
-        if len({bp.garment.item_id for bp in self.blueprints}) != len(self.blueprints):
+        blueprint_ids = tuple(bp.garment.item_id for bp in self.blueprints)
+        if len(set(blueprint_ids)) != len(blueprint_ids):
             raise WardrobeError("duplicate garment blueprint")
-        signatures = [bp.design_signature for bp in self.blueprints]
+        signatures = tuple(bp.design_signature for bp in self.blueprints)
         if len(set(signatures)) != len(signatures):
-            raise WardrobeError(
-                "duplicate garment visual design signature"
-            )
-        if not isinstance(self.presets, tuple) or not self.presets or any(
-            not isinstance(plan, OutfitPlan) for plan in self.presets
+            raise WardrobeError("duplicate garment visual design signature")
+        if (
+            not isinstance(self.presets, tuple)
+            or not self.presets
+            or any(not isinstance(plan, OutfitPlan) for plan in self.presets)
         ):
             raise WardrobeError("missing outfit presets")
-        if len({p.outfit_id for p in self.presets}) != len(self.presets):
+        if len({plan.outfit_id for plan in self.presets}) != len(self.presets):
             raise WardrobeError("duplicate outfit preset")
-        if not isinstance(self.inputs, tuple) or any(not isinstance(x, StyleInput) for x in self.inputs):
+        if (
+            not isinstance(self.inputs, tuple)
+            or any(not isinstance(item, StyleInput) for item in self.inputs)
+        ):
             raise WardrobeError("invalid style inputs")
-        if len({(x.subject_id, x.source_id) for x in self.inputs}) != len(self.inputs):
-            raise WardrobeError("duplicate source-backed style input")
-        known_fit_anchors = {
-            anchor.name for anchor in DEFAULT_FIT_ANCHORS
-        }
+
+        known_fit_anchors = {anchor.name for anchor in DEFAULT_FIT_ANCHORS}
         for blueprint in self.blueprints:
             unknown = set(blueprint.fit_anchors) - known_fit_anchors
             if unknown:
                 raise WardrobeError(
                     "garment blueprint references unknown body fit anchor"
                 )
-        blueprint_ids = {bp.garment.item_id for bp in self.blueprints}
+
+        ids = set(blueprint_ids)
         for plan in self.presets:
-            if set(plan.item_ids) - blueprint_ids:
+            if set(plan.item_ids) - ids:
                 raise WardrobeError("outfit references unbuilt/unlisted garment")
             selected = self.wardrobe.selection(plan.item_ids)
             if plan.private_only:
@@ -694,24 +246,19 @@ class WardrobePrebuild:
                     raise WardrobeError(
                         "private outfit must contain private-only garment metadata"
                     )
-            else:
-                if selected.private_only or not selected.covered_default:
-                    raise WardrobeError(
-                        "prebuilt normal outfits must remain covered and non-private"
-                    )
-        if any(x.subject_id not in blueprint_ids and x.subject_id not in {
-            p.outfit_id for p in self.presets
-        } for x in self.inputs):
+            elif selected.private_only or not selected.covered_default:
+                raise WardrobeError(
+                    "prebuilt public outfits must remain covered and non-private"
+                )
+
+        known_subjects = ids | {plan.outfit_id for plan in self.presets}
+        if any(item.subject_id not in known_subjects for item in self.inputs):
             raise WardrobeError("style input references an unknown design")
 
     def reviewed_preferences(self) -> tuple[Preference, ...]:
-        """Project reviewed source-backed taste into planner preference evidence."""
         plan_ids = {plan.outfit_id for plan in self.presets}
-        blueprint_ids = {
-            blueprint.garment.item_id
-            for blueprint in self.blueprints
-        }
-        preferences: list[Preference] = []
+        blueprint_ids = {bp.garment.item_id for bp in self.blueprints}
+        result: list[Preference] = []
         for item in self.inputs:
             if item.status is RequestStatus.USER_LIKED:
                 sentiment = Sentiment.LIKE
@@ -719,17 +266,18 @@ class WardrobePrebuild:
                 sentiment = Sentiment.DISLIKE
             else:
                 continue
-
-            if item.subject_id in plan_ids:
-                target = PreferenceTarget.OUTFIT
-            elif item.subject_id in blueprint_ids:
-                target = PreferenceTarget.ITEM
-            else:
+            target = (
+                PreferenceTarget.OUTFIT
+                if item.subject_id in plan_ids
+                else PreferenceTarget.ITEM
+                if item.subject_id in blueprint_ids
+                else None
+            )
+            if target is None:
                 raise WardrobeError(
                     "reviewed style input references unknown preference target"
                 )
-
-            preferences.append(
+            result.append(
                 Preference(
                     actor=PreferenceActor.SPARKS,
                     target=target,
@@ -739,7 +287,7 @@ class WardrobePrebuild:
                     reviewed=True,
                 )
             )
-        return tuple(preferences)
+        return tuple(result)
 
     def preset(self, outfit_id: str) -> OutfitPlan:
         for plan in self.presets:
@@ -753,7 +301,6 @@ class WardrobePrebuild:
         category: str | None = None,
         private_only: bool | None = None,
     ) -> tuple[GarmentBlueprint, ...]:
-        """Query individual closet pieces without claiming they are worn."""
         if category is not None and (
             not isinstance(category, str) or not category.strip()
         ):
@@ -773,74 +320,66 @@ class WardrobePrebuild:
         )
 
     def closet_summary(self) -> dict[str, object]:
-        """Compact text/UI inventory summary, not a renderer asset claim."""
-        categories = sorted({
-            blueprint.category
-            for blueprint in self.blueprints
-            if blueprint.category.startswith("closet.")
-        })
-        rows: dict[str, dict[str, int]] = {}
-        for category in categories:
-            normal = len(self.pieces(category=category, private_only=False))
-            private = len(self.pieces(category=category, private_only=True))
-            rows[category] = {
-                "normal": normal,
-                "adult_private": private,
-            }
+        categories: dict[str, int] = {}
+        for blueprint in self.blueprints:
+            categories[blueprint.category] = categories.get(blueprint.category, 0) + 1
         signatures = [bp.design_signature for bp in self.blueprints]
-        unique_signatures = set(signatures)
         return {
-            "generated_piece_count": sum(
-                values["normal"] + values["adult_private"]
-                for values in rows.values()
-            ),
-            "total_piece_count": len(self.blueprints),
+            "starter_piece_count": len(self.blueprints),
             "outfit_count": len(self.presets),
-            "bikini_outfit_count": sum(
-                1 for plan in self.presets
-                if plan.outfit_id.startswith("swim.bikini.")
-            ),
-            "unique_design_signature_count": len(unique_signatures),
-            "duplicate_design_signature_count": (
-                len(signatures) - len(unique_signatures)
-            ),
-            "all_designs_unique": len(signatures) == len(unique_signatures),
-            "categories": rows,
-            "adult_private_requires_authorization": True,
+            "type_count": len({bp.design.garment_type for bp in self.blueprints}),
+            "unique_design_signature_count": len(set(signatures)),
+            "all_designs_unique": len(signatures) == len(set(signatures)),
+            "categories": dict(sorted(categories.items())),
             "assets_verified": False,
         }
 
     def manifest(self) -> dict[str, object]:
-        """Pure JSON-ready authoring handoff, never a renderer-ready asset manifest."""
+        """JSON-ready handoff for creator/modeler tooling."""
         return {
-            "schema": "sofia.avatar.wardrobe.prebuild.v1",
+            "schema": "sofia.avatar.wardrobe.prebuild.v2",
             "stage": DRAFT_STATUS,
             "garments": [
                 {
-                    "item_id": bp.garment.item_id,
-                    "name": bp.garment.name,
-                    "description": bp.description,
-                    "design_signature": bp.design_signature,
-                    "layer": bp.garment.layer.name.lower(),
+                    "item_id": bp.design.item_id,
+                    "name": bp.design.name,
+                    "type": bp.design.garment_type,
+                    "family": garment_type(bp.design.garment_type).family.value,
+                    "fit": bp.design.fit,
+                    "rise": bp.design.rise,
+                    "length": bp.design.length,
+                    "sleeve_length": bp.design.sleeve_length,
+                    "material": bp.design.material,
+                    "primary": bp.design.primary,
+                    "primary_hex": bp.primary_hex,
+                    "accent": bp.design.accent,
+                    "accent_hexes": list(bp.accent_hexes),
+                    "pattern": bp.design.pattern,
+                    "graphic": {
+                        "enabled": bp.design.graphic.enabled,
+                        "placement": bp.design.graphic.placement,
+                        "design": bp.design.graphic.design,
+                    },
+                    "features": list(bp.design.features),
+                    "style_tags": list(bp.design.style_tags),
+                    "description": bp.design.description,
                     "slots": list(bp.garment.slots),
                     "coverage": list(bp.garment.coverage),
+                    "fit_anchors": list(bp.fit_anchors),
+                    "layer": bp.garment.layer.name.lower(),
                     "tail_clearance": bp.garment.tail_clearance,
                     "ear_clearance": bp.garment.ear_clearance,
                     "asset_ref": None,
                     "private_only": bp.private_only,
-                    "category": bp.category,
-                    "style_tags": list(bp.style_tags),
-                    "primary_hex": bp.primary_hex,
-                    "accent_hexes": list(bp.accent_hexes),
-                    "material": bp.material,
-                    "construction": list(bp.construction),
-                    "fit_anchors": list(bp.fit_anchors),
                     "provenance": bp.provenance,
-                } for bp in self.blueprints
+                    "design_signature": bp.design_signature,
+                }
+                for bp in self.blueprints
             ],
             "outfits": [
                 {
                     "outfit_id": plan.outfit_id,
+                    "display_name": plan.display_name,
                     "item_ids": list(plan.item_ids),
                     "activities": sorted(x.value for x in plan.activities),
                     "seasons": sorted(x.value for x in plan.seasons),
@@ -848,259 +387,271 @@ class WardrobePrebuild:
                     "private_only": plan.private_only,
                     "manual_only": plan.manual_only,
                     "style_tags": list(plan.style_tags),
-                } for plan in self.presets
+                }
+                for plan in self.presets
             ],
             "style_inputs": [
                 {
-                    "subject_id": x.subject_id,
-                    "status": x.status.value,
-                    "source_id": x.source_id,
-                    "detail": x.detail,
-                } for x in self.inputs
+                    "subject_id": item.subject_id,
+                    "status": item.status.value,
+                    "source_id": item.source_id,
+                    "detail": item.detail,
+                }
+                for item in self.inputs
             ],
         }
 
 
-def _bp(
-    item_id: str, name: str, layer: Layer, slots: tuple[str, ...],
-    coverage: tuple[str, ...], color: str, material: str,
-    construction: tuple[str, ...], anchors: tuple[str, ...], *,
-    accents: tuple[str, ...] = (), tail: bool = False, ears: bool = False,
-    canonical: bool = False, category: str = "legacy",
-    style_tags: tuple[str, ...] = (), private_only: bool = False,
-    description: str | None = None,
-) -> GarmentBlueprint:
+def _blueprint(design: GarmentDesign, *, canonical: bool = False) -> GarmentBlueprint:
+    definition = validate_design(design)
+    garment = Garment(
+        item_id=design.item_id,
+        name=design.name,
+        layer=definition.layer,
+        slots=definition.slots,
+        coverage=definition.coverage,
+        tail_clearance=(
+            definition.tail_clearance or "tail_clearance" in design.features
+        ),
+        ear_clearance=(
+            definition.ear_clearance or "ear_clearance" in design.features
+        ),
+        asset_ref=None,
+        private_only=design.private_only,
+    )
     return GarmentBlueprint(
-        Garment(
-            item_id, name, layer, slots, coverage,
-            tail_clearance=tail,
-            ear_clearance=ears,
-            asset_ref=None,
-            private_only=private_only,
-        ),
-        primary_hex=color, accent_hexes=accents, material=material,
-        construction=construction, fit_anchors=anchors,
-        provenance="canonical_clothing_design" if canonical
-        else "design_proposal_review_required",
-        category=category,
-        style_tags=style_tags,
-        private_only=private_only,
-        description=(
-            description
-            if description is not None
-            else f"{name} in {color}; {material}. {construction[0]}"
+        garment=garment,
+        design=design,
+        provenance=(
+            "canonical_clothing_design"
+            if canonical
+            else "design_proposal_review_required"
         ),
     )
 
 
-def _generated_blueprint(spec: PieceSpec) -> GarmentBlueprint:
-    return _bp(
-        spec.item_id,
-        spec.name,
-        spec.layer,
-        spec.slots,
-        spec.coverage,
-        spec.primary_hex,
-        spec.material,
-        spec.construction,
-        spec.fit_anchors,
-        accents=spec.accent_hexes,
-        tail=spec.tail_clearance,
-        ears=spec.ear_clearance,
-        category=spec.category,
-        style_tags=spec.style_tags,
-        private_only=spec.private_only,
-        description=spec.description,
-    )
+def _no_graphic() -> GraphicDesign:
+    return GraphicDesign()
 
 
 def build_starter_wardrobe() -> WardrobePrebuild:
-    """Starter presets plus a large mix-and-match individual-piece closet."""
-    dark, charcoal, crimson, teal, violet = (
-        "#0B0D12", "#171A21", "#8B1E3F", "#19D3C5", "#3A245C"
-    )
-    base_blueprints = (
-        _bp("underlayer.top", "Breathable underlayer", Layer.UNDERWEAR,
-            ("torso",), ("torso",), dark, "soft breathable stretch knit",
-            ("Non-rendered draft underlayer; fit beneath base shirt.",),
-            ("torso.front", "torso.back")),
-        _bp("underlayer.bottom", "Base undergarment", Layer.UNDERWEAR,
-            ("pelvis",), ("pelvis",), dark, "soft stretch technical knit",
-            ("Fit beneath trousers; do not treat metadata as coverage proof.",),
-            ("pelvis.coverage",)),
-        _bp("engineer.shirt", "Fitted long-sleeve technical shirt", Layer.BASE,
-            ("torso", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"),
-            ("torso", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"), dark,
-            "breathable black technical textile",
-            ("Reinforced seams, subtle crimson detailing and teal chest identifier.",
-             "Stand collar about 1.25 inches from canonical garment brief."),
-            ("torso.front", "torso.back", "shoulder.left", "shoulder.right",
-             "forearm.left", "forearm.right"), accents=(crimson, teal), canonical=True),
-        _bp("engineer.trousers", "Articulated utility trousers", Layer.BASE,
-            ("pelvis", "left_leg", "right_leg", "tail"), ("pelvis", "left_leg", "right_leg"), dark,
-            "stretch technical textile with reinforced seat and knees",
-            ("Fitted but non-tight; gusseted crotch, articulated knees and pockets.",
-             "Dedicated flexible opening at tail root; never compress tail."),
-            ("pelvis.coverage", "waist.front", "tail.opening.clearance"),
-            accents=(charcoal,), tail=True, canonical=True),
-        _bp("engineer.jacket", "Asymmetric engineer jacket", Layer.OUTER,
-            ("torso", "left_shoulder", "right_shoulder", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm", "tail"),
-            ("torso", "left_shoulder", "right_shoulder", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"), dark,
-            "matte abrasion-resistant water-resistant technical shell",
-            ("Offset front zipper, reinforced shoulders/elbows/forearms/back.",
-             "Canonical garment guide: shoulder ~16 in; length ~25 in; sleeve ~24.5 in.",
-             "Design color ratio ~70% dark, 15% charcoal, 8% crimson, 5% violet, 2% teal.",
-             "Rear hem accommodates unrestricted tail motion."),
-            ("torso.front", "torso.back", "shoulder.left", "shoulder.right",
-             "forearm.left", "forearm.right", "tail.opening.clearance"),
-            accents=(charcoal, crimson, violet, teal), tail=True, canonical=True),
-        _bp("engineer.socks", "Technical work socks", Layer.UNDERWEAR,
-            ("left_foot", "right_foot"), ("left_foot", "right_foot"), dark, "moisture-wicking technical knit",
-            ("Reinforced heel and toe; subtle crimson detail.",),
-            ("foot.left", "foot.right"), accents=(crimson,), canonical=True),
-        _bp("engineer.boots", "Mid-calf engineer boots", Layer.BASE,
-            ("left_foot", "right_foot", "left_ankle", "right_ankle", "left_calf", "right_calf"), ("left_foot", "right_foot", "left_ankle", "right_ankle", "left_calf", "right_calf"), dark,
-            "waterproof upper, flexible ankle and rubberized tread",
-            ("Canonical boot guide: shaft ~10-11 in, heel ~1.25 in.",
-             "Reinforced toe, gunmetal hardware and teal indicator."),
-            ("foot.left", "foot.right"), accents=(crimson, teal), canonical=True),
-        _bp("engineer.gloves", "Technical work gloves", Layer.BASE,
-            ("left_hand", "right_hand", "left_fingers", "right_fingers"), ("left_hand", "right_hand", "left_fingers", "right_fingers"), dark,
-            "flexible technical fabric with reinforced palms",
-            ("Conductive fingertips, flexible knuckles and wrist adjustment.",),
-            ("wrist.left", "wrist.right"), accents=(charcoal,), canonical=True),
-        _bp("engineer.gauntlets", "Modular forearm gauntlets", Layer.ACCESSORY,
-            ("left_forearm", "right_forearm", "left_wrist", "right_wrist"),
-            ("left_forearm", "right_forearm", "left_wrist", "right_wrist"),
-            charcoal, "synthetic leather and reinforced polymer",
-            ("Left/right modular shells fit over the jacket sleeves.",
-             "Check wrist mobility and glove clearance in rigged poses."),
-            ("forearm.left", "forearm.right", "wrist.left", "wrist.right"),
-            accents=(violet, teal)),
-        _bp("engineer.belt", "Utility belt", Layer.ACCESSORY,
-            ("waist",), ("waist",), dark, "polymer-nylon webbing and matte gunmetal",
-            ("Canonical width ~1.5 in; low-profile buckle and tool mounts.",),
-            ("waist.front",), accents=(crimson,), canonical=True),
-        _bp("engineer.harness", "Diagonal tool harness", Layer.ACCESSORY,
-            ("back", "left_shoulder", "right_shoulder"), (), charcoal,
-            "reinforced dark webbing with matte metal fittings",
-            ("Right shoulder to left hip; minimal crimson identification stripe.",),
-            ("shoulder.right", "torso.back", "waist.front"),
-            accents=(crimson,), canonical=True),
-        _bp("engineer.pouch", "Technical equipment pouch", Layer.ACCESSORY,
-            ("left_thigh", "right_thigh"), (), charcoal, "reinforced abrasion-resistant textile",
-            ("Secure to approved thigh/waist hardware; avoid knee and stride clipping.",),
-            ("pelvis.coverage",), accents=(teal,)),
-        _bp("lounge.top", "Oversized lounge T-shirt", Layer.BASE,
-            ("torso", "left_upper_arm", "right_upper_arm"), ("torso", "left_upper_arm", "right_upper_arm"), "#393047",
-            "soft breathable jersey knit",
-            ("Loose shoulder and sleeve drape; comfortable opaque hem.",
-             "Proposed color and cut, subject to Sparks' style feedback."),
-            ("torso.front", "torso.back", "shoulder.left", "shoulder.right"),
-            accents=(teal,)),
-        _bp(GRAPHIC_TEE_ID, "Oversized lounge graphic T-shirt", Layer.BASE,
-            ("torso", "left_upper_arm", "right_upper_arm"),
-            ("torso", "left_upper_arm", "right_upper_arm"), "#393047",
-            "soft breathable jersey knit",
-            (
-                "Optional original graphic printed on the front; keep the same relaxed silhouette.",
-                "Graphic placement must allow natural jersey drape and torso deformation.",
-                "Print art is an unapproved design target; no texture or mesh exists yet.",
+    """Build the intentionally small day/night starter closet."""
+    blueprints = (
+        _blueprint(
+            GarmentDesign(
+                "base.bralette", "Soft technical bralette", "bralette",
+                "fitted", None, "cropped", None,
+                "soft breathable stretch knit", "black", "dark_violet",
+                "solid", _no_graphic(), ("soft_band",),
+                ("base", "technical", "soft"), False,
+                "A simple black technical bralette in soft breathable stretch "
+                "knit with a dark-violet band. Clean seams and low-profile "
+                "edges keep it comfortable beneath other layers."
             ),
-            ("torso.front", "torso.back", "shoulder.left", "shoulder.right"),
-            accents=(teal,), category="closet.top",
-            style_tags=(
-                "lounge", "optional_graphic_tee", "manual_selection",
-                "print_art_not_approved",
-            )),
-        _bp("lounge.sweats", "Relaxed lounge sweatpants", Layer.BASE,
-            ("pelvis", "left_leg", "right_leg", "tail"), ("pelvis", "left_leg", "right_leg"), "#55515F",
-            "soft stretch fleece or jersey",
-            ("Relaxed seat and leg; flexible tail opening and comfortable waistband.",
-             "Proposed fit/color pending review."),
-            ("pelvis.coverage", "waist.front", "tail.opening.clearance"),
-            accents=(violet,), tail=True),
-        _bp("fallback.top", "Covered fallback long-sleeve top", Layer.BASE,
-            ("torso", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"),
-            ("torso", "left_upper_arm", "right_upper_arm", "left_forearm", "right_forearm"), dark,
-            "opaque simple technical knit",
-            ("Authoring design only; renderer needs a separately verified real asset.",),
-            ("torso.front", "torso.back", "shoulder.left", "shoulder.right")),
-        _bp("fallback.trousers", "Covered fallback trousers", Layer.BASE,
-            ("pelvis", "left_leg", "right_leg", "tail"), ("pelvis", "left_leg", "right_leg"), charcoal,
-            "opaque simple technical weave",
-            ("Flexible tail opening; renderer must verify real coverage.",),
-            ("pelvis.coverage", "waist.front", "tail.opening.clearance"),
-            tail=True),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "base.briefs", "Soft technical briefs", "briefs",
+                "fitted", "mid", "brief", None,
+                "soft breathable stretch knit", "black", "dark_violet",
+                "solid", _no_graphic(), ("soft_band", "tail_clearance"),
+                ("base", "technical", "soft"), False,
+                "Fitted black technical briefs with a mid rise, soft "
+                "dark-violet waistband, and a comfortable tailored opening "
+                "that preserves unrestricted tail movement."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.technical_top", "Fitted technical long-sleeve top",
+                "long_sleeve_tee", "fitted", None, "hip", "long",
+                "breathable performance-knit", "black", "crimson",
+                "panelled",
+                GraphicDesign(True, "left_chest", "small_cyan_circuit_mark"),
+                ("reinforced_seams", "stretch_panels"),
+                ("day", "engineer", "technical", "fitted"), False,
+                "A fitted black long-sleeve technical top cut to the hip in "
+                "breathable performance knit. Crimson seam accents follow the "
+                "shoulders and sides, while a small cyan circuit mark sits on "
+                "the left chest. The silhouette is clean and mobile, with "
+                "reinforced seams and subtle stretch panels."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.utility_trousers", "Articulated utility trousers",
+                "utility_trousers", "fitted", "mid", "full", None,
+                "stretch technical weave", "charcoal", "dark_violet",
+                "panelled",
+                _no_graphic(),
+                ("articulated_knees", "utility_pockets", "tail_clearance"),
+                ("day", "engineer", "technical", "utility"), False,
+                "Fitted charcoal utility trousers with a mid rise and full "
+                "length, built from a flexible technical weave. Dark-violet "
+                "panel accents, articulated knees, practical low-profile "
+                "pockets, and a dedicated tail opening keep the look "
+                "functional without becoming bulky."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.engineer_jacket", "Asymmetric engineer jacket",
+                "engineer_jacket", "tailored", None, "hip", "long",
+                "matte abrasion-resistant technical shell", "black", "crimson",
+                "asymmetric_panelled", _no_graphic(),
+                ("asymmetric_zip", "reinforced_panels", "cyan_micro_accents", "tail_clearance"),
+                ("day", "engineer", "technical", "outerwear"), False,
+                "A tailored hip-length black engineer jacket with long sleeves "
+                "and an asymmetric front zip. Crimson edge lines, small cyan "
+                "hardware accents, and reinforced shoulder and forearm panels "
+                "give it a practical cyber-engineering look. The rear hem is "
+                "shaped around the tail opening."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.work_socks", "Technical crew socks", "crew_socks",
+                "fitted", None, "crew", None,
+                "moisture-wicking technical knit", "black", "crimson",
+                "solid", _no_graphic(),
+                ("reinforced_heel", "reinforced_toe"),
+                ("day", "engineer", "technical"), False,
+                "Black technical crew socks in moisture-wicking knit with "
+                "subtle crimson trim and reinforced heel and toe zones."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.work_boots", "Mid-calf engineer boots", "work_boots",
+                "fitted", None, "mid_calf", None,
+                "matte technical leather and textile", "black", "dark_violet",
+                "solid", _no_graphic(),
+                ("grip_sole", "reinforced_toe", "side_zip"),
+                ("day", "engineer", "technical", "footwear"), False,
+                "Matte black mid-calf engineer boots with dark-violet paneling, "
+                "a compact side zip, reinforced toe, and practical grip sole. "
+                "The shape stays sleek rather than heavy."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.fingerless_gloves", "Technical fingerless gloves",
+                "fingerless_gloves", "fitted", None, "wrist", None,
+                "stretch technical textile", "black", "cyan",
+                "panelled", _no_graphic(), ("grip_palms",),
+                ("day", "engineer", "technical", "accessory"), False,
+                "Close-fitting black fingerless technical gloves with small "
+                "cyan panel accents and textured grip palms."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "day.utility_belt", "Low-profile utility belt", "belt",
+                "fitted", None, "waist", None,
+                "matte technical webbing", "black", "crimson",
+                "solid", _no_graphic(),
+                ("low_profile_buckle", "small_utility_pouch"),
+                ("day", "engineer", "technical", "accessory"), False,
+                "A slim black technical utility belt with a compact buckle, "
+                "small practical pouch, and restrained crimson hardware detail."
+            ),
+            canonical=True,
+        ),
+        _blueprint(
+            GarmentDesign(
+                "night.lounge_tee", "Oversized late-night lounge T-shirt",
+                "t_shirt", "oversized", None, "upper_thigh", "short",
+                "soft brushed cotton-modal knit", "black", "dark_violet",
+                "solid",
+                GraphicDesign(True, "back_center", "violet_cyan_circuit_fox"),
+                ("dropped_shoulders", "soft_hem"),
+                ("night", "lounge", "soft", "cozy", "graphic"), False,
+                "An oversized black late-night T-shirt in soft brushed "
+                "cotton-modal knit, falling to the upper thigh with short "
+                "sleeves and relaxed dropped shoulders. A dark-violet and cyan "
+                "circuit-fox graphic sits across the upper back, while the "
+                "front stays mostly clean."
+            ),
+        ),
+        _blueprint(
+            GarmentDesign(
+                "night.running_shorts", "Fitted circuit running shorts",
+                "running_shorts", "fitted", "mid", "short", None,
+                "performance-knit", "dark_violet", "cyan", "none",
+                GraphicDesign(True, "left_leg", "small_circuit_mark"),
+                ("drawstring", "side_slits", "tail_clearance"),
+                ("night", "lounge", "athletic", "soft"), False,
+                "Fitted dark-violet running shorts with a mid rise and short "
+                "athletic cut in soft performance knit. Cyan trim picks out the "
+                "side seams, a small circuit mark sits on the left leg, and the "
+                "design includes a drawstring, shallow side slits, and a "
+                "comfortable tail opening."
+            ),
+        ),
     )
-    blueprints = base_blueprints + tuple(
-        _generated_blueprint(spec)
-        for spec in (
-            *generated_piece_specs(),
-            *generated_bikini_piece_specs(),
-        )
-    )
+
     wardrobe = Wardrobe(tuple(bp.garment for bp in blueprints))
-    under = ("underlayer.top", "underlayer.bottom")
-    base_presets = (
-        OutfitPlan("engineer.signature", under + (
-            "engineer.shirt", "engineer.trousers", "engineer.jacket",
-            "engineer.socks", "engineer.boots", "engineer.gloves",
-            "engineer.gauntlets", "engineer.belt", "engineer.harness",
-            "engineer.pouch",
-        ), frozenset({Activity.ENGINEERING, Activity.LAB, Activity.CONVERSATION}),
-            ALL_SEASONS, style_tags=("technical", "engineer", "canonical_brief")),
-        OutfitPlan("engineer.light", under + (
-            "engineer.shirt", "engineer.trousers", "engineer.socks",
-            "engineer.boots", "engineer.belt", "engineer.pouch",
-        ), frozenset({Activity.ENGINEERING, Activity.LAB, Activity.CONVERSATION}),
-            frozenset({Season.SPRING, Season.SUMMER, Season.AUTUMN}),
-            weather=frozenset({Weather.HOT, Weather.MILD}),
-            style_tags=("technical", "engineer", "lightweight")),
-        OutfitPlan("lounge.relaxed", under + (
-            "lounge.top", "lounge.sweats",
-        ), frozenset({Activity.RELAXING, Activity.CONVERSATION, Activity.SLEEP}),
-            ALL_SEASONS, lounge=True,
-            style_tags=("relaxed", "cozy", "soft", "proposed_colors")),
-        OutfitPlan(GRAPHIC_OUTFIT_ID, under + (
-            GRAPHIC_TEE_ID, "lounge.sweats",
-        ), frozenset({Activity.RELAXING, Activity.CONVERSATION, Activity.SLEEP}),
-            ALL_SEASONS, lounge=True,
-            style_tags=(
-                "relaxed", "cozy", "soft", "optional_graphic_tee",
-                "manual_selection", "print_art_not_approved",
-            ),
-            display_name="Graphic Lounge Outfit",
-            manual_only=True),
-        OutfitPlan("fallback.covered", under + (
-            "fallback.top", "fallback.trousers",
-        ), frozenset(Activity), ALL_SEASONS,
-            style_tags=("covered", "fallback", "asset_not_yet_verified")),
+    day_items = (
+        "base.bralette", "base.briefs", "day.technical_top",
+        "day.utility_trousers", "day.engineer_jacket", "day.work_socks",
+        "day.work_boots", "day.fingerless_gloves", "day.utility_belt",
+    )
+    night_items = (
+        "base.bralette", "base.briefs", "night.lounge_tee",
+        "night.running_shorts",
+    )
+    fallback_items = (
+        "base.bralette", "base.briefs", "day.technical_top",
+        "day.utility_trousers",
     )
     presets = (
-        base_presets
-        + generated_seasonal_outfits()
-        + generated_bikini_outfits()
+        OutfitPlan(
+            DAY_DEFAULT_OUTFIT_ID,
+            day_items,
+            frozenset({Activity.CONVERSATION, Activity.ENGINEERING, Activity.LAB}),
+            ALL_SEASONS,
+            style_tags=("day", "engineer", "technical", "canonical"),
+            display_name="Day Engineer Outfit",
+        ),
+        OutfitPlan(
+            NIGHT_LOUNGE_OUTFIT_ID,
+            night_items,
+            frozenset({Activity.CONVERSATION, Activity.RELAXING, Activity.SLEEP}),
+            ALL_SEASONS,
+            lounge=True,
+            style_tags=("night", "lounge", "soft", "cozy"),
+            display_name="Late-Night Lounge Outfit",
+        ),
+        OutfitPlan(
+            FALLBACK_OUTFIT_ID,
+            fallback_items,
+            frozenset(Activity),
+            ALL_SEASONS,
+            style_tags=("covered", "fallback", "technical"),
+            display_name="Covered Fallback Outfit",
+            manual_only=True,
+        ),
     )
     inputs = (
-        StyleInput("engineer.signature", RequestStatus.USER_REQUESTED,
-                   "chat.2026-09-22.request.engineer", "Signature engineer wardrobe requested; not a confirmed like."),
-        StyleInput("lounge.relaxed", RequestStatus.USER_REQUESTED,
-                   "chat.2026-09-22.request.lounge", "Oversized top and sweatpants requested."),
         StyleInput(
-            "engineer.signature", RequestStatus.USER_LIKED,
-            "chat.2026-09-22.like.both.engineer",
-            "Sparks answered 'Both' when asked whether he likes the engineer outfit, lounge outfit, both or neither.",
+            DAY_DEFAULT_OUTFIT_ID,
+            RequestStatus.USER_REQUESTED,
+            "chat.2026-10-04.request.day_default",
+            "Sparks requested a rebuilt default daytime outfit using the new structured wardrobe layout.",
         ),
         StyleInput(
-            "lounge.relaxed", RequestStatus.USER_LIKED,
-            "chat.2026-09-22.like.both.lounge",
-            "Sparks answered 'Both' when asked whether he likes the engineer outfit, lounge outfit, both or neither.",
-        ),
-        StyleInput(
-            GRAPHIC_TEE_ID, RequestStatus.USER_REQUESTED,
-            GRAPHIC_REQUEST_SOURCE_ID,
-            "Sparks requested a graphic T-shirt from time to time; graphic artwork is not yet approved.",
+            NIGHT_LOUNGE_OUTFIT_ID,
+            RequestStatus.USER_REQUESTED,
+            "chat.2026-10-04.request.night_lounge",
+            "Sparks requested a rebuilt late-night lounge outfit using the new structured wardrobe layout.",
         ),
     )
     return WardrobePrebuild(wardrobe, blueprints, presets, inputs)

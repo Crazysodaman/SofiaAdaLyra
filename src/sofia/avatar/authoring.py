@@ -186,18 +186,35 @@ from dataclasses import dataclass
 from .presentation import PresentationAuthority
 from .presentation_store import PresentationStore
 from .wardrobe import Garment, WardrobeError
+from .wardrobe_design import (
+    GarmentDesign,
+    GraphicDesign,
+    all_garment_types,
+    validate_design,
+)
 from .wardrobe_planner import Activity, OutfitPlan, Season
 
 
 @dataclass(frozen=True, slots=True)
 class GarmentDesignRequest:
+    """Creator-facing request matching the structured garment schema."""
+
     item_id: str
     name: str
-    category_id: str
-    primary_hex: str
+    garment_type: str
+    fit: str
+    rise: str | None
+    length: str
+    sleeve_length: str | None
     material: str
-    style_tags: tuple[str, ...]
+    primary: str
+    accent: str | None
+    pattern: str
+    graphic: GraphicDesign
+    features: tuple[str, ...]
+    style_tags: tuple[str, ...] = ()
     private_only: bool = False
+    description: str = ""
 
 
 class WardrobeStudio:
@@ -210,7 +227,7 @@ class WardrobeStudio:
         authority: PresentationAuthority | None = None,
         store: PresentationStore | None = None,
     ) -> None:
-        from .wardrobe_catalog import WardrobePrebuild, all_closet_categories
+        from .wardrobe_catalog import WardrobePrebuild
 
         if not isinstance(catalog, WardrobePrebuild):
             raise TypeError("catalog must be WardrobePrebuild")
@@ -223,9 +240,9 @@ class WardrobeStudio:
         self.catalog = catalog
         self.authority = authority
         self.store = store
-        self._categories = {
-            category.category_id: category
-            for category in all_closet_categories()
+        self._garment_types = {
+            item.type_id: item
+            for item in all_garment_types()
         }
 
     def compose(
@@ -299,35 +316,41 @@ class WardrobeStudio:
 
         if not isinstance(request, GarmentDesignRequest):
             raise TypeError("request must be GarmentDesignRequest")
-        try:
-            category = self._categories[request.category_id]
-        except KeyError as exc:
-            raise WardrobeError("unknown closet category") from exc
-        if category.category_id in {"closet.bra", "closet.panty"} and not request.private_only:
-            raise WardrobeError("bra/panty design proposals are private-only in this catalog")
-        coverage = () if request.private_only else category.coverage
-        garment = Garment(
-            request.item_id,
-            request.name,
-            category.layer,
-            category.slots,
-            coverage,
-            tail_clearance=category.tail_clearance,
-            ear_clearance=category.ear_clearance,
-            asset_ref=None,
-            private_only=request.private_only,
-        )
-        return GarmentBlueprint(
-            garment=garment,
-            primary_hex=request.primary_hex,
-            accent_hexes=(),
+        design = GarmentDesign(
+            item_id=request.item_id,
+            name=request.name,
+            garment_type=request.garment_type,
+            fit=request.fit,
+            rise=request.rise,
+            length=request.length,
+            sleeve_length=request.sleeve_length,
             material=request.material,
-            construction=(
-                "Sofía-generated wardrobe design proposal; no renderer asset exists yet.",
-                "A separate asset-build/verification path is required before visual claims.",
-            ),
-            fit_anchors=category.fit_anchors,
-            category=category.category_id,
+            primary=request.primary,
+            accent=request.accent,
+            pattern=request.pattern,
+            graphic=request.graphic,
+            features=request.features,
             style_tags=request.style_tags,
             private_only=request.private_only,
+            description=request.description,
         )
+        definition = validate_design(design)
+        garment = Garment(
+            item_id=design.item_id,
+            name=design.name,
+            layer=definition.layer,
+            slots=definition.slots,
+            coverage=definition.coverage,
+            tail_clearance=(
+                definition.tail_clearance
+                or "tail_clearance" in design.features
+            ),
+            ear_clearance=(
+                definition.ear_clearance
+                or "ear_clearance" in design.features
+            ),
+            asset_ref=None,
+            private_only=design.private_only,
+        )
+        return GarmentBlueprint(garment=garment, design=design)
+

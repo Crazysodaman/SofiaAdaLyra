@@ -8,8 +8,12 @@ from pathlib import Path
 from sofia.embodiment.model import Embodiment
 
 from .presentation import AppearanceState, PresentationAuthority
-from .presentation_store import PresentationStore
-from .wardrobe_catalog import WardrobePrebuild, build_starter_wardrobe
+from .presentation_store import PresentationStore, PresentationStoreError
+from .wardrobe_catalog import (
+    DAY_DEFAULT_OUTFIT_ID,
+    WardrobePrebuild,
+    build_starter_wardrobe,
+)
 from .wardrobe_matrix import WardrobeSlotMatrix, build_wardrobe_matrix
 
 
@@ -44,63 +48,59 @@ def _appearance_from_embodiment(embodiment: Embodiment) -> AppearanceState:
     )
 
 
-def _migrate_legacy_bootstrap_colors(
+def _migrate_obsolete_wardrobe_snapshot(
     *,
-    authority: PresentationAuthority,
-    embodiment: Embodiment,
     store: PresentationStore,
     wardrobe,
     outfits: dict[str, tuple[str, ...]],
-) -> PresentationAuthority:
-    """Normalize only the original headless bootstrap color encoding.
+) -> PresentationAuthority | None:
+    """Reset recognized pre-v2 wardrobe state onto the new starter closet."""
+    raw = store._read_snapshot_json()
+    if raw is None:
+        return None
+    try:
+        snapshot = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(snapshot, dict):
+        return None
+    canonical = snapshot.get("canonical_daily_outfit_id")
+    current = snapshot.get("current")
+    daily = snapshot.get("last_daily")
+    if not isinstance(current, dict) or not isinstance(daily, dict):
+        return None
+    ids = (canonical, current.get("outfit_id"), daily.get("outfit_id"))
+    legacy_exact = {
+        "engineer.signature",
+        "engineer.light",
+        "lounge.relaxed",
+        "lounge.graphic",
+    }
+    recognized = any(value in legacy_exact for value in ids)
+    recognized = recognized or any(
+        isinstance(value, str)
+        and (
+            value.startswith("seasonal.")
+            or value.startswith("swim.bikini.")
+            or value.startswith("dynamic.")
+        )
+        for value in ids
+    )
+    if not recognized:
+        return None
 
-    Early headless AVATAR builds stored canonical hex values in the semantic
-    hair_color/tail_color fields. Migrate only the untouched revision-1
-    canonical bootstrap state so deliberate later appearance changes are
-    never rewritten.
-    """
-    current = authority.current
-    daily = authority.last_daily
-    if (
-        current.revision != 1
-        or daily.revision != 1
-        or current.reason != "canonical_daily_bootstrap"
-        or daily.reason != "canonical_daily_bootstrap"
-        or current.outfit_id != "engineer.signature"
-        or daily.outfit_id != "engineer.signature"
-        or current.private_only
-        or daily.private_only
-    ):
-        return authority
-
-    canonical = dict(embodiment.physical_self.appearance)
-    hair_hex = canonical.get("hair_hex")
-    tail_hex = canonical.get("tail_hex")
-    hair_name = canonical.get("hair_color")
-    tail_name = canonical.get("tail_color")
-    if (
-        not isinstance(hair_name, str)
-        or not isinstance(tail_name, str)
-        or current.appearance.hair_color != hair_hex
-        or current.appearance.tail_color != tail_hex
-        or daily.appearance.hair_color != hair_hex
-        or daily.appearance.tail_color != tail_hex
-    ):
-        return authority
-
-    snapshot = authority.snapshot()
-    for key in ("current", "last_daily"):
-        appearance = snapshot[key]["appearance"]
-        appearance["hair_color"] = hair_name
-        appearance["tail_color"] = tail_name
-    migrated = PresentationAuthority.restore(
+    appearance_data = current.get("appearance")
+    if not isinstance(appearance_data, dict):
+        appearance_data = daily.get("appearance")
+    appearance = PresentationAuthority._appearance_from_dict(appearance_data)
+    authority = PresentationAuthority(
         wardrobe,
         outfits=outfits,
-        snapshot=snapshot,
+        canonical_daily_outfit_id=DAY_DEFAULT_OUTFIT_ID,
+        initial_appearance=appearance,
     )
-    store.save(migrated)
-    return migrated
-
+    store.save(authority)
+    return authority
 
 def _legacy_presentation_state_path(state_path: str | Path) -> Path:
     state = Path(state_path)
@@ -184,19 +184,21 @@ def load_or_bootstrap_presentation(
         outfits=outfits,
     )
     if store.exists():
-        authority = store.load(catalog.wardrobe, outfits=outfits)
-        authority = _migrate_legacy_bootstrap_colors(
-            authority=authority,
-            embodiment=embodiment,
-            store=store,
-            wardrobe=catalog.wardrobe,
-            outfits=outfits,
-        )
+        try:
+            authority = store.load(catalog.wardrobe, outfits=outfits)
+        except PresentationStoreError:
+            authority = _migrate_obsolete_wardrobe_snapshot(
+                store=store,
+                wardrobe=catalog.wardrobe,
+                outfits=outfits,
+            )
+            if authority is None:
+                raise
     else:
         authority = PresentationAuthority(
             catalog.wardrobe,
             outfits=outfits,
-            canonical_daily_outfit_id="engineer.signature",
+            canonical_daily_outfit_id=DAY_DEFAULT_OUTFIT_ID,
             initial_appearance=_appearance_from_embodiment(embodiment),
         )
         store.save(authority)
