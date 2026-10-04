@@ -26,11 +26,7 @@ from sofia.ops.bootstrap import (
     InstallAuthority,
     InstallReceipt,
 )
-from sofia.ops.enrollment import (
-    AuthenticatedPeerEvidence,
-    FleetEnrollmentService,
-    MachineNodeBinding,
-)
+from sofia.ops.enrollment import FleetEnrollmentService
 from sofia.ops.model import FleetHost, HostLifecycle
 
 
