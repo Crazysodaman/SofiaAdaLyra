@@ -9,6 +9,7 @@ from sofia.avatar.presentation import (
     PresentationAuthority,
     PresentationConflict,
     PresentationDenied,
+    PresentationError,
     PrivatePresentationGrant,
 )
 from sofia.avatar.wardrobe_catalog import build_starter_wardrobe
