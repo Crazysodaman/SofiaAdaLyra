@@ -3,12 +3,16 @@ import sqlite3
 
 import pytest
 
-from sofia.capability.model import CapabilityRequest
+from sofia.capability.model import Capability, CapabilityRequest
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.matrix.privacy import MatrixPrivacyPlanner
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.knowledge.capability import KnowledgeCapabilitySet
+from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.operator_stop import OperatorStopStore
+from sofia.composition.authorization import create_capability_authorizer
 from sofia.composition.root import compose
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.safe.permissions import PermissionStore
@@ -241,3 +245,129 @@ def test_permission_inspection_is_owner_private_and_reports_live_state(tmp_path)
                 rationale="not the owner",
             )
         )
+
+
+def test_level_five_cannot_be_enabled_by_legacy_standing_configuration(tmp_path):
+    configuration = SofiaConfiguration(
+        constitution_path=tmp_path / "constitution.md",
+        constitution_hash_path=tmp_path / "constitution.sha256",
+        identity_path=tmp_path / "identity.json",
+        personality_path=tmp_path / "personality.json",
+        avatar_path=tmp_path / "avatar.json",
+        state_path=tmp_path / "sofia.db",
+        provider=ProviderConfiguration(provider="test", model="test"),
+        filesystem_root=tmp_path,
+        standing_allowed_capabilities=("permissions.grant",),
+    )
+    authorizer = create_capability_authorizer(
+        runtime_provider=lambda: object(),
+        configuration=configuration,
+        operator_stop=OperatorStopStore(configuration.state_path),
+    )
+    request = CapabilityRequest(
+        capability=Capability(
+            "permissions.grant",
+            "Attempt to expand Sofía authority.",
+        ),
+        parameters={"capability": "storage.delete"},
+        requested_scope=None,
+        rationale="must remain impossible for Sofía to self-authorize",
+    )
+    assert authorizer(request) is False
+
+
+class _KnowledgeProbe:
+    def __init__(self):
+        self.calls = []
+
+    def ingest_text(self, path, **kwargs):
+        self.calls.append(("ingest_text", path, kwargs))
+        return {"path": path}
+
+    def ingest_pdf(self, path, **kwargs):
+        self.calls.append(("ingest_pdf", path, kwargs))
+        return {"path": path}
+
+    def write_document(self, path, content, overwrite=False):
+        self.calls.append(("write_document", path, content, overwrite))
+        return {"path": path}
+
+
+def test_level_two_knowledge_ingest_needs_no_approval(tmp_path):
+    state = tmp_path / "sofia.db"
+    probe = _KnowledgeProbe()
+    permissions = PermissionStore(state)
+    capabilities = KnowledgeCapabilitySet(
+        probe,
+        approval_verifier=ExecutionApprovalVerifier(state),
+        permission_store=permissions,
+    )
+    capability = next(
+        item
+        for item in capabilities.capabilities()
+        if item.name == "knowledge.ingest.text"
+    )
+    result = capabilities.execute(
+        CapabilityRequest(
+            capability=capability,
+            parameters={"path": "docs/readme.txt"},
+            requested_scope=None,
+            rationale="safe autonomous knowledge indexing",
+        )
+    )
+    assert result == {"path": "docs/readme.txt"}
+    assert probe.calls[0][0] == "ingest_text"
+
+
+def test_level_three_knowledge_write_honors_exact_standing_scope(tmp_path):
+    state = tmp_path / "sofia.db"
+    probe = _KnowledgeProbe()
+    permissions = PermissionStore(state)
+    capabilities = KnowledgeCapabilitySet(
+        probe,
+        approval_verifier=ExecutionApprovalVerifier(state),
+        permission_store=permissions,
+    )
+    capability = next(
+        item
+        for item in capabilities.capabilities()
+        if item.name == "knowledge.document.write"
+    )
+    request = CapabilityRequest(
+        capability=capability,
+        parameters={
+            "path": "docs/permission-notes.md",
+            "content": "safe",
+            "overwrite": False,
+        },
+        requested_scope=None,
+        rationale="write one approved documentation file",
+    )
+
+    with pytest.raises(PermissionError, match="approval_id"):
+        capabilities.execute(request)
+
+    permissions.grant(
+        "knowledge.document.write",
+        scope={
+            "path": "docs/permission-notes.md",
+            "content": "safe",
+            "overwrite": False,
+        },
+        grant_id="knowledge-doc-write",
+    )
+    result = capabilities.execute(request)
+    assert result == {"path": "docs/permission-notes.md"}
+
+    other = CapabilityRequest(
+        capability=capability,
+        parameters={
+            "path": "docs/other.md",
+            "content": "safe",
+            "overwrite": False,
+        },
+        requested_scope=None,
+        rationale="outside the standing grant",
+    )
+    with pytest.raises(PermissionError, match="approval_id"):
+        capabilities.execute(other)
