@@ -53,7 +53,8 @@ def test_direct_generation_request_reaches_pipeline_and_reports_acceptance():
 
     service = WardrobeGenerationConversationService(generate)
     reply = service.handle(
-        content="design yourself a new soft violet tee with cyan trim"
+        content="design yourself a new soft violet tee with cyan trim",
+        principal=local_sparks_principal(),
     )
 
     assert len(seen) == 1
@@ -77,7 +78,8 @@ def test_unsure_generation_explicitly_asks_sparks_without_claiming_persistence()
     )
 
     reply = service.handle(
-        content="make yourself a new violet tee"
+        content="make yourself a new violet tee",
+        principal=local_sparks_principal(),
     )
 
     assert "genuinely unsure" in reply
@@ -144,7 +146,8 @@ def test_only_authenticated_sparks_can_resolve_pending_generation():
         ),
     )
     first = service.handle(
-        content="design yourself a new violet tee"
+        content="design yourself a new violet tee",
+        principal=local_sparks_principal(),
     )
     assert "genuinely unsure" in first
 
@@ -193,4 +196,24 @@ def test_pending_followup_requires_immediately_previous_ask_reply():
         previous_assistant_content="Sure, what else?",
         principal=local_sparks_principal(),
     ) is None
+    assert called == []
+
+
+def test_shared_user_cannot_request_durable_generated_wardrobe():
+    called = []
+    service = WardrobeGenerationConversationService(
+        lambda brief: called.append(brief)
+    )
+    stranger = PrincipalContext(
+        principal_id="person:someone-else",
+        audience_id="shared:test",
+        audience_kind=AudienceKind.SHARED,
+    )
+
+    reply = service.handle(
+        content="design yourself a new violet tee",
+        principal=stranger,
+    )
+
+    assert "authenticated Sparks context" in reply
     assert called == []
