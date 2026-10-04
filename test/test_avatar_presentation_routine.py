@@ -266,3 +266,32 @@ def test_contextual_outfit_trace_reaches_authority_store_and_matrix(tmp_path):
     assert matrix.item_ids == authority.current.item_ids
     assert result.proposal is not None
     assert result.proposal.outfit_id == authority.current.outfit_id
+
+def test_afternoon_context_moves_out_of_night_lounge(tmp_path):
+    authority, routine = setup(tmp_path)
+    night = WardrobeContext(
+        datetime(2026, 10, 4, 22, 0, tzinfo=timezone.utc),
+        Season.AUTUMN,
+        Activity.CONVERSATION,
+    )
+    routine.evaluate(
+        night,
+        operation_id="daily.enter-night-lounge",
+    )
+    assert authority.current.outfit_id == "night.lounge"
+
+    afternoon = WardrobeContext(
+        datetime(2026, 10, 5, 15, 23, tzinfo=timezone.utc),
+        Season.AUTUMN,
+        Activity.CONVERSATION,
+    )
+    result = routine.evaluate(
+        afternoon,
+        operation_id="daily.leave-night-lounge",
+    )
+
+    assert result.changed
+    assert result.proposal is not None
+    assert result.proposal.outfit_id != "night.lounge"
+    assert authority.current.outfit_id != "night.lounge"
+    assert "late_lounge" not in result.proposal.reasons
