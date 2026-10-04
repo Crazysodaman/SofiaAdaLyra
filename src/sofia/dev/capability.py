@@ -110,6 +110,12 @@ class DevCandidateStore:
             raise KeyError(f"unknown DEV proposal: {proposal_id}")
         return self._decode(record)
 
+    def candidates(self) -> tuple[EngineeringCandidate, ...]:
+        return tuple(
+            self._decode(record)
+            for record in self.state_plane.list_namespace(self.NAMESPACE)
+        )
+
     def remove(self, proposal_id: str) -> None:
         if not isinstance(proposal_id, str) or not proposal_id.strip():
             raise ValueError("proposal_id must be nonempty")
@@ -184,6 +190,30 @@ class DevToolService:
         return {
             "head_sha": self.workflow.git.head_sha(),
             "changed_paths": self.workflow.git.changed_paths(),
+        }
+
+    @staticmethod
+    def _candidate_summary(candidate: EngineeringCandidate) -> dict[str, Any]:
+        return {
+            "proposal_id": candidate.proposal_id,
+            "base_sha": candidate.base_sha,
+            "changed_paths": candidate.changed_paths,
+            "allowed_paths": candidate.allowed_paths,
+            "tests_passed": candidate.tests_passed,
+            "patch_bytes": len(candidate.patch.encode("utf-8")),
+        }
+
+    def candidates(self) -> tuple[dict[str, Any], ...]:
+        return tuple(
+            self._candidate_summary(candidate)
+            for candidate in self.store.candidates()
+        )
+
+    def candidate(self, proposal_id: str) -> dict[str, Any]:
+        candidate = self.store.get(proposal_id)
+        return {
+            **self._candidate_summary(candidate),
+            "patch": candidate.patch,
         }
 
     def build(self, parameters: dict[str, Any]) -> dict[str, Any]:
@@ -274,6 +304,8 @@ class DevToolService:
 class DevCapabilitySet:
     NAMES = (
         "dev.status",
+        "dev.candidates.list",
+        "dev.candidate.get",
         "dev.build",
         "dev.apply",
         "dev.rollback",
@@ -288,6 +320,14 @@ class DevCapabilitySet:
         descriptions = {
             "dev.status": (
                 "Inspect the local Git workspace HEAD and changed paths. "
+                "Read-only."
+            ),
+            "dev.candidates.list": (
+                "List durable isolated DEV candidates and their test/change summaries. "
+                "Read-only."
+            ),
+            "dev.candidate.get": (
+                "Inspect one durable isolated DEV candidate including its patch. "
                 "Read-only."
             ),
             "dev.build": (
@@ -318,6 +358,10 @@ class DevCapabilitySet:
         name = request.capability.name
         if name == "dev.status":
             return self.service.head()
+        if name == "dev.candidates.list":
+            return self.service.candidates()
+        if name == "dev.candidate.get":
+            return self.service.candidate(parameters["proposal_id"])
         if name == "dev.build":
             return self.service.build(parameters)
         if name == "dev.apply":
@@ -363,6 +407,19 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
             "dev.status",
             "Inspect current Git HEAD and working-tree changes. Read-only.",
             {},
+        ),
+        binding(
+            "list_dev_candidates",
+            "dev.candidates.list",
+            "List durable isolated DEV candidates and test/change summaries. Read-only.",
+            {},
+        ),
+        binding(
+            "inspect_dev_candidate",
+            "dev.candidate.get",
+            "Inspect one durable isolated DEV candidate and its patch. Read-only.",
+            {**proposal},
+            ("proposal_id",),
         ),
         binding(
             "build_dev_candidate",
