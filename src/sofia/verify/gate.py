@@ -31,7 +31,10 @@ class VerificationEvidence:
 
     @property
     def accepted(self) -> bool:
-        return self.tracked_tree_clean and all(
+        source_state_acceptable = (
+            self.tracked_tree_clean or self.phase == "candidate"
+        )
+        return source_state_acceptable and all(
             item.returncode == 0 for item in self.commands
         )
 
@@ -54,6 +57,14 @@ _STATIC_COMMANDS = (
 _PHASES = {
     "static": _STATIC_COMMANDS,
     "full": (
+        *_STATIC_COMMANDS,
+        (
+            "pytest",
+            ("-m", "pytest", "-q", "-m", "not integration"),
+        ),
+        ("semantic", ("-m", "sofia.verify.semantic")),
+    ),
+    "candidate": (
         *_STATIC_COMMANDS,
         (
             "pytest",

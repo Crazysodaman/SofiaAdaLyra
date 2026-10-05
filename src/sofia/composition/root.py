@@ -29,6 +29,10 @@ from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
 from sofia.evolve.capability import EvolveCapabilitySet, create_evolve_tool_bindings
+from sofia.evolve.orchestrator import (
+    CodeEvolutionOrchestrator,
+    SubprocessCandidateVerificationRunner,
+)
 from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.distributed.inference_client import (
     create_configured_remote_inference_client,
@@ -209,7 +213,14 @@ def compose(
         configuration=configuration,
         state_plane=state_plane,
     )
-    evolve_capabilities = EvolveCapabilitySet(evolution_service)
+    evolve_capabilities = EvolveCapabilitySet(
+        evolution_service,
+        code_orchestrator=CodeEvolutionOrchestrator(
+            lifecycle=evolution_service.lifecycle,
+            dev_service=dev_service,
+            verifier=SubprocessCandidateVerificationRunner(filesystem_root),
+        ),
+    )
 
     machine_service = MachineToolService(
         state_path,

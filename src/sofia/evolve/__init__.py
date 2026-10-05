@@ -13,6 +13,7 @@ from .approval import (
     ApprovalVerifier,
     approval_matches,
 )
+from .code import CodeEvolutionProposal
 from .executor import (
     AmendmentExecution,
     AmendmentExecutionStatus,
@@ -49,6 +50,7 @@ __all__ = [
     "AmendmentProposal",
     "ApprovalAction",
     "ApprovalVerifier",
+    "CodeEvolutionProposal",
     "EvolutionEvidence",
     "EvolutionLifecycleStore",
     "EvolutionOutcome",

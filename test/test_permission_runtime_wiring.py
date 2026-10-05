@@ -3,6 +3,8 @@ import json
 import sqlite3
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from sofia.capability.catalog import ToolCatalogCapability
 from sofia.capability.model import Capability, CapabilityRequest
@@ -21,7 +23,10 @@ from sofia.dev.capability import (
 from sofia.dev.workflow import EngineeringCandidate
 from sofia.state.sqlite_plane import SQLiteStatePlane
 from sofia.knowledge.capability import KnowledgeCapabilitySet
-from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.dev_approval import (
+    DevApprovalVerifier,
+    dev_approval_signature_payload,
+)
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
@@ -724,8 +729,18 @@ def test_consumed_execution_approval_disappears_from_live_authority(tmp_path):
     assert "local.host.reboot" not in authority.allowed_capabilities
 
 
-def test_live_authority_includes_active_dev_approval(tmp_path):
+def test_live_authority_includes_active_dev_approval(tmp_path, monkeypatch):
     state = tmp_path / "sofia.db"
+    private = Ed25519PrivateKey.generate()
+    public_path = tmp_path / "dev-approval.pub"
+    public_path.write_bytes(
+        private.public_key().public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+    monkeypatch.setenv("SOFIA_DEV_APPROVAL_KEY_ID", "sparks-dev")
+    monkeypatch.setenv("SOFIA_DEV_APPROVAL_PUBLIC_KEY", str(public_path))
     runtime = compose(_configuration(tmp_path))
     now = datetime.now(timezone.utc)
     parameters = {
@@ -743,8 +758,13 @@ def test_live_authority_includes_active_dev_approval(tmp_path):
         approved_at=now,
         expires_at=now + timedelta(minutes=15),
     )
-    DevApprovalVerifier(state).record(approval)
+    DevApprovalVerifier(state).record(
+        approval,
+        signer_key_id="sparks-dev",
+        signature=private.sign(dev_approval_signature_payload(approval)),
+    )
 
     authority = runtime.current_authority()
 
     assert "dev.apply" in authority.allowed_capabilities
+    assert "evolve.code.candidate.apply" in authority.allowed_capabilities

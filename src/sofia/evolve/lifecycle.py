@@ -17,6 +17,7 @@ import re
 import sqlite3
 
 from .amendment import AmendmentProposal, ProtectedTarget
+from .code import CodeEvolutionProposal
 from .revision import RevisionProposal, RevisionScope
 
 
@@ -25,7 +26,11 @@ _OPEN_STATUSES = (
     "proposed",
     "under_review",
     "approved",
+    "candidate_built",
+    "verified",
     "applied_pending_activation",
+    "committed_pending_release",
+    "rollback_required",
     "evaluating",
 )
 
@@ -45,14 +50,19 @@ def _identifier(value: str, label: str) -> str:
 class EvolutionProposalKind(str, Enum):
     REVISION = "revision"
     AMENDMENT = "amendment"
+    CODE = "code"
 
 
 class EvolutionProposalStatus(str, Enum):
     PROPOSED = "proposed"
     UNDER_REVIEW = "under_review"
     APPROVED = "approved"
+    CANDIDATE_BUILT = "candidate_built"
+    VERIFIED = "verified"
     REJECTED = "rejected"
     APPLIED_PENDING_ACTIVATION = "applied_pending_activation"
+    COMMITTED_PENDING_RELEASE = "committed_pending_release"
+    ROLLBACK_REQUIRED = "rollback_required"
     EVALUATING = "evaluating"
     ACCEPTED = "accepted"
     ROLLED_BACK = "rolled_back"
@@ -132,6 +142,7 @@ class EvolutionLifecycleStore:
         self.daily_proposal_limit = daily_proposal_limit
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as db, db:
+            self._migrate_code_proposal_kind(db)
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS evolve_evidence (
@@ -146,7 +157,7 @@ class EvolutionLifecycleStore:
                 );
                 CREATE TABLE IF NOT EXISTS evolve_proposals (
                     proposal_id TEXT PRIMARY KEY,
-                    kind TEXT NOT NULL CHECK(kind IN ('revision','amendment')),
+                    kind TEXT NOT NULL CHECK(kind IN ('revision','amendment','code')),
                     target TEXT NOT NULL,
                     fingerprint TEXT NOT NULL,
                     proposal_json TEXT NOT NULL,
@@ -174,6 +185,42 @@ class EvolutionLifecycleStore:
                 """
             )
 
+    @staticmethod
+    def _migrate_code_proposal_kind(db: sqlite3.Connection) -> None:
+        """Expand the original two-kind CHECK without losing proposal history."""
+
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='evolve_proposals'"
+        ).fetchone()
+        if row is None or "'code'" in (row[0] or ""):
+            return
+        db.execute("PRAGMA foreign_keys=OFF")
+        db.executescript(
+            """
+            CREATE TABLE evolve_proposals_new (
+                proposal_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('revision','amendment','code')),
+                target TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                proposal_json TEXT NOT NULL,
+                proposed_content TEXT NOT NULL,
+                success_metric TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                activated_at TEXT
+            );
+            INSERT INTO evolve_proposals_new
+            SELECT proposal_id,kind,target,fingerprint,proposal_json,
+                   proposed_content,success_metric,status,created_at,updated_at,
+                   activated_at
+            FROM evolve_proposals;
+            DROP TABLE evolve_proposals;
+            ALTER TABLE evolve_proposals_new RENAME TO evolve_proposals;
+            """
+        )
+        db.execute("PRAGMA foreign_keys=ON")
+
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
@@ -191,11 +238,20 @@ class EvolutionLifecycleStore:
         )
         with closing(self._connect()) as db, db:
             existing = db.execute(
-                "SELECT payload_sha256 FROM evolve_evidence WHERE evidence_id=?",
+                "SELECT kind,source_ref,summary,payload_sha256,observed_at,recorded_at "
+                "FROM evolve_evidence WHERE evidence_id=?",
                 (evidence.evidence_id,),
             ).fetchone()
             if existing is not None:
-                if existing[0] != evidence.payload_sha256:
+                expected = (
+                    evidence.kind,
+                    evidence.source_ref,
+                    evidence.summary.strip(),
+                    evidence.payload_sha256,
+                    _utc(evidence.observed_at).isoformat(),
+                    _utc(evidence.recorded_at).isoformat(),
+                )
+                if tuple(existing) != expected:
                     raise ValueError("evidence_id already records different evidence")
                 return self.get_evidence(evidence.evidence_id)
             db.execute(
@@ -221,21 +277,25 @@ class EvolutionLifecycleStore:
         _identifier(evidence_id, "evidence_id")
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT evidence_id,kind,source_ref,summary,payload_json,observed_at,recorded_at "
+                "SELECT evidence_id,kind,source_ref,summary,payload_json,payload_sha256,"
+                "observed_at,recorded_at "
                 "FROM evolve_evidence WHERE evidence_id=?",
                 (evidence_id,),
             ).fetchone()
         if row is None:
             raise LookupError("EVOLVE evidence does not exist")
-        return EvolutionEvidence(
+        evidence = EvolutionEvidence(
             evidence_id=row[0],
             kind=row[1],
             source_ref=row[2],
             summary=row[3],
             payload=json.loads(row[4]),
-            observed_at=datetime.fromisoformat(row[5]),
-            recorded_at=datetime.fromisoformat(row[6]),
+            observed_at=datetime.fromisoformat(row[6]),
+            recorded_at=datetime.fromisoformat(row[7]),
         )
+        if evidence.payload_sha256 != row[5]:
+            raise RuntimeError("EVOLVE evidence payload digest mismatch")
+        return evidence
 
     def list_evidence(self, *, limit: int = 50) -> tuple[EvolutionEvidence, ...]:
         if type(limit) is not int or not 1 <= limit <= 200:
@@ -252,11 +312,13 @@ class EvolutionLifecycleStore:
         return tuple(self.get_evidence(item) for item in ids)
 
     @staticmethod
-    def _proposal_document(proposal: RevisionProposal | AmendmentProposal) -> dict[str, object]:
+    def _proposal_document(
+        proposal: RevisionProposal | AmendmentProposal | CodeEvolutionProposal,
+    ) -> dict[str, object]:
         document = asdict(proposal)
         if isinstance(proposal, RevisionProposal):
             document["scope"] = proposal.scope.value
-        else:
+        elif isinstance(proposal, AmendmentProposal):
             document["target"] = proposal.target.value
         document["created_at"] = _utc(proposal.created_at).isoformat()
         document["expires_at"] = _utc(proposal.expires_at).isoformat()
@@ -264,31 +326,47 @@ class EvolutionLifecycleStore:
         return document
 
     @staticmethod
-    def _target(proposal: RevisionProposal | AmendmentProposal) -> str:
+    def _target(
+        proposal: RevisionProposal | AmendmentProposal | CodeEvolutionProposal,
+    ) -> str:
         if isinstance(proposal, RevisionProposal):
             return f"{proposal.scope.value}:{proposal.key}"
-        return f"protected:{proposal.target.value}"
+        if isinstance(proposal, AmendmentProposal):
+            return f"protected:{proposal.target.value}"
+        return proposal.target
+
+    @staticmethod
+    def _paths_overlap(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
+        return any(
+            a == b or a.startswith(b + "/") or b.startswith(a + "/")
+            for a in left
+            for b in right
+        )
 
     def add_proposal(
         self,
-        proposal: RevisionProposal | AmendmentProposal,
+        proposal: RevisionProposal | AmendmentProposal | CodeEvolutionProposal,
         *,
         proposed_content: str,
         success_metric: str,
         now: datetime,
     ) -> EvolutionProposalRecord:
-        if not isinstance(proposal, (RevisionProposal, AmendmentProposal)):
-            raise TypeError("proposal must be a revision or amendment proposal")
+        if not isinstance(
+            proposal,
+            (RevisionProposal, AmendmentProposal, CodeEvolutionProposal),
+        ):
+            raise TypeError("proposal must be a revision, amendment, or code proposal")
         if not isinstance(proposed_content, str):
             raise TypeError("proposed_content must be text")
         if not isinstance(success_metric, str) or not success_metric.strip() or len(success_metric) > 1000:
             raise ValueError("bounded success_metric required")
         moment = _utc(now)
-        kind = (
-            EvolutionProposalKind.REVISION
-            if isinstance(proposal, RevisionProposal)
-            else EvolutionProposalKind.AMENDMENT
-        )
+        if isinstance(proposal, RevisionProposal):
+            kind = EvolutionProposalKind.REVISION
+        elif isinstance(proposal, AmendmentProposal):
+            kind = EvolutionProposalKind.AMENDMENT
+        else:
+            kind = EvolutionProposalKind.CODE
         target = self._target(proposal)
         document_json = json.dumps(
             self._proposal_document(proposal),
@@ -327,6 +405,23 @@ class EvolutionLifecycleStore:
                 raise RuntimeError(
                     f"an open EVOLVE proposal already owns this target: {duplicate[0]}"
                 )
+            if isinstance(proposal, CodeEvolutionProposal):
+                open_code = db.execute(
+                    "SELECT proposal_id,proposal_json FROM evolve_proposals "
+                    "WHERE kind='code' AND status IN "
+                    f"({','.join('?' for _ in _OPEN_STATUSES)})",
+                    _OPEN_STATUSES,
+                ).fetchall()
+                for open_id, raw in open_code:
+                    document = json.loads(raw)
+                    if self._paths_overlap(
+                        proposal.allowed_paths,
+                        tuple(document["allowed_paths"]),
+                    ):
+                        raise RuntimeError(
+                            "an open EVOLVE code proposal overlaps approved scope: "
+                            f"{open_id}"
+                        )
             db.execute(
                 """
                 INSERT INTO evolve_proposals
@@ -380,7 +475,10 @@ class EvolutionLifecycleStore:
             raise LookupError("EVOLVE proposal does not exist")
         return self._record(row)
 
-    def proposal_object(self, proposal_id: str) -> RevisionProposal | AmendmentProposal:
+    def proposal_object(
+        self,
+        proposal_id: str,
+    ) -> RevisionProposal | AmendmentProposal | CodeEvolutionProposal:
         _identifier(proposal_id, "proposal_id")
         with closing(self._connect()) as db:
             row = db.execute(
@@ -396,8 +494,51 @@ class EvolutionLifecycleStore:
         if EvolutionProposalKind(row[0]) is EvolutionProposalKind.REVISION:
             data["scope"] = RevisionScope(data["scope"])
             return RevisionProposal(**data)
-        data["target"] = ProtectedTarget(data["target"])
-        return AmendmentProposal(**data)
+        if EvolutionProposalKind(row[0]) is EvolutionProposalKind.AMENDMENT:
+            data["target"] = ProtectedTarget(data["target"])
+            return AmendmentProposal(**data)
+        data["allowed_paths"] = tuple(data["allowed_paths"])
+        data["tests"] = tuple(data["tests"])
+        return CodeEvolutionProposal(**data)
+
+    def attach_evidence(self, proposal_id: str, evidence_id: str) -> None:
+        """Attach newly produced evidence without rewriting the reviewed proposal."""
+
+        _identifier(proposal_id, "proposal_id")
+        self.get_evidence(evidence_id)
+        with closing(self._connect()) as db, db:
+            if db.execute(
+                "SELECT 1 FROM evolve_proposals WHERE proposal_id=?",
+                (proposal_id,),
+            ).fetchone() is None:
+                raise LookupError("EVOLVE proposal does not exist")
+            db.execute(
+                "INSERT OR IGNORE INTO evolve_proposal_evidence(proposal_id,evidence_id) "
+                "VALUES (?,?)",
+                (proposal_id, evidence_id),
+            )
+
+    def proposal_evidence(self, proposal_id: str) -> tuple[EvolutionEvidence, ...]:
+        _identifier(proposal_id, "proposal_id")
+        with closing(self._connect()) as db:
+            ids = tuple(
+                row[0]
+                for row in db.execute(
+                    "SELECT evidence_id FROM evolve_proposal_evidence "
+                    "WHERE proposal_id=? ORDER BY evidence_id",
+                    (proposal_id,),
+                )
+            )
+        if not ids and not self._proposal_exists(proposal_id):
+            raise LookupError("EVOLVE proposal does not exist")
+        return tuple(self.get_evidence(item) for item in ids)
+
+    def _proposal_exists(self, proposal_id: str) -> bool:
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM evolve_proposals WHERE proposal_id=?",
+                (proposal_id,),
+            ).fetchone() is not None
 
     def list_proposals(self, *, limit: int = 50) -> tuple[EvolutionProposalRecord, ...]:
         if type(limit) is not int or not 1 <= limit <= 200:

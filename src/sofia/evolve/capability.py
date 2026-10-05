@@ -11,6 +11,7 @@ from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 
 from .amendment import ProtectedTarget
+from .orchestrator import CodeEvolutionOrchestrator
 from .revision import RevisionScope
 
 
@@ -37,11 +38,23 @@ class EvolveCapabilitySet:
         "evolve.proposal.get",
         "evolve.proposal.revision.create",
         "evolve.proposal.amendment.create",
+        "evolve.proposal.code.create",
+        "evolve.code.candidate.build",
+        "evolve.code.candidate.apply",
+        "evolve.code.candidate.verify",
+        "evolve.code.candidate.commit",
+        "evolve.code.candidate.rollback",
+        "evolve.code.release.accept",
         "evolve.apply",
         "evolve.rollback",
     )
 
-    def __init__(self, service: Any) -> None:
+    def __init__(
+        self,
+        service: Any,
+        *,
+        code_orchestrator: CodeEvolutionOrchestrator,
+    ) -> None:
         required = (
             "lifecycle",
             "propose_revision",
@@ -51,7 +64,10 @@ class EvolveCapabilitySet:
         )
         if any(not hasattr(service, name) for name in required):
             raise TypeError("service does not implement the EVOLVE production boundary")
+        if not isinstance(code_orchestrator, CodeEvolutionOrchestrator):
+            raise TypeError("code_orchestrator must be CodeEvolutionOrchestrator")
         self.service = service
+        self.code_orchestrator = code_orchestrator
 
     def capabilities(self) -> tuple[Capability, ...]:
         descriptions = {
@@ -65,6 +81,27 @@ class EvolveCapabilitySet:
             "evolve.proposal.amendment.create": (
                 "Create a protected identity/Constitution proposal from existing evidence. "
                 "This proposes only and grants no authority."
+            ),
+            "evolve.proposal.code.create": (
+                "Create an evidence-backed bounded code proposal. This grants no authority."
+            ),
+            "evolve.code.candidate.build": (
+                "Build and test the canonical code proposal in DEV's isolated worktree."
+            ),
+            "evolve.code.candidate.apply": (
+                "Apply the exact built candidate using a separate DEV approval."
+            ),
+            "evolve.code.candidate.verify": (
+                "Run the fixed candidate VERIFY gate and attach immutable evidence."
+            ),
+            "evolve.code.candidate.commit": (
+                "Commit a verified candidate using a separate DEV approval."
+            ),
+            "evolve.code.candidate.rollback": (
+                "Rollback an uncommitted candidate using a separate DEV approval."
+            ),
+            "evolve.code.release.accept": (
+                "Bind a completed protected release rollout to code activation."
             ),
             "evolve.apply": "Apply one exact externally approved canonical EVOLVE proposal.",
             "evolve.rollback": "Rollback one exact externally approved applied EVOLVE proposal.",
@@ -86,6 +123,9 @@ class EvolveCapabilitySet:
             return {
                 "record": _json_value(record),
                 "proposal": _json_value(proposal),
+                "evidence": _json_value(
+                    self.service.lifecycle.proposal_evidence(p["proposal_id"])
+                ),
             }
         if name == "evolve.proposal.revision.create":
             result = self.service.propose_revision(
@@ -114,6 +154,67 @@ class EvolveCapabilitySet:
                 ttl=timedelta(seconds=int(p.get("ttl_seconds", 604800))),
             )
             return _json_value(result)
+        if name == "evolve.proposal.code.create":
+            return _json_value(
+                self.service.propose_code(
+                    proposal_id=p["proposal_id"],
+                    base_sha=p["base_sha"],
+                    prompt=p["prompt"],
+                    allowed_paths=tuple(p["allowed_paths"]),
+                    tests=tuple(p.get("tests", ())),
+                    evidence_ids=tuple(p["evidence_ids"]),
+                    reason=p["reason"],
+                    rollback_plan=p["rollback_plan"],
+                    success_metric=p["success_metric"],
+                    now=datetime.now(timezone.utc),
+                    ttl=timedelta(seconds=int(p.get("ttl_seconds", 604800))),
+                )
+            )
+        if name == "evolve.code.candidate.build":
+            return _json_value(
+                self.code_orchestrator.build_candidate(
+                    p["proposal_id"], now=datetime.now(timezone.utc)
+                )
+            )
+        if name == "evolve.code.candidate.apply":
+            return _json_value(
+                self.code_orchestrator.apply_candidate(
+                    p["proposal_id"],
+                    approval_id=p["approval_id"],
+                    now=datetime.now(timezone.utc),
+                )
+            )
+        if name == "evolve.code.candidate.verify":
+            return _json_value(
+                self.code_orchestrator.verify_candidate(
+                    p["proposal_id"], now=datetime.now(timezone.utc)
+                )
+            )
+        if name == "evolve.code.candidate.commit":
+            return _json_value(
+                self.code_orchestrator.commit_candidate(
+                    p["proposal_id"],
+                    approval_id=p["approval_id"],
+                    message=p["message"],
+                    now=datetime.now(timezone.utc),
+                )
+            )
+        if name == "evolve.code.candidate.rollback":
+            return _json_value(
+                self.code_orchestrator.rollback_candidate(
+                    p["proposal_id"],
+                    approval_id=p["approval_id"],
+                    now=datetime.now(timezone.utc),
+                )
+            )
+        if name == "evolve.code.release.accept":
+            return _json_value(
+                self.service.mark_release_effective(
+                    p["proposal_id"],
+                    rollout_id=p["rollout_id"],
+                    now=datetime.now(timezone.utc),
+                )
+            )
         if name == "evolve.apply":
             return _json_value(
                 self.service.apply_recorded(
@@ -179,6 +280,14 @@ def create_evolve_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
         "rollback_plan",
         "success_metric",
     )
+    code_common = {
+        key: value
+        for key, value in proposal_common.items()
+        if key != "proposed_content"
+    }
+    code_required = tuple(
+        item for item in proposal_required if item != "proposed_content"
+    )
     return (
         binding(
             "list_evolve_evidence",
@@ -219,6 +328,74 @@ def create_evolve_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
                 "target": {"type": "string", "enum": ["identity", "constitution"]},
             },
             (*proposal_required, "target"),
+        ),
+        binding(
+            "propose_evolve_code_change",
+            "evolve.proposal.code.create",
+            "Propose a bounded evidence-backed code change. Does not build, approve, apply, or commit it.",
+            {
+                **code_common,
+                "base_sha": {"type": "string"},
+                "prompt": {"type": "string"},
+                "allowed_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                    "maxItems": 64,
+                },
+                "tests": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "maxItems": 32,
+                },
+            },
+            (*code_required, "base_sha", "prompt", "allowed_paths"),
+        ),
+        binding(
+            "build_evolve_code_candidate",
+            "evolve.code.candidate.build",
+            "Build the canonical code proposal in DEV's isolated worktree.",
+            proposal_id,
+            ("proposal_id",),
+        ),
+        binding(
+            "apply_evolve_code_candidate",
+            "evolve.code.candidate.apply",
+            "Apply the exact built candidate using a separate exact DEV approval.",
+            {**proposal_id, "approval_id": {"type": "string"}},
+            ("proposal_id", "approval_id"),
+        ),
+        binding(
+            "verify_evolve_code_candidate",
+            "evolve.code.candidate.verify",
+            "Run the fixed candidate verification gate and attach its evidence.",
+            proposal_id,
+            ("proposal_id",),
+        ),
+        binding(
+            "commit_evolve_code_candidate",
+            "evolve.code.candidate.commit",
+            "Commit a verified candidate using a separate exact DEV approval.",
+            {
+                **proposal_id,
+                "approval_id": {"type": "string"},
+                "message": {"type": "string"},
+            },
+            ("proposal_id", "approval_id", "message"),
+        ),
+        binding(
+            "rollback_evolve_code_candidate",
+            "evolve.code.candidate.rollback",
+            "Rollback an uncommitted candidate using a separate exact DEV approval.",
+            {**proposal_id, "approval_id": {"type": "string"}},
+            ("proposal_id", "approval_id"),
+        ),
+        binding(
+            "accept_evolve_code_release",
+            "evolve.code.release.accept",
+            "Accept completed protected rollout evidence and begin outcome evaluation.",
+            {**proposal_id, "rollout_id": {"type": "string"}},
+            ("proposal_id", "rollout_id"),
         ),
         binding(
             "apply_evolve_proposal",

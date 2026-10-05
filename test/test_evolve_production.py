@@ -128,6 +128,7 @@ def test_approval_is_bound_to_external_ed25519_trust_root(tmp_path):
     loaded = verifier.load_approval("approval-1")
 
     assert loaded == approval
+    assert verifier.active_capabilities(now=NOW) == ("evolve.apply",)
     with pytest.raises(PermissionError, match="signature"):
         DurableEvolutionApprovalVerifier(
             tmp_path / "other.db",
@@ -185,6 +186,7 @@ def test_approval_revocation_requires_external_signature(tmp_path):
         revoked_at=revoked_at,
         authority_reference=authority_reference,
     )
+    assert verifier.active_capabilities(now=revoked_at) == ()
     assert not verifier._matches(
         approval_id=approval.approval_id,
         proposal_id=approval.proposal_id,
@@ -276,10 +278,16 @@ def test_production_composition_registers_cognitive_evolve_tools(tmp_path):
     assert {
         "evolve.evidence.list",
         "evolve.proposal.revision.create",
+        "evolve.proposal.code.create",
+        "evolve.code.candidate.verify",
+        "evolve.code.release.accept",
         "evolve.apply",
     } <= names
     assert {
         "list_evolve_evidence",
         "propose_evolve_revision",
+        "propose_evolve_code_change",
+        "verify_evolve_code_candidate",
+        "accept_evolve_code_release",
         "apply_evolve_proposal",
     } <= tools

@@ -499,6 +499,68 @@ class DurableEvolutionApprovalVerifier(
             return RevisionApproval(**common)
         raise ValueError("EVOLVE approval has unknown target kind")
 
+    def active_capabilities(self, *, now: datetime) -> tuple[str, ...]:
+        """Expose only capabilities backed by live, signed, unrevoked approvals."""
+
+        if not isinstance(now, datetime):
+            raise TypeError("now must be a datetime")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("now must be timezone-aware")
+        moment = now.astimezone(timezone.utc)
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            db.row_factory = sqlite3.Row
+            rows = db.execute(
+                "SELECT * FROM safe_evolve_approval WHERE revoked=0 "
+                "ORDER BY approved_at,approval_id"
+            ).fetchall()
+        capabilities: list[str] = []
+        for row in rows:
+            try:
+                approved_at = datetime.fromisoformat(row["approved_at"])
+                expires_at = datetime.fromisoformat(row["expires_at"])
+                action = ApprovalAction(row["action"])
+                common = {
+                    "approval_id": row["approval_id"],
+                    "proposal_id": row["proposal_id"],
+                    "proposal_fingerprint": row["proposal_fingerprint"],
+                    "action": action,
+                    "approved_by": row["approved_by"],
+                    "approved_at": approved_at,
+                    "expires_at": expires_at,
+                    "authority_reference": row["authority_reference"],
+                }
+                if row["target_kind"] == "protected":
+                    approval = AmendmentApproval(
+                        **common,
+                        target=ProtectedTarget(row["target_value"]),
+                    )
+                elif row["target_kind"] == "revision":
+                    approval = RevisionApproval(**common)
+                else:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            if approval.approved_by != "Sparks" or not (
+                approved_at.astimezone(timezone.utc)
+                <= moment
+                < expires_at.astimezone(timezone.utc)
+            ):
+                continue
+            signature = row["signature"]
+            key = self._trusted_keys.get(row["signer_key_id"])
+            if key is None or not isinstance(signature, bytes) or not signature:
+                continue
+            try:
+                key.verify(signature, approval_signature_payload(approval))
+            except (InvalidSignature, TypeError, ValueError):
+                continue
+            if sha256(signature).hexdigest() != row["signature_sha256"]:
+                continue
+            capability = f"evolve.{action.value}"
+            if capability not in capabilities:
+                capabilities.append(capability)
+        return tuple(capabilities)
+
     def verify(
         self,
         proposal,

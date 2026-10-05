@@ -180,7 +180,10 @@ class MatrixToolExposurePlanner:
                 "evolve.proposal.get",
                 "evolve.proposal.revision.create",
                 "evolve.proposal.amendment.create",
+                "evolve.proposal.code.create",
             )
+            if _SELF_IMPROVE.search(text):
+                _add(capabilities, "evolve.code.candidate.build")
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
         if _KNOWLEDGE.search(text):
@@ -338,6 +341,19 @@ class MatrixToolExposurePlanner:
                     _add(capabilities, "evolve.apply")
                 if re.search(r"\brollback\b", text, re.IGNORECASE):
                     _add(capabilities, "evolve.rollback")
+            if _EVOLVE.search(text) or _SELF_IMPROVE.search(text):
+                if re.search(r"\bbuild\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.candidate.build")
+                if re.search(r"\b(?:verify|test)\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.candidate.verify")
+                if re.search(r"\b(?:release|rollout|activate)\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.release.accept")
+                if re.search(r"\bapply\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.candidate.apply")
+                if re.search(r"\bcommit\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.candidate.commit")
+                if re.search(r"\brollback\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.code.candidate.rollback")
             if _KNOWLEDGE.search(text):
                 if re.search(r"\bingest\b", text, re.IGNORECASE):
                     _add(capabilities, "knowledge.ingest.text", "knowledge.ingest.pdf")

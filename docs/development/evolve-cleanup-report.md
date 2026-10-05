@@ -1,5 +1,42 @@
 # evolve cleanup report
 
+## 2026-10-05 governed code-evolution loop
+
+EVOLVE now owns a canonical code-proposal kind that binds the base Git SHA,
+prompt, permitted paths, fixed candidate tests, source evidence, rollback plan,
+expiry, and declared success metric. Overlapping open code scopes are rejected.
+The production cognitive surface can propose a code change and ask DEV to build
+it in DEV's existing detached worktree, but proposal and build remain distinct
+from authority to install anything.
+
+`CodeEvolutionOrchestrator` joins that record to the existing DEV and VERIFY
+boundaries. Candidate build evidence records the exact patch digest and changed
+paths. Apply, rollback, and commit each consume their own exact DEV approval.
+The fixed candidate VERIFY phase permits the reviewed patch to make the tracked
+tree dirty, but rejects any extra path before or after tests. A failed gate puts
+the proposal in `rollback_required`; it cannot be committed. A verified commit
+enters `committed_pending_release`, and only a completed protected Fleet rollout
+journal can move it into outcome evaluation.
+
+DEV approvals now use an external Ed25519 trust root as well. Production loads
+`SOFIA_DEV_APPROVAL_KEY_ID` and `SOFIA_DEV_APPROVAL_PUBLIC_KEY`; the operator CLI
+requires the matching offline private key, public key, and signer ID. Stored
+signatures are revalidated both when live authority is projected and when the
+one-shot approval is consumed. Unsigned legacy approval rows fail closed.
+
+This closes the governed code conveyor through release activation without
+allowing EVOLVE to self-approve, sign a release, bypass DEV scope, or promote a
+failed candidate. Automatic selection of a domain-specific quality metric,
+host-targeted configuration experiments, and evidence retention policy remain
+future bounded policy work rather than inferred authority.
+
+Current Linux validation before checkpoint: 212 focused orchestration,
+application, matrix, rollout, authority, and tool tests passed; the broader
+EVOLVE/SAFE/DEV/VERIFY matrix passed 986 tests with one skip. The complete
+repository run reported 3,489 passed and 3 skipped. Its five failures were the
+known live Ollama probes, which could not connect because this cloud environment
+does not provide the configured Ollama service/model.
+
 ## 2026-10-05 production evolution hardening
 
 EVOLVE is no longer only an externally driven mutation facade. Production

@@ -9,7 +9,11 @@ from uuid import uuid4
 
 from sofia.config import production_state_path
 from sofia.dev.approval import DevApproval, DevOperation, dev_request_fingerprint
-from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.dev.release_signing import load_ed25519_private_key
+from sofia.safe.dev_approval import (
+    DevApprovalVerifier,
+    dev_approval_signature_payload,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,6 +47,9 @@ def main(argv: list[str] | None = None) -> int:
         "--approved-by",
         default="Sparks",
     )
+    parser.add_argument("--private-key", required=True)
+    parser.add_argument("--trusted-public-key", required=True)
+    parser.add_argument("--signer-key-id", required=True)
     args = parser.parse_args(argv)
 
     try:
@@ -84,8 +91,16 @@ def main(argv: list[str] | None = None) -> int:
             if args.state_path
             else production_state_path()
         )
-        verifier = DevApprovalVerifier(state_path)
-        verifier.record(approval)
+        verifier = DevApprovalVerifier(
+            state_path,
+            trusted_keys={args.signer_key_id: Path(args.trusted_public_key)},
+        )
+        private_key = load_ed25519_private_key(Path(args.private_key))
+        verifier.record(
+            approval,
+            signer_key_id=args.signer_key_id,
+            signature=private_key.sign(dev_approval_signature_payload(approval)),
+        )
 
         print(
             json.dumps(

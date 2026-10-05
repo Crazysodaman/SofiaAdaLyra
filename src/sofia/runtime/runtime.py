@@ -73,6 +73,7 @@ from sofia.self_model.model import (
     create_core_state,
 )
 from sofia.safe.dev_approval import DevApprovalVerifier
+from sofia.safe.evolve_approval import DurableEvolutionApprovalVerifier
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
 from sofia.safe.permissions import PermissionStore, automatic_capabilities
 from sofia.self_model.operational import (
@@ -632,12 +633,29 @@ class SofiaRuntime:
         ).active_capabilities(
             now=datetime.now(timezone.utc)
         )
+        dev_evolution_capabilities = tuple(
+            {
+                "dev.apply": "evolve.code.candidate.apply",
+                "dev.rollback": "evolve.code.candidate.rollback",
+                "dev.commit": "evolve.code.candidate.commit",
+            }[capability]
+            for capability in dev_capabilities
+            if capability in {
+                "dev.apply",
+                "dev.rollback",
+                "dev.commit",
+            }
+        )
 
         execution_capabilities = ExecutionApprovalVerifier(
             self._configuration.state_path
         ).active_capabilities(
             now=datetime.now(timezone.utc)
         )
+
+        evolution_capabilities = DurableEvolutionApprovalVerifier(
+            self._configuration.state_path
+        ).active_capabilities(now=datetime.now(timezone.utc))
 
         live_capabilities = tuple(
             dict.fromkeys(
@@ -651,6 +669,8 @@ class SofiaRuntime:
                 + tuple(remote_capabilities)
                 + execution_capabilities
                 + dev_capabilities
+                + dev_evolution_capabilities
+                + evolution_capabilities
             )
         )
         return Authority(

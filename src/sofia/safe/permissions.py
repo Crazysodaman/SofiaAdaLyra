@@ -213,6 +213,10 @@ _SAFE_AUTONOMOUS = frozenset({
     "dev.build",
     "evolve.proposal.revision.create",
     "evolve.proposal.amendment.create",
+    "evolve.proposal.code.create",
+    "evolve.code.candidate.build",
+    "evolve.code.candidate.verify",
+    "evolve.code.release.accept",
 })
 
 _REVERSIBLE = frozenset({
@@ -265,6 +269,9 @@ _PROTECTED = frozenset({
     "dev.push",
     "evolve.apply",
     "evolve.rollback",
+    "evolve.code.candidate.apply",
+    "evolve.code.candidate.commit",
+    "evolve.code.candidate.rollback",
 })
 
 _NEVER_SELF_AUTHORIZED = frozenset({

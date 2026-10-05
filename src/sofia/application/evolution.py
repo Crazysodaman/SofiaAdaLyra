@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
 
 from sofia.config.model import SofiaConfiguration
 from sofia.evolve.approval import AmendmentApproval
+from sofia.evolve.code import CodeEvolutionProposal
 from sofia.evolve.amendment import (
     AmendmentProposal,
     ProtectedTarget,
@@ -34,6 +36,7 @@ from sofia.evolve.lifecycle import (
 )
 from sofia.safe.evolve_approval import DurableEvolutionApprovalVerifier
 from sofia.state.plane import StatePlane
+from sofia.state.model import StateKey
 
 
 class SofiaEvolutionService:
@@ -52,6 +55,7 @@ class SofiaEvolutionService:
         verifier = DurableEvolutionApprovalVerifier(configuration.state_path)
         backup_dir = Path(configuration.state_path).parent / "evolve-backups"
         self.approvals = verifier
+        self.state_plane = state_plane
         self.lifecycle = EvolutionLifecycleStore(configuration.state_path)
         self.adapter = StatePlaneRevisionAdapter(state_plane)
         self.protected = ProtectedAmendmentExecutor(
@@ -162,6 +166,40 @@ class SofiaEvolutionService:
             now=now,
         )
 
+    def propose_code(
+        self,
+        *,
+        proposal_id: str,
+        base_sha: str,
+        prompt: str,
+        allowed_paths: tuple[str, ...],
+        tests: tuple[str, ...],
+        evidence_ids: tuple[str, ...],
+        reason: str,
+        rollback_plan: str,
+        success_metric: str,
+        now: datetime,
+        ttl: timedelta = timedelta(days=7),
+    ) -> EvolutionProposalRecord:
+        proposal = CodeEvolutionProposal(
+            proposal_id=proposal_id,
+            base_sha=base_sha,
+            prompt=prompt,
+            allowed_paths=allowed_paths,
+            tests=tests,
+            evidence_ids=evidence_ids,
+            reason=reason,
+            rollback_plan=rollback_plan,
+            created_at=now,
+            expires_at=now + ttl,
+        )
+        return self.lifecycle.add_proposal(
+            proposal,
+            proposed_content=prompt,
+            success_metric=success_metric,
+            now=now,
+        )
+
     def proposals(self, *, limit: int = 50) -> tuple[EvolutionProposalRecord, ...]:
         return self.lifecycle.list_proposals(limit=limit)
 
@@ -179,6 +217,8 @@ class SofiaEvolutionService:
         if record.status is not EvolutionProposalStatus.APPROVED:
             raise PermissionError("EVOLVE proposal is not in approved lifecycle state")
         proposal = self.lifecycle.proposal_object(proposal_id)
+        if isinstance(proposal, CodeEvolutionProposal):
+            raise TypeError("code proposals must use the DEV/VERIFY orchestrator")
         approval = self.approvals.load_approval(approval_id)
         if isinstance(proposal, AmendmentProposal):
             if not isinstance(approval, AmendmentApproval):
@@ -222,6 +262,59 @@ class SofiaEvolutionService:
             now=now,
         )
 
+    def mark_release_effective(
+        self,
+        proposal_id: str,
+        *,
+        rollout_id: str,
+        now: datetime,
+    ) -> EvolutionProposalRecord:
+        """Accept only a completed protected rollout as code activation evidence."""
+
+        proposal = self.lifecycle.proposal_object(proposal_id)
+        if not isinstance(proposal, CodeEvolutionProposal):
+            raise TypeError("release activation is only valid for code proposals")
+        record = self.lifecycle.get_proposal(proposal_id)
+        if record.status is not EvolutionProposalStatus.COMMITTED_PENDING_RELEASE:
+            raise RuntimeError("code proposal is not awaiting release activation")
+        rollout = self.state_plane.read(StateKey("release-rollout", rollout_id))
+        if rollout is None:
+            raise LookupError("release rollout evidence does not exist")
+        document = json.loads(rollout.value.decode("utf-8"))
+        if document.get("status") != "completed":
+            raise RuntimeError("release rollout has not completed")
+        release_id = document.get("release_id")
+        manifest_sha256 = document.get("manifest_sha256")
+        if not isinstance(release_id, str) or not release_id.strip():
+            raise RuntimeError("release rollout evidence lacks release identity")
+        if (
+            not isinstance(manifest_sha256, str)
+            or len(manifest_sha256) != 64
+        ):
+            raise RuntimeError("release rollout evidence lacks manifest digest")
+        evidence_id = f"release-rollout:{rollout_id}"
+        self.record_evidence(
+            evidence_id=evidence_id,
+            kind="release-rollout",
+            source_ref=f"state:release-rollout:{rollout_id}",
+            summary="Protected release rollout completed and converged.",
+            payload={
+                "rollout_id": rollout_id,
+                "release_id": release_id,
+                "manifest_sha256": manifest_sha256,
+                "status": "completed",
+            },
+            observed_at=rollout.updated_at,
+            recorded_at=rollout.updated_at,
+        )
+        self.lifecycle.attach_evidence(proposal_id, evidence_id)
+        return self.lifecycle.transition(
+            proposal_id,
+            expected=(EvolutionProposalStatus.COMMITTED_PENDING_RELEASE,),
+            status=EvolutionProposalStatus.EVALUATING,
+            now=now,
+        )
+
     def rollback_recorded(
         self,
         *,
@@ -238,6 +331,8 @@ class SofiaEvolutionService:
         if record.status not in allowed:
             raise PermissionError("EVOLVE proposal is not in a rollback-eligible state")
         proposal = self.lifecycle.proposal_object(proposal_id)
+        if isinstance(proposal, CodeEvolutionProposal):
+            raise TypeError("code proposals must use the DEV/VERIFY orchestrator")
         approval = self.approvals.load_approval(approval_id)
         if isinstance(proposal, AmendmentProposal):
             if not isinstance(approval, AmendmentApproval):
