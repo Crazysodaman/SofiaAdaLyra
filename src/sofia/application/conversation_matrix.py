@@ -432,7 +432,7 @@ class ConversationMatrixMixin:
         channel: str,
     ) -> None:
         """Plan the live matrix independently from best-effort trace persistence."""
-        previous_turn = self._current_turn_matrix
+        previous_turn = getattr(self, "_current_turn_matrix", None)
         self._reset_matrix_turn()
         execution_reader = getattr(
             self._runtime,
@@ -679,6 +679,8 @@ class ConversationMatrixMixin:
         self,
         response: CognitiveResponse,
         request: CognitiveRequest | None = None,
+        *,
+        deterministic_host_interaction: bool = False,
     ) -> None:
         if self._current_evidence_matrix is None:
             return
@@ -692,6 +694,18 @@ class ConversationMatrixMixin:
         availability.update(
             self._matrix_request_evidence(request)
         )
+        if (
+            deterministic_host_interaction
+            and self._current_turn_matrix is not None
+            and self._current_turn_matrix.relevance_for(
+                MatrixDomain.INTERACTION
+            ) is not MatrixRelevance.NONE
+        ):
+            availability["interaction.interpretation"] = EvidenceRecord(
+                "interaction.interpretation",
+                EvidenceState.AVAILABLE,
+                "deterministic:host-interaction-handler",
+            )
         availability.update(
             self._matrix_voice_evidence()
         )
@@ -722,7 +736,10 @@ class ConversationMatrixMixin:
         ):
             return response
 
-        self._refresh_matrix_evidence(response)
+        self._refresh_matrix_evidence(
+            response,
+            deterministic_host_interaction=True,
+        )
         assert self._current_response_contract is not None
         assert self._current_evidence_matrix is not None
         validation = self._matrix_response_validator.validate(

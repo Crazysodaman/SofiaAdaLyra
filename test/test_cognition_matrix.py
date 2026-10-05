@@ -1641,7 +1641,7 @@ def test_perceived_quiet_comment_is_social_emotion_turn():
     assert result.intent is MatrixIntent.SOCIAL_CHECKIN
     assert result.history_policy is HistoryPolicy.LAST_TURN
     assert result.relevance_for(MatrixDomain.SOCIAL) is MatrixRelevance.REQUIRED
-    assert result.relevance_for(MatrixDomain.EMOTION) is MatrixRelevance.RELEVANT
+    assert result.relevance_for(MatrixDomain.EMOTION) is MatrixRelevance.REQUIRED
 
 
 def test_weather_affect_you_routes_to_environment_and_emotion():

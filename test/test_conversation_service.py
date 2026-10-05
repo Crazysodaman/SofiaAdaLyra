@@ -738,7 +738,7 @@ def test_matrix_context_window_applies_typed_history_limits():
     assert tuple(item.id for item in window) == ("7", "8", "9")
 
 
-def test_matrix_context_failure_falls_back_to_legacy_history(
+def test_matrix_context_failure_fails_closed_to_current_turn(
     tmp_path: Path,
     monkeypatch,
 ):
@@ -757,8 +757,15 @@ def test_matrix_context_failure_falls_back_to_legacy_history(
         response = application.conversation.respond("Hello")
 
         assert response.content == "Test cognitive response."
-        assert application.conversation.last_matrix_error == "RuntimeError"
-        assert application.conversation._current_context_plan is None
+        assert (
+            application.conversation.last_matrix_error
+            == "planning:RuntimeError"
+        )
+        plan = application.conversation._current_context_plan
+        assert plan is not None
+        assert plan.included_domains == ()
+        assert plan.max_history_messages == 1
+        assert plan.history_policy is HistoryPolicy.NONE
     finally:
         application.shutdown()
 
