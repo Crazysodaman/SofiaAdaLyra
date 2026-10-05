@@ -32,6 +32,7 @@ class ClothingActionIntent:
     kind: ClothingActionKind
     target: str | None = None
     hypothetical: bool = False
+    exclusions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.kind, ClothingActionKind):
@@ -42,6 +43,13 @@ class ClothingActionIntent:
             raise ValueError("target must be None or nonempty")
         if type(self.hypothetical) is not bool:
             raise TypeError("hypothetical must be bool")
+        if not isinstance(self.exclusions, tuple):
+            raise TypeError("exclusions must be a tuple")
+        if any(
+            not isinstance(item, str) or not item.strip()
+            for item in self.exclusions
+        ):
+            raise ValueError("exclusions must contain nonempty strings")
 
 
 class ClothingActionParser:
@@ -57,6 +65,17 @@ class ClothingActionParser:
     )
     _QUESTION = re.compile(
         r"^\s*(?:would|will|can|could)\s+you\s+(.+?)\s*[?.!]*\s*$",
+        re.IGNORECASE,
+    )
+    _PROPOSAL = re.compile(
+        r"^\s*(?:i\s+)?(?:was\s+|am\s+|'m\s+)?thinking\s+"
+        r"(?:of|about)\s+(?:your\s+)?(.+?)\s*[?.!]*\s*$",
+        re.IGNORECASE,
+    )
+    _EXCLUSIONS = re.compile(
+        r"^(?P<base>.+?)\s+(?:(?:but|and)\s+)?"
+        r"(?:(?:with)\s+)?(?:no|without)\s+"
+        r"(?P<excluded>.+?)\s*[?.!]*\s*$",
         re.IGNORECASE,
     )
     _UNDRESS = re.compile(
@@ -105,7 +124,7 @@ class ClothingActionParser:
 
         hypothetical = self._IF_ASKED.fullmatch(text)
         if hypothetical is not None:
-            inner = self._parse_direct(hypothetical.group(1))
+            inner = self.parse(hypothetical.group(1))
             return (
                 None
                 if inner is None
@@ -114,14 +133,46 @@ class ClothingActionParser:
 
         question = self._QUESTION.fullmatch(text)
         if question is not None:
-            inner = self._parse_direct(question.group(1))
+            inner = self.parse(question.group(1))
             return (
                 None
                 if inner is None
                 else replace(inner, hypothetical=True)
             )
 
-        return self._parse_direct(text)
+        base, exclusions = self._split_exclusions(text)
+        proposal = self._PROPOSAL.fullmatch(base)
+        if proposal is not None:
+            return ClothingActionIntent(
+                ClothingActionKind.WEAR,
+                _clean_target(proposal.group(1)),
+                hypothetical=True,
+                exclusions=exclusions,
+            )
+
+        direct = self._parse_direct(base)
+        if direct is None:
+            return None
+        return replace(direct, exclusions=exclusions)
+
+    @classmethod
+    def _split_exclusions(
+        cls,
+        text: str,
+    ) -> tuple[str, tuple[str, ...]]:
+        match = cls._EXCLUSIONS.fullmatch(text)
+        if match is None:
+            return text, ()
+        base = match.group("base").strip()
+        raw = match.group("excluded").strip()
+        exclusions = tuple(
+            dict.fromkeys(
+                cleaned
+                for part in re.split(r"\s*(?:,|\band\b|\bor\b)\s*", raw)
+                if (cleaned := _clean_target(part))
+            )
+        )
+        return base, exclusions
 
     def is_followup(self, content: str) -> bool:
         if not isinstance(content, str):
