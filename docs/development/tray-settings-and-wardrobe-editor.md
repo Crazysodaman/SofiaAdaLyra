@@ -15,7 +15,7 @@ controls; the schema version is migration metadata.
 | ACT | Delivery opt-in, mute, notification service, quiet hours/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
 | Fleet | Cognitive placement, fallback, resource limits, host lists, discovery controls, agent provisioning settings and enrolled-node inspection | Existing discovery preferences plus typed cognition/bootstrap preferences; production configuration and reviewed Fleet workflows |
 | Workloads | Game mode and service names | `ui_control_settings` and `ops_activity_override`; tray and service controller |
-| Models | Models, context sizes, thinking, routing, verification, residency management, installation, idle timeout, keep-alive, temperature and seed | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
+| Models | Models, context sizes, thinking, routing, verification, residency management, installation, idle timeout, keep-alive, temperature, seed and maximum output tokens | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
 | Integrations | Discord IDs/token and Home Assistant URL/token/entity selection | Nonsecret preferences in SQLite; tokens remain protected by Windows DPAPI |
 | Environment | Location, timezone, coordinates, subjects, NWS station/user agent and freshness intervals | Existing environment preferences and hot reload |
 | Avatar | Automatic routines; approved public daily outfit; current presentation and presets | Owner preferences plus canonical `avatar_presentation_state` |
@@ -95,6 +95,7 @@ principals' and audience-private emotional data.
 | `ui/windows_startup.py` | UPDATE | Correct Run-key path and database-specific startup command. |
 | `ui/desktop.py` | UPDATE | Persists theme selection and honors keep-tray preference on clean shutdown. |
 | `config/user_settings.py` | UPDATE | Schema 5 preferences, typed validation and preserved schema 4 discovery migration. |
+| `config/model_catalog.py` | UPDATE | Keeps the existing 768-token production default canonical while making the output budget editable. |
 | `config/defaults.py` | UPDATE | Projects saved generation, Fleet cognition and bootstrap settings into production configuration. |
 | `ops/activity.py` | UPDATE | Allows activity override to participate in the canonical settings transaction. |
 | `avatar/wardrobe_review.py` | ADD | Durable submissions, validated overlays, leased claims, stale-edit checks and Sofía decision processing. |
@@ -104,6 +105,7 @@ principals' and audience-private emotional data.
 | `application/background_runtime.py` | UPDATE | Connects wardrobe reviews to live cognition and the existing avatar bundle installer. |
 | `application/act_service.py` | UPDATE | Loads saved delivery policy, protected credentials and notification destination. |
 | `application/fleet_runtime.py` | UPDATE | Uses the saved notification destination for operational notices. |
+| `test_default_configuration.py` | UPDATE | Checks the retained production output budget alongside the default provider configuration. |
 | `test_ui_settings_persistence.py` | ADD | Fresh-process persistence, production projection, transaction failure, protected secret rollback and outreach wiring. |
 | `test_ui_settings_window.py` | ADD | Actual Tk save/reopen/editor interactions and emotion scope isolation. |
 | `test_ui_wardrobe_runtime.py` | ADD | Accepted metadata reaches live application and survives restart without changing attire. |
@@ -121,4 +123,21 @@ menu wiring and registry calls are covered by the existing platform-safe tests
 and mocked registration tests; a live Windows notification-area smoke test is
 still platform-dependent. The cloud does not have a local Ollama server.
 
-Final regression results and the Git checkpoint are recorded after validation.
+The targeted runtime, persistence, real Tk, background and Windows-startup
+checks passed: **42 passed**. Compilation and dependency checks also passed.
+
+The full work-branch suite produced **3,443 passed, 20 failed, 2 skipped**.
+A separate, untouched checkout of upstream main at `5649aa7b` produced
+**3,413 passed, 21 failed, 2 skipped** under the same environment. All 20 work
+failures also occur on upstream; there are no failures unique to these changes.
+The additional upstream default-configuration failure is repaired by retaining
+and asserting its existing 768-token output budget.
+
+Shared failures cover conversation/matrix regressions, idle-reflection fixture
+wiring, state-replication tests, and live-provider/embodiment checks. The latter
+require a local Ollama server, which is absent in this cloud. These unrelated
+upstream failures remain visible rather than being skipped or weakened.
+
+The main feature checkpoint is `b5b39416`; upstream synchronization is recorded
+in merge `bf6c990c`. The final settings/report follow-up is committed before
+publishing the completed work branch and merging it to main.

@@ -7,6 +7,7 @@ from sofia.config.model import ProviderConfiguration
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
     DEFAULT_PROVIDER_MODEL,
+    DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,
 )
 
 
@@ -46,6 +47,7 @@ def test_default_configuration_uses_ollama():
         provider="ollama",
         model=DEFAULT_PROVIDER_MODEL,
         context_size=DEFAULT_PROVIDER_CONTEXT_SIZE,
+        max_output_tokens=DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,
         thinking=False,
     )
 

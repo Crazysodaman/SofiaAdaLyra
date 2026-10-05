@@ -26,7 +26,7 @@ def profile(tmp_path):
 def test_settings_survive_a_new_python_process_and_reach_configuration(tmp_path):
     path = profile(tmp_path)
     runtime = RuntimeUserSettings(
-        provider_model="custom:model", provider_temperature=0.25, provider_seed=19,
+        provider_model="custom:model", provider_temperature=0.25, provider_seed=19, provider_max_output_tokens=512,
         adaptive_theme=False, idle_reflections_enabled=False, habit_learning_enabled=False,
         avatar_routines_enabled=False, avatar_daily_outfit="night.lounge",
         fleet_cognition=FleetCognitionConfiguration(enabled=True, allowed_host_ids=("trusted-node",)),
@@ -43,10 +43,10 @@ from sofia.config import create_production_configuration
 from pathlib import Path
 p=Path(sys.argv[1]); u=RuntimeUserSettingsStore(p).load(); d=DesktopControlSettingsStore(p).load()
 c=create_production_configuration(state_path=p)
-print(json.dumps({'model': c.provider.model,'seed':c.provider.seed,'temperature':c.provider.temperature,'theme':u.adaptive_theme,'tray':d.close_to_tray,'game':d.game_mode.value,'hosts':c.fleet_cognition.allowed_host_ids,'interval':c.fleet_discovery.interval_seconds,'outfit':u.avatar_daily_outfit,'mute':u.outreach.mute}))
+print(json.dumps({'model': c.provider.model,'seed':c.provider.seed,'temperature':c.provider.temperature,'max_output':c.provider.max_output_tokens,'theme':u.adaptive_theme,'tray':d.close_to_tray,'game':d.game_mode.value,'hosts':c.fleet_cognition.allowed_host_ids,'interval':c.fleet_discovery.interval_seconds,'outfit':u.avatar_daily_outfit,'mute':u.outreach.mute}))
 """
     actual = json.loads(subprocess.check_output([sys.executable, "-c", code, str(path)], text=True))
-    assert actual == {"model": "custom:model", "seed": 19, "temperature": 0.25, "theme": False, "tray": False, "game": "on", "hosts": ["trusted-node"], "interval": 90, "outfit": "night.lounge", "mute": True}
+    assert actual == {"model": "custom:model", "seed": 19, "temperature": 0.25, "max_output": 512, "theme": False, "tray": False, "game": "on", "hosts": ["trusted-node"], "interval": 90, "outfit": "night.lounge", "mute": True}
 
 
 def test_settings_and_activity_rollback_together_on_database_failure(tmp_path, monkeypatch):
@@ -141,7 +141,8 @@ def test_saved_outreach_policy_reaches_sender_and_operational_notices(tmp_path, 
     path = profile(tmp_path)
     outreach = OutreachSettings(enabled=True, mute=True, notification_service="mobile_app_owner", quiet_start_local=21, quiet_end_local=9, max_daily=2, social_max_daily=2, operational_max_daily=4)
     RuntimeUserSettingsStore(path).save(RuntimeUserSettings(home_assistant_url="http://localhost:8123", outreach=outreach))
-    monkeypatch.setattr(ProtectedSecretStore, "get", lambda self, key: "protected-test-token")
+    from importlib import import_module
+    monkeypatch.setattr(import_module("sofia.safe.secret_store").ProtectedSecretStore, "get", lambda self, key: "protected-test-token")
     service = SofiaActService(path)
     assert configure_act_delivery_from_environment(service)
     assert service.policy.mute

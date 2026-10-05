@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
     DEFAULT_PROVIDER_MODEL,
+    DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,
     LEGACY_SINGLE_PRESET,
     RECOMMENDED_PRIMARY_CONTEXT_SIZE,
     RECOMMENDED_PRIMARY_MODEL,
@@ -76,6 +77,7 @@ class RuntimeUserSettings:
     provider_thinking: bool | str = False
     provider_temperature: float | None = None
     provider_seed: int | None = None
+    provider_max_output_tokens: int | None = DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS
     adaptive_theme: bool = True
     idle_reflections_enabled: bool | None = None
     habit_learning_enabled: bool | None = None
@@ -148,6 +150,8 @@ class RuntimeUserSettings:
             raise ValueError("Provider temperature must be finite and nonnegative")
         if self.provider_seed is not None and type(self.provider_seed) is not int:
             raise TypeError("Provider seed must be an integer or None")
+        if self.provider_max_output_tokens is not None and (type(self.provider_max_output_tokens) is not int or self.provider_max_output_tokens <= 0):
+            raise ValueError("Maximum output tokens must be a positive integer or blank")
         if (
             type(self.schema_version) is not int
             or self.schema_version != CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION

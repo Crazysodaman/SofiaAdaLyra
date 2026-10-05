@@ -8,7 +8,6 @@ import os
 import sqlite3
 
 from sofia.config.user_settings import OutreachSettings, RuntimeUserSettingsStore
-from sofia.config.model import FleetBootstrapConfiguration, FleetCognitionConfiguration
 from .settings_service import database_diagnostics
 
 
@@ -50,7 +49,7 @@ class SettingsSections:
         boolean("Sofía", "habit_learning_enabled", "Learn habits from supported observations", runtime.habit_learning_enabled if runtime.habit_learning_enabled is not None else os.environ.get("SOFIA_HABIT_LEARNING", "1").lower() in ("1", "true", "on"))
         boolean("Avatar", "avatar_routines_enabled", "Automatically select attire for supported routines", runtime.avatar_routines_enabled)
 
-        for field, label in (("provider_temperature", "Generation temperature (blank uses provider default)"), ("provider_seed", "Generation seed (blank uses provider default)")):
+        for field, label in (("provider_temperature", "Generation temperature (blank uses provider default)"), ("provider_seed", "Generation seed (blank uses provider default)"), ("provider_max_output_tokens", "Maximum output tokens (blank uses provider default)")):
             value = getattr(runtime, field)
             variable = tk.StringVar(root, value="" if value is None else str(value))
             self.variables[field] = variable
@@ -108,7 +107,7 @@ class SettingsSections:
 
     def updates(self):
         result = {name: variable.get() for name, variable in self.variables.items()}
-        for name, kind in (("provider_temperature", float), ("provider_seed", int)):
+        for name, kind in (("provider_temperature", float), ("provider_seed", int), ("provider_max_output_tokens", int)):
             value = result[name].strip()
             try:
                 result[name] = kind(value) if value else None
