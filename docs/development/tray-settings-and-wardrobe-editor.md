@@ -141,3 +141,9 @@ upstream failures remain visible rather than being skipped or weakened.
 The main feature checkpoint is `b5b39416`; upstream synchronization is recorded
 in merge `bf6c990c`. The final settings/report follow-up is committed before
 publishing the completed work branch and merging it to main.
+
+The final pull incorporated upstream `e4659dee` (migration approval hardening
+and matrix assertion updates), merged as `5d43b1be`. Its affected migration and
+conversation tests produced **29 passed, 5 failed**; all five failures belong
+to the already reproduced upstream conversation failures listed above. The two
+updated matrix assertions now pass. Feature follow-up commit: `37b62835`.
