@@ -172,6 +172,10 @@ def test_restart_and_resume_preserves_cognitive_history(
     )
 
     assert response.content == "Continuity confirmed."
+    assert any(
+        ref.startswith("conversation-retrieval:")
+        for ref in response.evidence_refs
+    )
 
     assert len(captured_requests) == 2  # Awareness, then user request.
     assert captured_requests[0].messages[0].role is CognitiveRole.SYSTEM
@@ -188,6 +192,14 @@ def test_restart_and_resume_preserves_cognitive_history(
         "CURRENT MODELED EMOTIONAL STATE" not in message.content
         for message in system_messages
     )
+    retrieval_messages = tuple(
+        message
+        for message in system_messages
+        if "TRUSTED CONVERSATION RETRIEVAL" in message.content
+    )
+    assert len(retrieval_messages) == 1
+    assert "durable current conversation" in retrieval_messages[0].content
+    assert "What did I say earlier?" not in retrieval_messages[0].content
 
     conversation_messages = tuple(
         message
