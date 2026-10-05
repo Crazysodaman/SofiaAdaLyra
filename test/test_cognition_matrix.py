@@ -895,6 +895,23 @@ def test_memory_evidence_requires_actual_retrieval_execution_proof():
         == "memory-retrieval:promoted"
     )
 
+    conversation_available = project_matrix_evidence(
+        runtime,
+        required_keys=("memory.retrieval",),
+        response=CognitiveResponse(
+            content="Grounded conversation recall.",
+            evidence_refs=("conversation-retrieval:message-1",),
+        ),
+    )
+    assert (
+        conversation_available["memory.retrieval"].state
+        is EvidenceState.AVAILABLE
+    )
+    assert (
+        conversation_available["memory.retrieval"].source_ref
+        == "conversation-retrieval:message-1"
+    )
+
 
 def test_response_matrix_fails_closed_without_memory_retrieval():
     evidence = EvidenceMatrix(
