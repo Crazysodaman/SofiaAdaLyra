@@ -194,7 +194,10 @@ def project_matrix_evidence(
         memory_refs = tuple(
             ref
             for ref in response.evidence_refs
-            if ref.startswith("memory-retrieval:")
+            if ref.startswith((
+                "memory-retrieval:",
+                "conversation-retrieval:",
+            ))
         )
         if memory_refs:
             availability["memory.retrieval"] = EvidenceRecord(
