@@ -336,6 +336,32 @@ def test_whats_on_your_mind_canned_closer_is_trimmed():
 
 
 
+def test_tail_followup_rejects_expression_planning_lecture():
+    bad = (
+        "When the user asks about my tail, I'll use the canonical data and "
+        "mention that it can wag, sway, or tilt. If the user wants more detail, "
+        "I'll bring up how the outfit supports the tail opening."
+    )
+    good = "*My tail gives a small swish.* Yeah. The feeling can show there too."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            (
+                "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT\n"
+                "A fitting brief expression, if useful: let the fox tail swish once"
+            ),
+        ),
+        _message(CognitiveRole.USER, "so no tail wag or anything"),
+    ))
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+    assert "when the user asks" not in response.content.casefold()
+
+
 def test_expression_style_meta_narration_is_retried():
     bad = (
         "I'm gearing up to keep the conversation tight, direct, and a little teasing. "
