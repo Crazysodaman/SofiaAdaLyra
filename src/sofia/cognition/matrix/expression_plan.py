@@ -60,6 +60,7 @@ _EMOTION_CANDIDATES: dict[str, tuple[str, ...]] = {
     "disappointment": ("avert-gaze", "frown", "tail-still", "pause"),
     "affection": ("smile", "tail-curl", "speak-softly", "ear-perk"),
     "fondness": ("smile", "tail-curl", "ear-perk", "speak-softly"),
+    "longing": ("tail-curl", "tail-swish", "ear-perk", "speak-softly"),
     "warmth": ("smile", "tail-curl", "speak-softly", "ear-perk"),
     "tenderness": ("speak-softly", "smile", "tail-curl", "avert-gaze"),
     "excitement": ("grin", "ear-perk", "tail-swish", "chuckle"),

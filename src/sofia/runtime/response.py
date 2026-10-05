@@ -539,8 +539,20 @@ def respond_with_runtime_context(
         authority=runtime.current_authority(),
     )
 
-    return runtime._cognitive_system.respond(
-        operation
+    response = runtime._cognitive_system.respond(operation)
+    retrieval_refs: list[str] = []
+    if memories:
+        retrieval_refs.append("memory-retrieval:promoted")
+    if historical_conversation_evidence:
+        retrieval_refs.append("memory-retrieval:historical")
+    if not retrieval_refs:
+        return response
+    return CognitiveResponse(
+        content=response.content,
+        tool_calls=response.tool_calls,
+        evidence_refs=tuple(
+            dict.fromkeys((*response.evidence_refs, *retrieval_refs))
+        ),
     )
 
 

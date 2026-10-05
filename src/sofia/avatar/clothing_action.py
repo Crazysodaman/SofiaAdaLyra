@@ -577,7 +577,8 @@ class ClothingActionService:
         return (
             f"That would be a {variation} variation: "
             + ", ".join(names)
-            + ". I haven't changed yet."
+            + ". The request itself has not changed my wardrobe state; "
+            "I haven't changed yet."
         )
 
     def _apply_exclusions(

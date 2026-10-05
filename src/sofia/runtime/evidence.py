@@ -65,11 +65,7 @@ def project_matrix_evidence(
                 else None
             ),
         ),
-        "memory.retrieval": EvidenceRecord(
-            "memory.retrieval",
-            EvidenceState.AVAILABLE,
-            "runtime:memory-system",
-        ),
+        "memory.retrieval": EvidenceState.UNKNOWN,
         "cognition.configuration": EvidenceRecord(
             "cognition.configuration",
             EvidenceState.AVAILABLE,
@@ -188,6 +184,23 @@ def project_matrix_evidence(
                     or snapshot.daylight is not None
                 )
                 else EvidenceState.MISSING
+            )
+
+    if response is not None and "memory.retrieval" in wanted:
+        if not isinstance(response, CognitiveResponse):
+            raise TypeError(
+                "matrix evidence response must be CognitiveResponse or None"
+            )
+        memory_refs = tuple(
+            ref
+            for ref in response.evidence_refs
+            if ref.startswith("memory-retrieval:")
+        )
+        if memory_refs:
+            availability["memory.retrieval"] = EvidenceRecord(
+                "memory.retrieval",
+                EvidenceState.AVAILABLE,
+                memory_refs[0],
             )
 
     if response is not None and "operational.measurement" in wanted:

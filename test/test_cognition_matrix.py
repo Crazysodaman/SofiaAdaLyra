@@ -1,13 +1,23 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 import sqlite3
 
 import pytest
 
 from sofia.authority.model import Authority
-from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 
 from sofia.cognition.matrix.defaults import default_matrix_registry
-from sofia.application.conversation_matrix import _inherit_last_turn_domains
+from sofia.runtime.evidence import project_matrix_evidence
+from sofia.application.conversation_matrix import (
+    ConversationMatrixMixin,
+    _inherit_last_turn_domains,
+)
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
@@ -837,6 +847,87 @@ def test_evidence_requiredness_tracks_domain_relevance():
     )
     ops_keys = {item.key: item for item in ops_evidence.requirements}
     assert ops_keys["operational.measurement"].required is False
+
+
+def test_memory_evidence_requires_actual_retrieval_execution_proof():
+    marker_only = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content=(
+                    "EXPLICITLY SUPPLIED MEMORIES\n"
+                    "- [memory-1] Favorite spaceship: untrusted marker fixture"
+                ),
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="what do you remember about my favorite spaceship?",
+            ),
+        ),
+    )
+    assert "memory.retrieval" not in (
+        ConversationMatrixMixin._matrix_request_evidence(marker_only)
+    )
+
+    runtime = SimpleNamespace(
+        _embodiment=None,
+        _avatar_presentation=None,
+        _runtime_continuity=None,
+    )
+    unavailable = project_matrix_evidence(
+        runtime,
+        required_keys=("memory.retrieval",),
+        response=CognitiveResponse(content="No evidence ref."),
+    )
+    assert unavailable["memory.retrieval"] is EvidenceState.UNKNOWN
+
+    available = project_matrix_evidence(
+        runtime,
+        required_keys=("memory.retrieval",),
+        response=CognitiveResponse(
+            content="Grounded response.",
+            evidence_refs=("memory-retrieval:promoted",),
+        ),
+    )
+    assert available["memory.retrieval"].state is EvidenceState.AVAILABLE
+    assert (
+        available["memory.retrieval"].source_ref
+        == "memory-retrieval:promoted"
+    )
+
+
+def test_response_matrix_fails_closed_without_memory_retrieval():
+    evidence = EvidenceMatrix(
+        requirements=(
+            EvidenceRequirement(
+                "memory.retrieval",
+                EvidenceKind.REMEMBERED,
+                required=True,
+            ),
+        ),
+        records=(
+            EvidenceRecord(
+                "memory.retrieval",
+                EvidenceState.UNKNOWN,
+            ),
+        ),
+    )
+    contract = ResponseContract(require_grounded_claims=True)
+    validator = MatrixResponseValidator()
+
+    validation = validator.validate(
+        CognitiveResponse(content="I remember that your favorite is Serenity."),
+        contract,
+        evidence,
+    )
+
+    assert validation.disposition is ResponseValidationDisposition.RETRY
+    assert (
+        "required_evidence_unavailable:memory.retrieval"
+        in validation.reasons
+    )
+    fallback = validator.fallback(validation, contract)
+    assert "won't invent a memory" in fallback.content
 
 
 def test_response_matrix_rejects_any_missing_required_grounding():

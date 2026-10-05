@@ -287,6 +287,13 @@ class MatrixResponseValidator:
                     "that speech output is working."
                 )
             )
+        if "required_evidence_unavailable:memory.retrieval" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I don't have retrieved memory evidence supporting an "
+                    "answer to that, so I won't invent a memory."
+                )
+            )
         if any(
             reason.startswith("required_evidence_unavailable:")
             for reason in reasons

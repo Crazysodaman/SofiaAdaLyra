@@ -41,6 +41,10 @@ from .reconciliation_journal import FleetReconciliationJournal
 from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from .workload_store import WorkloadInstanceStore
 from .migration import WorkloadMigrationExecutor, MigrationJournal
+from .migration_grants import (
+    migration_remote_grant_specs,
+    temporary_migration_remote_grants,
+)
 from .workload_backend import (
     TypedWorkloadBackend,
     WorkloadExecutionCatalog,
@@ -83,10 +87,14 @@ class OpsToolService:
         self.network_discovery_source=network_discovery_source
         self.execution_approvals=ExecutionApprovalVerifier(self.state_path)
         self.migration_executor=None
+        self._workload_catalog=None
+        self._local_host_id=""
         catalog_file=os.environ.get("SOFIA_WORKLOAD_CATALOG_FILE","").strip()
         if catalog_file:
             catalog=WorkloadExecutionCatalog.from_file(Path(catalog_file))
             local_host_id=os.environ.get("SOFIA_LOCAL_HOST_ID","").strip()
+            self._workload_catalog=catalog
+            self._local_host_id=local_host_id
             local_dispatcher=create_default_agent_dispatcher()
             remote_service=create_configured_remote_fleet_service(self.state_path)
 
@@ -563,6 +571,18 @@ class OpsToolService:
             reason=dict(decision.rejected).get(plan.target_host_id,"not eligible")
             raise PermissionError(f"migration target is not eligible: {reason}")
 
+        if self._workload_catalog is None:
+            raise RuntimeError("workload execution catalog is unavailable")
+        grant_specs=migration_remote_grant_specs(
+            catalog=self._workload_catalog,
+            plan=plan,
+            host_node_ids={
+                plan.source_host_id:source.node_id,
+                plan.target_host_id:target.node_id,
+            },
+            local_host_id=self._local_host_id,
+        )
+
         now=datetime.now(timezone.utc)
         exact={
             "migration_id":plan.migration_id,
@@ -581,7 +601,13 @@ class OpsToolService:
         )
         if approval.approved_by!="Sparks":
             raise PermissionError("migration execution approval must come from Sparks")
-        result=self.migration_executor.execute(plan)
+        with temporary_migration_remote_grants(
+            state_path=self.state_path,
+            specs=grant_specs,
+            approved_by=approval.approved_by,
+            now=now,
+        ):
+            result=self.migration_executor.execute(plan)
         return {
             "migration_id":result.migration_id,
             "stage":result.stage.value,

@@ -191,18 +191,13 @@ class SQLiteReplicationWitness:
                 return lease
 
             current = self._lease(row)
-            if current.owner_id != owner and moment < current.expires_at:
+            if moment < current.expires_at:
                 raise WriterLeaseHeldError(
                     f"writer lease held by {current.owner_id} epoch {current.epoch}"
                 )
 
-            epoch = (
-                current.epoch
-                if current.owner_id == owner and moment < current.expires_at
-                else current.epoch + 1
-            )
-            acquired = current.acquired_at if epoch == current.epoch else moment
-            lease = WriterLease(owner, epoch, acquired, moment, expires)
+            epoch = current.epoch + 1
+            lease = WriterLease(owner, epoch, moment, moment, expires)
             db.execute(
                 "UPDATE replication_writer SET owner_id=?, epoch=?, acquired_at=?, "
                 "renewed_at=?, expires_at=? WHERE scope='state-plane'",
@@ -240,6 +235,10 @@ class SQLiteReplicationWitness:
                 raise StaleWriterError(
                     f"writer fenced by {current.owner_id} epoch {current.epoch}"
                 )
+            if moment >= current.expires_at:
+                raise StaleWriterError(
+                    "writer lease expired; reacquire a new writer epoch"
+                )
             renewed = WriterLease(
                 current.owner_id,
                 current.epoch,
@@ -266,6 +265,52 @@ class SQLiteReplicationWitness:
                 "FROM replication_writer WHERE scope='state-plane'"
             ).fetchone()
         return None if row is None else self._lease(row)
+
+    @classmethod
+    def _assert_writer_row(
+        cls,
+        row: sqlite3.Row | None,
+        lease: WriterLease,
+        *,
+        now: datetime,
+        action: str,
+    ) -> WriterLease:
+        if not isinstance(lease, WriterLease):
+            raise TypeError("lease must be WriterLease")
+        moment = _utc(now)
+        if row is None:
+            raise StaleWriterError(f"writer lease missing before {action}")
+        current = cls._lease(row)
+        if current.owner_id != lease.owner_id or current.epoch != lease.epoch:
+            raise StaleWriterError(
+                f"writer fenced by {current.owner_id} epoch {current.epoch} "
+                f"before {action}"
+            )
+        if moment >= current.expires_at:
+            raise StaleWriterError(
+                f"writer lease expired before {action}; reacquire a new epoch"
+            )
+        return current
+
+    def assert_writer_active(
+        self,
+        lease: WriterLease,
+        *,
+        now: datetime,
+        action: str = "operation",
+    ) -> WriterLease:
+        moment = _utc(now)
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT owner_id, epoch, acquired_at, renewed_at, expires_at "
+                "FROM replication_writer WHERE scope='state-plane'"
+            ).fetchone()
+        return self._assert_writer_row(
+            row,
+            lease,
+            now=moment,
+            action=action,
+        )
 
     def register_targets(
         self,
@@ -379,15 +424,18 @@ class SQLiteReplicationWitness:
         if not isinstance(key, StateKey):
             raise TypeError("key must be StateKey")
         moment = _utc(now)
-        current = self.current_writer()
-        if (
-            current is None
-            or current.owner_id != lease.owner_id
-            or current.epoch != lease.epoch
-        ):
-            raise StaleWriterError("writer lease was fenced before prepare")
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            writer_row = db.execute(
+                "SELECT owner_id, epoch, acquired_at, renewed_at, expires_at "
+                "FROM replication_writer WHERE scope='state-plane'"
+            ).fetchone()
+            self._assert_writer_row(
+                writer_row,
+                lease,
+                now=moment,
+                action="prepare",
+            )
             pending = db.execute(
                 "SELECT sequence FROM replication_operation "
                 "WHERE committed_at IS NULL ORDER BY sequence LIMIT 1"
@@ -443,6 +491,7 @@ class SQLiteReplicationWitness:
         sequence: int,
         target_id: str,
         *,
+        lease: WriterLease,
         ok: bool,
         now: datetime,
         detail: str = "",
@@ -450,6 +499,17 @@ class SQLiteReplicationWitness:
         target = _identifier(target_id, "target_id")
         moment = _utc(now)
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            writer_row = db.execute(
+                "SELECT owner_id, epoch, acquired_at, renewed_at, expires_at "
+                "FROM replication_writer WHERE scope='state-plane'"
+            ).fetchone()
+            self._assert_writer_row(
+                writer_row,
+                lease,
+                now=moment,
+                action=f"ack sequence {sequence}",
+            )
             db.execute(
                 """
                 INSERT INTO replication_ack(sequence,target_id,status,acked_at,detail)
@@ -481,13 +541,30 @@ class SQLiteReplicationWitness:
         self,
         sequence: int,
         *,
+        lease: WriterLease,
         target_ids: tuple[str, ...],
         now: datetime,
     ) -> bool:
-        if set(self.successful_targets(sequence)) != set(target_ids):
-            return False
         moment = _utc(now)
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            writer_row = db.execute(
+                "SELECT owner_id, epoch, acquired_at, renewed_at, expires_at "
+                "FROM replication_writer WHERE scope='state-plane'"
+            ).fetchone()
+            self._assert_writer_row(
+                writer_row,
+                lease,
+                now=moment,
+                action=f"commit sequence {sequence}",
+            )
+            rows = db.execute(
+                "SELECT target_id FROM replication_ack "
+                "WHERE sequence=? AND status='ok'",
+                (sequence,),
+            ).fetchall()
+            if {str(row["target_id"]) for row in rows} != set(target_ids):
+                return False
             db.execute(
                 "UPDATE replication_operation SET committed_at=? "
                 "WHERE sequence=? AND committed_at IS NULL",
@@ -504,15 +581,18 @@ class SQLiteReplicationWitness:
     ) -> None:
         target = _identifier(target_id, "target_id")
         moment = _utc(now)
-        current = self.current_writer()
-        if (
-            current is None
-            or current.owner_id != lease.owner_id
-            or current.epoch != lease.epoch
-        ):
-            raise StaleWriterError("writer lease was fenced before promotion")
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            writer_row = db.execute(
+                "SELECT owner_id, epoch, acquired_at, renewed_at, expires_at "
+                "FROM replication_writer WHERE scope='state-plane'"
+            ).fetchone()
+            self._assert_writer_row(
+                writer_row,
+                lease,
+                now=moment,
+                action="promotion",
+            )
             pending = db.execute(
                 "SELECT 1 FROM replication_operation WHERE committed_at IS NULL LIMIT 1"
             ).fetchone()
@@ -720,6 +800,11 @@ class ReplicatedStatePlane(StatePlane):
         for target_id in self._target_ids:
             if target_id in successful:
                 continue
+            self._witness.assert_writer_active(
+                self._lease,
+                now=datetime.now(timezone.utc),
+                action=f"replicate to {target_id}",
+            )
             try:
                 self._apply(
                     self._targets[target_id],
@@ -732,6 +817,7 @@ class ReplicatedStatePlane(StatePlane):
                 self._witness.ack(
                     sequence,
                     target_id,
+                    lease=self._lease,
                     ok=False,
                     now=datetime.now(timezone.utc),
                     detail=f"{type(exc).__name__}: {exc}",
@@ -741,11 +827,13 @@ class ReplicatedStatePlane(StatePlane):
                 self._witness.ack(
                     sequence,
                     target_id,
+                    lease=self._lease,
                     ok=True,
                     now=datetime.now(timezone.utc),
                 )
         if not self._witness.commit_if_complete(
             sequence,
+            lease=self._lease,
             target_ids=self._target_ids,
             now=datetime.now(timezone.utc),
         ):

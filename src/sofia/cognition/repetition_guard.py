@@ -36,6 +36,14 @@ _SHORT_SOCIAL_CUE = re.compile(
     r"^\s*(?:\*?\s*)?(?:waves?|wave)(?:\s+at\s+(?:you|u))?(?:\s*\*?)?\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_EXPRESSION_FOLLOWUP_USER = re.compile(
+    r"^\s*(?:so\s+)?(?:no\s+)?(?:"
+    r"tail\s+(?:wag(?:s|ging)?|swish(?:es|ing)?|flick(?:s|ing)?|movement)|"
+    r"ears?\s+(?:twitch(?:es|ing)?|perk(?:s|ing)?|flick(?:s|ing)?)|"
+    r"smile|grin|blush|gesture|expression"
+    r")(?:\s+or\s+anything)?\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
 _FUTURE_RECIPROCAL_WAVE = re.compile(
     r"\b(?:i(?:'|’)ll|i\s+will|let\s+me)\b.{0,40}\b(?:wave|give\s+you\b.{0,20}\bwave)\b",
     re.IGNORECASE | re.DOTALL,
@@ -183,6 +191,13 @@ _TECHNICAL_EXPRESSION_QUERY = re.compile(
     r"\b(?:code|semantic|gesture\s+id|expression\s+id|planner|matrix|"
     r"animation|renderer|godot|implementation)\b",
     re.IGNORECASE,
+)
+_EXPRESSION_PLANNING_META = re.compile(
+    r"\b(?:when\s+the\s+user\s+asks|if\s+the\s+user\s+wants|"
+    r"in\s+conversation\s*,?\s+i(?:'|’)ll|"
+    r"i(?:'|’)ll\s+(?:use\s+the\s+canonical|mention|bring\s+up)|"
+    r"part\s+of\s+her\s+representational\s+embodiment)\b",
+    re.IGNORECASE | re.DOTALL,
 )
 _EXPRESSION_STYLE_META_LEAK = re.compile(
     r"\b(?:i(?:'|’)m\s+(?:aiming|gearing\s+up)\s+to\s+"
@@ -497,11 +512,10 @@ def response_quality_issue(
         or _SHORT_SOCIAL_CUE.fullmatch(user.strip()) is not None
         or _PERCEIVED_SELF_STATE_USER.search(user) is not None
         or _ENVIRONMENT_EFFECT_USER.search(user) is not None
+        or _EXPRESSION_FOLLOWUP_USER.fullmatch(user.strip()) is not None
     )
     if concise_turn and len(_normalized(content).split()) > 90:
         return "overlong_simple_social_turn"
-    if _EMOTION_SELF_REPORT.search(user) and _repeats_previous_short_self_report(request, response):
-        return "repeated_emotion_self_report"
     if (
         _EMOTION_SELF_REPORT.search(user)
         and _repeats_previous_short_self_report(request, response)
@@ -581,7 +595,13 @@ def response_quality_issue(
     if (
         "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in system_context
         and _TECHNICAL_EXPRESSION_QUERY.search(user) is None
-        and _EXPRESSION_STYLE_META_LEAK.search(content)
+        and (
+            _EXPRESSION_STYLE_META_LEAK.search(content)
+            or (
+                _EXPRESSION_FOLLOWUP_USER.fullmatch(user.strip()) is not None
+                and _EXPRESSION_PLANNING_META.search(content)
+            )
+        )
     ):
         return "expression_style_meta_leak"
     if (

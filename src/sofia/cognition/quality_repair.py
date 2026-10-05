@@ -216,6 +216,11 @@ def grounded_quality_fallback(
         ))
 
     if issue == "expression_style_meta_leak":
+        if re.search(r"\btail\b", user, re.IGNORECASE):
+            return CognitiveResponse(content=(
+                "*My tail gives a small swish.* Yeah. The current feeling can "
+                "show in my represented body language too."
+            ))
         labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
         if labels:
             feeling = labels[0].replace("-", " ")
