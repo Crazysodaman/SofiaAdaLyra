@@ -86,7 +86,7 @@ class SettingsSections:
             max_daily=int(os.environ.get("SOFIA_ACT_MAX_DAILY", "1")),
         )
         self.group(frames["ACT"], "outreach", "Proactive outreach to Sparks", outreach)
-        ttk.Label(frames["ACT"], text="Outreach is enabled by default. Desktop delivery uses Sofía’s tray and needs no external service. Discord uses only the verified Sparks DM; Home Assistant remains available when its URL, protected token, and notification service are configured. Quiet hours, recipient checks, evidence, quotas, busy state and operator stop still apply.", wraplength=660).pack(anchor="w", pady=8)
+        ttk.Label(frames["ACT"], text="Outreach is enabled by default. Desktop delivery uses Sofía’s tray. Mobile delivers to the authenticated paired Android app. Discord uses only the verified Sparks DM; Home Assistant remains available when configured. Quiet hours, recipient checks, evidence, quotas, busy state and operator stop still apply.", wraplength=660).pack(anchor="w", pady=8)
         self.group(frames["Fleet"], "fleet_cognition", "Cognitive placement", runtime.fleet_cognition or config.fleet_cognition)
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)
         ttk.Label(frames["Fleet"], text="Host IDs, targets and scopes are comma-separated. Discovery does not enroll hosts; provisioning requires the existing reviewed authority, package digest and signer.", wraplength=660).pack(anchor="w", pady=8)
@@ -126,7 +126,7 @@ class SettingsSections:
                 variable = tk.StringVar(self.root, value=", ".join(default) if isinstance(default, tuple) else "" if default is None else str(default))
                 ttk.Label(frame, text=label).pack(anchor="w", pady=(6, 2))
                 if key == "outreach" and field.name == "delivery_channel":
-                    ttk.Combobox(frame, textvariable=variable, values=("desktop", "discord", "home_assistant"), state="readonly").pack(fill="x")
+                    ttk.Combobox(frame, textvariable=variable, values=("desktop", "mobile", "discord", "home_assistant"), state="readonly").pack(fill="x")
                 elif key == "outreach" and field.name in {"quiet_start_local", "quiet_end_local"}:
                     ttk.Combobox(frame, textvariable=variable, values=tuple(str(hour) for hour in range(24)), state="readonly").pack(fill="x")
                 elif field.name == "authority":

@@ -10,6 +10,7 @@ import sys
 from sofia.config.user_settings import RuntimeUserSettings, RuntimeUserSettingsStore
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.safe.secret_store import ProtectedSecretStore
+from sofia.mobile.provisioning import mobile_companion_ready
 from .control_center import DesktopControlSettings, DesktopControlSettingsStore, GameMode
 from .windows_startup import configure_windows_startup
 
@@ -57,6 +58,10 @@ def save_settings(
         and runtime.outreach is not None
         and (
             runtime.outreach.delivery_channel == "desktop"
+            or (
+                runtime.outreach.delivery_channel == "mobile"
+                and mobile_companion_ready(path)
+            )
             or (
                 runtime.outreach.delivery_channel == "discord"
                 and runtime.discord_enabled
@@ -108,7 +113,9 @@ def save_settings(
     elif desktop.start_with_windows != previous.start_with_windows and desktop.start_with_windows:
         warning = " Windows startup registration is available on Windows."
     if outreach_enabled and not outreach_ready:
-        if runtime.outreach is not None and runtime.outreach.delivery_channel == "discord":
+        if runtime.outreach is not None and runtime.outreach.delivery_channel == "mobile":
+            warning += " Proactive mobile outreach requires the authenticated mobile endpoint and pairing token."
+        elif runtime.outreach is not None and runtime.outreach.delivery_channel == "discord":
             warning += " Proactive Discord outreach requires enabled Discord, its protected token, and a verified owner DM channel. Choose desktop delivery to use the tray immediately."
         else:
             warning += " Proactive outreach is enabled but its selected Home Assistant delivery requires a URL, protected token, and notification service. Choose desktop delivery to use the tray without Home Assistant."

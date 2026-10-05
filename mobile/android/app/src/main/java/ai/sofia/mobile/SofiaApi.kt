@@ -4,6 +4,13 @@ import org.json.JSONObject
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
+data class ProactiveNotification(
+    val id: String,
+    val title: String,
+    val content: String,
+    val preview: String,
+)
+
 class SofiaApi(private val settings: SecureSettings) {
     private fun post(path: String, payload: JSONObject): JSONObject {
         val config = settings.load()
@@ -42,4 +49,23 @@ class SofiaApi(private val settings: SecureSettings) {
     }
 
     fun sensors(payload: JSONObject): JSONObject = post("/v1/mobile/sensors", payload)
+
+    fun claimNotification(): ProactiveNotification? {
+        val config = settings.load()
+        val result = post("/v1/mobile/notifications/claim", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("private_mode", config.privateMode))
+        val notification = result.optJSONObject("notification") ?: return null
+        return ProactiveNotification(
+            id = notification.getString("id"),
+            title = notification.getString("title"),
+            content = notification.getString("content"),
+            preview = notification.getString("preview"),
+        )
+    }
+
+    fun acknowledgeNotification(notificationId: String): JSONObject =
+        post("/v1/mobile/notifications/ack", JSONObject()
+            .put("device_id", settings.deviceId)
+            .put("notification_id", notificationId))
 }

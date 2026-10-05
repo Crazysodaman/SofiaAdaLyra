@@ -146,6 +146,55 @@ def test_sensor_ingestion_invalidates_live_environment(tmp_path):
     )
 
 
+def test_proactive_notification_preview_requires_external_authority(tmp_path):
+    _, gateway = _gateway(tmp_path)
+    gateway.notifications.enqueue(
+        notification_id="act:private-idea",
+        title="Sofía",
+        content="A private thought for Sparks.",
+        created_at=datetime.now(timezone.utc),
+    )
+
+    claimed = gateway.claim_notification(
+        device_id="android-owner",
+        private_mode=True,
+    )["notification"]
+    assert claimed["content"] == "A private thought for Sparks."
+    assert claimed["preview"] != claimed["content"]
+    assert claimed["full_preview_authorized"] is False
+    assert gateway.acknowledge_notification(
+        device_id="android-owner",
+        notification_id=claimed["id"],
+    ) == {"acknowledged": True}
+
+    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+        private_chat=True,
+        adult_chat=True,
+        adult_avatar=True,
+        adult_external_delivery=True,
+    )
+    gateway.notifications.enqueue(
+        notification_id="act:private-idea-2",
+        title="Sofía",
+        content="Another private thought.",
+        created_at=datetime.now(timezone.utc),
+    )
+    blocked = gateway.claim_notification(
+        device_id="android-owner",
+        private_mode=False,
+    )
+    assert blocked == {
+        "notification": None,
+        "blocked_reason": "private_mode_required",
+    }
+    allowed = gateway.claim_notification(
+        device_id="android-owner",
+        private_mode=True,
+    )["notification"]
+    assert allowed["preview"] == allowed["content"]
+    assert allowed["full_preview_authorized"] is True
+
+
 def test_http_server_requires_bearer_token_and_serves_private_state(tmp_path):
     _, gateway = _gateway(tmp_path)
     token = "t" * 40

@@ -8,11 +8,14 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class CompanionSettings(
     val baseUrl: String,
     val token: String,
     val privateMode: Boolean,
+    val proactiveNotifications: Boolean,
     val shareSensors: Boolean,
     val shareLocation: Boolean,
     val shareActivity: Boolean,
@@ -26,6 +29,9 @@ class SecureSettings(private val context: Context) {
     val deviceId: String = "android-" + Settings.Secure.getString(
         context.contentResolver, Settings.Secure.ANDROID_ID
     )
+
+    fun ready(value: CompanionSettings = load()): Boolean =
+        value.baseUrl.startsWith("https://") && value.token.length >= 32
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -68,6 +74,7 @@ class SecureSettings(private val context: Context) {
         baseUrl = prefs.getString("base_url", "") ?: "",
         token = decrypt(prefs.getString("token", "") ?: ""),
         privateMode = prefs.getBoolean("private_mode", false),
+        proactiveNotifications = prefs.getBoolean("proactive_notifications", true),
         shareSensors = prefs.getBoolean("share_sensors", false),
         shareLocation = prefs.getBoolean("share_location", false),
         shareActivity = prefs.getBoolean("share_activity", true),
@@ -82,10 +89,41 @@ class SecureSettings(private val context: Context) {
             .putString("base_url", value.baseUrl.trimEnd('/'))
             .putString("token", encrypt(value.token))
             .putBoolean("private_mode", value.privateMode)
+            .putBoolean("proactive_notifications", value.proactiveNotifications)
             .putBoolean("share_sensors", value.shareSensors)
             .putBoolean("share_location", value.shareLocation)
             .putBoolean("share_activity", value.shareActivity)
             .putBoolean("share_ambient", value.shareAmbient)
             .apply()
+    }
+
+    fun storeIncoming(notificationId: String, content: String) {
+        require(notificationId.isNotBlank() && content.isNotBlank())
+        val existing = decrypt(prefs.getString("incoming_messages", "") ?: "")
+        val current = runCatching { JSONArray(existing) }.getOrElse { JSONArray() }
+        if ((0 until current.length()).any {
+                current.optJSONObject(it)?.optString("id") == notificationId
+            }
+        ) return
+        val retained = JSONArray()
+        for (index in maxOf(0, current.length() - 48) until current.length()) {
+            retained.put(current.get(index))
+        }
+        retained.put(JSONObject().put("id", notificationId).put("content", content))
+        prefs.edit()
+            .putString("incoming_messages", encrypt(retained.toString()))
+            .apply()
+    }
+
+    fun consumeIncoming(): List<String> {
+        val encrypted = prefs.getString("incoming_messages", "") ?: ""
+        if (encrypted.isBlank()) return emptyList()
+        val values = runCatching { JSONArray(decrypt(encrypted)) }
+            .getOrElse { JSONArray() }
+        val content = (0 until values.length()).mapNotNull {
+            values.optJSONObject(it)?.optString("content")?.takeIf(String::isNotBlank)
+        }
+        prefs.edit().remove("incoming_messages").apply()
+        return content
     }
 }

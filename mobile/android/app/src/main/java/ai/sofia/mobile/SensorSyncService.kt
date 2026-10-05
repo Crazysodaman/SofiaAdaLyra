@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -21,6 +22,7 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,29 +50,36 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
         settings = SecureSettings(this)
         sensors = getSystemService(SENSOR_SERVICE) as SensorManager
         createNotificationChannel()
-        val launch = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        startForeground(
-            41,
-            NotificationCompat.Builder(this, "sofia-sensors")
-                .setSmallIcon(android.R.drawable.ic_menu_compass)
-                .setContentTitle("Sofía mobile sensors")
-                .setContentText("Sharing selected read-only context")
-                .setContentIntent(launch)
-                .setOngoing(true)
-                .build(),
-        )
-        applyConfiguration(settings.load())
+        val initial = settings.load()
+        startCompanionForeground(initial)
+        applyConfiguration(initial)
         scope.launch {
             while (isActive) {
                 val config = settings.load()
-                if (!config.shareSensors) {
+                if (!config.shareSensors && !config.proactiveNotifications) {
                     stopSelf()
                     break
                 }
-                runCatching { SofiaApi(settings).sensors(snapshot(config)) }
+                if (settings.ready(config)) {
+                    val api = SofiaApi(settings)
+                    if (config.shareSensors) {
+                        runCatching { api.sensors(snapshot(config)) }
+                    }
+                    if (config.proactiveNotifications && notificationsAllowed()) {
+                        var delivered = 0
+                        while (delivered < 5) {
+                            val notification = runCatching {
+                                api.claimNotification()
+                            }.getOrNull() ?: break
+                            if (display(notification)) {
+                                runCatching { api.acknowledgeNotification(notification.id) }
+                                delivered += 1
+                            } else {
+                                break
+                            }
+                        }
+                    }
+                }
                 delay(60_000)
             }
         }
@@ -78,10 +87,11 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val config = settings.load()
-        if (!config.shareSensors) {
+        if (!config.shareSensors && !config.proactiveNotifications) {
             stopSelf()
             return START_NOT_STICKY
         }
+        startCompanionForeground(config)
         applyConfiguration(config)
         return START_STICKY
     }
@@ -89,20 +99,86 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
     private fun createNotificationChannel() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(NotificationChannel(
-            "sofia-sensors", "Sofía sensor sharing", NotificationManager.IMPORTANCE_LOW,
+            "sofia-companion", "Sofía mobile connection", NotificationManager.IMPORTANCE_LOW,
         ))
+        manager.createNotificationChannel(NotificationChannel(
+            "sofia-outreach", "Sofía proactive messages", NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+            description = "Governed proactive messages from Sofía"
+        })
+    }
+
+    private fun notificationsAllowed(): Boolean =
+        android.os.Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+
+    private fun display(notification: ProactiveNotification): Boolean {
+        settings.storeIncoming(notification.id, notification.content)
+        val launch = PendingIntent.getActivity(
+            this,
+            notification.id.hashCode(),
+            Intent(this, MainActivity::class.java).apply {
+                action = "ai.sofia.mobile.OPEN_PROACTIVE"
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val rendered = NotificationCompat.Builder(this, "sofia-outreach")
+            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setContentTitle(notification.title)
+            .setContentText(notification.preview)
+            .setContentIntent(launch)
+            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .build()
+        return runCatching {
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            manager.notify(notification.id.hashCode() and Int.MAX_VALUE, rendered)
+        }.isSuccess
+    }
+
+    private fun startCompanionForeground(config: CompanionSettings) {
+        val launch = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = NotificationCompat.Builder(this, "sofia-companion")
+            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setContentTitle("Sofía mobile companion")
+            .setContentText(
+                if (config.shareSensors) "Connected with selected sensor context"
+                else "Listening for proactive messages"
+            )
+            .setContentIntent(launch)
+            .setOngoing(true)
+            .build()
+        val type = if (
+            android.os.Build.VERSION.SDK_INT >= 29 && config.shareLocation
+        ) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        } else if (android.os.Build.VERSION.SDK_INT >= 29) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(this, 41, notification, type)
     }
 
     private fun applyConfiguration(config: CompanionSettings) {
         sensors.unregisterListener(this)
         values.clear()
         val types = buildList {
-            if (config.shareAmbient) {
+            if (config.shareSensors && config.shareAmbient) {
                 add(Sensor.TYPE_LIGHT)
                 add(Sensor.TYPE_PRESSURE)
                 add(Sensor.TYPE_PROXIMITY)
             }
-            if (config.shareActivity) {
+            if (config.shareSensors && config.shareActivity) {
                 add(Sensor.TYPE_STEP_COUNTER)
                 add(Sensor.TYPE_LINEAR_ACCELERATION)
             }
@@ -112,7 +188,7 @@ class SensorSyncService : Service(), SensorEventListener, LocationListener {
                 sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
-        configureLocation(config.shareLocation)
+        configureLocation(config.shareSensors && config.shareLocation)
     }
 
     private fun configureLocation(enabled: Boolean) {
