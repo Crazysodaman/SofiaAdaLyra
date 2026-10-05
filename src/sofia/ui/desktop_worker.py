@@ -6,7 +6,7 @@ thread for the lifetime of the desktop session.
 """
 from __future__ import annotations
 
-from queue import Queue
+from queue import Empty, Queue
 from threading import Thread
 
 from sofia.config import SofiaConfiguration
@@ -19,6 +19,38 @@ from sofia.discord.provisioning import DiscordProvisioning
 from sofia.ui.desktop_controller import DesktopWorkbenchController
 from sofia.ui.desktop_application import create_desktop_application
 from sofia.ui.theme import canonical_theme
+from sofia.mobile.gateway import MobileCompanionGateway
+from sofia.mobile.provisioning import MobileProvisioning
+from sofia.mobile.server import MobileCompanionServer
+
+
+class _WorkerMobileGateway:
+    """Synchronously marshal HTTP requests onto the application owner thread."""
+
+    def __init__(self, commands: Queue[tuple[str, object]]) -> None:
+        self._commands = commands
+
+    def _call(self, method: str, *args, **kwargs):
+        reply: Queue[tuple[bool, object]] = Queue(maxsize=1)
+        self._commands.put(("mobile", (method, args, kwargs, reply)))
+        try:
+            ok, value = reply.get(timeout=130)
+        except Empty as exc:
+            raise TimeoutError("mobile application request timed out") from exc
+        if ok:
+            return value
+        if isinstance(value, BaseException):
+            raise value
+        raise RuntimeError("mobile application request failed without an exception")
+
+    def ingest_sensors(self, payload):
+        return self._call("ingest_sensors", payload)
+
+    def chat(self, **kwargs):
+        return self._call("chat", **kwargs)
+
+    def state(self, **kwargs):
+        return self._call("state", **kwargs)
 
 
 class DesktopApplicationWorker:
@@ -97,6 +129,8 @@ class DesktopApplicationWorker:
     def _run(self) -> None:
         controller = None
         discord_service: DiscordBackgroundService | None = None
+        mobile_server: MobileCompanionServer | None = None
+        mobile_gateway: MobileCompanionGateway | None = None
         try:
             provisioning = (
                 self._discord_provisioning
@@ -114,6 +148,19 @@ class DesktopApplicationWorker:
             history = controller.start(
                 session_id=self._session_id
             )
+
+            mobile = MobileProvisioning.from_runtime(self._configuration)
+            if mobile.enabled:
+                mobile_gateway = MobileCompanionGateway(
+                    application,
+                    state_path=self._configuration.state_path,
+                )
+                mobile_server = MobileCompanionServer(
+                    _WorkerMobileGateway(self._commands),
+                    token=mobile.require_token(),
+                    configuration=mobile.server,
+                )
+                mobile_server.start()
 
             if provisioning.enabled:
                 if getattr(application, "runtime", None) is None:
@@ -167,7 +214,14 @@ class DesktopApplicationWorker:
                 self._events.put(("discord_started", None))
             else:
                 self._events.put(("discord_disabled", None))
+            if mobile_server is not None:
+                self._events.put(("mobile_started", mobile_server.address))
         except Exception as exc:
+            if mobile_server is not None:
+                try:
+                    mobile_server.close()
+                except Exception:
+                    pass
             if discord_service is not None:
                 try:
                     discord_service.stop()
@@ -183,6 +237,18 @@ class DesktopApplicationWorker:
 
         while True:
             kind, payload = self._commands.get()
+
+            if kind == "mobile":
+                method, args, kwargs, reply = payload
+                try:
+                    if mobile_gateway is None:
+                        raise RuntimeError("mobile companion is not running")
+                    value = getattr(mobile_gateway, method)(*args, **kwargs)
+                except Exception as exc:
+                    reply.put((False, exc))
+                else:
+                    reply.put((True, value))
+                continue
 
             if kind == "save_draft":
                 try:
@@ -223,6 +289,11 @@ class DesktopApplicationWorker:
 
             if kind == "shutdown":
                 shutdown_error = None
+                if mobile_server is not None:
+                    try:
+                        mobile_server.close()
+                    except Exception as exc:
+                        shutdown_error = exc
                 if discord_service is not None:
                     try:
                         discord_service.stop()

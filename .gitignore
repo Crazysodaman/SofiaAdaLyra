@@ -23,6 +23,9 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+.gradle/
+.kotlin/
+local.properties
 
 # OS
 .DS_Store

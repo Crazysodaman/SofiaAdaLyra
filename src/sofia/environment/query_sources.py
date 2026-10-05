@@ -86,6 +86,16 @@ def environment_sources(snapshot: EnvironmentSnapshot) -> str:
             f"({snapshot.indoor_freshness.value})."
         )
 
+    mobile = snapshot.mobile
+    if mobile is None:
+        sources.append("- Authenticated mobile sensors: unavailable.")
+    else:
+        sources.append(
+            "- Authenticated mobile sensors: "
+            f"{mobile.source_id} ({snapshot.mobile_freshness.value}); "
+            "read-only bounded context, not action or consent authority."
+        )
+
     if snapshot.provider_errors:
         sources.append(
             "- Provider status: degraded evidence is present; "

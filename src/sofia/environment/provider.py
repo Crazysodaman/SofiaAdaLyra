@@ -10,6 +10,7 @@ from .model import (
     LocationEvidenceKind,
     LocationObservation,
     WeatherObservation,
+    MobileDeviceObservation,
 )
 
 
@@ -18,6 +19,7 @@ class EnvironmentProviderObservation:
     weather: WeatherObservation | None = None
     indoor: IndoorEnvironmentObservation | None = None
     current_location: LocationObservation | None = None
+    mobile: MobileDeviceObservation | None = None
 
     def __post_init__(self) -> None:
         if self.weather is not None and not isinstance(
@@ -47,6 +49,10 @@ class EnvironmentProviderObservation:
             raise ValueError(
                 "provider current_location must be current evidence"
             )
+        if self.mobile is not None and not isinstance(
+            self.mobile, MobileDeviceObservation
+        ):
+            raise TypeError("mobile must be MobileDeviceObservation or None")
 
 
 @runtime_checkable

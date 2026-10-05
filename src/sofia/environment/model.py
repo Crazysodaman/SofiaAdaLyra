@@ -45,6 +45,23 @@ class EnvironmentFreshness(str, Enum):
     UNKNOWN = "unknown"
 
 
+class MobileActivityState(str, Enum):
+    UNKNOWN = "unknown"
+    STATIONARY = "stationary"
+    WALKING = "walking"
+    RUNNING = "running"
+    MOVING = "moving"
+    VEHICLE = "vehicle"
+
+
+class MobileNetworkTransport(str, Enum):
+    OFFLINE = "offline"
+    WIFI = "wifi"
+    CELLULAR = "cellular"
+    ETHERNET = "ethernet"
+    OTHER = "other"
+
+
 def _aware(value: datetime, label: str) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{label} must be timezone-aware")
@@ -281,6 +298,64 @@ class IndoorEnvironmentObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class MobileDeviceObservation:
+    """Bounded read-only context reported by an authenticated owner phone."""
+
+    observed_at: datetime
+    expires_at: datetime
+    source_id: str
+    timezone: str
+    battery_percent: float | None = None
+    charging: bool | None = None
+    network: MobileNetworkTransport = MobileNetworkTransport.OTHER
+    activity: MobileActivityState = MobileActivityState.UNKNOWN
+    ambient_light_lux: float | None = None
+    pressure_hpa: float | None = None
+    proximity_near: bool | None = None
+    step_counter: float | None = None
+
+    def __post_init__(self) -> None:
+        _aware(self.observed_at, "mobile observed_at")
+        _aware(self.expires_at, "mobile expires_at")
+        if self.expires_at < self.observed_at:
+            raise ValueError("mobile expires_at precedes observed_at")
+        object.__setattr__(
+            self, "source_id", _text(self.source_id, "mobile source", limit=128)
+        )
+        object.__setattr__(
+            self, "timezone", _text(self.timezone, "mobile timezone", limit=80)
+        )
+        if not isinstance(self.network, MobileNetworkTransport):
+            raise TypeError("mobile network must be MobileNetworkTransport")
+        if not isinstance(self.activity, MobileActivityState):
+            raise TypeError("mobile activity must be MobileActivityState")
+        for name in ("charging", "proximity_near"):
+            value = getattr(self, name)
+            if value is not None and type(value) is not bool:
+                raise TypeError(f"{name} must be bool or None")
+        bounds = {
+            "battery_percent": (0.0, 100.0),
+            "ambient_light_lux": (0.0, 250_000.0),
+            "pressure_hpa": (300.0, 1_200.0),
+            "step_counter": (0.0, 1_000_000_000.0),
+        }
+        for name, (minimum, maximum) in bounds.items():
+            value = _finite(getattr(self, name), name)
+            if value is not None:
+                if not minimum <= value <= maximum:
+                    raise ValueError(f"{name} outside supported bounds")
+                object.__setattr__(self, name, value)
+
+    def freshness(self, *, now: datetime) -> EnvironmentFreshness:
+        _aware(now, "mobile freshness time")
+        if self.observed_at > now + timedelta(minutes=5):
+            return EnvironmentFreshness.FUTURE
+        if now <= self.expires_at:
+            return EnvironmentFreshness.CURRENT
+        return EnvironmentFreshness.STALE
+
+
+@dataclass(frozen=True, slots=True)
 class DaylightObservation:
     state: DaylightState
     sunrise: datetime | None = None
@@ -315,6 +390,8 @@ class EnvironmentSnapshot:
     weather_freshness: EnvironmentFreshness = EnvironmentFreshness.UNKNOWN
     indoor: IndoorEnvironmentObservation | None = None
     indoor_freshness: EnvironmentFreshness = EnvironmentFreshness.UNKNOWN
+    mobile: MobileDeviceObservation | None = None
+    mobile_freshness: EnvironmentFreshness = EnvironmentFreshness.UNKNOWN
     provider_errors: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -372,10 +449,14 @@ class EnvironmentSnapshot:
             raise TypeError("weather must be WeatherObservation or None")
         if self.indoor is not None and not isinstance(self.indoor, IndoorEnvironmentObservation):
             raise TypeError("indoor must be IndoorEnvironmentObservation or None")
+        if self.mobile is not None and not isinstance(self.mobile, MobileDeviceObservation):
+            raise TypeError("mobile must be MobileDeviceObservation or None")
         if not isinstance(self.weather_freshness, EnvironmentFreshness):
             raise TypeError("weather_freshness must be EnvironmentFreshness")
         if not isinstance(self.indoor_freshness, EnvironmentFreshness):
             raise TypeError("indoor_freshness must be EnvironmentFreshness")
+        if not isinstance(self.mobile_freshness, EnvironmentFreshness):
+            raise TypeError("mobile_freshness must be EnvironmentFreshness")
         if not isinstance(self.provider_errors, tuple):
             raise TypeError("provider_errors must be a tuple")
         if any(not isinstance(item, str) or not item.strip() for item in self.provider_errors):
