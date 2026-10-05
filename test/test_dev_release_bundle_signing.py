@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from hashlib import sha256
+import json
 import zipfile
 
 from cryptography.hazmat.primitives import serialization
@@ -33,6 +34,17 @@ def test_sign_release_bundle_writes_host_verifiable_signature(tmp_path):
     provenance = b"{}"
     (root / "sbom.cdx.json").write_bytes(sbom)
     (root / "provenance.intoto.json").write_bytes(provenance)
+    verification = json.dumps(
+        {
+            "phase": "full",
+            "git_revision": "1" * 40,
+            "tracked_tree_clean": True,
+            "accepted": True,
+            "commands": [{"name": "pytest", "returncode": 0}],
+        },
+        sort_keys=True,
+    ).encode()
+    (root / "verification-evidence.json").write_bytes(verification)
     manifest = ReleaseManifest(
         release_id="r1",
         git_revision="1" * 40,
@@ -41,6 +53,8 @@ def test_sign_release_bundle_writes_host_verifiable_signature(tmp_path):
         dependency_lock_sha256=sha256(lock).hexdigest(),
         sbom_sha256=sha256(sbom).hexdigest(),
         provenance_sha256=sha256(provenance).hexdigest(),
+        verification_evidence_sha256=sha256(verification).hexdigest(),
+        verification_phase="full",
         state_schema_min=1,
         state_schema_max=1,
         fleet_protocol_version="1.0",

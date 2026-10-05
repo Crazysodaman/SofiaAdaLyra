@@ -4,6 +4,7 @@ from pathlib import Path
 
 from sofia.action.executor import FailClosedActionExecutor
 from sofia.action.system import ActionSystem
+from sofia.application.evolution import SofiaEvolutionService
 from sofia.capability.gateway import CapabilityGateway
 from sofia.capability.catalog import ToolCatalogCapability,create_tool_catalog_binding
 from sofia.capability.system import CapabilitySystem
@@ -27,6 +28,7 @@ from sofia.embodiment.store import EmbodimentStore
 from sofia.environment.config import ConfiguredLocation
 from sofia.environment.factory import create_environment_service
 from sofia.environment.model import LocationSubject
+from sofia.evolve.capability import EvolveCapabilitySet, create_evolve_tool_bindings
 from sofia.distributed.capability import create_configured_remote_fleet_tools
 from sofia.distributed.inference_client import (
     create_configured_remote_inference_client,
@@ -203,6 +205,12 @@ def compose(
         dev_service
     )
 
+    evolution_service = SofiaEvolutionService(
+        configuration=configuration,
+        state_plane=state_plane,
+    )
+    evolve_capabilities = EvolveCapabilitySet(evolution_service)
+
     machine_service = MachineToolService(
         state_path,
         state_plane=state_plane,
@@ -308,6 +316,12 @@ def compose(
             handler=dev_capabilities.execute,
         )
 
+    for evolve_capability in evolve_capabilities.capabilities():
+        capability_system.register(
+            capability=evolve_capability,
+            handler=evolve_capabilities.execute,
+        )
+
     for machine_capability in machine_capabilities.capabilities():
         capability_system.register(
             capability=machine_capability,
@@ -376,6 +390,7 @@ def compose(
             + create_system_tool_bindings()
             + create_knowledge_tool_bindings()
             + create_dev_tool_bindings()
+            + create_evolve_tool_bindings()
             + create_machine_tool_bindings()
             + create_ops_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)

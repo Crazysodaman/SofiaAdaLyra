@@ -177,6 +177,7 @@ class SofiaApplication:
             model_lock=self._model_lock,
             activity_group=self._conversation_activity,
         )
+        self._conversation_service.set_evolution_service(self._evolution)
         candidate_store = self._runtime.memory_system.candidate_store
         if candidate_store is None:
             raise SofiaApplicationError(

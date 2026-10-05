@@ -107,6 +107,7 @@ class EmotionalConversationService(ConversationService):
         self._clarification_journal: ClarificationJournal | None = None
         self._embodied_expression_planner = EmbodiedExpressionPlanner()
         self._current_expression_plan: EmbodiedExpressionPlan | None = None
+        self._evolution_service = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
             activity_group is not None
@@ -125,6 +126,13 @@ class EmotionalConversationService(ConversationService):
         self._active_user_requests = 0
         self._last_user_activity = monotonic()
         self._activity_group.register(self)
+
+    def set_evolution_service(self, service) -> None:
+        """Bridge durable reflections into EVOLVE as hypotheses, never authority."""
+
+        if service is not None and not hasattr(service, "record_evidence"):
+            raise TypeError("evolution service must record provenance-backed evidence")
+        self._evolution_service = service
 
     def open(self) -> None:
         super().open()
@@ -421,6 +429,25 @@ class EmotionalConversationService(ConversationService):
             if len(thoughts) != 1:
                 raise RuntimeError("Recorded reflection could not be reloaded.")
             thought = thoughts[0]
+            evolution = getattr(self, "_evolution_service", None)
+            if evolution is not None:
+                evolution.record_evidence(
+                    evidence_id=f"reflection:{thought.thought_id}",
+                    kind="reflection-hypothesis",
+                    source_ref=f"reflection:{thought.thought_id}",
+                    summary=(
+                        "A durable reflection generated a possible improvement "
+                        "hypothesis; its cited source evidence still requires review."
+                    ),
+                    payload={
+                        "thought_id": thought.thought_id,
+                        "subject": thought.subject,
+                        "content": thought.content,
+                        "evidence_refs": list(thought.evidence_refs),
+                        "emotion_labels": list(thought.emotions),
+                    },
+                    observed_at=thought.created_at,
+                )
             if thought.emotions:
                 self.emotional_journal.record(
                     event_id=f"reflection-affect:{thought.thought_id}",

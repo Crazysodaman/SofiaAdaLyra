@@ -10,7 +10,16 @@ from sofia.config import production_state_path
 from sofia.evolve.amendment import ProtectedTarget
 from sofia.evolve.approval import AmendmentApproval, ApprovalAction
 from sofia.evolve.revision import RevisionApproval
-from sofia.safe.evolve_approval import DurableEvolutionApprovalVerifier
+from sofia.evolve.lifecycle import (
+    EvolutionLifecycleStore,
+    EvolutionProposalKind,
+    EvolutionProposalStatus,
+)
+from sofia.dev.release_signing import load_ed25519_private_key
+from sofia.safe.evolve_approval import (
+    DurableEvolutionApprovalVerifier,
+    approval_signature_payload,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,6 +46,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--ttl-seconds", type=int, default=900)
     parser.add_argument("--approved-by", default="Sparks")
+    parser.add_argument(
+        "--private-key",
+        required=True,
+        help="Offline Ed25519 key proving the independent operator approval.",
+    )
+    parser.add_argument(
+        "--trusted-public-key",
+        required=True,
+        help="Externally administered Ed25519 public trust anchor.",
+    )
+    parser.add_argument("--signer-key-id", required=True)
     parser.add_argument(
         "--authority-reference",
         required=True,
@@ -65,7 +85,24 @@ def main(argv: list[str] | None = None) -> int:
             if args.state_path
             else production_state_path()
         )
-        verifier = DurableEvolutionApprovalVerifier(state_path)
+        verifier = DurableEvolutionApprovalVerifier(
+            state_path,
+            trusted_keys={
+                args.signer_key_id: Path(args.trusted_public_key),
+            },
+        )
+        private_key = load_ed25519_private_key(Path(args.private_key))
+        lifecycle = EvolutionLifecycleStore(state_path)
+        proposal_record = lifecycle.get_proposal(args.proposal_id)
+        expected_kind = (
+            EvolutionProposalKind.AMENDMENT
+            if args.kind == "protected"
+            else EvolutionProposalKind.REVISION
+        )
+        if proposal_record.kind is not expected_kind:
+            raise ValueError("approval kind does not match canonical proposal")
+        if proposal_record.fingerprint != args.proposal_fingerprint:
+            raise ValueError("approval fingerprint does not match canonical proposal")
 
         if args.kind == "protected":
             approval = AmendmentApproval(
@@ -79,7 +116,11 @@ def main(argv: list[str] | None = None) -> int:
                 expires_at=expires,
                 authority_reference=args.authority_reference,
             )
-            verifier.record_amendment(approval)
+            verifier.record_amendment(
+                approval,
+                signer_key_id=args.signer_key_id,
+                signature=private_key.sign(approval_signature_payload(approval)),
+            )
         else:
             approval = RevisionApproval(
                 approval_id=approval_id,
@@ -91,7 +132,22 @@ def main(argv: list[str] | None = None) -> int:
                 expires_at=expires,
                 authority_reference=args.authority_reference,
             )
-            verifier.record_revision(approval)
+            verifier.record_revision(
+                approval,
+                signer_key_id=args.signer_key_id,
+                signature=private_key.sign(approval_signature_payload(approval)),
+            )
+
+        if action is ApprovalAction.APPLY:
+            lifecycle.transition(
+                args.proposal_id,
+                expected=(
+                    EvolutionProposalStatus.PROPOSED,
+                    EvolutionProposalStatus.UNDER_REVIEW,
+                ),
+                status=EvolutionProposalStatus.APPROVED,
+                now=now,
+            )
 
         print(
             "EVOLVE approval recorded "

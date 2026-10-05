@@ -4,15 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - requirements.lock.windows-py312.txt
-      - pyproject.toml
-      - src/sofia/dev/release.py
-      - src/sofia/dev/release_cli.py
-      - src/sofia/dev/release_signing.py
-      - src/sofia/dev/supply_chain.py
-      - src/sofia/run/release.py
-      - .github/workflows/release-candidate.yml
   workflow_dispatch:
     inputs:
       release_id:
@@ -64,6 +55,12 @@ jobs:
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --no-deps .\release-source
 
+      - name: Run revision-bound verification gate
+        shell: pwsh
+        run: |
+          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --evidence-path verification-evidence.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build wheel twice and require reproducibility
         shell: pwsh
         run: |
@@ -96,6 +93,7 @@ jobs:
             "--wheel",$env:RELEASE_WHEEL,
             "--source","release-source",
             "--constitution-hash","release-source\src\sofia\constitution\constitution.sha256",
+            "--verification-evidence","verification-evidence.json",
             "--output","release-evidence"
           )
           if ($env:RELEASE_ID) {

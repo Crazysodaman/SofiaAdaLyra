@@ -434,7 +434,11 @@ def test_self_improvement_exposes_inspection_and_isolated_build_only():
     assert "codebase.inspect" in plan.capabilities
     assert "dev.status" in plan.capabilities
     assert "dev.build" in plan.capabilities
+    assert "evolve.evidence.list" in plan.capabilities
+    assert "evolve.proposal.revision.create" in plan.capabilities
+    assert "evolve.proposal.amendment.create" in plan.capabilities
     assert "dev.apply" not in plan.capabilities
+    assert "evolve.apply" not in plan.capabilities
     assert "dev.commit" not in plan.capabilities
     assert "dev.push" not in plan.capabilities
 

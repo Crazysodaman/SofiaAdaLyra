@@ -193,6 +193,9 @@ _READ_ONLY = frozenset({
     "dev.status",
     "dev.candidates.list",
     "dev.candidate.get",
+    "evolve.evidence.list",
+    "evolve.proposals.list",
+    "evolve.proposal.get",
     "hyperv.vms",
     "hyperv.vm",
     "environment.nws.read",
@@ -208,6 +211,8 @@ _SAFE_AUTONOMOUS = frozenset({
     "knowledge.ingest.text",
     "knowledge.ingest.pdf",
     "dev.build",
+    "evolve.proposal.revision.create",
+    "evolve.proposal.amendment.create",
 })
 
 _REVERSIBLE = frozenset({
@@ -258,6 +263,8 @@ _PROTECTED = frozenset({
     "dev.rollback",
     "dev.commit",
     "dev.push",
+    "evolve.apply",
+    "evolve.rollback",
 })
 
 _NEVER_SELF_AUTHORIZED = frozenset({

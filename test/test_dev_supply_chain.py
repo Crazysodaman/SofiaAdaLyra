@@ -52,6 +52,30 @@ def make_lock(path: Path) -> Path:
     return lock
 
 
+def make_verification(
+    path: Path,
+    *,
+    accepted: bool = True,
+    revision: str = GIT,
+    tracked_tree_clean: bool = True,
+) -> Path:
+    evidence = path / "verification-evidence.json"
+    evidence.write_text(
+        json.dumps(
+            {
+                "phase": "full",
+                "git_revision": revision,
+                "tracked_tree_clean": tracked_tree_clean,
+                "accepted": accepted,
+                "commands": [{"name": "pytest", "returncode": 0 if accepted else 1}],
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return evidence
+
+
 def test_lock_requires_exact_pins(tmp_path):
     lock = tmp_path / "bad.lock"
     lock.write_text("cryptography>=46\n", encoding="utf-8")
@@ -96,6 +120,7 @@ def test_construct_and_verify_release_evidence(tmp_path):
     source.mkdir()
     (source / "README.md").write_text("source", encoding="utf-8")
     output = tmp_path / "release"
+    verification = make_verification(tmp_path)
 
     result = construct_release_evidence(
         release_id="sofia-0.1.0-test",
@@ -105,6 +130,7 @@ def test_construct_and_verify_release_evidence(tmp_path):
         dependency_lock_path=lock,
         wheel_path=wheel,
         source_dir=source,
+        verification_evidence_path=verification,
         constitution_sha256=CONSTITUTION,
         state_schema_min=1,
         state_schema_max=1,
@@ -134,6 +160,7 @@ def test_verifier_rejects_tampered_artifact(tmp_path):
     source.mkdir()
     (source / "file.txt").write_text("source", encoding="utf-8")
     output = tmp_path / "release"
+    verification = make_verification(tmp_path)
     result = construct_release_evidence(
         release_id="sofia-0.1.0-test",
         git_revision=GIT,
@@ -142,6 +169,7 @@ def test_verifier_rejects_tampered_artifact(tmp_path):
         dependency_lock_path=lock,
         wheel_path=wheel,
         source_dir=source,
+        verification_evidence_path=verification,
         constitution_sha256=CONSTITUTION,
         state_schema_min=1,
         state_schema_max=1,
@@ -156,12 +184,61 @@ def test_verifier_rejects_tampered_artifact(tmp_path):
         verify_release_evidence(output)
 
 
+@pytest.mark.parametrize(
+    ("accepted", "revision", "tracked_tree_clean", "message"),
+    (
+        (False, GIT, True, "not accepted"),
+        (True, "9" * 40, True, "revision does not match"),
+        (True, GIT, False, "clean tracked tree"),
+    ),
+)
+def test_release_construction_requires_accepted_revision_bound_verification(
+    tmp_path,
+    accepted,
+    revision,
+    tracked_tree_clean,
+    message,
+):
+    lock = make_lock(tmp_path)
+    wheel = make_wheel(tmp_path)
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "file.txt").write_text("source", encoding="utf-8")
+    verification = make_verification(
+        tmp_path,
+        accepted=accepted,
+        revision=revision,
+        tracked_tree_clean=tracked_tree_clean,
+    )
+
+    with pytest.raises(ValueError, match=message):
+        construct_release_evidence(
+            release_id="sofia-0.1.0-test",
+            git_revision=GIT,
+            application_version="0.1.0",
+            python_version="3.12.10",
+            dependency_lock_path=lock,
+            wheel_path=wheel,
+            source_dir=source,
+            verification_evidence_path=verification,
+            constitution_sha256=CONSTITUTION,
+            state_schema_min=1,
+            state_schema_max=1,
+            fleet_protocol_version="1.0",
+            fleet_agent_version="0.1.0",
+            configuration_schema_version=1,
+            output_dir=tmp_path / "release",
+            created_at=NOW,
+        )
+
+
 def test_offline_signer_matches_existing_release_verifier(tmp_path):
     lock = make_lock(tmp_path)
     wheel = make_wheel(tmp_path)
     source = tmp_path / "source"
     source.mkdir()
     (source / "file.txt").write_text("source", encoding="utf-8")
+    verification = make_verification(tmp_path)
     result = construct_release_evidence(
         release_id="sofia-0.1.0-test",
         git_revision=GIT,
@@ -170,6 +247,7 @@ def test_offline_signer_matches_existing_release_verifier(tmp_path):
         dependency_lock_path=lock,
         wheel_path=wheel,
         source_dir=source,
+        verification_evidence_path=verification,
         constitution_sha256=CONSTITUTION,
         state_schema_min=1,
         state_schema_max=1,

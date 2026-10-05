@@ -221,11 +221,44 @@ def verify_wheel_identity(wheel_path: Path) -> None:
             raise ValueError("wheel contains unsafe archive paths")
 
 
+def verified_gate_evidence(path: Path, *, git_revision: str) -> tuple[bytes, str]:
+    """Require accepted revision-bound VERIFY evidence before release construction."""
+
+    if not isinstance(path, Path) or not path.is_file():
+        raise FileNotFoundError("verification evidence does not exist")
+    payload = path.read_bytes()
+    try:
+        document = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("verification evidence is not valid JSON") from exc
+    if not isinstance(document, dict):
+        raise ValueError("verification evidence must be a JSON object")
+    phase = document.get("phase")
+    if phase not in {"full", "prelive"}:
+        raise ValueError("release requires full or prelive verification evidence")
+    if document.get("accepted") is not True:
+        raise ValueError("release verification evidence was not accepted")
+    if document.get("git_revision") != git_revision:
+        raise ValueError("verification evidence revision does not match release revision")
+    if document.get("tracked_tree_clean") is not True:
+        raise ValueError("verification evidence was not produced from a clean tracked tree")
+    commands = document.get("commands")
+    if not isinstance(commands, list) or not commands:
+        raise ValueError("verification evidence contains no executed gates")
+    if any(
+        not isinstance(item, dict) or item.get("returncode") != 0
+        for item in commands
+    ):
+        raise ValueError("verification evidence contains a failed gate")
+    return payload, phase
+
+
 @dataclass(frozen=True, slots=True)
 class SupplyChainArtifacts:
     manifest_path: Path
     sbom_path: Path
     provenance_path: Path
+    verification_evidence_path: Path
     dependency_lock_path: Path
     artifact_path: Path
     manifest: ReleaseManifest
@@ -240,6 +273,7 @@ def construct_release_evidence(
     dependency_lock_path: Path,
     wheel_path: Path,
     source_dir: Path,
+    verification_evidence_path: Path,
     constitution_sha256: str,
     state_schema_min: int,
     state_schema_max: int,
@@ -257,6 +291,11 @@ def construct_release_evidence(
     if not isinstance(output_dir, Path):
         raise TypeError("output_dir must be a Path")
     verify_wheel_identity(wheel_path)
+    verification_evidence, verification_phase = verified_gate_evidence(
+        verification_evidence_path,
+        git_revision=git_revision,
+    )
+    verification_evidence_digest = sha256(verification_evidence).hexdigest()
     lock_bytes = canonical_dependency_lock(dependency_lock_path)
     lock_digest = sha256(lock_bytes).hexdigest()
     sbom = generate_sbom(
@@ -292,6 +331,8 @@ def construct_release_evidence(
         dependency_lock_sha256=lock_digest,
         sbom_sha256=sbom_digest,
         provenance_sha256=provenance_digest,
+        verification_evidence_sha256=verification_evidence_digest,
+        verification_phase=verification_phase,
         state_schema_min=state_schema_min,
         state_schema_max=state_schema_max,
         fleet_protocol_version=fleet_protocol_version,
@@ -310,17 +351,20 @@ def construct_release_evidence(
     lock_out = output_dir / "requirements.lock"
     sbom_out = output_dir / "sbom.cdx.json"
     provenance_out = output_dir / "provenance.intoto.json"
+    verification_out = output_dir / "verification-evidence.json"
     manifest_out = output_dir / "release-manifest.json"
 
     lock_out.write_bytes(lock_bytes)
     sbom_out.write_bytes(sbom)
     provenance_out.write_bytes(provenance)
+    verification_out.write_bytes(verification_evidence)
     manifest_out.write_bytes(manifest.canonical_bytes())
 
     return SupplyChainArtifacts(
         manifest_path=manifest_out,
         sbom_path=sbom_out,
         provenance_path=provenance_out,
+        verification_evidence_path=verification_out,
         dependency_lock_path=lock_out,
         artifact_path=artifact_out,
         manifest=manifest,
@@ -336,6 +380,7 @@ def verify_release_evidence(root: Path) -> ReleaseManifest:
     lock = canonical_dependency_lock(root / "requirements.lock")
     sbom = (root / "sbom.cdx.json").read_bytes()
     provenance = (root / "provenance.intoto.json").read_bytes()
+    verification = (root / "verification-evidence.json").read_bytes()
 
     if sha256(lock).hexdigest() != manifest.dependency_lock_sha256:
         raise ValueError("dependency lock digest mismatch")
@@ -343,6 +388,14 @@ def verify_release_evidence(root: Path) -> ReleaseManifest:
         raise ValueError("SBOM digest mismatch")
     if sha256(provenance).hexdigest() != manifest.provenance_sha256:
         raise ValueError("provenance digest mismatch")
+    if sha256(verification).hexdigest() != manifest.verification_evidence_sha256:
+        raise ValueError("verification evidence digest mismatch")
+    _, phase = verified_gate_evidence(
+        root / "verification-evidence.json",
+        git_revision=manifest.git_revision,
+    )
+    if phase != manifest.verification_phase:
+        raise ValueError("verification evidence phase mismatch")
 
     artifact_dir = root / "artifact"
     if not artifact_dir.is_dir():

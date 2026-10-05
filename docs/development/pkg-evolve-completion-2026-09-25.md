@@ -1,5 +1,11 @@
 # PKG-EVOLVE completion candidate
 
+> Historical checkpoint. The 2026-10-05 production hardening added the
+> cognitive capability surface, canonical evidence/proposal/outcome lifecycle,
+> signed operator approvals, identity/Constitution semantic protections,
+> explicit activation state, and release-to-VERIFY evidence binding. See
+> `evolve-cleanup-report.md` for the current architecture.
+
 **Revision:** 2026-09-25. **Branch:** `feature/pkg-evolve-completion`. **Status:** focused disposable/offline acceptance passed on the current Windows checkout. No production identity, Constitution, preference, or configuration state was changed.
 
 ## Two evolution lanes

@@ -25,12 +25,15 @@ class VerificationEvidence:
     phase: str
     git_revision: str
     python_version: str
+    tracked_tree_clean: bool
     generated_at: str
     commands: tuple[GateCommandEvidence, ...]
 
     @property
     def accepted(self) -> bool:
-        return all(item.returncode == 0 for item in self.commands)
+        return self.tracked_tree_clean and all(
+            item.returncode == 0 for item in self.commands
+        )
 
 
 _STATIC_COMMANDS = (
@@ -56,6 +59,7 @@ _PHASES = {
             "pytest",
             ("-m", "pytest", "-q", "-m", "not integration"),
         ),
+        ("semantic", ("-m", "sofia.verify.semantic")),
     ),
     "prelive": (
         *_STATIC_COMMANDS,
@@ -76,6 +80,18 @@ def _git_revision() -> str:
     if len(value) != 40:
         raise RuntimeError("git revision is not a full commit SHA")
     return value
+
+
+def _tracked_tree_clean() -> bool:
+    """Require executed code and tracked files to equal the reported revision."""
+
+    result = subprocess.run(
+        ("git", "diff", "--quiet", "HEAD", "--"),
+        check=False,
+    )
+    if result.returncode not in {0, 1}:
+        raise RuntimeError("could not determine tracked worktree state")
+    return result.returncode == 0
 
 
 def run_gate(
@@ -114,6 +130,7 @@ def run_gate(
         phase=phase,
         git_revision=_git_revision(),
         python_version=sys.version,
+        tracked_tree_clean=_tracked_tree_clean(),
         generated_at=datetime.now(timezone.utc).isoformat(),
         commands=tuple(commands),
     )

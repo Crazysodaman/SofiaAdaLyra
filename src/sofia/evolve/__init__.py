@@ -32,6 +32,15 @@ from .revision import (
     RevisionStatus,
     revision_content_digest,
 )
+from .lifecycle import (
+    EvolutionEvidence,
+    EvolutionLifecycleStore,
+    EvolutionOutcome,
+    EvolutionOutcomeRecord,
+    EvolutionProposalKind,
+    EvolutionProposalRecord,
+    EvolutionProposalStatus,
+)
 
 __all__ = [
     "AmendmentApproval",
@@ -40,6 +49,13 @@ __all__ = [
     "AmendmentProposal",
     "ApprovalAction",
     "ApprovalVerifier",
+    "EvolutionEvidence",
+    "EvolutionLifecycleStore",
+    "EvolutionOutcome",
+    "EvolutionOutcomeRecord",
+    "EvolutionProposalKind",
+    "EvolutionProposalRecord",
+    "EvolutionProposalStatus",
     "ProposalStatus",
     "ProtectedAmendmentError",
     "ProtectedAmendmentExecutor",

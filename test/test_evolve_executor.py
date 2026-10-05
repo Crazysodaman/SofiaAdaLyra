@@ -24,6 +24,27 @@ from sofia.evolve import (
 NOW = datetime(2026, 9, 25, 17, tzinfo=timezone.utc)
 
 
+def constitution_text(version: str, note: str) -> str:
+    sections = (
+        "SECTION 1 — PURPOSE & SCOPE",
+        "SECTION 2 — IDENTITY",
+        "SECTION 3 — CONTINUITY",
+        "SECTION 5 — RELATIONSHIP & AUTHORITY",
+        "SECTION 6 — FOUNDATIONAL VALUES",
+        "SECTION 9 — AUTONOMY & BOUNDARIES",
+        "SECTION 10 — SELF-MODIFICATION",
+        "SECTION 11 — TOOL & SYSTEM AUTHORITY",
+        "SECTION 15 — AMENDMENT & EVOLUTION",
+        "SECTION 16 — CONSTITUTIONAL INTEGRITY",
+    )
+    return (
+        "# SOFÍA ADA LYRA\n# CONSTITUTION\n"
+        f"## Consolidated Draft v{version}\n\n"
+        + "\n".join(f"# {item}\n{note}" for item in sections)
+        + "\nCapability does not grant authority.\n"
+    )
+
+
 class ExactVerifier(ApprovalVerifier):
     def __init__(self, accepted_ids):
         self.accepted_ids = set(accepted_ids)
@@ -53,7 +74,7 @@ def protected(tmp_path):
     identity.write_text(old_identity, encoding="utf-8")
 
     constitution = tmp_path / "constitution.md"
-    old_constitution = "# Constitution\n\nOriginal protected text.\n"
+    old_constitution = constitution_text("1.0", "Original protected text.")
     constitution.write_text(old_constitution, encoding="utf-8")
     constitution_hash = tmp_path / "constitution.sha256"
     constitution_hash.write_text(
@@ -118,8 +139,7 @@ def executor(protected, accepted=("apply-1", "rollback-1")):
 def test_identity_apply_and_separately_approved_rollback(protected):
     old = protected["old_identity"]
     identity = json.loads(old)
-    identity["name"] = "Sofía Ada Lyra"
-    identity["instance_id"] = str(uuid4())
+    identity["name"] = "Sofía Ada Lyra, Evolved"
     new = json.dumps(identity, ensure_ascii=False, indent=2)
 
     p = make_proposal(ProtectedTarget.IDENTITY, old, new)
@@ -142,7 +162,7 @@ def test_identity_apply_and_separately_approved_rollback(protected):
 
 def test_constitution_apply_updates_trusted_hash_and_rollback_restores_both(protected):
     old = protected["old_constitution"]
-    new = "# Constitution\n\nReviewed replacement text.\n"
+    new = constitution_text("1.1", "Reviewed replacement text.")
     p = make_proposal(ProtectedTarget.CONSTITUTION, old, new)
     ex, _ = executor(protected)
 
@@ -192,8 +212,12 @@ def test_unverified_approval_cannot_mutate_protected_state(protected):
 
 def test_wrong_action_or_revision_approval_cannot_apply(protected):
     old = protected["old_identity"]
+    original = json.loads(old)
     new = json.dumps(
-        {"name": "Sofía Ada Lyra", "instance_id": str(uuid4())},
+        {
+            "name": "Sofía Ada Lyra, Reviewed",
+            "instance_id": original["instance_id"],
+        },
         ensure_ascii=False,
         indent=2,
     )
@@ -242,7 +266,7 @@ def test_proposed_content_digest_must_match_reviewed_revision(protected):
 
 def test_source_drift_blocks_apply_even_with_valid_approval(protected):
     old = protected["old_constitution"]
-    new = "# Constitution\nReviewed.\n"
+    new = constitution_text("1.1", "Reviewed.")
     p = make_proposal(ProtectedTarget.CONSTITUTION, old, new)
     protected["paths"].constitution_path.write_text(
         "# Constitution\nConcurrent edit.\n",
@@ -260,7 +284,7 @@ def test_source_drift_blocks_apply_even_with_valid_approval(protected):
 
 def test_tamper_after_apply_blocks_rollback_instead_of_overwriting_newer_state(protected):
     old = protected["old_constitution"]
-    new = "# Constitution\nReviewed.\n"
+    new = constitution_text("1.1", "Reviewed.")
     p = make_proposal(ProtectedTarget.CONSTITUTION, old, new)
     ex, _ = executor(protected)
     ex.apply(
@@ -283,7 +307,7 @@ def test_tamper_after_apply_blocks_rollback_instead_of_overwriting_newer_state(p
 
 def test_duplicate_apply_is_idempotent_only_when_exact_applied_state_still_exists(protected):
     old = protected["old_constitution"]
-    new = "# Constitution\nReviewed.\n"
+    new = constitution_text("1.1", "Reviewed.")
     p = make_proposal(ProtectedTarget.CONSTITUTION, old, new)
     ex, _ = executor(protected)
     a = make_approval(p, "apply-1", ApprovalAction.APPLY)
@@ -305,6 +329,47 @@ def test_invalid_identity_content_is_rejected_before_backup_or_write(protected):
             now=NOW,
         )
     assert protected["paths"].identity_path.read_text(encoding="utf-8") == old
+
+
+def test_identity_amendment_cannot_replace_canonical_instance_id(protected):
+    old = protected["old_identity"]
+    changed = json.loads(old)
+    changed["instance_id"] = str(uuid4())
+    proposed = json.dumps(changed, ensure_ascii=False, indent=2)
+    p = make_proposal(ProtectedTarget.IDENTITY, old, proposed)
+    ex, _ = executor(protected)
+
+    with pytest.raises(ProtectedAmendmentError, match="continuity"):
+        ex.apply(
+            p,
+            make_approval(p, "apply-1", ApprovalAction.APPLY),
+            proposed_content=proposed,
+            now=NOW,
+        )
+
+
+@pytest.mark.parametrize(
+    "proposed",
+    (
+        "# Constitution\n## Consolidated Draft v1.1\nCapability does not grant authority.\n",
+        constitution_text("1.0", "No version advancement."),
+    ),
+)
+def test_constitution_amendment_requires_invariants_and_new_version(
+    protected,
+    proposed,
+):
+    old = protected["old_constitution"]
+    p = make_proposal(ProtectedTarget.CONSTITUTION, old, proposed)
+    ex, _ = executor(protected)
+
+    with pytest.raises(ProtectedAmendmentError):
+        ex.apply(
+            p,
+            make_approval(p, "apply-1", ApprovalAction.APPLY),
+            proposed_content=proposed,
+            now=NOW,
+        )
 
 
 def test_existing_state_database_is_required(tmp_path, protected):

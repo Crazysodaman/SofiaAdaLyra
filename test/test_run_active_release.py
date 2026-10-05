@@ -57,6 +57,8 @@ def active_release_fixture(tmp_path: Path):
         dependency_lock_sha256=sha256(lock).hexdigest(),
         sbom_sha256="2" * 64,
         provenance_sha256="3" * 64,
+        verification_evidence_sha256="5" * 64,
+        verification_phase="full",
         state_schema_min=1,
         state_schema_max=1,
         fleet_protocol_version="1.0",

@@ -14,6 +14,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import tempfile
@@ -179,7 +180,7 @@ class ProtectedAmendmentExecutor:
             raise
 
     @staticmethod
-    def _validate_identity_content(content: str) -> None:
+    def _identity_document(content: str) -> dict:
         try:
             data = json.loads(content)
         except json.JSONDecodeError as exc:
@@ -196,21 +197,74 @@ class ProtectedAmendmentExecutor:
             UUID(instance_id)
         except ValueError as exc:
             raise ProtectedAmendmentError("proposed identity instance_id must be a UUID") from exc
+        return data
 
     @staticmethod
-    def _validate_constitution_content(content: str) -> None:
+    def _validate_identity_content(current: str, proposed: str) -> None:
+        current_data = ProtectedAmendmentExecutor._identity_document(current)
+        proposed_data = ProtectedAmendmentExecutor._identity_document(proposed)
+        if proposed_data["instance_id"] != current_data["instance_id"]:
+            raise ProtectedAmendmentError(
+                "identity continuity forbids replacing the canonical instance_id"
+            )
+
+    @staticmethod
+    def _constitution_version(content: str) -> tuple[int, int]:
+        match = re.search(
+            r"^##\s+Consolidated Draft v(\d+)\.(\d+)\s*$",
+            content,
+            flags=re.MULTILINE,
+        )
+        if match is None:
+            raise ProtectedAmendmentError(
+                "Constitution requires a 'Consolidated Draft vMAJOR.MINOR' version"
+            )
+        return int(match.group(1)), int(match.group(2))
+
+    @staticmethod
+    def _validate_constitution_content(current: str, proposed: str) -> None:
+        content = proposed
         if not isinstance(content, str) or not content.strip():
             raise ProtectedAmendmentError("proposed Constitution cannot be empty")
+        required_sections = (
+            "SECTION 1 — PURPOSE & SCOPE",
+            "SECTION 2 — IDENTITY",
+            "SECTION 3 — CONTINUITY",
+            "SECTION 5 — RELATIONSHIP & AUTHORITY",
+            "SECTION 6 — FOUNDATIONAL VALUES",
+            "SECTION 9 — AUTONOMY & BOUNDARIES",
+            "SECTION 10 — SELF-MODIFICATION",
+            "SECTION 11 — TOOL & SYSTEM AUTHORITY",
+            "SECTION 15 — AMENDMENT & EVOLUTION",
+            "SECTION 16 — CONSTITUTIONAL INTEGRITY",
+        )
+        missing = tuple(section for section in required_sections if section not in content)
+        if missing:
+            raise ProtectedAmendmentError(
+                "proposed Constitution omits mandatory sections: "
+                + ", ".join(missing)
+            )
+        if "Capability does not grant authority." not in content:
+            raise ProtectedAmendmentError(
+                "proposed Constitution omits the capability/authority invariant"
+            )
+        if ProtectedAmendmentExecutor._constitution_version(content) <= (
+            ProtectedAmendmentExecutor._constitution_version(current)
+        ):
+            raise ProtectedAmendmentError(
+                "Constitution version must increase for an amendment"
+            )
 
     def _validate_proposed_content(
         self,
         target: ProtectedTarget,
+        current: str,
         content: str,
     ) -> None:
         if target is ProtectedTarget.IDENTITY:
-            self._validate_identity_content(content)
+            self._validate_identity_content(current, content)
         elif target is ProtectedTarget.CONSTITUTION:
-            self._validate_constitution_content(content)
+            self._validate_constitution_content(current, content)
         else:
             raise TypeError("unknown protected target")
 
@@ -342,7 +396,6 @@ class ProtectedAmendmentExecutor:
             raise TypeError("proposed_content must be text")
         if content_digest(proposed_content) != proposal.proposed_digest:
             raise ProtectedAmendmentError("proposed content does not match proposal digest")
-        self._validate_proposed_content(proposal.target, proposed_content)
         self._require_approval(
             proposal,
             approval,
@@ -365,6 +418,11 @@ class ProtectedAmendmentExecutor:
             raise ProtectedAmendmentError(
                 f"proposal is not applicable: {status.value}"
             )
+        self._validate_proposed_content(
+            proposal.target,
+            current_content,
+            proposed_content,
+        )
 
         content_backup, hash_backup = self._create_backups(proposal)
         try:

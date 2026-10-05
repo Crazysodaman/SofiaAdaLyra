@@ -28,6 +28,8 @@ class ReleaseManifest:
     dependency_lock_sha256: str
     sbom_sha256: str
     provenance_sha256: str
+    verification_evidence_sha256: str
+    verification_phase: str
     state_schema_min: int
     state_schema_max: int
     fleet_protocol_version: str
@@ -64,6 +66,12 @@ class ReleaseManifest:
         _digest(self.dependency_lock_sha256, "dependency_lock_sha256")
         _digest(self.sbom_sha256, "sbom_sha256")
         _digest(self.provenance_sha256, "provenance_sha256")
+        _digest(
+            self.verification_evidence_sha256,
+            "verification_evidence_sha256",
+        )
+        if self.verification_phase not in {"full", "prelive"}:
+            raise ValueError("verification_phase must be full or prelive")
         _digest(self.constitution_sha256, "constitution_sha256")
         if self.artifact_sha256 is not None:
             _digest(self.artifact_sha256, "artifact_sha256")
@@ -126,6 +134,8 @@ class ReleaseManifest:
             "dependency_lock_sha256": self.dependency_lock_sha256,
             "sbom_sha256": self.sbom_sha256,
             "provenance_sha256": self.provenance_sha256,
+            "verification_evidence_sha256": self.verification_evidence_sha256,
+            "verification_phase": self.verification_phase,
             "state_schema_min": self.state_schema_min,
             "state_schema_max": self.state_schema_max,
             "fleet_protocol_version": self.fleet_protocol_version,

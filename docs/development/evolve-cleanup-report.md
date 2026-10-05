@@ -1,5 +1,39 @@
 # evolve cleanup report
 
+## 2026-10-05 production evolution hardening
+
+EVOLVE is no longer only an externally driven mutation facade. Production
+composition now registers governed `evolve.*` cognitive capabilities for
+evidence/proposal inspection, bounded proposal creation, and exact
+approval-gated apply/rollback. `lifecycle.py` durably owns evidence, canonical
+proposal documents, lifecycle state, activation, success metrics, and measured
+outcomes. Reflections enter this store explicitly as hypotheses with their
+source references; they do not become authority or automatically prove their
+own claims.
+
+Approvals must carry an Ed25519 signature from the externally configured
+`SOFIA_EVOLVE_APPROVAL_KEY_ID` / `SOFIA_EVOLVE_APPROVAL_PUBLIC_KEY` trust root.
+The operator approval CLI requires the matching offline private key and trusted
+public key. Revocation requires a separately signed, timestamped authority
+statement as well. Protected identity evolution preserves the existing instance UUID.
+Constitution amendments must retain mandatory sections and authority invariants
+and advance the declared version. The signed approval binds the protected
+target and proposed digest, so the mutable local hash file is no longer the
+only amendment proof.
+
+Configuration and protected changes now distinguish applied from effective;
+they remain pending activation until restart/recomposition is confirmed.
+Preference revisions can begin evaluation immediately. Outcomes require new
+durable evidence and record improved/no-change/regressed/inconclusive results.
+Release candidates run the full VERIFY gate (including semantic integrity),
+require that its tracked tree equals the reported revision, embed the resulting
+evidence digest in the signed manifest, and are built for every push to `main`.
+
+Current Linux validation: 150 focused EVOLVE/release/cognition tests passed.
+The complete repository run reported 3,482 passed and 3 skipped; its five live
+Ollama integration probes could not connect because this cloud environment has
+no Ollama service/model. No test contract was weakened to hide that dependency.
+
 Phase 10; base `0351827bd61d0ba7d1f85cd3f0a1189a34a4813a`.
 
 Kept the live protected-amendment and reviewed-revision boundaries after tracing production evolution wiring.

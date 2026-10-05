@@ -44,6 +44,7 @@ def _construct(args) -> int:
         dependency_lock_path=Path(args.lock),
         wheel_path=Path(args.wheel),
         source_dir=Path(args.source),
+        verification_evidence_path=Path(args.verification_evidence),
         constitution_sha256=_read_digest(
             Path(args.constitution_hash)
         ),
@@ -169,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     construct.add_argument("--wheel", required=True)
     construct.add_argument("--source", required=True)
     construct.add_argument("--constitution-hash", required=True)
+    construct.add_argument("--verification-evidence", required=True)
     construct.add_argument("--output", required=True)
     construct.add_argument("--release-id")
     construct.add_argument("--parent-release-id")

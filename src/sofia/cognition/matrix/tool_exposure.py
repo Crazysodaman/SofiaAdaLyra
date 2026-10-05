@@ -39,6 +39,11 @@ _SELF_IMPROVE = re.compile(
     r"\b(?:self[- ]?improv(?:e|ement)|improve\s+yourself|fix\s+yourself|work\s+on\s+yourself|improve\s+your\s+code|fix\s+your\s+code|optimi[sz]e\s+your\s+code)\b",
     re.IGNORECASE,
 )
+_EVOLVE = re.compile(
+    r"\b(?:evolv(?:e|ing|ution)|evolution\s+proposals?|"
+    r"improvement\s+proposals?|change\s+your\s+(?:preferences?|configuration|constitution|identity))\b",
+    re.IGNORECASE,
+)
 _GITHUB = re.compile(r"\b(?:github|issues?|pull\s+requests?|\bpr\b)\b", re.IGNORECASE)
 _KNOWLEDGE = re.compile(r"\b(?:knowledge|manual|documentation|document|pdf)\b", re.IGNORECASE)
 _HOME_ASSISTANT = re.compile(r"\bhome\s+assistant\b", re.IGNORECASE)
@@ -167,6 +172,15 @@ class MatrixToolExposurePlanner:
             )
             if _SELF_IMPROVE.search(text):
                 _add(capabilities, "dev.build")
+        if _EVOLVE.search(text) or _SELF_IMPROVE.search(text):
+            _add(
+                capabilities,
+                "evolve.evidence.list",
+                "evolve.proposals.list",
+                "evolve.proposal.get",
+                "evolve.proposal.revision.create",
+                "evolve.proposal.amendment.create",
+            )
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
         if _KNOWLEDGE.search(text):
@@ -319,6 +333,11 @@ class MatrixToolExposurePlanner:
                     _add(capabilities, "dev.commit")
                 if re.search(r"\bpush\b", text, re.IGNORECASE):
                     _add(capabilities, "dev.push")
+            if _EVOLVE.search(text):
+                if re.search(r"\bapply\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.apply")
+                if re.search(r"\brollback\b", text, re.IGNORECASE):
+                    _add(capabilities, "evolve.rollback")
             if _KNOWLEDGE.search(text):
                 if re.search(r"\bingest\b", text, re.IGNORECASE):
                     _add(capabilities, "knowledge.ingest.text", "knowledge.ingest.pdf")
