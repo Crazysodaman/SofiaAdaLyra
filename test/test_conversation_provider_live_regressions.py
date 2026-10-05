@@ -539,6 +539,42 @@ def test_live_conversation_projects_and_rotates_embodied_expression(
 
 
 
+def test_live_night_outfit_exclusion_proposal_never_falls_back_to_provider(
+    monkeypatch,
+    tmp_path,
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (),
+    )
+    try:
+        original = application.runtime.avatar_presentation.current
+
+        proposal = application.conversation.respond(
+            "was thinking of your night outfit but no bra or panties"
+        )
+
+        assert "Late-Night Lounge" in proposal.content
+        assert "haven't changed yet" in proposal.content
+        assert application.runtime.avatar_presentation.current == original
+        assert captured == []
+
+        committed = application.conversation.respond("do it")
+        current = application.runtime.avatar_presentation.current
+
+        assert "change is committed" in committed.content
+        assert current.outfit_id.startswith("dynamic.chat.")
+        assert current.item_ids == (
+            "night.lounge_tee",
+            "night.running_shorts",
+            "foot.soft_violet_slippers",
+        )
+        assert captured == []
+    finally:
+        application.shutdown()
+
+
 def test_live_avatar_why_followup_stays_on_presentation_state(
     monkeypatch, tmp_path
 ):
