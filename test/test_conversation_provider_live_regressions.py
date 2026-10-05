@@ -92,9 +92,9 @@ def test_trace_store_failure_does_not_disable_live_matrix_scoping(
             for message in request.messages
             if message.role.value == "system"
         )
-        assert "CURRENT MODELED EMOTIONAL STATE" in system_text
+        assert "CURRENT MODELED EMOTIONAL STATE (trusted application projection)" in system_text
         assert "CURRENT AVATAR PRESENTATION" not in system_text
-        matrix_error = application.conversation.last_matrix_error()
+        matrix_error = application.conversation.last_matrix_error
         assert matrix_error is not None
         assert matrix_error.startswith("trace-")
     finally:
@@ -126,11 +126,12 @@ def test_matrix_planning_failure_fails_narrow_not_broad(
             for message in request.messages
             if message.role.value == "system"
         )
-        assert "CURRENT MODELED EMOTIONAL STATE" not in system_text
+        assert "CURRENT MODELED EMOTIONAL STATE (trusted application projection)" not in system_text
         assert "CURRENT AVATAR PRESENTATION" not in system_text
         assert "CURRENT ENVIRONMENT" not in system_text
         assert request.allow_tools is False
-        assert application.conversation.last_matrix_error().startswith(
+        assert application.conversation.last_matrix_error is not None
+        assert application.conversation.last_matrix_error.startswith(
             "planning:"
         )
     finally:

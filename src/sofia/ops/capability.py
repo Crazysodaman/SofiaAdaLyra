@@ -42,6 +42,7 @@ from .workload import ManagedWorkload,StateMode,WorkloadInstance,WorkloadPhase
 from .workload_store import WorkloadInstanceStore
 from .migration import WorkloadMigrationExecutor, MigrationJournal
 from .migration_grants import (
+    migration_approval_parameters,
     migration_remote_grant_specs,
     temporary_migration_remote_grants,
 )
@@ -584,15 +585,14 @@ class OpsToolService:
         )
 
         now=datetime.now(timezone.utc)
-        exact={
-            "migration_id":plan.migration_id,
-            "workload":p["workload"],
-            "source_host_id":plan.source_host_id,
-            "target_host_id":plan.target_host_id,
-            "state_mode":managed.state_mode.value,
-            "checkpoint_required":managed.checkpoint_required,
-            "failure_domain_spread":managed.failure_domain_spread,
-        }
+        exact=migration_approval_parameters(
+            catalog=self._workload_catalog,
+            plan=plan,
+            workload_parameters=p["workload"],
+            source_node_id=source.node_id,
+            target_node_id=target.node_id,
+            grant_specs=grant_specs,
+        )
         approval=self.execution_approvals.consume(
             approval_id=p["approval_id"],
             capability="ops.migration.execute",
@@ -624,8 +624,13 @@ class OpsToolService:
             checkpoint_required=bool(p.get("checkpoint_required",False)),
             failure_domain_spread=bool(p.get("failure_domain_spread",False)),
         )
-        plan=MigrationPlan(p["migration_id"],managed,p["source_host_id"],p["target_host_id"])
-        return {
+        plan=MigrationPlan(
+            p["migration_id"],
+            managed,
+            p["source_host_id"],
+            p["target_host_id"],
+        )
+        result={
             "migration_id":plan.migration_id,
             "workload_id":contract.workload_id,
             "source_host_id":plan.source_host_id,
@@ -634,6 +639,45 @@ class OpsToolService:
             "state_mode":managed.state_mode.value,
             "checkpoint_required":managed.checkpoint_required,
             "failure_domain_spread":managed.failure_domain_spread,
+        }
+        if self._workload_catalog is None:
+            return result
+
+        hosts={host.host_id:host for host in self.registry.hosts()}
+        source=hosts.get(plan.source_host_id)
+        target=hosts.get(plan.target_host_id)
+        if source is None or target is None:
+            return result
+
+        try:
+            grant_specs=migration_remote_grant_specs(
+                catalog=self._workload_catalog,
+                plan=plan,
+                host_node_ids={
+                    plan.source_host_id:source.node_id,
+                    plan.target_host_id:target.node_id,
+                },
+                local_host_id=self._local_host_id,
+            )
+        except PermissionError as exc:
+            return {
+                **result,
+                "approval_ready":False,
+                "approval_blocker":str(exc),
+            }
+        approval_parameters=migration_approval_parameters(
+            catalog=self._workload_catalog,
+            plan=plan,
+            workload_parameters=p["workload"],
+            source_node_id=source.node_id,
+            target_node_id=target.node_id,
+            grant_specs=grant_specs,
+        )
+        return {
+            **result,
+            "approval_ready":True,
+            "approval_capability":"ops.migration.execute",
+            "approval_parameters":approval_parameters,
         }
 
 class OpsCapabilitySet:

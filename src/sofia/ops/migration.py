@@ -176,10 +176,22 @@ class WorkloadMigrationExecutor:
             plan.workload.contract.version,
             plan.target_host_id,
         )
-        if source.drain is None or source.fence is None:
-            raise WorkloadBackendError("source requires drain and fence bindings")
-        if target.start is None or target.ready is None:
-            raise WorkloadBackendError("target requires start and ready bindings")
+        if (
+            source.drain is None
+            or source.fence is None
+            or source.rollback is None
+        ):
+            raise WorkloadBackendError(
+                "source requires drain, fence and rollback bindings"
+            )
+        if (
+            target.start is None
+            or target.ready is None
+            or target.rollback is None
+        ):
+            raise WorkloadBackendError(
+                "target requires start, ready and rollback bindings"
+            )
         if plan.workload.checkpoint_required and source.checkpoint is None:
             raise WorkloadBackendError(
                 "checkpoint-required workload lacks source checkpoint binding"

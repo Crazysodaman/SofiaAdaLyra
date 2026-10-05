@@ -290,8 +290,9 @@ Added:
 
 - opt-in `ReplicatedStatePlane` composition over two or more State Plane data targets;
 - independent durable `SQLiteReplicationWitness`;
-- one-writer lease with monotonic epoch;
-- stale-writer rejection after takeover;
+- exclusive one-writer lease with monotonic epoch, including rejection of a second acquisition even under the same writer ID;
+- expired leases cannot renew their old epoch and must reacquire a new epoch;
+- stale-writer authority is revalidated before/after replica mutation and inside witness acknowledgement, final commit and promotion transactions;
 - synchronous write/delete replication;
 - durable operation journal and per-target acknowledgements;
 - fail-closed partial-commit state;
@@ -327,8 +328,11 @@ The old migration state machine now has a real typed execution path:
 - checkpoint reference propagation;
 - target readiness verification;
 - source fence before singleton activation;
-- rollback only before a confirmed source fence;
+- rollback only before a confirmed source fence, with source and target rollback bindings required by preflight;
 - exact one-time `ops.migration.execute` approval from Sparks after deterministic preflight;
+- that approval is bound to the current source/target node IDs, SHA-256 of the exact reviewed typed execution profile, and the exact derived remote mutation scopes;
+- only those derived remote mutation scopes receive short-lived grants during execution, and those grants are revoked in `finally`;
+- read-only planning exposes the exact approval document when ready and returns a blocker instead of mutating/trusting a host when approval cannot yet be prepared;
 - trusted active Fleet membership + placement eligibility checks;
 - remote unknown outcomes become `outcome_uncertain` and are never automatically retried or rolled back;
 - result-path verification supports indexed structured evidence such as service lists.
