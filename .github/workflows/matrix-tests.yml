@@ -67,7 +67,8 @@ jobs:
             test/test_conversation_service.py::test_last_turn_followup_inherits_prior_semantic_domains_as_context_only `
             test/test_conversation_service.py::test_conversation_records_active_matrix_trace_before_persistence `
             test/test_conversation_service.py::test_channel_propagates_through_full_conversation_stack_to_matrix_trace `
-            test/test_conversation_service.py::test_matrix_context_failure_falls_back_to_legacy_history `
+            test/test_conversation_provider_live_regressions.py::test_matrix_planning_failure_fails_narrow_not_broad `
+            test/test_conversation_provider_live_regressions.py::test_trace_store_failure_does_not_disable_live_matrix_scoping `
             test/test_conversation_service.py::test_matrix_hru_routes_standard_and_records_validation `
             test/test_conversation_service.py::test_matrix_network_no_evidence_is_recorded_without_fake_health `
             test/test_conversation_service.py::test_runtime_promotes_host_execution_receipt_evidence `
