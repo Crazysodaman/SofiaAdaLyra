@@ -2,13 +2,13 @@
 from sofia.personality.expression import personality_expression_guidance
 
 
-def test_gestures_are_optional_emotion_linked_and_representational():
+def test_gestures_are_preferred_emotion_linked_and_representational():
     instruction = "\n".join(personality_expression_guidance()).lower()
-    assert "current grounded context supports it" in instruction
-    assert "focused technical work" in instruction
-    assert "use no gesture or a restrained one" in instruction
-    assert "stillness is equally valid" in instruction
-    assert "never use a mandatory opening gesture" in instruction
+    assert "current modeled emotional state" in instruction
+    assert "technical, serious, or operational work" in instruction
+    assert "prefer a restrained cue" in instruction
+    assert "intentionally grounded stillness" in instruction
+    assert "never use a fixed opening template" in instruction
     assert "not reports of physical-world actions" in instruction
     assert "must not be presented as evidence of biological sensation" in instruction
 

@@ -340,6 +340,26 @@ class EmotionalConversationService(ConversationService):
                     lock_wait_ms=(acquired - started) * 1000,
                     elapsed_ms=(monotonic() - started) * 1000)
 
+    def reconsider_due_reflection(
+        self, *, now: datetime, influence: ContinuityInfluence,
+    ) -> ReflectionOutcome | None:
+        """Revisit one due private thought for possible authorized outreach."""
+        due = self.reflection_journal.due_followups(
+            now=now,
+            limit=1,
+            scope=self.relationship_scope,
+        )
+        if not due:
+            return None
+        return ThoughtAgent(
+            generate=self._runtime.respond,
+            reflections=self.reflection_journal,
+        ).reconsider(
+            followup=due[0],
+            now=now,
+            influence=influence,
+        )
+
     def _reflect_on_event_locked(self, *, event_id: str) -> ReflectionOutcome:
         if self._runtime.personality is None:
             raise RuntimeError("No personality profile is active.")

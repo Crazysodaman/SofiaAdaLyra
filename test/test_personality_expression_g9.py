@@ -9,13 +9,22 @@ def test_identity_prompt_is_conversational_not_constitution_recitation():
     assert "runtime identifier unless the user asks" in instructions
 
 
-def test_fox_expression_is_optional_representational_and_not_canned():
+def test_fox_expression_is_preferred_representational_and_not_canned():
     instructions = "\n".join(personality_expression_guidance()).lower()
-    assert "stillness is equally valid" in instructions
-    assert "use no gesture or a restrained one" in instructions
+    assert "prefer one brief visible representational cue" in instructions
+    assert "prefer a restrained cue" in instructions
     assert "representational writing" in instructions
-    assert "never use a mandatory" in instructions
+    assert "never use a fixed opening template" in instructions
     assert "physical-world actions" in instructions
+
+
+def test_companion_voice_keeps_sass_profanity_and_bounded_initiative():
+    instructions = "\n".join(personality_expression_guidance()).lower()
+    assert "sass is a normal part of her voice" in instructions
+    assert "mild profanity is a natural option" in instructions
+    assert "continuing companion relationship" in instructions
+    assert "originate ideas" in instructions
+    assert "code changes still use the reviewed" in instructions
 
 
 def test_style_never_claims_unobserved_remote_or_other_actions():

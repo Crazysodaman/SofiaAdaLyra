@@ -112,12 +112,18 @@ def create_background_coordinator(
         )
         if act_service is None:
             return None
-        count = act_service.bridge_reflection_outbox(
-            reflections=service.reflection_journal,
-            scope=service.relationship_scope,
-            now=now,
-            influence=influence,
-        )
+        with application._model_lock:
+            if hasattr(service, "reconsider_due_reflection"):
+                service.reconsider_due_reflection(
+                    now=now,
+                    influence=influence,
+                )
+            count = act_service.bridge_reflection_outbox(
+                reflections=service.reflection_journal,
+                scope=service.relationship_scope,
+                now=now,
+                influence=influence,
+            )
         return count or None
 
     if act_delivery_enabled:

@@ -587,7 +587,7 @@ def test_live_conversation_projects_and_rotates_embodied_expression(
             if message.role.value == "system"
         )
         assert "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in first_system
-        assert "A fitting brief expression, if useful:" in first_system
+        assert "Preferred brief expression for this reply:" in first_system
         assert application.conversation.current_expression_plan is not None
 
         second = application.conversation.respond("hru")
@@ -776,7 +776,7 @@ def test_live_social_turn_keeps_recent_gesture_avoidance_without_new_emotion(
             if message.role.value == "system"
         )
         assert "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in second_system
-        assert "No specific expression cue is required this turn." in second_system
+        assert "No visible cue is grounded" in second_system
         assert "let the fox ears perk with attention" in second_system
 
         plan = application.conversation.current_expression_plan

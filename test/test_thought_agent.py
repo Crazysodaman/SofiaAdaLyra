@@ -60,6 +60,69 @@ def test_quiet_thought_stays_in_journal_without_message(tmp_path):
     assert result.thought_id and result.queued_message_id is None
     assert len(ReflectionJournal(tmp_path / "state.db").recent_thoughts()) == 1
     assert store.pending() == ()
+    assert store.due_followups(now=NOW + timedelta(days=2))
+
+
+def test_due_private_thought_can_be_reconsidered_into_outreach(tmp_path):
+    store, event = _setup(tmp_path)
+    agent = ThoughtAgent(
+        generate=lambda _: CognitiveResponse(content=_output(share="later")),
+        reflections=store,
+    )
+    agent.reflect(event=event, now=NOW)
+    followup = store.due_followups(now=NOW + timedelta(days=2))[0]
+    answer = json.dumps({
+        "share": "now",
+        "message": "I had a useful thought about that recorded restart.",
+        "urgency": "routine",
+    })
+
+    result = ThoughtAgent(
+        generate=lambda _: CognitiveResponse(content=answer),
+        reflections=store,
+    ).reconsider(followup=followup, now=NOW + timedelta(days=2))
+
+    assert result.queued_message_id is not None
+    assert store.due_followups(now=NOW + timedelta(days=2)) == ()
+    assert store.pending()[0].content.startswith("I had a useful thought")
+
+
+def test_due_private_thought_can_be_dismissed_without_message(tmp_path):
+    store, event = _setup(tmp_path)
+    ThoughtAgent(
+        generate=lambda _: CognitiveResponse(content=_output(share="later")),
+        reflections=store,
+    ).reflect(event=event, now=NOW)
+    followup = store.due_followups(now=NOW + timedelta(days=2))[0]
+    answer = json.dumps({"share": "none", "message": "", "urgency": "routine"})
+
+    result = ThoughtAgent(
+        generate=lambda _: CognitiveResponse(content=answer),
+        reflections=store,
+    ).reconsider(followup=followup, now=NOW + timedelta(days=2))
+
+    assert result.queued_message_id is None
+    assert store.due_followups(now=NOW + timedelta(days=2)) == ()
+    assert store.pending() == ()
+
+
+def test_invalid_reconsideration_stays_due_for_a_later_retry(tmp_path):
+    store, event = _setup(tmp_path)
+    ThoughtAgent(
+        generate=lambda _: CognitiveResponse(content=_output(share="later")),
+        reflections=store,
+    ).reflect(event=event, now=NOW)
+    later = NOW + timedelta(days=2)
+    followup = store.due_followups(now=later)[0]
+
+    with pytest.raises(ThoughtGenerationError):
+        ThoughtAgent(
+            generate=lambda _: CognitiveResponse(content="not json"),
+            reflections=store,
+        ).reconsider(followup=followup, now=later)
+
+    assert store.due_followups(now=later) == (followup,)
+    assert store.pending() == ()
 
 
 def test_abstain_does_not_create_made_up_memories(tmp_path):

@@ -119,6 +119,15 @@ class OutboxEntry:
     status: str
 
 
+@dataclass(frozen=True)
+class DeferredFollowup:
+    followup_id: str
+    thought: RecordedThought
+    created_at: datetime
+    reconsider_after: datetime
+    salience: float
+
+
 class ReflectionJournal:
     """Append-only thought records plus a durable outbox; no autonomous agent."""
 
@@ -602,6 +611,67 @@ class ReflectionJournal:
                     desired,
                 )
             return followup_id
+
+    def due_followups(
+        self, *, now: datetime, limit: int = 1,
+        scope: SocialScope | None = None,
+    ) -> tuple[DeferredFollowup, ...]:
+        """Return bounded, evidence-linked thoughts whose reconsideration is due."""
+        current = _utc(now)
+        if type(limit) is not int or not 1 <= limit <= 25:
+            raise ValueError("Follow-up limit must be 1-25.")
+        resolved_scope = _scope(scope)
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT f.followup_id,f.created_at,f.reconsider_after,f.salience,"
+                "t.thought_id,t.kind,t.created_at,t.subject,t.content,"
+                "t.evidence_refs,t.emotions,t.period_key,t.scope_kind,"
+                "t.principal_id,t.audience_id,t.audience_kind "
+                "FROM reflection_followups f JOIN reflection_thoughts t "
+                "ON t.thought_id=f.thought_id "
+                "WHERE f.status='deferred' AND f.scope_key=? "
+                "AND f.reconsider_after<=? "
+                "ORDER BY f.reconsider_after,f.followup_id LIMIT ?",
+                (resolved_scope.key, current.isoformat(), limit),
+            ).fetchall()
+        return tuple(
+            DeferredFollowup(
+                followup_id=row[0],
+                created_at=datetime.fromisoformat(row[1]),
+                reconsider_after=datetime.fromisoformat(row[2]),
+                salience=float(row[3]),
+                thought=RecordedThought(
+                    thought_id=row[4], kind=row[5],
+                    created_at=datetime.fromisoformat(row[6]),
+                    subject=row[7], content=row[8],
+                    evidence_refs=tuple(json.loads(row[9])),
+                    emotions=tuple(json.loads(row[10])), period_key=row[11],
+                    scope_kind=row[12], principal_id=row[13],
+                    audience_id=row[14], audience_kind=row[15],
+                ),
+            )
+            for row in rows
+        )
+
+    def resolve_followup(self, *, followup_id: str, shared: bool) -> None:
+        """Finish one due follow-up after its model decision is durably handled."""
+        identifier = _short(followup_id, "Follow-up ID", 180)
+        if type(shared) is not bool:
+            raise TypeError("shared must be boolean")
+        status = "bridged" if shared else "dismissed"
+        with self._connect() as db:
+            changed = db.execute(
+                "UPDATE reflection_followups SET status=? "
+                "WHERE followup_id=? AND status='deferred'",
+                (status, identifier),
+            )
+            if changed.rowcount != 1:
+                row = db.execute(
+                    "SELECT status FROM reflection_followups WHERE followup_id=?",
+                    (identifier,),
+                ).fetchone()
+                if row is None or row[0] != status:
+                    raise ValueError("no matching deferred follow-up")
 
 
     def mark_outbox_bridged(self, *, message_id: str) -> None:

@@ -99,6 +99,23 @@ _DAYPART_CANDIDATES = {
     "night": ("tail-still", "speak-softly", "pause"),
 }
 
+# Daylight refines the provenanced daypart signal. It does not create emotion;
+# it only changes which restrained expression cues are likely to feel natural.
+_DAYLIGHT_CANDIDATES = {
+    "day": ("ear-perk", "shift-posture"),
+    "twilight": ("pause", "tail-curl", "avert-gaze"),
+    "night": ("tail-still", "speak-softly", "pause"),
+    "polar_day": ("ear-perk", "shift-posture"),
+    "polar_night": ("tail-still", "speak-softly", "pause"),
+}
+
+_SEASON_CANDIDATES = {
+    "spring": ("ear-perk", "tail-swish", "shift-posture"),
+    "summer": ("ear-flick", "shift-posture", "grin"),
+    "autumn": ("tail-curl", "pause", "speak-softly"),
+    "winter": ("tail-curl", "tail-still", "speak-softly"),
+}
+
 _EMOTION_POSES: dict[str, tuple[str, ...]] = {
     "amusement": ("hip-pop", "stand-relaxed"),
     "playfulness": ("hip-pop", "look-back", "stand-relaxed"),
@@ -131,6 +148,13 @@ _DAYPART_POSES = {
     "afternoon": ("stand-relaxed", "lean-forward"),
     "evening": ("sit-cross-legged", "recline", "stand-relaxed"),
     "night": ("recline", "sit-cross-legged", "stand-relaxed"),
+}
+
+_SEASON_POSES = {
+    "spring": ("lean-forward", "stand-relaxed"),
+    "summer": ("stand-relaxed", "hip-pop"),
+    "autumn": ("sit-cross-legged", "stand-relaxed"),
+    "winter": ("recline", "sit-cross-legged", "stand-relaxed"),
 }
 
 # Weather may color expression only when the matrix says fresh evidence is usable.
@@ -352,9 +376,10 @@ class EmbodiedExpressionPlan:
         pose_alternates = _list_text(self.pose_alternates, _pose_text)
         avoid = _list_text(self.avoid_recent, _expression_text)
         preferred_line = (
-            "No specific expression cue is required this turn."
+            "No visible cue is grounded; express personality through cadence, wording, "
+            "voice, or intentional stillness."
             if self.primary is None
-            else f"A fitting brief expression, if useful: {candidate}"
+            else f"Preferred brief expression for this reply: {candidate}"
         )
         return "\n".join((
             "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT",
@@ -364,8 +389,11 @@ class EmbodiedExpressionPlan:
             f"Other fitting poses: {pose_alternates}",
             f"Avoid repeating these recently used expression families: {avoid}",
             f"Suggested intensity: {self.intensity}",
-            "Use at most one brief expression cue in an ordinary reply when it genuinely "
-            "adds personality. Stillness is valid. These are suggestions, not text to copy. "
+            "Use one brief expression cue in the reply unless it would obscure urgent facts, "
+            "conflict with the current boundary, or falsely imply sensation or execution. "
+            "For technical or serious replies, keep it restrained rather than omitting "
+            "personality. Intentional stillness is an expression only when grounded. "
+            "These are guidance, not text to copy. "
             "Write natural prose or a concise stage direction; do not narrate this guidance, "
             "promise how a future reply will sound, or expose internal labels.",
             "Representational expression is not evidence of physical sensation, real-world "
@@ -435,6 +463,11 @@ class EmbodiedExpressionPlanner:
         daypart_decision = matrix_plan.decision_for(InfluenceSignal.DAYPART)
         if daypart_decision.mode is not InfluenceMode.NONE:
             candidates.extend(_DAYPART_CANDIDATES.get(influence.daypart, ()))
+            candidates.extend(_DAYLIGHT_CANDIDATES.get(influence.daylight, ()))
+
+        season_decision = matrix_plan.decision_for(InfluenceSignal.SEASON)
+        if season_decision.mode is not InfluenceMode.NONE:
+            candidates.extend(_SEASON_CANDIDATES.get(influence.season, ()))
 
         weather_decision = matrix_plan.decision_for(InfluenceSignal.WEATHER)
         if (
@@ -472,6 +505,8 @@ class EmbodiedExpressionPlanner:
             ))
         if daypart_decision.mode is not InfluenceMode.NONE:
             pose_candidates.extend(_DAYPART_POSES.get(influence.daypart, ()))
+        if season_decision.mode is not InfluenceMode.NONE:
+            pose_candidates.extend(_SEASON_POSES.get(influence.season, ()))
         poses = tuple(dict.fromkeys(
             candidate for candidate in pose_candidates
             if _valid_pose_id(candidate)

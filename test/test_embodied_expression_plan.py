@@ -11,12 +11,14 @@ def _influence(
     emotion: str | None = None,
     intensity: float = 0.0,
     daypart: str = "unknown",
+    season: str | None = None,
+    daylight: str | None = None,
     weather: str | None = None,
 ) -> ContinuityInfluence:
     return ContinuityInfluence(
         daypart=daypart,
-        season=None,
-        daylight=None,
+        season=season,
+        daylight=daylight,
         weather_condition=weather,
         temperature_c=None,
         weather_freshness="current" if weather else None,
@@ -36,7 +38,9 @@ def _influence(
         daypart_evidence_refs=(
             ("runtime.clock",) if daypart != "unknown" else ()
         ),
-        season_evidence_refs=(),
+        season_evidence_refs=(
+            ("runtime.clock",) if season is not None else ()
+        ),
         weather_evidence_refs=(
             ("environment.weather:test",) if weather else ()
         ),
@@ -104,6 +108,36 @@ def test_expression_plan_weather_only_is_expression_not_emotion():
     assert InfluenceSignal.EMOTION.value not in plan.active_signals
 
 
+def test_expression_plan_uses_grounded_season_without_creating_emotion():
+    planner = EmbodiedExpressionPlanner()
+    influence = _influence(season="winter")
+
+    plan = planner.plan(
+        message_id="message-winter",
+        influence=influence,
+    )
+
+    assert plan.primary in {"tail-curl", "tail-still", "speak-softly"}
+    assert InfluenceSignal.SEASON.value in plan.active_signals
+    assert InfluenceSignal.EMOTION.value not in plan.active_signals
+
+
+def test_expression_plan_lets_daylight_refine_provenanced_daypart():
+    planner = EmbodiedExpressionPlanner()
+    influence = _influence(daypart="evening", daylight="twilight")
+
+    plan = planner.plan(
+        message_id="message-twilight",
+        influence=influence,
+    )
+
+    assert plan.primary in {
+        "tail-curl", "smile", "speak-softly", "pause", "avert-gaze",
+    }
+    assert InfluenceSignal.DAYPART.value in plan.active_signals
+    assert InfluenceSignal.EMOTION.value not in plan.active_signals
+
+
 def test_expression_plan_can_remain_still_without_grounded_context():
     planner = EmbodiedExpressionPlanner()
 
@@ -115,7 +149,7 @@ def test_expression_plan_can_remain_still_without_grounded_context():
     assert plan.primary is None
     assert plan.alternates == ()
     assert plan.active_signals == ()
-    assert "No specific expression cue is required this turn." in plan.prompt()
+    assert "No visible cue is grounded" in plan.prompt()
 
 
 def test_expression_prompt_preserves_representation_and_authority_boundary():
@@ -133,7 +167,8 @@ def test_expression_prompt_preserves_representation_and_authority_boundary():
     assert "representational expression is not evidence of physical sensation" in prompt
     assert "cannot override" in prompt
     assert "avoid repeating these recently used expression families" in prompt
-    assert "a fitting brief expression, if useful" in prompt
+    assert "preferred brief expression for this reply" in prompt
+    assert "for technical or serious replies, keep it restrained" in prompt
     assert "planner reason" not in prompt
     assert "active contextual influence signals" not in prompt
 

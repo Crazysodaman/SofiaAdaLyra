@@ -62,7 +62,8 @@ def test_provider_view_retains_policy_without_prescribing_exact_cue_or_emotion()
     assert original_decision['gesture'] == 'pat'
     assert original_decision['policy_status'] == 'accepted'
     assert 'NOT Sofía\'s consent' in viewed
-    assert 'No emotional response or gesture is prescribed' in viewed
+    assert 'Choose a natural reaction from Sofía\'s personality' in viewed
+    assert 'prefer a brief expression' in viewed
     assert '*one ear flicks*' in original  # The canonical decision is unchanged.
 
 

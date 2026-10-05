@@ -6,6 +6,7 @@ import sqlite3
 import pytest
 
 from sofia.personality.reflection import ReflectionJournal, _period
+from sofia.social.model import SocialScope
 
 UTC = timezone.utc
 
@@ -94,6 +95,43 @@ def test_grounded_outbox_dedup_spacing_and_act_bridge(tmp_path):
     assert [e.message_id for e in ReflectionJournal(path).pending()] == [later]
     with pytest.raises(ValueError, match='no pending'):
         store.mark_outbox_bridged(message_id=first)
+
+
+def test_deferred_followups_are_durable_due_and_relationship_scoped(tmp_path):
+    path = tmp_path / 'db.sqlite'
+    store = ReflectionJournal(path)
+    sparks = SocialScope.relationship('sparks')
+    other = SocialScope.relationship('other')
+    thought = store.record_thought(
+        kind='reflection', thought_id='relationship-thought',
+        subject='A useful idea', content='A grounded idea to revisit.',
+        evidence_refs=('event:1',), emotions=('curiosity',), created_at=_at(),
+        scope=sparks,
+    )
+    followup_id = store.defer_followup(
+        thought_id=thought,
+        created_at=_at(),
+        reconsider_after=_at() + timedelta(hours=1),
+        salience=0.6,
+    )
+
+    assert ReflectionJournal(path).due_followups(
+        now=_at() + timedelta(minutes=59), scope=sparks,
+    ) == ()
+    assert ReflectionJournal(path).due_followups(
+        now=_at() + timedelta(hours=2), scope=other,
+    ) == ()
+    due = ReflectionJournal(path).due_followups(
+        now=_at() + timedelta(hours=2), scope=sparks,
+    )
+    assert len(due) == 1
+    assert due[0].followup_id == followup_id
+    assert due[0].thought.scope == sparks
+
+    store.resolve_followup(followup_id=followup_id, shared=False)
+    assert ReflectionJournal(path).due_followups(
+        now=_at() + timedelta(hours=2), scope=sparks,
+    ) == ()
 
 
 def test_cannot_forge_period_or_rewrite_thought(tmp_path):
