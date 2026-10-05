@@ -491,6 +491,44 @@ def test_bare_why_after_emotional_self_report_gets_causal_provenance(
         application.shutdown()
 
 
+def test_live_longing_projects_tail_capable_expression_context(
+    monkeypatch,
+    tmp_path,
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        ("I'm feeling longing right now.",),
+    )
+    try:
+        now = datetime.now(timezone.utc)
+        subject = application.conversation._relationship_subject()
+        application.conversation.emotional_journal.record(
+            event_id="test:longing-expression",
+            source="observed",
+            evidence_ref="test:longing-expression",
+            description="Grounded longing is active for this turn.",
+            emotions=("longing",),
+            occurred_at=now,
+            subject=subject,
+            scope=application.conversation.relationship_scope,
+        )
+
+        response = application.conversation.respond("hru")
+
+        assert "longing" in response.content
+        assert len(captured) == 1
+        system_text = "\n".join(
+            message.content
+            for message in captured[0].messages
+            if message.role.value == "system"
+        ).casefold()
+        assert "current representational expression context" in system_text
+        assert "tail" in system_text
+    finally:
+        application.shutdown()
+
+
 def test_live_conversation_projects_and_rotates_embodied_expression(
     monkeypatch, tmp_path
 ):
