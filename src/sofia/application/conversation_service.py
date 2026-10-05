@@ -657,6 +657,7 @@ class ConversationService(ConversationMatrixMixin):
 
         clothing_handler = self._clothing_action_handler
         if clothing_handler is not None:
+            presentation_before = self._runtime.avatar_presentation_projection
             previous_user = next(
                 (
                     message
@@ -665,6 +666,7 @@ class ConversationService(ConversationMatrixMixin):
                 ),
                 None,
             )
+            clothing_operation_id = f"avatar.clothing.{user_message.id}"
             clothing_reply = clothing_handler(
                 content=content,
                 previous_user_content=(
@@ -672,7 +674,7 @@ class ConversationService(ConversationMatrixMixin):
                     if previous_user is None
                     else previous_user.content
                 ),
-                operation_id=f"avatar.clothing.{user_message.id}",
+                operation_id=clothing_operation_id,
                 principal=principal,
             )
             if clothing_reply is not None:
@@ -683,8 +685,20 @@ class ConversationService(ConversationMatrixMixin):
                     raise RuntimeError(
                         "clothing action handler returned invalid response text"
                     )
+                presentation_after = self._runtime.avatar_presentation_projection
+                changed = (
+                    presentation_before is not None
+                    and presentation_after is not None
+                    and presentation_after.source_revision
+                    != presentation_before.source_revision
+                )
                 response = CognitiveResponse(
-                    content=clothing_reply.strip()
+                    content=clothing_reply.strip(),
+                    evidence_refs=(
+                        (f"execution-receipt:{clothing_operation_id}",)
+                        if changed
+                        else ()
+                    ),
                 )
                 response = self._matrix_finalize_deterministic_response(
                     response

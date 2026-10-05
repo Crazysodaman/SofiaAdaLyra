@@ -294,6 +294,13 @@ class MatrixResponseValidator:
                     "answer to that, so I won't invent a memory."
                 )
             )
+        if "required_evidence_unavailable:environment.weather.current" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I don't have current weather evidence, so I can't ground "
+                    "how it affects my expression right now."
+                )
+            )
         if any(
             reason.startswith("required_evidence_unavailable:")
             for reason in reasons

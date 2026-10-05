@@ -747,6 +747,18 @@ class ConversationMatrixMixin:
             self._current_response_contract,
             self._current_evidence_matrix,
         )
+        # Deterministic host resolvers are also authoritative about absence.
+        # A weather resolver saying that no provider produced current evidence,
+        # for example, must not be replaced by a less-specific matrix fallback.
+        # Other failures (authority, receipts, unsupported positive claims,
+        # internal reasoning) still block the response normally.
+        if validation.reasons and all(
+            reason.startswith("required_evidence_unavailable:")
+            for reason in validation.reasons
+        ):
+            validation = ResponseValidation(
+                ResponseValidationDisposition.PASS,
+            )
         if validation.disposition is ResponseValidationDisposition.PASS:
             self._current_response_validation = validation
             self._record_current_matrix_trace()
@@ -790,6 +802,38 @@ class ConversationMatrixMixin:
         if validation.disposition is ResponseValidationDisposition.PASS:
             self._record_current_matrix_trace()
             return response
+
+        if (
+            "deterministic:environment-query" in response.evidence_refs
+            and validation.reasons
+            and all(
+                reason.startswith("required_evidence_unavailable:")
+                for reason in validation.reasons
+            )
+        ):
+            self._current_response_validation = ResponseValidation(
+                ResponseValidationDisposition.PASS,
+            )
+            self._record_current_matrix_trace()
+            return response
+
+        # A rewrite cannot manufacture required host evidence. Fail closed
+        # immediately instead of spending one or more model calls asking for a
+        # differently worded unsupported answer.
+        if any(
+            reason.startswith("required_evidence_unavailable:")
+            for reason in validation.reasons
+        ):
+            fallback = self._matrix_response_validator.fallback(
+                validation,
+                self._current_response_contract,
+            )
+            self._current_response_validation = ResponseValidation(
+                ResponseValidationDisposition.FALLBACK,
+                validation.reasons,
+            )
+            self._record_current_matrix_trace()
+            return fallback
 
         correction = CognitiveMessage(
             role=CognitiveRole.SYSTEM,

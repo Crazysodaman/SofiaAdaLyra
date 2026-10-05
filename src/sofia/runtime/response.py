@@ -278,7 +278,8 @@ def respond_with_runtime_context(
             and len(composite_answers) == len(query_parts)
         ):
             return CognitiveResponse(
-                content="\n".join(composite_answers)
+                content="\n".join(composite_answers),
+                evidence_refs=("deterministic:environment-query",),
             )
         if composite_pairs:
             resolved_lines = [
@@ -405,7 +406,8 @@ def respond_with_runtime_context(
         )
         if environment_answer.recognized:
             return CognitiveResponse(
-                content=environment_answer.content
+                content=environment_answer.content,
+                evidence_refs=("deterministic:environment-query",),
             )
 
     if include_domain(MatrixDomain.MEMORY):

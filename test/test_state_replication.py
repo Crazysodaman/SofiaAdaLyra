@@ -58,7 +58,7 @@ class FlakyPlane(StatePlane):
         )
 
 
-def make_plane(tmp_path, *, replica=None, writer="writer-a", now=NOW):
+def make_plane(tmp_path, *, replica=None, writer="writer-a", now=None):
     primary = SQLiteStatePlane(tmp_path / "primary.db")
     secondary = replica or SQLiteStatePlane(tmp_path / "secondary.db")
     witness = SQLiteReplicationWitness(tmp_path / "witness.db")

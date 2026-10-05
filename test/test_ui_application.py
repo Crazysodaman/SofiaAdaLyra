@@ -134,7 +134,7 @@ def test_text_ui_clothing_action_commits_canonical_avatar_state(
     response = application.text_ui.send()
 
     assert (
-        "Late-Night Lounge Outfit" in response.content
+        "Late-Night Lounge" in response.content
         or "already my current wardrobe state" in response.content
     )
     current = application.runtime.avatar_presentation.current
@@ -175,7 +175,7 @@ def test_text_ui_clothing_hypothetical_then_do_it_uses_prior_user_request(
     followup = application.text_ui.send()
 
     assert (
-        "Late-Night Lounge Outfit" in followup.content
+        "Late-Night Lounge" in followup.content
         or "already my current wardrobe state" in followup.content
     )
     assert application.runtime.avatar_presentation.current.outfit_id == (

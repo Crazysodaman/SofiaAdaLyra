@@ -364,7 +364,7 @@ def test_live_memory_query_without_retrieval_fails_closed(
 
         assert "won't invent a memory" in response.content
         assert "Serenity" not in response.content
-        assert len(captured) == 2
+        assert len(captured) == 1
     finally:
         application.shutdown()
 
@@ -730,7 +730,7 @@ def test_live_weather_affect_turn_uses_primary_and_no_emotional_history_dump(
             "how does that weather affect you?"
         )
 
-        assert "isn't physically touching me" in reply.content
+        assert "don't have current weather evidence" in reply.content
         assert len(captured) == 1
         system_text = "\n".join(
             message.content
@@ -862,7 +862,7 @@ def test_live_network_inspection_is_not_hijacked_by_filesystem_parser(
             for message in captured[0].messages
             if message.role is CognitiveRole.SYSTEM
         )
-        assert "TRUSTED READ-ONLY TOOL REQUIREMENT" in system_text
+        assert "TRUSTED TOOL EVIDENCE REQUIREMENT" in system_text
         assert "filesystem inspection is not authorized" not in system_text.casefold()
         assert any(
             message.role is CognitiveRole.TOOL

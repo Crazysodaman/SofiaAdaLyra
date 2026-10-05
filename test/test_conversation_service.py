@@ -672,7 +672,10 @@ def test_matrix_shadow_failure_never_breaks_conversation(
         response = application.conversation.respond("Hello")
 
         assert response.content == "Test cognitive response."
-        assert application.conversation.last_matrix_error == "RuntimeError"
+        assert (
+            application.conversation.last_matrix_error
+            == "planning:RuntimeError"
+        )
     finally:
         application.shutdown()
 
