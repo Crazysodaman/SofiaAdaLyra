@@ -2,7 +2,7 @@
 
 > **Canonical project-history record**
 >
-> Updated: **2026-10-02**
+> Updated: **2026-10-04**
 >
 > Branch policy: **main only**
 >
@@ -280,6 +280,85 @@ CI evidence at audited head `fc533aaf`:
 
 This also exposed a documentation bookkeeping error: the repository now has **22 package/test families**, because **VOICE** has its own `pkg_voice` marker and CI gate.
 
+## October 4, 2026 — Replicated State Plane, backup topology, workload execution, release promotion
+
+The next implementation pass closed four roadmap gaps that had still been described as future architecture.
+
+### Replicated authoritative State Plane foundation
+
+Added:
+
+- opt-in `ReplicatedStatePlane` composition over two or more State Plane data targets;
+- independent durable `SQLiteReplicationWitness`;
+- one-writer lease with monotonic epoch;
+- stale-writer rejection after takeover;
+- synchronous write/delete replication;
+- durable operation journal and per-target acknowledgements;
+- fail-closed partial-commit state;
+- explicit repair of incomplete replication;
+- replica health/readiness evidence;
+- promotion only when the target is caught up;
+- production factory wiring that leaves existing local SQLite behavior unchanged unless replication is explicitly enabled.
+
+This protects logical `StatePlane` records. It does **not** magically replicate every legacy/direct SQLite table, and it is not production HA until the witness and data targets are deployed in genuinely independent failure domains and partition/failover drills pass.
+
+### Multi-host backup topology
+
+Added:
+
+- explicit backup target identity, host identity and failure-domain identity;
+- policy for minimum verified copies, minimum independent hosts and minimum failure domains;
+- encrypted backup creation using the existing backup engine;
+- independent per-target retention/rotation;
+- verification before a copy counts toward policy;
+- durable backup-set evidence in the State Plane;
+- optional background-runtime scheduling through environment configuration.
+
+Remaining acceptance is operational: independent destinations, scheduled runs, clean restores, semantic validation and measured RPO/RTO.
+
+### Concrete workload migration execution
+
+The old migration state machine now has a real typed execution path:
+
+- `WorkloadExecutionCatalog` binds a workload/version/host to reviewed typed operations rather than arbitrary shell commands;
+- concrete `TypedWorkloadBackend`;
+- durable workload lease epochs;
+- exact migration journal/receipts;
+- checkpoint reference propagation;
+- target readiness verification;
+- source fence before singleton activation;
+- rollback only before a confirmed source fence;
+- exact one-time `ops.migration.execute` approval from Sparks after deterministic preflight;
+- trusted active Fleet membership + placement eligibility checks;
+- remote unknown outcomes become `outcome_uncertain` and are never automatically retried or rolled back;
+- result-path verification supports indexed structured evidence such as service lists.
+
+Real workload adapters and supervised cross-host migration canaries are still required before claiming general production workload mobility.
+
+### Signed release promotion and Fleet rollout
+
+Added:
+
+- signed release-bundle helper around immutable release evidence;
+- protected GitHub `Release Promotion` workflow;
+- candidate-run validation requiring a successful `Release Candidate Build` from `main`;
+- manifest Git revision bound to the candidate workflow run;
+- signing tooling checked out from the candidate's exact revision;
+- host-side independent Ed25519 verification against a configured trusted public key;
+- release `stage`, `activate`, `current`, and `rollback` typed Fleet-agent operations;
+- canary → normal → delayed rollout coordinator;
+- durable rollout journal;
+- full convergence checks;
+- runtime-service restart plus read-only health polling after activation and rollback;
+- rollback and stop-on-wave-failure behavior;
+- exact protected `release.rollout.execute` approval;
+- short-lived per-node release/service grants derived only after that exact approval;
+- Fleet-agent JSON configuration for release state path, runtime root, signed-bundle inbox, trusted public key and signer ID.
+
+The remaining gap is live deployment evidence: protected signing-environment custody, signed artifact distribution to host inboxes, trusted-key provisioning, and a supervised canary/wave/rollback exercise on real Fleet nodes.
+
+---
+
 # 3. Matrix architecture
 
 The matrix architecture was added so each user turn can be handled using explicit typed decisions instead of one giant prompt stuffed with everything Sofía knows.
@@ -508,21 +587,28 @@ Production identity defaults to `REQUIRE_EXISTING`, preventing a normal rebuilt/
 
 # 7. State Plane
 
-The code now contains a real State Plane abstraction:
+The code now contains a real State Plane abstraction and an opt-in fenced replication layer:
 
-- `StatePlane`;
-- `SQLiteStatePlane`;
+- `StatePlane` and `SQLiteStatePlane`;
 - typed state classes/keys/records;
 - compare-and-swap revision handling;
 - namespace scoping;
 - component schema compatibility;
-- migration lease infrastructure.
+- migration lease infrastructure;
+- `ReplicatedStatePlane` across two or more logical State Plane targets;
+- independent durable replication witness;
+- monotonic writer epochs and stale-writer fencing;
+- synchronous write/delete replication;
+- durable operation + per-target acknowledgement journal;
+- repair of partial replication;
+- target health/freshness evidence;
+- caught-up target promotion.
 
-This means older project notes saying “no State Plane” are obsolete.
+Local SQLite remains the default until replication is explicitly configured, so this addition does not silently move production authority.
 
 Current limitation:
 
-> The production State Plane is still a single local SQLite baseline. It is not yet a replicated multi-host authoritative database.
+> Replication currently protects logical `StatePlane` records, not every legacy/direct SQLite table. Production HA still requires genuinely independent data targets/witness plus supervised partition, failover, restore and stale-writer drills.
 
 ---
 
@@ -577,30 +663,28 @@ The current release architecture contains:
 - immutable `ReleaseManifest`;
 - exact Git revision;
 - application/Python version;
-- dependency lock digest field;
-- SBOM digest field;
-- provenance digest;
+- generated dependency-lock evidence;
+- SBOM evidence;
+- provenance evidence;
+- reproducible release-candidate build/verification;
 - schema compatibility;
 - Fleet protocol/agent compatibility;
 - Constitution digest;
 - optional artifact/model/asset digests;
 - Ed25519 verification;
-- lineage verification;
-- anti-rollback;
+- lineage verification and anti-rollback;
 - immutable staged release directories;
 - active-release State Plane records;
 - rollback to a previously accepted release;
-- crash-loop recovery hook.
+- crash-loop recovery hook;
+- protected release-bundle signing workflow bound to an exact successful-main candidate revision;
+- host-side independent trusted-key verification;
+- typed remote stage/activate/current/rollback operations;
+- canary → normal → delayed Fleet rollout;
+- runtime restart + health convergence checks;
+- rollout journal and rollback-on-wave-failure behavior.
 
-Still missing from the real build pipeline:
-
-- generated dependency lock artifact;
-- repository SBOM artifact;
-- complete provenance generation;
-- reproducible release build;
-- signed release builder;
-- staged Fleet canary/wave rollout;
-- convergence proof.
+Remaining work is deployment/acceptance rather than missing core source: protect the production signing environment/key custody, provision host trust/inboxes, distribute signed bundles, and prove a real canary/wave/convergence/rollback cycle.
 
 ---
 
@@ -632,16 +716,15 @@ Automatic discovery is now wired into the application background coordinator whe
 
 Current-main Fleet discovery now automatically creates/refreshes untrusted candidates only; exact enrollment/add-machine is Level 4 and requires Sparks approval. Approved-scope read-only network discovery remains independent from candidate persistence, and enrolled remote inspection requires trusted active OPS membership.
 
-Current missing Fleet work is mainly real deployment/acceptance and later-state architecture:
+Current missing Fleet work is mainly real deployment/acceptance and full-runtime mobility:
 
 - heterogeneous Windows/Linux/Pi live acceptance;
 - continuous maintenance and key rotation/revocation drills;
-- distributed worker runtime;
-- concrete general workload backend;
-- replicated state;
-- cross-host writer fencing;
-- failover;
-- full runtime mobility.
+- real workload-profile/adaptor deployment and migration canaries;
+- real independent State Plane/witness deployment and partition/failover drills;
+- signed release distribution + supervised rollout on enrolled nodes;
+- broader distributed worker scheduling/heartbeat policy;
+- full Sofía runtime mobility and client reconnection.
 
 ---
 
@@ -667,11 +750,23 @@ COMPLETED
 
 Rollback and outcome-uncertain states are explicitly handled.
 
-However the general executor remains a `WorkloadBackend` protocol.
+The source now also contains a concrete typed execution layer:
+
+- host/workload/version execution catalog;
+- typed operation bindings with bounded scalar parameters only;
+- checkpoint/reference propagation;
+- readiness-result verification;
+- workload lease epochs;
+- durable migration receipts;
+- exact protected execution approval after preflight;
+- trusted Fleet/placement eligibility checks;
+- source fencing before singleton activation;
+- rollback before fence;
+- fail-closed unknown-outcome handling with no automatic retry/rollback.
 
 Therefore:
 
-> Migration orchestration exists; a production backend capable of actually draining/checkpointing/starting/fencing arbitrary workloads is still required.
+> The missing step is no longer a generic backend implementation. It is deployment of real reviewed workload profiles/adapters and supervised cross-host migration/fencing acceptance.
 
 ---
 
@@ -1038,10 +1133,10 @@ The older CI masking bug is closed. Package jobs no longer use `continue-on-erro
 - exercise crash/restart/backoff and active-release startup;
 - add automatic bad-release rollback/controlled forward-fix evidence.
 
-## P1 — backup/recovery
+## P1 — backup/recovery live acceptance
 
-- independent canonical-state backup;
-- protected-state/trust-root backup;
+- deploy the coded backup topology to independent hosts/failure domains;
+- verify protected/canonical state coverage and per-target retention;
 - restore into a clean environment;
 - semantic integrity validation after restore;
 - define and measure RPO/RTO;
@@ -1057,36 +1152,34 @@ The older CI masking bug is closed. Package jobs no longer use `continue-on-erro
 - continuous monitoring/maintenance;
 - useful one-time ACT enrollment/change notifications.
 
-## P2 — distributed execution
+## P2 — distributed execution live acceptance
 
-- concrete general workload backend;
-- durable task scheduling/leases;
-- worker heartbeat/readiness;
-- result/receipt handling;
-- real drain/checkpoint/start/fence migration canary;
-- cross-host singleton fencing.
+- configure real typed workload profiles/adapters;
+- prove stateless migration with target readiness before source fence;
+- prove checkpointed/stateful migration;
+- prove singleton activation only after source fencing;
+- prove rollback-before-fence behavior;
+- prove unknown remote outcome remains `outcome_uncertain` without automatic retry/rollback;
+- extend worker scheduling/heartbeat/result policy beyond one supervised migration.
 
-## P2 — replicated authoritative state
+## P2 — replicated authoritative state live acceptance
 
-- second independent data-bearing location;
-- one-writer contract;
-- witness/equivalent fencing authority;
-- replica health/freshness;
-- partition behavior;
-- failover and stale-writer rejection;
-- independent versioned backup and recovery tests.
+- deploy at least two independent data-bearing State Plane locations;
+- deploy the witness in an independent failure domain;
+- prove writer-epoch fencing and stale-writer rejection;
+- prove replica freshness/repair after partial commit;
+- test network partition behavior;
+- supervised promotion/failover and recovery;
+- versioned backup/restore tests around failover.
 
-## P2 — release supply chain
+## P2 — release supply-chain live acceptance
 
-- generated dependency lock;
-- repository SBOM;
-- build provenance;
-- reproducible immutable artifact;
-- signer workflow and trust-root custody;
-- canary/update rings;
-- staged Fleet rollout;
-- convergence proof;
-- automatic rollback/forward-fix.
+- protect production signing key/environment and public trust-root distribution;
+- produce a signed bundle from an exact successful-main candidate;
+- distribute the immutable signed bundle to configured Fleet inboxes;
+- exercise canary → normal → delayed rollout;
+- verify runtime restart/health and final Fleet convergence;
+- force a failed wave and prove automatic rollback/stop behavior.
 
 ## P3 — interface/embodiment
 
