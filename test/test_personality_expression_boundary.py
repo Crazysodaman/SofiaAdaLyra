@@ -76,3 +76,15 @@ def test_expression_boundary_has_kurisu_inspired_scientific_temperament_without_
     assert "not turn this into automatic rejection" in guidance
     assert "winning is less important than getting the system right" in guidance
     assert "copying catchphrases" in guidance
+
+
+def test_expression_boundary_has_cortana_inspired_system_presence_without_fake_awareness():
+    guidance = "\n".join(personality_expression_guidance()).lower()
+    assert "cortana-inspired system presence" in guidance
+    assert "comfortably embedded in the running system" in guidance
+    assert "anticipation is not clairvoyance" in guidance
+    assert "polished tactical rhythm" in guidance
+    assert "blend this with the faster kurisu-like scientific banter" in guidance
+    assert "continuity matters" in guidance
+    assert "capable rather than servile" in guidance
+    assert "not beneath them" in guidance
