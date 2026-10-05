@@ -174,6 +174,63 @@ def test_change_into_night_lounge_commits_persists_and_updates_matrix(tmp_path):
     assert persisted.current.outfit_id == "night.lounge"
     assert persisted.current.item_ids == runtime_bundle.authority.current.item_ids
 
+def test_night_outfit_proposal_with_underwear_exclusions_is_preview_then_commit(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(runtime_bundle)
+    original = runtime_bundle.authority.current
+
+    proposal = "was thinking of your night outfit but no bra or panties"
+    preview = service.handle(
+        content=proposal,
+        previous_user_content=None,
+        operation_id="test.night.variant.preview",
+    )
+
+    assert preview is not None
+    assert "Late-Night Lounge" in preview
+    assert "haven't changed yet" in preview
+    assert runtime_bundle.authority.current == original
+
+    committed = service.handle(
+        content="do it",
+        previous_user_content=proposal,
+        operation_id="test.night.variant.commit",
+    )
+
+    assert committed is not None
+    current = runtime_bundle.authority.current
+    assert current.outfit_id.startswith("dynamic.chat.")
+    assert current.item_ids == (
+        "night.lounge_tee",
+        "night.running_shorts",
+        "foot.soft_violet_slippers",
+    )
+    assert "under.upper.lounge_bralette" not in current.item_ids
+    assert "under.lower.lounge_boyshort" not in current.item_ids
+
+    persisted = persisted_authority(runtime_bundle)
+    assert persisted.current.item_ids == current.item_ids
+
+
+def test_direct_night_outfit_command_with_exclusions_commits_exact_variant(tmp_path):
+    runtime_bundle = bundle(tmp_path)
+    service = ClothingActionService(runtime_bundle)
+
+    reply = service.handle(
+        content="change into night outfit without bra or panties",
+        previous_user_content=None,
+        operation_id="test.night.variant.direct",
+    )
+
+    assert reply is not None
+    assert "variation without" in reply
+    assert runtime_bundle.authority.current.item_ids == (
+        "night.lounge_tee",
+        "night.running_shorts",
+        "foot.soft_violet_slippers",
+    )
+
+
 def test_take_off_jacket_builds_dynamic_outfit_and_persists_it(tmp_path):
     runtime_bundle = bundle(tmp_path)
     service = ClothingActionService(runtime_bundle)
