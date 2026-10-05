@@ -673,6 +673,19 @@ class ConversationMatrixMixin:
                 "request:host-emotion-projection",
             )
 
+        if any(
+            marker in system_text
+            for marker in (
+                "EXPLICITLY SUPPLIED MEMORIES",
+                "HISTORICAL CHATGPT EVIDENCE",
+            )
+        ):
+            availability["memory.retrieval"] = EvidenceRecord(
+                "memory.retrieval",
+                EvidenceState.AVAILABLE,
+                "request:host-memory-retrieval",
+            )
+
         return availability
 
     def _refresh_matrix_evidence(
