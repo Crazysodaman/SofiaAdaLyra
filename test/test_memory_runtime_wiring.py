@@ -281,7 +281,7 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
     runtime.cognitive_system.engine = recorder
 
     runtime.start()
-    runtime.respond(
+    response = runtime.respond(
         CognitiveRequest(
             messages=(
                 CognitiveMessage(
@@ -293,6 +293,7 @@ def test_runtime_respond_projects_promoted_not_legacy_memory(
         principal=local_sparks_principal(),
     )
 
+    assert "memory-retrieval:promoted" in response.evidence_refs
     assert recorder.last_request is not None
     assembled = "\n".join(
         message.content
@@ -353,7 +354,7 @@ def test_runtime_projects_imported_history_as_historical_evidence(
     runtime.cognitive_system.engine = recorder
 
     runtime.start()
-    runtime.respond(
+    response = runtime.respond(
         CognitiveRequest(
             messages=(
                 CognitiveMessage(
@@ -367,6 +368,7 @@ def test_runtime_projects_imported_history_as_historical_evidence(
         principal=local_sparks_principal(),
     )
 
+    assert "memory-retrieval:historical" in response.evidence_refs
     assert recorder.last_request is not None
     assembled = "\n".join(
         message.content
