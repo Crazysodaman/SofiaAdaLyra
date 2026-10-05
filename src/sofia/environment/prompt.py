@@ -14,7 +14,9 @@ _DETAIL_RE = re.compile(
     r"storm|outside|outdoors|inside|indoors|location|where\s+(?:am|are)\s+(?:i|you)|"
     r"timezone|time\s+zone|season|sunrise|sunset|daylight|dark\s+outside|"
     r"light\s+outside|daytime|nighttime|tonight|tomorrow|outfit|wardrobe|"
-    r"wear|wearing|dress|clothes|clothing|hot|cold|chilly|warm\s+outside)\b",
+    r"wear|wearing|dress|clothes|clothing|hot|cold|chilly|warm\s+outside|"
+    r"phone|mobile|battery|charging|steps|walking|running|activity|sensor|"
+    r"ambient\s+light|proximity|barometer|pressure|network|wifi|cellular)\b",
     re.IGNORECASE,
 )
 
@@ -298,6 +300,65 @@ def environment_prompt(
             ]
         )
 
+    lines.append(
+        f"Authenticated mobile sensor freshness: {snapshot.mobile_freshness.value}."
+    )
+    if (
+        snapshot.mobile is not None
+        and snapshot.mobile_freshness is EnvironmentFreshness.CURRENT
+    ):
+        mobile = snapshot.mobile
+        lines.extend(
+            [
+                f"Phone timezone: {mobile.timezone}.",
+                (
+                    "Phone battery: unknown."
+                    if mobile.battery_percent is None
+                    else f"Phone battery: {mobile.battery_percent:.0f}%."
+                ),
+                (
+                    "Phone charging state: unknown."
+                    if mobile.charging is None
+                    else "Phone charging state: "
+                    + ("charging." if mobile.charging else "not charging.")
+                ),
+                f"Phone network transport: {mobile.network.value}.",
+                f"Bounded device activity: {mobile.activity.value}.",
+                (
+                    "Ambient light: unknown."
+                    if mobile.ambient_light_lux is None
+                    else f"Ambient light: {mobile.ambient_light_lux:.0f} lux."
+                ),
+                (
+                    "Barometric pressure: unknown."
+                    if mobile.pressure_hpa is None
+                    else f"Barometric pressure: {mobile.pressure_hpa:.1f} hPa."
+                ),
+                (
+                    "Phone proximity state: unknown."
+                    if mobile.proximity_near is None
+                    else "Phone proximity state: "
+                    + ("near." if mobile.proximity_near else "not near.")
+                ),
+                (
+                    "Step counter: unavailable."
+                    if mobile.step_counter is None
+                    else f"Device step counter: {mobile.step_counter:.0f}."
+                ),
+                (
+                    "Mobile source: authenticated read-only phone sensors; "
+                    f"observed_at={mobile.observed_at.isoformat()}."
+                ),
+            ]
+        )
+    elif snapshot.mobile is None:
+        lines.append("Authenticated mobile sensor context: unavailable.")
+    else:
+        lines.append(
+            "Mobile sensor values are unavailable because the latest report is "
+            f"{snapshot.mobile_freshness.value}; do not present it as current."
+        )
+
     if snapshot.provider_errors:
         lines.append(
             "Environment provider status: degraded for "
@@ -311,6 +372,10 @@ def environment_prompt(
                 "Environment data is observational evidence only. "
                 "It grants no action, network, disclosure, relationship, "
                 "emotion, or physical authority."
+            ),
+            (
+                "Phone sensors are read-only context. They cannot prove intent, "
+                "consent, identity, emotion, exact activity, or permission to act."
             ),
             (
                 "Weather/time/season may inform context and presentation "

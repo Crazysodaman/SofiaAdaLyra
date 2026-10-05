@@ -67,6 +67,19 @@ class EnvironmentService:
     def providers(self) -> tuple[EnvironmentProvider, ...]:
         return self._providers
 
+    def register_provider(self, provider: EnvironmentProvider) -> None:
+        """Attach one host-owned observation provider at runtime."""
+        name = getattr(provider, "name", None)
+        observe = getattr(provider, "observe", None)
+        if not isinstance(name, str) or not name.strip() or not callable(observe):
+            raise TypeError(
+                "provider must expose a nonempty name and callable observe(now=...)"
+            )
+        if any(item.name == name for item in self._providers):
+            raise ValueError(f"environment provider already registered: {name}")
+        self._providers = (*self._providers, provider)
+        self.invalidate()
+
     def invalidate(self) -> None:
         self._provider_observations.clear()
         self._provider_refreshed_at.clear()
@@ -189,6 +202,7 @@ class EnvironmentService:
         current_location = None
         weather = None
         indoor = None
+        mobile = None
 
         observations: list[EnvironmentProviderObservation] = []
         if refresh_providers:
@@ -218,6 +232,11 @@ class EnvironmentService:
             indoor = self._prefer_observation(
                 indoor,
                 observation.indoor,
+                now=current_utc,
+            )
+            mobile = self._prefer_observation(
+                mobile,
+                observation.mobile,
                 now=current_utc,
             )
 
@@ -303,6 +322,11 @@ class EnvironmentService:
             if indoor is not None
             else EnvironmentFreshness.UNKNOWN
         )
+        mobile_freshness = (
+            mobile.freshness(now=current_utc)
+            if mobile is not None
+            else EnvironmentFreshness.UNKNOWN
+        )
 
         return EnvironmentSnapshot(
             observed_at=current_utc,
@@ -321,6 +345,8 @@ class EnvironmentService:
             weather_freshness=weather_freshness,
             indoor=indoor,
             indoor_freshness=indoor_freshness,
+            mobile=mobile,
+            mobile_freshness=mobile_freshness,
             provider_errors=tuple(
                 f"{name}:{self._provider_errors[name]}"
                 for name in sorted(self._provider_errors)

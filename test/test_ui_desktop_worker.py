@@ -1,4 +1,6 @@
 from pathlib import Path
+from http.client import HTTPConnection
+import json
 from queue import Queue
 import sqlite3
 
@@ -181,3 +183,58 @@ def test_worker_initializes_provisioned_discord_on_same_application(
     assert kind == "shutdown_complete"
     assert payload is None
     assert stops == starts
+
+
+def test_worker_marshals_mobile_requests_onto_application_thread(
+    tmp_path: Path,
+    monkeypatch,
+):
+    token = "mobile-worker-test-token-that-is-long-enough"
+    monkeypatch.setenv("SOFIA_MOBILE_ENABLED", "true")
+    monkeypatch.setenv("SOFIA_MOBILE_PORT", "0")
+    monkeypatch.setenv("SOFIA_MOBILE_TOKEN", token)
+    events: Queue[tuple[str, object]] = Queue()
+    worker = DesktopApplicationWorker(
+        configuration=_configuration(tmp_path),
+        session_id=None,
+        events=events,
+        discord_provisioning=DiscordProvisioning(enabled=False),
+    )
+
+    worker.start()
+    address = None
+    while address is None:
+        kind, payload = events.get(timeout=30)
+        if kind == "startup_error":
+            raise payload
+        if kind == "mobile_started":
+            address = payload
+
+    host, port = address
+    body = json.dumps({
+        "device_id": "android-worker-test",
+        "private_mode": False,
+    })
+    connection = HTTPConnection(host, port, timeout=30)
+    connection.request(
+        "POST",
+        "/v1/mobile/state",
+        body=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    response = connection.getresponse()
+    result = json.loads(response.read())
+    connection.close()
+
+    assert response.status == 200
+    assert result["private_mode"] is False
+    assert result["adult_chat_enabled"] is False
+    assert result["session_id"]
+
+    worker.shutdown("")
+    kind, payload = events.get(timeout=30)
+    assert kind == "shutdown_complete"
+    assert payload is None
