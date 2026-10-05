@@ -10,6 +10,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from hashlib import sha256
+import json
 from pathlib import Path
 from typing import Iterator, Mapping
 from uuid import UUID, uuid4
@@ -97,6 +99,134 @@ def migration_remote_grant_specs(
             key=lambda item: (str(item[0]), item[1], item[2]),
         )
     )
+
+
+def _binding_document(binding) -> dict | None:
+    if binding is None:
+        return None
+    return {
+        "capability": binding.capability,
+        "operation": binding.operation,
+        "parameters": [
+            [key, value] for key, value in binding.parameters
+        ],
+        "context_parameters": [
+            [key, value] for key, value in binding.context_parameters
+        ],
+        "expect_path": binding.expect_path,
+        "expect_equals": binding.expect_equals,
+        "result_ref_path": binding.result_ref_path,
+    }
+
+
+def migration_execution_profile_document(
+    *,
+    catalog: WorkloadExecutionCatalog,
+    plan: MigrationPlan,
+) -> dict:
+    """Canonical exact operation profile the operator is approving."""
+    if not isinstance(catalog, WorkloadExecutionCatalog):
+        raise TypeError("catalog must be WorkloadExecutionCatalog")
+    if not isinstance(plan, MigrationPlan):
+        raise TypeError("plan must be MigrationPlan")
+    workload_id = plan.workload.contract.workload_id
+    version = plan.workload.contract.version
+    source = catalog.profile(workload_id, version, plan.source_host_id)
+    target = catalog.profile(workload_id, version, plan.target_host_id)
+
+    source_steps = ["drain"]
+    if plan.workload.checkpoint_required:
+        source_steps.append("checkpoint")
+    source_steps.extend(("fence", "rollback"))
+
+    target_steps = ["start", "ready"]
+    if plan.workload.contract.singleton:
+        target_steps.append("activate")
+    target_steps.append("rollback")
+
+    return {
+        "workload_id": workload_id,
+        "version": version,
+        "source_host_id": plan.source_host_id,
+        "target_host_id": plan.target_host_id,
+        "source_operations": [
+            {
+                "step": step,
+                "binding": _binding_document(getattr(source, step)),
+            }
+            for step in source_steps
+        ],
+        "target_operations": [
+            {
+                "step": step,
+                "binding": _binding_document(getattr(target, step)),
+            }
+            for step in target_steps
+        ],
+    }
+
+
+def migration_execution_profile_sha256(
+    *,
+    catalog: WorkloadExecutionCatalog,
+    plan: MigrationPlan,
+) -> str:
+    document = migration_execution_profile_document(
+        catalog=catalog,
+        plan=plan,
+    )
+    return sha256(
+        json.dumps(
+            document,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def migration_approval_parameters(
+    *,
+    catalog: WorkloadExecutionCatalog,
+    plan: MigrationPlan,
+    workload_parameters: dict,
+    source_node_id: UUID | None,
+    target_node_id: UUID | None,
+    grant_specs: tuple[MigrationRemoteGrantSpec, ...],
+) -> dict:
+    """Exact approval document bound to nodes + typed execution profile."""
+    if not isinstance(workload_parameters, dict):
+        raise TypeError("workload_parameters must be a dict")
+    if not isinstance(grant_specs, tuple):
+        raise TypeError("grant_specs must be a tuple")
+    return {
+        "migration_id": plan.migration_id,
+        "workload": workload_parameters,
+        "source_host_id": plan.source_host_id,
+        "target_host_id": plan.target_host_id,
+        "source_node_id": (
+            None if source_node_id is None else str(source_node_id)
+        ),
+        "target_node_id": (
+            None if target_node_id is None else str(target_node_id)
+        ),
+        "state_mode": plan.workload.state_mode.value,
+        "checkpoint_required": plan.workload.checkpoint_required,
+        "failure_domain_spread": plan.workload.failure_domain_spread,
+        "execution_profile_sha256": migration_execution_profile_sha256(
+            catalog=catalog,
+            plan=plan,
+        ),
+        "remote_operations": [
+            {
+                "host_id": spec.host_id,
+                "node_id": str(spec.node_id),
+                "capability": spec.capability,
+                "operation": spec.operation,
+            }
+            for spec in grant_specs
+        ],
+    }
 
 
 @contextmanager
