@@ -263,6 +263,40 @@ def test_tool_exposure_selects_only_relevant_read_capability():
     assert plan.allow_tools is True
 
 
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    (
+        ("Propose repairs for Fleet drift.", "ops.drift.propose"),
+        ("Preview Fleet reconciliation.", "ops.reconcile.preview"),
+        ("Show active Fleet reconciliation.", "ops.reconcile.active"),
+        ("Show Fleet migration receipt migration-1.", "ops.migration.receipt"),
+        ("Show Fleet maintenance receipt request-1.", "ops.maintenance.receipt"),
+        ("Show the active release on remote host Eos.", "remote.release.current"),
+        ("Send me a notification.", "notification.send"),
+        ("Execute Fleet migration migration-1.", "ops.migration.execute"),
+    ),
+)
+def test_registered_operational_tools_are_reachable_from_chat(content, expected):
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope(content)
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env,
+        turn,
+        Authority(
+            can_respond=True,
+            can_propose_actions=True,
+            can_execute_actions=True,
+            allowed_capabilities=(expected,),
+        ),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert expected in plan.capabilities
+
+
 def test_tool_exposure_exposes_live_permission_inspection_for_authority_questions():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())

@@ -1,6 +1,6 @@
 # Sofía Project Tool & Operator Guide
 
-**Status:** current production-tool guide for `main`, updated 2026-10-04.
+**Status:** current production-tool guide for `main`, updated 2026-10-05.
 
 This is the practical operator guide for Sofía Ada Lyra: how to start her, what
 tools exist, what permission level each tool uses, how to enable consequential
@@ -321,6 +321,8 @@ read-only network discovery over approved scopes.
 | `ops.reconcile.preview` | 1 | Preview canonical reconciliation | “Preview Fleet reconciliation.” |
 | `ops.reconcile.active` | 1 | Active reconciliation observations | “Show active Fleet reconciliation.” |
 | `ops.migration.plan` | 1 | Plans workload migration only | “Plan moving workload X from A to B.” |
+| `ops.migration.execute` | 4 | Executes one exact approved typed workload migration | “Execute Fleet migration X with approval ID Y.” |
+| `ops.migration.receipt` | 1 | Reads durable migration stage and receipts | “Show migration receipt X.” |
 | `ops.maintenance.receipt` | 1 | Reads a verified maintenance receipt | “Show maintenance receipt <id>.” |
 
 ### Add a discovered computer to Fleet
@@ -374,6 +376,7 @@ No per-use grant is needed for reads.
 | `remote.container.volumes` | 1 | “List Docker volumes on Eos.” |
 | `remote.container.networks` | 1 | “List Docker networks on Eos.” |
 | `remote.container.stacks` | 1 | “List Portainer stacks on Eos.” |
+| `remote.release.current` | 1 | “Show the active release on remote host Eos.” |
 
 ---
 
@@ -557,6 +560,12 @@ after changing integration availability.
 | `home_assistant.state` | 1 | “What is sensor.office_temperature?” |
 | `home_assistant.service.call` | 4 | Protected exact service call |
 | `notification.send` | 3 | “Send me a Home Assistant notification.” |
+
+`notification.send` is specifically the configured Home Assistant notification
+tool. Sofía's autonomous companion outreach does not require Home Assistant: it
+can use the desktop tray notification channel and, when Discord is configured,
+the owner DM channel. Those deliveries are produced by the outreach runtime,
+not by this Home Assistant cognitive tool.
 
 For routine notification permission:
 
@@ -863,7 +872,36 @@ and Sparks-only.
 
 ---
 
-## 25. Environment / weather / time context
+## 25. Governed evolution / EVOLVE
+
+EVOLVE turns durable evidence into reviewable proposals. Proposal creation,
+isolated code-candidate construction, verification, and outcome acceptance are
+bounded autonomous operations. Applying or rolling back canonical state/code
+still requires the exact external approval appropriate to that operation.
+
+| Capability | Level | What it does |
+|---|---:|---|
+| `evolve.evidence.list` | 1 | Lists durable, provenance-backed evolution evidence |
+| `evolve.proposals.list` | 1 | Lists proposals and lifecycle states |
+| `evolve.proposal.get` | 1 | Inspects one complete proposal |
+| `evolve.proposal.revision.create` | 2 | Proposes a bounded preference/config revision from evidence |
+| `evolve.proposal.amendment.create` | 2 | Proposes an identity/Constitution amendment from evidence |
+| `evolve.proposal.code.create` | 2 | Proposes a bounded code change from evidence |
+| `evolve.code.candidate.build` | 2 | Builds/tests the code proposal in DEV's isolated worktree |
+| `evolve.code.candidate.verify` | 2 | Runs the fixed candidate verification gate and attaches immutable evidence |
+| `evolve.code.release.accept` | 2 | Records measured acceptance of a completed protected rollout |
+| `evolve.apply` | 4 | Applies one exact externally approved state/amendment proposal |
+| `evolve.rollback` | 4 | Rolls back one exact externally approved applied proposal |
+| `evolve.code.candidate.apply` | 4 | Applies the candidate using a separate exact DEV approval |
+| `evolve.code.candidate.commit` | 4 | Commits the verified candidate using a separate exact DEV approval |
+| `evolve.code.candidate.rollback` | 4 | Rolls back an uncommitted candidate using a separate exact DEV approval |
+
+EVOLVE can formulate and test changes; it cannot approve its own protected
+identity, Constitution, code-application, commit, or rollback operation.
+
+---
+
+## 26. Environment / weather / time context
 
 Persistent settings:
 
@@ -890,7 +928,7 @@ access.
 
 ---
 
-## 26. Voice
+## 27. Voice
 
 List Windows voices:
 
@@ -921,7 +959,7 @@ tool is not yet part of the production capability catalog.
 
 ---
 
-## 27. Windows Sofía services
+## 28. Windows Sofía services
 
 Install/update runtime + watchdog services:
 
@@ -949,7 +987,7 @@ python -m sofia.run.service_admin validate --state-path <path-to-sofia.db>
 
 ---
 
-## 28. Release and cleanup operator tools
+## 29. Release and cleanup operator tools
 
 Release evidence:
 

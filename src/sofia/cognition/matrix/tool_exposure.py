@@ -54,6 +54,8 @@ _OLLAMA = re.compile(r"\bollama\b", re.IGNORECASE)
 _VM = re.compile(r"\b(?:hyper[- ]?v|virtual\s+machines?|\bvms?\b)\b", re.IGNORECASE)
 _STORAGE = re.compile(r"\b(?:storage|nas|disk\s+usage|shares?)\b", re.IGNORECASE)
 _SQLITE = re.compile(r"\b(?:sqlite|database|\bdb\b)\b", re.IGNORECASE)
+_NOTIFICATION = re.compile(r"\b(?:notification|notify)\b", re.IGNORECASE)
+_RELEASE = re.compile(r"\b(?:release|deployment|rollout)\b", re.IGNORECASE)
 _TOOL_CATALOG = re.compile(r"\b(?:tools?|capabilities|what\s+can\s+you\s+do)\b", re.IGNORECASE)
 _PERMISSIONS = re.compile(
     r"\b(?:permissions?|authority|standing\s+grants?|what\s+(?:are\s+you|you(?:'|’)re)\s+allowed\s+to\s+do)\b",
@@ -156,8 +158,21 @@ class MatrixToolExposurePlanner:
                 _add(capabilities, "ops.placement.choose")
             if re.search(r"\bdrift\b", text, re.IGNORECASE):
                 _add(capabilities, "ops.drift.detect")
+                if re.search(r"\b(?:propose|repair|fix)\b", text, re.IGNORECASE):
+                    _add(capabilities, "ops.drift.propose")
+            if re.search(r"\breconcil(?:e|iation)\b", text, re.IGNORECASE):
+                if re.search(r"\b(?:active|current|list|show)\b", text, re.IGNORECASE):
+                    _add(capabilities, "ops.reconcile.active")
+                else:
+                    _add(capabilities, "ops.reconcile.preview")
             if re.search(r"\bmigration\b", text, re.IGNORECASE):
                 _add(capabilities, "ops.migration.plan")
+                if re.search(r"\b(?:receipt|status|result)\b", text, re.IGNORECASE):
+                    _add(capabilities, "ops.migration.receipt")
+            if re.search(r"\bmaintenance\b", text, re.IGNORECASE) and re.search(
+                r"\b(?:receipt|result)\b", text, re.IGNORECASE
+            ):
+                _add(capabilities, "ops.maintenance.receipt")
         if _FILESYSTEM.search(text):
             _add(capabilities, "filesystem.inspect")
             if re.search(r"\bchanges?\b", text, re.IGNORECASE):
@@ -229,6 +244,10 @@ class MatrixToolExposurePlanner:
             _add(capabilities, "storage.roots", "storage.usage", "storage.list", "storage.read_text")
         if _SQLITE.search(text):
             _add(capabilities, "sqlite.state.tables", "sqlite.state.query", "sqlite.state.integrity")
+        if _RELEASE.search(text) and re.search(
+            r"\b(?:remote|fleet|node|host)\b", text, re.IGNORECASE
+        ):
+            _add(capabilities, "remote.release.current")
         if _TOOL_CATALOG.search(text):
             _add(capabilities, "tool.catalog")
         if _PERMISSIONS.search(text):
@@ -293,6 +312,10 @@ class MatrixToolExposurePlanner:
                     _add(capabilities, "discord.resume")
                 if _REVOKE.search(text):
                     _add(capabilities, "discord.revoke")
+            if _NOTIFICATION.search(text) and re.search(
+                r"\b(?:send|push|deliver|notify)\b", text, re.IGNORECASE
+            ):
+                _add(capabilities, "notification.send")
             if _GITHUB.search(text):
                 if _CREATE.search(text) and re.search(r"\bissue\b", text, re.IGNORECASE):
                     _add(capabilities, "github.issue.create")
@@ -341,6 +364,15 @@ class MatrixToolExposurePlanner:
                     _add(capabilities, "evolve.apply")
                 if re.search(r"\brollback\b", text, re.IGNORECASE):
                     _add(capabilities, "evolve.rollback")
+            if _FLEET.search(text) and re.search(
+                r"\bmigration\b", text, re.IGNORECASE
+            ):
+                if re.search(
+                    r"\b(?:execute|migrate|move|run|start)\b",
+                    text,
+                    re.IGNORECASE,
+                ):
+                    _add(capabilities, "ops.migration.execute")
             if _EVOLVE.search(text) or _SELF_IMPROVE.search(text):
                 if re.search(r"\bbuild\b", text, re.IGNORECASE):
                     _add(capabilities, "evolve.code.candidate.build")

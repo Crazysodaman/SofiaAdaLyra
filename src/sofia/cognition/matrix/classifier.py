@@ -132,7 +132,12 @@ _MIXED_ENVIRONMENT_OPERATIONAL = re.compile(
 )
 _ACTION = re.compile(
     r"\b(?:restart|reboot|shutdown|start|stop|install|uninstall|remove|"
-    r"delete|deploy|migrate|move|update|upgrade|write|edit|change|control)\b",
+    r"delete|deploy|execute|migrate|move|update|upgrade|write|edit|change|control)\b",
+    re.IGNORECASE,
+)
+_NOTIFICATION_ACTION = re.compile(
+    r"\b(?:send|push|deliver|create)\b.{0,48}\bnotification\b"
+    r"|\bnotify\s+(?:me|sparks|the\s+owner)\b",
     re.IGNORECASE,
 )
 _CLOTHING_ACTION = re.compile(
@@ -374,6 +379,7 @@ class BaselineTurnClassifier:
             or _CLOTHING_CONSTRAINED_ACTION.search(text)
             or _WARDROBE_GENERATION_ACTION.search(text)
             or _ACTION.search(text)
+            or _NOTIFICATION_ACTION.search(text)
             or _PRIMARY_ACTION.search(text)
             or (
                 _SPECIALIZED_ACTION_DOMAIN.search(text)
