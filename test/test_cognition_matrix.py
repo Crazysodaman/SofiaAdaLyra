@@ -828,6 +828,16 @@ def test_evidence_requiredness_tracks_domain_relevance():
     action_keys = {item.key: item for item in action_evidence.requirements}
     assert action_keys["avatar.canonical"].required is True
 
+    ops_action = MatrixCoordinator(
+        registry=default_matrix_registry()
+    ).evaluate(envelope("restart Plex on Dionysus"))
+    ops_evidence = MatrixEvidencePlanner().plan(
+        ops_action,
+        envelope("restart Plex on Dionysus"),
+    )
+    ops_keys = {item.key: item for item in ops_evidence.requirements}
+    assert ops_keys["operational.measurement"].required is False
+
 
 def test_response_matrix_rejects_any_missing_required_grounding():
     evidence = EvidenceMatrix(
