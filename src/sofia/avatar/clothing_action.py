@@ -40,6 +40,21 @@ from .wardrobe_autonomy import (
 from .wardrobe_planner import OutfitPlan, OutfitPlanner
 
 
+_EXCLUSION_ALIASES = {
+    "bra": ("bra", "bralette"),
+    "bras": ("bra", "bralette"),
+    "bralette": ("bra", "bralette"),
+    "bralettes": ("bra", "bralette"),
+    "panties": ("panty", "brief", "boyshort", "under lower"),
+    "panty": ("panty", "brief", "boyshort", "under lower"),
+    "briefs": ("panty", "brief", "boyshort", "under lower"),
+    "underwear": (
+        "bra", "bralette", "panty", "brief", "boyshort",
+        "under upper", "under lower",
+    ),
+}
+
+
 class ClothingActionService:
     """Parse, decide, commit, persist, verify, then describe clothing changes."""
 
@@ -200,6 +215,10 @@ class ClothingActionService:
                 "the separate verified private-presentation grant. A request "
                 "by itself does not change my wardrobe state."
             )
+        if intent.kind is ClothingActionKind.WEAR:
+            preview = self._preview_wear(intent)
+            if preview is not None:
+                return preview
         return (
             "You can ask. I don't treat the request itself as a completed "
             "wardrobe change. I only claim a change after the current autonomy, "
@@ -270,12 +289,39 @@ class ClothingActionService:
         target = intent.target or ""
         plan = self._resolve_outfit(target)
         if plan is not None:
+            candidate_item_ids, removed_names, unresolved = (
+                self._apply_exclusions(
+                    plan.item_ids,
+                    intent.exclusions,
+                )
+            )
+            if unresolved:
+                return (
+                    "I resolved the outfit, but I couldn't map the requested "
+                    "exclusion"
+                    + ("s" if len(unresolved) != 1 else "")
+                    + ": "
+                    + ", ".join(unresolved)
+                    + ". I left my wardrobe state unchanged."
+                )
+            modified = candidate_item_ids != plan.item_ids
+            lead = (
+                f"I changed into {plan.display_name or plan.outfit_id}."
+                if not modified
+                else (
+                    f"I changed into a {plan.display_name or plan.outfit_id} "
+                    "variation without "
+                    + ", ".join(removed_names)
+                    + "."
+                )
+            )
             return self._commit_candidate(
                 intent,
                 operation_id=operation_id,
-                candidate_item_ids=plan.item_ids,
-                outfit_id=plan.outfit_id,
-                lead=f"I changed into {plan.display_name or plan.outfit_id}.",
+                candidate_item_ids=candidate_item_ids,
+                outfit_id=None if modified else plan.outfit_id,
+                candidate_plan=plan,
+                lead=lead,
                 principal=principal,
             )
 
@@ -449,6 +495,180 @@ class ClothingActionService:
             principal=principal,
         )
 
+    def _preview_wear(
+        self,
+        intent: ClothingActionIntent,
+    ) -> str | None:
+        target = intent.target or ""
+        plan = self._resolve_outfit(target)
+        if plan is None:
+            return None
+
+        candidate_item_ids, removed_names, unresolved = self._apply_exclusions(
+            plan.item_ids,
+            intent.exclusions,
+        )
+        if unresolved:
+            return (
+                "I can resolve the outfit, but I can't map the requested "
+                "exclusion"
+                + ("s" if len(unresolved) != 1 else "")
+                + ": "
+                + ", ".join(unresolved)
+                + ". I haven't changed anything."
+            )
+
+        try:
+            selected = self.bundle.catalog.wardrobe.selection(
+                candidate_item_ids
+            )
+        except (WardrobeError, WardrobeConflict) as exc:
+            return (
+                "That variation does not form a valid wardrobe state: "
+                f"{exc}. I haven't changed anything."
+            )
+
+        needs_private = selected.private_only or not selected.covered_default
+        if needs_private:
+            return (
+                "That variation crosses into private presentation state. "
+                "I haven't changed anything; it would still require the "
+                "separate verified private-presentation grant at execution."
+            )
+
+        decision = self._decide_candidate(
+            intent=intent,
+            selected=selected,
+            candidate_plan=plan,
+        )
+        if not decision.accepted:
+            alternative = ""
+            if decision.alternative_outfit_id is not None:
+                alternative_plan = self._plans.get(
+                    decision.alternative_outfit_id
+                )
+                label = (
+                    decision.alternative_outfit_id
+                    if (
+                        alternative_plan is None
+                        or not alternative_plan.display_name
+                    )
+                    else alternative_plan.display_name
+                )
+                alternative = f" I'd rather wear {label} instead."
+            return (
+                "I can resolve that variation, but I'm keeping my current "
+                f"outfit. My wardrobe decision was: {decision.reason}."
+                + alternative
+            )
+
+        names = tuple(
+            self._blueprints[item_id].garment.name
+            for item_id in selected.item_ids
+        )
+        variation = (
+            plan.display_name or plan.outfit_id
+            if not removed_names
+            else (
+                f"{plan.display_name or plan.outfit_id} without "
+                + ", ".join(removed_names)
+            )
+        )
+        return (
+            f"That would be a {variation} variation: "
+            + ", ".join(names)
+            + ". I haven't changed yet."
+        )
+
+    def _apply_exclusions(
+        self,
+        item_ids: tuple[str, ...],
+        exclusions: tuple[str, ...],
+    ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        if not exclusions:
+            return item_ids, (), ()
+
+        remaining = list(item_ids)
+        removed_names: list[str] = []
+        unresolved: list[str] = []
+        for exclusion in exclusions:
+            query = _normalize(exclusion)
+            aliases = _EXCLUSION_ALIASES.get(query, (query,))
+            matched = []
+            for item_id in tuple(remaining):
+                blueprint = self._blueprints.get(item_id)
+                if blueprint is None:
+                    continue
+                searchable = " ".join(
+                    (
+                        _normalize(item_id),
+                        _normalize(blueprint.garment.name),
+                    )
+                )
+                if any(_normalize(alias) in searchable for alias in aliases):
+                    matched.append(item_id)
+            if not matched:
+                unresolved.append(exclusion)
+                continue
+            for item_id in matched:
+                remaining.remove(item_id)
+                name = self._blueprints[item_id].garment.name
+                if name not in removed_names:
+                    removed_names.append(name)
+
+        return (
+            tuple(remaining),
+            tuple(removed_names),
+            tuple(unresolved),
+        )
+
+    def _decide_candidate(
+        self,
+        *,
+        intent: ClothingActionIntent,
+        selected,
+        candidate_plan: OutfitPlan | None,
+    ):
+        autonomy_context = (
+            None
+            if self.context_provider is None
+            else self.context_provider()
+        )
+        alternative_plan = None
+        if (
+            autonomy_context is not None
+            and autonomy_context.wardrobe_context is not None
+        ):
+            try:
+                proposal = self._planner.suggest(
+                    autonomy_context.wardrobe_context,
+                    preferences=self._reviewed_preferences,
+                )
+            except (WardrobeError, WardrobeConflict):
+                proposal = None
+            proposed_plan = (
+                None
+                if proposal is None
+                else self._plans.get(proposal.outfit_id)
+            )
+            if (
+                proposed_plan is not None
+                and (
+                    candidate_plan is None
+                    or proposed_plan.outfit_id != candidate_plan.outfit_id
+                )
+            ):
+                alternative_plan = proposed_plan
+
+        return self.autonomy.decide_contextual(
+            intent=intent,
+            candidate_item_ids=selected.item_ids,
+            private_only=selected.private_only,
+            candidate_plan=candidate_plan,
+            alternative_plan=alternative_plan,
+            context=autonomy_context,
+        )
+
     def _resolve_outfit(self, target: str):
         query = _clean_target(target)
         if not query:
@@ -527,6 +747,7 @@ class ClothingActionService:
         candidate_item_ids: tuple[str, ...],
         outfit_id: str | None,
         lead: str,
+        candidate_plan: OutfitPlan | None = None,
         principal: PrincipalContext | None,
     ) -> str:
         current = self.bundle.authority.current
@@ -549,47 +770,12 @@ class ClothingActionService:
         if needs_private and grant is None:
             return self._decline_private()
 
-        autonomy_context = (
-            None
-            if self.context_provider is None
-            else self.context_provider()
-        )
-        candidate_plan = (
-            None if outfit_id is None else self._plans.get(outfit_id)
-        )
-        alternative_plan = None
-        if (
-            autonomy_context is not None
-            and autonomy_context.wardrobe_context is not None
-        ):
-            try:
-                proposal = self._planner.suggest(
-                    autonomy_context.wardrobe_context,
-                    preferences=self._reviewed_preferences,
-                )
-            except (WardrobeError, WardrobeConflict):
-                proposal = None
-            proposed_plan = (
-                None
-                if proposal is None
-                else self._plans.get(proposal.outfit_id)
-            )
-            if (
-                proposed_plan is not None
-                and (
-                    candidate_plan is None
-                    or proposed_plan.outfit_id != candidate_plan.outfit_id
-                )
-            ):
-                alternative_plan = proposed_plan
-
-        decision = self.autonomy.decide_contextual(
+        if candidate_plan is None and outfit_id is not None:
+            candidate_plan = self._plans.get(outfit_id)
+        decision = self._decide_candidate(
             intent=intent,
-            candidate_item_ids=selected.item_ids,
-            private_only=selected.private_only,
+            selected=selected,
             candidate_plan=candidate_plan,
-            alternative_plan=alternative_plan,
-            context=autonomy_context,
         )
         if (
             decision.accepted
