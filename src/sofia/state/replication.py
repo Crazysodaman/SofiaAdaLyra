@@ -191,18 +191,13 @@ class SQLiteReplicationWitness:
                 return lease
 
             current = self._lease(row)
-            if current.owner_id != owner and moment < current.expires_at:
+            if moment < current.expires_at:
                 raise WriterLeaseHeldError(
                     f"writer lease held by {current.owner_id} epoch {current.epoch}"
                 )
 
-            epoch = (
-                current.epoch
-                if current.owner_id == owner and moment < current.expires_at
-                else current.epoch + 1
-            )
-            acquired = current.acquired_at if epoch == current.epoch else moment
-            lease = WriterLease(owner, epoch, acquired, moment, expires)
+            epoch = current.epoch + 1
+            lease = WriterLease(owner, epoch, moment, moment, expires)
             db.execute(
                 "UPDATE replication_writer SET owner_id=?, epoch=?, acquired_at=?, "
                 "renewed_at=?, expires_at=? WHERE scope='state-plane'",
@@ -239,6 +234,10 @@ class SQLiteReplicationWitness:
             if current.owner_id != lease.owner_id or current.epoch != lease.epoch:
                 raise StaleWriterError(
                     f"writer fenced by {current.owner_id} epoch {current.epoch}"
+                )
+            if moment >= current.expires_at:
+                raise StaleWriterError(
+                    "writer lease expired; reacquire a new writer epoch"
                 )
             renewed = WriterLease(
                 current.owner_id,

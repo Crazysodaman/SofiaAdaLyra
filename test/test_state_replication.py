@@ -9,6 +9,7 @@ from sofia.state.replication import (
     ReplicationPartialCommitError,
     SQLiteReplicationWitness,
     StaleWriterError,
+    WriterLeaseHeldError,
 )
 from sofia.state.sqlite_plane import SQLiteStatePlane
 
@@ -150,3 +151,33 @@ def test_replicated_delete_is_idempotently_repairable(tmp_path):
     plane.repair_pending()
     assert secondary.read(key) is None
     assert witness.health().pending_operations == 0
+
+
+
+def test_second_acquire_is_denied_even_for_same_writer_id(tmp_path):
+    _, _, _, witness = make_plane(tmp_path, writer="writer-a", now=NOW)
+
+    with pytest.raises(WriterLeaseHeldError):
+        witness.acquire_writer(
+            "writer-a",
+            now=NOW + timedelta(seconds=1),
+            ttl_seconds=30,
+        )
+
+
+def test_expired_writer_cannot_renew_old_epoch_without_reacquiring(tmp_path):
+    plane, _, _, witness = make_plane(tmp_path, writer="writer-a", now=NOW)
+
+    with pytest.raises(StaleWriterError, match="expired"):
+        witness.renew_writer(
+            plane.writer_lease,
+            now=NOW + timedelta(seconds=31),
+            ttl_seconds=30,
+        )
+
+    reacquired = witness.acquire_writer(
+        "writer-a",
+        now=NOW + timedelta(seconds=31),
+        ttl_seconds=30,
+    )
+    assert reacquired.epoch == plane.writer_lease.epoch + 1
