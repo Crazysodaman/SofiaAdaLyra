@@ -4,7 +4,8 @@ from datetime import datetime, timedelta, timezone
 import json
 
 from sofia.application.act_service import (
-    SofiaActService, notification_destination_from_environment,
+    SofiaActService,
+    notification_route_from_environment,
 )
 from sofia.ops.bootstrap import (
     AgentPackage,
@@ -34,10 +35,13 @@ def configure_fleet_enrollment_notices(
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
 
-    destination = notification_destination_from_environment(state_path=act_service.state_path)
-    if not destination:
+    route = act_service.delivery_route or notification_route_from_environment(
+        state_path=act_service.state_path
+    )
+    if route is None:
         ops_service.enrollment.set_enrolled_notifier(None)
         return False
+    channel, destination = route
 
     def enrolled(host, binding, enrollment, peer) -> None:
         observed = peer.observed_at
@@ -53,7 +57,7 @@ def configure_fleet_enrollment_notices(
             act_service.queue_system_notice(
                 notice_id=notice_id,
                 recipient_id=SPARKS_PRINCIPAL_ID,
-                channel="home_assistant",
+                channel=channel,
                 destination=destination,
                 evidence_id=evidence_id,
                 content=(
@@ -116,9 +120,12 @@ def create_fleet_candidate_notifier(
     """Return a deduped notice callback for newly discovered untrusted hosts."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment(state_path=act_service.state_path)
-    if not destination:
+    route = act_service.delivery_route or notification_route_from_environment(
+        state_path=act_service.state_path
+    )
+    if route is None:
         return None
+    channel, destination = route
 
     def discovered(host, observation) -> None:
         observed = observation.observed_at
@@ -131,7 +138,7 @@ def create_fleet_candidate_notifier(
             act_service.queue_system_notice(
                 notice_id=f"fleet-candidate:{host.host_id}",
                 recipient_id=SPARKS_PRINCIPAL_ID,
-                channel="home_assistant",
+                channel=channel,
                 destination=destination,
                 evidence_id=(
                     f"fleet-discovery:{host.host_id}:"
@@ -202,9 +209,12 @@ def create_fleet_bootstrap_plan_notifier(
     """Notify Sparks only when a candidate needs explicit bootstrap action."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment(state_path=act_service.state_path)
-    if not destination:
+    route = act_service.delivery_route or notification_route_from_environment(
+        state_path=act_service.state_path
+    )
+    if route is None:
         return None
+    channel, destination = route
 
     def notify(plan) -> None:
         if plan.disposition is not BootstrapDisposition.ASK_OPERATOR:
@@ -222,7 +232,7 @@ def create_fleet_bootstrap_plan_notifier(
             act_service.queue_system_notice(
                 notice_id=f"fleet-bootstrap:{host_id}",
                 recipient_id=SPARKS_PRINCIPAL_ID,
-                channel="home_assistant",
+                channel=channel,
                 destination=destination,
                 evidence_id=(
                     f"fleet-bootstrap-plan:{host_id}:"
@@ -247,9 +257,12 @@ def create_fleet_reconciliation_notifier(
     """Notify Sparks once for each newly observed Fleet drift proposal."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment(state_path=act_service.state_path)
-    if not destination:
+    route = act_service.delivery_route or notification_route_from_environment(
+        state_path=act_service.state_path
+    )
+    if route is None:
         return None
+    channel, destination = route
 
     def notify(record: FleetReconciliationRecord) -> None:
         if not isinstance(record, FleetReconciliationRecord):
@@ -265,7 +278,7 @@ def create_fleet_reconciliation_notifier(
             act_service.queue_system_notice(
                 notice_id=f"fleet-reconcile:{record.proposal_key}",
                 recipient_id=SPARKS_PRINCIPAL_ID,
-                channel="home_assistant",
+                channel=channel,
                 destination=destination,
                 evidence_id=record.proposal_key,
                 content=content,

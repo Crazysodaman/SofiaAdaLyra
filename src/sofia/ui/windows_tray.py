@@ -7,7 +7,7 @@ the tray thread never mutates Sofía runtime state itself.
 from __future__ import annotations
 
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 import sys
 from threading import Event, Thread
 from typing import Callable
@@ -27,6 +27,7 @@ class WindowsTrayUnavailable(RuntimeError):
 
 class WindowsTrayAgent:
     _CALLBACK_MESSAGE = 0x8000 + 41  # WM_APP + private offset
+    _NOTIFICATION_MESSAGE = 0x8000 + 42
 
     def __init__(
         self,
@@ -52,6 +53,7 @@ class WindowsTrayAgent:
         self._hwnd = None
         self._startup_error: Exception | None = None
         self._wndproc = None
+        self._notifications: Queue[tuple[str, str]] = Queue()
 
     @property
     def running(self) -> bool:
@@ -93,6 +95,34 @@ class WindowsTrayAgent:
         self._stopped.wait(timeout=5)
         self._thread = None
 
+    def notify(self, *, title: str, content: str) -> None:
+        """Ask the tray thread to display one bounded native notification."""
+        if not isinstance(title, str) or not title.strip() or len(title) > 63:
+            raise ValueError("notification title must be bounded nonempty text")
+        if not isinstance(content, str) or not content.strip() or len(content) > 255:
+            raise ValueError("notification content must be bounded nonempty text")
+        if sys.platform != "win32":
+            raise WindowsTrayUnavailable(
+                "Windows notification-area UI requires Windows"
+            )
+        hwnd = self._hwnd
+        if hwnd is None or not self.running:
+            raise RuntimeError("tray agent is not running")
+        self._notifications.put((title.strip(), content.strip()))
+        import ctypes
+        from ctypes import wintypes
+
+        post_message = ctypes.windll.user32.PostMessageW
+        post_message.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        post_message.restype = wintypes.BOOL
+        if not post_message(hwnd, self._NOTIFICATION_MESSAGE, 0, 0):
+            raise ctypes.WinError()
+
     def _run(self) -> None:
         try:
             self._run_windows()
@@ -114,11 +144,15 @@ class WindowsTrayAgent:
         WM_DESTROY = 0x0002
         WM_RBUTTONUP = 0x0205
         WM_LBUTTONDBLCLK = 0x0203
+        NIN_BALLOONUSERCLICK = 0x0405
         NIM_ADD = 0x00000000
+        NIM_MODIFY = 0x00000001
         NIM_DELETE = 0x00000002
         NIF_MESSAGE = 0x00000001
         NIF_ICON = 0x00000002
         NIF_TIP = 0x00000004
+        NIF_INFO = 0x00000010
+        NIIF_INFO = 0x00000001
         IDI_APPLICATION = 32512
         IMAGE_ICON = 1
         LR_LOADFROMFILE = 0x0010
@@ -583,9 +617,27 @@ class WindowsTrayAgent:
 
         @WNDPROC
         def wndproc(hwnd, message, wparam, lparam):
+            if message == self._NOTIFICATION_MESSAGE:
+                while True:
+                    try:
+                        title, content = self._notifications.get_nowait()
+                    except Empty:
+                        break
+                    nid.uFlags = NIF_INFO
+                    nid.szInfoTitle = title
+                    nid.szInfo = content
+                    nid.dwInfoFlags = NIIF_INFO
+                    shell32.Shell_NotifyIconW(
+                        NIM_MODIFY,
+                        ctypes.byref(nid),
+                    )
+                return 0
             if message == self._CALLBACK_MESSAGE:
                 mouse_message = int(lparam) & 0xFFFF
-                if mouse_message == WM_LBUTTONDBLCLK:
+                if mouse_message in {
+                    WM_LBUTTONDBLCLK,
+                    NIN_BALLOONUSERCLICK,
+                }:
                     self._events.put(TrayCommand.OPEN_CHAT)
                     return 0
                 if mouse_message == WM_RBUTTONUP:

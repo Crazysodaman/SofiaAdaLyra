@@ -362,7 +362,7 @@ def test_disabled_act_does_not_register_background_delivery_work(
     tmp_path: Path,
     monkeypatch,
 ):
-    monkeypatch.delenv("SOFIA_ACT_DELIVERY_ENABLED", raising=False)
+    monkeypatch.setenv("SOFIA_ACT_DELIVERY_ENABLED", "0")
     application = SofiaApplication(
         create_configuration(
             personality_path,

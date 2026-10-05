@@ -3,16 +3,24 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+from datetime import datetime, timezone
 
 from sofia.application.bootstrap import SofiaApplication
 from sofia.config import create_production_configuration
 from sofia.config.defaults import production_state_path
 from sofia.run.active_release import (
+    ActiveReleaseError,
     ActiveReleaseResolver,
     ReleaseEnvironmentManager,
 )
 from sofia.run.release_process import ReleaseChildProcess
 from sofia.run.windows_service_spec import RUNTIME_SERVICE
+from sofia.run.update_restart import (
+    ActiveReleaseChangeMonitor,
+    UpdateRestartAction,
+    configured_update_restart_mode,
+    queue_update_restart_request,
+)
 
 
 if sys.platform == "win32":
@@ -44,14 +52,16 @@ if sys.platform == "win32":
             )
             return Path(state_value)
 
-        def _run_active_release(self, state_path: Path) -> bool:
+        def _run_active_release(self, state_path: Path) -> str:
             release_root = state_path.parent / "release-runtime"
-            active = ActiveReleaseResolver(
+            resolver = ActiveReleaseResolver(
                 state_path=state_path,
                 release_root=release_root,
-            ).resolve()
+            )
+            active = resolver.resolve()
             if active is None:
-                return False
+                return "no_release"
+            monitor = ActiveReleaseChangeMonitor(active)
 
             environment = ReleaseEnvironmentManager(
                 release_root=release_root,
@@ -79,17 +89,50 @@ if sys.platform == "win32":
                         raise RuntimeError(
                             "active Sofía release child exited unexpectedly"
                         )
+                    try:
+                        observed = resolver.resolve()
+                    except ActiveReleaseError as exc:
+                        servicemanager.LogWarningMsg(
+                            f"{self._svc_name_} update projection is not "
+                            f"ready yet: {exc}"
+                        )
+                        continue
+                    action = monitor.evaluate(
+                        observed,
+                        mode=configured_update_restart_mode(state_path),
+                    )
+                    if action is UpdateRestartAction.AUTOMATIC_RESTART:
+                        servicemanager.LogInfoMsg(
+                            f"{self._svc_name_} detected activated release "
+                            f"{observed.release_id}; restarting runtime"
+                        )
+                        return "restart"
+                    if action is UpdateRestartAction.ASK_OWNER:
+                        queue_update_restart_request(
+                            state_path,
+                            observed,
+                            now=datetime.now(timezone.utc),
+                        )
+                        servicemanager.LogInfoMsg(
+                            f"{self._svc_name_} asked for restart to activate "
+                            f"release {observed.release_id}"
+                        )
             finally:
                 try:
                     child.stop()
                 finally:
                     self._release_child = None
-            return True
+            return "stopped"
 
-        def _run_bootstrap_runtime(self, state_path: Path) -> None:
+        def _run_bootstrap_runtime(self, state_path: Path) -> str:
             configuration = create_production_configuration(
                 state_path=state_path,
             )
+            resolver = ActiveReleaseResolver(
+                state_path=state_path,
+                release_root=state_path.parent / "release-runtime",
+            )
+            monitor = ActiveReleaseChangeMonitor(None)
             application = SofiaApplication(configuration)
             self._application = application
             try:
@@ -105,18 +148,46 @@ if sys.platform == "win32":
                     )
                     == win32event.WAIT_TIMEOUT
                 ):
-                    pass
+                    try:
+                        observed = resolver.resolve()
+                    except ActiveReleaseError as exc:
+                        servicemanager.LogWarningMsg(
+                            f"{self._svc_name_} update projection is not "
+                            f"ready yet: {exc}"
+                        )
+                        continue
+                    action = monitor.evaluate(
+                        observed,
+                        mode=configured_update_restart_mode(state_path),
+                    )
+                    if action is UpdateRestartAction.AUTOMATIC_RESTART:
+                        servicemanager.LogInfoMsg(
+                            f"{self._svc_name_} detected first activated release "
+                            f"{observed.release_id}; restarting runtime"
+                        )
+                        return "restart"
+                    if action is UpdateRestartAction.ASK_OWNER:
+                        queue_update_restart_request(
+                            state_path,
+                            observed,
+                            now=datetime.now(timezone.utc),
+                        )
             finally:
                 try:
                     application.shutdown()
                 finally:
                     self._application = None
+            return "stopped"
 
         def SvcDoRun(self):
             state_path = self._state_path()
             try:
-                if not self._run_active_release(state_path):
-                    self._run_bootstrap_runtime(state_path)
+                while True:
+                    result = self._run_active_release(state_path)
+                    if result == "no_release":
+                        result = self._run_bootstrap_runtime(state_path)
+                    if result != "restart":
+                        break
             except Exception:
                 servicemanager.LogErrorMsg(
                     f"{self._svc_name_} terminated with an unhandled error"

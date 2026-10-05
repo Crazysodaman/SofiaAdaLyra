@@ -6,9 +6,18 @@ from sofia.act.delivery import ActOutbox, DeliveryOutcome, SendResult
 from sofia.application.act_service import SofiaActService
 from sofia.act.outreach import Policy
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.config.user_settings import (
+    OutreachSettings,
+    RuntimeUserSettings,
+    RuntimeUserSettingsStore,
+)
+from sofia.discord.binding import DiscordBindingStore
 
 
 NOW = datetime(2026, 9, 28, 15, 0, tzinfo=timezone.utc)
+OWNER = 123456789012345678
+BOT = 987654321098765432
+CHANNEL = 223456789012345678
 
 
 def test_production_act_delivery_defaults_enabled_when_transport_is_configured(tmp_path, monkeypatch):
@@ -16,6 +25,7 @@ def test_production_act_delivery_defaults_enabled_when_transport_is_configured(t
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL", "http://ha.local")
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN", "secret")
     monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE", "mobile_app_sparks")
+    monkeypatch.setenv("SOFIA_ACT_DELIVERY_CHANNEL", "home_assistant")
 
     service = SofiaActService(tmp_path / "state.db")
 
@@ -23,20 +33,22 @@ def test_production_act_delivery_defaults_enabled_when_transport_is_configured(t
     assert service.delivery_enabled is True
 
 
-def test_default_outreach_without_transport_keeps_runtime_available(tmp_path, monkeypatch):
+def test_default_outreach_without_external_transport_uses_desktop(tmp_path, monkeypatch):
     for name in (
         "SOFIA_ACT_DELIVERY_ENABLED",
         "SOFIA_HOME_ASSISTANT_URL",
         "SOFIA_HOME_ASSISTANT_TOKEN",
         "SOFIA_NOTIFICATION_HA_SERVICE",
+        "SOFIA_ACT_DELIVERY_CHANNEL",
     ):
         monkeypatch.delenv(name, raising=False)
     state_path = tmp_path / "state.db"
     state_path.touch()
     service = SofiaActService(state_path)
 
-    assert act_service.configure_act_delivery_from_environment(service) is False
-    assert service.delivery_enabled is False
+    assert act_service.configure_act_delivery_from_environment(service) is True
+    assert service.delivery_enabled is True
+    assert service.delivery_route == ("desktop", "tray")
 
 
 def test_explicit_outreach_opt_out_wins_over_configured_transport(tmp_path, monkeypatch):
@@ -44,6 +56,7 @@ def test_explicit_outreach_opt_out_wins_over_configured_transport(tmp_path, monk
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL", "http://ha.local")
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN", "secret")
     monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE", "mobile_app_sparks")
+    monkeypatch.setenv("SOFIA_ACT_DELIVERY_CHANNEL", "home_assistant")
     service = SofiaActService(tmp_path / "state.db")
 
     assert act_service.configure_act_delivery_from_environment(service) is False
@@ -72,6 +85,7 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL", "http://ha.local")
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN", "secret")
     monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE", "mobile_app_sparks")
+    monkeypatch.setenv("SOFIA_ACT_DELIVERY_CHANNEL", "home_assistant")
     monkeypatch.setenv("SOFIA_ACT_QUIET_START_LOCAL", "22")
     monkeypatch.setenv("SOFIA_ACT_QUIET_END_LOCAL", "8")
     monkeypatch.setenv("SOFIA_ACT_MAX_DAILY", "2")
@@ -109,6 +123,97 @@ def test_production_act_delivery_uses_pinned_home_assistant_destination_and_time
             {"message": "Production wiring test."},
         ),
     ]
+
+
+def test_desktop_outreach_queues_durable_tray_notification(tmp_path, monkeypatch):
+    from sofia.ui.notifications import DesktopNotificationStore
+
+    monkeypatch.delenv("SOFIA_ACT_DELIVERY_CHANNEL", raising=False)
+    state_path = tmp_path / "state.db"
+    state_path.touch()
+    service = SofiaActService(state_path)
+    assert act_service.configure_act_delivery_from_environment(service)
+
+    service.queue_system_notice(
+        notice_id="desktop-outreach",
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="desktop",
+        destination="tray",
+        evidence_id="reflection:idea",
+        content="I had an idea worth sharing with you.",
+        created_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(hours=1),
+    )
+    result = service.deliver_one(now=NOW)
+
+    assert result is not None
+    assert result.outcome is DeliveryOutcome.DELIVERED
+    notification = DesktopNotificationStore(state_path).claim_next(now=NOW)
+    assert notification is not None
+    assert notification.content == "I had an idea worth sharing with you."
+
+
+def test_discord_outreach_uses_only_the_pinned_sparks_dm(
+    tmp_path,
+    monkeypatch,
+):
+    state_path = tmp_path / "state.db"
+    state_path.touch()
+    RuntimeUserSettingsStore(state_path).save(
+        RuntimeUserSettings(
+            discord_enabled=True,
+            discord_owner_user_id=OWNER,
+            discord_bot_user_id=BOT,
+            discord_dm_channel_id=CHANNEL,
+            outreach=OutreachSettings(delivery_channel="discord"),
+        )
+    )
+    DiscordBindingStore(state_path).bind(
+        bot_user_id=BOT,
+        owner_user_id=OWNER,
+        channel_id=CHANNEL,
+        session_id="session-1",
+    )
+    monkeypatch.setattr(
+        "sofia.safe.secret_store.ProtectedSecretStore.get",
+        lambda self, key: "protected-token",
+    )
+    sent = []
+
+    class FakeDiscordSender:
+        def __init__(self, *, config, bindings, token):
+            assert config.owner_user_id == OWNER
+            assert config.dm_channel_id == CHANNEL
+            assert token == "protected-token"
+
+        def send(self, content):
+            sent.append(content)
+            return 323456789012345678
+
+    monkeypatch.setattr(
+        act_service,
+        "DiscordProactiveSender",
+        FakeDiscordSender,
+    )
+    service = SofiaActService(state_path)
+    assert act_service.configure_act_delivery_from_environment(service)
+    assert service.delivery_route == ("discord", str(CHANNEL))
+
+    service.queue_system_notice(
+        notice_id="discord-outreach",
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="discord",
+        destination=str(CHANNEL),
+        evidence_id="reflection:discord-idea",
+        content="Discord idea",
+        created_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(hours=1),
+    )
+    result = service.deliver_one(now=NOW)
+
+    assert result is not None
+    assert result.outcome is DeliveryOutcome.DELIVERED
+    assert sent == ["Discord idea"]
 
 
 

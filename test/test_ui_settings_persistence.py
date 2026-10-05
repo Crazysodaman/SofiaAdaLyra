@@ -139,7 +139,7 @@ def test_old_schema_migrates_without_overwriting_user_values(tmp_path):
 def test_saved_outreach_policy_reaches_sender_and_operational_notices(tmp_path, monkeypatch):
     from sofia.application.act_service import SofiaActService, configure_act_delivery_from_environment, notification_destination_from_environment
     path = profile(tmp_path)
-    outreach = OutreachSettings(enabled=True, mute=True, notification_service="mobile_app_owner", quiet_start_local=21, quiet_end_local=9, max_daily=2, social_max_daily=2, operational_max_daily=4)
+    outreach = OutreachSettings(enabled=True, mute=True, delivery_channel="home_assistant", notification_service="mobile_app_owner", quiet_start_local=21, quiet_end_local=9, max_daily=2, social_max_daily=2, operational_max_daily=4)
     RuntimeUserSettingsStore(path).save(RuntimeUserSettings(home_assistant_url="http://localhost:8123", outreach=outreach))
     from importlib import import_module
     monkeypatch.setattr(import_module("sofia.safe.secret_store").ProtectedSecretStore, "get", lambda self, key: "protected-test-token")
@@ -170,7 +170,8 @@ def test_enabled_outreach_can_be_saved_before_transport_setup(tmp_path):
     saved = RuntimeUserSettingsStore(path).load()
     assert saved.idle_reflections_enabled is True
     assert saved.outreach is not None and saved.outreach.enabled is True
-    assert "remains inactive until" in message
+    assert "Saved to the canonical database" in message
+    assert "remains inactive" not in message
 
 
 def test_quiet_hours_persist_and_project_into_policy(tmp_path):

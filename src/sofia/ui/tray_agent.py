@@ -42,6 +42,7 @@ from sofia.safe.execution_approval import (
     execution_fingerprint,
 )
 from sofia.state.component_schema import verify_production_component_schemas
+from sofia.ui.notifications import DesktopNotificationStore
 from sofia.system.model import (
     SystemCapabilityName,
     SystemCapabilityRequest,
@@ -96,6 +97,9 @@ class TrayAgentApplication:
             self.config.state_path
         )
         self._operator_stop = OperatorStopStore(
+            self.config.state_path
+        )
+        self._notifications = DesktopNotificationStore(
             self.config.state_path
         )
         self._matrix_trace_store = MatrixTraceStore(
@@ -630,6 +634,23 @@ class TrayAgentApplication:
                 try:
                     command = self.events.get(timeout=1)
                 except Empty:
+                    notification = self._notifications.claim_next(
+                        now=datetime.now(timezone.utc)
+                    )
+                    if notification is not None:
+                        try:
+                            self.tray.notify(
+                                title=notification.title,
+                                content=notification.content,
+                            )
+                            self._notifications.mark_displayed(
+                                notification.notification_id,
+                                now=datetime.now(timezone.utc),
+                            )
+                        except Exception as exc:
+                            self._last_error = (
+                                f"{type(exc).__name__}: {exc}"
+                            )
                     if time.monotonic() < next_observation:
                         continue
                     next_observation = time.monotonic() + 30

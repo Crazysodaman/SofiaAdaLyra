@@ -10,9 +10,9 @@ controls; the schema version is migration metadata.
 | Page | Working controls | Persistence and consumer |
 |---|---|---|
 | General | Windows startup; keep tray running when chat closes | `ui_control_settings`; Windows Run registration and desktop/tray lifecycle |
-| Sofía | Idle reflection; habit learning; identity/personality inspection | `ui_runtime_settings`; application startup and background coordinator; protected definitions remain with their existing owners |
+| Sofía | Idle reflection; habit learning; automatic-or-ask update restart policy; identity/personality inspection | `ui_runtime_settings`; application startup, stable service host and background coordinator; protected definitions remain with their existing owners |
 | Chat | Adaptive theme; canonical storage inspection | `ui_runtime_settings`; desktop theme toggle also saves directly |
-| ACT | Delivery enabled by default, mute, notification service, explicit local quiet-hours selectors/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
+| ACT | Delivery enabled by default, desktop/Discord/Home Assistant channel, mute, notification service, explicit local quiet-hours selectors/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
 | Fleet | Cognitive placement, fallback, resource limits, host lists, discovery controls, agent provisioning settings and enrolled-node inspection | Existing discovery preferences plus typed cognition/bootstrap preferences; production configuration and reviewed Fleet workflows |
 | Workloads | Game mode and service names | `ui_control_settings` and `ops_activity_override`; tray and service controller |
 | Models | Models, context sizes, thinking, routing, verification, residency management, installation, idle timeout, keep-alive, temperature, seed and maximum output tokens | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
@@ -35,9 +35,12 @@ Fleet provisioning settings select policy inputs; they do not grant permission
 to enroll a host or execute a deployment.
 
 Idle reflection and proactive outreach default to enabled. An explicit saved or
-environment opt-out still wins. Outreach remains inactive without a complete
-Home Assistant URL, protected token and notification service, allowing the rest
-of the runtime to start while transport setup is incomplete.
+environment opt-out still wins. Desktop delivery is the default and persists a
+native tray notification without requiring Home Assistant. Home Assistant
+delivery remains optional and fails closed unless its URL, protected token and
+notification service are complete. Discord delivery uses only the enabled,
+verified and active Sparks DM binding and rechecks that binding immediately
+before each send.
 
 ## Save and restart behavior
 
@@ -53,9 +56,9 @@ startup command. Existing settings windows accept section-navigation requests
 from the tray. Closing chat can request tray exit after desktop shutdown; it
 does not stop the independently managed runtime or LLM services.
 
-Runtime schema 5 adds the new preferences while retaining upstream schema 4's
-NWS station and discovery values. Migration preserves existing model and
-integration choices and keeps discovery's existing canonical fields.
+Runtime schema 6 adds the delivery-channel and update-restart preferences while
+retaining schema 5 values. Existing Home Assistant outreach profiles migrate to
+the same channel; profiles without a transport migrate to desktop delivery.
 
 ## Wardrobe review
 

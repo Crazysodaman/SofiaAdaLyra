@@ -55,9 +55,20 @@ def save_settings(
     outreach_ready = bool(
         outreach_enabled
         and runtime.outreach is not None
-        and runtime.outreach.notification_service
-        and runtime.home_assistant_url
-        and outreach_token_present
+        and (
+            runtime.outreach.delivery_channel == "desktop"
+            or (
+                runtime.outreach.delivery_channel == "discord"
+                and runtime.discord_enabled
+                and runtime.discord_dm_channel_id is not None
+            )
+            or (
+                runtime.outreach.delivery_channel == "home_assistant"
+                and runtime.outreach.notification_service
+                and runtime.home_assistant_url
+                and outreach_token_present
+            )
+        )
     )
     previous = desktop_store.load()
     backups = {}
@@ -97,7 +108,10 @@ def save_settings(
     elif desktop.start_with_windows != previous.start_with_windows and desktop.start_with_windows:
         warning = " Windows startup registration is available on Windows."
     if outreach_enabled and not outreach_ready:
-        warning += " Proactive outreach is enabled but remains inactive until its Home Assistant URL, protected token, and notification service are configured."
+        if runtime.outreach is not None and runtime.outreach.delivery_channel == "discord":
+            warning += " Proactive Discord outreach requires enabled Discord, its protected token, and a verified owner DM channel. Choose desktop delivery to use the tray immediately."
+        else:
+            warning += " Proactive outreach is enabled but its selected Home Assistant delivery requires a URL, protected token, and notification service. Choose desktop delivery to use the tray without Home Assistant."
     return "Saved to the canonical database. Environment and tray controls refresh automatically; restart Sofía for other changes." + warning
 
 

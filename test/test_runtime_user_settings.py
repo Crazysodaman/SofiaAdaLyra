@@ -5,6 +5,7 @@ import pytest
 
 from sofia.config.user_settings import (
     CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION,
+    OutreachSettings,
     RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
@@ -12,6 +13,24 @@ from sofia.environment.model import LocationSubject
 
 
 NOW = datetime(2026, 9, 28, 20, 0, tzinfo=timezone.utc)
+
+
+def test_version_five_home_assistant_outreach_migrates_without_route_change():
+    settings = RuntimeUserSettings(
+        outreach=OutreachSettings(
+            delivery_channel="home_assistant",
+            notification_service="mobile_app_sparks",
+        )
+    )
+    document = json.loads(RuntimeUserSettingsStore._encode(settings))
+    document["schema_version"] = 5
+    document["outreach"].pop("delivery_channel")
+
+    migrated = RuntimeUserSettingsStore._decode(json.dumps(document))
+
+    assert migrated.outreach is not None
+    assert migrated.outreach.delivery_channel == "home_assistant"
+    assert migrated.update_restart_mode == "automatic"
 
 
 def test_runtime_user_settings_round_trip(tmp_path):

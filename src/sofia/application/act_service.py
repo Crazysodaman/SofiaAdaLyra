@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 from typing import Callable
@@ -23,6 +23,10 @@ from sofia.personality.reflection import ReflectionJournal
 from sofia.social.model import ScopeKind, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.integrations.home_assistant import HomeAssistantAdapter
+from sofia.ui.notifications import DesktopNotificationStore
+from sofia.discord.binding import BindingState, DiscordBindingStore
+from sofia.discord.proactive import DiscordProactiveSender
+from sofia.discord.provisioning import DiscordProvisioning
 
 
 class SofiaActService:
@@ -77,6 +81,12 @@ class SofiaActService:
     @property
     def policy(self) -> Policy | None:
         return self._policy
+
+    @property
+    def delivery_route(self) -> tuple[str, str] | None:
+        if self._default_channel is None or self._default_destination is None:
+            return None
+        return self._default_channel, self._default_destination
 
     def set_local_timezone(self, timezone_name: str) -> None:
         """Update outreach quiet-hour evaluation from trusted ENVIRONMENT."""
@@ -242,9 +252,9 @@ def configure_act_delivery_from_environment(
     """
     Configure the production ACT sender when its transport is ready.
 
-    Outreach defaults on, an explicit preference or environment setting may
-    disable it, and incomplete Home Assistant configuration fails closed
-    without preventing the rest of Sofía's runtime from starting.
+    Outreach defaults to the durable local tray transport. An explicit
+    preference may select Home Assistant instead; incomplete configuration
+    fails closed without preventing the rest of Sofía's runtime from starting.
     """
     if not isinstance(service, SofiaActService):
         raise TypeError("service must be a SofiaActService")
@@ -259,6 +269,146 @@ def configure_act_delivery_from_environment(
     ):
         service.disable_delivery()
         return False
+
+    configured_channel = os.environ.get(
+        "SOFIA_ACT_DELIVERY_CHANNEL", ""
+    ).strip()
+    channel = (
+        outreach.delivery_channel
+        if outreach is not None
+        else configured_channel
+        or (
+            "home_assistant"
+            if notification_destination_from_environment()
+            else "desktop"
+        )
+    )
+    policy = outreach.policy(SPARKS_PRINCIPAL_ID) if outreach is not None else Policy(
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        enabled=True,
+        mute=False,
+        stop=False,
+        quiet_start_local=int(
+            os.environ.get("SOFIA_ACT_QUIET_START_LOCAL", "22")
+        ),
+        quiet_end_local=int(
+            os.environ.get("SOFIA_ACT_QUIET_END_LOCAL", "8")
+        ),
+        timezone_name="UTC",
+        min_interval=timedelta(
+            minutes=int(
+                os.environ.get("SOFIA_ACT_MIN_INTERVAL_MINUTES", "360")
+            )
+        ),
+        max_daily=int(os.environ.get("SOFIA_ACT_MAX_DAILY", "1")),
+    )
+
+    if channel == "desktop":
+        notifications = DesktopNotificationStore(service.state_path)
+
+        def desktop_sender(payload: DeliveryPayload) -> SendResult:
+            if not isinstance(payload, DeliveryPayload):
+                raise TypeError("payload must be a DeliveryPayload")
+            if payload.recipient_id != SPARKS_PRINCIPAL_ID:
+                raise PermissionError(
+                    "ACT desktop sender is currently bound only to Sparks"
+                )
+            if payload.channel != "desktop" or payload.destination != "tray":
+                raise PermissionError(
+                    "ACT desktop destination does not match the local tray"
+                )
+            notifications.enqueue(
+                notification_id=f"act:{payload.message_id}",
+                title="Sofía",
+                content=(
+                    payload.content
+                    if len(payload.content) <= 255
+                    else payload.content[:252].rstrip() + "..."
+                ),
+                created_at=datetime.now(timezone.utc),
+            )
+            return SendResult(
+                DeliveryOutcome.DELIVERED,
+                receipt_id=f"desktop-queued:{payload.message_id}",
+            )
+
+        service.configure_delivery(
+            sender=desktop_sender,
+            channel="desktop",
+            destination="tray",
+            policy=policy,
+        )
+        return True
+
+    if channel == "discord":
+        if "SOFIA_DISCORD_ENABLED" in os.environ:
+            provisioning = DiscordProvisioning.from_environment()
+        else:
+            provisioning = DiscordProvisioning(
+                enabled=preferences.discord_enabled,
+                owner_user_id=preferences.discord_owner_user_id,
+                bot_user_id=preferences.discord_bot_user_id,
+                dm_channel_id=preferences.discord_dm_channel_id,
+                token=ProtectedSecretStore.for_state_path(
+                    service.state_path
+                ).get("discord-token"),
+            )
+        if not provisioning.enabled or provisioning.dm_channel_id is None:
+            service.disable_delivery()
+            return False
+        config = provisioning.require_config()
+        token = provisioning.require_token()
+        bindings = DiscordBindingStore(service.state_path)
+        binding = bindings.get(
+            bot_user_id=config.bot_user_id,
+            channel_id=config.dm_channel_id,
+        )
+        if (
+            binding is None
+            or binding.state is not BindingState.ACTIVE
+            or binding.owner_user_id != config.owner_user_id
+        ):
+            service.disable_delivery()
+            return False
+        discord_sender = DiscordProactiveSender(
+            config=config,
+            bindings=bindings,
+            token=token,
+        )
+        destination = str(config.dm_channel_id)
+
+        def send_discord(payload: DeliveryPayload) -> SendResult:
+            if not isinstance(payload, DeliveryPayload):
+                raise TypeError("payload must be a DeliveryPayload")
+            if payload.recipient_id != SPARKS_PRINCIPAL_ID:
+                raise PermissionError(
+                    "ACT Discord sender is currently bound only to Sparks"
+                )
+            if (
+                payload.channel != "discord"
+                or payload.destination != destination
+            ):
+                raise PermissionError(
+                    "ACT Discord destination does not match the pinned owner DM"
+                )
+            message_id = discord_sender.send(payload.content)
+            return SendResult(
+                DeliveryOutcome.DELIVERED,
+                receipt_id=f"discord-ack:{message_id}",
+            )
+
+        service.configure_delivery(
+            sender=send_discord,
+            channel="discord",
+            destination=destination,
+            policy=policy,
+        )
+        return True
+
+    if channel != "home_assistant":
+        raise ValueError(
+            "SOFIA_ACT_DELIVERY_CHANNEL must be desktop, discord, or home_assistant"
+        )
 
     url = os.environ.get("SOFIA_HOME_ASSISTANT_URL", "").strip()
     token = os.environ.get("SOFIA_HOME_ASSISTANT_TOKEN", "").strip()
@@ -303,30 +453,7 @@ def configure_act_delivery_from_environment(
         sender=sender,
         channel="home_assistant",
         destination=notify_service,
-        policy=outreach.policy(SPARKS_PRINCIPAL_ID) if outreach is not None else Policy(
-            recipient_id=SPARKS_PRINCIPAL_ID,
-            enabled=True,
-            mute=False,
-            stop=False,
-            quiet_start_local=int(
-                os.environ.get("SOFIA_ACT_QUIET_START_LOCAL", "22")
-            ),
-            quiet_end_local=int(
-                os.environ.get("SOFIA_ACT_QUIET_END_LOCAL", "8")
-            ),
-            timezone_name="UTC",
-            min_interval=timedelta(
-                minutes=int(
-                    os.environ.get(
-                        "SOFIA_ACT_MIN_INTERVAL_MINUTES",
-                        "360",
-                    )
-                )
-            ),
-            max_daily=int(
-                os.environ.get("SOFIA_ACT_MAX_DAILY", "1")
-            ),
-        ),
+        policy=policy,
     )
     return True
 
@@ -339,7 +466,8 @@ def notification_destination_from_environment(*, state_path: Path | None = None)
     """
     if state_path is not None:
         from sofia.config.user_settings import RuntimeUserSettingsStore
-        outreach = RuntimeUserSettingsStore(state_path).load().outreach
+        settings = RuntimeUserSettingsStore(state_path).load()
+        outreach = settings.outreach
         if outreach is not None:
             return outreach.notification_service
     destination = os.environ.get("SOFIA_NOTIFICATION_HA_SERVICE", "").strip()
@@ -351,3 +479,43 @@ def notification_destination_from_environment(*, state_path: Path | None = None)
             "SOFIA_NOTIFICATION_HA_SERVICE must be one notify service name"
         )
     return destination
+
+
+def notification_route_from_environment(
+    *,
+    state_path: Path | None = None,
+) -> tuple[str, str] | None:
+    """Return the selected queue route without claiming transport readiness."""
+    if state_path is not None:
+        from sofia.config.user_settings import RuntimeUserSettingsStore
+
+        settings = RuntimeUserSettingsStore(state_path).load()
+        outreach = settings.outreach
+        if outreach is not None:
+            if not outreach.enabled:
+                return None
+            if outreach.delivery_channel == "desktop":
+                return "desktop", "tray"
+            if outreach.delivery_channel == "discord":
+                return (
+                    None
+                    if (
+                        not settings.discord_enabled
+                        or settings.discord_dm_channel_id is None
+                    )
+                    else ("discord", str(settings.discord_dm_channel_id))
+                )
+            return (
+                None
+                if not outreach.notification_service
+                else ("home_assistant", outreach.notification_service)
+            )
+    destination = notification_destination_from_environment()
+    channel = os.environ.get("SOFIA_ACT_DELIVERY_CHANNEL", "").strip()
+    if not channel:
+        channel = "home_assistant" if destination else "desktop"
+    if channel == "desktop":
+        return "desktop", "tray"
+    if channel == "home_assistant" and destination:
+        return "home_assistant", destination
+    return None

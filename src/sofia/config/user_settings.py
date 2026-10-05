@@ -25,13 +25,14 @@ from sofia.config.model import FleetCognitionConfiguration, FleetBootstrapConfig
 from sofia.act.outreach import Policy
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 5
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 6
 
 
 @dataclass(frozen=True, slots=True)
 class OutreachSettings:
-    enabled: bool = False
+    enabled: bool = True
     mute: bool = False
+    delivery_channel: str = "desktop"
     notification_service: str = ""
     quiet_start_local: int = 22
     quiet_end_local: int = 8
@@ -45,6 +46,14 @@ class OutreachSettings:
     allow_critical_operational_during_quiet: bool = True
 
     def __post_init__(self) -> None:
+        if self.delivery_channel not in {
+            "desktop",
+            "discord",
+            "home_assistant",
+        }:
+            raise ValueError(
+                "delivery_channel must be desktop, discord, or home_assistant"
+            )
         if not isinstance(self.notification_service, str) or (
             self.notification_service and not self.notification_service.replace("_", "").replace("-", "").isalnum()
         ):
@@ -84,6 +93,7 @@ class RuntimeUserSettings:
     fleet_cognition: FleetCognitionConfiguration | None = None
     fleet_bootstrap: FleetBootstrapConfiguration | None = None
     outreach: OutreachSettings | None = None
+    update_restart_mode: str = "automatic"
 
     cognitive_routing_enabled: bool = True
     cognitive_primary_model: str = RECOMMENDED_PRIMARY_MODEL
@@ -144,6 +154,10 @@ class RuntimeUserSettings:
         for name, kind in (("fleet_cognition", FleetCognitionConfiguration), ("fleet_bootstrap", FleetBootstrapConfiguration), ("outreach", OutreachSettings)):
             if getattr(self, name) is not None and not isinstance(getattr(self, name), kind):
                 raise TypeError(f"{name} must be {kind.__name__} or None")
+        if self.update_restart_mode not in {"automatic", "ask"}:
+            raise ValueError(
+                "update_restart_mode must be automatic or ask"
+            )
         if self.provider_temperature is not None and (type(self.provider_temperature) not in (int, float) or not math.isfinite(self.provider_temperature) or self.provider_temperature < 0):
             raise ValueError("Provider temperature must be finite and nonnegative")
         if self.provider_seed is not None and type(self.provider_seed) is not int:
@@ -524,6 +538,8 @@ class RuntimeUserSettingsStore:
             data["fleet_discovery_targets"] = []
             data["fleet_discovery_scopes"] = []
             data["fleet_discovery_max_hosts_per_scope"] = 256
+        if version < 6:
+            data["update_restart_mode"] = "automatic"
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["fleet_discovery_targets"] = tuple(
             data.get("fleet_discovery_targets", ())
@@ -537,6 +553,16 @@ class RuntimeUserSettingsStore:
                 if not isinstance(nested, dict):
                     raise ValueError(f"{name} must be an object")
                 nested = dict(nested)
+                if (
+                    name == "outreach"
+                    and version < 6
+                    and "delivery_channel" not in nested
+                ):
+                    nested["delivery_channel"] = (
+                        "home_assistant"
+                        if nested.get("notification_service")
+                        else "desktop"
+                    )
                 for key in ("allowed_host_ids", "denied_host_ids", "targets", "scopes"):
                     if key in nested:
                         if not isinstance(nested[key], list):

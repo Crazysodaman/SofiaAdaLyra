@@ -49,6 +49,16 @@ class SettingsSections:
         boolean("Sofía", "habit_learning_enabled", "Learn habits from supported observations", runtime.habit_learning_enabled if runtime.habit_learning_enabled is not None else os.environ.get("SOFIA_HABIT_LEARNING", "1").lower() in ("1", "true", "on"))
         boolean("Avatar", "avatar_routines_enabled", "Automatically select attire for supported routines", runtime.avatar_routines_enabled)
 
+        restart_mode = tk.StringVar(root, value=runtime.update_restart_mode)
+        self.variables["update_restart_mode"] = restart_mode
+        ttk.Label(frames["Sofía"], text="After an installed update is detected").pack(anchor="w", pady=(8, 2))
+        ttk.Combobox(
+            frames["Sofía"],
+            textvariable=restart_mode,
+            values=("automatic", "ask"),
+            state="readonly",
+        ).pack(fill="x")
+
         for field, label in (("provider_temperature", "Generation temperature (blank uses provider default)"), ("provider_seed", "Generation seed (blank uses provider default)"), ("provider_max_output_tokens", "Maximum output tokens (blank uses provider default)")):
             value = getattr(runtime, field)
             variable = tk.StringVar(root, value="" if value is None else str(value))
@@ -56,16 +66,27 @@ class SettingsSections:
             ttk.Label(frames["Models"], text=label).pack(anchor="w", pady=(8, 2))
             ttk.Entry(frames["Models"], textvariable=variable).pack(fill="x")
 
+        legacy_notification_service = os.environ.get(
+            "SOFIA_NOTIFICATION_HA_SERVICE", ""
+        ).strip()
         outreach = runtime.outreach or OutreachSettings(
             enabled=os.environ.get("SOFIA_ACT_DELIVERY_ENABLED", "").lower() not in ("0", "false", "off"),
-            notification_service=os.environ.get("SOFIA_NOTIFICATION_HA_SERVICE", "").strip(),
+            delivery_channel=(
+                os.environ.get("SOFIA_ACT_DELIVERY_CHANNEL", "").strip()
+                or (
+                    "home_assistant"
+                    if legacy_notification_service
+                    else "desktop"
+                )
+            ),
+            notification_service=legacy_notification_service,
             quiet_start_local=int(os.environ.get("SOFIA_ACT_QUIET_START_LOCAL", "22")),
             quiet_end_local=int(os.environ.get("SOFIA_ACT_QUIET_END_LOCAL", "8")),
             min_interval_minutes=int(os.environ.get("SOFIA_ACT_MIN_INTERVAL_MINUTES", "360")),
             max_daily=int(os.environ.get("SOFIA_ACT_MAX_DAILY", "1")),
         )
-        self.group(frames["ACT"], "outreach", "Proactive outreach to Sparks via Home Assistant", outreach)
-        ttk.Label(frames["ACT"], text="Outreach is enabled by default and becomes active when a Home Assistant URL, protected token, and notification service are configured. Set quiet-hours start and end above using local 24-hour clock values; delivery still checks recipient, evidence, quotas and operator stop.", wraplength=660).pack(anchor="w", pady=8)
+        self.group(frames["ACT"], "outreach", "Proactive outreach to Sparks", outreach)
+        ttk.Label(frames["ACT"], text="Outreach is enabled by default. Desktop delivery uses Sofía’s tray and needs no external service. Discord uses only the verified Sparks DM; Home Assistant remains available when its URL, protected token, and notification service are configured. Quiet hours, recipient checks, evidence, quotas, busy state and operator stop still apply.", wraplength=660).pack(anchor="w", pady=8)
         self.group(frames["Fleet"], "fleet_cognition", "Cognitive placement", runtime.fleet_cognition or config.fleet_cognition)
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)
         ttk.Label(frames["Fleet"], text="Host IDs, targets and scopes are comma-separated. Discovery does not enroll hosts; provisioning requires the existing reviewed authority, package digest and signer.", wraplength=660).pack(anchor="w", pady=8)
@@ -94,6 +115,8 @@ class SettingsSections:
                 label = "Quiet hours start (local hour, 0–23)"
             elif key == "outreach" and field.name == "quiet_end_local":
                 label = "Quiet hours end (local hour, 0–23)"
+            elif key == "outreach" and field.name == "delivery_channel":
+                label = "Delivery channel"
             if isinstance(default, tuple):
                 label += " (comma-separated)"
             if type(default) is bool:
@@ -102,7 +125,9 @@ class SettingsSections:
             else:
                 variable = tk.StringVar(self.root, value=", ".join(default) if isinstance(default, tuple) else "" if default is None else str(default))
                 ttk.Label(frame, text=label).pack(anchor="w", pady=(6, 2))
-                if key == "outreach" and field.name in {"quiet_start_local", "quiet_end_local"}:
+                if key == "outreach" and field.name == "delivery_channel":
+                    ttk.Combobox(frame, textvariable=variable, values=("desktop", "discord", "home_assistant"), state="readonly").pack(fill="x")
+                elif key == "outreach" and field.name in {"quiet_start_local", "quiet_end_local"}:
                     ttk.Combobox(frame, textvariable=variable, values=tuple(str(hour) for hour in range(24)), state="readonly").pack(fill="x")
                 elif field.name == "authority":
                     ttk.Combobox(frame, textvariable=variable, values=("none", "operator_approved", "standing_policy"), state="readonly").pack(fill="x")
