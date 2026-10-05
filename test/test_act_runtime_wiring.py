@@ -11,12 +11,39 @@ from sofia.social.principals import SPARKS_PRINCIPAL_ID
 NOW = datetime(2026, 9, 28, 15, 0, tzinfo=timezone.utc)
 
 
-def test_production_act_delivery_requires_explicit_opt_in(tmp_path, monkeypatch):
+def test_production_act_delivery_defaults_enabled_when_transport_is_configured(tmp_path, monkeypatch):
     monkeypatch.delenv("SOFIA_ACT_DELIVERY_ENABLED", raising=False)
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL", "http://ha.local")
     monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN", "secret")
     monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE", "mobile_app_sparks")
 
+    service = SofiaActService(tmp_path / "state.db")
+
+    assert act_service.configure_act_delivery_from_environment(service) is True
+    assert service.delivery_enabled is True
+
+
+def test_default_outreach_without_transport_keeps_runtime_available(tmp_path, monkeypatch):
+    for name in (
+        "SOFIA_ACT_DELIVERY_ENABLED",
+        "SOFIA_HOME_ASSISTANT_URL",
+        "SOFIA_HOME_ASSISTANT_TOKEN",
+        "SOFIA_NOTIFICATION_HA_SERVICE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    state_path = tmp_path / "state.db"
+    state_path.touch()
+    service = SofiaActService(state_path)
+
+    assert act_service.configure_act_delivery_from_environment(service) is False
+    assert service.delivery_enabled is False
+
+
+def test_explicit_outreach_opt_out_wins_over_configured_transport(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOFIA_ACT_DELIVERY_ENABLED", "0")
+    monkeypatch.setenv("SOFIA_HOME_ASSISTANT_URL", "http://ha.local")
+    monkeypatch.setenv("SOFIA_HOME_ASSISTANT_TOKEN", "secret")
+    monkeypatch.setenv("SOFIA_NOTIFICATION_HA_SERVICE", "mobile_app_sparks")
     service = SofiaActService(tmp_path / "state.db")
 
     assert act_service.configure_act_delivery_from_environment(service) is False

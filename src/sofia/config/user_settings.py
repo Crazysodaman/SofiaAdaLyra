@@ -53,8 +53,6 @@ class OutreachSettings:
             if type(getattr(self, name)) is not int or getattr(self, name) < 0:
                 raise ValueError(f"{name} must be a nonnegative integer")
         self.policy("settings-validation")
-        if self.enabled and not self.notification_service:
-            raise ValueError("Enabled outreach requires a notification service")
 
     def policy(self, recipient_id: str) -> Policy:
         return Policy(

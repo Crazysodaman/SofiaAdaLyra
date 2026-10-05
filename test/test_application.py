@@ -408,7 +408,7 @@ def test_disabled_idle_reflection_does_not_expose_worker(
     tmp_path: Path,
     monkeypatch,
 ):
-    monkeypatch.delenv("SOFIA_IDLE_REFLECTIONS", raising=False)
+    monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", "0")
     application = SofiaApplication(
         create_configuration(
             personality_path,

@@ -12,7 +12,7 @@ controls; the schema version is migration metadata.
 | General | Windows startup; keep tray running when chat closes | `ui_control_settings`; Windows Run registration and desktop/tray lifecycle |
 | Sofía | Idle reflection; habit learning; identity/personality inspection | `ui_runtime_settings`; application startup and background coordinator; protected definitions remain with their existing owners |
 | Chat | Adaptive theme; canonical storage inspection | `ui_runtime_settings`; desktop theme toggle also saves directly |
-| ACT | Delivery opt-in, mute, notification service, quiet hours/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
+| ACT | Delivery enabled by default, mute, notification service, explicit local quiet-hours selectors/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
 | Fleet | Cognitive placement, fallback, resource limits, host lists, discovery controls, agent provisioning settings and enrolled-node inspection | Existing discovery preferences plus typed cognition/bootstrap preferences; production configuration and reviewed Fleet workflows |
 | Workloads | Game mode and service names | `ui_control_settings` and `ops_activity_override`; tray and service controller |
 | Models | Models, context sizes, thinking, routing, verification, residency management, installation, idle timeout, keep-alive, temperature, seed and maximum output tokens | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
@@ -33,6 +33,11 @@ integration, reflection and habit preferences can require an application
 restart. Process-level model overrides retain their existing explicit precedence.
 Fleet provisioning settings select policy inputs; they do not grant permission
 to enroll a host or execute a deployment.
+
+Idle reflection and proactive outreach default to enabled. An explicit saved or
+environment opt-out still wins. Outreach remains inactive without a complete
+Home Assistant URL, protected token and notification service, allowing the rest
+of the runtime to start while transport setup is incomplete.
 
 ## Save and restart behavior
 

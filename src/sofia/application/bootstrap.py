@@ -114,11 +114,11 @@ def _habit_learning_enabled() -> bool:
 
 
 def _idle_reflections_enabled() -> bool:
-    """Explicit supervised opt-in; never assume authorization from capability."""
+    """Enable reflection by default while preserving an explicit host opt-out."""
     setting = os.environ.get("SOFIA_IDLE_REFLECTIONS", "").strip().lower()
-    if setting in ("", "0", "false", "off"):
+    if setting in ("0", "false", "off"):
         return False
-    if setting in ("1", "true", "on"):
+    if setting in ("", "1", "true", "on"):
         return True
     raise ValueError("SOFIA_IDLE_REFLECTIONS must be 1 or 0 (also accepts true/false).")
 

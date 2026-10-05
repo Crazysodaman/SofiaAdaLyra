@@ -156,7 +156,7 @@ def test_opt_in_starts_only_after_awareness_and_stops_before_runtime(monkeypatch
     assert app.idle_reflection_worker is None
 
 
-@pytest.mark.parametrize("setting", ["", "0", "false", "off"])
+@pytest.mark.parametrize("setting", ["0", "false", "off"])
 def test_disabled_worker_never_starts(monkeypatch, tmp_path, setting):
     monkeypatch.setenv("SOFIA_IDLE_REFLECTIONS", setting)
     app, events = _application(monkeypatch, tmp_path)
@@ -164,6 +164,15 @@ def test_disabled_worker_never_starts(monkeypatch, tmp_path, setting):
     assert app.idle_reflection_worker is None
     app.shutdown()
     assert "worker:create" not in events
+
+
+def test_idle_reflection_defaults_enabled(monkeypatch, tmp_path):
+    monkeypatch.delenv("SOFIA_IDLE_REFLECTIONS", raising=False)
+    app, events = _application(monkeypatch, tmp_path)
+    app.start()
+    assert app.idle_reflection_worker is not None
+    app.shutdown()
+    assert "worker:create" in events
 
 
 def test_no_personality_does_not_launch_worker(monkeypatch, tmp_path):

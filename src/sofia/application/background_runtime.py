@@ -20,6 +20,7 @@ from sofia.distributed.endpoint_policy_durable import DurableEndpointPolicy
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.ops.activity import ActivityMode, HostActivityStore
 from sofia.ops.backup_topology import (
+    backup_topology_enabled,
     backup_topology_interval_seconds,
     create_backup_topology_from_environment,
 )
@@ -45,9 +46,13 @@ def create_background_coordinator(
     act_service = getattr(application, "_act_service", None)
     ops_service = getattr(application._runtime, "ops_service", None)
     fleet_discovery_enabled = fleet_discovery_source is not None
-    backup_topology = create_backup_topology_from_environment(
-        state_path=Path(application._configuration.state_path),
-        state_plane=application._runtime.state_plane,
+    backup_topology = (
+        create_backup_topology_from_environment(
+            state_path=Path(application._configuration.state_path),
+            state_plane=application._runtime.state_plane,
+        )
+        if backup_topology_enabled()
+        else None
     )
     coordinator = ApplicationBackgroundCoordinator(
         service=application._conversation_service,

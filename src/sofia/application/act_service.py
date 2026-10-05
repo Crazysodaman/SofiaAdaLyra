@@ -223,9 +223,11 @@ class SofiaActService:
         return None
 
 
-def _enabled(name: str) -> bool:
+def _enabled(name: str, *, default: bool = False) -> bool:
     value = os.environ.get(name, "").strip().lower()
-    if value in ("", "0", "false", "off"):
+    if value == "":
+        return default
+    if value in ("0", "false", "off"):
         return False
     if value in ("1", "true", "on"):
         return True
@@ -238,9 +240,11 @@ def configure_act_delivery_from_environment(
     service: SofiaActService,
 ) -> bool:
     """
-    Configure the production ACT sender only through explicit host opt-in.
+    Configure the production ACT sender when its transport is ready.
 
-    Home Assistant credentials alone never enable proactive delivery.
+    Outreach defaults on, an explicit preference or environment setting may
+    disable it, and incomplete Home Assistant configuration fails closed
+    without preventing the rest of Sofía's runtime from starting.
     """
     if not isinstance(service, SofiaActService):
         raise TypeError("service must be a SofiaActService")
@@ -248,7 +252,11 @@ def configure_act_delivery_from_environment(
     from sofia.safe.secret_store import ProtectedSecretStore
     preferences = RuntimeUserSettingsStore(service.state_path).load()
     outreach = preferences.outreach
-    if not (outreach.enabled if outreach is not None else _enabled("SOFIA_ACT_DELIVERY_ENABLED")):
+    if not (
+        outreach.enabled
+        if outreach is not None
+        else _enabled("SOFIA_ACT_DELIVERY_ENABLED", default=True)
+    ):
         service.disable_delivery()
         return False
 
@@ -259,10 +267,11 @@ def configure_act_delivery_from_environment(
         url = preferences.home_assistant_url or ""
         token = ProtectedSecretStore.for_state_path(service.state_path).get("home-assistant-token") or ""
     if not url or not token or not notify_service:
-        raise RuntimeError(
-            "ACT delivery requires Home Assistant URL/token and "
-            "SOFIA_NOTIFICATION_HA_SERVICE"
-        )
+        # Outreach is on by default, but an unavailable transport must not
+        # prevent Sofía from starting. Settings expose the missing pieces and
+        # the next restart activates delivery once all three are present.
+        service.disable_delivery()
+        return False
     adapter = HomeAssistantAdapter(url, token)
 
     def sender(payload: DeliveryPayload) -> SendResult:

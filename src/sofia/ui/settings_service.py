@@ -43,12 +43,22 @@ def save_settings(
     if set(changes) - {"discord-token", "home-assistant-token"}:
         raise ValueError("Unknown settings secret")
     outreach_enabled = runtime.outreach is not None and runtime.outreach.enabled
-    for enabled, key in ((runtime.discord_enabled, "discord-token"), (runtime.home_assistant_enabled or outreach_enabled, "home-assistant-token")):
+    for enabled, key in ((runtime.discord_enabled, "discord-token"), (runtime.home_assistant_enabled, "home-assistant-token")):
         present = bool(changes[key]) if key in changes else secrets.exists(key)
         if enabled and not present:
             raise ValueError(f"Enabled integration requires a stored {key}")
-    if outreach_enabled and not runtime.home_assistant_url:
-        raise ValueError("Enabled outreach requires a Home Assistant URL")
+    outreach_token_present = (
+        bool(changes["home-assistant-token"])
+        if "home-assistant-token" in changes
+        else secrets.exists("home-assistant-token")
+    )
+    outreach_ready = bool(
+        outreach_enabled
+        and runtime.outreach is not None
+        and runtime.outreach.notification_service
+        and runtime.home_assistant_url
+        and outreach_token_present
+    )
     previous = desktop_store.load()
     backups = {}
     for key in changes:
@@ -86,6 +96,8 @@ def save_settings(
             warning = f" Windows startup registration failed: {exc}. Save again to retry."
     elif desktop.start_with_windows != previous.start_with_windows and desktop.start_with_windows:
         warning = " Windows startup registration is available on Windows."
+    if outreach_enabled and not outreach_ready:
+        warning += " Proactive outreach is enabled but remains inactive until its Home Assistant URL, protected token, and notification service are configured."
     return "Saved to the canonical database. Environment and tray controls refresh automatically; restart Sofía for other changes." + warning
 
 

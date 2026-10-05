@@ -151,3 +151,47 @@ def test_saved_outreach_policy_reaches_sender_and_operational_notices(tmp_path, 
     assert service.policy.social_max_daily == 2
     assert service.policy.operational_max_daily == 4
     assert notification_destination_from_environment(state_path=path) == "mobile_app_owner"
+
+
+def test_enabled_outreach_can_be_saved_before_transport_setup(tmp_path):
+    path = profile(tmp_path)
+    runtime = RuntimeUserSettings(
+        idle_reflections_enabled=True,
+        outreach=OutreachSettings(enabled=True),
+    )
+
+    message = settings_service.save_settings(
+        path,
+        DesktopControlSettings(),
+        runtime,
+        host_id="host",
+    )
+
+    saved = RuntimeUserSettingsStore(path).load()
+    assert saved.idle_reflections_enabled is True
+    assert saved.outreach is not None and saved.outreach.enabled is True
+    assert "remains inactive until" in message
+
+
+def test_quiet_hours_persist_and_project_into_policy(tmp_path):
+    path = profile(tmp_path)
+    outreach = OutreachSettings(
+        enabled=False,
+        quiet_start_local=20,
+        quiet_end_local=6,
+        timezone_name="America/Chicago",
+    )
+    settings_service.save_settings(
+        path,
+        DesktopControlSettings(),
+        RuntimeUserSettings(outreach=outreach),
+        host_id="host",
+    )
+
+    saved = RuntimeUserSettingsStore(path).load().outreach
+    assert saved is not None
+    assert saved.quiet_start_local == 20
+    assert saved.quiet_end_local == 6
+    policy = saved.policy("person:sparks")
+    assert policy.quiet_start_local == 20
+    assert policy.quiet_end_local == 6
