@@ -48,7 +48,7 @@ def ensure_tray_agent(configuration: SofiaConfiguration) -> bool:
         | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     )
     process = subprocess.Popen(
-        (str(_pythonw()), "-m", "sofia.ui.tray_agent"),
+        (str(_pythonw()), "-m", "sofia.ui.tray_agent", "--state-path", str(configuration.state_path.resolve())),
         cwd=str(Path(__file__).resolve().parents[3]),
         creationflags=creationflags,
         close_fds=True,

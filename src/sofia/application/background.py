@@ -233,6 +233,7 @@ class ApplicationBackgroundCoordinator:
         self._tasks: dict[str, Callable[[datetime], object | None]] = {}
         self._task_intervals: dict[str, float] = {}
         self._task_last_run: dict[str, datetime] = {}
+        self._task_ready: dict[str, Callable[[], bool]] = {}
         self._task_cursor = 0
         self._heartbeat: Callable[[datetime, bool], None] | None = None
         self._stop_event = Event()
@@ -256,15 +257,19 @@ class ApplicationBackgroundCoordinator:
         callback: Callable[[datetime], object | None] | None,
         *,
         interval_seconds: float = 900.0,
+        ready: Callable[[], bool] | None = None,
     ) -> None:
         """Install one typed background unit under the shared global budget."""
         if not isinstance(task_kind, str) or not task_kind.strip():
             raise ValueError("task_kind must be nonempty")
         key = task_kind.strip()
+        if ready is not None and not callable(ready):
+            raise TypeError("task readiness must be callable or None")
         if callback is None:
             self._tasks.pop(key, None)
             self._task_intervals.pop(key, None)
             self._task_last_run.pop(key, None)
+            self._task_ready.pop(key, None)
             return
         if not callable(callback):
             raise TypeError("background task callback must be callable or None")
@@ -275,6 +280,10 @@ class ApplicationBackgroundCoordinator:
         ):
             raise ValueError("interval_seconds must be positive")
         self._tasks[key] = callback
+        if ready is not None:
+            self._task_ready[key] = ready
+        else:
+            self._task_ready.pop(key, None)
         self._task_intervals[key] = float(interval_seconds)
 
     def set_heartbeat(
@@ -368,6 +377,9 @@ class ApplicationBackgroundCoordinator:
             start = self._task_cursor % len(task_names)
             ordered = task_names[start:] + task_names[:start]
             for task_kind in ordered:
+                ready = self._task_ready.get(task_kind)
+                if ready is not None and not ready():
+                    continue
                 last_run = self._task_last_run.get(task_kind)
                 interval = self._task_intervals[task_kind]
                 if (

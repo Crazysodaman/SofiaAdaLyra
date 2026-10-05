@@ -6,7 +6,7 @@ observation. Importing this module starts no process inspection or scheduler.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -106,13 +106,13 @@ class HostActivityStore:
             raise ValueError("bounded host_id required")
         return value.strip()
 
-    def set_override(self, host_id: str, mode: ActivityMode, *, at: datetime) -> None:
+    def set_override(self, host_id: str, mode: ActivityMode, *, at: datetime, connection: sqlite3.Connection | None = None) -> None:
         host_id = self._host(host_id)
         if not isinstance(mode, ActivityMode) or mode is ActivityMode.UNKNOWN:
             raise ValueError("override must be AUTO, NORMAL, GAMING, BUSY, or DO_NOT_DISTURB")
         moment = self._time(at)
-        with closing(self._connect()) as db:
-            with db:
+        with (closing(self._connect()) if connection is None else nullcontext(connection)) as db:
+            with (db if connection is None else nullcontext()):
                 db.execute(
                     """
                     INSERT INTO ops_activity_override(host_id, mode, changed_at)

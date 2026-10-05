@@ -310,6 +310,8 @@ class WindowsTrayAgent:
             1032: TrayCommand.RUNTIME_RESTART,
             1040: TrayCommand.OPEN_SETTINGS,
             1041: TrayCommand.DIAGNOSTICS,
+            1042: TrayCommand.OPEN_WARDROBE,
+            1043: TrayCommand.OPEN_MOOD,
             1099: TrayCommand.EXIT_UI,
         }
 
@@ -531,6 +533,8 @@ class WindowsTrayAgent:
 
                 append(root, MF_SEPARATOR, 0, None)
                 append(root, MF_STRING, 1040, "Settings…")
+                append(root, MF_STRING, 1042, "Wardrobe editor & list…")
+                append(root, MF_STRING, 1043, "Current mood & emotions…")
                 append(root, MF_STRING, 1041, "Diagnostics")
                 append(root, MF_SEPARATOR, 0, None)
                 append(root, MF_STRING, 1099, "Exit Tray Agent")

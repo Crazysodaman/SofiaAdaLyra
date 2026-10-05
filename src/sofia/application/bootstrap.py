@@ -730,7 +730,7 @@ class SofiaApplication:
     ):
         """Evaluate one bounded ENVIRONMENT/EMOTION -> AVATAR presentation step."""
         routine = getattr(self, "_presentation_routine", None)
-        if routine is None:
+        if routine is None or not getattr(self, "_avatar_routines_enabled", True):
             return None
         environment = self._runtime.environment_service.snapshot(
             now=now,
@@ -885,8 +885,11 @@ class SofiaApplication:
             )
 
         try:
-            enabled = _idle_reflections_enabled()
-            habit_enabled = _habit_learning_enabled()
+            from sofia.config.user_settings import RuntimeUserSettingsStore
+            preferences = RuntimeUserSettingsStore(self._configuration.state_path).load()
+            self._avatar_routines_enabled = preferences.avatar_routines_enabled
+            enabled = (preferences.idle_reflections_enabled if preferences.idle_reflections_enabled is not None else _idle_reflections_enabled())
+            habit_enabled = (preferences.habit_learning_enabled if preferences.habit_learning_enabled is not None else _habit_learning_enabled())
         except (TypeError, ValueError) as exc:
             raise SofiaApplicationError(
                 "Sofía application failed to start."
@@ -926,6 +929,7 @@ class SofiaApplication:
                 environment_snapshot is not None
                 and environment_snapshot.timezone is not None
                 and act_service is not None
+                and preferences.outreach is None
             ):
                 act_service.set_local_timezone(
                     environment_snapshot.timezone
@@ -980,7 +984,7 @@ class SofiaApplication:
                 and act_service.delivery_enabled
             )
             presentation_runtime_enabled = (
-                self._presentation_routine is not None
+                self._presentation_routine is not None and preferences.avatar_routines_enabled
             )
             fleet_discovery_config = getattr(
                 self._configuration,

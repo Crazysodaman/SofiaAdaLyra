@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from dataclasses import replace
+from pathlib import Path
+from contextlib import closing
 import ipaddress
 import json
 import sqlite3
@@ -16,7 +19,6 @@ from sofia.config.model_catalog import (
     known_local_model_names,
 )
 from sofia.config.user_settings import (
-    RuntimeUserSettings,
     RuntimeUserSettingsStore,
 )
 from sofia.environment.model import LocationSubject
@@ -41,13 +43,14 @@ from .control_center import (
     MASTER_SETTINGS_SECTIONS,
     RemoteChatMode,
 )
-from .windows_startup import configure_windows_startup
+from .settings_service import save_settings
+from .settings_sections import SettingsSections
 
 
 def _ensure_state_database(path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        with sqlite3.connect(path):
+        with closing(sqlite3.connect(path)):
             pass
 
 
@@ -158,11 +161,11 @@ def _optional_expiry_minutes(value: str) -> int | None:
     return minutes
 
 
-def run_settings_window() -> int:
+def run_settings_window(*, state_path: Path | None = None, section: str = "General") -> int:
     import tkinter as tk
     from tkinter import messagebox, ttk
 
-    config = create_production_configuration()
+    config = create_production_configuration(state_path=state_path)
     _ensure_state_database(config.state_path)
     store = DesktopControlSettingsStore(config.state_path)
     runtime_store = RuntimeUserSettingsStore(config.state_path)
@@ -178,18 +181,63 @@ def run_settings_window() -> int:
 
     root = tk.Tk()
     root.title("Sofía Settings")
-    root.geometry("920x720")
-    root.minsize(760, 580)
+    root.geometry("1100x800")
+    root.minsize(960, 580)
 
-    notebook = ttk.Notebook(root)
-    notebook.pack(fill="both", expand=True, padx=12, pady=12)
-
-    frames = {}
+    body = ttk.Frame(root)
+    body.pack(fill="both", expand=True, padx=12, pady=12)
+    navigation = tk.Listbox(body, width=22, exportselection=False, activestyle="none")
+    navigation.pack(side="left", fill="y", padx=(0, 10))
+    style = ttk.Style(root)
+    style.layout("Settings.TNotebook.Tab", [])
+    notebook = ttk.Notebook(body, style="Settings.TNotebook")
+    notebook.pack(side="left", fill="both", expand=True)
+    frames, canvases = {}, {}
     for name in MASTER_SETTINGS_SECTIONS:
-        frame = ttk.Frame(notebook, padding=14)
-        notebook.add(frame, text=name)
-        frames[name] = frame
+        navigation.insert("end", name)
+        page = ttk.Frame(notebook)
+        notebook.add(page, text=name)
+        canvas = tk.Canvas(page, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(page, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        frame = ttk.Frame(canvas, padding=14)
+        item = canvas.create_window((0, 0), window=frame, anchor="nw")
+        frame.bind("<Configure>", lambda event, canvas=canvas: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda event, canvas=canvas, item=item: canvas.itemconfigure(item, width=event.width))
+        frames[name], canvases[name] = frame, canvas
+    def select_section(event=None):
+        selection = navigation.curselection()
+        if selection:
+            notebook.select(selection[0])
+    navigation.bind("<<ListboxSelect>>", select_section)
+    selected_index = MASTER_SETTINGS_SECTIONS.index(section)
+    navigation.selection_set(selected_index)
+    notebook.select(selected_index)
+    store.consume_settings_section()
+    def poll_navigation():
+        selected = store.consume_settings_section()
+        if selected is not None:
+            index = MASTER_SETTINGS_SECTIONS.index(selected)
+            navigation.selection_clear(0, "end")
+            navigation.selection_set(index)
+            select_section()
+            root.lift()
+            root.focus_force()
+        root.after(1000, poll_navigation)
+    root.after(1000, poll_navigation)
+    def scroll_page(event):
+        if isinstance(event.widget, tk.Text):
+            return
+        name = MASTER_SETTINGS_SECTIONS[notebook.index("current")]
+        steps = (-1 if event.num == 4 else 1) if event.num in (4, 5) else -int(event.delta / 120)
+        canvases[name].yview_scroll(steps, "units")
+    root.bind_all("<MouseWheel>", scroll_page)
+    root.bind_all("<Button-4>", scroll_page)
+    root.bind_all("<Button-5>", scroll_page)
 
+    close_to_tray = tk.BooleanVar(value=current.close_to_tray)
     start_windows = tk.BooleanVar(value=current.start_with_windows)
     game_mode = tk.StringVar(value=current.game_mode.value)
     runtime_service = tk.StringVar(value=current.runtime_service_name)
@@ -524,19 +572,6 @@ def run_settings_window() -> int:
         ),
         wraplength=690,
     ).pack(anchor="w")
-
-    ttk.Label(models, text="LLM Windows service name").pack(anchor="w")
-    ttk.Entry(
-        models,
-        textvariable=llm_service,
-    ).pack(anchor="w", fill="x", pady=(2, 8))
-    ttk.Label(models, text="Sofía runtime Windows service name").pack(
-        anchor="w"
-    )
-    ttk.Entry(
-        models,
-        textvariable=runtime_service,
-    ).pack(anchor="w", fill="x", pady=(2, 8))
 
     integrations = frames["Integrations"]
     integration_tabs = ttk.Notebook(integrations)
@@ -1147,47 +1182,16 @@ def run_settings_window() -> int:
     ).pack(side="left", padx=(6, 0))
     refresh_fleet_candidates()
 
-    descriptions = {
-        "Sofía": (
-            "Identity and personality authority are protected elsewhere. "
-            "No direct mutation controls are currently required here."
-        ),
-        "ACT": (
-            "ACT policy controls are not yet exposed as owner-editable "
-            "settings. Existing authority and stop rules remain in force."
-        ),
-        "Avatar": (
-            "Avatar and wardrobe controls will appear here when their "
-            "persistent owner-setting surface is ready."
-        ),
-        "Memory": (
-            "Memory review, promotion, import and privacy actions use the "
-            "reviewed memory workflow; bulk unsafe promotion is not exposed."
-        ),
-        "EVOLVE": (
-            "EVOLVE changes remain review-and-approval operations rather "
-            "than ordinary preferences."
-        ),
-        "Safety & Authority": (
-            "Protected grants, revocations and emergency controls are "
-            "intentionally not editable as ordinary UI preferences."
-        ),
-        "Advanced": (
-            "Advanced diagnostics remain read-only or separately approved "
-            "until a bounded owner-control surface is implemented."
-        ),
-    }
-    for section, description in descriptions.items():
-        ttk.Label(
-            frames[section],
-            text=description,
-            wraplength=720,
-        ).pack(anchor="w")
+    ttk.Checkbutton(frames["General"], text="Keep the tray running when chat closes", variable=close_to_tray).pack(anchor="w", pady=8)
+    for label, variable in (("Sofía runtime service name", runtime_service), ("LLM service name", llm_service)):
+        ttk.Label(frames["Workloads"], text=label).pack(anchor="w", pady=(8, 2))
+        ttk.Entry(frames["Workloads"], textvariable=variable).pack(fill="x")
+    extra = SettingsSections(tk=tk, ttk=ttk, frames=frames, config=config, runtime=runtime, root=root)
 
     status = tk.StringVar(value="")
     bottom = ttk.Frame(root, padding=(12, 0, 12, 12))
     bottom.pack(fill="x")
-    ttk.Label(bottom, textvariable=status).pack(side="left")
+    ttk.Label(bottom, textvariable=status, wraplength=700).pack(side="left", fill="x", expand=True)
 
     def _positive(value: str, label: str) -> int:
         try:
@@ -1202,7 +1206,7 @@ def run_settings_window() -> int:
         try:
             selected_game_mode = GameMode(game_mode.get())
             updated = DesktopControlSettings(
-                close_to_tray=current.close_to_tray,
+                close_to_tray=bool(close_to_tray.get()),
                 start_with_windows=bool(start_windows.get()),
                 game_mode=selected_game_mode,
                 remote_chat_mode=RemoteChatMode.LOCAL,
@@ -1281,7 +1285,8 @@ def run_settings_window() -> int:
                     "network scope or explicit agent target"
                 )
 
-            runtime_updated = RuntimeUserSettings(
+            runtime_updated = replace(runtime_store.load(),
+                **extra.updates(),
                 provider_model=provider_model.get().strip(),
                 provider_context_size=_positive(
                     provider_context.get(),
@@ -1428,38 +1433,19 @@ def run_settings_window() -> int:
             ):
                 return
 
-            if discord_clear_token.get():
-                secrets.clear("discord-token")
-            if discord_token_value:
-                secrets.set("discord-token", discord_token_value)
-
-            if ha_clear_token.get():
-                secrets.clear("home-assistant-token")
-            if ha_token_value:
-                secrets.set(
-                    "home-assistant-token",
-                    ha_token_value,
-                )
-
-            now = datetime.now(timezone.utc)
+            secret_changes = {}
+            for key, token_value, clear in (("discord-token", discord_token_value, discord_clear_token.get()), ("home-assistant-token", ha_token_value, ha_clear_token.get())):
+                if token_value:
+                    secret_changes[key] = token_value
+                elif clear:
+                    secret_changes[key] = None
+            saved_status = save_settings(config.state_path, updated, runtime_updated, host_id=_local_host_id(), secret_changes=secret_changes, secrets=secrets)
             if private_authority_changed:
                 permission_store.set_private_adult_authority(
-                    private_chat=requested_private_authority[0],
-                    adult_chat=requested_private_authority[1],
-                    adult_avatar=requested_private_authority[2],
-                    adult_external_delivery=requested_private_authority[3],
-                    updated_by="Sparks",
-                    now=now,
+                    private_chat=requested_private_authority[0], adult_chat=requested_private_authority[1],
+                    adult_avatar=requested_private_authority[2], adult_external_delivery=requested_private_authority[3],
+                    updated_by="Sparks", now=datetime.now(timezone.utc),
                 )
-            configure_windows_startup(updated.start_with_windows)
-            runtime_store.save(runtime_updated, at=now)
-            store.save(updated, at=now)
-
-            activity.set_override(
-                _local_host_id(),
-                _activity_override(selected_game_mode),
-                at=now,
-            )
 
             discord_token.set("")
             ha_token.set("")
@@ -1475,9 +1461,7 @@ def run_settings_window() -> int:
                 if secrets.exists("home-assistant-token")
                 else "No stored token"
             )
-            status.set(
-                "Saved. Permission and private/adult authority changes are durable; environment changes apply on the next turn and some integration changes may require a restart."
-            )
+            status.set(saved_status)
         except Exception as exc:
             messagebox.showerror(
                 "Settings not saved",
@@ -1500,8 +1484,13 @@ def run_settings_window() -> int:
     return 0
 
 
-def main() -> int:
-    return run_settings_window()
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(description="Sofía tray settings")
+    parser.add_argument("--state-path", type=Path)
+    parser.add_argument("--section", choices=MASTER_SETTINGS_SECTIONS, default="General")
+    args = parser.parse_args(argv)
+    return run_settings_window(state_path=args.state_path, section=args.section)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ actions; it does not invent service names, hosts, or authority.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, nullcontext
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import Enum
@@ -148,6 +148,34 @@ class DesktopControlSettingsStore:
                     """
                 )
 
+    def request_tray_exit(self) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute("CREATE TABLE IF NOT EXISTS ui_tray_exit (singleton INTEGER PRIMARY KEY CHECK(singleton=1), requested_at TEXT NOT NULL)")
+            db.execute("INSERT OR REPLACE INTO ui_tray_exit VALUES (1, ?)", (datetime.now(timezone.utc).isoformat(),))
+
+    def consume_tray_exit(self) -> bool:
+        with closing(self._connect()) as db, db:
+            db.execute("CREATE TABLE IF NOT EXISTS ui_tray_exit (singleton INTEGER PRIMARY KEY CHECK(singleton=1), requested_at TEXT NOT NULL)")
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT requested_at FROM ui_tray_exit WHERE singleton=1").fetchone()
+            db.execute("DELETE FROM ui_tray_exit WHERE singleton=1")
+        return row is not None
+
+    def request_settings_section(self, section: str) -> None:
+        if section not in MASTER_SETTINGS_SECTIONS:
+            raise ValueError("Unknown settings section")
+        with closing(self._connect()) as db, db:
+            db.execute("CREATE TABLE IF NOT EXISTS ui_settings_navigation (singleton INTEGER PRIMARY KEY CHECK(singleton=1), section TEXT NOT NULL)")
+            db.execute("INSERT OR REPLACE INTO ui_settings_navigation VALUES (1, ?)", (section,))
+
+    def consume_settings_section(self) -> str | None:
+        with closing(self._connect()) as db, db:
+            db.execute("CREATE TABLE IF NOT EXISTS ui_settings_navigation (singleton INTEGER PRIMARY KEY CHECK(singleton=1), section TEXT NOT NULL)")
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT section FROM ui_settings_navigation WHERE singleton=1").fetchone()
+            db.execute("DELETE FROM ui_settings_navigation WHERE singleton=1")
+        return row[0] if row is not None and row[0] in MASTER_SETTINGS_SECTIONS else None
+
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
@@ -192,7 +220,7 @@ class DesktopControlSettingsStore:
         self.save(migrated, at=at)
         return migrated
 
-    def save(self, settings: DesktopControlSettings, *, at: datetime) -> None:
+    def save(self, settings: DesktopControlSettings, *, at: datetime, connection: sqlite3.Connection | None = None) -> None:
         if not isinstance(settings, DesktopControlSettings):
             raise TypeError("DesktopControlSettings required")
         if settings.remote_chat_mode is not RemoteChatMode.LOCAL:
@@ -203,8 +231,8 @@ class DesktopControlSettingsStore:
         if not isinstance(at, datetime) or at.tzinfo is None or at.utcoffset() is None:
             raise ValueError("timezone-aware timestamp required")
         moment = at.astimezone(timezone.utc)
-        with closing(self._connect()) as db:
-            with db:
+        with (closing(self._connect()) if connection is None else nullcontext(connection)) as db:
+            with (db if connection is None else nullcontext()):
                 db.execute(
                     """
                     INSERT INTO ui_control_settings
@@ -237,6 +265,8 @@ class TrayCommand(str, Enum):
     OPEN_CHAT = "open_chat"
     OPEN_FLEET = "open_fleet"
     OPEN_SETTINGS = "open_settings"
+    OPEN_WARDROBE = "open_wardrobe"
+    OPEN_MOOD = "open_mood"
     GAME_AUTO = "game_auto"
     GAME_ON = "game_on"
     GAME_OFF = "game_off"
@@ -281,6 +311,8 @@ def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
         (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
         (TrayCommand.RUNTIME_RESTART, "Restart Sofía runtime"),
         (TrayCommand.OPEN_SETTINGS, "Settings…"),
+        (TrayCommand.OPEN_WARDROBE, "Wardrobe editor & list…"),
+        (TrayCommand.OPEN_MOOD, "Current mood & emotions…"),
         (TrayCommand.DIAGNOSTICS, "Diagnostics"),
         (TrayCommand.EXIT_UI, "Exit UI"),
     )
@@ -297,6 +329,8 @@ MASTER_SETTINGS_SECTIONS = (
     "Integrations",
     "Environment",
     "Avatar",
+    "Wardrobe",
+    "Mood & Emotion",
     "Memory",
     "EVOLVE",
     "Permissions",

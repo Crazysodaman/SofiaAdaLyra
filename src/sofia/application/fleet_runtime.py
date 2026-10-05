@@ -34,7 +34,7 @@ def configure_fleet_enrollment_notices(
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
 
-    destination = notification_destination_from_environment()
+    destination = notification_destination_from_environment(state_path=act_service.state_path)
     if not destination:
         ops_service.enrollment.set_enrolled_notifier(None)
         return False
@@ -116,7 +116,7 @@ def create_fleet_candidate_notifier(
     """Return a deduped notice callback for newly discovered untrusted hosts."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment()
+    destination = notification_destination_from_environment(state_path=act_service.state_path)
     if not destination:
         return None
 
@@ -202,7 +202,7 @@ def create_fleet_bootstrap_plan_notifier(
     """Notify Sparks only when a candidate needs explicit bootstrap action."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment()
+    destination = notification_destination_from_environment(state_path=act_service.state_path)
     if not destination:
         return None
 
@@ -247,7 +247,7 @@ def create_fleet_reconciliation_notifier(
     """Notify Sparks once for each newly observed Fleet drift proposal."""
     if not isinstance(act_service, SofiaActService):
         raise TypeError("act_service must be a SofiaActService")
-    destination = notification_destination_from_environment()
+    destination = notification_destination_from_environment(state_path=act_service.state_path)
     if not destination:
         return None
 

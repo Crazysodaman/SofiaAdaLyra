@@ -39,3 +39,21 @@ def test_startup_command_prefers_available_windowless_python(monkeypatch, tmp_pa
     command = tray_startup_command()
     assert command.startswith(windows_startup.subprocess.list2cmdline((str(windowless),)))
     assert "sofia.ui.tray_agent import main" in command
+
+
+def test_startup_registration_keeps_the_selected_database(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from contextlib import nullcontext
+    calls = []
+    fake = SimpleNamespace(HKEY_CURRENT_USER=1, KEY_SET_VALUE=2, REG_SZ=3)
+    def create(root, path, reserved, access):
+        assert path == r"Software\Microsoft\Windows\CurrentVersion\Run"
+        return nullcontext("registry-key")
+    fake.CreateKeyEx = create
+    fake.SetValueEx = lambda *args: calls.append(args)
+    monkeypatch.setitem(sys.modules, "winreg", fake)
+    monkeypatch.setattr(sys, "platform", "win32")
+    selected = tmp_path / "custom state" / "selected.db"
+    configure_windows_startup(True, state_path=selected)
+    assert "--state-path" in calls[0][-1]
+    assert repr(str(selected.resolve())) in calls[0][-1]

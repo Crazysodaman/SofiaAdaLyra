@@ -24,15 +24,15 @@ class _Lock(AbstractContextManager):
 
 def test_main_treats_keyboard_interrupt_as_clean_shutdown(tmp_path, monkeypatch):
     app = _InterruptingApplication(tmp_path / "sofia.db")
-    monkeypatch.setattr(tray_agent, "TrayAgentApplication", lambda: app)
+    monkeypatch.setattr(tray_agent, "TrayAgentApplication", lambda **kwargs: app)
     monkeypatch.setattr(tray_agent, "TrayProcessLock", lambda path: _Lock())
 
-    assert tray_agent.main() == 0
+    assert tray_agent.main([]) == 0
 
 
 def test_main_reports_duplicate_tray_without_traceback(tmp_path, monkeypatch, capsys):
     app = SimpleNamespace(config=SimpleNamespace(state_path=tmp_path / "sofia.db"))
-    monkeypatch.setattr(tray_agent, "TrayAgentApplication", lambda: app)
+    monkeypatch.setattr(tray_agent, "TrayAgentApplication", lambda **kwargs: app)
 
     class _DuplicateLock:
         def __enter__(self):
@@ -43,7 +43,7 @@ def test_main_reports_duplicate_tray_without_traceback(tmp_path, monkeypatch, ca
 
     monkeypatch.setattr(tray_agent, "TrayProcessLock", lambda path: _DuplicateLock())
 
-    assert tray_agent.main() == 2
+    assert tray_agent.main([]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.strip() == "Sofía tray agent is already running."

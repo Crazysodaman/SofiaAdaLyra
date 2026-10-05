@@ -244,13 +244,20 @@ def configure_act_delivery_from_environment(
     """
     if not isinstance(service, SofiaActService):
         raise TypeError("service must be a SofiaActService")
-    if not _enabled("SOFIA_ACT_DELIVERY_ENABLED"):
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.safe.secret_store import ProtectedSecretStore
+    preferences = RuntimeUserSettingsStore(service.state_path).load()
+    outreach = preferences.outreach
+    if not (outreach.enabled if outreach is not None else _enabled("SOFIA_ACT_DELIVERY_ENABLED")):
         service.disable_delivery()
         return False
 
     url = os.environ.get("SOFIA_HOME_ASSISTANT_URL", "").strip()
     token = os.environ.get("SOFIA_HOME_ASSISTANT_TOKEN", "").strip()
-    notify_service = notification_destination_from_environment()
+    notify_service = outreach.notification_service if outreach is not None else notification_destination_from_environment()
+    if outreach is not None:
+        url = preferences.home_assistant_url or ""
+        token = ProtectedSecretStore.for_state_path(service.state_path).get("home-assistant-token") or ""
     if not url or not token or not notify_service:
         raise RuntimeError(
             "ACT delivery requires Home Assistant URL/token and "
@@ -287,7 +294,7 @@ def configure_act_delivery_from_environment(
         sender=sender,
         channel="home_assistant",
         destination=notify_service,
-        policy=Policy(
+        policy=outreach.policy(SPARKS_PRINCIPAL_ID) if outreach is not None else Policy(
             recipient_id=SPARKS_PRINCIPAL_ID,
             enabled=True,
             mute=False,
@@ -315,12 +322,17 @@ def configure_act_delivery_from_environment(
     return True
 
 
-def notification_destination_from_environment() -> str:
-    """Read one validated Home Assistant notification service, without opt-in.
+def notification_destination_from_environment(*, state_path: Path | None = None) -> str:
+    """Read the saved notification service, falling back to host configuration.
 
     A configured destination permits queue wiring; delivery still requires
     explicit ACT policy authorization. An empty destination disables notices.
     """
+    if state_path is not None:
+        from sofia.config.user_settings import RuntimeUserSettingsStore
+        outreach = RuntimeUserSettingsStore(state_path).load().outreach
+        if outreach is not None:
+            return outreach.notification_service
     destination = os.environ.get("SOFIA_NOTIFICATION_HA_SERVICE", "").strip()
     if destination and (
         "/" in destination

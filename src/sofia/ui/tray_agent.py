@@ -10,6 +10,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import time
 from uuid import uuid4
 
 from sofia.config import create_production_configuration
@@ -76,8 +77,8 @@ def _local_host_id() -> str:
 
 
 class TrayAgentApplication:
-    def __init__(self) -> None:
-        self.config = create_production_configuration()
+    def __init__(self, *, state_path: Path | None = None) -> None:
+        self.config = create_production_configuration(state_path=state_path) if state_path is not None else create_production_configuration()
         _ensure_state(self.config.state_path)
         verify_production_component_schemas(self.config.state_path)
         self.settings_store = DesktopControlSettingsStore(self.config.state_path)
@@ -390,8 +391,7 @@ class TrayAgentApplication:
             matrix_last_validation=matrix_validation,
         )
 
-    @staticmethod
-    def _spawn_module(module: str) -> subprocess.Popen:
+    def _spawn_module(self, module: str, *arguments: str) -> subprocess.Popen:
         executable = Path(sys.executable)
         if sys.platform == "win32":
             pythonw = executable.with_name("pythonw.exe")
@@ -404,7 +404,7 @@ class TrayAgentApplication:
                 | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             )
         return subprocess.Popen(
-            (str(executable), "-m", module),
+            (str(executable), "-m", module, "--state-path", str(self.config.state_path.resolve()), *arguments),
             cwd=str(Path(__file__).resolve().parents[3]),
             creationflags=creationflags,
             close_fds=True,
@@ -414,9 +414,11 @@ class TrayAgentApplication:
         if self._chat_process is None or self._chat_process.poll() is not None:
             self._chat_process = self._spawn_module("sofia.ui")
 
-    def _open_settings(self) -> None:
+    def _open_settings(self, section: str = "General") -> None:
         if self._settings_process is None or self._settings_process.poll() is not None:
-            self._settings_process = self._spawn_module("sofia.ui.settings_window")
+            self._settings_process = self._spawn_module("sofia.ui.settings_window", "--section", section)
+        else:
+            self.settings_store.request_settings_section(section)
 
     def _set_game_mode(self, value: GameMode) -> None:
         settings = self.settings_store.load()
@@ -551,8 +553,14 @@ class TrayAgentApplication:
         try:
             if command is TrayCommand.OPEN_CHAT:
                 self._open_chat()
-            elif command in (TrayCommand.OPEN_FLEET, TrayCommand.OPEN_SETTINGS):
+            elif command is TrayCommand.OPEN_FLEET:
+                self._open_settings("Fleet")
+            elif command is TrayCommand.OPEN_SETTINGS:
                 self._open_settings()
+            elif command is TrayCommand.OPEN_WARDROBE:
+                self._open_settings("Wardrobe")
+            elif command is TrayCommand.OPEN_MOOD:
+                self._open_settings("Mood & Emotion")
             elif command is TrayCommand.GAME_AUTO:
                 self._set_game_mode(GameMode.AUTO)
             elif command is TrayCommand.GAME_ON:
@@ -598,7 +606,7 @@ class TrayAgentApplication:
             elif command is TrayCommand.RUNTIME_RESTART:
                 self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.RESTART)
             elif command is TrayCommand.DIAGNOSTICS:
-                self._open_settings()
+                self._open_settings("Advanced")
             elif command is TrayCommand.EXIT_UI:
                 return False
             self._last_error = None
@@ -607,6 +615,8 @@ class TrayAgentApplication:
         return True
 
     def run(self) -> int:
+        self.settings_store.consume_tray_exit()  # Retire requests addressed to a previous tray process.
+        next_observation = time.monotonic() + 30
         try:
             self._observe_activity()
         except Exception as exc:
@@ -615,9 +625,14 @@ class TrayAgentApplication:
         try:
             running = True
             while running:
+                if self.settings_store.consume_tray_exit():
+                    break
                 try:
-                    command = self.events.get(timeout=30)
+                    command = self.events.get(timeout=1)
                 except Empty:
+                    if time.monotonic() < next_observation:
+                        continue
+                    next_observation = time.monotonic() + 30
                     try:
                         self._observe_activity()
                     except Exception as exc:
@@ -629,8 +644,12 @@ class TrayAgentApplication:
         return 0
 
 
-def main() -> int:
-    application = TrayAgentApplication()
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(description="Sofía tray")
+    parser.add_argument("--state-path", type=Path)
+    args = parser.parse_args(argv)
+    application = TrayAgentApplication(state_path=args.state_path)
     try:
         with TrayProcessLock(application.config.state_path):
             return application.run()

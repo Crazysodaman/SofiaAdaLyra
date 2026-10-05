@@ -68,5 +68,5 @@ def test_windows_tray_launcher_starts_module_detached(tmp_path, monkeypatch):
 
     assert tray_launcher.ensure_tray_agent(_configuration(tmp_path)) is True
     args, kwargs = calls[0]
-    assert args[1:] == ("-m", "sofia.ui.tray_agent")
+    assert args[1:] == ("-m", "sofia.ui.tray_agent", "--state-path", str((tmp_path / "sofia.db").resolve()))
     assert kwargs["close_fds"] is True

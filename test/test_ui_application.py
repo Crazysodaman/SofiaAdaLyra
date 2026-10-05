@@ -167,7 +167,8 @@ def test_text_ui_clothing_hypothetical_then_do_it_uses_prior_user_request(
     )
     hypothetical = application.text_ui.send()
 
-    assert "request itself" in hypothetical.content
+    assert "Late-Night Lounge" in hypothetical.content
+    assert "I haven't changed yet" in hypothetical.content
     assert application.runtime.avatar_presentation.current == original
 
     application.text_ui.save_draft("do it")

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, nullcontext
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
+import math
+import re
 from pathlib import Path
 import sqlite3
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sofia.config.model_catalog import (
     DEFAULT_PROVIDER_CONTEXT_SIZE,
@@ -17,9 +20,52 @@ from sofia.config.model_catalog import (
     RECOMMENDED_SECONDARY_MODEL,
 )
 from sofia.environment.model import LocationSubject
+from sofia.config.model import FleetCognitionConfiguration, FleetBootstrapConfiguration
+from sofia.act.outreach import Policy
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 4
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 5
+
+
+@dataclass(frozen=True, slots=True)
+class OutreachSettings:
+    enabled: bool = False
+    mute: bool = False
+    notification_service: str = ""
+    quiet_start_local: int = 22
+    quiet_end_local: int = 8
+    timezone_name: str = "America/Chicago"
+    min_interval_minutes: int = 360
+    max_daily: int = 1
+    social_min_interval_minutes: int = 360
+    operational_min_interval_minutes: int = 30
+    social_max_daily: int = 1
+    operational_max_daily: int = 8
+    allow_critical_operational_during_quiet: bool = True
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.notification_service, str) or (
+            self.notification_service and not self.notification_service.replace("_", "").replace("-", "").isalnum()
+        ):
+            raise ValueError("notification_service must be a Home Assistant notify service name")
+        for name in ("min_interval_minutes", "social_min_interval_minutes", "operational_min_interval_minutes"):
+            if type(getattr(self, name)) is not int or getattr(self, name) < 0:
+                raise ValueError(f"{name} must be a nonnegative integer")
+        self.policy("settings-validation")
+        if self.enabled and not self.notification_service:
+            raise ValueError("Enabled outreach requires a notification service")
+
+    def policy(self, recipient_id: str) -> Policy:
+        return Policy(
+            recipient_id=recipient_id, enabled=self.enabled, mute=self.mute,
+            quiet_start_local=self.quiet_start_local, quiet_end_local=self.quiet_end_local,
+            timezone_name=self.timezone_name,
+            min_interval=timedelta(minutes=self.min_interval_minutes), max_daily=self.max_daily,
+            social_min_interval=timedelta(minutes=self.social_min_interval_minutes),
+            operational_min_interval=timedelta(minutes=self.operational_min_interval_minutes),
+            social_max_daily=self.social_max_daily, operational_max_daily=self.operational_max_daily,
+            allow_critical_operational_during_quiet=self.allow_critical_operational_during_quiet,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +74,16 @@ class RuntimeUserSettings:
     provider_model: str = DEFAULT_PROVIDER_MODEL
     provider_context_size: int = DEFAULT_PROVIDER_CONTEXT_SIZE
     provider_thinking: bool | str = False
+    provider_temperature: float | None = None
+    provider_seed: int | None = None
+    adaptive_theme: bool = True
+    idle_reflections_enabled: bool | None = None
+    habit_learning_enabled: bool | None = None
+    avatar_routines_enabled: bool = True
+    avatar_daily_outfit: str | None = None
+    fleet_cognition: FleetCognitionConfiguration | None = None
+    fleet_bootstrap: FleetBootstrapConfiguration | None = None
+    outreach: OutreachSettings | None = None
 
     cognitive_routing_enabled: bool = True
     cognitive_primary_model: str = RECOMMENDED_PRIMARY_MODEL
@@ -76,6 +132,22 @@ class RuntimeUserSettings:
     fleet_discovery_max_hosts_per_scope: int = 256
 
     def __post_init__(self) -> None:
+        if self.avatar_daily_outfit is not None:
+            if not isinstance(self.avatar_daily_outfit, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", self.avatar_daily_outfit) is None:
+                raise ValueError("Daily outfit must be a bounded wardrobe ID")
+        for name in ("adaptive_theme", "avatar_routines_enabled"):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be boolean")
+        for name in ("idle_reflections_enabled", "habit_learning_enabled"):
+            if getattr(self, name) is not None and type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be boolean or None")
+        for name, kind in (("fleet_cognition", FleetCognitionConfiguration), ("fleet_bootstrap", FleetBootstrapConfiguration), ("outreach", OutreachSettings)):
+            if getattr(self, name) is not None and not isinstance(getattr(self, name), kind):
+                raise TypeError(f"{name} must be {kind.__name__} or None")
+        if self.provider_temperature is not None and (type(self.provider_temperature) not in (int, float) or not math.isfinite(self.provider_temperature) or self.provider_temperature < 0):
+            raise ValueError("Provider temperature must be finite and nonnegative")
+        if self.provider_seed is not None and type(self.provider_seed) is not int:
+            raise TypeError("Provider seed must be an integer or None")
         if (
             type(self.schema_version) is not int
             or self.schema_version != CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
@@ -228,6 +300,11 @@ class RuntimeUserSettings:
             raise ValueError(
                 "location label and timezone must be supplied together"
             )
+        if self.location_timezone is not None:
+            try:
+                ZoneInfo(self.location_timezone)
+            except ZoneInfoNotFoundError as exc:
+                raise ValueError("Location timezone must identify an installed timezone") from exc
         if (self.location_latitude is None) != (
             self.location_longitude is None
         ):
@@ -452,6 +529,18 @@ class RuntimeUserSettingsStore:
         data["fleet_discovery_scopes"] = tuple(
             data.get("fleet_discovery_scopes", ())
         )
+        for name, kind in (("fleet_cognition", FleetCognitionConfiguration), ("fleet_bootstrap", FleetBootstrapConfiguration), ("outreach", OutreachSettings)):
+            if data.get(name) is not None:
+                nested = data[name]
+                if not isinstance(nested, dict):
+                    raise ValueError(f"{name} must be an object")
+                nested = dict(nested)
+                for key in ("allowed_host_ids", "denied_host_ids", "targets", "scopes"):
+                    if key in nested:
+                        if not isinstance(nested[key], list):
+                            raise ValueError(f"{key} must be a list")
+                        nested[key] = tuple(nested[key])
+                data[name] = kind(**nested)
         data["location_subject"] = LocationSubject(
             data.get("location_subject", "user")
         )
@@ -489,13 +578,14 @@ class RuntimeUserSettingsStore:
         settings: RuntimeUserSettings,
         *,
         at: datetime | None = None,
+        connection: sqlite3.Connection | None = None,
     ) -> None:
         if not isinstance(settings, RuntimeUserSettings):
             raise TypeError("settings must be RuntimeUserSettings")
         moment = at or datetime.now(timezone.utc)
         if moment.tzinfo is None or moment.utcoffset() is None:
             raise ValueError("settings timestamp must be timezone-aware")
-        with closing(self._connect()) as db, db:
+        with (closing(self._connect()) if connection is None else nullcontext(connection)) as db, (db if connection is None else nullcontext()):
             db.execute(
                 """
                 INSERT INTO ui_runtime_settings

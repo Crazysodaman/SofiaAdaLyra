@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 
-_RUN_KEY = r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _VALUE_NAME = "SofiaAdaLyraTray"
 
 
@@ -20,21 +20,19 @@ def _package_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def tray_startup_command() -> str:
+def tray_startup_command(*, state_path: Path | None = None) -> str:
     executable = Path(sys.executable)
     pythonw = executable.with_name("pythonw.exe")
     runner = pythonw if pythonw.is_file() else executable
     package_root = _package_root()
-    code = (
-        "import sys; "
-        f"sys.path.insert(0, {str(package_root)!r}); "
-        "from sofia.ui.tray_agent import main; "
-        "raise SystemExit(main())"
-    )
+    code = "import sys; " + f"sys.path.insert(0, {str(package_root)!r}); "
+    if state_path is not None:
+        code += f"sys.argv = ['sofia-tray', '--state-path', {str(state_path.resolve())!r}]; "
+    code += "from sofia.ui.tray_agent import main; raise SystemExit(main())"
     return subprocess.list2cmdline((str(runner), "-c", code))
 
 
-def configure_windows_startup(enabled: bool) -> None:
+def configure_windows_startup(enabled: bool, *, state_path: Path | None = None) -> None:
     if not isinstance(enabled, bool):
         raise TypeError("enabled must be boolean")
     if sys.platform != "win32":
@@ -53,7 +51,7 @@ def configure_windows_startup(enabled: bool) -> None:
                 _VALUE_NAME,
                 0,
                 winreg.REG_SZ,
-                tray_startup_command(),
+                tray_startup_command(state_path=state_path),
             )
         else:
             try:

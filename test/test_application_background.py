@@ -12,6 +12,24 @@ from sofia.application.background import (
 NOW = datetime(2026, 10, 3, 20, 0, tzinfo=timezone.utc)
 
 
+def test_empty_task_readiness_does_not_consume_background_budget(tmp_path):
+    from types import SimpleNamespace
+    coordinator = ApplicationBackgroundCoordinator.__new__(ApplicationBackgroundCoordinator)
+    coordinator.service = SimpleNamespace(ready_for_idle_reflection=lambda **kwargs: True)
+    coordinator.idle_seconds = 1
+    coordinator.reflection_enabled = False
+    coordinator._tasks = {"wardrobe_review": lambda now: pytest.fail("Empty queue cannot run")}
+    coordinator._task_ready = {"wardrobe_review": lambda: False}
+    coordinator._task_last_run = {}
+    coordinator._task_intervals = {"wardrobe_review": 30}
+    coordinator._task_cursor = 0
+    coordinator._act_delivery = None
+    coordinator.budget = BackgroundBudget(tmp_path / "sofia.db")
+    assert coordinator.run_once(now=NOW) == "background_idle"
+    with sqlite3.connect(coordinator.budget.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM application_background_claims").fetchone()[0] == 0
+
+
 def test_abandoned_background_claim_recovers_after_lease_timeout(tmp_path):
     state = tmp_path / "state.db"
     state.touch()

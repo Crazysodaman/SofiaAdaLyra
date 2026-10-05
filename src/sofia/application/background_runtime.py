@@ -54,6 +54,24 @@ def create_background_coordinator(
         state_path=Path(application._configuration.state_path),
         reflection_enabled=reflection_enabled,
     )
+    from sofia.avatar.wardrobe_review import WardrobeReviewStore, review_next
+    from sofia.social.principals import local_sparks_principal
+    review_store = WardrobeReviewStore(application._configuration.state_path)
+
+    def review_wardrobe(now):
+        from sofia.avatar.presentation_runtime import load_or_bootstrap_presentation
+        with application._model_lock:
+            key = review_next(
+                review_store,
+                lambda request: application._runtime.respond(request, principal=local_sparks_principal()),
+                now=now,
+            )
+            if key is not None and any(row["proposal_id"] == key and row["status"] == "approved" for row in review_store.list()):
+                bundle = load_or_bootstrap_presentation(embodiment=application._runtime.embodiment, state_path=application._configuration.state_path)
+                application._install_presentation_bundle(bundle)
+            return key
+
+    coordinator.set_task("wardrobe_review", review_wardrobe, interval_seconds=30, ready=lambda: review_store.has_pending(datetime.now(timezone.utc)))
     activity_store = HostActivityStore(
         application._configuration.state_path
     )

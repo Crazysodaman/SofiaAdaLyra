@@ -8,6 +8,10 @@ is introduced here.
 from __future__ import annotations
 
 from queue import Empty, Queue
+from dataclasses import replace
+from pathlib import Path
+from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.ui.control_center import DesktopControlSettingsStore
 import traceback
 from typing import Any
 
@@ -192,6 +196,7 @@ class _TkDesktopWorkbench:
         self._tk = tk
         self._ttk = ttk
         self._root = root
+        self._configuration = configuration
         self._session_id = session_id
         self._events: Queue[tuple[str, object]] = Queue()
         self._worker = DesktopApplicationWorker(
@@ -208,7 +213,7 @@ class _TkDesktopWorkbench:
         self._palette = canonical_theme()
         self._adaptive_theme = self._tk.BooleanVar(
             master=self._root,
-            value=True,
+            value=RuntimeUserSettingsStore(configuration.state_path).load().adaptive_theme,
         )
         self._theme_name = self._tk.StringVar(
             master=self._root,
@@ -300,7 +305,7 @@ class _TkDesktopWorkbench:
             header,
             text="Adaptive theme",
             variable=self._adaptive_theme,
-            command=self._refresh_theme,
+            command=self._save_theme,
             style="Sofia.TCheckbutton",
         )
         adaptive.pack(
@@ -673,6 +678,9 @@ class _TkDesktopWorkbench:
                     f"Draft save failed: {type(payload).__name__}"
                 )
             elif kind == "shutdown_complete":
+                settings = DesktopControlSettingsStore(self._configuration.state_path)
+                if not settings.load().close_to_tray:
+                    settings.request_tray_exit()
                 self._application_ready = False
                 self._root.destroy()
                 return
@@ -866,6 +874,15 @@ class _TkDesktopWorkbench:
             state="readonly" if enabled else "disabled"
         )
 
+    def _save_theme(self) -> None:
+        try:
+            store = RuntimeUserSettingsStore(self._configuration.state_path)
+            store.save(replace(store.load(), adaptive_theme=bool(self._adaptive_theme.get())))
+        except Exception as exc:
+            self._show_error("Theme preference not saved", str(exc))
+            return
+        self._refresh_theme()
+
     def _request_close(self) -> None:
         self._close_requested = True
         if self._busy:
@@ -926,8 +943,12 @@ def run_desktop(
     return 0
 
 
-def main() -> int:
-    return run_desktop()
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    parser = argparse.ArgumentParser(description="Sofía desktop")
+    parser.add_argument("--state-path", type=Path)
+    args = parser.parse_args(argv)
+    return run_desktop(create_production_configuration(state_path=args.state_path))
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ from sofia.embodiment.model import Embodiment
 
 from .presentation import AppearanceState, PresentationAuthority
 from .presentation_store import PresentationStore, PresentationStoreError
-from .wardrobe_catalog import build_starter_wardrobe
 from .wardrobe_prebuild import DAY_DEFAULT_OUTFIT_ID, WardrobePrebuild
 from .wardrobe_matrix import WardrobeSlotMatrix, build_wardrobe_matrix
 
@@ -235,7 +234,8 @@ def load_or_bootstrap_presentation(
     embodiment: Embodiment,
     state_path: str | Path,
 ) -> PresentationRuntimeBundle:
-    catalog = build_starter_wardrobe(state_path=state_path)
+    from .wardrobe_review import WardrobeReviewStore
+    catalog = WardrobeReviewStore(state_path).catalog()
     outfits = {plan.outfit_id: plan.item_ids for plan in catalog.presets}
     store = PresentationStore(Path(state_path))
     _migrate_legacy_presentation_state(
@@ -265,4 +265,16 @@ def load_or_bootstrap_presentation(
             initial_appearance=_appearance_from_embodiment(embodiment),
         )
         store.save(authority)
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from uuid import uuid4
+    selected = RuntimeUserSettingsStore(state_path).load().avatar_daily_outfit
+    if selected is not None and authority.last_daily.outfit_id != selected:
+        def apply_daily_outfit():
+            operation_id = f"settings-{uuid4()}"
+            authority.propose_outfit(
+                operation_id=operation_id, expected_revision=authority.current.revision,
+                outfit_id=selected, reason="Owner-selected daily outfit",
+            )
+            return authority.commit_text(operation_id=operation_id, renderer_unavailable=True)
+        store.persist_mutation(authority, apply_daily_outfit)
     return PresentationRuntimeBundle(authority, store, catalog)

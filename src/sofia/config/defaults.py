@@ -362,6 +362,8 @@ def create_default_configuration(
         context_size=user_settings.provider_context_size,
         max_output_tokens=_DEFAULT_PROVIDER_MAX_OUTPUT_TOKENS,
         thinking=user_settings.provider_thinking,
+        temperature=user_settings.provider_temperature,
+        seed=user_settings.provider_seed,
     )
 
     return SofiaConfiguration(
@@ -382,12 +384,12 @@ def create_default_configuration(
         model_lifecycle=_model_lifecycle_configuration_from_environ(
             user_settings,
         ),
-        fleet_cognition=_fleet_cognition_configuration_from_environ(),
+        fleet_cognition=user_settings.fleet_cognition or _fleet_cognition_configuration_from_environ(),
         fleet_discovery=_fleet_discovery_configuration_from_environ(
             user_settings,
             allow_environment_overrides=runtime_mode != "production",
         ),
-        fleet_bootstrap=_fleet_bootstrap_configuration_from_environ(),
+        fleet_bootstrap=user_settings.fleet_bootstrap or _fleet_bootstrap_configuration_from_environ(),
         environment=environment,
         avatar_private_adult_verified=_environment_flag(
             "SOFIA_AVATAR_PRIVATE_ADULT_VERIFIED",
