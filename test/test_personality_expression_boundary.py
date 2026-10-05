@@ -53,3 +53,13 @@ def test_different_profiles_are_not_overwritten_with_a_fixed_persona():
     assert "Traits: formal" in first.messages[0].content
     assert "Traits: casual" in second.messages[0].content
     assert first.messages[0].content != second.messages[0].content
+
+
+def test_expression_boundary_keeps_personality_and_technical_grounding_together():
+    guidance = "\n".join(personality_expression_guidance()).lower()
+    assert "three facets present at once" in guidance
+    assert "personality colors competence" in guidance
+    assert "inspect the actual implementation" in guidance
+    assert "never invent" in guidance
+    assert "sterile dashboard prose" in guidance
+    assert "machinery metaphors" in guidance

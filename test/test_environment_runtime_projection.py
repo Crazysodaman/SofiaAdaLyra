@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 import re
 
@@ -15,6 +16,8 @@ from sofia.environment.config import (
     ConfiguredLocation,
     EnvironmentConfiguration,
 )
+from sofia.environment.model import WeatherObservation
+from sofia.environment.provider import EnvironmentProviderObservation
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -164,6 +167,58 @@ def test_runtime_answers_direct_location_without_asking_llm(tmp_path):
 
     assert "configured location is Configured area" in response.content
     assert "won't claim you're there right now" in response.content
+    assert provider.requests == []
+    app.shutdown()
+
+
+def test_runtime_current_weather_keeps_facts_and_adds_sofia_voice(tmp_path):
+    config = configuration(tmp_path)
+    app = SofiaApplication(config)
+
+    class CurrentWeatherProvider:
+        name = "test-weather"
+
+        def observe(self, *, now):
+            return EnvironmentProviderObservation(
+                weather=WeatherObservation(
+                    condition="Clear",
+                    observed_at=now - timedelta(minutes=1),
+                    expires_at=now + timedelta(minutes=10),
+                    source_id="test.weather",
+                    location_label="Configured area",
+                    temperature_c=28.8888889,
+                    feels_like_c=27.7777778,
+                    humidity_percent=31.0,
+                    wind_kph=12.8748,
+                )
+            )
+
+    app.runtime.environment_service._providers = (CurrentWeatherProvider(),)
+    app.start()
+    provider = CapturingProvider()
+    app.runtime.cognitive_system.engine = LLMCognitiveEngine(
+        configuration=config.provider,
+        provider=provider,
+    )
+
+    response = app.runtime.respond(
+        CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content="What's the weather?",
+                ),
+            ),
+        )
+    )
+
+    assert response.content.startswith(
+        "Current weather for Configured area: Clear, 84 °F, "
+        "feels like 82 °F, humidity 31%, wind 8 mph."
+    )
+    assert "Observed at " in response.content
+    assert " from test.weather." in response.content
+    assert response.content.endswith("Rather cooperative weather, for once.")
     assert provider.requests == []
     app.shutdown()
 

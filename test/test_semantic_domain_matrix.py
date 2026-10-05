@@ -135,3 +135,17 @@ def test_ordinary_service_restart_remains_ops():
     assert turn.relevance_for(MatrixDomain.KNOW) is MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.INTEGRATE) is MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.BODY) is MatrixRelevance.NONE
+
+
+def test_code_request_exposes_exact_source_reads_before_answering():
+    envelope, turn = evaluate(
+        "Give me the code for the improvements you just proposed"
+    )
+
+    assert turn.relevance_for(MatrixDomain.DEV) is MatrixRelevance.REQUIRED
+    exposure = allowed_tools(envelope, turn)
+    assert "filesystem.inspect" in exposure.capabilities
+    assert "codebase.inspect" in exposure.capabilities
+    assert "dev.status" in exposure.capabilities
+    assert "dev.apply" not in exposure.capabilities
+    assert "dev.commit" not in exposure.capabilities

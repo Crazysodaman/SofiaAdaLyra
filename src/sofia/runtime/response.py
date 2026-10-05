@@ -16,6 +16,7 @@ from sofia.cognition.operation import CognitiveOperation
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.environment.prompt import environment_details_relevant
 from sofia.filesystem.model import FilesystemResult
+from sofia.personality.delivery import grounded_weather_delivery
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.reflection import ReflectionJournal
 from sofia.social.model import PrincipalContext, SocialScope
@@ -270,8 +271,19 @@ def respond_with_runtime_context(
                     snapshot=composite_environment_snapshot,
                 )
                 if environment_answer.recognized:
-                    composite_answers.append(environment_answer.content)
-                    composite_pairs.append((part, environment_answer.content))
+                    rendered_environment = grounded_weather_delivery(
+                        environment_answer.content,
+                        condition=(
+                            composite_environment_snapshot.weather.condition
+                            if (
+                                runtime._personality is not None
+                                and composite_environment_snapshot.weather is not None
+                            )
+                            else None
+                        ),
+                    )
+                    composite_answers.append(rendered_environment)
+                    composite_pairs.append((part, rendered_environment))
 
         if (
             composite_answers
@@ -406,7 +418,17 @@ def respond_with_runtime_context(
         )
         if environment_answer.recognized:
             return CognitiveResponse(
-                content=environment_answer.content,
+                content=grounded_weather_delivery(
+                    environment_answer.content,
+                    condition=(
+                        environment_snapshot.weather.condition
+                        if (
+                            runtime._personality is not None
+                            and environment_snapshot.weather is not None
+                        )
+                        else None
+                    ),
+                ),
                 evidence_refs=("deterministic:environment-query",),
             )
 

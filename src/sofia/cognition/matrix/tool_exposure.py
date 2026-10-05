@@ -180,6 +180,7 @@ class MatrixToolExposurePlanner:
         if _CODE.search(text) or _SELF_IMPROVE.search(text):
             _add(
                 capabilities,
+                "filesystem.inspect",
                 "codebase.inspect",
                 "dev.status",
                 "dev.candidates.list",
