@@ -806,3 +806,74 @@ def test_matrix_verify_tool_request_keeps_tool_selection_primary_only():
     assert engine.last_decision.route is CognitiveRoute.VERIFY
     assert len(primary.requests) == 1
     assert len(secondary.requests) == 0
+
+
+def test_tool_request_falls_back_to_secondary_when_primary_engine_fails():
+    tool = CognitiveToolDefinition(
+        name="inspect_directory",
+        description="List a project directory.",
+        parameters={"type": "object"},
+    )
+    tool_call = CognitiveToolCall(
+        name="inspect_directory",
+        arguments={"path": "src/sofia/avatar"},
+        call_id="call-fallback",
+    )
+    primary = QueueEngine(CognitiveEngineError("primary tool parser failed"))
+    secondary = QueueEngine(
+        CognitiveResponse(content="", tool_calls=(tool_call,))
+    )
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request(
+            "check the avatar wardrobe folder",
+            tools=(tool,),
+            route_hint="deep",
+        )
+    )
+
+    assert response.tool_calls == (tool_call,)
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 1
+    assert engine.last_execution is not None
+    assert engine.last_execution.fallback_count == 1
+    assert tuple(step.role for step in engine.last_execution.steps) == (
+        "primary",
+        "secondary",
+    )
+    assert tuple(step.succeeded for step in engine.last_execution.steps) == (
+        False,
+        True,
+    )
+
+
+def test_verify_tool_request_does_not_reenter_failed_primary_after_secondary_fallback():
+    tool = CognitiveToolDefinition(
+        name="inspect_directory",
+        description="List a project directory.",
+        parameters={"type": "object"},
+    )
+    primary = QueueEngine(CognitiveEngineError("primary tool parser failed"))
+    secondary = QueueEngine(
+        CognitiveResponse(content="Secondary degraded response.")
+    )
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(
+        request(
+            "check the avatar wardrobe folder",
+            tools=(tool,),
+            route_hint="verify",
+        )
+    )
+
+    assert response.content == "Secondary degraded response."
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 1
+    assert engine.last_execution is not None
+    assert engine.last_execution.fallback_count == 1
+    assert tuple(step.role for step in engine.last_execution.steps) == (
+        "primary",
+        "secondary",
+    )

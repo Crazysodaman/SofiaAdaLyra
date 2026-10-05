@@ -13,8 +13,9 @@ from sofia.filesystem.model import (
 FILESYSTEM_INSPECT_CAPABILITY = Capability(
     name="filesystem.inspect",
     description=(
-        "Perform bounded, read-only filesystem inspection "
-        "inside the explicitly authorized Sofía filesystem scope."
+        "Perform bounded, read-only filesystem inspection inside Sofía's "
+        "configured project root. Execution authority is decided by the "
+        "central permission/capability boundary."
     ),
 )
 
@@ -24,8 +25,10 @@ class FilesystemCapability:
     Adapter between the generic capability system and the existing
     read-only filesystem inspection subsystem.
 
-    The inspector is obtained at execution time so runtime
-    authorization and revocation remain authoritative.
+    The inspector is obtained at execution time so the current configured
+    project root remains authoritative. CapabilitySystem owns the execution
+    permission decision; the inspector independently enforces path confinement,
+    traversal rejection, read-only behavior, and resource bounds.
     """
 
     def __init__(
@@ -81,6 +84,27 @@ class FilesystemCapability:
                 "FilesystemCapability inspector_provider returned "
                 "an invalid object."
             )
+
+        # CapabilitySystem already applied the canonical central permission
+        # policy before this handler is reached. The inspector's legacy
+        # per-runtime authorization bit must not silently veto a Level-1 read
+        # after that central boundary allowed it. Scope/traversal protections
+        # remain enforced by FilesystemInspector.
+        if not inspector.authorized:
+            inspector = FilesystemInspector(
+                root=inspector.root,
+                authorized=True,
+            )
+
+        if operation == "inspect_path":
+            path = request.parameters.get("path")
+
+            if not isinstance(path, str):
+                raise ValueError(
+                    "inspect_path requires a string path parameter."
+                )
+
+            return inspector.inspect_path(path)
 
         if operation == "read_file":
             path = request.parameters.get("path")

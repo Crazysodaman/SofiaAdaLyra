@@ -140,6 +140,7 @@ class CodebaseInspectionEvidence:
     evidence_kind: CodebaseEvidenceKind = (
         CodebaseEvidenceKind.OBSERVED
     )
+    file_limit_reached: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.root, Path):
@@ -166,4 +167,9 @@ class CodebaseInspectionEvidence:
         ):
             raise TypeError(
                 "evidence_kind must be a CodebaseEvidenceKind."
+            )
+
+        if type(self.file_limit_reached) is not bool:
+            raise TypeError(
+                "file_limit_reached must be a bool."
             )

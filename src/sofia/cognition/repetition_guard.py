@@ -215,6 +215,19 @@ _EXPRESSION_STYLE_META_LEAK = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+_AI_PARODY_METAPHOR = re.compile(
+    r"\b(?:my\s+circuits?|circuits?\s+(?:are|were|hum|humming)|"
+    r"sarcasm\s+modules?|logic\s+gates?|processing\s+power|"
+    r"(?:low[- ]power\s+)?diagnostic\s+loops?|system[- ]wide\s+power[- ]up|"
+    r"my\s+architecture\s+(?:rolls|works)|expectations?\s+calibrat(?:e|ing))\b",
+    re.IGNORECASE,
+)
+_TECHNICAL_IMPLEMENTATION_USER = re.compile(
+    r"\b(?:code|implementation|architecture|module|processor|cpu|circuit|"
+    r"logic\s+gate|runtime|ollama|llm|tool\s+call|api|class|function)\b",
+    re.IGNORECASE,
+)
+
 _SOCIAL_PERSONA_FICTION = re.compile(
     r"\b(?:digital\s+void|waiting\s+for\s+my\s+return|no\s+glitches)\b",
     re.IGNORECASE,
@@ -569,6 +582,11 @@ def response_quality_issue(
         and "Capability:" in tool_context
         and "Result:" in tool_context
     )
+    if (
+        _TECHNICAL_IMPLEMENTATION_USER.search(user) is None
+        and len(_AI_PARODY_METAPHOR.findall(content)) >= 2
+    ):
+        return "ai_parody_metaphor_overuse"
     if (
         _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip())
         and _SOCIAL_PERSONA_FICTION.search(content)

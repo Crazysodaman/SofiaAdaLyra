@@ -24,7 +24,7 @@ _SOCIAL = re.compile(
 )
 _GENERIC_FOLLOWUP = re.compile(
     r"^\s*(?:tell\s+me\s+(?:the\s+)?why|why|how\s+so|"
-    r"why\s+did\s+you\s+(?:pick|choose)\s+(?:that|it)|"
+    r"why\s+(?:did\s+)?you\s+(?:pick|choose)\s+(?:that|it)|"
     r"why\s+(?:that|this)\s+(?:one|outfit|choice)|"
     r"why\s+are\s+you\s+wearing\s+(?:that|it)|"
     r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more|"

@@ -6,6 +6,7 @@ from sofia.codebase import (
     CodebaseAnalyzerRegistry,
     CodebaseInspector,
     PythonAnalyzer,
+    format_codebase_evidence,
     PythonInspector,
     SourceFileKind,
 )
@@ -238,3 +239,38 @@ def test_custom_analyzer_can_be_added_without_changing_inspector():
 
     assert analyzer is not None
     assert analyzer.name == "text"
+
+def test_codebase_inspector_reports_when_file_limit_is_reached(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    for index in range(3):
+        (tmp_path / f"file-{index}.txt").write_text(
+            "evidence",
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(CodebaseInspector, "MAX_FILES", 2)
+
+    evidence = CodebaseInspector(tmp_path).inspect()
+
+    assert len(evidence.files) == 2
+    assert evidence.file_limit_reached is True
+
+
+def test_codebase_evidence_projection_is_bounded_and_honest(tmp_path: Path):
+    for index in range(75):
+        (tmp_path / f"file-{index:03d}.txt").write_text(
+            "evidence",
+            encoding="utf-8",
+        )
+
+    evidence = CodebaseInspector(tmp_path).inspect()
+    rendered = format_codebase_evidence(evidence)
+
+    assert "Files discovered: 75" in rendered
+    assert "File discovery limit reached: no" in rendered
+    assert "FILE SAMPLE (30 of 75)" in rendered
+    assert "45 additional discovered files omitted" in rendered
+    assert "not a full file-content review" in rendered
+    assert "filesystem.inspect" in rendered
+    assert "file-074.txt" not in rendered

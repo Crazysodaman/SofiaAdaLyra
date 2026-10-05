@@ -824,3 +824,30 @@ def test_failed_host_tool_result_is_reported_not_replaced_with_ai_no_access_boil
     assert response.content == good
     assert len(client.calls) == 2
     assert "AI model" not in response.content
+
+
+def test_ai_parody_metaphor_cluster_is_rephrased_on_social_turn():
+    draft = (
+        "My circuits are humming while my sarcasm modules run a low-power "
+        "diagnostic loop. My logic gates are ready."
+    )
+    repaired = "Pretty good, Sparks. Curious, sharp, and present."
+    client = _Client(draft, repaired)
+
+    response = _provider(client).respond(_request(user="How are you?"))
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+    retry_messages = client.calls[1]["messages"]
+    assert any(
+        "fake-AI machinery metaphors" in item["content"]
+        for item in retry_messages
+        if item["role"] == "system"
+    )
+
+
+def test_single_machinery_metaphor_is_not_rejected_when_it_is_just_a_joke():
+    client = _Client("Doing good. One circuit joke survived the audit.")
+    response = _provider(client).respond(_request(user="How are you?"))
+    assert response.content == "Doing good. One circuit joke survived the audit."
+    assert len(client.calls) == 1

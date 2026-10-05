@@ -323,21 +323,34 @@ class RoutingCognitiveEngine(CognitiveEngine):
         fallback_count = 0
         verification_passes = 0
         steps: list[RoutingExecutionStep] = []
+        tool_fallback_used = False
 
         try:
-            # Requests with tools exposed always use the primary engine for
-            # tool selection. A secondary engine may review a completed text
-            # response, but it never becomes a fallback tool-selection engine.
+            # Tool-enabled requests prefer the primary engine. If it fails
+            # before returning a usable response, retry the same host-filtered
+            # tool request on the secondary. The secondary still cannot execute
+            # capabilities directly; every tool request goes through the same
+            # host-owned CapabilityGateway and authority checks.
             if request.tools:
-                primary_response = self._invoke(
-                    "primary",
-                    request,
-                    steps,
-                )
+                try:
+                    primary_response = self._invoke(
+                        "primary",
+                        request,
+                        steps,
+                    )
+                except CognitiveEngineError:
+                    fallback_count += 1
+                    tool_fallback_used = True
+                    primary_response = self._invoke(
+                        "secondary",
+                        request,
+                        steps,
+                    )
                 if (
                     decision.route is CognitiveRoute.VERIFY
                     and self.verify_enabled
                     and not primary_response.tool_calls
+                    and not tool_fallback_used
                 ):
                     response, fallback_count, verification_passes = (
                         self._review_existing_response(

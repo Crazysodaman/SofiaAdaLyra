@@ -114,7 +114,7 @@ class AvatarSelfFactResolver:
         re.IGNORECASE,
     )
     _PRESENTATION_REASON_RE = re.compile(
-        r"^why\s+(?:(?:did\s+you\s+(?:pick|choose))|"
+        r"^why\s+(?:(?:(?:did\s+)?you\s+(?:pick|choose))|"
         r"(?:are\s+you\s+wearing))\s+(?:that|it)$"
         r"|^why\s+(?:that|this)\s+(?:one|outfit|choice)$"
         r"|^why\s+(?:the|your)\s+outfit$",

@@ -1,9 +1,15 @@
 ﻿import re
 from pathlib import Path
 
+from sofia.capability.gateway import CapabilityGateway
+from sofia.capability.model import (
+    CapabilityProposal,
+    CapabilityResultKind,
+)
 from sofia.filesystem.model import (
     FilesystemOperation,
     FilesystemResult,
+    FilesystemResultKind,
 )
 from sofia.runtime.runtime import SofiaRuntime
 
@@ -77,8 +83,8 @@ class FilesystemOrchestrator:
         """
         Process filesystem-related intent.
 
-        Authorization is intentionally handled by the authenticated
-        conversation boundary, not by this parser.
+        Authorization is handled by the canonical CapabilitySystem boundary,
+        not by this parser or the inspector's legacy transient grant bit.
 
         Non-filesystem requests return an empty tuple.
         """
@@ -104,29 +110,50 @@ class FilesystemOrchestrator:
 
         operation, target = operation_request
 
-        inspector = self._runtime.filesystem_inspector
-
-        if operation is FilesystemOperation.LIST_DIRECTORY:
-            return (
-                inspector.list_directory(target),
-            )
-
-        if operation is FilesystemOperation.INSPECT_PATH:
-            return (
-                inspector.inspect_path(target),
-            )
-
-        if operation is FilesystemOperation.READ_FILE:
-            return (
-                inspector.read_file(target),
-            )
-
+        parameters: dict[str, str] = {"operation": operation.value}
         if operation is FilesystemOperation.SEARCH_FILES:
-            return (
-                inspector.search_files(target),
-            )
+            parameters["pattern"] = str(target)
+        else:
+            parameters["path"] = str(target)
 
-        return ()
+        result = CapabilityGateway(
+            self._runtime.capability_system
+        ).execute(
+            CapabilityProposal(
+                capability_name="filesystem.inspect",
+                parameters=parameters,
+                requested_scope=self._runtime.configuration.filesystem_root,
+                rationale=(
+                    "Read-only repository inspection requested through the "
+                    "conversation filesystem orchestrator."
+                ),
+            )
+        )
+        if (
+            result.kind is CapabilityResultKind.SUCCESS
+            and isinstance(result.evidence, FilesystemResult)
+        ):
+            return (result.evidence,)
+
+        kind = (
+            FilesystemResultKind.UNAUTHORIZED
+            if result.kind in {
+                CapabilityResultKind.UNAUTHORIZED,
+                CapabilityResultKind.DENIED,
+            }
+            else FilesystemResultKind.UNAVAILABLE
+        )
+        return (
+            FilesystemResult(
+                operation=operation,
+                kind=kind,
+                path=Path(str(target)),
+                message=(
+                    result.error
+                    or "Central filesystem capability could not complete the request."
+                ),
+            ),
+        )
 
     @staticmethod
     def _looks_like_filesystem_target(argument: str) -> bool:
@@ -161,6 +188,19 @@ class FilesystemOrchestrator:
         if re.fullmatch(r"[A-Za-z0-9_.-]+\.[A-Za-z0-9_.-]+", value):
             return True
         return False
+
+    @staticmethod
+    def _project_area_alias(argument: str) -> str:
+        normalized = " ".join(
+            argument.strip().casefold().replace("_", " ").split()
+        )
+        aliases = {
+            "avatar wardrobe": "src/sofia/avatar",
+            "avatar/wardrobe": "src/sofia/avatar",
+            "avatar wardrobe folder": "src/sofia/avatar",
+            "wardrobe": "src/sofia/avatar",
+        }
+        return aliases.get(normalized, argument)
 
     def _parse_operation(
         self,
@@ -219,6 +259,21 @@ class FilesystemOrchestrator:
             argument = self._clean_argument(
                 match.group(1)
             )
+            folder_match = re.fullmatch(
+                r"(?:the\s+)?(?:folder|directory)\s*:?\s*(.+)",
+                argument,
+                re.IGNORECASE,
+            )
+            if folder_match is not None:
+                target = self._project_area_alias(
+                    self._clean_argument(folder_match.group(1))
+                )
+                return (
+                    FilesystemOperation.LIST_DIRECTORY,
+                    target,
+                )
+
+            argument = self._project_area_alias(argument)
 
             if argument.lower() in {
                 "your files",

@@ -48,6 +48,18 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
+    if issue == "ai_parody_metaphor_overuse":
+        if _EMOTION_SELF_REPORT.search(user):
+            labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
+            if labels:
+                return CognitiveResponse(
+                    content=f"I'm feeling {labels[0].replace('-', ' ')} right now."
+                )
+        return CognitiveResponse(content=(
+            "I'm here with you now. I don't have a grounded background task to "
+            "pretend I'm running."
+        ))
+
     if issue == "intra_response_repetition":
         return CognitiveResponse(content=(
             "That draft fell into a repetition loop, so I discarded it instead "
@@ -310,7 +322,17 @@ def build_rephrase_request(
     if not request.messages or request.messages[-1].role is not CognitiveRole.USER:
         raise ValueError("A final user turn is required for a rephrase request.")
 
-    if issue == "intra_response_repetition":
+    if issue == "ai_parody_metaphor_overuse":
+        detail = (
+            "Your draft leaned on fake-AI machinery metaphors such as circuits, "
+            "logic gates, modules, processing power, diagnostic loops, or system "
+            "power-ups. Rewrite the answer as Sofía speaking naturally. Keep the "
+            "dry scientific banter and fox-like personality, but do not substitute "
+            "computer-component jokes for an actual grounded state or activity. "
+            "Outside a genuinely technical implementation discussion, use at most "
+            "one such metaphor and usually none."
+        )
+    elif issue == "intra_response_repetition":
         detail = (
             "Your draft entered a self-repetition loop inside the same answer. "
             "Rewrite the answer once, concisely, with no repeated paragraph, "

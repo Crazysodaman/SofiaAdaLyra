@@ -83,7 +83,7 @@ class CodebaseInspector:
                 f"Codebase root is not a directory: {self._root}"
             )
 
-        files = self._discover_files()
+        files, file_limit_reached = self._discover_files()
 
         python_modules: list[PythonModule] = []
 
@@ -127,20 +127,19 @@ class CodebaseInspector:
             evidence_kind=(
                 CodebaseEvidenceKind.OBSERVED
             ),
+            file_limit_reached=file_limit_reached,
         )
 
     def _discover_files(
         self,
-    ) -> list[CodebaseFile]:
+    ) -> tuple[list[CodebaseFile], bool]:
         discovered: list[CodebaseFile] = []
+        limit_reached = False
 
         for path in sorted(
             self._root.rglob("*"),
             key=lambda item: str(item).casefold(),
         ):
-            if len(discovered) >= self.MAX_FILES:
-                break
-
             if not path.is_file():
                 continue
 
@@ -155,6 +154,10 @@ class CodebaseInspector:
             if size > self.MAX_FILE_BYTES:
                 continue
 
+            if len(discovered) >= self.MAX_FILES:
+                limit_reached = True
+                break
+
             kind = self._analyzer_registry.classify(
                 path
             )
@@ -167,7 +170,7 @@ class CodebaseInspector:
                 )
             )
 
-        return discovered
+        return discovered, limit_reached
 
     def _module_name(
         self,

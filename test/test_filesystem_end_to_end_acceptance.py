@@ -469,7 +469,7 @@ def test_filesystem_authorization_is_revoked_by_shutdown(
     assert application.runtime.filesystem_inspector.authorized is False
 
 
-def test_restart_requires_authorization_again(
+def test_restart_keeps_central_level1_read_permission_without_legacy_grant(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -520,7 +520,12 @@ def test_restart_requires_authorization_again(
     results = captured_filesystem_results[0]
 
     assert len(results) == 1
-    assert results[0].kind is FilesystemResultKind.UNAUTHORIZED
+    assert results[0].kind in {
+        FilesystemResultKind.SUCCESS,
+        FilesystemResultKind.LIMIT_REACHED,
+    }
+    # The legacy transient inspector grant is still cleared on restart.
+    # Central Level-1 filesystem.inspect authority is what permits this read.
     assert resumed.runtime.filesystem_inspector.authorized is False
 
     resumed.shutdown()

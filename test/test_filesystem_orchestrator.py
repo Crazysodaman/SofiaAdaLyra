@@ -134,7 +134,7 @@ def test_orchestrator_cannot_grant_filesystem_authorization(
         application.shutdown()
 
 
-def test_check_your_files_lists_repository(
+def test_check_your_files_uses_central_level1_read_permission(
     tmp_path: Path,
 ):
     application = create_application(tmp_path)
@@ -144,18 +144,6 @@ def test_check_your_files_lists_repository(
     orchestrator = FilesystemOrchestrator(
         application.runtime
     )
-
-    unauthorized = orchestrator.process(
-        "check your files"
-    )
-
-    assert len(unauthorized) == 1
-    assert (
-        unauthorized[0].kind
-        is FilesystemResultKind.UNAUTHORIZED
-    )
-
-    authorize_runtime(application)
 
     results = orchestrator.process(
         "check your files"
@@ -295,7 +283,7 @@ def test_generic_operational_inspect_requests_are_not_treated_as_paths(
         application.shutdown()
 
 
-def test_explicit_path_inspection_still_reaches_filesystem_boundary(
+def test_explicit_path_inspection_uses_central_level1_permission(
     tmp_path: Path,
 ):
     application = create_application(tmp_path)
@@ -305,6 +293,23 @@ def test_explicit_path_inspection_still_reaches_filesystem_boundary(
         result = orchestrator.process("inspect src/sofia/filesystem/model.py")
         assert len(result) == 1
         assert result[0].operation is FilesystemOperation.INSPECT_PATH
-        assert result[0].kind is FilesystemResultKind.UNAUTHORIZED
+        assert result[0].kind is FilesystemResultKind.SUCCESS
+    finally:
+        application.shutdown()
+
+
+def test_check_avatar_wardrobe_folder_alias_lists_avatar_package(tmp_path: Path):
+    application = create_application(tmp_path)
+    application.start()
+    orchestrator = FilesystemOrchestrator(application.runtime)
+    try:
+        result = orchestrator.process("check the folder: avatar wardrobe")
+        assert len(result) == 1
+        assert result[0].operation is FilesystemOperation.LIST_DIRECTORY
+        assert result[0].kind in {
+            FilesystemResultKind.SUCCESS,
+            FilesystemResultKind.LIMIT_REACHED,
+        }
+        assert any(path.name == "wardrobe.py" for path in result[0].entries)
     finally:
         application.shutdown()

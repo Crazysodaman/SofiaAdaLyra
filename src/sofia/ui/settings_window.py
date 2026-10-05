@@ -525,8 +525,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         routing_frame,
         text=(
             "Model identities are owner-configurable. Routing uses the "
-            "selected role assignments, and tool-enabled requests remain "
-            "primary-only."
+            "selected role assignments. Tool-enabled requests prefer the "
+            "primary model and may fail over to the secondary model if the "
+            "primary engine fails; host capability authority is unchanged."
         ),
         wraplength=690,
     ).pack(anchor="w")
