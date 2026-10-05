@@ -89,7 +89,7 @@ GESTURE_DEFINITIONS = _definitions("gesture", {
     "touch": ("touch", "touching", "touched"),
     "stroke": ("stroke", "stroking", "stroked"),
     "rub": ("rub", "rubbing", "rubbed"),
-    "hold": ("hold", "holding", "held"),
+    "hold": ("hold", "holds", "holding", "held"),
     "release": ("release", "releasing", "let go"),
     "poke": ("poke", "poking", "poked"),
     "brush": ("brush", "brushing", "brushed"),
@@ -97,7 +97,7 @@ GESTURE_DEFINITIONS = _definitions("gesture", {
     "squeeze": ("squeeze", "squeezing", "squeezed"),
     "cup": ("cup", "cupping", "cupped"),
     "boop": ("boop", "booping", "booped"),
-    "kiss": ("kiss", "kissing", "kissed"),
+    "kiss": ("kiss", "kisses", "kissing", "kissed"),
     "nuzzle": ("nuzzle", "nuzzling", "nuzzled"),
     "tickle": ("tickle", "tickling", "tickled"),
     "pinch": ("pinch", "pinching", "pinched"),
@@ -111,6 +111,8 @@ GESTURE_DEFINITIONS = _definitions("gesture", {
 
 ACTION_DEFINITIONS = _definitions("action", {
     "hug": ("hug", "embrace"), "cuddle": ("cuddle", "snuggle"),
+    "kiss": ("kiss",),
+    "hold-close": ("hold close", "hold you close"),
     "lean-on": ("lean on", "lean against"),
     "offer-hand": ("offer a hand", "offer my hand"),
     "take-hand": ("take a hand", "take your hand"),

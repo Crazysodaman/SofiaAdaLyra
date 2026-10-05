@@ -23,9 +23,10 @@ from sofia.interaction.preference_context import read_interaction_context
 from sofia.social.model import PrincipalContext
 
 _ACTION_COMPOUND = re.compile(
-    r"^\s*(?:sof[ií]a,\s*)?i\s+(?:hug|embrace|cuddle|snuggle)\b.*"
-    r"\b(?:and|then|while|before|after|plus)\b|"
-    r"^\s*(?:sof[ií]a,\s*)?i\s+(?:hug|embrace|cuddle|snuggle)\b.*[;&]",
+    r"^\s*(?:sof[ií]a,\s*)?(?:i\s+)?"
+    r"(?:hug(?:s)?|embrace(?:s)?|cuddle(?:s)?|snuggle(?:s)?|"
+    r"hold(?:s)?|kiss(?:es)?)\b.*"
+    r"(?:\b(?:and|then|while|before|after|plus)\b|[;&])",
     re.I,
 )
 _STOPPED_ACTION = (
@@ -33,8 +34,9 @@ _STOPPED_ACTION = (
     'action as completed. We can continue talking without body contact.'
 )
 _COMPOSITE_ACTION = (
-    'That describes multiple actions. I have not treated any as completed. '
-    'Please send separate actions if you want to explore them one at a time.'
+    "That's more than one represented action bundled together. I won't pretend "
+    "either one already happened. Give me one at a time and I can respond to "
+    "each naturally."
 )
 _BOUNDARY_ACTION = (
     'That represented action conflicts with a recorded interaction boundary, '

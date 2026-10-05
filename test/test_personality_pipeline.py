@@ -51,3 +51,13 @@ def test_absent_profile_does_not_invent_a_personality():
     ))
     assembled = CognitiveContextAssembler().assemble(CognitiveContext(request=request))
     assert "\nPERSONALITY\n" not in assembled.messages[0].content
+
+
+def test_personality_does_not_require_stage_directions_or_system_metaphors():
+    from sofia.personality.expression import personality_expression_guidance
+
+    guidance = "\n".join(personality_expression_guidance()).casefold()
+
+    assert "expression is available, not mandatory" in guidance
+    assert "plain dialogue on adjacent social turns" in guidance
+    assert "usually use none and never stack several" in guidance

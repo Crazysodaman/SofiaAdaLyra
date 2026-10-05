@@ -60,3 +60,24 @@ def test_compound_social_actions_not_projected_as_completed(monkeypatch):
                         lambda self, content, reply, **kwargs: reply)
     reply = service.respond('I hug you and kiss your cheek')
     assert 'not treated any as completed' in reply
+
+
+def test_subjectless_compound_social_actions_are_blocked_before_matrix(monkeypatch):
+    service = object.__new__(ExpandedConversationService)
+    monkeypatch.setattr(
+        ExpandedConversationService,
+        "_guarded_reply",
+        lambda self, content, reply, **kwargs: reply,
+    )
+    monkeypatch.setattr(
+        InteractiveConversationService,
+        "respond",
+        lambda self, content, **kwargs: pytest.fail(
+            "Compound subjectless action reached model/matrix."
+        ),
+    )
+
+    reply = service.respond("holds you close and kisses you")
+
+    assert "more than one represented action" in reply
+    assert "won't pretend either one already happened" in reply

@@ -259,3 +259,24 @@ def test_nonexecuting_language_never_writes_interaction_evidence(
         assert db.execute(
             "SELECT COUNT(*) FROM interaction_evidence"
         ).fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
+    ("content", "action_id"),
+    (
+        ("hugs you", "hug"),
+        ("cuddles you", "cuddle"),
+        ("kisses you", "kiss"),
+        ("holds you close", "hold-close"),
+    ),
+)
+def test_telegraphic_social_actions_are_reviewed_user_descriptions(content, action_id):
+    from sofia.interaction.action_grammar import parse_user_action
+
+    result = parse_user_action(content, message_id="telegraphic-1")
+
+    assert result is not None
+    assert result.actor == "user"
+    assert result.target == "sofia"
+    assert result.action_id == action_id
+    assert result.modality == "described"

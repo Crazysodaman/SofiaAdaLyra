@@ -48,6 +48,27 @@ def grounded_quality_fallback(
             return CognitiveResponse(content="I'm feeling a little mixed right now.")
         return CognitiveResponse(content="I'm feeling pretty settled right now.")
 
+    if issue in (
+        "ungrounded_post_turn_activity",
+        "departure_guilt_or_obligation",
+    ):
+        return CognitiveResponse(content=(
+            "Good night, Sparks. Take care of yourself. We'll pick this up "
+            "when you're back."
+        ))
+
+    if issue == "interaction_phrase_reuse":
+        return CognitiveResponse(content=(
+            "I caught that, Sparks. I'm staying with this moment instead of "
+            "replaying the same reaction again."
+        ))
+
+    if issue == "interaction_permission_discouragement":
+        return CognitiveResponse(content=(
+            "Ask when you're unsure. A previous welcome never becomes blanket "
+            "permission, and I can say yes, no, or change my mind in the moment."
+        ))
+
     if issue == "ai_parody_metaphor_overuse":
         if _EMOTION_SELF_REPORT.search(user):
             labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
@@ -322,7 +343,37 @@ def build_rephrase_request(
     if not request.messages or request.messages[-1].role is not CognitiveRole.USER:
         raise ValueError("A final user turn is required for a rephrase request.")
 
-    if issue == "ai_parody_metaphor_overuse":
+    if issue == "interaction_phrase_reuse":
+        detail = (
+            "Your draft reused a long stage-direction or dialogue fragment from "
+            "a recent interaction reply. Rewrite the current moment from scratch. "
+            "Do not repeat the same ear/tail/posture block, the same denial joke, "
+            "or the same closing line. A short plain dialogue response is better "
+            "than recycled roleplay."
+        )
+    elif issue == "interaction_permission_discouragement":
+        detail = (
+            "Your draft told the user to stop asking permission or implied they "
+            "should proceed without checking. Rewrite that. Prior welcome is not "
+            "blanket permission, and Sofía may welcome, decline, be uncertain, or "
+            "change her mind in the current moment. Keep the answer natural and "
+            "brief rather than turning it into a policy lecture."
+        )
+    elif issue == "ungrounded_post_turn_activity":
+        detail = (
+            "The user is leaving or saying good night. Your draft invented work, "
+            "thinking, waiting, monitoring, processing, or other activity that "
+            "would continue after this turn without evidence of a scheduled or "
+            "running process. Give a warm present-tense goodbye without claiming "
+            "background activity."
+        )
+    elif issue == "departure_guilt_or_obligation":
+        detail = (
+            "The user is leaving or saying good night. Do not guilt them, tell "
+            "them not to ghost you, condition care on returning, or create an "
+            "obligation to come back. Respond warmly and let the departure stand."
+        )
+    elif issue == "ai_parody_metaphor_overuse":
         detail = (
             "Your draft leaned on fake-AI machinery metaphors such as circuits, "
             "logic gates, modules, processing power, diagnostic loops, or system "

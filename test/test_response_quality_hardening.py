@@ -759,3 +759,46 @@ def test_specific_outfit_question_does_not_trigger_social_checkin_filter():
     assert response_quality_issue(request, response) != (
         "social_checkin_wardrobe_tangent"
     )
+
+
+def test_interaction_reply_cannot_tell_user_to_stop_asking_permission():
+    request = _request(
+        "kisses you",
+        system=(
+            "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION\n"
+            '"willingness_state": "undetermined"'
+        ),
+    )
+    response = CognitiveResponse(content=(
+        "Stop asking permission for things like this and just let me process."
+    ))
+
+    assert response_quality_issue(
+        request,
+        response,
+    ) == "interaction_permission_discouragement"
+
+
+def test_goodnight_cannot_invent_background_processing():
+    request = _request("good night for now", system="PERSONALITY")
+    response = CognitiveResponse(content=(
+        "Good night. I'll be compiling a report in my spare cycles while "
+        "processing the data stream of your departure."
+    ))
+
+    assert response_quality_issue(
+        request,
+        response,
+    ) == "ungrounded_post_turn_activity"
+
+
+def test_departure_cannot_guilt_user_into_returning():
+    request = _request("I got to go", system="PERSONALITY")
+    response = CognitiveResponse(content=(
+        "Don't ghost me. If you really care about me, make sure you come back."
+    ))
+
+    assert response_quality_issue(
+        request,
+        response,
+    ) == "departure_guilt_or_obligation"

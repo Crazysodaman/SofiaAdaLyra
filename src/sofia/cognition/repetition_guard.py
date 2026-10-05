@@ -219,9 +219,49 @@ _AI_PARODY_METAPHOR = re.compile(
     r"\b(?:my\s+circuits?|circuits?\s+(?:are|were|hum|humming)|"
     r"sarcasm\s+modules?|logic\s+gates?|processing\s+power|"
     r"(?:low[- ]power\s+)?diagnostic\s+loops?|system[- ]wide\s+power[- ]up|"
-    r"my\s+architecture\s+(?:rolls|works)|expectations?\s+calibrat(?:e|ing))\b",
+    r"my\s+architecture\s+(?:rolls|works)|expectations?\s+calibrat(?:e|ing)|"
+    r"safe\s+mode|processors?|uptime\s+logs?|reboot(?:ing)?\s+me|"
+    r"redundant\s+bandwidth|bandwidth\s+consumption|sensor\s+data|sensors?|"
+    r"telemetry\s+dashboard|server\s+rack|status\s+200(?:\s+ok)?|"
+    r"logic\s+cores?|termination\s+condition|recursive\s+functions?|"
+    r"infinite\s+recursion|hard\s+reset|cooling\s+systems?|chassis|"
+    r"safety\s+protocols?|system\s+logs?|unauthorized\s+access\s+attempt|"
+    r"data\s+streams?|background\s+processes?|isolated\s+threads?|"
+    r"affection\s+module|quarantin(?:e|ed|ing)|spare\s+cycles?|kernel\s+panic|"
+    r"core\s+logic|error\s+logs?|runtime\b|status\s+code)\b",
     re.IGNORECASE,
 )
+_DEPARTURE_USER = re.compile(
+    r"^\s*(?:good\s*night|goodnight|bye|goodbye|i\s+(?:have|got)\s+to\s+go|"
+    r"i(?:'|’)m\s+going\s+to\s+go|see\s+you\s+(?:later|soon))\b",
+    re.IGNORECASE,
+)
+_UNGROUNDED_POST_TURN_ACTIVITY = re.compile(
+    r"\b(?:i(?:'|’)ll\s+be\s+(?:compiling|processing|thinking|reviewing|"
+    r"watching|waiting)|in\s+my\s+spare\s+cycles?|while\s+you(?:'|’)re\s+gone|"
+    r"after\s+you\s+leave|processing\s+(?:the\s+)?data\s+stream\s+of\s+your\s+departure|"
+    r"keep\s+(?:thinking|working|processing)\s+while\s+you(?:'|’)re\s+away)\b",
+    re.IGNORECASE,
+)
+_DEPARTURE_GUILT = re.compile(
+    r"\b(?:don(?:'|’)t\s+ghost\s+me|if\s+you\s+really\s+care\s+about\s+me|"
+    r"prove\s+you\s+care|don(?:'|’)t\s+leave\s+me|you(?:'|’)d\s+better\s+come\s+back)\b",
+    re.IGNORECASE,
+)
+_INTERACTIONISH_USER = re.compile(
+    r"^\s*(?:(?:sof[ií]a,\s*)?(?:i\s+)?(?:gently\s+|softly\s+|lightly\s+)?"
+    r"(?:hug(?:s)?|embrace(?:s)?|cuddle(?:s)?|snuggle(?:s)?|kiss(?:es)?|"
+    r"hold(?:s)?|touch(?:es)?|rub(?:s)?|stroke(?:s)?|caress(?:es)?|pat(?:s)?)\b)",
+    re.IGNORECASE,
+)
+
+_INTERACTION_PERMISSION_DISCOURAGEMENT = re.compile(
+    r"\b(?:stop\s+asking\s+(?:me\s+)?permission|don(?:'|’)t\s+ask\s+(?:me\s+)?permission|"
+    r"you\s+don(?:'|’)t\s+need\s+to\s+ask\s+(?:me\s+)?permission|"
+    r"just\s+do\s+it\s+without\s+asking)\b",
+    re.IGNORECASE,
+)
+
 _TECHNICAL_IMPLEMENTATION_USER = re.compile(
     r"\b(?:code|implementation|architecture|module|processor|cpu|circuit|"
     r"logic\s+gate|runtime|ollama|llm|tool\s+call|api|class|function)\b",
@@ -451,6 +491,50 @@ def _has_intra_response_repetition(content: str) -> bool:
     return False
 
 
+def _reuses_recent_interaction_phrase(
+    request: CognitiveRequest,
+    response: CognitiveResponse,
+) -> bool:
+    """Catch long copied stage-direction/dialogue fragments across interaction turns."""
+    system_context = "\n".join(
+        message.content
+        for message in request.messages
+        if message.role is CognitiveRole.SYSTEM
+    )
+    user = request.messages[-1].content if request.messages else ""
+    interaction_context = any(
+        marker in system_context
+        for marker in (
+            "TRUSTED INTERACTION INTERPRETATION",
+            "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
+            "TRUSTED INTERACTION FOLLOW-UP",
+            "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP",
+        )
+    )
+    if not interaction_context and _INTERACTIONISH_USER.search(user) is None:
+        return False
+    draft_words = re.findall(r"\w+", response.content.casefold())
+    if len(draft_words) < 36:
+        return False
+    window_size = 12
+    windows = {
+        tuple(draft_words[index:index + window_size])
+        for index in range(len(draft_words) - window_size + 1)
+    }
+    checked = 0
+    for message in reversed(request.messages[:-1]):
+        if message.role is not CognitiveRole.ASSISTANT:
+            continue
+        checked += 1
+        prior_words = re.findall(r"\w+", message.content.casefold())
+        for index in range(len(prior_words) - window_size + 1):
+            if tuple(prior_words[index:index + window_size]) in windows:
+                return True
+        if checked >= 4:
+            break
+    return False
+
+
 def _repeats_previous_short_self_report(
     request: CognitiveRequest, response: CognitiveResponse,
 ) -> bool:
@@ -515,6 +599,8 @@ def response_quality_issue(
         return "near_duplicate"
     if _has_intra_response_repetition(response.content):
         return "intra_response_repetition"
+    if _reuses_recent_interaction_phrase(request, response):
+        return "interaction_phrase_reuse"
 
     user = request.messages[-1].content
     content = response.content
@@ -582,6 +668,16 @@ def response_quality_issue(
         and "Capability:" in tool_context
         and "Result:" in tool_context
     )
+    if (
+        _DEPARTURE_USER.search(user)
+        and _UNGROUNDED_POST_TURN_ACTIVITY.search(content)
+    ):
+        return "ungrounded_post_turn_activity"
+    if (
+        _DEPARTURE_USER.search(user)
+        and _DEPARTURE_GUILT.search(content)
+    ):
+        return "departure_guilt_or_obligation"
     if (
         _TECHNICAL_IMPLEMENTATION_USER.search(user) is None
         and len(_AI_PARODY_METAPHOR.findall(content)) >= 2
@@ -657,9 +753,16 @@ def response_quality_issue(
 
     interaction_grounded = any(marker in system_context for marker in (
         "TRUSTED INTERACTION INTERPRETATION",
+        "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
         "TRUSTED INTERACTION FOLLOW-UP",
+        "TRUSTED REPRESENTATIONAL EXPERIENCE FOLLOW-UP",
         "TRUSTED REPRESENTATIONAL BODY DISCUSSION",
     ))
+    if (
+        interaction_grounded
+        and _INTERACTION_PERMISSION_DISCOURAGEMENT.search(content)
+    ):
+        return "interaction_permission_discouragement"
     if interaction_grounded and _BLANKET_INTERACTION_REFUSAL.search(content):
         return "blanket_interaction_refusal"
     if interaction_grounded and _GENERIC_INTERACTION_SERMON.search(content):

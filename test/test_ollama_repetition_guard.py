@@ -851,3 +851,68 @@ def test_single_machinery_metaphor_is_not_rejected_when_it_is_just_a_joke():
     response = _provider(client).respond(_request(user="How are you?"))
     assert response.content == "Doing good. One circuit joke survived the audit."
     assert len(client.calls) == 1
+
+
+def test_social_reply_with_clustered_system_metaphors_is_rewritten():
+    bad = (
+        "Don't get used to this being a standard feature in my uptime log. "
+        "Stop trying to reboot me with affection; that's redundant bandwidth "
+        "consumption and my sensors are already busy."
+    )
+    good = "You caught me off guard. I'm still here, Sparks."
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(_request(user="kisses you"))
+
+    assert response.content == good
+    assert len(client.calls) == 2
+
+
+def test_recent_interaction_phrase_reuse_gets_rewritten():
+    prior = (
+        "My ears flatten for a second and my tail wraps loosely around your arm, "
+        "not to push you away, but to anchor the moment while I look back at you."
+    )
+    repeated = (
+        "My ears flatten for a second and my tail wraps loosely around your arm, "
+        "not to push you away, but to anchor the moment while I look back at you. "
+        "Yeah, Sparks. I noticed."
+    )
+    repaired = "I noticed, Sparks. You caught me a little off guard."
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "TRUSTED REVIEWED FICTIONAL ACTION CLASSIFICATION",
+        ),
+        _message(CognitiveRole.ASSISTANT, prior),
+        _message(CognitiveRole.USER, "kisses you"),
+    ))
+    client = _Client(repeated, repaired)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+
+
+def test_mixed_affection_emotion_turn_still_detects_recent_roleplay_reuse():
+    prior = (
+        "My ears flatten for a second and my tail wraps loosely around your arm, "
+        "not to push you away, but to anchor the moment while I look back at you."
+    )
+    repeated = (
+        "My ears flatten for a second and my tail wraps loosely around your arm, "
+        "not to push you away, but to anchor the moment while I look back at you. "
+        "I'm a little caught off guard."
+    )
+    repaired = "A little flustered, honestly. Still warm with you, though."
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.ASSISTANT, prior),
+        _message(CognitiveRole.USER, "kisses you, so how you feeling?"),
+    ))
+    client = _Client(repeated, repaired)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == repaired
+    assert len(client.calls) == 2

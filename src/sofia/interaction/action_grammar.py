@@ -1,6 +1,8 @@
 """Reviewed, non-executing whole-body/social action language classifier.
 
-Only a complete first-person sentence from a saved user turn qualifies.
+Only a complete, explicitly reviewed user-described action from a saved turn
+qualifies. Supported forms include first-person sentences and a small reviewed
+set of telegraphic forms such as "kisses you"; there is no open-ended catchall.
 The resulting intent describes what the USER wrote, not a performed action,
 Sofía's consent, physical presence or a user-authorized tool operation.
 """
@@ -36,6 +38,8 @@ _PHRASES: dict[str, tuple[str, str]] = {
     'pull you closer': ('pull-closer', 'described'),
     'draw you closer': ('pull-closer', 'described'),
     'rest my head on you': ('rest-head-on', 'described'),
+    'kiss you': ('kiss', 'described'),
+    'hold you close': ('hold-close', 'described'),
     'kiss your neck': ('kiss-neck', 'described'),
     'kiss your cheek': ('kiss-cheek', 'described'),
     'kiss your forehead': ('kiss-forehead', 'described'),
@@ -75,7 +79,18 @@ _PHRASES: dict[str, tuple[str, str]] = {
     'ask to hug you': ('hug', 'offered'),
     'ask to cuddle you': ('cuddle', 'offered'),
 }
-if any(action not in _ACTIONS for action, _ in _PHRASES.values()):
+_TELEGRAPHIC_PHRASES: dict[str, tuple[str, str]] = {
+    'hugs you': ('hug', 'described'),
+    'embraces you': ('hug', 'described'),
+    'cuddles you': ('cuddle', 'described'),
+    'snuggles with you': ('cuddle', 'described'),
+    'kisses you': ('kiss', 'described'),
+    'holds you close': ('hold-close', 'described'),
+}
+if any(
+    action_id not in _ACTIONS
+    for action_id, _ in (*_PHRASES.values(), *_TELEGRAPHIC_PHRASES.values())
+):
     raise RuntimeError('Action grammar refers to a missing catalog definition.')
 
 
@@ -104,6 +119,21 @@ def parse_user_action(content: str, *, message_id: str) -> ActionIntent | None:
     text = _ADDRESS.sub('', text)
     if _COMPOSITE.search(text):
         return None
+    normalized_full = re.sub(
+        r'\s+',
+        ' ',
+        text.casefold().strip(' .!'),
+    ).strip()
+    telegraphic = _TELEGRAPHIC_PHRASES.get(normalized_full)
+    if telegraphic is not None:
+        action_id, modality = telegraphic
+        return ActionIntent(
+            message_id,
+            'user',
+            'sofia',
+            action_id,
+            modality,
+        )
     match = re.fullmatch(r'i\s+(.+?)[.!]?', text, re.I)
     if match is None:
         return None
