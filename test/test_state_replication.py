@@ -181,3 +181,40 @@ def test_expired_writer_cannot_renew_old_epoch_without_reacquiring(tmp_path):
         ttl_seconds=30,
     )
     assert reacquired.epoch == plane.writer_lease.epoch + 1
+
+
+
+def test_stale_writer_cannot_ack_or_commit_after_takeover(tmp_path):
+    plane, _, _, witness = make_plane(tmp_path, writer="writer-a", now=NOW)
+    key = StateKey("test", "pending")
+    desired = record(key, 1, b"pending")
+    sequence = witness.prepare(
+        lease=plane.writer_lease,
+        operation_kind="write",
+        key=key,
+        expected_revision=None,
+        record=desired,
+        now=NOW + timedelta(seconds=1),
+    )
+
+    witness.acquire_writer(
+        "writer-b",
+        now=NOW + timedelta(seconds=31),
+        ttl_seconds=30,
+    )
+
+    with pytest.raises(StaleWriterError):
+        witness.ack(
+            sequence,
+            "primary",
+            lease=plane.writer_lease,
+            ok=True,
+            now=NOW + timedelta(seconds=31),
+        )
+    with pytest.raises(StaleWriterError):
+        witness.commit_if_complete(
+            sequence,
+            lease=plane.writer_lease,
+            target_ids=("primary", "secondary"),
+            now=NOW + timedelta(seconds=31),
+        )
