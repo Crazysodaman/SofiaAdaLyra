@@ -52,6 +52,12 @@ class _WorkerMobileGateway:
     def state(self, **kwargs):
         return self._call("state", **kwargs)
 
+    def claim_notification(self, **kwargs):
+        return self._call("claim_notification", **kwargs)
+
+    def acknowledge_notification(self, **kwargs):
+        return self._call("acknowledge_notification", **kwargs)
+
 
 class DesktopApplicationWorker:
     """Serialize all application/controller work onto one owner thread."""

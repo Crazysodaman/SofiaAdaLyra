@@ -5,7 +5,9 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +30,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +60,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var gesture by mutableStateOf("still")
     var busy by mutableStateOf(false)
     val messages = mutableStateListOf<ChatLine>()
+
+    init {
+        receivePending()
+    }
+
+    fun receivePending() {
+        secure.consumeIncoming().forEach { messages += ChatLine("Sofía", it) }
+    }
+
+    fun serviceNeeded(value: CompanionSettings = config): Boolean =
+        secure.ready(value) && (value.shareSensors || value.proactiveNotifications)
 
     fun save(next: CompanionSettings) {
         secure.save(next)
@@ -99,14 +112,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 }
 
 class MainActivity : ComponentActivity() {
+    private val model: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        model.receivePending()
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                val model: MainViewModel = viewModel()
                 SofiaScreen(model)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        model.receivePending()
     }
 }
 
@@ -115,14 +135,38 @@ private fun SofiaScreen(model: MainViewModel) {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
+        val notificationsGranted = Build.VERSION.SDK_INT < 33 ||
+            grants[Manifest.permission.POST_NOTIFICATIONS] == true ||
+            ContextCompat.checkSelfPermission(
+                model.getApplication(), Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
         val locationGranted = !model.config.shareLocation ||
             grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true ||
             ContextCompat.checkSelfPermission(
                 model.getApplication(), Manifest.permission.ACCESS_COARSE_LOCATION,
             ) == PackageManager.PERMISSION_GRANTED
-        val next = model.config.copy(shareLocation = locationGranted && model.config.shareLocation)
+        val next = model.config.copy(
+            shareLocation = locationGranted && model.config.shareLocation,
+            proactiveNotifications = (
+                notificationsGranted && model.config.proactiveNotifications
+            ),
+        )
         model.save(next)
-        SensorSyncService.setEnabled(model.getApplication(), next.shareSensors)
+        SensorSyncService.setEnabled(model.getApplication(), model.serviceNeeded(next))
+    }
+    LaunchedEffect(model.config.baseUrl, model.config.token) {
+        if (model.serviceNeeded()) {
+            if (
+                Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(
+                    model.getApplication(), Manifest.permission.POST_NOTIFICATIONS,
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+            } else {
+                SensorSyncService.setEnabled(model.getApplication(), true)
+            }
+        }
     }
     Scaffold { padding ->
         Column(
@@ -147,6 +191,26 @@ private fun SofiaScreen(model: MainViewModel) {
             Toggle("Private mode", model.config.privateMode) {
                 model.save(model.config.copy(baseUrl = url, token = token, privateMode = it))
             }
+            Toggle("Allow proactive notifications", model.config.proactiveNotifications) { enabled ->
+                val next = model.config.copy(
+                    baseUrl = url,
+                    token = token,
+                    proactiveNotifications = enabled,
+                )
+                model.save(next)
+                if (
+                    enabled && Build.VERSION.SDK_INT >= 33 &&
+                    ContextCompat.checkSelfPermission(
+                        model.getApplication(), Manifest.permission.POST_NOTIFICATIONS,
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    permissionLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+                } else {
+                    SensorSyncService.setEnabled(
+                        model.getApplication(), model.serviceNeeded(next),
+                    )
+                }
+            }
             Toggle("Share selected read-only sensors", model.config.shareSensors) { enabled ->
                 val next = model.config.copy(baseUrl = url, token = token, shareSensors = enabled)
                 model.save(next)
@@ -162,7 +226,9 @@ private fun SofiaScreen(model: MainViewModel) {
                     }.filter { ContextCompat.checkSelfPermission(model.getApplication(), it) != PackageManager.PERMISSION_GRANTED }
                     if (permissions.isEmpty()) SensorSyncService.setEnabled(model.getApplication(), true)
                     else permissionLauncher.launch(permissions.toTypedArray())
-                } else SensorSyncService.setEnabled(model.getApplication(), false)
+                } else SensorSyncService.setEnabled(
+                    model.getApplication(), model.serviceNeeded(next),
+                )
             }
             Toggle("Share approximate location", model.config.shareLocation) {
                 val next = model.config.copy(baseUrl = url, token = token, shareLocation = it)
@@ -201,7 +267,11 @@ private fun SofiaScreen(model: MainViewModel) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
-                    model.save(model.config.copy(baseUrl = url, token = token))
+                    val next = model.config.copy(baseUrl = url, token = token)
+                    model.save(next)
+                    SensorSyncService.setEnabled(
+                        model.getApplication(), model.serviceNeeded(next),
+                    )
                     model.refresh()
                 }) { Text("Save & connect") }
             }

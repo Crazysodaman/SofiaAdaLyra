@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 from http.client import HTTPConnection
 import json
 from queue import Queue
@@ -9,6 +10,7 @@ from sofia.config.model import (
     SofiaConfiguration,
 )
 from sofia.discord.provisioning import DiscordProvisioning
+from sofia.mobile.notifications import MobileNotificationStore
 from sofia.ui.desktop_worker import (
     DesktopApplicationWorker,
 )
@@ -233,6 +235,51 @@ def test_worker_marshals_mobile_requests_onto_application_thread(
     assert result["private_mode"] is False
     assert result["adult_chat_enabled"] is False
     assert result["session_id"]
+
+    MobileNotificationStore(tmp_path / "sofia.db").enqueue(
+        notification_id="act:worker-mobile",
+        title="Sofía",
+        content="Worker-routed proactive message.",
+        created_at=datetime.now(timezone.utc),
+    )
+    claim_body = json.dumps({
+        "device_id": "android-worker-test",
+        "private_mode": False,
+    })
+    connection = HTTPConnection(host, port, timeout=30)
+    connection.request(
+        "POST",
+        "/v1/mobile/notifications/claim",
+        body=claim_body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    claim_response = connection.getresponse()
+    claimed = json.loads(claim_response.read())["notification"]
+    connection.close()
+    assert claim_response.status == 200
+    assert claimed["content"] == "Worker-routed proactive message."
+
+    connection = HTTPConnection(host, port, timeout=30)
+    connection.request(
+        "POST",
+        "/v1/mobile/notifications/ack",
+        body=json.dumps({
+            "device_id": "android-worker-test",
+            "notification_id": claimed["id"],
+        }),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    ack_response = connection.getresponse()
+    acknowledged = json.loads(ack_response.read())
+    connection.close()
+    assert ack_response.status == 200
+    assert acknowledged == {"acknowledged": True}
 
     worker.shutdown("")
     kind, payload = events.get(timeout=30)

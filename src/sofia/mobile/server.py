@@ -24,6 +24,8 @@ class MobileGatewayProtocol(Protocol):
     def ingest_sensors(self, payload: object) -> dict[str, object]: ...
     def chat(self, **kwargs: object) -> dict[str, object]: ...
     def state(self, **kwargs: object) -> dict[str, object]: ...
+    def claim_notification(self, **kwargs: object) -> dict[str, object]: ...
+    def acknowledge_notification(self, **kwargs: object) -> dict[str, object]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +58,10 @@ class MobileCompanionServer:
         token: str,
         configuration: MobileServerConfiguration = MobileServerConfiguration(),
     ) -> None:
-        for method in ("ingest_sensors", "chat", "state"):
+        for method in (
+            "ingest_sensors", "chat", "state", "claim_notification",
+            "acknowledge_notification",
+        ):
             if not callable(getattr(gateway, method, None)):
                 raise TypeError("gateway must implement the mobile gateway protocol")
         if not isinstance(token, str) or not 32 <= len(token) <= 512:
@@ -134,6 +139,20 @@ class MobileCompanionServer:
                         result = outer.gateway.state(
                             device_id=payload["device_id"],
                             private_mode=payload["private_mode"],
+                        )
+                    elif self.path == "/v1/mobile/notifications/claim":
+                        if set(payload) != {"device_id", "private_mode"}:
+                            raise ValueError("notification claim fields are invalid")
+                        result = outer.gateway.claim_notification(
+                            device_id=payload["device_id"],
+                            private_mode=payload["private_mode"],
+                        )
+                    elif self.path == "/v1/mobile/notifications/ack":
+                        if set(payload) != {"device_id", "notification_id"}:
+                            raise ValueError("notification ack fields are invalid")
+                        result = outer.gateway.acknowledge_notification(
+                            device_id=payload["device_id"],
+                            notification_id=payload["notification_id"],
                         )
                     else:
                         self._send(404, {"error": "not_found"})

@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-feature android:name="android.hardware.sensor.light" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.barometer" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.proximity" android:required="false" />
@@ -26,6 +27,6 @@
         <service
             android:name=".SensorSyncService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="dataSync|location" />
     </application>
 </manifest>

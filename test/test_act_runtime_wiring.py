@@ -216,6 +216,51 @@ def test_discord_outreach_uses_only_the_pinned_sparks_dm(
     assert sent == ["Discord idea"]
 
 
+def test_mobile_outreach_queues_for_authenticated_phone(
+    tmp_path,
+    monkeypatch,
+):
+    from sofia.mobile.notifications import MobileNotificationStore
+
+    state_path = tmp_path / "state.db"
+    state_path.touch()
+    RuntimeUserSettingsStore(state_path).save(
+        RuntimeUserSettings(
+            outreach=OutreachSettings(delivery_channel="mobile"),
+        )
+    )
+    monkeypatch.setenv("SOFIA_MOBILE_ENABLED", "true")
+    monkeypatch.setenv(
+        "SOFIA_MOBILE_TOKEN",
+        "mobile-outreach-test-token-that-is-long-enough",
+    )
+    service = SofiaActService(state_path)
+
+    assert act_service.configure_act_delivery_from_environment(service)
+    assert service.delivery_route == ("mobile", "paired-phone")
+    service.queue_system_notice(
+        notice_id="mobile-outreach",
+        recipient_id=SPARKS_PRINCIPAL_ID,
+        channel="mobile",
+        destination="paired-phone",
+        evidence_id="reflection:mobile-idea",
+        content="I had a phone-sized idea.",
+        created_at=NOW - timedelta(minutes=1),
+        expires_at=NOW + timedelta(hours=1),
+    )
+
+    result = service.deliver_one(now=NOW)
+    notification = MobileNotificationStore(state_path).claim_next(
+        device_id="owner-phone",
+        now=NOW,
+    )
+
+    assert result is not None
+    assert result.outcome is DeliveryOutcome.DELIVERED
+    assert notification is not None
+    assert notification.content == "I had a phone-sized idea."
+
+
 
 def test_application_act_skips_blocked_message_and_delivers_later_eligible_one(
     tmp_path,

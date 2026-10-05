@@ -2,8 +2,9 @@
 
 This app is an authenticated mobile interface to the same Sofía runtime used by
 the desktop and Discord clients. It provides chat, current mood/expression, and
-individually controlled read-only phone observations. It does not create a
-second identity or grant Sofía control of the phone.
+individually controlled read-only phone observations. It also receives
+policy-approved proactive outreach without Home Assistant. It does not create
+a second identity or grant Sofía control of the phone.
 
 ## Privacy and adult/private mode
 
@@ -20,6 +21,13 @@ second identity or grant Sofía control of the phone.
 - Coordinates may be stored as fresh location evidence on the host, but are
   deliberately omitted from model prompts. Sensor evidence never establishes
   identity, intent, consent, emotion, or action authority.
+- Proactive notifications follow ACT quiet hours, quotas, mute/stop state,
+  recipient checks, and evidence requirements. They are acknowledged only
+  after Android accepts the notification for display; an interrupted claim is
+  retried. The app stores unopened message bodies encrypted.
+- Lock-screen previews are generic unless Private Mode and the host's separate
+  adult/private external-delivery permission are both enabled. Android still
+  marks the notification itself private.
 
 ## Host configuration
 
@@ -44,6 +52,9 @@ The token can alternatively be stored as the host's protected
 In Sofía's tray settings, enable **private chat** and whichever adult chat or
 avatar permissions you want. These permissions remain host-owned and
 revocable. Adult external delivery is separate and is not enabled by the app.
+Select **mobile** as the ACT delivery channel to send proactive outreach to the
+phone. The app's **Allow proactive notifications** toggle is enabled by
+default and works independently of sensor sharing.
 
 ## Build and install
 
@@ -56,5 +67,5 @@ Open `mobile/android` in Android Studio, or run:
 The debug APK is written to
 `app/build/outputs/apk/debug/app-debug.apk`. Install it on the phone, enter the
 HTTPS endpoint and the matching token, then choose the sensor categories you
-want to share. Android shows a persistent notification while sensor sharing is
-active.
+want to share. Android shows a persistent notification while the companion
+connection is active.

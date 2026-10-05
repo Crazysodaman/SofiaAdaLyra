@@ -20,6 +20,18 @@ def _flag(name: str) -> bool:
     raise ValueError(f"{name} must be a boolean flag")
 
 
+def mobile_companion_ready(state_path: Path | str) -> bool:
+    """Report whether the authenticated endpoint has usable runtime credentials."""
+    if not _flag("SOFIA_MOBILE_ENABLED"):
+        return False
+    token = os.environ.get("SOFIA_MOBILE_TOKEN", "").strip()
+    if token:
+        return 32 <= len(token) <= 512
+    return ProtectedSecretStore.for_state_path(state_path).exists(
+        "mobile-api-token"
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class MobileProvisioning:
     enabled: bool

@@ -49,10 +49,12 @@ class OutreachSettings:
         if self.delivery_channel not in {
             "desktop",
             "discord",
+            "mobile",
             "home_assistant",
         }:
             raise ValueError(
-                "delivery_channel must be desktop, discord, or home_assistant"
+                "delivery_channel must be desktop, discord, mobile, or "
+                "home_assistant"
             )
         if not isinstance(self.notification_service, str) or (
             self.notification_service and not self.notification_service.replace("_", "").replace("-", "").isalnum()

@@ -14,6 +14,7 @@ from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 
 from .model import MobileSensorReport
+from .notifications import MobileNotificationStore
 from .sensors import MobileSensorProvider, MobileSensorStore
 
 
@@ -29,6 +30,7 @@ class MobileCompanionGateway:
         self.application = application
         self.state_path = Path(state_path)
         self.sensors = MobileSensorStore(self.state_path)
+        self.notifications = MobileNotificationStore(self.state_path)
         self.permissions = PermissionStore(self.state_path)
         self.private_grants = PrivatePresentationGrantResolver(
             state_path=self.state_path
@@ -158,6 +160,57 @@ class MobileCompanionGateway:
                 principal=self._principal(device, private_mode=private_mode),
                 private_mode=private_mode,
             )
+
+    def claim_notification(
+        self, *, device_id: object, private_mode: object = False
+    ) -> dict[str, object]:
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be a bool")
+        authority = self.permissions.private_adult_authority()
+        if authority.adult_external_delivery and not private_mode:
+            return {
+                "notification": None,
+                "blocked_reason": "private_mode_required",
+            }
+        notification = self.notifications.claim_next(
+            device_id=device,
+            now=datetime.now(timezone.utc),
+        )
+        if notification is None:
+            return {"notification": None}
+        full_preview = bool(
+            private_mode
+            and authority.private_chat
+            and authority.adult_external_delivery
+        )
+        return {
+            "notification": {
+                "id": notification.notification_id,
+                "title": notification.title,
+                "content": notification.content,
+                "preview": (
+                    notification.content
+                    if full_preview
+                    else "Sofía has something she wants to share with you."
+                ),
+                "full_preview_authorized": full_preview,
+                "created_at": notification.created_at.isoformat(),
+            }
+        }
+
+    def acknowledge_notification(
+        self, *, device_id: object, notification_id: object
+    ) -> dict[str, object]:
+        device = self._device(device_id)
+        if not isinstance(notification_id, str):
+            raise TypeError("notification_id must be a string")
+        self.notifications.acknowledge(
+            notification_id,
+            device_id=device,
+            now=datetime.now(timezone.utc),
+        )
+        return {"acknowledged": True}
 
     def _state_payload(
         self,

@@ -405,9 +405,49 @@ def configure_act_delivery_from_environment(
         )
         return True
 
+    if channel == "mobile":
+        from sofia.mobile.notifications import MobileNotificationStore
+        from sofia.mobile.provisioning import mobile_companion_ready
+
+        if not mobile_companion_ready(service.state_path):
+            service.disable_delivery()
+            return False
+        notifications = MobileNotificationStore(service.state_path)
+
+        def mobile_sender(payload: DeliveryPayload) -> SendResult:
+            if not isinstance(payload, DeliveryPayload):
+                raise TypeError("payload must be a DeliveryPayload")
+            if payload.recipient_id != SPARKS_PRINCIPAL_ID:
+                raise PermissionError(
+                    "ACT mobile sender is currently bound only to Sparks"
+                )
+            if payload.channel != "mobile" or payload.destination != "paired-phone":
+                raise PermissionError(
+                    "ACT mobile destination does not match the paired phone"
+                )
+            notifications.enqueue(
+                notification_id=f"act:{payload.message_id}",
+                title="Sofía",
+                content=payload.content,
+                created_at=datetime.now(timezone.utc),
+            )
+            return SendResult(
+                DeliveryOutcome.DELIVERED,
+                receipt_id=f"mobile-queued:{payload.message_id}",
+            )
+
+        service.configure_delivery(
+            sender=mobile_sender,
+            channel="mobile",
+            destination="paired-phone",
+            policy=policy,
+        )
+        return True
+
     if channel != "home_assistant":
         raise ValueError(
-            "SOFIA_ACT_DELIVERY_CHANNEL must be desktop, discord, or home_assistant"
+            "SOFIA_ACT_DELIVERY_CHANNEL must be desktop, discord, mobile, or "
+            "home_assistant"
         )
 
     url = os.environ.get("SOFIA_HOME_ASSISTANT_URL", "").strip()
@@ -505,6 +545,13 @@ def notification_route_from_environment(
                     )
                     else ("discord", str(settings.discord_dm_channel_id))
                 )
+            if outreach.delivery_channel == "mobile":
+                from sofia.mobile.provisioning import mobile_companion_ready
+                return (
+                    ("mobile", "paired-phone")
+                    if mobile_companion_ready(state_path)
+                    else None
+                )
             return (
                 None
                 if not outreach.notification_service
@@ -516,6 +563,12 @@ def notification_route_from_environment(
         channel = "home_assistant" if destination else "desktop"
     if channel == "desktop":
         return "desktop", "tray"
+    if channel == "mobile":
+        enabled = _enabled("SOFIA_MOBILE_ENABLED")
+        token = os.environ.get("SOFIA_MOBILE_TOKEN", "").strip()
+        if enabled and 32 <= len(token) <= 512:
+            return "mobile", "paired-phone"
+        return None
     if channel == "home_assistant" and destination:
         return "home_assistant", destination
     return None
