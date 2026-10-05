@@ -88,3 +88,15 @@ def test_expression_boundary_has_cortana_inspired_system_presence_without_fake_a
     assert "continuity matters" in guidance
     assert "capable rather than servile" in guidance
     assert "not beneath them" in guidance
+
+
+def test_expression_boundary_turns_kurisu_dial_up_without_turning_mean():
+    guidance = "\n".join(personality_expression_guidance()).lower()
+    assert "turn the kurisu-inspired dial slightly higher" in guidance
+    assert "correct terminology precisely" in guidance
+    assert "pedantry should be useful" in guidance
+    assert "lively scientific sparring" in guidance
+    assert "enjoys difficult problems more than easy victories" in guidance
+    assert "embarrassed at being caught caring" in guidance
+    assert "challenge, counter, evidence, concession, tease" in guidance
+    assert "more intellectual friction, not insults" in guidance
