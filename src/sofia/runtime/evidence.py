@@ -65,11 +65,7 @@ def project_matrix_evidence(
                 else None
             ),
         ),
-        "memory.retrieval": EvidenceRecord(
-            "memory.retrieval",
-            EvidenceState.AVAILABLE,
-            "runtime:memory-system",
-        ),
+        "memory.retrieval": EvidenceState.UNKNOWN,
         "cognition.configuration": EvidenceRecord(
             "cognition.configuration",
             EvidenceState.AVAILABLE,
