@@ -649,15 +649,22 @@ class OpsToolService:
         if source is None or target is None:
             return result
 
-        grant_specs=migration_remote_grant_specs(
-            catalog=self._workload_catalog,
-            plan=plan,
-            host_node_ids={
-                plan.source_host_id:source.node_id,
-                plan.target_host_id:target.node_id,
-            },
-            local_host_id=self._local_host_id,
-        )
+        try:
+            grant_specs=migration_remote_grant_specs(
+                catalog=self._workload_catalog,
+                plan=plan,
+                host_node_ids={
+                    plan.source_host_id:source.node_id,
+                    plan.target_host_id:target.node_id,
+                },
+                local_host_id=self._local_host_id,
+            )
+        except PermissionError as exc:
+            return {
+                **result,
+                "approval_ready":False,
+                "approval_blocker":str(exc),
+            }
         approval_parameters=migration_approval_parameters(
             catalog=self._workload_catalog,
             plan=plan,
@@ -668,6 +675,7 @@ class OpsToolService:
         )
         return {
             **result,
+            "approval_ready":True,
             "approval_capability":"ops.migration.execute",
             "approval_parameters":approval_parameters,
         }
