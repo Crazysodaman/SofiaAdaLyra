@@ -344,6 +344,30 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
         application.shutdown()
 
 
+def test_live_memory_query_without_retrieval_fails_closed(
+    monkeypatch,
+    tmp_path,
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "I remember that your favorite spaceship is Serenity.",
+            "I still remember that your favorite spaceship is Serenity.",
+        ),
+    )
+    try:
+        response = application.conversation.respond(
+            "what do you remember about my favorite spaceship?"
+        )
+
+        assert "won't invent a memory" in response.content
+        assert "Serenity" not in response.content
+        assert len(captured) == 2
+    finally:
+        application.shutdown()
+
+
 def test_live_prefixed_outfit_question_is_deterministic(
     monkeypatch, tmp_path
 ):
