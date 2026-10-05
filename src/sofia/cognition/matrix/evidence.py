@@ -172,15 +172,19 @@ class MatrixEvidencePlanner:
                 EvidenceKind.CANONICAL,
                 required=cognition_relevance is MatrixRelevance.REQUIRED,
             )
+        machine_relevance = turn.relevance_for(MatrixDomain.MACHINE)
+        ops_relevance = turn.relevance_for(MatrixDomain.OPS)
         if (
-            turn.relevance_for(MatrixDomain.MACHINE)
-            is not MatrixRelevance.NONE
-            or turn.relevance_for(MatrixDomain.OPS)
-            is MatrixRelevance.REQUIRED
+            machine_relevance is not MatrixRelevance.NONE
+            or ops_relevance is not MatrixRelevance.NONE
         ):
             require(
                 "operational.measurement",
                 EvidenceKind.MEASURED,
+                required=(
+                    machine_relevance is MatrixRelevance.REQUIRED
+                    or ops_relevance is MatrixRelevance.REQUIRED
+                ),
             )
         continuity_relevance = turn.relevance_for(MatrixDomain.CONTINUITY)
         if continuity_relevance is not MatrixRelevance.NONE:
