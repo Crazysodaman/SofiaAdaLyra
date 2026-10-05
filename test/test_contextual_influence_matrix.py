@@ -171,6 +171,24 @@ def test_emotion_requires_evidence_linkage_before_it_can_influence_behavior():
     assert "evidence-linked" in plan.decision_for(InfluenceSignal.EMOTION).reason
 
 
+def test_background_relational_emotion_can_subtly_influence_expression():
+    relational = replace(
+        influence(),
+        foreground_emotion=None,
+        foreground_intensity=0.0,
+        foreground_emotion_evidence_refs=(),
+    )
+    plan = ContextualInfluenceMatrix().plan(
+        InfluenceSurface.CONVERSATION_EXPRESSION,
+        relational,
+    )
+
+    decision = plan.decision_for(InfluenceSignal.EMOTION)
+    assert decision.mode is InfluenceMode.BOUNDED_BIAS
+    assert decision.evidence_refs == ("emotion:event-1",)
+    assert "subtle expression" in decision.reason
+
+
 def test_habit_learning_never_uses_sofias_transient_emotion_as_user_habit_evidence():
     plan = ContextualInfluenceMatrix().plan(
         InfluenceSurface.HABIT_LEARNING,
@@ -231,7 +249,7 @@ def test_environment_influence_fails_closed_without_provenance(signal, field):
 
 
 
-def test_background_relational_emotion_can_style_outfit_without_driving_expression():
+def test_background_relational_emotion_styles_outfit_and_subtly_colors_expression():
     background_only = replace(
         influence(),
         active_emotions=("fondness",),
@@ -249,5 +267,8 @@ def test_background_relational_emotion_can_style_outfit_without_driving_expressi
         background_only,
     )
 
-    assert conversation.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.NONE
+    assert conversation.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.BOUNDED_BIAS
+    assert "subtle expression" in conversation.decision_for(
+        InfluenceSignal.EMOTION
+    ).reason
     assert outfit.mode_for(InfluenceSignal.EMOTION) is InfluenceMode.BOUNDED_BIAS

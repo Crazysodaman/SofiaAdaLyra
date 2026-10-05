@@ -280,17 +280,28 @@ class ContextualInfluenceMatrix:
                 InfluenceSurface.VOICE_EXPRESSION,
             }
             emotion = (
-                influence.foreground_emotion
+                (
+                    influence.foreground_emotion
+                    or influence.primary_emotion
+                )
                 if expression_surface
                 else influence.primary_emotion
             )
             intensity = (
-                influence.foreground_intensity
+                (
+                    influence.foreground_intensity
+                    if influence.foreground_emotion is not None
+                    else min(influence.primary_intensity, 0.20)
+                )
                 if expression_surface
                 else influence.primary_intensity
             )
             evidence_refs = (
-                influence.foreground_emotion_evidence_refs
+                (
+                    influence.foreground_emotion_evidence_refs
+                    if influence.foreground_emotion is not None
+                    else influence.primary_emotion_evidence_refs
+                )
                 if expression_surface
                 else influence.primary_emotion_evidence_refs
             )
@@ -303,7 +314,7 @@ class ContextualInfluenceMatrix:
                     signal,
                     InfluenceMode.NONE,
                     (
-                        "no evidence-linked foreground emotion is available"
+                        "no evidence-linked expressive emotion is available"
                         if expression_surface
                         else "no evidence-linked modeled emotion is available"
                     ),
@@ -312,7 +323,11 @@ class ContextualInfluenceMatrix:
                 signal,
                 requested,
                 (
-                    "evidence-linked foreground emotion is available for expression"
+                    (
+                        "evidence-linked foreground emotion is available for expression"
+                        if influence.foreground_emotion is not None
+                        else "evidence-linked relational emotion is available for subtle expression"
+                    )
                     if expression_surface
                     else "evidence-linked modeled emotion is available as bounded context"
                 ),

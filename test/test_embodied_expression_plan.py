@@ -1,4 +1,6 @@
 """Regression coverage for contextual embodied-expression planning."""
+import pytest
+
 from sofia.cognition.matrix import (
     EmbodiedExpressionPlanner,
     InfluenceSignal,
@@ -150,6 +152,26 @@ def test_expression_plan_can_remain_still_without_grounded_context():
     assert plan.alternates == ()
     assert plan.active_signals == ()
     assert "No visible cue is grounded" in plan.prompt()
+
+
+@pytest.mark.parametrize(
+    ("emotion", "expected"),
+    (
+        ("sensuality", {"sultry-gaze", "teasing-smile", "slow-tail-sway"}),
+        ("sexual-attraction", {"sultry-gaze", "teasing-smile", "blush"}),
+        ("sexual-desire", {"lip-bite", "sultry-gaze", "slow-tail-sway"}),
+        ("sexual-arousal", {"lip-bite", "slow-tail-sway", "blush"}),
+    ),
+)
+def test_sexual_emotions_reach_the_normal_expression_planner(emotion, expected):
+    plan = EmbodiedExpressionPlanner().plan(
+        message_id=f"message-{emotion}",
+        influence=_influence(emotion=emotion, intensity=0.7),
+    )
+
+    selected = {plan.primary, *plan.alternates}
+    assert selected & expected
+    assert plan.intensity == "strong"
 
 
 def test_expression_prompt_preserves_representation_and_authority_boundary():

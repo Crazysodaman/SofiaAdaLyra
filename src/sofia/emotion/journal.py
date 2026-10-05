@@ -704,9 +704,14 @@ class EmotionalJournal:
             ):
                 resolved_scope = SocialScope.relationship(principals[0])
 
+        effective_time = (
+            "COALESCE((SELECT r.revised_at FROM emotional_revisions r "
+            "WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1), "
+            "e.occurred_at)"
+        )
         clauses = [
-            "e.occurred_at >= ?",
-            "e.occurred_at <= ?",
+            f"{effective_time} >= ?",
+            f"{effective_time} <= ?",
             "e.scope_kind = ?",
         ]
         params: list[object] = [
@@ -743,11 +748,14 @@ class EmotionalJournal:
                     ORDER BY r.revision_id DESC LIMIT 1),
                    (SELECT COUNT(*) FROM emotional_revisions r
                     WHERE r.event_id=e.event_id),
+                   (SELECT r.revised_at FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id
+                    ORDER BY r.revision_id DESC LIMIT 1),
                    e.subject, e.scope_kind, e.principal_id,
                    e.audience_id, e.audience_kind
             FROM emotional_events e
             WHERE """ + " AND ".join(clauses) + """
-            ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT ?
+            ORDER BY """ + effective_time + """ DESC, e.event_id DESC LIMIT ?
         """
         with self._connect() as db:
             rows = db.execute(query, tuple(params)).fetchall()
@@ -756,8 +764,14 @@ class EmotionalJournal:
             source=row[2], evidence_ref=row[3], description=row[4],
             original_emotions=tuple(json.loads(row[5])),
             current_emotions=tuple(json.loads(row[6] if row[6] is not None else row[5])),
-            revision_count=row[7], subject=row[8], scope_kind=row[9],
-            principal_id=row[10], audience_id=row[11], audience_kind=row[12],
+            revision_count=row[7],
+            appraised_at=(
+                datetime.fromisoformat(row[8])
+                if row[8] is not None
+                else datetime.fromisoformat(row[1])
+            ),
+            subject=row[9], scope_kind=row[10],
+            principal_id=row[11], audience_id=row[12], audience_kind=row[13],
         ) for row in rows)
 
     def current_state(

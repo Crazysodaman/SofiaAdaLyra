@@ -22,6 +22,7 @@ class EmotionalEvent:
     principal_id: str | None = None
     audience_id: str | None = None
     audience_kind: str | None = None
+    appraised_at: datetime | None = None
 
     @property
     def scope(self) -> SocialScope:

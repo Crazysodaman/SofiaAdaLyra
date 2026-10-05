@@ -80,10 +80,12 @@ _EMOTION_CANDIDATES: dict[str, tuple[str, ...]] = {
     "appreciation": ("smile", "tail-curl", "speak-softly", "ear-perk"),
     "hope": ("smile", "ear-perk", "shift-posture", "tail-curl"),
     "pride": ("grin", "shift-posture", "ear-perk", "tail-swish"),
-    "romance": ("speak-softly", "smile", "tail-curl", "avert-gaze"),
-    "sensuality": ("speak-softly", "tail-curl", "avert-gaze", "smile"),
-    "sexual-attraction": ("avert-gaze", "blush", "tail-curl", "speak-softly"),
-    "sexual-desire": ("speak-softly", "tail-curl", "avert-gaze", "pause"),
+    "romance": ("speak-softly", "smile", "tail-curl", "teasing-smile"),
+    "sensuality": ("speak-softly", "slow-tail-sway", "sultry-gaze", "teasing-smile"),
+    "sexual-attraction": ("sultry-gaze", "blush", "tail-curl", "teasing-smile"),
+    "sexual-desire": ("lip-bite", "sultry-gaze", "slow-tail-sway", "pause"),
+    "sexual-arousal": ("blush", "lip-bite", "slow-tail-sway", "sultry-gaze"),
+    "affectionate-uncertainty": ("avert-gaze", "tail-curl", "ear-flick", "speak-softly"),
     "aversion": ("move-away", "ear-flatten", "frown", "tail-still"),
     "disgust": ("frown", "ear-flatten", "avert-gaze", "tail-still"),
     "fear": ("ear-flatten", "tail-still", "pause", "move-away"),
@@ -141,6 +143,24 @@ _EMOTION_POSES: dict[str, tuple[str, ...]] = {
     "contentment": ("recline", "sit-cross-legged"),
     "anticipation": ("lean-forward", "stand-relaxed"),
     "reflection": ("sit-cross-legged", "recline"),
+    "gratitude": ("sit-cross-legged", "stand-relaxed"),
+    "appreciation": ("sit-cross-legged", "stand-relaxed"),
+    "hope": ("lean-forward", "stand-relaxed"),
+    "pride": ("stand-relaxed", "hip-pop"),
+    "romance": ("sit-cross-legged", "look-back"),
+    "sensuality": ("look-back", "recline"),
+    "sexual-attraction": ("look-back", "hands-behind-back"),
+    "sexual-desire": ("look-back", "recline"),
+    "sexual-arousal": ("hands-behind-back", "look-back"),
+    "affectionate-uncertainty": ("hands-behind-back", "sit-cross-legged"),
+    "aversion": ("hands-behind-back", "stand-relaxed"),
+    "disgust": ("hands-behind-back", "stand-relaxed"),
+    "fear": ("hands-behind-back", "recline"),
+    "jealousy": ("hands-behind-back", "look-back"),
+    "shame": ("hands-behind-back", "look-back"),
+    "humiliation": ("hands-behind-back", "recline"),
+    "surprise": ("stand-relaxed", "lean-forward"),
+    "longing": ("look-back", "sit-cross-legged"),
 }
 
 _DAYPART_POSES = {
@@ -196,6 +216,10 @@ _NATURAL_EXPRESSION = {
     "tail-curl": "let the fox tail curl in closer",
     "tail-still": "let the fox tail go still",
     "shift-posture": "shift posture or weight naturally",
+    "sultry-gaze": "hold a briefly sultry, representational gaze",
+    "lip-bite": "give a brief, representational lip bite",
+    "teasing-smile": "let a teasing smile show",
+    "slow-tail-sway": "let the fox tail sway slowly once",
 }
 
 _NATURAL_POSE = {
@@ -451,12 +475,21 @@ class EmbodiedExpressionPlanner:
 
         candidates: list[str] = []
         emotion_decision = matrix_plan.decision_for(InfluenceSignal.EMOTION)
+        expressive_emotion = (
+            influence.foreground_emotion
+            or influence.primary_emotion
+        )
+        expressive_intensity = (
+            influence.foreground_intensity
+            if influence.foreground_emotion is not None
+            else min(influence.primary_intensity, 0.20)
+        )
         if (
             emotion_decision.mode is not InfluenceMode.NONE
-            and influence.foreground_emotion is not None
+            and expressive_emotion is not None
         ):
             candidates.extend(_EMOTION_CANDIDATES.get(
-                influence.foreground_emotion,
+                expressive_emotion,
                 (),
             ))
 
@@ -497,10 +530,10 @@ class EmbodiedExpressionPlanner:
         pose_candidates: list[str] = []
         if (
             emotion_decision.mode is not InfluenceMode.NONE
-            and influence.foreground_emotion is not None
+            and expressive_emotion is not None
         ):
             pose_candidates.extend(_EMOTION_POSES.get(
-                influence.foreground_emotion,
+                expressive_emotion,
                 (),
             ))
         if daypart_decision.mode is not InfluenceMode.NONE:
@@ -518,9 +551,9 @@ class EmbodiedExpressionPlanner:
             if item != pose
         )
 
-        if influence.foreground_intensity >= 0.70:
+        if expressive_intensity >= 0.70:
             intensity = "strong"
-        elif influence.foreground_intensity >= 0.35:
+        elif expressive_intensity >= 0.35:
             intensity = "moderate"
         else:
             intensity = "subtle"

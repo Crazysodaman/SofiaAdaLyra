@@ -372,6 +372,11 @@ class InteractiveConversationService(EmotionalConversationService):
         *,
         principal: PrincipalContext | None,
     ) -> CognitiveResponse:
+        response = super()._finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
         if not _interaction_request(request):
             return response
         if _interaction_response_is_grounded(response.content):
@@ -419,15 +424,25 @@ class InteractiveConversationService(EmotionalConversationService):
                     None,
                 ),
             )
+        retry = super()._finalize_response(
+            retry_request,
+            retry,
+            principal=principal,
+        )
         if _interaction_response_is_grounded(retry.content):
             return retry
 
-        return CognitiveResponse(
+        fallback = CognitiveResponse(
             content=(
                 "*My ears flick at the represented gesture.* "
                 "I register it, Sparks. I won't pretend that means I "
                 "literally felt physical contact."
             )
+        )
+        return super()._finalize_response(
+            retry_request,
+            fallback,
+            principal=principal,
         )
 
     """One conversation/emotion system with durable, virtual interaction rules."""

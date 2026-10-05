@@ -10,7 +10,7 @@ from types import MappingProxyType
 from typing import Iterable, Mapping
 import re
 
-CATALOG_VERSION = "human-fox-interaction-catalog-v4"
+CATALOG_VERSION = "human-fox-interaction-catalog-v5"
 
 
 def normalize_alias(value: str) -> str:
@@ -244,6 +244,12 @@ EXPRESSION_DEFINITIONS = _definitions("expression", {
     "tail-curl": ("tail curl", "curl tail"),
     "tail-still": ("tail still", "still tail"),
     "shift-posture": ("shift posture", "shift weight"),
+    # Suggestive but non-graphic avatar expression cues. Explicit sexual
+    # actions and exposed-body poses remain in their private namespaces.
+    "sultry-gaze": ("sultry gaze", "bedroom eyes"),
+    "lip-bite": ("bite lip", "lip bite"),
+    "teasing-smile": ("teasing smile", "flirtatious smile"),
+    "slow-tail-sway": ("slow tail sway", "tail sway slowly"),
 })
 
 class InteractionCatalog:

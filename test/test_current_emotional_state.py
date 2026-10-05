@@ -108,6 +108,34 @@ def test_sexuality_dimensions_are_independent_modeled_emotions_not_consent(tmp_p
     assert "never equate any of them with consent" in prompt
 
 
+def test_reappraised_emotion_decays_from_revision_time_and_reenters_window(tmp_path):
+    journal = EmotionalJournal(tmp_path / "state.db")
+    journal.record(
+        event_id="old-event",
+        source="observed",
+        evidence_ref="old-evidence",
+        description="An older event was initially frustrating.",
+        emotions=("frustration",),
+        occurred_at=NOW - timedelta(days=30),
+        subject="Sparks",
+    )
+    journal.revise(
+        event_id="old-event",
+        emotions=("relief", "affectionate-uncertainty"),
+        reason="New evidence changed the present appraisal.",
+        revised_at=NOW,
+    )
+
+    event = journal.recent(now=NOW, subject="Sparks")[0]
+    state = journal.current_state(now=NOW, subject="Sparks")
+    names = {item.name for item in state.active}
+
+    assert event.appraised_at == NOW
+    assert event.occurred_at == NOW - timedelta(days=30)
+    assert {"relief", "affectionate-uncertainty"} <= names
+    assert "frustration" not in names
+
+
 def test_current_emotional_state_is_scoped_by_relationship_subject(tmp_path):
     journal = EmotionalJournal(tmp_path / "state.db")
     journal.record(

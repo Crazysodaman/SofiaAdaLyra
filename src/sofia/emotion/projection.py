@@ -62,8 +62,9 @@ def derive_current_state(
     refs: dict[str, list[str]] = {}
     ids: dict[str, list[str]] = {}
     for event in events:
+        effective_at = event.appraised_at or event.occurred_at
         age_hours = max(
-            0.0, (current - event.occurred_at).total_seconds() / 3600,
+            0.0, (current - effective_at).total_seconds() / 3600,
         )
         source_weight = _SOURCE_WEIGHT[event.source]
         for name in event.current_emotions:

@@ -1,5 +1,10 @@
 """Expression is responsive to emotional context, never a fixed stage cue."""
 from sofia.personality.expression import personality_expression_guidance
+from sofia.cognition.matrix.expression_plan import (
+    _EMOTION_CANDIDATES,
+    _EMOTION_POSES,
+)
+from sofia.emotion.catalog import EMOTIONS
 
 
 def test_gestures_are_preferred_emotion_linked_and_representational():
@@ -50,3 +55,20 @@ def test_general_personality_palette_does_not_auto_advertise_private_poses():
     assert "spread-legs" not in instruction
     assert "all-fours" not in instruction
     assert "sensual-stretch" not in instruction
+
+
+def test_every_canonical_emotion_has_reviewed_gesture_and_public_pose_options():
+    assert EMOTIONS <= _EMOTION_CANDIDATES.keys()
+    assert EMOTIONS <= _EMOTION_POSES.keys()
+
+
+def test_sexual_emotions_use_typed_fox_girl_expression_cues():
+    assert {"sultry-gaze", "teasing-smile"} <= set(
+        _EMOTION_CANDIDATES["sexual-attraction"]
+    )
+    assert {"lip-bite", "slow-tail-sway"} <= set(
+        _EMOTION_CANDIDATES["sexual-desire"]
+    )
+    assert {"blush", "lip-bite", "slow-tail-sway"} <= set(
+        _EMOTION_CANDIDATES["sexual-arousal"]
+    )

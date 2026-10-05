@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
+import logging
 from pathlib import Path
 import re
 from threading import RLock
@@ -11,7 +12,12 @@ from time import monotonic
 from weakref import WeakSet
 
 from sofia.application.conversation_service import ConversationService
-from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
+from sofia.cognition.model import (
+    CognitiveMessage,
+    CognitiveRequest,
+    CognitiveResponse,
+    CognitiveRole,
+)
 from sofia.cognition.matrix import (
     EmbodiedExpressionPlan,
     EmbodiedExpressionPlanner,
@@ -22,6 +28,7 @@ from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.emotion.clarification import ClarificationJournal
+from sofia.emotion.appraisal import ConversationEmotionAppraiser
 from sofia.emotion.model import CurrentEmotionalState
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence
@@ -49,6 +56,8 @@ _CONTEXT_HISTORY_QUERY = re.compile(
     r"what\s+happened|how\s+did\s+.{1,80}\s+go)\b",
     re.IGNORECASE,
 )
+
+_LOG = logging.getLogger(__name__)
 
 
 class ConversationActivityGroup:
@@ -108,6 +117,8 @@ class EmotionalConversationService(ConversationService):
         self._embodied_expression_planner = EmbodiedExpressionPlanner()
         self._current_expression_plan: EmbodiedExpressionPlan | None = None
         self._evolution_service = None
+        self._last_emotion_appraisal_error: str | None = None
+        self._pending_emotion_appraisal = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
             activity_group is not None
@@ -292,15 +303,18 @@ class EmotionalConversationService(ConversationService):
                 acquired = monotonic()
                 try:
                     if principal is None:
-                        return super().respond(
+                        response = super().respond(
                             content,
                             channel=channel,
                         )
-                    return super().respond(
-                        content,
-                        principal=principal,
-                        channel=channel,
-                    )
+                    else:
+                        response = super().respond(
+                            content,
+                            principal=principal,
+                            channel=channel,
+                        )
+                    self._persist_pending_emotion_appraisal()
+                    return response
                 finally:
                     # Includes request construction/persistence as well as the
                     # model call; Ollama's own timer isolates inference below.
@@ -310,6 +324,80 @@ class EmotionalConversationService(ConversationService):
         finally:
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
+
+    @property
+    def last_emotion_appraisal_error(self) -> str | None:
+        """Return the latest non-fatal post-turn appraisal failure."""
+        return getattr(self, "_last_emotion_appraisal_error", None)
+
+    def _persist_pending_emotion_appraisal(self) -> None:
+        """Persist the already-validated one-call appraisal after the reply."""
+        appraisal = getattr(self, "_pending_emotion_appraisal", None)
+        self._pending_emotion_appraisal = None
+        if appraisal is None or not hasattr(self, "_runtime"):
+            return
+        messages = self.messages()
+        if len(messages) < 2:
+            return
+        assistant = messages[-1]
+        user = messages[-2]
+        if (
+            assistant.role is not ConversationRole.ASSISTANT
+            or user.role is not ConversationRole.USER
+        ):
+            return
+
+        try:
+            self.emotional_journal.record(
+                event_id=f"conversation-appraisal:{assistant.id}",
+                source="inferred",
+                evidence_ref=assistant.id,
+                description=(
+                    f"Post-conversation self-appraisal: {appraisal.reason}"
+                )[:320],
+                emotions=appraisal.emotions,
+                occurred_at=assistant.created_at,
+                subject=self._relationship_subject(),
+                scope=self.relationship_scope,
+            )
+        except Exception as exc:
+            self._last_emotion_appraisal_error = type(exc).__name__
+            _LOG.exception(
+                "Validated emotional appraisal could not be persisted; the "
+                "durable conversation response is unchanged"
+            )
+
+    def _finalize_response(
+        self,
+        request: CognitiveRequest,
+        response: CognitiveResponse,
+        *,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse:
+        """Strip and retain the optional host-validated appraisal envelope."""
+        self._pending_emotion_appraisal = None
+        self._last_emotion_appraisal_error = None
+        try:
+            visible, appraisal = ConversationEmotionAppraiser.extract_response(
+                response.content
+            )
+        except Exception as exc:
+            self._last_emotion_appraisal_error = type(exc).__name__
+            _LOG.warning("Discarding malformed emotional appraisal envelope")
+            visible = ConversationEmotionAppraiser.strip_untrusted_envelope(
+                response.content
+            )
+            return replace(
+                response,
+                content=(
+                    visible
+                    or "I couldn't settle that response cleanly. Try me again."
+                ),
+            )
+        self._pending_emotion_appraisal = appraisal
+        if visible == response.content:
+            return response
+        return replace(response, content=visible)
 
     def clarify_event(self, *, event_id: str, message_id: str) -> None:
         """Explicitly link one saved user turn to one selected event.
@@ -579,6 +667,9 @@ class EmotionalConversationService(ConversationService):
                     scope=scope,
                 ),
                 influence.prompt(),
+                ConversationEmotionAppraiser.response_instruction(
+                    current_state
+                ),
             ))
         if (
             expression_plan is not None

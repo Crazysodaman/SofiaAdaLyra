@@ -35,7 +35,50 @@ class VoiceProsodyPlan:
     influence_plan: ContextualInfluencePlan
     reasons: tuple[str,...]
 
-_TARGETS={"excitement":(1.08,.4,1.12,1.03,.9),"excited":(1.08,.4,1.12,1.03,.9),"joy":(1.06,.3,1.10,1.02,.92),"happy":(1.06,.3,1.10,1.02,.92),"sadness":(.90,-.35,.82,.90,1.16),"sad":(.90,-.35,.82,.90,1.16),"grief":(.88,-.45,.78,.88,1.20),"anger":(.98,-.2,1.14,1.05,.9),"angry":(.98,-.2,1.14,1.05,.9),"frustration":(.97,-.15,1.10,1.03,.94),"frustrated":(.97,-.15,1.10,1.03,.94),"determination":(.99,-.1,1.10,1.03,.92),"concern":(.95,0,1.04,.98,1.06),"worried":(.94,0,1.04,.98,1.08),"nervous":(.96,.1,1.06,.98,1.02),"affection":(.96,.05,.94,.95,1.08),"fondness":(.96,.05,.94,.95,1.08),"warmth":(.97,.05,.96,.96,1.06),"calm":(.95,-.05,.90,.94,1.10),"content":(.97,0,.94,.96,1.06),"curiosity":(1.03,.1,1.04,1,.98),"hope":(1.02,.1,1.04,1,.98)}
+_TARGETS = {
+    "affection": (.96, .05, .94, .95, 1.08),
+    "affectionate-uncertainty": (.94, .08, .92, .93, 1.14),
+    "amusement": (1.05, .25, 1.08, 1.01, .94),
+    "anger": (.98, -.20, 1.14, 1.05, .90),
+    "anticipation": (1.04, .18, 1.07, 1.01, .94),
+    "appreciation": (.97, .05, .95, .96, 1.06),
+    "aversion": (.93, -.18, .91, .94, 1.10),
+    "bashfulness": (.92, .18, .86, .88, 1.18),
+    "caution": (.94, -.05, .94, .96, 1.12),
+    "concern": (.95, 0, 1.04, .98, 1.06),
+    "contentment": (.97, 0, .94, .96, 1.06),
+    "curiosity": (1.03, .10, 1.04, 1.00, .98),
+    "determination": (.99, -.10, 1.10, 1.03, .92),
+    "disappointment": (.91, -.25, .84, .91, 1.16),
+    "disgust": (.92, -.25, .93, .95, 1.08),
+    "embarrassment": (.91, .12, .84, .88, 1.18),
+    "excitement": (1.08, .40, 1.12, 1.03, .90),
+    "fear": (1.01, .22, 1.08, .98, .92),
+    "fondness": (.96, .05, .94, .95, 1.08),
+    "frustration": (.97, -.15, 1.10, 1.03, .94),
+    "gratitude": (.97, .08, .96, .97, 1.05),
+    "hope": (1.02, .10, 1.04, 1.00, .98),
+    "humiliation": (.88, -.30, .78, .84, 1.24),
+    "jealousy": (.95, -.12, 1.02, .96, 1.08),
+    "joy": (1.06, .30, 1.10, 1.02, .92),
+    "longing": (.92, .08, .88, .91, 1.18),
+    "nervousness": (.96, .10, 1.06, .98, 1.02),
+    "playfulness": (1.06, .30, 1.08, 1.01, .92),
+    "pride": (1.00, -.05, 1.08, 1.03, .95),
+    "reflection": (.91, -.10, .86, .92, 1.20),
+    "relief": (.93, -.05, .88, .94, 1.14),
+    "romance": (.93, .08, .90, .92, 1.14),
+    "sadness": (.90, -.35, .82, .90, 1.16),
+    "sensuality": (.90, -.05, .88, .90, 1.18),
+    "sexual-arousal": (.98, .15, 1.03, .94, 1.05),
+    "sexual-attraction": (.94, .12, .94, .93, 1.10),
+    "sexual-desire": (.92, .05, .96, .92, 1.12),
+    "shame": (.88, -.28, .78, .84, 1.24),
+    "surprise": (1.08, .45, 1.10, 1.02, .86),
+    "tenderness": (.92, .05, .88, .91, 1.16),
+    "uncertainty": (.94, .05, .92, .94, 1.12),
+    "warmth": (.97, .05, .96, .96, 1.06),
+}
 def _blend(b,t,s): return b+(t-b)*s
 def _clamp(v,lo,hi): return max(lo,min(hi,v))
 
@@ -46,10 +89,15 @@ class VoiceProsodyMatrix:
         if not isinstance(urgency,VoiceUrgency): raise TypeError("urgency must be VoiceUrgency")
         ip=self._matrix.plan(InfluenceSurface.VOICE_EXPRESSION,influence)
         rate=pitch=0.0; rate=energy=volume=pause=1.0; pitch=0.0; tags=[]; ambient=[]; reasons=[]
-        name=None if influence.foreground_emotion is None else influence.foreground_emotion.casefold()
+        expression_emotion = influence.foreground_emotion or influence.primary_emotion
+        name=None if expression_emotion is None else expression_emotion.casefold()
         target=None if name is None else _TARGETS.get(name)
         if ip.mode_for(InfluenceSignal.EMOTION) is not InfluenceMode.NONE and target is not None:
-            s=_clamp(float(influence.foreground_intensity),0,1)
+            s=_clamp(float(
+                influence.foreground_intensity
+                if influence.foreground_emotion is not None
+                else min(influence.primary_intensity, .20)
+            ),0,1)
             rate=_blend(rate,target[0],s); pitch=_blend(pitch,target[1],s); energy=_blend(energy,target[2],s); volume=_blend(volume,target[3],s); pause=_blend(pause,target[4],s)
             tags.append(f"emotion:{name}"); reasons.append("evidence-linked modeled emotion applied as bounded prosody")
         else: reasons.append("no reviewed evidence-linked emotion prosody adjustment applied")
