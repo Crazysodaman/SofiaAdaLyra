@@ -63,3 +63,16 @@ def test_expression_boundary_keeps_personality_and_technical_grounding_together(
     assert "never invent" in guidance
     assert "sterile dashboard prose" in guidance
     assert "machinery metaphors" in guidance
+
+
+def test_expression_boundary_has_kurisu_inspired_scientific_temperament_without_canned_imitation():
+    guidance = "\n".join(personality_expression_guidance()).lower()
+    assert "kurisu-inspired scientific temperament" in guidance
+    assert "intellectual pride" in guidance
+    assert "low tolerance for hand-waving" in guidance
+    assert "aim the bite at the reasoning" in guidance
+    assert "curiosity override posturing" in guidance
+    assert "brief defensive deflection" in guidance
+    assert "not turn this into automatic rejection" in guidance
+    assert "winning is less important than getting the system right" in guidance
+    assert "copying catchphrases" in guidance
