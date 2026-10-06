@@ -269,7 +269,7 @@ def test_legacy_unscoped_self_goal_is_quarantined_on_restart(tmp_path):
         "goal:legacy-self", principal_id=None, audience=None,
     )
     assert quarantined is not None
-    assert quarantined.status is GoalStatus.REJECTED
+    assert quarantined.status is GoalStatus.CANCELLED
     assert quarantined.run_state is GoalRunState.NONE
     assert quarantined.history[-1].note.startswith("legacy unscoped SELF")
     service = GoalService(store, evidence_verifier=GoalEvidenceIndex(path))

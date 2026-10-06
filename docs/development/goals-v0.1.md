@@ -45,6 +45,11 @@ Origins are `USER`, `SELF`, `SYSTEM`, and `MAINTENANCE`. Lifecycle states are
 `EXPIRED`, and `SUPERSEDED`. Terminal states never transition back to active;
 reopening requires a new goal.
 
+Reconstruction validates the complete immutable lifecycle chain, not merely the
+latest status: the initial state, every transition, monotonic event time, unique
+event IDs, and the final status must all agree. Legacy unscoped SELF records are
+quarantined through a valid terminal transition rather than being exposed.
+
 Completion conditions are typed as root-cause identified, evidence becomes
 true, operation receipt, no recurrence for an observed duration, all children
 complete, or an explicit user-defined condition. `COMPLETED` always carries

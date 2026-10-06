@@ -126,6 +126,47 @@ def test_models_reject_invalid_priority_lifecycle_time_owner_and_completion(tmp_
         completion(CompletionKind.NO_RECURRENCE)
 
 
+def test_model_rejects_tampered_lifecycle_chain_and_event_time(tmp_path):
+    goals = service(tmp_path)
+    valid = user_goal(goals)
+    discontinuous = replace(
+        valid.history[-1],
+        from_status=GoalStatus.PAUSED,
+        occurred_at=NOW + timedelta(minutes=1),
+    )
+    with pytest.raises(ValueError, match="initial lifecycle"):
+        replace(
+            valid,
+            updated_at=NOW + timedelta(minutes=1),
+            history=(discontinuous,),
+        )
+
+    impossible = replace(
+        valid.history[-1],
+        event_id="goal-event:tampered",
+        from_status=GoalStatus.ACTIVE,
+        to_status=GoalStatus.REJECTED,
+        occurred_at=NOW + timedelta(minutes=1),
+    )
+    with pytest.raises(ValueError, match="illegal transition"):
+        replace(
+            valid,
+            status=GoalStatus.REJECTED,
+            updated_at=NOW + timedelta(minutes=1),
+            history=(*valid.history, impossible),
+        )
+
+    future_event = replace(
+        valid.history[-1], occurred_at=NOW + timedelta(minutes=2),
+    )
+    with pytest.raises(ValueError, match="outside goal timestamps"):
+        replace(
+            valid,
+            updated_at=NOW + timedelta(minutes=1),
+            history=(future_event,),
+        )
+
+
 def test_valid_transitions_and_terminal_goal_cannot_reactivate(tmp_path):
     goals = service(tmp_path)
     goal = user_goal(
@@ -226,6 +267,18 @@ def test_low_salience_noise_and_unsupported_model_prose_fail_closed(tmp_path):
         self_candidate(goals, evidence_refs=("model:said-so",))
     with pytest.raises(TypeError):
         goals.persist_candidate("I think this should be a goal", decision=None, now=NOW)
+
+
+def test_policy_rejection_is_preserved_as_valid_terminal_history(tmp_path):
+    goals = service(tmp_path)
+    candidate = replace(self_candidate(goals), confidence=0.4)
+    decision = goals.evaluate_candidate(candidate)
+    assert decision.decision is GoalPolicyDecision.REJECT
+    rejected = goals.admit_candidate(candidate, decision=decision, now=NOW)
+    assert rejected is not None
+    assert rejected.status is GoalStatus.REJECTED
+    assert rejected.history[0].from_status is None
+    assert rejected.history[0].to_status is GoalStatus.REJECTED
 
 
 def test_duplicate_candidate_merges_instead_of_multiplying(tmp_path):

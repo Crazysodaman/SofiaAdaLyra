@@ -56,15 +56,26 @@ class GoalStore:
                 continue
             now = datetime.now(timezone.utc)
             previous = value["status"]
-            value["status"] = GoalStatus.REJECTED.value
+            value["status"] = GoalStatus.CANCELLED.value
             value["updated_at"] = now.isoformat()
             value["run_state"] = GoalRunState.NONE.value
             value["blocked_reason"] = None
             value["revision"] = record.revision + 1
-            value.setdefault("history", []).append({
+            history = value.setdefault("history", [])
+            if not history:
+                history.append({
+                    "event_id": f"goal-event:{uuid4()}",
+                    "from_status": None,
+                    "to_status": previous,
+                    "actor_principal_id": "sofia:self",
+                    "occurred_at": value["created_at"],
+                    "evidence_refs": [],
+                    "note": "legacy lifecycle origin reconstructed during scope migration",
+                })
+            history.append({
                 "event_id": f"goal-event:{uuid4()}",
                 "from_status": previous,
-                "to_status": GoalStatus.REJECTED.value,
+                "to_status": GoalStatus.CANCELLED.value,
                 "actor_principal_id": "sofia:self",
                 "occurred_at": now.isoformat(),
                 "evidence_refs": [],

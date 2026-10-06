@@ -260,6 +260,43 @@ class Goal:
             raise ValueError("goal requires immutable lifecycle history")
         if self.history[-1].to_status is not self.status:
             raise ValueError("latest lifecycle event must match goal status")
+        previous_status: GoalStatus | None = None
+        previous_time: datetime | None = None
+        event_ids: set[str] = set()
+        for index, event in enumerate(self.history):
+            if index == 0:
+                if event.from_status is not None:
+                    raise ValueError("initial lifecycle event must start from no status")
+                if event.to_status not in {
+                    GoalStatus.CANDIDATE,
+                    GoalStatus.ACTIVE,
+                    GoalStatus.REJECTED,
+                }:
+                    raise ValueError(
+                        "initial lifecycle status must be candidate, active, or rejected"
+                    )
+            elif event.from_status is not previous_status:
+                raise ValueError("lifecycle history status chain is discontinuous")
+            if event.event_id in event_ids:
+                raise ValueError("lifecycle event IDs must be unique")
+            event_ids.add(event.event_id)
+            if (
+                event.from_status is not None
+                and event.to_status is not event.from_status
+                and event.to_status not in ALLOWED_TRANSITIONS.get(
+                    event.from_status, frozenset(),
+                )
+            ):
+                raise ValueError("lifecycle history contains an illegal transition")
+            if (
+                event.occurred_at < self.created_at
+                or event.occurred_at > self.updated_at
+            ):
+                raise ValueError("lifecycle event falls outside goal timestamps")
+            if previous_time is not None and event.occurred_at < previous_time:
+                raise ValueError("lifecycle history timestamps are not monotonic")
+            previous_status = event.to_status
+            previous_time = event.occurred_at
         if self.parent_goal_id is not None:
             validate_identifier(self.parent_goal_id, "parent_goal_id")
             if self.parent_goal_id == self.id:
