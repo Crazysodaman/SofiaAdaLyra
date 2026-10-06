@@ -208,4 +208,8 @@ def test_emotional_projection_is_absent_when_emotion_domain_is_excluded(
 
     result = service._build_request()
 
-    assert result is original
+    assert result is not original
+    assert "USER AFFECT ADAPTATION" in result.messages[0].content
+    assert "MODELED EMOTIONAL CONTEXT" not in result.messages[0].content
+    assert "POST-RESPONSE MODELED EMOTION APPRAISAL" not in result.messages[0].content
+    assert result.messages[-1] is original.messages[-1]

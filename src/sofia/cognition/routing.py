@@ -282,6 +282,10 @@ class RoutingCognitiveEngine(CognitiveEngine):
         CognitiveRoute.OPEN: 4,
         CognitiveRoute.VERIFY: 5,
     }
+    _REPLAY_SAFE_TOOL_VERBS = frozenset({
+        "catalog", "check", "find", "get", "inspect", "list", "query",
+        "read", "search", "show", "status",
+    })
 
     def __init__(
         self,
@@ -324,13 +328,11 @@ class RoutingCognitiveEngine(CognitiveEngine):
         verification_passes = 0
         steps: list[RoutingExecutionStep] = []
         tool_fallback_used = False
-
         try:
-            # Tool-enabled requests prefer the primary engine. If it fails
-            # before returning a usable response, retry the same host-filtered
-            # tool request on the secondary. The secondary still cannot execute
-            # capabilities directly; every tool request goes through the same
-            # host-owned CapabilityGateway and authority checks.
+            # Only a conservatively recognized read-only tool surface may be
+            # replayed on the secondary. Mutating/unknown tools stay on one
+            # engine because a failure can occur after an action was requested
+            # or executed, making whole-turn retry unsafe.
             if request.tools:
                 try:
                     primary_response = self._invoke(
@@ -339,6 +341,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         steps,
                     )
                 except CognitiveEngineError:
+                    if not self._tool_request_is_replay_safe(request):
+                        raise
                     fallback_count += 1
                     tool_fallback_used = True
                     primary_response = self._invoke(
@@ -396,6 +400,7 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 fallback_count=fallback_count,
                 verification_passes=verification_passes,
             )
+
             emit_performance(
                 "router",
                 elapsed_ms=(perf_counter() - started) * 1000,
@@ -404,6 +409,18 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 fallback_count=fallback_count,
                 verification_passes=verification_passes,
             )
+
+    @classmethod
+    def _tool_request_is_replay_safe(cls, request: CognitiveRequest) -> bool:
+        """Allow engine fallback only for visibly read-only tool definitions."""
+        if not request.tools:
+            return False
+        for tool in request.tools:
+            name = tool.name.casefold().replace(".", "_")
+            verb = name.split("_", 1)[0]
+            if verb not in cls._REPLAY_SAFE_TOOL_VERBS:
+                return False
+        return True
 
     @staticmethod
     def _engine_model(engine: CognitiveEngine) -> str | None:

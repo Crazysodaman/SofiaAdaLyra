@@ -34,9 +34,9 @@ _STOPPED_ACTION = (
     'action as completed. We can continue talking without body contact.'
 )
 _COMPOSITE_ACTION = (
-    "That's more than one represented action bundled together. I won't pretend "
-    "either one already happened. Give me one at a time and I can respond to "
-    "each naturally."
+    "That's more than one represented action bundled together. I have not "
+    "treated any as completed, and I won't pretend either one already happened. "
+    "Give me one at a time and I can respond to each naturally."
 )
 _BOUNDARY_ACTION = (
     'That represented action conflicts with a recorded interaction boundary, '

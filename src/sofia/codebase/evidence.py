@@ -70,7 +70,11 @@ def format_codebase_evidence(
                 relative = file.path.relative_to(evidence.root)
             except ValueError:
                 relative = file.path
-            top_level[relative.parts[0] if relative.parts else "."] += 1
+            # Root-level filenames are one bucket, not 1 unbounded label per
+            # file. Otherwise this summary leaks the complete tail of a large
+            # root directory before the deliberately bounded file sample.
+            name = relative.parts[0] if len(relative.parts) > 1 else "."
+            top_level[name] += 1
         lines.extend(("", "TOP-LEVEL FILE COUNTS"))
         for name, count in sorted(
             top_level.items(),

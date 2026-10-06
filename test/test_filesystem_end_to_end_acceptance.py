@@ -104,7 +104,7 @@ def create_application(
     )
 
 
-def test_filesystem_request_is_unauthorized_before_explicit_authorization(
+def test_level1_filesystem_request_is_read_only_without_legacy_authorization(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -153,7 +153,12 @@ def test_filesystem_request_is_unauthorized_before_explicit_authorization(
     result = results[0]
 
     assert result.operation is FilesystemOperation.LIST_DIRECTORY
-    assert result.kind is FilesystemResultKind.UNAUTHORIZED
+    assert result.kind in {
+        FilesystemResultKind.SUCCESS,
+        FilesystemResultKind.LIMIT_REACHED,
+    }
+    assert application.runtime.filesystem_authorization is None
+    assert application.runtime.filesystem_inspector.authorized is False
 
     application.shutdown()
 

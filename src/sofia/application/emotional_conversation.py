@@ -23,6 +23,7 @@ from sofia.cognition.matrix import (
     EmbodiedExpressionPlanner,
     HistoryPolicy,
     MatrixDomain,
+    ResponseValidationDisposition,
 )
 from sofia.cognition.performance import emit_performance
 from sofia.conversation.model import ConversationRole
@@ -38,6 +39,11 @@ from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
 from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext, SocialScope
 from sofia.social.principals import SPARKS_PRINCIPAL_ID
+from sofia.social.affect import (
+    UserAffectAppraiser,
+    UserAffectObservation,
+    UserAffectTracker,
+)
 
 
 _CAUSAL_LAST_TURN_QUERY = re.compile(
@@ -119,6 +125,9 @@ class EmotionalConversationService(ConversationService):
         self._evolution_service = None
         self._last_emotion_appraisal_error: str | None = None
         self._pending_emotion_appraisal = None
+        self._user_affect_tracker = UserAffectTracker()
+        self._last_user_affect_error: str | None = None
+        self._pending_user_affect = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
             activity_group is not None
@@ -314,6 +323,7 @@ class EmotionalConversationService(ConversationService):
                             channel=channel,
                         )
                     self._persist_pending_emotion_appraisal()
+                    self._persist_pending_user_affect()
                     return response
                 finally:
                     # Includes request construction/persistence as well as the
@@ -329,6 +339,58 @@ class EmotionalConversationService(ConversationService):
     def last_emotion_appraisal_error(self) -> str | None:
         """Return the latest non-fatal post-turn appraisal failure."""
         return getattr(self, "_last_emotion_appraisal_error", None)
+
+    @property
+    def last_user_affect_error(self) -> str | None:
+        """Return the latest non-fatal user-affect envelope failure."""
+        return getattr(self, "_last_user_affect_error", None)
+
+    def current_user_affect(
+        self,
+        *,
+        now: datetime | None = None,
+    ) -> UserAffectObservation | None:
+        """Return the session-local tentative reading for the active person."""
+        tracker = getattr(self, "_user_affect_tracker", None)
+        if tracker is None:
+            return None
+        return tracker.current(
+            self._relationship_subject(),
+            now=now or datetime.now(timezone.utc),
+        )
+
+    def _persist_pending_user_affect(self) -> None:
+        """Attach a validated assessment to its real user turn in memory only."""
+        assessment = getattr(self, "_pending_user_affect", None)
+        self._pending_user_affect = None
+        if assessment is None:
+            return
+        try:
+            messages = self.messages()
+            if len(messages) < 2:
+                return
+            assistant = messages[-1]
+            user = messages[-2]
+            if (
+                assistant.role is not ConversationRole.ASSISTANT
+                or user.role is not ConversationRole.USER
+            ):
+                return
+            tracker = getattr(self, "_user_affect_tracker", None)
+            if tracker is None:
+                tracker = UserAffectTracker()
+                self._user_affect_tracker = tracker
+            tracker.record(UserAffectObservation(
+                subject=self._relationship_subject(),
+                evidence_ref=user.id,
+                observed_at=user.created_at,
+                assessment=assessment,
+            ))
+        except Exception as exc:
+            self._last_user_affect_error = type(exc).__name__
+            _LOG.exception(
+                "Validated user affect could not be retained for this session"
+            )
 
     def _persist_pending_emotion_appraisal(self) -> None:
         """Persist the already-validated one-call appraisal after the reply."""
@@ -377,6 +439,8 @@ class EmotionalConversationService(ConversationService):
         """Strip and retain the optional host-validated appraisal envelope."""
         self._pending_emotion_appraisal = None
         self._last_emotion_appraisal_error = None
+        self._pending_user_affect = None
+        self._last_user_affect_error = None
         try:
             visible, appraisal = ConversationEmotionAppraiser.extract_response(
                 response.content
@@ -387,17 +451,69 @@ class EmotionalConversationService(ConversationService):
             visible = ConversationEmotionAppraiser.strip_untrusted_envelope(
                 response.content
             )
-            return replace(
-                response,
-                content=(
-                    visible
-                    or "I couldn't settle that response cleanly. Try me again."
-                ),
-            )
+            appraisal = None
         self._pending_emotion_appraisal = appraisal
+        try:
+            messages = self.messages()
+        except (AttributeError, RuntimeError):
+            # Small host/unit paths can finalize a supplied request without an
+            # active persisted session. Production conversation always has one.
+            messages = ()
+        user_content = next(
+            (
+                item.content for item in reversed(messages)
+                if item.role is ConversationRole.USER
+            ),
+            next(
+                (
+                    item.content for item in reversed(request.messages)
+                    if item.role is CognitiveRole.USER
+                ),
+                "",
+            ),
+        )
+        try:
+            visible, user_affect = UserAffectAppraiser.extract_response(
+                visible,
+                user_content=user_content,
+            )
+        except Exception as exc:
+            self._last_user_affect_error = type(exc).__name__
+            _LOG.warning("Discarding malformed user-affect envelope")
+            visible = UserAffectAppraiser.strip_untrusted_envelope(visible)
+            user_affect = None
+        self._pending_user_affect = user_affect
+        # No malformed or misordered private envelope may reach persistence or
+        # presentation, even when the other envelope validated successfully.
+        visible = ConversationEmotionAppraiser.strip_untrusted_envelope(visible)
+        visible = UserAffectAppraiser.strip_untrusted_envelope(visible)
+        if not visible:
+            visible = "I couldn't settle that response cleanly. Try me again."
         if visible == response.content:
             return response
         return replace(response, content=visible)
+
+    def _matrix_finalize_response(
+        self,
+        request: CognitiveRequest,
+        response: CognitiveResponse,
+        *,
+        principal: PrincipalContext | None,
+    ) -> CognitiveResponse:
+        """Never retain an appraisal from a draft rejected by the matrix."""
+        settled = super()._matrix_finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
+        validation = getattr(self, "_current_response_validation", None)
+        if (
+            validation is not None
+            and validation.disposition is ResponseValidationDisposition.FALLBACK
+        ):
+            self._pending_emotion_appraisal = None
+            self._pending_user_affect = None
+        return settled
 
     def clarify_event(self, *, event_id: str, message_id: str) -> None:
         """Explicitly link one saved user turn to one selected event.
@@ -558,6 +674,10 @@ class EmotionalConversationService(ConversationService):
         self._reflection_journal = None
         self._clarification_journal = None
         self._current_expression_plan = None
+        tracker = getattr(self, "_user_affect_tracker", None)
+        if tracker is not None:
+            tracker.clear()
+        self._pending_user_affect = None
 
     def _should_record_legacy_affection(self, user) -> bool:
         """Subclass hook: independent policy may veto a legacy head-pat cue."""
@@ -659,6 +779,19 @@ class EmotionalConversationService(ConversationService):
         self._current_expression_plan = expression_plan
 
         projections = []
+        tracker = getattr(self, "_user_affect_tracker", None)
+        if tracker is None:
+            tracker = UserAffectTracker()
+            self._user_affect_tracker = tracker
+        previous_user_affect = tracker.current(subject, now=now)
+        if previous_user_affect is not None:
+            projections.append(
+                UserAffectAppraiser.context_prompt(previous_user_affect)
+            )
+        # Current-turn affect adaptation is a conversational calibration layer,
+        # not Sofía's EMOTION matrix state. Keep it available in technical and
+        # operational turns where frustration or overload still matters.
+        projections.append(UserAffectAppraiser.response_instruction())
         if emotion_allowed:
             projections.extend((
                 self.emotional_journal.current_state_prompt(
