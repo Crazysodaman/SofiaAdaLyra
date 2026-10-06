@@ -331,6 +331,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Avatar",
     "Wardrobe",
     "Mood & Emotion",
+    "NEURO",
     "Memory",
     "EVOLVE",
     "Permissions",

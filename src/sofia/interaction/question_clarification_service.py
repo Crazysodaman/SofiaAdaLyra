@@ -67,6 +67,9 @@ def respond_reviewed_hug_question(
                     principal=principal,
                     channel=channel,
                 )
+            observe_neuro = getattr(service, "_observe_neuro_turn", None)
+            if observe_neuro is not None:
+                observe_neuro(message=user, channel=channel)
             blocked = _policy_gate(state_path=path, session_id=session_id)
             result = (GuardedOfferResult(status=blocked) if blocked is not None else
                       GuardedOfferResult(

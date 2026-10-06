@@ -59,6 +59,49 @@ def create_background_coordinator(
         state_path=Path(application._configuration.state_path),
         reflection_enabled=reflection_enabled,
     )
+    set_task_priority = getattr(coordinator, "set_task_priority", None)
+    if set_task_priority is not None:
+        set_task_priority(application._neuro.background_priority)
+    set_reflection_wake_gate = getattr(
+        coordinator,
+        "set_reflection_wake_gate",
+        None,
+    )
+    if set_reflection_wake_gate is not None:
+        set_reflection_wake_gate(
+            application._neuro.should_wake_for_reflection
+        )
+
+    def refresh_neuro(now):
+        service = application._conversation_service
+        with application._model_lock:
+            if not service.ready_for_idle_reflection(
+                idle_seconds=coordinator.idle_seconds
+            ):
+                return None
+            principal = (
+                service._principal_context()
+                if hasattr(service, "_principal_context")
+                else None
+            )
+            return application._refresh_neuro_inputs(
+                now=now,
+                principal=principal,
+                refresh_environment=False,
+            )
+
+    coordinator.set_task(
+        "neuro_refresh",
+        refresh_neuro,
+        interval_seconds=60.0,
+    )
+    goals = getattr(application, "_goals", None)
+    if goals is not None:
+        coordinator.set_task(
+            "goal_expiration",
+            lambda now: goals.expire_due(now=now),
+            interval_seconds=300.0,
+        )
     from sofia.avatar.wardrobe_review import WardrobeReviewStore, review_next
     from sofia.social.principals import local_sparks_principal
     review_store = WardrobeReviewStore(application._configuration.state_path)

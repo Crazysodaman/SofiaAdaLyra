@@ -490,6 +490,10 @@ class InteractiveConversationService(EmotionalConversationService):
                     principal=principal,
                     channel=channel,
                 )
+                self._observe_neuro_turn(
+                    message=user,
+                    channel=channel,
+                )
                 if command is not None or stopped_gesture:
                     configuration = getattr(self._runtime, 'configuration', None)
                     if configuration is None:

@@ -9,7 +9,8 @@ class HomeostasisController:
 
     def __init__(self, *, smoothing: float = 0.25) -> None:
         if (
-            not isinstance(smoothing, (int, float))
+            isinstance(smoothing, bool)
+            or not isinstance(smoothing, (int, float))
             or not 0.0 < float(smoothing) <= 1.0
         ):
             raise ValueError("smoothing must be in (0, 1]")

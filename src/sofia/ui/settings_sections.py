@@ -96,6 +96,21 @@ class SettingsSections:
         from .wardrobe_panel import WardrobePanel, current_mood
         self.wardrobe = WardrobePanel(self, frames["Wardrobe"])
         self.viewer(frames["Mood & Emotion"], "Current mood and emotions toward Sparks", lambda: current_mood(config.state_path), interval_ms=15000)
+        from sofia.neuro.store import neuro_observability_text
+        self.viewer(
+            frames["NEURO"],
+            "Live attention, homeostasis, routing, and recent signals",
+            lambda: neuro_observability_text(config.state_path),
+            interval_ms=5000,
+        )
+        ttk.Label(
+            frames["NEURO"],
+            text=(
+                "NEURO ranks bounded observations only. A high score is not "
+                "evidence, consent, permission, memory promotion, or authority."
+            ),
+            wraplength=660,
+        ).pack(anchor="w", pady=8)
         self.memory_panel(frames["Memory"])
         self.sql_panel(frames["EVOLVE"], "Reviewed revisions", "evolve_reviewed_revisions")
         self.sql_panel(frames["EVOLVE"], "Configuration authority records", "state_plane_record", where="namespace='configuration'")

@@ -8,17 +8,25 @@ from .model import (
     HomeostaticState,
     NeuralActivation,
     NeuralSignal,
+    NeuroRoutingDecision,
     NeuroStateSnapshot,
+    NeuroWakeMode,
 )
+from .coordinator import NeuroInputCoordinator
 from .runtime import NeuroRuntime
 from .salience import SalienceNetwork
+from .store import NeuroObservabilityStore
 
 __all__ = [
     "HomeostaticState",
     "HomeostasisController",
     "NeuralActivation",
     "NeuralSignal",
+    "NeuroInputCoordinator",
+    "NeuroObservabilityStore",
+    "NeuroRoutingDecision",
     "NeuroRuntime",
     "NeuroStateSnapshot",
+    "NeuroWakeMode",
     "SalienceNetwork",
 ]

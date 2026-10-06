@@ -217,6 +217,8 @@ class ConversationService(ConversationMatrixMixin):
         self._clothing_action_handler = None
         self._wardrobe_generation_handler = None
         self._voice_runtime_provider = None
+        self._goal_context_provider = None
+        self._last_goal_context_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
@@ -298,6 +300,45 @@ class ConversationService(ConversationMatrixMixin):
         self._current_neuro_message_id = None
         self._last_neuro_error = None
 
+    def set_goal_context_provider(self, provider) -> None:
+        """Install a bounded read-only canonical goal projection."""
+        if provider is not None and not callable(provider):
+            raise TypeError("goal context provider must be callable or None")
+        self._goal_context_provider = provider
+        self._last_goal_context_error = None
+
+    @property
+    def last_goal_context_error(self) -> str | None:
+        return self._last_goal_context_error
+
+    def _goal_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        provider = self._goal_context_provider
+        principal = self._principal_context()
+        if (
+            provider is None
+            or principal is None
+            or current_user is None
+            or self._current_matrix_message_id != current_user.id
+        ):
+            return None
+        try:
+            content = provider(principal, datetime.now(timezone.utc))
+            self._last_goal_context_error = None
+        except Exception as exc:
+            self._last_goal_context_error = type(exc).__name__
+            _LOG.exception("Goal context projection failed; continuing without it")
+            return None
+        if content is None:
+            return None
+        if not isinstance(content, str) or not content.strip():
+            self._last_goal_context_error = "InvalidGoalContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
     @property
     def neuro_snapshot(self) -> NeuroStateSnapshot | None:
         """Return the latest local prioritization snapshot for diagnostics."""
@@ -314,7 +355,7 @@ class ConversationService(ConversationMatrixMixin):
         message: ConversationMessage,
         channel: str,
     ) -> None:
-        runtime = self._neuro_runtime
+        runtime = getattr(self, "_neuro_runtime", None)
         self._last_neuro_error = None
         if runtime is None:
             self._current_neuro_snapshot = None
@@ -1039,6 +1080,12 @@ class ConversationService(ConversationMatrixMixin):
                 neuro_context,
                 *cognitive_messages,
             )
+        goal_context = self._goal_context_message(current_user=current_user)
+        if goal_context is not None:
+            cognitive_messages = (
+                goal_context,
+                *cognitive_messages,
+            )
 
         latest_user = next(
             (
@@ -1146,6 +1193,11 @@ class ConversationService(ConversationMatrixMixin):
             and self._current_routing_plan.route is not MatrixRoute.AUTO
         ):
             route_hint = self._current_routing_plan.route.value
+        neuro_runtime = getattr(self, "_neuro_runtime", None)
+        if neuro_runtime is not None:
+            route_hint = neuro_runtime.routing_decision(
+                existing_hint=route_hint,
+            ).mode.value
 
         return CognitiveRequest(
             messages=cognitive_messages,

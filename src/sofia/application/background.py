@@ -235,6 +235,8 @@ class ApplicationBackgroundCoordinator:
         self._task_last_run: dict[str, datetime] = {}
         self._task_ready: dict[str, Callable[[], bool]] = {}
         self._task_cursor = 0
+        self._task_priority: Callable[[str], float] | None = None
+        self._reflection_wake_gate: Callable[[], bool] | None = None
         self._heartbeat: Callable[[datetime, bool], None] | None = None
         self._stop_event = Event()
         self._thread: Thread | None = None
@@ -294,6 +296,24 @@ class ApplicationBackgroundCoordinator:
             raise TypeError("heartbeat callback must be callable or None")
         self._heartbeat = callback
 
+    def set_task_priority(
+        self,
+        callback: Callable[[str], float] | None,
+    ) -> None:
+        """Install advisory ordering only; it cannot bypass due/ready/budget gates."""
+        if callback is not None and not callable(callback):
+            raise TypeError("task priority callback must be callable or None")
+        self._task_priority = callback
+
+    def set_reflection_wake_gate(
+        self,
+        callback: Callable[[], bool] | None,
+    ) -> None:
+        """Gate optional model reflection without suppressing deterministic work."""
+        if callback is not None and not callable(callback):
+            raise TypeError("reflection wake gate must be callable or None")
+        self._reflection_wake_gate = callback
+
     def _source_refs(self, now: datetime) -> tuple[str, ...]:
         absence = self.service.observe_background_absence(now=now)
         events = self.service.emotional_journal.recent(
@@ -317,14 +337,21 @@ class ApplicationBackgroundCoordinator:
         ):
             return "foreground_busy"
 
-        refs = self._source_refs(moment) if self.reflection_enabled else ()
+        reflection_awake = (
+            self.reflection_enabled
+            and (
+                getattr(self, "_reflection_wake_gate", None) is None
+                or self._reflection_wake_gate()
+            )
+        )
+        refs = self._source_refs(moment) if reflection_awake else ()
         opportunity = (
             self.periodic.claim(
                 now=moment,
                 source_refs=refs,
                 user_active=False,
             )
-            if self.reflection_enabled
+            if reflection_awake
             else None
         )
         if opportunity is not None and opportunity.status == "claimed":
@@ -376,6 +403,18 @@ class ApplicationBackgroundCoordinator:
         if task_names:
             start = self._task_cursor % len(task_names)
             ordered = task_names[start:] + task_names[:start]
+            task_priority = getattr(self, "_task_priority", None)
+            if task_priority is not None:
+                round_robin_rank = {
+                    name: index for index, name in enumerate(ordered)
+                }
+                ordered = sorted(
+                    ordered,
+                    key=lambda name: (
+                        -max(0.0, min(1.0, float(task_priority(name)))),
+                        round_robin_rank[name],
+                    ),
+                )
             for task_kind in ordered:
                 ready = self._task_ready.get(task_kind)
                 if ready is not None and not ready():
@@ -441,9 +480,13 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
-        return "background_idle" if self._tasks else (
-            "reflection_disabled" if opportunity is None else opportunity.status
-        )
+        if self._tasks:
+            return "background_idle"
+        if not self.reflection_enabled:
+            return "reflection_disabled"
+        if not reflection_awake:
+            return "reflection_gated"
+        return "background_idle" if opportunity is None else opportunity.status
 
     def _publish_heartbeat(
         self,

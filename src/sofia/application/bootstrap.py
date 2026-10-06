@@ -78,7 +78,19 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
 from sofia.ops.backup_topology import backup_topology_enabled
-from sofia.neuro import NeuroRuntime
+from sofia.neuro import NeuralSignal, NeuroRuntime
+from sofia.neuro.coordinator import NeuroInputCoordinator
+from sofia.neuro.store import NeuroObservabilityStore
+from sofia.ops.local_telemetry import collect_local_telemetry
+from sofia.habits.pattern_store import HabitPatternStore
+from sofia.rel.store import RelationshipStore
+from sofia.goals import (
+    GoalEvidenceIndex,
+    GoalService,
+    GoalStatus,
+    GoalStore,
+    effective_priority,
+)
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -165,7 +177,21 @@ class SofiaApplication:
             create_tts_service_from_environment()
         )
         self._channel_conversations: list[ConversationService] = []
-        self._neuro = NeuroRuntime()
+        self._neuro = NeuroRuntime(
+            observability=NeuroObservabilityStore(configuration.state_path)
+        )
+        self._neuro_inputs = NeuroInputCoordinator(
+            self._neuro,
+            configuration.state_path,
+            state_plane=self._runtime.state_plane,
+        )
+        self._neuro_telemetry = None
+        self._neuro_telemetry_at: datetime | None = None
+        self._last_neuro_input_error: str | None = None
+        self._goals = GoalService(
+            GoalStore(self._runtime.state_plane),
+            evidence_verifier=GoalEvidenceIndex(configuration.state_path),
+        )
         conversation_store = ConversationStore(configuration.state_path)
         if conversation_store.database_path.resolve() != Path(
             configuration.state_path
@@ -199,6 +225,13 @@ class SofiaApplication:
         self._habit_continuity = HabitContinuityCoordinator(
             self._runtime.state_plane
         )
+        self._habit_pattern_store = HabitPatternStore(
+            self._runtime.state_plane
+        )
+        self._relationship_store = RelationshipStore(
+            configuration.state_path,
+            state_plane=self._runtime.state_plane,
+        )
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
         )
@@ -210,6 +243,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_neuro_runtime(
             self._neuro
+        )
+        self._conversation_service.set_goal_context_provider(
+            self._goal_context_for_principal
         )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
@@ -270,6 +306,21 @@ class SofiaApplication:
     def neuro(self) -> NeuroRuntime:
         """Return the shared authority-free neural prioritization runtime."""
         return self._neuro
+
+    @property
+    def neuro_inputs(self) -> NeuroInputCoordinator:
+        return self._neuro_inputs
+
+    @property
+    def goals(self) -> GoalService:
+        return self._goals
+
+    @property
+    def last_neuro_input_error(self) -> str | None:
+        return self._last_neuro_input_error
+
+    def _goal_context_for_principal(self, principal, now: datetime) -> str | None:
+        return self._goals.prompt_context(principal, now=now)
 
     @property
     def memory_review(self) -> MemoryReviewService:
@@ -336,6 +387,9 @@ class SofiaApplication:
         )
         service.set_neuro_runtime(
             self._neuro
+        )
+        service.set_goal_context_provider(
+            self._goal_context_for_principal
         )
         clothing_actions = getattr(
             self,
@@ -416,10 +470,31 @@ class SofiaApplication:
                 urgency=urgency,
             ).profile
 
-        return self._tts.submit(
+        receipt = self._tts.submit(
             content,
             profile=profile,
         )
+        urgency_value = {
+            VoiceUrgency.NORMAL: 0.25,
+            VoiceUrgency.IMPORTANT: 0.65,
+            VoiceUrgency.URGENT: 0.95,
+        }[urgency]
+        try:
+            self._neuro.observe_signal(NeuralSignal(
+                source=f"speech:{receipt.state.value}",
+                kind="voice",
+                value=urgency_value,
+                confidence=1.0,
+                novelty=0.4,
+                urgency=urgency_value,
+                observed_at=datetime.now(timezone.utc),
+                ttl_seconds=120.0,
+            ))
+        except Exception as exc:
+            # Speech delivery already has its own receipt; attention telemetry
+            # cannot change or invalidate that authoritative outcome.
+            self._last_neuro_input_error = type(exc).__name__
+        return receipt
 
 
     @staticmethod
@@ -475,6 +550,96 @@ class SofiaApplication:
             now=datetime.now(timezone.utc),
             refresh_environment=False,
         )
+        self._refresh_neuro_inputs(
+            now=datetime.now(timezone.utc),
+            content=content,
+            principal=principal,
+            refresh_environment=False,
+        )
+
+    def _refresh_neuro_inputs(
+        self,
+        *,
+        now: datetime,
+        content: str = "",
+        principal=None,
+        refresh_environment: bool = False,
+    ):
+        """Sample authoritative read-only state; NEURO remains non-authoritative."""
+        try:
+            environment = self._runtime.environment_service.snapshot(
+                now=now,
+                refresh_providers=refresh_environment,
+            )
+            service = self._conversation_service
+            emotion = None
+            if isinstance(service, EmotionalConversationService):
+                if principal is None:
+                    emotion = service.current_emotional_state(now=now)
+                else:
+                    # Channel turns may be bound to a principal other than the
+                    # local desktop owner.  Read that relationship's canonical
+                    # emotional state explicitly so NEURO cannot carry one
+                    # person's affective context into another conversation.
+                    emotion = service.emotional_journal.current_state(
+                        now=now,
+                        subject=principal.principal_id,
+                        scope=principal.relationship_scope,
+                    )
+            if (
+                self._neuro_telemetry_at is None
+                or (now - self._neuro_telemetry_at).total_seconds() >= 60.0
+            ):
+                self._neuro_telemetry = collect_local_telemetry()
+                self._neuro_telemetry_at = now
+            memories = ()
+            habits = ()
+            relationship = None
+            goal_priorities = ()
+            if principal is not None:
+                if content.strip():
+                    memories = self._runtime.memory_system.recall_relevant(
+                        content,
+                        principal=principal,
+                    )
+                habits = self._habit_pattern_store.patterns(
+                    principal_id=principal.principal_id,
+                    audience_id=principal.audience_id,
+                )
+                relationship = self._relationship_store.get(
+                    principal.principal_id
+                )
+                goal_priorities = tuple(
+                    (goal, effective_priority(goal, now=now).value)
+                    for goal in self._goals.list_visible(principal)
+                    if goal.status is GoalStatus.ACTIVE
+                )[:32]
+            bundle = getattr(self, "_presentation_bundle", None)
+            avatar = (
+                None
+                if bundle is None
+                else bundle.authority.snapshot()
+            )
+            session = service.session
+            snapshot = self._neuro_inputs.refresh(
+                now=now,
+                environment=environment,
+                emotion=emotion,
+                telemetry=self._neuro_telemetry,
+                voice=self.voice_runtime_status(),
+                avatar=avatar,
+                memories=memories,
+                habits=habits,
+                relationship=relationship,
+                goal_priorities=goal_priorities,
+                session_id=None if session is None else session.id,
+            )
+            self._last_neuro_input_error = None
+            return snapshot
+        except Exception as exc:
+            # Attention is advisory. Its refresh cannot make chat unavailable.
+            self._last_neuro_input_error = type(exc).__name__
+            return None
 
     def _evaluate_contextual_presentation_when_idle(
         self,
@@ -971,6 +1136,15 @@ class SofiaApplication:
                 now=datetime.now(timezone.utc),
                 refresh_environment=True,
             )
+            self._refresh_neuro_inputs(
+                now=datetime.now(timezone.utc),
+                principal=(
+                    self._conversation_service._principal_context()
+                    if hasattr(self._conversation_service, "_principal_context")
+                    else None
+                ),
+                refresh_environment=False,
+            )
             self._startup_awareness_error = None
             try:
                 response = self._conversation_service.deliver_pending_awareness()
@@ -1020,8 +1194,19 @@ class SofiaApplication:
                 ops_service is not None
                 and hasattr(ops_service, "observe_reconciliation")
             )
+            # A fully composed application always has this NEURO bridge. The
+            # structural checks keep deliberately minimal lifecycle fixtures
+            # and alternate hosts from being mistaken for production wiring.
+            neuro_runtime_enabled = (
+                hasattr(self, "_neuro_inputs")
+                and isinstance(
+                    self._conversation_service,
+                    EmotionalConversationService,
+                )
+            )
             background_needed = (
-                reflection_enabled
+                neuro_runtime_enabled
+                or reflection_enabled
                 or habit_runtime_enabled
                 or act_delivery_enabled
                 or presentation_runtime_enabled

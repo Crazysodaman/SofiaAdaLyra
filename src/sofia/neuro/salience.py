@@ -14,7 +14,8 @@ class _Node:
     kind: str
     score: float
     novelty: float
-    updated_at: datetime
+    last_observed_at: datetime
+    decayed_at: datetime
     expires_at: datetime
 
 
@@ -32,7 +33,8 @@ class SalienceNetwork:
         max_nodes: int = 64,
     ) -> None:
         if (
-            not isinstance(half_life_seconds, (int, float))
+            isinstance(half_life_seconds, bool)
+            or not isinstance(half_life_seconds, (int, float))
             or half_life_seconds <= 0
         ):
             raise ValueError("half_life_seconds must be positive")
@@ -63,7 +65,7 @@ class SalienceNetwork:
                 continue
             elapsed = max(
                 0.0,
-                (now - node.updated_at).total_seconds(),
+                (now - node.decayed_at).total_seconds(),
             )
             if elapsed <= 0.0:
                 continue
@@ -73,35 +75,52 @@ class SalienceNetwork:
             )
             node.score *= factor
             node.novelty *= factor
-            node.updated_at = now
+            node.decayed_at = now
             if node.score < 0.01:
                 remove.append(key)
         for key in remove:
             self._nodes.pop(key, None)
+
+    def discard_kinds(self, kinds: frozenset[str]) -> None:
+        """Drop transient signal classes before observing a replacement turn."""
+        if not isinstance(kinds, frozenset) or any(
+            not isinstance(kind, str) or not kind
+            for kind in kinds
+        ):
+            raise TypeError("kinds must be a frozenset of nonempty strings")
+        for key in tuple(self._nodes):
+            if self._nodes[key].kind in kinds:
+                self._nodes.pop(key, None)
 
     def ingest(
         self,
         signal: NeuralSignal,
         *,
         now: datetime | None = None,
-    ) -> None:
+    ) -> bool:
         if not isinstance(signal, NeuralSignal):
             raise TypeError("signal must be NeuralSignal")
         now = signal.observed_at if now is None else now
-        if now.tzinfo is None or now.utcoffset() is None:
+        if (
+            not isinstance(now, datetime)
+            or now.tzinfo is None
+            or now.utcoffset() is None
+        ):
             raise ValueError("now must be timezone-aware")
+        if signal.observed_at > now:
+            raise ValueError("signal observed_at cannot be later than now")
         self._decay(now=now)
         if (now - signal.observed_at).total_seconds() > signal.ttl_seconds:
-            return
+            return False
         key = f"{signal.kind}:{signal.source}"
         existing = self._nodes.get(key)
         if (
             existing is not None
-            and signal.observed_at < existing.updated_at
+            and signal.observed_at <= existing.last_observed_at
         ):
             # Distributed/event sources may arrive out of order. Old evidence
             # must not rewind a newer attention node.
-            return
+            return False
         score = self.signal_score(signal)
         if existing is not None:
             # Repeated stimulation strengthens a node without allowing a single
@@ -118,7 +137,8 @@ class SalienceNetwork:
             kind=signal.kind,
             score=score,
             novelty=novelty,
-            updated_at=now,
+            last_observed_at=signal.observed_at,
+            decayed_at=now,
             expires_at=signal.observed_at + timedelta(
                 seconds=float(signal.ttl_seconds)
             ),
@@ -129,13 +149,18 @@ class SalienceNetwork:
                 key=lambda item: (item[1].score, item[0]),
             )[0]
             self._nodes.pop(weakest, None)
+        return key in self._nodes
 
     def activations(
         self,
         *,
         now: datetime,
     ) -> tuple[NeuralActivation, ...]:
-        if now.tzinfo is None or now.utcoffset() is None:
+        if (
+            not isinstance(now, datetime)
+            or now.tzinfo is None
+            or now.utcoffset() is None
+        ):
             raise ValueError("now must be timezone-aware")
         self._decay(now=now)
         ranked = sorted(
@@ -146,7 +171,7 @@ class SalienceNetwork:
                     kind=node.kind,
                     score=max(0.0, min(1.0, node.score)),
                     novelty=max(0.0, min(1.0, node.novelty)),
-                    updated_at=node.updated_at,
+                    updated_at=node.last_observed_at,
                 )
                 for key, node in self._nodes.items()
             ),

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 import re
 
 
@@ -10,7 +11,7 @@ _SIGNAL_ID = re.compile(r"^[A-Za-z0-9_.:/-]{1,120}$")
 
 
 def _unit_interval(name: str, value: float) -> None:
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be numeric")
     if not 0.0 <= float(value) <= 1.0:
         raise ValueError(f"{name} must be in 0..1")
@@ -43,13 +44,17 @@ class NeuralSignal:
                 )
         for name in ("value", "confidence", "novelty", "urgency"):
             _unit_interval(name, getattr(self, name))
+        if len(f"{self.kind}:{self.source}") > 120:
+            raise ValueError("combined signal key must be at most 120 characters")
         if (
-            self.observed_at.tzinfo is None
+            not isinstance(self.observed_at, datetime)
+            or self.observed_at.tzinfo is None
             or self.observed_at.utcoffset() is None
         ):
             raise ValueError("observed_at must be timezone-aware")
         if (
-            not isinstance(self.ttl_seconds, (int, float))
+            isinstance(self.ttl_seconds, bool)
+            or not isinstance(self.ttl_seconds, (int, float))
             or not 1.0 <= float(self.ttl_seconds) <= 86400.0
         ):
             raise ValueError("ttl_seconds must be in 1..86400")
@@ -74,7 +79,8 @@ class NeuralActivation:
         _unit_interval("score", self.score)
         _unit_interval("novelty", self.novelty)
         if (
-            self.updated_at.tzinfo is None
+            not isinstance(self.updated_at, datetime)
+            or self.updated_at.tzinfo is None
             or self.updated_at.utcoffset() is None
         ):
             raise ValueError("updated_at must be timezone-aware")
@@ -102,7 +108,8 @@ class NeuroStateSnapshot:
 
     def __post_init__(self) -> None:
         if (
-            self.generated_at.tzinfo is None
+            not isinstance(self.generated_at, datetime)
+            or self.generated_at.tzinfo is None
             or self.generated_at.utcoffset() is None
         ):
             raise ValueError("generated_at must be timezone-aware")
@@ -161,3 +168,26 @@ class NeuroStateSnapshot:
                 )
             )
         return "\n".join(lines)
+
+
+class NeuroWakeMode(str, Enum):
+    """Advisory compute tier; it never grants execution authority."""
+
+    NONE = "none"
+    DETERMINISTIC = "deterministic"
+    FAST = "fast"
+    STANDARD = "standard"
+    DEEP = "deep"
+    VERIFY = "verify"
+
+
+@dataclass(frozen=True, slots=True)
+class NeuroRoutingDecision:
+    mode: NeuroWakeMode
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.mode, NeuroWakeMode):
+            raise TypeError("mode must be NeuroWakeMode")
+        if not isinstance(self.reason, str) or not self.reason.strip():
+            raise ValueError("routing reason must be nonempty")

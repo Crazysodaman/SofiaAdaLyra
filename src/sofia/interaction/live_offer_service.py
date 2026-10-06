@@ -136,6 +136,9 @@ def respond_staged_offer(
                     principal=principal,
                     channel=channel,
                 )
+            observe_neuro = getattr(service, "_observe_neuro_turn", None)
+            if observe_neuro is not None:
+                observe_neuro(message=user, channel=channel)
             intent = parse_user_action(user.content, message_id=user.id)
             if (intent is None or intent.modality != 'offered'
                     or intent.action_id != 'hug'):
