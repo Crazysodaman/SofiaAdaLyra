@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import RLock
 
@@ -49,7 +49,9 @@ from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.background_runtime import create_background_coordinator
 from sofia.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
+    notification_route_from_environment,
 )
+from sofia.capability.gateway import CapabilityGateway
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import (
     configure_fleet_enrollment_notices,
@@ -79,6 +81,7 @@ from sofia.runtime.internal_workspace import normalize_runtime_workspace_awarene
 from sofia.run.heartbeat import ApplicationHeartbeatStore
 from sofia.ops.backup_topology import backup_topology_enabled
 from sofia.neuro import NeuralSignal, NeuroRuntime
+from sofia.neuro import BodyReflexObservation, VoiceSensoryObservation
 from sofia.neuro.coordinator import NeuroInputCoordinator
 from sofia.neuro.store import NeuroObservabilityStore
 from sofia.ops.local_telemetry import collect_local_telemetry
@@ -91,6 +94,8 @@ from sofia.goals import (
     GoalStore,
     effective_priority,
 )
+from sofia.goals.conversation import GoalConversationResolver
+from sofia.goals.coordinator import GoalProductionCoordinator
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -98,7 +103,7 @@ from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
-from sofia.social.principals import local_sparks_principal
+from sofia.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
 from sofia.ui.text import UITextClient
@@ -247,11 +252,24 @@ class SofiaApplication:
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
         )
+        goal_conversation = GoalConversationResolver(self._goals)
+        self._conversation_service.set_goal_command_handler(
+            goal_conversation.resolve
+        )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
         )
         configure_act_delivery_from_environment(
             self._act_service
+        )
+        self._goal_production = GoalProductionCoordinator(
+            goals=self._goals,
+            state_path=configuration.state_path,
+            gateway=CapabilityGateway(self._runtime.capability_system),
+            principal_provider=lambda: self._conversation_service._principal_context(),
+            neuro_provider=lambda: self._neuro.last_snapshot,
+            notify_review=self._notify_goal_review,
+            wake_recorder=self._neuro.record_wake_outcome,
         )
         configure_fleet_enrollment_notices(
             ops_service=self._runtime.ops_service,
@@ -322,6 +340,37 @@ class SofiaApplication:
     def _goal_context_for_principal(self, principal, now: datetime) -> str | None:
         return self._goals.prompt_context(principal, now=now)
 
+    def observe_body_reflex(self, observation: BodyReflexObservation):
+        """Accept only a BODY-owned post-reflex summary; never a motor command."""
+        return self._neuro_inputs.observe_body(observation)
+
+    def observe_voice_sensory(self, observation: VoiceSensoryObservation):
+        """Accept live acoustic salience without treating it as semantic truth."""
+        return self._neuro_inputs.observe_voice(observation)
+
+    def _notify_goal_review(self, goal, now: datetime) -> None:
+        """Queue review through ACT's existing policy/dedupe/delivery path."""
+        route = self._act_service.delivery_route or notification_route_from_environment(
+            state_path=Path(self._configuration.state_path),
+        )
+        if route is None:
+            return
+        channel, destination = route
+        self._act_service.queue_system_notice(
+            notice_id=f"goal-review:{goal.id}",
+            recipient_id=SPARKS_PRINCIPAL_ID,
+            channel=channel,
+            destination=destination,
+            evidence_id=goal.evidence_refs[0],
+            content=(
+                f"I noticed {goal.reason.rstrip('.').casefold()} and want to make "
+                f"'{goal.title}' an active goal. It needs your review first."
+            ),
+            created_at=now,
+            expires_at=min(goal.expires_at, now.replace(microsecond=0) + timedelta(days=7))
+            if goal.expires_at is not None else now + timedelta(days=7),
+        )
+
     @property
     def memory_review(self) -> MemoryReviewService:
         return self._memory_review
@@ -390,6 +439,9 @@ class SofiaApplication:
         )
         service.set_goal_context_provider(
             self._goal_context_for_principal
+        )
+        service.set_goal_command_handler(
+            GoalConversationResolver(self._goals).resolve
         )
         clothing_actions = getattr(
             self,
@@ -610,7 +662,12 @@ class SofiaApplication:
                     principal.principal_id
                 )
                 goal_priorities = tuple(
-                    (goal, effective_priority(goal, now=now).value)
+                    (goal, self._goal_production.priority(
+                        goal,
+                        now=now,
+                        conversation=content,
+                        mark_evaluated=True,
+                    ).value)
                     for goal in self._goals.list_visible(principal)
                     if goal.status is GoalStatus.ACTIVE
                 )[:32]
@@ -1145,6 +1202,11 @@ class SofiaApplication:
                 ),
                 refresh_environment=False,
             )
+            goal_production = getattr(self, "_goal_production", None)
+            if goal_production is not None:
+                goal_production.reconcile_startup(
+                    now=datetime.now(timezone.utc),
+                )
             self._startup_awareness_error = None
             try:
                 response = self._conversation_service.deliver_pending_awareness()

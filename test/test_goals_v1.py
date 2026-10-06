@@ -19,6 +19,7 @@ from sofia.goals import (
     SOFIA_GOAL_OWNER_ID,
     effective_priority,
 )
+from sofia.goals.evidence import GoalEvidence
 from sofia.neuro import NeuralActivation, NeuroInputCoordinator, NeuroRuntime
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.state.sqlite_plane import SQLiteStatePlane
@@ -37,10 +38,28 @@ def principal(audience="dm:one"):
     )
 
 
+class TypedEvidenceVerifier:
+    def __call__(self, ref):
+        return ref in KNOWN
+
+    def lookup(self, ref):
+        if ref not in KNOWN:
+            return None
+        kind = "operation_receipt" if ref.startswith("receipt:") else "reviewed_evidence"
+        return GoalEvidence(
+            evidence_ref=ref,
+            kind=kind,
+            observed_at=NOW,
+            successful=True if kind == "operation_receipt" else None,
+            assertion="Verified completion condition.",
+            cause_identified=ref == "evidence:ops-1",
+        )
+
+
 def service(tmp_path):
     return GoalService(
         GoalStore(SQLiteStatePlane(tmp_path / "sofia.db")),
-        evidence_verifier=lambda ref: ref in KNOWN,
+        evidence_verifier=TypedEvidenceVerifier(),
     )
 
 
@@ -109,7 +128,9 @@ def test_models_reject_invalid_priority_lifecycle_time_owner_and_completion(tmp_
 
 def test_valid_transitions_and_terminal_goal_cannot_reactivate(tmp_path):
     goals = service(tmp_path)
-    goal = user_goal(goals)
+    goal = user_goal(
+        goals, completion=completion(CompletionKind.OPERATION_RECEIPT),
+    )
     paused = goals.transition(
         goal_id=goal.id, principal_id=goal.scope_principal_id,
         audience=goal.scope_audience, expected_status=GoalStatus.ACTIVE,
@@ -345,6 +366,7 @@ def test_parent_all_children_completion_is_typed_and_evidence_backed(tmp_path):
     )
     child = user_goal(
         goals, title="Inspect service logs", parent_goal_id=parent.id,
+        completion=completion(CompletionKind.OPERATION_RECEIPT),
     )
     with pytest.raises(ValueError, match="child goals"):
         goals.transition(

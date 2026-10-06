@@ -40,6 +40,11 @@ class MatrixRoutingPlanner:
                 MatrixRoute.VERIFY,
                 "high-impact action planning receives dual-engine review",
             )
+        if turn.intent is MatrixIntent.GOAL_MANAGEMENT:
+            return RoutingPlan(
+                MatrixRoute.FAST,
+                "host-owned goal lifecycle resolver avoids model invocation",
+            )
         if turn.intent is MatrixIntent.SOCIAL_CHECKIN:
             return RoutingPlan(
                 MatrixRoute.STANDARD,

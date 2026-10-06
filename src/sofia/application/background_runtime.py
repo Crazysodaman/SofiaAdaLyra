@@ -95,12 +95,12 @@ def create_background_coordinator(
         refresh_neuro,
         interval_seconds=60.0,
     )
-    goals = getattr(application, "_goals", None)
-    if goals is not None:
+    goal_production = getattr(application, "_goal_production", None)
+    if goal_production is not None:
         coordinator.set_task(
-            "goal_expiration",
-            lambda now: goals.expire_due(now=now),
-            interval_seconds=300.0,
+            "goal_production",
+            lambda now: goal_production.tick(now=now),
+            interval_seconds=60.0,
         )
     from sofia.avatar.wardrobe_review import WardrobeReviewStore, review_next
     from sofia.social.principals import local_sparks_principal

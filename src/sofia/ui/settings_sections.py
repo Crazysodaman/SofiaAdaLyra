@@ -111,6 +111,8 @@ class SettingsSections:
             ),
             wraplength=660,
         ).pack(anchor="w", pady=8)
+        from .goals_panel import GoalsPanel
+        self.goals = GoalsPanel(self, frames["Goals"])
         self.memory_panel(frames["Memory"])
         self.sql_panel(frames["EVOLVE"], "Reviewed revisions", "evolve_reviewed_revisions")
         self.sql_panel(frames["EVOLVE"], "Configuration authority records", "state_plane_record", where="namespace='configuration'")

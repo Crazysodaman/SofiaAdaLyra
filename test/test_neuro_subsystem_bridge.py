@@ -16,11 +16,11 @@ from sofia.environment.model import (
     WeatherObservation,
 )
 from sofia.neuro import (
-    NeuralSignal,
+    BodyReflexObservation, NeuralSignal,
     NeuroInputCoordinator,
     NeuroObservabilityStore,
     NeuroRuntime,
-    NeuroWakeMode,
+    NeuroWakeMode, VoiceSensoryObservation,
 )
 from sofia.ops.model import HostTelemetry
 from sofia.voice import TTSStatus
@@ -202,6 +202,42 @@ def test_gaia_reflex_bridge_accepts_attention_only_body_signal(tmp_path):
         assert "body signal" in str(exc)
     else:
         raise AssertionError("motor/goal signals must not enter the reflex bridge")
+
+
+def test_typed_body_bridge_requires_safety_reflex_before_neuro(tmp_path):
+    path = tmp_path / "sofia.db"
+    _database(path)
+    coordinator = NeuroInputCoordinator(NeuroRuntime(), path)
+    try:
+        BodyReflexObservation(
+            source="gaia", observed_at=NOW, collision=True,
+            safe_response_applied=False,
+        )
+    except ValueError as exc:
+        assert "before NEURO" in str(exc)
+    else:
+        raise AssertionError("NEURO was allowed to precede a hardware safety reflex")
+    state = coordinator.observe_body(BodyReflexObservation(
+        source="gaia", observed_at=NOW, collision=True,
+        emergency_stop=True, safe_response_applied=True,
+    ))
+    assert state.focus.kind == "body"
+
+
+def test_voice_sensory_bridge_carries_salience_not_semantic_truth(tmp_path):
+    path = tmp_path / "sofia.db"
+    _database(path)
+    runtime = NeuroRuntime()
+    coordinator = NeuroInputCoordinator(runtime, path)
+    state = coordinator.observe_voice(VoiceSensoryObservation(
+        observed_at=NOW, listening=True, speech_detected=True,
+        vad_confidence=0.8, interrupted=True, stt_confidence=0.4,
+        discord_voice_active=True,
+    ))
+    assert state.focus.kind == "voice"
+    sources = {item.source for item in runtime.recent_signals}
+    assert "input:barge-in" in sources
+    assert all("content" not in source for source in sources)
 
 
 def test_neuro_gates_optional_wakes_and_only_advises_background_ordering():

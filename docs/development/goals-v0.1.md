@@ -1,6 +1,6 @@
 # Goals v0.1
 
-**Status:** repository-tested deterministic baseline; live initiative evaluation pending
+**Status:** production-wired closed-loop baseline; live host acceptance pending
 **Date:** 2026-10-06
 
 ## Purpose
@@ -59,12 +59,15 @@ Sofía's candidate API accepts only a typed high-salience activation plus
 independently verified host evidence. Low-salience noise returns no candidate.
 The activation itself is never evidence.
 
-Candidate creation, deterministic policy admission, durable CANDIDATE
-persistence, and ACTIVE transition are separate calls. This prevents NEURO from
-directly manufacturing active durable goals. Autonomous goals require an
-expiration. Conservative limits are 32 active goals, 64 candidates, hierarchy
-depth 4, and 16 children per parent. Exact normalized-title duplicates return
-`MERGE` instead of multiplying.
+The application-owned coordinator accepts reviewed OPS/Fleet/RUN/network fault
+classes only. It requires independently typed evidence plus NEURO activation,
+then records `ACCEPT`, `REJECT`, `DEFER`, `ASK_USER`, or `MERGE`. Accepted
+candidates persist as CANDIDATE before becoming ACTIVE; high-risk candidates
+remain reviewable and use existing ACT outreach. Deferred candidates have a
+bounded reconsideration interval. SELF goals always retain an authenticated
+principal/audience scope; host-wide directions use SYSTEM/MAINTENANCE instead.
+Conservative limits are 32 active goals, 64 candidates, hierarchy depth 4, and
+16 children per parent. Exact normalized-title duplicates merge evidence.
 
 ## Priority and NEURO
 
@@ -73,15 +76,18 @@ weight, urgency, age, deadline proximity, new evidence, conversational
 relevance, resource pressure, lifecycle state, and an optional capped neural
 relevance input. Diagnostics retain every contribution.
 
-Only active goals feed NEURO. The adapter caps goal signal value at 0.9 and uses
-an effective priority computed with neural relevance set to zero. Consequently:
+Only active goals feed NEURO. The adapter caps goal signal value at 0.9. Real
+deadline urgency, newly relevant typed evidence, resource pressure,
+conversation resource tags, and capped non-goal NEURO relevance contribute to
+the diagnostic priority trace. Canonical base priority is unchanged.
 
 ```text
 canonical active goal → bounded goal signal → NEURO attention
 ```
 
-There is no automatic `NEURO → priority → NEURO` reinforcement loop. NEURO may
-trigger a new in-memory candidate only when separate host evidence exists.
+Goal activations are explicitly excluded from the neural-relevance input, so
+there is no `goal priority → NEURO → priority` amplification loop. NEURO may
+trigger a candidate only when separate reviewed host evidence exists.
 
 ## Matrix, ACT, and RUN
 
@@ -90,16 +96,26 @@ live goals as JSON data under an explicit SYSTEM disclaimer. Titles and reasons
 are data rather than instructions or evidence. Other principals and audiences
 cannot enumerate the partition. Goal projection failure is non-fatal.
 
-`GoalActionProposal` wraps the existing `CapabilityProposal`; it does not call
-the capability gateway. Read-only inspection therefore retains ordinary Level
-1 behavior, while mutations retain their existing standing/exact approval
-requirements. There is no goal override.
+Conversation creation/list/pause/resume/cancel and SELF review resolve before
+model invocation through Matrix's deterministic goal intent. The exact saved
+authenticated message is typed source evidence; public/unauthenticated callers
+cannot create Sparks-owned goals. The LLM never writes canonical goal state.
 
-RUN compatibility states describe pending inspection, scheduled re-check,
-waiting for evidence/deadline, or blocked approval. Setting one persists intent
-only: it creates no background claim, job, result, or receipt. A real scheduled
-deadline-maintenance task expires due unscoped host goals under the existing
-background budget.
+`GoalActionProposal` wraps the existing `CapabilityProposal`. The production
+planner currently uses reviewed deterministic diagnostic mappings, validates
+the registered capability and permission class, and invokes the existing
+gateway inside a real background RUN claim. Level-1 inspection remains
+automatic. A validated Level-3 mutation enters BLOCKED_APPROVAL until an exact
+canonical standing grant exists; goals never provide approval IDs or override
+authority.
+
+RUN states are operational: pending diagnostics run under the bounded
+application scheduler, rechecks use a durable schedule, waiting evidence wakes
+only on relevant evidence or bounded polling, and blocked approval does not
+retry execution. Successful calls create typed, goal/action-linked receipts;
+unknown/failed execution is not completion. Restart expires every indexed
+private/global partition, recovers rechecks, and never converts restart into a
+success claim.
 
 ## Persistence and privacy
 
@@ -115,20 +131,22 @@ semantics.
 
 ## Diagnostics and current limits
 
-The programmatic diagnostic projection reports active/candidate/blocked/recent
-terminal state, origin, reason, effective priority and its contribution trace,
-completion condition, blocker, and RUN state. No large goal-management tray page
-is added in this slice.
+The Goals tray panel reports active/candidate/blocked/paused/waiting/recent
+terminal goals, safe owner/scope, priority trace, reason, timestamps,
+completion, blocker, RUN state, hierarchy, and evidence count. Authenticated
+local Sparks controls USER lifecycle and SELF candidate review through
+GoalService rather than direct database mutation.
 
-This baseline does not implement Gaia motor goals, semantic duplicate matching,
-LLM-authored canonical state, arbitrary cross-principal administration, or an
-automatic capability executor. Live autonomous initiative quality and resource
-thresholds still require production observation.
+This baseline deliberately does not implement Gaia motor goals, semantic-only
+duplicate/evidence matching, LLM-authored canonical state, arbitrary
+cross-principal administration, or permission-management actions. The
+connectome package is experimental and non-authoritative. Live initiative
+quality, service canaries, resource thresholds, and long-horizon behavior still
+require production observation.
 
 ## Verification evidence
 
-On 2026-10-06, the goal-domain test file passed **17/17**, the final focused
-goal/NEURO/application gate passed **93 passed / 1 skipped**, and the exact final
-non-integration repository gate passed **3,720 passed / 5 skipped / 6
-deselected**. Live initiative quality, external services, and production host
+Verification counts in this document are updated only from the final observed
+gate for the revision being shipped; see the release verification evidence and
+commit report. Live initiative quality, external services, and production host
 overhead remain separate acceptance work.

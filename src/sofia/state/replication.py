@@ -924,3 +924,6 @@ class ReplicatedStatePlane(StatePlane):
             principal_id=principal_id,
             audience=audience,
         )
+
+    def list_scopes(self, namespace: str) -> tuple[tuple[str | None, str | None], ...]:
+        return self._primary().list_scopes(namespace)

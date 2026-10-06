@@ -37,6 +37,24 @@ class NeuroObservabilityStore:
                     urgency REAL NOT NULL,
                     observed_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS neuro_wake_event (
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mode TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    llm_called INTEGER NOT NULL,
+                    observed_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS neuro_performance_event (
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                    refresh_ms REAL NOT NULL,
+                    cpu_ms REAL NOT NULL,
+                    signal_count INTEGER NOT NULL,
+                    active_node_count INTEGER NOT NULL,
+                    goal_count INTEGER NOT NULL,
+                    db_reads INTEGER NOT NULL,
+                    db_writes INTEGER NOT NULL,
+                    observed_at TEXT NOT NULL
+                );
             """)
 
     def _connect(self) -> sqlite3.Connection:
@@ -172,6 +190,62 @@ class NeuroObservabilityStore:
             """, (limit,)).fetchall()
         return tuple(dict(row) for row in rows)
 
+    def record_wake(
+        self, *, mode: str, reason: str, llm_called: bool, observed_at: datetime,
+    ) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute(
+                "INSERT INTO neuro_wake_event(mode,reason,llm_called,observed_at) "
+                "VALUES(?,?,?,?)",
+                (mode, reason[:240], int(llm_called), observed_at.isoformat()),
+            )
+            db.execute("""
+                DELETE FROM neuro_wake_event WHERE seq NOT IN (
+                    SELECT seq FROM neuro_wake_event ORDER BY seq DESC LIMIT ?
+                )
+            """, (self.max_events,))
+
+    def wake_metrics(self) -> dict[str, int]:
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT COUNT(*),SUM(CASE WHEN llm_called=0 THEN 1 ELSE 0 END),"
+                "SUM(CASE WHEN llm_called=1 THEN 1 ELSE 0 END) FROM neuro_wake_event"
+            ).fetchone()
+        return {
+            "decisions": int(row[0] or 0),
+            "llm_avoided": int(row[1] or 0),
+            "llm_called": int(row[2] or 0),
+        }
+
+    def record_performance(
+        self, *, refresh_ms: float, cpu_ms: float, signal_count: int,
+        active_node_count: int, goal_count: int, db_reads: int, db_writes: int,
+        observed_at: datetime,
+    ) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute("""
+                INSERT INTO neuro_performance_event(
+                    refresh_ms,cpu_ms,signal_count,active_node_count,goal_count,
+                    db_reads,db_writes,observed_at
+                ) VALUES(?,?,?,?,?,?,?,?)
+            """, (
+                refresh_ms, cpu_ms, signal_count, active_node_count, goal_count,
+                db_reads, db_writes, observed_at.isoformat(),
+            ))
+            db.execute("""
+                DELETE FROM neuro_performance_event WHERE seq NOT IN (
+                    SELECT seq FROM neuro_performance_event ORDER BY seq DESC LIMIT ?
+                )
+            """, (self.max_events,))
+
+    def latest_performance(self) -> dict | None:
+        with closing(self._connect()) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute(
+                "SELECT * FROM neuro_performance_event ORDER BY seq DESC LIMIT 1"
+            ).fetchone()
+        return None if row is None else dict(row)
+
 
 def neuro_observability_text(state_path: str | Path) -> str:
     store = NeuroObservabilityStore(state_path)
@@ -201,6 +275,27 @@ def neuro_observability_text(state_path: str | Path) -> str:
     if current.get("routing"):
         route = current["routing"]
         lines.append(f"Cognitive route: {route['mode']} — {route['reason']}")
+    metrics = store.wake_metrics()
+    lines.append(
+        "Wake decisions: "
+        f"{metrics['decisions']} (LLM avoided {metrics['llm_avoided']}; "
+        f"called {metrics['llm_called']})"
+    )
+    performance = store.latest_performance()
+    if performance is not None:
+        lines.append(
+            "Refresh cost: "
+            f"{performance['refresh_ms']:.2f} ms wall / "
+            f"{performance['cpu_ms']:.2f} ms CPU; signals "
+            f"{performance['signal_count']}; nodes "
+            f"{performance['active_node_count']}; goals "
+            f"{performance['goal_count']}; instrumented DB read/write batches "
+            f"{performance['db_reads']}/{performance['db_writes']}"
+        )
+        if performance["refresh_ms"] > 250.0:
+            lines.append(
+                "Performance warning: refresh exceeded the 250 ms advisory threshold."
+            )
     recent = store.recent(limit=min(16, store.max_events))
     lines.append("Recent signals:")
     lines.extend(

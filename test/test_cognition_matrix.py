@@ -686,8 +686,9 @@ def test_default_registry_has_one_owner_per_registered_domain():
         MatrixDomain.COGNITION,
         MatrixDomain.MACHINE,
         MatrixDomain.OPS,
-        MatrixDomain.AUTHORITY,
-    }
+            MatrixDomain.AUTHORITY,
+            MatrixDomain.GOALS,
+        }
 
 def test_machine_domain_can_strengthen_operational_relevance():
     result = MatrixCoordinator(

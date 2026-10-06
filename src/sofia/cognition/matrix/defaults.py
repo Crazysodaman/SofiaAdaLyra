@@ -54,6 +54,7 @@ def default_matrix_registry() -> MatrixRegistry:
     from sofia.body.matrix import BodyMatrixEvaluator
     from sofia.ops.matrix import OpsMatrixEvaluator
     from sofia.social.matrix import SocialMatrixEvaluator
+    from sofia.goals.matrix import GoalMatrixEvaluator
 
 
     return MatrixRegistry(
@@ -75,6 +76,7 @@ def default_matrix_registry() -> MatrixRegistry:
             CognitionMatrixEvaluator(),
             MachineMatrixEvaluator(),
             OpsMatrixEvaluator(),
+            GoalMatrixEvaluator(),
             AuthorityMatrixEvaluator(),
         )
     )

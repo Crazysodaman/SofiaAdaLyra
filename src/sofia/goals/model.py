@@ -216,6 +216,12 @@ class Goal:
         if self.origin is GoalOrigin.USER:
             if self.scope_principal_id != self.owner_principal_id:
                 raise ValueError("USER goals must be scoped to their authenticated owner")
+        elif (
+            self.origin is GoalOrigin.SELF
+            and self.scope_principal_id is None
+            and self.status not in TERMINAL_GOAL_STATUSES
+        ):
+            raise ValueError("live SELF goals require a principal/audience scope")
         elif self.owner_principal_id != SOFIA_GOAL_OWNER_ID:
             raise ValueError("non-USER goals must be owned by Sofía")
         for name, value, maximum in (
@@ -322,6 +328,12 @@ class GoalCandidate:
             raise TypeError("origin must be GoalOrigin")
         if self.origin is GoalOrigin.USER:
             raise ValueError("NEURO candidates cannot impersonate USER goals")
+        if self.origin is GoalOrigin.SELF and (
+            self.scope_principal_id is None or self.scope_audience is None
+        ):
+            raise ValueError(
+                "SELF candidates require an authenticated principal/audience scope"
+            )
         if self.owner_principal_id != SOFIA_GOAL_OWNER_ID:
             raise ValueError("autonomous candidates must be owned by Sofía")
         if self.scope_principal_id is not None:

@@ -53,6 +53,7 @@ jobs:
           python -m venv .releasevenv
           .\.releasevenv\Scripts\python.exe -m pip install --upgrade pip
           .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
+          .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
           .\.releasevenv\Scripts\python.exe -m pip install --no-deps .\release-source
 
       - name: Run revision-bound verification gate

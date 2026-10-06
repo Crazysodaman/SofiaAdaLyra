@@ -44,6 +44,7 @@ from sofia.cognition.matrix import (
 )
 from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.social.model import PrincipalContext
+from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
 
 
@@ -730,6 +731,14 @@ class ConversationMatrixMixin:
         response: CognitiveResponse,
     ) -> CognitiveResponse:
         """Validate a host-generated reply without invoking an LLM retry."""
+        neuro_runtime = getattr(self, "_neuro_runtime", None)
+        if neuro_runtime is not None:
+            neuro_runtime.record_wake_outcome(
+                mode=NeuroWakeMode.DETERMINISTIC,
+                reason="host deterministic resolver answered without a model",
+                llm_called=False,
+                now=datetime.now(timezone.utc),
+            )
         if (
             getattr(self, "_current_response_contract", None) is None
             or getattr(self, "_current_evidence_matrix", None) is None

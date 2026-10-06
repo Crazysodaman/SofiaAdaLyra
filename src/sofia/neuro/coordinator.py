@@ -8,6 +8,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
+from time import perf_counter, process_time
 
 from sofia.emotion.model import CurrentEmotionalState
 from sofia.environment.model import EnvironmentSnapshot
@@ -27,6 +28,10 @@ from .adapters import (
 )
 from .model import NeuralSignal, NeuroStateSnapshot
 from .runtime import NeuroRuntime
+from .sensory import (
+    BodyReflexObservation, VoiceSensoryObservation,
+    body_reflex_signals, voice_sensory_signals,
+)
 
 
 CURRENT_STATE_KINDS = frozenset({
@@ -310,6 +315,8 @@ class NeuroInputCoordinator:
     ) -> NeuroStateSnapshot:
         if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
+        wall_started = perf_counter()
+        cpu_started = process_time()
         signals: list[NeuralSignal] = [
             *environment_signals(environment),
             *body_signals(environment),
@@ -400,6 +407,19 @@ class NeuroInputCoordinator:
                 signals=bounded_signals,
                 now=now,
             )
+            self.runtime.record_performance(
+                refresh_ms=(perf_counter() - wall_started) * 1000.0,
+                cpu_ms=(process_time() - cpu_started) * 1000.0,
+                signal_count=len(bounded_signals),
+                active_node_count=snapshot.active_signal_count,
+                goal_count=len(goal_priorities),
+                # One durable-signal batch and one State Plane Fleet batch;
+                # snapshot and performance persistence are separate batches.
+                # These are instrumented storage operations, not SQL row counts.
+                db_reads=2,
+                db_writes=2,
+                observed_at=now,
+            )
             self.last_error = None
             return snapshot
         except Exception as exc:
@@ -411,3 +431,21 @@ class NeuroInputCoordinator:
         if not isinstance(signal, NeuralSignal) or signal.kind != "body":
             raise ValueError("reflex bridge accepts only a typed body signal")
         return self.runtime.observe_signal(signal)
+
+    def observe_body(self, observation: BodyReflexObservation) -> NeuroStateSnapshot:
+        signals = body_reflex_signals(observation)
+        snapshot = self.runtime.last_snapshot
+        for signal in signals:
+            snapshot = self.observe_reflex(signal)
+        if snapshot is None:
+            raise RuntimeError("BODY observation produced no NEURO snapshot")
+        return snapshot
+
+    def observe_voice(self, observation: VoiceSensoryObservation) -> NeuroStateSnapshot:
+        signals = voice_sensory_signals(observation)
+        snapshot = self.runtime.last_snapshot
+        for signal in signals:
+            snapshot = self.runtime.observe_signal(signal)
+        if snapshot is None:
+            raise RuntimeError("VOICE observation produced no NEURO snapshot")
+        return snapshot

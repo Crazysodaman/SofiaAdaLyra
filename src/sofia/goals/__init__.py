@@ -20,11 +20,12 @@ from .model import (
 from .policy import GoalPolicy, effective_priority
 from .store import GoalStore
 from .service import GoalService, audience_scope
-from .evidence import GoalEvidenceIndex
+from .evidence import GoalEvidence, GoalEvidenceIndex, GoalEvidenceLedger
 
 __all__ = [
     "CompletionKind", "Goal", "GoalActionProposal", "GoalCandidate",
-    "GoalCompletionCondition", "GoalCost", "GoalEvidenceIndex", "GoalLifecycleEvent",
+    "GoalCompletionCondition", "GoalCost", "GoalEvidence", "GoalEvidenceIndex",
+    "GoalEvidenceLedger", "GoalLifecycleEvent",
     "GoalOrigin", "GoalPolicy", "GoalPolicyDecision", "GoalPolicyResult",
     "GoalPriority", "GoalRisk", "GoalRunState", "GoalService", "GoalStatus",
     "GoalStore", "SOFIA_GOAL_OWNER_ID", "audience_scope", "effective_priority",

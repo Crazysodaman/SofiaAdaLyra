@@ -55,3 +55,11 @@ class StatePlane(ABC):
         audience: str | None = None,
     ) -> tuple[StateRecord, ...]:
         raise NotImplementedError
+
+    def list_scopes(self, namespace: str) -> tuple[tuple[str | None, str | None], ...]:
+        """Privileged content-free partition enumeration for host maintenance.
+
+        Backends that cannot support administrative scope enumeration must
+        fail closed. This method returns scope identifiers, never record data.
+        """
+        raise NotImplementedError("State Plane backend does not enumerate scopes")

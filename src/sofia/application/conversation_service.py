@@ -41,7 +41,7 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
-from sofia.neuro import NeuroRuntime, NeuroStateSnapshot
+from sofia.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
 
 
 _LOG = logging.getLogger(__name__)
@@ -218,6 +218,7 @@ class ConversationService(ConversationMatrixMixin):
         self._wardrobe_generation_handler = None
         self._voice_runtime_provider = None
         self._goal_context_provider = None
+        self._goal_command_handler = None
         self._last_goal_context_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
@@ -306,6 +307,12 @@ class ConversationService(ConversationMatrixMixin):
             raise TypeError("goal context provider must be callable or None")
         self._goal_context_provider = provider
         self._last_goal_context_error = None
+
+    def set_goal_command_handler(self, handler) -> None:
+        """Install the authenticated host-owned canonical goal command boundary."""
+        if handler is not None and not callable(handler):
+            raise TypeError("goal command handler must be callable or None")
+        self._goal_command_handler = handler
 
     @property
     def last_goal_context_error(self) -> str | None:
@@ -727,6 +734,22 @@ class ConversationService(ConversationMatrixMixin):
             channel=channel,
         )
 
+        goal_handler = self._goal_command_handler
+        if goal_handler is not None:
+            goal_reply = goal_handler(
+                message=user_message,
+                principal=principal,
+                turn=self._current_turn_matrix,
+            )
+            if goal_reply is not None:
+                response = CognitiveResponse(
+                    content=goal_reply.content,
+                    evidence_refs=(user_message.id,),
+                )
+                response = self._matrix_finalize_deterministic_response(response)
+                self._persist_response(response)
+                return response
+
         history = self._conversation_store.list_messages(
             self._session.id
         )
@@ -893,6 +916,17 @@ class ConversationService(ConversationMatrixMixin):
             )
 
         self._capture_cognition_execution()
+        if self._neuro_runtime is not None:
+            try:
+                wake_mode = NeuroWakeMode(request.route_hint or "standard")
+            except ValueError:
+                wake_mode = NeuroWakeMode.STANDARD
+            self._neuro_runtime.record_wake_outcome(
+                mode=wake_mode,
+                reason="conversation required cognitive model response",
+                llm_called=True,
+                now=datetime.now(timezone.utc),
+            )
 
         if self._current_conversation_retrieval_refs:
             response = CognitiveResponse(

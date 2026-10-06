@@ -190,6 +190,62 @@ def test_conversation_service_persists_user_and_assistant_messages(
     application.shutdown()
 
 
+def test_authenticated_conversation_creates_and_manages_canonical_user_goal(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    sparks = local_sparks_principal()
+
+    created = application.conversation.respond(
+        "Make checking why Artemis is dropping offline a goal.",
+        principal=sparks,
+    )
+    assert created.content.startswith("Added and activated goal:")
+    goals = application.goals.list_visible(sparks)
+    assert len(goals) == 1
+    assert goals[0].title == "checking why Artemis is dropping offline"
+    assert goals[0].evidence_refs == (created.evidence_refs[0],)
+
+    duplicate = application.conversation.respond(
+        "Make checking why Artemis is dropping offline a goal.",
+        principal=sparks,
+    )
+    assert "already a current goal" in duplicate.content
+    assert len(application.goals.list_visible(sparks)) == 1
+
+    listed = application.conversation.respond(
+        "list my goals", principal=sparks,
+    )
+    assert "checking why Artemis is dropping offline" in listed.content
+    application.conversation.respond(
+        "pause goal checking why Artemis is dropping offline", principal=sparks,
+    )
+    assert application.goals.list_visible(sparks)[0].status.value == "paused"
+    application.conversation.respond(
+        "resume goal checking why Artemis is dropping offline", principal=sparks,
+    )
+    assert application.goals.list_visible(sparks)[0].status.value == "active"
+    application.conversation.respond(
+        "cancel goal checking why Artemis is dropping offline", principal=sparks,
+    )
+    assert application.goals.list_visible(sparks)[0].status.value == "cancelled"
+    application.shutdown()
+
+
+def test_public_or_unauthenticated_conversation_cannot_create_sparks_goal(
+    tmp_path: Path,
+):
+    application = create_application(tmp_path)
+    application.start()
+    with pytest.raises(PermissionError, match="authenticated private"):
+        application.conversation.respond(
+            "Add a goal to investigate Artemis latency."
+        )
+    assert application.goals.list_visible(local_sparks_principal()) == ()
+    application.shutdown()
+
+
 def _dual_test_router():
     primary = LLMCognitiveEngine(
         configuration=ProviderConfiguration(

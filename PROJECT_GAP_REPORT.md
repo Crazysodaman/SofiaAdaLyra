@@ -685,27 +685,19 @@ No production application wiring was found that regularly invokes it from:
 
 ---
 
-## 33. Goal delivery exists, but production goal creation is incomplete
+## 33. Goal production loop is wired; live-host acceptance remains
 
-`GoalJournal` supports:
+Canonical `goals-v1` is now reached from authenticated conversation, reviewed
+OPS/Fleet/RUN/network evidence, NEURO candidate triggering, deterministic
+policy, ACT notifications, capability proposals, the existing permission
+gateway, bounded RUN claims/rechecks, typed receipts/completion, restart
+reconciliation, scoped expiration, Matrix context, and the tray Goals panel.
+The older `GoalJournal` remains a narrow outreach compatibility store and is not
+a second canonical goal system.
 
-- creating goals;
-- transitions;
-- selecting next goal;
-- queueing messages.
-
-`SofiaActService` can deliver pending goal messages.
-
-But current application bootstrap visibly wires reflection outreach, not a complete production goal-generation/activation loop.
-
-**Needed:**
-
-- source-backed goal proposal;
-- review/activation policy;
-- contextual priority;
-- bounded generation;
-- completion/cancellation handling;
-- ACT receipt linkage.
+Remaining acceptance is operational rather than missing source wiring: observe
+initiative quality, dedupe, priority stability, recheck cost, quiet-hour review
+delivery, and authorized mutation behavior on a real long-running host.
 
 ---
 
@@ -941,7 +933,7 @@ M8 Voice runtime/prosody matrix foundation is also implemented; actual live STT/
 30. ✅ Seasonal/environment HABIT learning.
 31. ✅ Contextual memory rerank.
 32. ✅ Interaction willingness/expression split.
-33. Production initiative/goal generation.
+33. ✅ Production initiative/goal generation and bounded pursuit wiring.
 
 ## Phase F — embodiment/interfaces
 

@@ -1,11 +1,13 @@
 """Canonical State Plane persistence for goals and embedded lifecycle history."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+from hashlib import sha256
 import json
+from uuid import uuid4
 
 from sofia.state.model import StateClass, StateKey, StateRecord
-from sofia.state.plane import StatePlane
+from sofia.state.plane import StatePlane, StatePlaneConflictError
 
 from .model import (
     CompletionKind,
@@ -19,6 +21,7 @@ from .model import (
 
 
 GOAL_NAMESPACE = "goals-v1"
+GOAL_SCOPE_NAMESPACE = "goals-v1-scope-index"
 
 
 def _time(value: datetime | None) -> str | None:
@@ -32,6 +35,57 @@ class GoalStore:
         if not isinstance(state_plane, StatePlane):
             raise TypeError("state_plane must implement StatePlane")
         self.state_plane = state_plane
+        self._quarantine_legacy_unscoped_self()
+
+    def _quarantine_legacy_unscoped_self(self) -> None:
+        """Make pre-scope SELF records terminal without projecting their content."""
+        for record in self.state_plane.list_namespace(GOAL_NAMESPACE):
+            value = json.loads(record.value.decode("utf-8"))
+            if (
+                value.get("origin") != GoalOrigin.SELF.value
+                or value.get("scope_principal_id") is not None
+                or value.get("scope_audience") is not None
+                or value.get("status") in {
+                    item.value for item in (
+                        GoalStatus.COMPLETED, GoalStatus.REJECTED,
+                        GoalStatus.CANCELLED, GoalStatus.EXPIRED,
+                        GoalStatus.SUPERSEDED,
+                    )
+                }
+            ):
+                continue
+            now = datetime.now(timezone.utc)
+            previous = value["status"]
+            value["status"] = GoalStatus.REJECTED.value
+            value["updated_at"] = now.isoformat()
+            value["run_state"] = GoalRunState.NONE.value
+            value["blocked_reason"] = None
+            value["revision"] = record.revision + 1
+            value.setdefault("history", []).append({
+                "event_id": f"goal-event:{uuid4()}",
+                "from_status": previous,
+                "to_status": GoalStatus.REJECTED.value,
+                "actor_principal_id": "sofia:self",
+                "occurred_at": now.isoformat(),
+                "evidence_refs": [],
+                "note": "legacy unscoped SELF goal quarantined during scope migration",
+            })
+            updated = StateRecord(
+                key=record.key,
+                state_class=record.state_class,
+                revision=record.revision + 1,
+                value=json.dumps(
+                    value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+                ).encode("utf-8"),
+                updated_at=now,
+                source=record.source,
+            )
+            try:
+                self.state_plane.write(updated, expected_revision=record.revision)
+            except StatePlaneConflictError:
+                current = self.state_plane.read(record.key)
+                if current is None or current.revision <= record.revision:
+                    raise
 
     @staticmethod
     def _key(goal_id: str, principal_id: str | None, audience: str | None) -> StateKey:
@@ -139,6 +193,7 @@ class GoalStore:
     def create(self, goal: Goal) -> Goal:
         if not isinstance(goal, Goal) or goal.revision != 1:
             raise ValueError("new goal must be a revision-1 Goal")
+        self._register_scope(goal.scope_principal_id, goal.scope_audience, goal.updated_at)
         record = StateRecord(
             key=self._key(goal.id, goal.scope_principal_id, goal.scope_audience),
             state_class=StateClass.SHARED_AUTHORITATIVE,
@@ -148,6 +203,62 @@ class GoalStore:
             source=f"goal:{goal.origin.value}",
         )
         return self._goal(self.state_plane.write(record, expected_revision=None))
+
+    def _register_scope(
+        self,
+        principal_id: str | None,
+        audience: str | None,
+        now: datetime,
+    ) -> None:
+        payload = json.dumps({
+            "principal_id": principal_id,
+            "audience": audience,
+        }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        key = StateKey(
+            namespace=GOAL_SCOPE_NAMESPACE,
+            key="scope:" + sha256(payload).hexdigest()[:32],
+        )
+        if self.state_plane.read(key) is not None:
+            return
+        try:
+            self.state_plane.write(StateRecord(
+                key=key,
+                state_class=StateClass.SHARED_AUTHORITATIVE,
+                revision=1,
+                value=payload,
+                updated_at=now,
+                source="goals:scope-index",
+            ), expected_revision=None)
+        except StatePlaneConflictError:
+            if self.state_plane.read(key) is None:
+                raise
+
+    def scopes(self) -> tuple[tuple[str | None, str | None], ...]:
+        """Return content-free internal partitions for maintenance/recovery."""
+        scopes = []
+        for record in self.state_plane.list_namespace(GOAL_SCOPE_NAMESPACE):
+            value = json.loads(record.value.decode("utf-8"))
+            item = (value.get("principal_id"), value.get("audience"))
+            if (item[0] is None) != (item[1] is None):
+                raise ValueError("goal scope index contains a partial scope")
+            scopes.append(item)
+        try:
+            scopes.extend(self.state_plane.list_scopes(GOAL_NAMESPACE))
+        except NotImplementedError:
+            # New writes always maintain the portable scope index. Backends
+            # without administrative enumeration cannot migrate older scopes.
+            pass
+        if (None, None) not in scopes:
+            scopes.append((None, None))
+        return tuple(sorted(set(scopes), key=lambda item: (item[0] or "", item[1] or "")))
+
+    def list_all_internal(self) -> tuple[Goal, ...]:
+        """Privileged host-only enumeration; callers must not project content."""
+        return tuple(
+            goal
+            for principal_id, audience in self.scopes()
+            for goal in self.list_scope(principal_id=principal_id, audience=audience)
+        )
 
     def update(self, goal: Goal, *, expected_revision: int) -> Goal:
         if not isinstance(goal, Goal):

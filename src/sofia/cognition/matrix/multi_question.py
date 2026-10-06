@@ -59,6 +59,8 @@ def merge_question_turns(turns: tuple[TurnMatrix, ...]) -> TurnMatrix:
     intents = tuple(turn.intent for turn in turns)
     if MatrixIntent.ACTION_REQUEST in intents:
         intent = MatrixIntent.ACTION_REQUEST
+    elif MatrixIntent.GOAL_MANAGEMENT in intents:
+        intent = MatrixIntent.GOAL_MANAGEMENT
     elif MatrixIntent.OPERATIONAL_QUERY in intents:
         intent = MatrixIntent.OPERATIONAL_QUERY
     elif all(item is intents[0] for item in intents):

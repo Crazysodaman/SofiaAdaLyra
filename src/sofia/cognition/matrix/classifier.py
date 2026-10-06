@@ -104,6 +104,15 @@ _MODEL_STATUS = re.compile(
     r"\b(?:what|which)\s+(?:llm|model)\b|\bmodel\s+status\b",
     re.IGNORECASE,
 )
+_GOAL_MANAGEMENT = re.compile(
+    r"\b(?:goal|goals)\b.*\b(?:add|make|create|keep|finish|list|show|current|"
+    r"pause|resume|cancel|approve|reject|blocking|blocked|important|why|status)\b|"
+    r"\b(?:add|make|create|pause|resume|cancel|approve|reject|list|show)\b.{0,64}\bgoals?\b|"
+    r"\bwhat\s+are\s+(?:my|your|the)\s+current\s+goals\b|"
+    r"\bwhat\s+is\s+blocking\s+goal\b|\bwhy\s+is\s+goal\b.{0,64}\bimportant\b|"
+    r"\b(?:i\s+want\s+you\s+to\s+keep\s+an\s+eye\s+on|your\s+goal\s+is)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 _WEB_RESEARCH = re.compile(
     r"\b(?:search|browse|look\s+up|find)\b.{0,48}\b(?:web|internet|online)\b"
     r"|\b(?:web|internet|online)\b.{0,48}\b(?:search|research|results?|answers?|ideas?)\b"
@@ -234,6 +243,26 @@ class BaselineTurnClassifier:
                     )
                 )
             return merge_question_turns(tuple(subturns))
+
+        if _GOAL_MANAGEMENT.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.GOAL_MANAGEMENT,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.DETERMINISTIC,
+                domains=(
+                    _contribution(
+                        MatrixDomain.GOALS,
+                        MatrixRelevance.REQUIRED,
+                        "explicit goal creation, query, or lifecycle request",
+                    ),
+                    _contribution(
+                        MatrixDomain.AUTHORITY,
+                        MatrixRelevance.RELEVANT,
+                        "goal ownership and authenticated scope require host validation",
+                    ),
+                ),
+            )
 
         if _INTERACTION_FOLLOWUP.fullmatch(text):
             return TurnMatrix(

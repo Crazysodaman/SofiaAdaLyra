@@ -280,3 +280,14 @@ class SQLiteStatePlane(StatePlane):
                 (namespace, principal, audience_value),
             ).fetchall()
         return tuple(self._record(row) for row in rows)
+
+    def list_scopes(self, namespace: str) -> tuple[tuple[str | None, str | None], ...]:
+        if not isinstance(namespace, str) or not namespace.strip():
+            raise ValueError("namespace must be nonempty")
+        with self._lock, closing(self._connect()) as db:
+            rows = db.execute(
+                "SELECT DISTINCT principal_id,audience FROM state_plane_record "
+                "WHERE namespace=? ORDER BY principal_id,audience",
+                (namespace,),
+            ).fetchall()
+        return tuple((row[0] or None, row[1] or None) for row in rows)

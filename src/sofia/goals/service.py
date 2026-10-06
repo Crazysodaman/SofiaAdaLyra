@@ -11,6 +11,7 @@ from uuid import uuid4
 from sofia.capability.model import CapabilityProposal
 from sofia.neuro.model import NeuralActivation
 from sofia.social.model import PrincipalContext
+from sofia.social.principals import SPARKS_PRINCIPAL_ID
 
 from .model import (
     ALLOWED_TRANSITIONS,
@@ -34,6 +35,7 @@ from .model import (
 )
 from .policy import GoalPolicy, effective_priority, normalized_goal_title
 from .store import GoalStore
+from .evidence import GoalEvidence
 
 
 EvidenceVerifier = Callable[[str], bool]
@@ -94,6 +96,15 @@ class GoalService:
             raise ValueError("grounded goal operation requires evidence")
         if any(not self.evidence_verifier(ref) for ref in refs):
             raise ValueError("goal evidence reference is not host-verified")
+
+    def _evidence(self, refs: tuple[str, ...]) -> tuple[GoalEvidence, ...]:
+        lookup = getattr(self.evidence_verifier, "lookup", None)
+        if not callable(lookup):
+            return ()
+        records = tuple(lookup(ref) for ref in refs)
+        if any(record is None for record in records):
+            raise ValueError("goal evidence reference is not host-verified")
+        return records  # type: ignore[return-value]
 
     @staticmethod
     def _scope(principal: PrincipalContext) -> tuple[str, str]:
@@ -175,7 +186,48 @@ class GoalService:
             history=(event,),
             parent_goal_id=parent_goal_id,
             expires_at=expires_at,
+            run_state=GoalRunState.PENDING_INSPECTION,
         ))
+
+    def review_self_candidate(
+        self,
+        *,
+        goal: Goal,
+        approve: bool,
+        principal: PrincipalContext,
+        evidence_refs: tuple[str, ...],
+        now: datetime,
+    ) -> Goal:
+        """Apply authenticated Sparks review; the candidate never self-approves."""
+        if principal.principal_id != SPARKS_PRINCIPAL_ID:
+            raise PermissionError("only authenticated Sparks may review SELF goals")
+        if (
+            goal.origin is not GoalOrigin.SELF
+            or goal.status is not GoalStatus.CANDIDATE
+            or goal.scope_principal_id != principal.principal_id
+            or goal.scope_audience != audience_scope(principal)
+        ):
+            raise PermissionError("candidate is not a reviewable SELF goal in this scope")
+        changed = self.transition(
+            goal_id=goal.id,
+            principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.CANDIDATE,
+            next_status=GoalStatus.ACTIVE if approve else GoalStatus.REJECTED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now,
+            evidence_refs=evidence_refs,
+            note="authenticated Sparks approved candidate" if approve else
+                 "authenticated Sparks rejected candidate",
+        )
+        if not approve:
+            return changed
+        return self.set_run_state(
+            goal=changed,
+            run_state=GoalRunState.PENDING_INSPECTION,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now,
+        )
 
     def create_host_goal(
         self,
@@ -270,7 +322,8 @@ class GoalService:
         audience = None if principal is None else audience_scope(principal)
         expiration = expires_at or now + timedelta(days=14)
         digest = sha256(
-            f"{activation.key}\0{title}\0{now.isoformat()}".encode("utf-8")
+            f"{activation.key}\0{normalized_goal_title(title)}\0"
+            f"{principal_id or ''}\0{audience or ''}".encode("utf-8")
         ).hexdigest()[:24]
         return GoalCandidate(
             candidate_id=f"goal-candidate:{digest}",
@@ -313,13 +366,16 @@ class GoalService:
         *,
         decision: GoalPolicyResult,
         now: datetime,
+        resource_pressure: float = 0.0,
     ) -> Goal:
         if not isinstance(candidate, GoalCandidate):
             raise TypeError("candidate must be GoalCandidate")
         if not isinstance(decision, GoalPolicyResult):
             raise TypeError("decision must be GoalPolicyResult")
         validate_time(now, "now")
-        reevaluated = self.evaluate_candidate(candidate)
+        reevaluated = self.evaluate_candidate(
+            candidate, resource_pressure=resource_pressure,
+        )
         if decision != reevaluated or decision.decision is not GoalPolicyDecision.ACCEPT:
             raise ValueError("only a current deterministic ACCEPT may persist candidate")
         self._validate_parent(
@@ -354,6 +410,129 @@ class GoalService:
         )
         return self.store.create(goal)
 
+    def admit_candidate(
+        self,
+        candidate: GoalCandidate,
+        *,
+        decision: GoalPolicyResult,
+        now: datetime,
+        resource_pressure: float = 0.0,
+    ) -> Goal | None:
+        """Apply one current policy decision without confusing candidate/active."""
+        current = self.evaluate_candidate(
+            candidate, resource_pressure=resource_pressure,
+        )
+        if current != decision:
+            raise ValueError("candidate policy decision changed before admission")
+        if decision.decision is GoalPolicyDecision.REJECT:
+            event = self._event(
+                status=GoalStatus.REJECTED, previous=None,
+                actor=SOFIA_GOAL_OWNER_ID, now=now,
+                evidence_refs=candidate.evidence_refs,
+                note=f"deterministic goal policy rejected candidate: {decision.reason}",
+            )
+            return self.store.create(Goal(
+                id=candidate.candidate_id.replace("goal-candidate:", "goal:"),
+                origin=candidate.origin,
+                owner_principal_id=candidate.owner_principal_id,
+                scope_principal_id=candidate.scope_principal_id,
+                scope_audience=candidate.scope_audience,
+                title=candidate.title,
+                reason=candidate.reason,
+                status=GoalStatus.REJECTED,
+                base_priority=candidate.proposed_priority,
+                confidence=candidate.confidence,
+                created_at=candidate.created_at,
+                updated_at=now,
+                evidence_refs=candidate.evidence_refs,
+                completion=candidate.completion,
+                history=(event,),
+                parent_goal_id=candidate.parent_goal_id,
+                expires_at=candidate.expires_at,
+            ))
+        if decision.decision is GoalPolicyDecision.MERGE:
+            existing = self.store.get(
+                decision.duplicate_goal_id or "",
+                principal_id=candidate.scope_principal_id,
+                audience=candidate.scope_audience,
+            )
+            if existing is None or existing.status in TERMINAL_GOAL_STATUSES:
+                raise ValueError("merge target is no longer live")
+            combined = tuple(dict.fromkeys((*existing.evidence_refs, *candidate.evidence_refs)))[:32]
+            event = self._event(
+                status=existing.status, previous=existing.status,
+                actor=SOFIA_GOAL_OWNER_ID, now=now,
+                evidence_refs=candidate.evidence_refs,
+                note="equivalent autonomous candidate merged as supporting evidence",
+            )
+            return self.store.update(replace(
+                existing,
+                evidence_refs=combined,
+                base_priority=max(existing.base_priority, candidate.proposed_priority),
+                confidence=max(existing.confidence, candidate.confidence),
+                updated_at=now,
+                history=(*existing.history, event),
+                revision=existing.revision + 1,
+            ), expected_revision=existing.revision)
+        if decision.decision in {
+            GoalPolicyDecision.ASK_USER, GoalPolicyDecision.DEFER,
+        }:
+            self._validate_parent(
+                parent_goal_id=candidate.parent_goal_id,
+                principal_id=candidate.scope_principal_id,
+                audience=candidate.scope_audience,
+            )
+            event = self._event(
+                status=GoalStatus.CANDIDATE, previous=None,
+                actor=SOFIA_GOAL_OWNER_ID, now=now,
+                evidence_refs=candidate.evidence_refs,
+                note=(
+                    "candidate awaits authenticated user review"
+                    if decision.decision is GoalPolicyDecision.ASK_USER
+                    else "candidate deferred for bounded reconsideration"
+                ),
+            )
+            return self.store.create(Goal(
+                id=candidate.candidate_id.replace("goal-candidate:", "goal:"),
+                origin=candidate.origin,
+                owner_principal_id=candidate.owner_principal_id,
+                scope_principal_id=candidate.scope_principal_id,
+                scope_audience=candidate.scope_audience,
+                title=candidate.title,
+                reason=candidate.reason,
+                status=GoalStatus.CANDIDATE,
+                base_priority=candidate.proposed_priority,
+                confidence=candidate.confidence,
+                created_at=candidate.created_at,
+                updated_at=now,
+                evidence_refs=candidate.evidence_refs,
+                completion=candidate.completion,
+                history=(event,),
+                parent_goal_id=candidate.parent_goal_id,
+                expires_at=candidate.expires_at,
+            ))
+        persisted = self.persist_candidate(
+            candidate, decision=decision, now=now,
+            resource_pressure=resource_pressure,
+        )
+        active = self.transition(
+            goal_id=persisted.id,
+            principal_id=persisted.scope_principal_id,
+            audience=persisted.scope_audience,
+            expected_status=GoalStatus.CANDIDATE,
+            next_status=GoalStatus.ACTIVE,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now,
+            evidence_refs=candidate.evidence_refs,
+            note="deterministic low-risk candidate activated",
+        )
+        return self.set_run_state(
+            goal=active,
+            run_state=GoalRunState.PENDING_INSPECTION,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now,
+        )
+
     def _validate_parent(
         self,
         *,
@@ -385,6 +564,83 @@ class GoalService:
             if next_parent is None:
                 raise ValueError("goal hierarchy contains missing parent")
             cursor = next_parent
+
+    def decompose(
+        self,
+        *,
+        parent: Goal,
+        child_titles: tuple[str, ...],
+        now: datetime,
+    ) -> tuple[Goal, ...]:
+        """Validate bounded host decomposition through normal candidate policy."""
+        validate_time(now, "now")
+        canonical = self.store.get(
+            parent.id,
+            principal_id=parent.scope_principal_id,
+            audience=parent.scope_audience,
+        )
+        if canonical is None or canonical.status is not GoalStatus.ACTIVE:
+            raise ValueError("decomposition requires a canonical ACTIVE parent")
+        if canonical.scope_principal_id is None or canonical.scope_audience is None:
+            raise ValueError("decomposition children require the parent's private scope")
+        if (
+            not isinstance(child_titles, tuple)
+            or not child_titles
+            or len(child_titles) > min(8, self.policy.MAX_CHILDREN)
+        ):
+            raise ValueError("decomposition requires 1..8 child titles")
+        normalized = tuple(normalized_goal_title(title) for title in child_titles)
+        if any(not title for title in normalized) or len(set(normalized)) != len(normalized):
+            raise ValueError("decomposition child titles must be unique and nonempty")
+        existing = self.store.list_scope(
+            principal_id=canonical.scope_principal_id,
+            audience=canonical.scope_audience,
+        )
+        result = []
+        for title, normalized_title in zip(child_titles, normalized, strict=True):
+            duplicate = next((
+                item for item in existing
+                if item.parent_goal_id == canonical.id
+                and normalized_goal_title(item.title) == normalized_title
+            ), None)
+            if duplicate is not None:
+                result.append(duplicate)
+                continue
+            digest = sha256(
+                f"{canonical.id}\0{normalized_title}".encode("utf-8")
+            ).hexdigest()[:24]
+            candidate = GoalCandidate(
+                candidate_id=f"goal-candidate:{digest}",
+                origin=GoalOrigin.SELF,
+                owner_principal_id=SOFIA_GOAL_OWNER_ID,
+                scope_principal_id=canonical.scope_principal_id,
+                scope_audience=canonical.scope_audience,
+                title=" ".join(title.split())[:180],
+                reason=f"Bounded diagnostic child of {canonical.id}.",
+                proposed_priority=max(0.55, canonical.base_priority - 0.05),
+                confidence=canonical.confidence,
+                urgency=0.65,
+                risk=GoalRisk.LOW,
+                cost=GoalCost.LOW,
+                evidence_refs=canonical.evidence_refs,
+                source_activation=f"goal:{canonical.id.split(':')[-1]}",
+                completion=GoalCompletionCondition(
+                    CompletionKind.OPERATION_RECEIPT,
+                    f"Successful bounded diagnostic for {title}.",
+                ),
+                created_at=now,
+                expires_at=canonical.expires_at or now + timedelta(days=7),
+                parent_goal_id=canonical.id,
+            )
+            decision = self.evaluate_candidate(candidate)
+            child = self.admit_candidate(
+                candidate, decision=decision, now=now,
+            )
+            if child is None or child.status is not GoalStatus.ACTIVE:
+                raise ValueError("bounded child did not pass deterministic policy")
+            result.append(child)
+            existing = (*existing, child)
+        return tuple(result)
 
     def transition(
         self,
@@ -439,6 +695,7 @@ class GoalService:
             self._verify_completion(
                 goal, evidence_refs=evidence_refs, now=now,
                 no_recurrence_since=no_recurrence_since,
+                authenticated_principal=authenticated_principal,
             )
             completion_evidence = evidence_refs
         else:
@@ -486,6 +743,45 @@ class GoalService:
             revision=goal.revision + 1,
         ), expected_revision=goal.revision)
 
+    def add_evidence(
+        self,
+        *,
+        goal: Goal,
+        evidence_refs: tuple[str, ...],
+        now: datetime,
+        note: str,
+    ) -> Goal:
+        """Attach host-verified evidence without changing lifecycle authority."""
+        if not isinstance(goal, Goal):
+            raise TypeError("goal must be Goal")
+        validate_time(now, "now")
+        self._verify_evidence(evidence_refs, required=True)
+        canonical = self.store.get(
+            goal.id,
+            principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+        )
+        if canonical is None or canonical.revision != goal.revision:
+            raise ValueError("goal changed concurrently or does not exist")
+        combined = tuple(dict.fromkeys(
+            (*canonical.evidence_refs, *evidence_refs)
+        ))[-32:]
+        event = self._event(
+            status=canonical.status,
+            previous=canonical.status,
+            actor=SOFIA_GOAL_OWNER_ID,
+            now=now,
+            evidence_refs=evidence_refs,
+            note=note,
+        )
+        return self.store.update(replace(
+            canonical,
+            evidence_refs=combined,
+            updated_at=now,
+            history=(*canonical.history, event),
+            revision=canonical.revision + 1,
+        ), expected_revision=canonical.revision)
+
     def _verify_completion(
         self,
         goal: Goal,
@@ -493,16 +789,18 @@ class GoalService:
         evidence_refs: tuple[str, ...],
         now: datetime,
         no_recurrence_since: datetime | None,
+        authenticated_principal: PrincipalContext | None,
     ) -> None:
         self._verify_evidence(evidence_refs, required=True)
-        if goal.completion.kind is CompletionKind.NO_RECURRENCE:
+        kind = goal.completion.kind
+        if kind is CompletionKind.NO_RECURRENCE:
             if no_recurrence_since is None:
                 raise ValueError("no-recurrence completion requires observation start")
             validate_time(no_recurrence_since, "no_recurrence_since")
             elapsed = (now - no_recurrence_since).total_seconds()
             if elapsed < int(goal.completion.no_recurrence_seconds or 0):
                 raise ValueError("no-recurrence observation window is incomplete")
-        if goal.completion.kind is CompletionKind.ALL_CHILDREN:
+        if kind is CompletionKind.ALL_CHILDREN:
             children = tuple(
                 item for item in self.store.list_scope(
                     principal_id=goal.scope_principal_id,
@@ -514,10 +812,75 @@ class GoalService:
                 item.status is not GoalStatus.COMPLETED for item in children
             ):
                 raise ValueError("all child goals must be evidence-backed complete")
+        evidence = self._evidence(evidence_refs)
+        if not evidence:
+            raise ValueError("typed completion evidence is required")
+        if kind is CompletionKind.OPERATION_RECEIPT and not any(
+            item.kind == "operation_receipt"
+            and item.successful is True
+            and (item.goal_id is None or item.goal_id == goal.id)
+            for item in evidence
+        ):
+            raise ValueError("completion requires a successful linked operation receipt")
+        if kind is CompletionKind.ROOT_CAUSE_IDENTIFIED and not any(
+            item.cause_identified
+            and item.kind in {"root_cause", "reviewed_evidence"}
+            and (item.goal_id is None or item.goal_id == goal.id)
+            for item in evidence
+        ):
+            raise ValueError("completion requires reviewed root-cause evidence")
+        if kind is CompletionKind.EVIDENCE_TRUE:
+            expected = normalized_goal_title(goal.completion.description)
+            if not any(
+                item.assertion is not None
+                and normalized_goal_title(item.assertion) == expected
+                and (item.goal_id is None or item.goal_id == goal.id)
+                for item in evidence
+            ):
+                raise ValueError("completion evidence does not establish the expected assertion")
+        if kind is CompletionKind.USER_DEFINED and not (
+            goal.origin is GoalOrigin.USER
+            and authenticated_principal is not None
+            and authenticated_principal.principal_id == goal.owner_principal_id
+            and any(
+                item.kind == "authenticated_user_message"
+                and item.principal_id == goal.owner_principal_id
+                and item.audience == goal.scope_audience
+                for item in evidence
+            )
+        ):
+            expected = normalized_goal_title(goal.completion.description)
+            if not any(
+                item.assertion is not None
+                and normalized_goal_title(item.assertion) == expected
+                and (item.goal_id is None or item.goal_id == goal.id)
+                for item in evidence
+            ):
+                raise ValueError("user-defined completion requires owner confirmation or matching evidence")
+        if kind is CompletionKind.NO_RECURRENCE:
+            assert no_recurrence_since is not None
+            if not any(
+                item.kind == "monitoring_coverage"
+                and item.coverage_complete
+                and item.coverage_started_at is not None
+                and item.coverage_ended_at is not None
+                and item.coverage_started_at <= no_recurrence_since
+                and item.coverage_ended_at >= now
+                and item.successful is True
+                and (item.goal_id is None or item.goal_id == goal.id)
+                for item in evidence
+            ):
+                raise ValueError("no-recurrence completion requires continuous monitoring coverage")
 
     def expire_due(self, *, now: datetime) -> tuple[Goal, ...]:
-        """Expire only unscoped host goals; scoped callers expire their own view."""
-        return self.expire_scope(now=now, principal_id=None, audience=None)
+        """Expire every indexed partition internally without projecting content."""
+        return tuple(
+            goal
+            for principal_id, audience in self.store.scopes()
+            for goal in self.expire_scope(
+                now=now, principal_id=principal_id, audience=audience,
+            )
+        )
 
     def expire_scope(
         self,

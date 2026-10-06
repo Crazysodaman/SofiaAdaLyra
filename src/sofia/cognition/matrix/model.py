@@ -22,6 +22,7 @@ class MatrixIntent(str, Enum):
     MEMORY_QUERY = "memory_query"
     OPERATIONAL_QUERY = "operational_query"
     ACTION_REQUEST = "action_request"
+    GOAL_MANAGEMENT = "goal_management"
     AMBIGUOUS = "ambiguous"
 
 
@@ -44,6 +45,7 @@ class MatrixDomain(str, Enum):
     OPS = "ops"
     AUTHORITY = "authority"
     CONTINUITY = "continuity"
+    GOALS = "goals"
 
 
 class MatrixRelevance(int, Enum):

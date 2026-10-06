@@ -1,7 +1,7 @@
 """Application-shared event-driven NEURO runtime."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import re
 from threading import RLock
@@ -261,6 +261,39 @@ class NeuroRuntime:
             if self._last_snapshot is not None:
                 self._record_unlocked(self._last_snapshot, routing=decision)
         return decision
+
+    def record_wake_outcome(
+        self,
+        *,
+        mode: NeuroWakeMode,
+        reason: str,
+        llm_called: bool,
+        now: datetime | None = None,
+    ) -> None:
+        """Record observed compute use; it has no routing or action authority."""
+        store = self._observability
+        if store is None:
+            return
+        try:
+            store.record_wake(
+                mode=mode.value,
+                reason=reason,
+                llm_called=llm_called,
+                observed_at=now or datetime.now(timezone.utc),
+            )
+            self._last_observability_error = None
+        except Exception as exc:
+            self._last_observability_error = type(exc).__name__
+
+    def record_performance(self, **values) -> None:
+        store = self._observability
+        if store is None:
+            return
+        try:
+            store.record_performance(**values)
+            self._last_observability_error = None
+        except Exception as exc:
+            self._last_observability_error = type(exc).__name__
 
     def background_priority(self, task_kind: str) -> float:
         """Return an advisory scheduler weight; readiness/authority still gate work."""

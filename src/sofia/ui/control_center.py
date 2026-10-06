@@ -332,6 +332,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Wardrobe",
     "Mood & Emotion",
     "NEURO",
+    "Goals",
     "Memory",
     "EVOLVE",
     "Permissions",

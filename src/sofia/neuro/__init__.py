@@ -16,9 +16,11 @@ from .coordinator import NeuroInputCoordinator
 from .runtime import NeuroRuntime
 from .salience import SalienceNetwork
 from .store import NeuroObservabilityStore
+from .sensory import BodyReflexObservation, VoiceSensoryObservation
 
 __all__ = [
     "HomeostaticState",
+    "BodyReflexObservation",
     "HomeostasisController",
     "NeuralActivation",
     "NeuralSignal",
@@ -29,4 +31,5 @@ __all__ = [
     "NeuroStateSnapshot",
     "NeuroWakeMode",
     "SalienceNetwork",
+    "VoiceSensoryObservation",
 ]
