@@ -32,7 +32,7 @@ from .runtime import NeuroRuntime
 CURRENT_STATE_KINDS = frozenset({
     "environment", "emotion", "ops", "fleet", "memory", "habit",
     "relationship", "goal", "run", "interaction", "avatar", "voice",
-    "body",
+    "body", "network",
 })
 
 
@@ -176,6 +176,53 @@ class NeuroInputCoordinator:
                         value=min(1.0, 0.45 + queued * 0.08), confidence=1.0,
                         novelty=0.4, urgency=min(0.8, 0.4 + queued * 0.06),
                         observed_at=now, ttl_seconds=300.0,
+                    ))
+            if self._has_table(db, "net_cloudflare_tunnel_status"):
+                row = db.execute("""
+                    SELECT configured,state,restart_count,updated_at
+                    FROM net_cloudflare_tunnel_status WHERE singleton=1
+                """).fetchone()
+                if row is not None and bool(row[0]):
+                    state = str(row[1])
+                    try:
+                        observed = datetime.fromisoformat(row[3]).astimezone(timezone.utc)
+                    except (TypeError, ValueError):
+                        observed = now
+                    degraded = state not in {"running", "disabled"}
+                    result.append(_signal(
+                        kind="network", source=f"cloudflare:{state}",
+                        value=(
+                            min(1.0, 0.72 + int(row[2]) * 0.04)
+                            if degraded else 0.3
+                        ),
+                        confidence=1.0,
+                        novelty=0.75 if degraded else 0.15,
+                        urgency=0.82 if degraded else 0.12,
+                        observed_at=min(observed, now), ttl_seconds=300.0,
+                    ))
+            if self._has_table(db, "net_web_evidence"):
+                cutoff = (now - timedelta(hours=1)).isoformat()
+                row = db.execute("""
+                    SELECT
+                      SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END),
+                      SUM(CASE WHEN status='success' THEN 1 ELSE 0 END)
+                    FROM net_web_evidence WHERE observed_at>=?
+                """, (cutoff,)).fetchone()
+                failed = int(row[0] or 0)
+                succeeded = int(row[1] or 0)
+                if failed:
+                    result.append(_signal(
+                        kind="network", source="web:failed",
+                        value=min(1.0, 0.6 + failed * 0.08), confidence=1.0,
+                        novelty=0.65, urgency=min(0.9, 0.62 + failed * 0.06),
+                        observed_at=now, ttl_seconds=300.0,
+                    ))
+                elif succeeded:
+                    result.append(_signal(
+                        kind="network", source="web:recent-success",
+                        value=min(0.5, 0.22 + succeeded * 0.04), confidence=1.0,
+                        novelty=0.2, urgency=0.12,
+                        observed_at=now, ttl_seconds=180.0,
                     ))
             if self._has_table(db, "act_system_notice"):
                 row = db.execute("""

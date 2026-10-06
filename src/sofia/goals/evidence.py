@@ -14,6 +14,7 @@ class GoalEvidenceIndex:
         ("interaction_evidence", "message_id"),
         ("interact_evidence_attestations", "source_id"),
         ("evolve_evidence", "evidence_id"),
+        ("net_web_evidence", "evidence_id"),
         ("ops_maintenance_receipt", "receipt_id"),
         ("run_supervisor_events", "event_id"),
         ("state_plane_record", "source"),

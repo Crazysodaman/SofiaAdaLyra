@@ -200,6 +200,8 @@ _READ_ONLY = frozenset({
     "hyperv.vm",
     "environment.nws.read",
     "environment.home_assistant.read",
+    "web.search",
+    "web.fetch",
 })
 
 _SAFE_AUTONOMOUS = frozenset({

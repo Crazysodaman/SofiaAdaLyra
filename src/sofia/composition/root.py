@@ -43,6 +43,7 @@ from sofia.filesystem.change_capability import FilesystemChangesCapability,creat
 from sofia.filesystem.observation import FilesystemObservationStore
 from sofia.identity.store import IdentityStore
 from sofia.integrations.capabilities import create_configured_integration_tools
+from sofia.net import create_configured_web_tools
 from sofia.memory.chatgpt_export_store import ChatGPTExportEvidenceStore
 from sofia.memory.provenance_store import DurableMemoryCandidateStore
 from sofia.knowledge.access import KnowledgeAccessStore
@@ -349,10 +350,16 @@ def compose(
         filesystem_root=filesystem_root,
         state_path=state_path,
     )
+    web_tools = create_configured_web_tools(state_path)
     remote_fleet_tools = create_configured_remote_fleet_tools(
         state_path
     )
     for registration in integration_tools:
+        capability_system.register(
+            capability=registration.capability,
+            handler=registration.handler,
+        )
+    for registration in web_tools:
         capability_system.register(
             capability=registration.capability,
             handler=registration.handler,
@@ -405,6 +412,7 @@ def compose(
             + create_machine_tool_bindings()
             + create_ops_tool_bindings()
             + tuple(registration.binding for registration in integration_tools)
+            + tuple(registration.binding for registration in web_tools)
             + tuple(registration.binding for registration in remote_fleet_tools)
         ),
     )

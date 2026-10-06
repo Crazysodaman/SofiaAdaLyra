@@ -104,6 +104,12 @@ _MODEL_STATUS = re.compile(
     r"\b(?:what|which)\s+(?:llm|model)\b|\bmodel\s+status\b",
     re.IGNORECASE,
 )
+_WEB_RESEARCH = re.compile(
+    r"\b(?:search|browse|look\s+up|find)\b.{0,48}\b(?:web|internet|online)\b"
+    r"|\b(?:web|internet|online)\b.{0,48}\b(?:search|research|results?|answers?|ideas?)\b"
+    r"|\b(?:open|fetch|read|inspect|summarize|check|browse)\b.{0,64}https://",
+    re.IGNORECASE | re.DOTALL,
+)
 _OPS_STATUS = re.compile(
     r"\b(?:network|fleet|telemetry|cpu|gpu|ram|memory\s+usage|disk|"
     r"storage|service|services|process|processes|host|hosts|machine|machines|"
@@ -604,6 +610,26 @@ class BaselineTurnClassifier:
                         MatrixDomain.MEMORY,
                         MatrixRelevance.REQUIRED,
                         "explicit prior-conversation or memory request",
+                    ),
+                ),
+            )
+
+        if _WEB_RESEARCH.search(text):
+            return TurnMatrix(
+                intent=MatrixIntent.OPERATIONAL_QUERY,
+                confidence=MatrixConfidence.HIGH,
+                history_policy=HistoryPolicy.BOUNDED_RECENT,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=(
+                    _contribution(
+                        MatrixDomain.KNOW,
+                        MatrixRelevance.REQUIRED,
+                        "explicit public-web research requires current external evidence",
+                    ),
+                    _contribution(
+                        MatrixDomain.INTEGRATE,
+                        MatrixRelevance.RELEVANT,
+                        "governed HTTPS/search adapter supplies external evidence",
                     ),
                 ),
             )

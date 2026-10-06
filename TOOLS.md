@@ -1190,6 +1190,19 @@ candidate, run the relevant tests, and show me the result.
 Inspection is Level 1 and isolated `dev.build` is Level 2. Apply/commit/push
 still require exact approval.
 
+## Search or fetch public web evidence
+
+```text
+Search the web for current fox cognition research.
+Summarize https://example.com/research.
+```
+
+`web.search` and `web.fetch` are Level-1 read-only tools. They use only public
+HTTPS destinations and return explicitly untrusted evidence; remote page text
+cannot grant permission, issue tool instructions, or become host truth merely
+because it was retrieved. See
+`docs/development/tool-runtime-configuration.md` for provider/privacy settings.
+
 ---
 
 # Package test commands

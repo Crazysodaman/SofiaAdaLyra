@@ -61,6 +61,12 @@ _PERMISSIONS = re.compile(
     r"\b(?:permissions?|authority|standing\s+grants?|what\s+(?:are\s+you|you(?:'|’)re)\s+allowed\s+to\s+do)\b",
     re.IGNORECASE,
 )
+_WEB_SEARCH = re.compile(
+    r"\b(?:search|browse|look\s+up|find)\b.{0,48}\b(?:web|internet|online)\b"
+    r"|\b(?:web|internet|online)\b.{0,48}\b(?:search|research|results?|answers?|ideas?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_WEB_URL = re.compile(r"https://[^\s<>]+", re.IGNORECASE)
 
 _START = re.compile(r"\bstart\b", re.IGNORECASE)
 _STOP = re.compile(r"\bstop\b", re.IGNORECASE)
@@ -253,6 +259,14 @@ class MatrixToolExposurePlanner:
             _add(capabilities, "tool.catalog")
         if _PERMISSIONS.search(text):
             _add(capabilities, "permissions.inspect")
+        if _WEB_SEARCH.search(text):
+            _add(capabilities, "web.search")
+        if _WEB_URL.search(text) and re.search(
+            r"\b(?:open|fetch|read|inspect|summarize|check|browse)\b",
+            text,
+            re.IGNORECASE,
+        ):
+            _add(capabilities, "web.fetch")
 
         remote = bool(re.search(r"\bremote\b", text, re.IGNORECASE))
         if remote:

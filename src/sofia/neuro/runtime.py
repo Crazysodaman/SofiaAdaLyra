@@ -282,6 +282,9 @@ class NeuroRuntime:
             "wardrobe": ("avatar", "environment", "emotion"),
             "neuro": ("run",),
             "goal": ("goal", "run"),
+            "network": ("network", "fleet", "ops"),
+            "web": ("network", "run"),
+            "tunnel": ("network", "run"),
         }
         relevant = {
             kind

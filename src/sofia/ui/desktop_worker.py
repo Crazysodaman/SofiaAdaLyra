@@ -22,6 +22,10 @@ from sofia.ui.theme import canonical_theme
 from sofia.mobile.gateway import MobileCompanionGateway
 from sofia.mobile.provisioning import MobileProvisioning
 from sofia.mobile.server import MobileCompanionServer
+from sofia.net import (
+    CloudflareTunnelConfiguration,
+    CloudflareTunnelSupervisor,
+)
 
 
 class _WorkerMobileGateway:
@@ -137,6 +141,7 @@ class DesktopApplicationWorker:
         discord_service: DiscordBackgroundService | None = None
         mobile_server: MobileCompanionServer | None = None
         mobile_gateway: MobileCompanionGateway | None = None
+        cloudflare: CloudflareTunnelSupervisor | None = None
         try:
             provisioning = (
                 self._discord_provisioning
@@ -167,6 +172,17 @@ class DesktopApplicationWorker:
                     configuration=mobile.server,
                 )
                 mobile_server.start()
+
+            tunnel_configuration = CloudflareTunnelConfiguration.from_runtime(
+                mobile_enabled=mobile.enabled,
+                mobile_host=mobile.server.host,
+            )
+            if tunnel_configuration.enabled:
+                cloudflare = CloudflareTunnelSupervisor(
+                    tunnel_configuration,
+                    state_path=self._configuration.state_path,
+                )
+                cloudflare.start()
 
             if provisioning.enabled:
                 if getattr(application, "runtime", None) is None:
@@ -222,7 +238,17 @@ class DesktopApplicationWorker:
                 self._events.put(("discord_disabled", None))
             if mobile_server is not None:
                 self._events.put(("mobile_started", mobile_server.address))
+            if cloudflare is not None:
+                self._events.put((
+                    "cloudflare_started",
+                    tunnel_configuration.public_url,
+                ))
         except Exception as exc:
+            if cloudflare is not None:
+                try:
+                    cloudflare.stop()
+                except Exception:
+                    pass
             if mobile_server is not None:
                 try:
                     mobile_server.close()
@@ -295,6 +321,11 @@ class DesktopApplicationWorker:
 
             if kind == "shutdown":
                 shutdown_error = None
+                if cloudflare is not None:
+                    try:
+                        cloudflare.stop()
+                    except Exception as exc:
+                        shutdown_error = exc
                 if mobile_server is not None:
                     try:
                         mobile_server.close()

@@ -49,6 +49,29 @@ issued by a CA the phone trusts. Do not commit the token or TLS private key.
 The token can alternatively be stored as the host's protected
 `mobile-api-token` secret.
 
+### Recommended remote access: Cloudflare named tunnel
+
+Keep the mobile listener on loopback and let an already-provisioned named
+Cloudflare Tunnel supply public TLS:
+
+```text
+SOFIA_MOBILE_ENABLED=true
+SOFIA_MOBILE_HOST=127.0.0.1
+SOFIA_MOBILE_PORT=8766
+SOFIA_MOBILE_TOKEN=<a randomly generated 32+ character secret>
+SOFIA_CLOUDFLARE_TUNNEL_ENABLED=true
+SOFIA_CLOUDFLARE_CONFIG=C:\\ProgramData\\cloudflared\\config.yml
+SOFIA_CLOUDFLARE_TUNNEL=sofia-mobile
+SOFIA_CLOUDFLARE_PUBLIC_URL=https://sofia.example.com
+```
+
+Configure the tunnel ingress to proxy that hostname to
+`http://127.0.0.1:8766`. The public hostname goes in the Android endpoint field.
+The tunnel never replaces the mobile bearer token, private-mode policy, quiet
+hours, notification controls, or adult/private delivery authority. Sofía
+supervises only this fixed named tunnel; tunnel creation, DNS ownership, Access
+policy, and credential provisioning remain host/operator setup.
+
 In Sofía's tray settings, enable **private chat** and whichever adult chat or
 avatar permissions you want. These permissions remain host-owned and
 revocable. Adult external delivery is separate and is not enabled by the app.

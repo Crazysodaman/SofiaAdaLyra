@@ -673,6 +673,10 @@ class _TkDesktopWorkbench:
                     "Discord transport failed",
                     detail,
                 )
+            elif kind == "cloudflare_started":
+                self._status.set(
+                    self._ready_status() + " · Mobile tunnel online"
+                )
             elif kind == "draft_error":
                 self._status.set(
                     f"Draft save failed: {type(payload).__name__}"

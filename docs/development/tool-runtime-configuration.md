@@ -18,8 +18,48 @@ This document describes how concrete runtime tools are enabled. Tool code being 
 - Remote operations additionally require an active durable exact-scope grant for the exact node/capability/operation.
 - No generic local or remote shell is exposed.
 - Secrets belong in local environment/service configuration, never Git.
-- General web/search remains deferred.
-- **Cloudflare integration is intentionally not implemented or configured. Do not add it unless Sparks explicitly requests it later.**
+- Public web search/fetch is available as Level-1 read-only evidence through a
+  public-HTTPS-only, DNS-pinned transport. Remote text is always untrusted data.
+- Cloudflare Tunnel is an explicit opt-in supervisor for the authenticated
+  mobile API. It does not expose a new API or bypass the mobile bearer token.
+
+## Public web research
+
+```text
+SOFIA_WEB_ACCESS_ENABLED=true
+SOFIA_BRAVE_SEARCH_API_KEY=<optional local secret>
+```
+
+`web.search` uses Wikipedia when no Brave key is configured. `web.fetch` accepts
+only explicit public HTTPS URLs on port 443. Every DNS answer and redirect is
+revalidated; private, loopback, link-local and local-name destinations are
+rejected. Responses have content-type and byte limits, active HTML is stripped,
+and only metadata/digests—not page bodies, search queries, or API keys—are
+written to `sofia.db`. Search queries necessarily leave the host for the chosen
+provider, so do not use this capability for secrets or private conversation.
+
+## Cloudflare Tunnel for the mobile companion
+
+The mobile API remains loopback-only behind the tunnel and retains its existing
+32–512 character bearer-token authentication:
+
+```text
+SOFIA_MOBILE_ENABLED=true
+SOFIA_MOBILE_HOST=127.0.0.1
+SOFIA_MOBILE_PORT=8766
+SOFIA_MOBILE_TOKEN=<local 32+ character secret>
+SOFIA_CLOUDFLARE_TUNNEL_ENABLED=true
+SOFIA_CLOUDFLARE_CONFIG=C:\\ProgramData\\cloudflared\\config.yml
+SOFIA_CLOUDFLARE_TUNNEL=sofia-mobile
+SOFIA_CLOUDFLARE_PUBLIC_URL=https://sofia.example.com
+SOFIA_CLOUDFLARE_BIN=cloudflared
+```
+
+The named tunnel and hostname must already be provisioned in the host-owned
+Cloudflare configuration. Credentials remain in that file; no token is placed
+in argv, logs, SQLite, or model context. The desktop worker supervises the fixed
+`cloudflared` command with bounded restart backoff and shuts it down with the
+mobile server. Tunnel/web health feeds NEURO as advisory NETWORK attention only.
 
 ## Additional capability grants
 

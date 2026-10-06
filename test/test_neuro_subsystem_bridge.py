@@ -67,6 +67,21 @@ def _database(path):
             INSERT INTO interaction_evidence VALUES(
                 'session-1','recorded','2026-10-06T17:45:00+00:00'
             );
+            CREATE TABLE net_cloudflare_tunnel_status(
+                singleton INTEGER PRIMARY KEY,configured INTEGER,state TEXT,
+                public_url TEXT,pid INTEGER,restart_count INTEGER,
+                updated_at TEXT,last_exit_code INTEGER,error_kind TEXT
+            );
+            INSERT INTO net_cloudflare_tunnel_status VALUES(
+                1,1,'degraded','https://sofia.example.com',NULL,2,
+                '2026-10-06T17:59:00+00:00',1,NULL
+            );
+            CREATE TABLE net_web_evidence(
+                evidence_id TEXT PRIMARY KEY,status TEXT,observed_at TEXT
+            );
+            INSERT INTO net_web_evidence VALUES(
+                'web-evidence:test','failed','2026-10-06T17:58:00+00:00'
+            );
         """)
 
 
@@ -139,6 +154,7 @@ def test_production_bridge_maps_all_available_authoritative_domains(tmp_path):
         "environment", "body", "emotion", "ops", "fleet", "memory",
         "habit", "relationship", "goal", "run", "interaction", "avatar",
         "voice",
+        "network",
     } <= all_kinds
     persisted = json.dumps(store.current()) + json.dumps(store.recent())
     assert "never persisted" not in persisted
@@ -200,3 +216,20 @@ def test_neuro_gates_optional_wakes_and_only_advises_background_ordering():
     ))
     assert runtime.should_wake_for_reflection() is True
     assert runtime.background_priority("reflection_outreach") > 0.0
+
+
+def test_neuro_network_attention_is_advisory_not_emotion_or_expression(tmp_path):
+    path = tmp_path / "sofia.db"
+    _database(path)
+    runtime = NeuroRuntime()
+    coordinator = NeuroInputCoordinator(runtime, path)
+    coordinator.refresh(now=NOW, environment=_environment())
+
+    network = tuple(
+        signal for signal in runtime.recent_signals if signal.kind == "network"
+    )
+    assert {signal.source for signal in network} == {
+        "cloudflare:degraded", "web:failed",
+    }
+    assert runtime.background_priority("web research retry") > 0.0
+    assert not any(signal.kind in {"emotion", "avatar"} for signal in network)

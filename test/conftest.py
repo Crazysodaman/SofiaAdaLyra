@@ -40,6 +40,7 @@ MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "machine": ("pkg_ops",),
     "memory": ("pkg_mem",),
     "mobile": ("pkg_ui", "pkg_net"),
+    "net": ("pkg_net",),
     "neuro": ("pkg_core",),
     "operational": ("pkg_core",),
     "ops": ("pkg_ops",),

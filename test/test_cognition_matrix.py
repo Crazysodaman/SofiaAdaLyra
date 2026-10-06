@@ -509,6 +509,29 @@ def test_tool_exposure_plan_validates_unique_capabilities():
         )
 
 
+@pytest.mark.parametrize(
+    ("content", "capability"),
+    (
+        ("search the web for current fox cognition research", "web.search"),
+        ("summarize https://example.com/research", "web.fetch"),
+    ),
+)
+def test_explicit_web_research_uses_governed_tool_only(content, capability):
+    planner = MatrixToolExposurePlanner()
+    env = envelope(content)
+    turn = BaselineTurnClassifier().classify(env)
+    authority = MatrixAuthorityPlanner().plan(
+        env, turn, Authority(can_respond=True, can_propose_actions=True),
+    )
+
+    plan = planner.plan(env, turn, authority)
+
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.KNOW) is MatrixRelevance.REQUIRED
+    assert capability in plan.capabilities
+    assert set(plan.capabilities) <= {"web.search", "web.fetch"}
+
+
 def test_general_turn_keeps_bounded_recent_context():
     result = BaselineTurnClassifier().classify(
         envelope("Tell me about hexapod gait planning.")
