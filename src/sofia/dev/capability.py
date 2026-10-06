@@ -49,6 +49,7 @@ class DevCandidateStore:
         raw = json.loads(record.value.decode("utf-8"))
         raw["changed_paths"] = tuple(raw["changed_paths"])
         raw["allowed_paths"] = tuple(raw["allowed_paths"])
+        raw["tests"] = tuple(raw.get("tests", ()))
         return EngineeringCandidate(**raw)
 
     def _import_legacy_if_needed(self) -> None:
@@ -148,10 +149,11 @@ class DevToolService:
         approval_verifier: DevApprovalVerifier,
         state_plane: StatePlane | None = None,
         executable: str = "opencode",
+        agent: str | None = None,
     ) -> None:
         if not isinstance(approval_verifier, DevApprovalVerifier):
             raise TypeError("approval_verifier must be a DevApprovalVerifier")
-        self.workflow = EngineeringWorkflow(workspace, executable)
+        self.workflow = EngineeringWorkflow(workspace, executable, agent)
         plane = state_plane or SQLiteStatePlane(state_path)
         self.store = DevCandidateStore(
             plane,
@@ -200,6 +202,9 @@ class DevToolService:
             "changed_paths": candidate.changed_paths,
             "allowed_paths": candidate.allowed_paths,
             "tests_passed": candidate.tests_passed,
+            "iterations": candidate.iterations,
+            "tests": candidate.tests,
+            "verification_output_sha256": candidate.verification_output_sha256,
             "patch_bytes": len(candidate.patch.encode("utf-8")),
         }
 
@@ -226,6 +231,7 @@ class DevToolService:
             authorized=True,
             timeout_seconds=int(parameters.get("timeout_seconds", 900)),
             tests=tuple(parameters.get("tests", ())),
+            max_iterations=int(parameters.get("max_iterations", 3)),
         )
         candidate = self.workflow.build(request)
         self.store.put(candidate)
@@ -235,6 +241,9 @@ class DevToolService:
             "changed_paths": candidate.changed_paths,
             "allowed_paths": candidate.allowed_paths,
             "tests_passed": candidate.tests_passed,
+            "iterations": candidate.iterations,
+            "tests": candidate.tests,
+            "verification_output_sha256": candidate.verification_output_sha256,
             "patch": candidate.patch,
         }
 
@@ -331,8 +340,9 @@ class DevCapabilitySet:
                 "Read-only."
             ),
             "dev.build": (
-                "Build and test a bounded candidate in an isolated OpenCode "
-                "worktree. Safe-autonomous; does not modify the real workspace."
+                "Route a bounded software-engineering task to OpenCode in an "
+                "isolated worktree; inspect, implement, test, and iteratively repair "
+                "a durable candidate. Safe-autonomous; does not modify the real workspace."
             ),
             "dev.apply": (
                 "Apply one exact approved reviewed candidate to the real "
@@ -424,7 +434,7 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
         binding(
             "build_dev_candidate",
             "dev.build",
-            "Build and test a bounded candidate in an isolated worktree without modifying the real workspace.",
+            "Route a bounded engineering task to OpenCode to inspect, implement, test, and repair a candidate in an isolated worktree without modifying the real workspace.",
             {
                 **proposal,
                 "base_sha": {"type": "string"},
@@ -438,6 +448,11 @@ def create_dev_tool_bindings() -> tuple[CognitiveToolBinding, ...]:
                     "items": {"type": "string"},
                 },
                 "timeout_seconds": {"type": "integer"},
+                "max_iterations": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                },
             },
             (
                 "proposal_id",

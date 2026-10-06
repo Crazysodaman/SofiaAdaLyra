@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
 import pytest
 
 from sofia.dev import (
@@ -61,6 +62,72 @@ def test_isolated_build_does_not_touch_real_workspace(tmp_path:Path,monkeypatch)
     assert candidate.changed_paths==("src/allowed.py",)
     assert "VALUE = 2" in candidate.patch
     assert (root/"src"/"allowed.py").read_text(encoding="utf-8")=="VALUE = 1\n"
+
+def test_engineering_build_routes_failed_tests_back_to_opencode_for_repair(
+    tmp_path:Path,monkeypatch,
+):
+    root,sha=_repo(tmp_path)
+    prompts=[]
+    attempts={"value":0}
+    request=EngineeringExecutionRequest(
+        "repair-loop",sha,"fix the value",("src",),True,
+        tests=("test/test_value.py",),max_iterations=3,
+    )
+
+    def fake_execute(self,req):
+        prompts.append(req.prompt)
+        attempts["value"]+=1
+        (self.workspace/"src"/"allowed.py").write_text(
+            f"VALUE = {attempts['value'] + 1}\n",encoding="utf-8",
+        )
+        return EngineeringExecutionResult(
+            req.proposal_id,0,"","",req.base_sha,
+            ("src/allowed.py",),None,False,
+        )
+
+    verifications=iter((
+        SimpleNamespace(returncode=1,stdout="expected 3, got 2",stderr=""),
+        SimpleNamespace(returncode=0,stdout="1 passed",stderr=""),
+    ))
+    monkeypatch.setattr("sofia.dev.workflow.OpenCodeAdapter.execute",fake_execute)
+    monkeypatch.setattr(
+        EngineeringWorkflow,"_verification",
+        staticmethod(lambda sandbox,request: next(verifications)),
+    )
+
+    candidate=EngineeringWorkflow(root).build(request)
+
+    assert candidate.iterations==2
+    assert candidate.tests_passed is True
+    assert candidate.tests==("test/test_value.py",)
+    assert candidate.verification_output_sha256 is not None
+    assert "expected 3, got 2" in prompts[1]
+    assert "test/test_value.py" in prompts[0]
+    assert (root/"src"/"allowed.py").read_text(encoding="utf-8")=="VALUE = 1\n"
+
+def test_engineering_build_stops_at_bounded_iteration_limit(tmp_path:Path,monkeypatch):
+    root,sha=_repo(tmp_path)
+    request=EngineeringExecutionRequest(
+        "bounded-loop",sha,"fix it",("src",),True,
+        tests=("test/test_value.py",),max_iterations=2,
+    )
+    attempts=[]
+
+    def fake_execute(self,req):
+        attempts.append(req.prompt)
+        (self.workspace/"src"/"allowed.py").write_text("VALUE = 2\n",encoding="utf-8")
+        return EngineeringExecutionResult(req.proposal_id,0,"","",req.base_sha)
+
+    monkeypatch.setattr("sofia.dev.workflow.OpenCodeAdapter.execute",fake_execute)
+    monkeypatch.setattr(
+        EngineeringWorkflow,"_verification",
+        staticmethod(lambda sandbox,request: SimpleNamespace(
+            returncode=1,stdout="still failing",stderr="",
+        )),
+    )
+    with pytest.raises(Exception,match="failed after 2 iterations"):
+        EngineeringWorkflow(root).build(request)
+    assert len(attempts)==2
 
 def test_apply_commit_and_push_have_separate_authority_and_preserve_runtime_state(tmp_path:Path):
     root,sha=_repo(tmp_path)

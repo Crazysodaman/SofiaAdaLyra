@@ -1190,6 +1190,20 @@ candidate, run the relevant tests, and show me the result.
 Inspection is Level 1 and isolated `dev.build` is Level 2. Apply/commit/push
 still require exact approval.
 
+`dev.build` routes the bounded task to OpenCode in a detached Git worktree.
+OpenCode may inspect the repository, write only within the proposal's reviewed
+paths, implement the candidate, and receive failed host-run pytest output for up
+to five bounded repair iterations. The resulting patch, changed paths, exact
+test selectors, iteration count, test outcome, and verification-output digest
+are retained as the durable candidate. It cannot commit, push, alter the live
+workspace, expand its write scope, or authorize its own installation.
+
+The production host must install `opencode` on `PATH`, or set
+`SOFIA_DEV_OPENCODE_BIN` to its executable. The default uses OpenCode's normal
+primary agent so the route works without a repository-local custom-agent file.
+Set `SOFIA_DEV_OPENCODE_AGENT=<name>` only when that named agent is actually
+configured on the host.
+
 ## Search or fetch public web evidence
 
 ```text

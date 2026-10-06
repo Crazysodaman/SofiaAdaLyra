@@ -1,5 +1,6 @@
 """Wire configured subsystem instances into one foundational runtime."""
 from dataclasses import replace
+import os
 from pathlib import Path
 
 from sofia.action.executor import FailClosedActionExecutor
@@ -205,6 +206,8 @@ def compose(
         state_path,
         approval_verifier=dev_approval_verifier,
         state_plane=state_plane,
+        executable=os.environ.get("SOFIA_DEV_OPENCODE_BIN", "opencode").strip(),
+        agent=os.environ.get("SOFIA_DEV_OPENCODE_AGENT", "").strip() or None,
     )
     dev_capabilities = DevCapabilitySet(
         dev_service

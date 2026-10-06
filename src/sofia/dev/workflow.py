@@ -5,6 +5,7 @@ from pathlib import Path
 from hashlib import sha256
 from tempfile import TemporaryDirectory
 import subprocess
+import sys
 from .git_workspace import GitWorkspace,GitWorkspaceError,path_in_scope
 from .opencode import EngineeringExecutionRequest,OpenCodeAdapter
 
@@ -16,11 +17,25 @@ class EngineeringCandidate:
     changed_paths:tuple[str,...]
     allowed_paths:tuple[str,...]
     tests_passed:bool|None
+    iterations:int=1
+    tests:tuple[str,...]=()
+    verification_output_sha256:str|None=None
 
 class EngineeringWorkflow:
-    def __init__(self,workspace:Path,executable:str="opencode")->None:
-        self.workspace=workspace.resolve(); self.executable=executable
+    def __init__(self,workspace:Path,executable:str="opencode",agent:str|None=None)->None:
+        self.workspace=workspace.resolve(); self.executable=executable; self.agent=agent
         self.git=GitWorkspace(self.workspace); self._applied_paths:tuple[str,...]=(); self._applied_hashes:dict[str,str|None]={}; self._applied_existed:dict[str,bool]={}
+
+    @staticmethod
+    def _verification(
+        sandbox:Path,
+        request:EngineeringExecutionRequest,
+    )->subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            (sys.executable,"-m","pytest","-q",*request.tests),
+            cwd=sandbox,text=True,capture_output=True,check=False,
+            timeout=request.timeout_seconds,
+        )
 
     def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
         self.git.require_head(request.base_sha)
@@ -31,14 +46,59 @@ class EngineeringWorkflow:
                 cwd=self.workspace,text=True,capture_output=True,check=False)
             if add.returncode: raise GitWorkspaceError(add.stderr.strip() or "unable to create isolated worktree")
             try:
-                adapter=OpenCodeAdapter(sandbox,self.executable)
-                result=adapter.execute(request)
+                adapter=OpenCodeAdapter(sandbox,self.executable,self.agent)
                 sg=GitWorkspace(sandbox)
-                changed=sg.require_changes_within(request.allowed_paths)
-                patch=sg.patch()
-                if result.returncode!=0: raise GitWorkspaceError("OpenCode candidate execution failed")
-                if request.tests and result.tests_passed is not True: raise GitWorkspaceError("candidate tests failed")
-                return EngineeringCandidate(request.proposal_id,request.base_sha,patch,changed,request.allowed_paths,result.tests_passed)
+                feedback=""
+                verification_output=""
+                for iteration in range(1,request.max_iterations+1):
+                    target_context=(
+                        "\n\nThe host will verify these exact pytest targets:\n"+
+                        "\n".join(f"- {item}" for item in request.tests)
+                        if request.tests else ""
+                    )
+                    iteration_request=EngineeringExecutionRequest(
+                        proposal_id=request.proposal_id,
+                        base_sha=request.base_sha,
+                        prompt=request.prompt+target_context+feedback,
+                        allowed_paths=request.allowed_paths,
+                        authorized=True,
+                        timeout_seconds=request.timeout_seconds,
+                        tests=(),
+                        max_iterations=request.max_iterations,
+                    )
+                    result=adapter.execute(iteration_request)
+                    changed=sg.require_changes_within(request.allowed_paths)
+                    if result.returncode!=0:
+                        verification_output=(result.stdout+"\n"+result.stderr)[-8000:]
+                        passed=False
+                    elif request.tests:
+                        verification=self._verification(sandbox,request)
+                        verification_output=(verification.stdout+"\n"+verification.stderr)[-8000:]
+                        passed=verification.returncode==0
+                    else:
+                        passed=True
+                    if passed:
+                        patch=sg.patch()
+                        digest=(
+                            sha256(verification_output.encode("utf-8")).hexdigest()
+                            if verification_output else None
+                        )
+                        return EngineeringCandidate(
+                            request.proposal_id,request.base_sha,patch,changed,
+                            request.allowed_paths,
+                            True if request.tests else None,
+                            iteration,request.tests,digest,
+                        )
+                    if iteration<request.max_iterations:
+                        feedback=(
+                            "\n\nThe host verification attempt failed. Diagnose and repair "
+                            "the candidate in the same approved scope, then leave it ready "
+                            "for another host-run verification. Failure output:\n"+
+                            verification_output
+                        )
+                raise GitWorkspaceError(
+                    f"candidate verification failed after {request.max_iterations} iterations"
+                )
             finally:
                 subprocess.run(("git","worktree","remove","--force",str(sandbox)),
                     cwd=self.workspace,text=True,capture_output=True,check=False)
