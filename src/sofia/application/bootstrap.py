@@ -78,6 +78,7 @@ from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
 from sofia.ops.backup_topology import backup_topology_enabled
+from sofia.neuro import NeuroRuntime
 from sofia.ops.agent_discovery import (
     create_configured_fleet_discovery_source,
 )
@@ -164,6 +165,7 @@ class SofiaApplication:
             create_tts_service_from_environment()
         )
         self._channel_conversations: list[ConversationService] = []
+        self._neuro = NeuroRuntime()
         conversation_store = ConversationStore(configuration.state_path)
         if conversation_store.database_path.resolve() != Path(
             configuration.state_path
@@ -205,6 +207,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_voice_runtime_provider(
             self.voice_runtime_status
+        )
+        self._conversation_service.set_neuro_runtime(
+            self._neuro
         )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
@@ -260,6 +265,11 @@ class SofiaApplication:
     @property
     def act(self) -> SofiaActService:
         return self._act_service
+
+    @property
+    def neuro(self) -> NeuroRuntime:
+        """Return the shared authority-free neural prioritization runtime."""
+        return self._neuro
 
     @property
     def memory_review(self) -> MemoryReviewService:
@@ -323,6 +333,9 @@ class SofiaApplication:
         )
         service.set_voice_runtime_provider(
             self.voice_runtime_status
+        )
+        service.set_neuro_runtime(
+            self._neuro
         )
         clothing_actions = getattr(
             self,

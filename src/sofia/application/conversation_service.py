@@ -41,6 +41,7 @@ from sofia.runtime.runtime import SofiaRuntime
 from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
+from sofia.neuro import NeuroRuntime, NeuroStateSnapshot
 
 
 _LOG = logging.getLogger(__name__)
@@ -216,6 +217,10 @@ class ConversationService(ConversationMatrixMixin):
         self._clothing_action_handler = None
         self._wardrobe_generation_handler = None
         self._voice_runtime_provider = None
+        self._neuro_runtime: NeuroRuntime | None = None
+        self._current_neuro_snapshot: NeuroStateSnapshot | None = None
+        self._current_neuro_message_id: str | None = None
+        self._last_neuro_error: str | None = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -283,6 +288,72 @@ class ConversationService(ConversationMatrixMixin):
         if provider is not None and not callable(provider):
             raise TypeError("voice runtime provider must be callable or None")
         self._voice_runtime_provider = provider
+
+    def set_neuro_runtime(self, runtime: NeuroRuntime | None) -> None:
+        """Install the application-shared authority-free NEURO runtime."""
+        if runtime is not None and not isinstance(runtime, NeuroRuntime):
+            raise TypeError("runtime must be NeuroRuntime or None")
+        self._neuro_runtime = runtime
+        self._current_neuro_snapshot = None
+        self._current_neuro_message_id = None
+        self._last_neuro_error = None
+
+    @property
+    def neuro_snapshot(self) -> NeuroStateSnapshot | None:
+        """Return the latest local prioritization snapshot for diagnostics."""
+        return self._current_neuro_snapshot
+
+    @property
+    def last_neuro_error(self) -> str | None:
+        """Return the latest non-fatal NEURO observation failure."""
+        return self._last_neuro_error
+
+    def _observe_neuro_turn(
+        self,
+        *,
+        message: ConversationMessage,
+        channel: str,
+    ) -> None:
+        runtime = self._neuro_runtime
+        self._last_neuro_error = None
+        if runtime is None:
+            self._current_neuro_snapshot = None
+            self._current_neuro_message_id = None
+            return
+        try:
+            self._current_neuro_snapshot = runtime.observe_turn(
+                content=message.content,
+                created_at=message.created_at,
+                channel=channel,
+                turn=self._current_turn_matrix,
+            )
+            self._current_neuro_message_id = message.id
+        except Exception as exc:
+            self._current_neuro_snapshot = None
+            self._current_neuro_message_id = None
+            self._last_neuro_error = type(exc).__name__
+            _LOG.exception(
+                "NEURO turn observation failed; continuing without neural "
+                "attention context"
+            )
+
+    def _neuro_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        snapshot = self._current_neuro_snapshot
+        if (
+            current_user is None
+            or snapshot is None
+            or current_user.id != self._current_neuro_message_id
+            or self._current_matrix_message_id != current_user.id
+        ):
+            return None
+        return CognitiveMessage(
+            role=CognitiveRole.SYSTEM,
+            content=snapshot.prompt(),
+        )
 
     @property
     def database_path(self) -> Path:
@@ -608,6 +679,10 @@ class ConversationService(ConversationMatrixMixin):
         self._record_shadow_matrix(
             message=user_message,
             principal=principal,
+            channel=channel,
+        )
+        self._observe_neuro_turn(
+            message=user_message,
             channel=channel,
         )
 
@@ -954,6 +1029,14 @@ class ConversationService(ConversationMatrixMixin):
         if voice_context:
             cognitive_messages = (
                 *voice_context,
+                *cognitive_messages,
+            )
+        neuro_context = self._neuro_context_message(
+            current_user=current_user,
+        )
+        if neuro_context is not None:
+            cognitive_messages = (
+                neuro_context,
                 *cognitive_messages,
             )
 
