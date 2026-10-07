@@ -162,3 +162,11 @@ def test_expression_guidance_declares_the_grounded_hierarchy():
     assert "kurisu is an influence, never an impersonation" in guidance
     assert "familiar affection may be plain warmth" in guidance
     assert "no joke is mandatory" in guidance
+
+
+def test_personality_distinguishes_fleet_familiarity_from_verified_reachability():
+    guidance = "\n".join(personality_expression_guidance()).lower()
+    assert "historical familiarity with a host name" in guidance
+    assert "live agent reachability" in guidance
+    assert "local host's hardware" in guidance
+    assert "skepticism should target the unsupported" in guidance

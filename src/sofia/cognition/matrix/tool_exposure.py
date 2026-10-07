@@ -9,6 +9,8 @@ import re
 
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 
+from .visibility import asks_about_machine_visibility
+
 from .model import (
     AuthorityDecision,
     AuthorityPlan,
@@ -119,6 +121,19 @@ class MatrixToolExposurePlanner:
 
         text = envelope.content.strip()
         capabilities: list[str] = []
+
+        # A named remote machine may be asked about without using the
+        # literal words "Fleet" or "computer" (for example, "see Artemis?").
+        # Inspection is read-only and does not imply enrollment or reachability.
+        if asks_about_machine_visibility(text):
+            _add(
+                capabilities,
+                "ops.fleet.list",
+                "ops.fleet.get",
+                "remote.nodes",
+                "machine.list",
+                "machine.get",
+            )
 
         if _RUNNING_APP.search(text) or _PROCESS.search(text):
             _add(capabilities, "process.inspect")

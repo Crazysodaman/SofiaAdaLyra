@@ -2141,3 +2141,99 @@ def test_multi_question_question_plus_generation_keeps_both_matrix_domains():
     assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is not MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "can you see artemis?",
+        "Can you see the computer Artemis?",
+        "Do you see server Eos?",
+        "Can you reach Nyx?",
+    ),
+)
+def test_named_machine_visibility_routes_to_fleet_read_evidence(content):
+    env = envelope(content)
+    turn = BaselineTurnClassifier().classify(env)
+
+    assert turn.intent is MatrixIntent.OPERATIONAL_QUERY
+    assert turn.response_strategy is ResponseStrategy.TOOL_ASSISTED
+    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.REQUIRED
+
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+    exposed = MatrixToolExposurePlanner().plan(env, turn, authority)
+    assert {
+        "ops.fleet.list", "ops.fleet.get", "remote.nodes",
+    }.issubset(exposed.capabilities)
+    assert "ops.fleet.discover" not in exposed.capabilities
+    assert "fleet.enroll" not in exposed.capabilities
+
+
+@pytest.mark.parametrize(
+    "content",
+    ("can you see me?", "can you see the image?", "can you see my message?"),
+)
+def test_nonhost_visibility_does_not_trigger_fleet_inspection(content):
+    env = envelope(content)
+    turn = BaselineTurnClassifier().classify(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+    exposed = MatrixToolExposurePlanner().plan(env, turn, authority)
+    assert "ops.fleet.list" not in exposed.capabilities
+    assert "remote.nodes" not in exposed.capabilities
+
+
+@pytest.mark.parametrize(
+    "unsupported",
+    (
+        "Nope, nothing called Artemis in my current processes.",
+        "I don't see a machine called Artemis in this instance's scope.",
+        "I'm stuck to that single OS image.",
+        "Artemis isn't in my fleet.",
+    ),
+)
+def test_named_host_scope_denial_needs_actual_fleet_evidence(unsupported):
+    turn = BaselineTurnClassifier().classify(envelope("can you see artemis?"))
+    validator = MatrixResponseValidator()
+    empty = EvidenceMatrix()
+    contract = ResponseContract(require_grounded_claims=True)
+    result = validator.validate(
+        CognitiveResponse(
+            content=unsupported,
+            evidence_refs=("capability:system.inspect",),
+        ),
+        contract,
+        empty,
+        turn=turn,
+        retained_user_context="can you see artemis?",
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "fleet_visibility_claim_without_fleet_evidence" in result.reasons
+    assert "Local host details" in validator.fallback(result, contract).content
+
+
+def test_named_host_inventory_evidence_allows_scoped_answer_not_guessing():
+    turn = BaselineTurnClassifier().classify(envelope("can you see artemis?"))
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="I don't see Artemis in the current Fleet inventory.",
+            evidence_refs=("capability:ops.fleet.list",),
+        ),
+        ResponseContract(require_grounded_claims=True),
+        EvidenceMatrix(),
+        turn=turn,
+        retained_user_context="can you see artemis?",
+    )
+    assert "fleet_visibility_claim_without_fleet_evidence" not in result.reasons
+
+
+def test_unknown_fleet_state_can_be_reported_without_inventing_denial():
+    turn = BaselineTurnClassifier().classify(envelope("can you see artemis?"))
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(content="I haven't checked Fleet yet, so reachability is unknown."),
+        ResponseContract(require_grounded_claims=True),
+        EvidenceMatrix(),
+        turn=turn,
+        retained_user_context="can you see artemis?",
+    )
+    assert result.disposition is ResponseValidationDisposition.PASS

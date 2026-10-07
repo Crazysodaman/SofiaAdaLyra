@@ -5,6 +5,7 @@ import re
 
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.output_guard import contains_internal_reasoning_leak
+from .visibility import asks_about_machine_visibility
 
 from .model import (
     AuthorityDecision,
@@ -43,6 +44,28 @@ _TECHNICAL_TOPIC_ANCHORS: tuple[tuple[str, re.Pattern[str]], ...] = (
         ),
     ),
 )
+
+# Named-host absence/presence is not established by local machine inspection.
+# A successful Fleet inventory query is the minimum evidence for such a claim;
+# it still does not prove agent connectivity or that every possible host exists.
+_NAMED_HOST_SCOPE_ASSERTION = re.compile(
+    r"\b(?:i\s+(?:can(?:not|['’]t)|do\s+not|don['’]t|can|do)\s+"
+    r"(?:see|find|reach|access)\b"
+    r"|nothing\s+(?:called|named)\b"
+    r"|no\s+(?:computer|machine|server|host|node)\s+"
+    r"(?:called|named|registered)\b"
+    r"|(?:isn't|is\s+not|aren't|are\s+not)\s+(?:in|on)\s+"
+    r"(?:my|our|the|this)\s+(?:fleet|scope|inventory)\b"
+    r"|\b(?:is|isn't|is\s+not)\s+(?:registered|reachable|connected)\b"
+    r"|stuck\s+to\s+(?:this|that|a|the)\s+single\s+"
+    r"(?:os|machine|host)\b)",
+    re.IGNORECASE,
+)
+_FLEET_EVIDENCE_REFS = frozenset({
+    "capability:ops.fleet.list",
+    "capability:ops.fleet.get",
+    "capability:remote.nodes",
+})
 
 
 _EXECUTION_CLAIM = re.compile(
@@ -186,6 +209,17 @@ class MatrixResponseValidator:
             ):
                 reasons.append("gross_domain_drift")
 
+        if (
+            turn is not None
+            and any(
+                asks_about_machine_visibility(line.strip())
+                for line in retained_user_context.splitlines()
+            )
+            and _NAMED_HOST_SCOPE_ASSERTION.search(content)
+            and not _FLEET_EVIDENCE_REFS.intersection(response.evidence_refs)
+        ):
+            reasons.append("fleet_visibility_claim_without_fleet_evidence")
+
         if contract.require_grounded_claims:
             for requirement in evidence.missing_required:
                 reasons.append(
@@ -298,6 +332,14 @@ class MatrixResponseValidator:
                 content=(
                     "I have the underlying evidence, but that draft exposed "
                     "internal reasoning instead of a clean user-facing answer."
+                )
+            )
+        if "fleet_visibility_claim_without_fleet_evidence" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I haven't verified that machine against current Fleet "
+                    "inventory. Local host details don't establish whether "
+                    "the remote machine is registered or reachable."
                 )
             )
         if "gross_domain_drift" in reasons:

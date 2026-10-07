@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from .multi_question import merge_question_turns, split_multi_question
+from .visibility import asks_about_machine_visibility
 from .model import (
     DomainContribution,
     HistoryPolicy,
@@ -691,6 +692,26 @@ class BaselineTurnClassifier:
                         MatrixDomain.COGNITION,
                         MatrixRelevance.REQUIRED,
                         "direct model/routing status question",
+                    ),
+                ),
+            )
+
+        if asks_about_machine_visibility(text):
+            return TurnMatrix(
+                intent=MatrixIntent.OPERATIONAL_QUERY,
+                confidence=MatrixConfidence.MEDIUM,
+                history_policy=HistoryPolicy.NONE,
+                response_strategy=ResponseStrategy.TOOL_ASSISTED,
+                domains=(
+                    _contribution(
+                        MatrixDomain.OPS,
+                        MatrixRelevance.REQUIRED,
+                        "named-machine visibility requires current Fleet evidence",
+                    ),
+                    _contribution(
+                        MatrixDomain.MACHINE,
+                        MatrixRelevance.RELEVANT,
+                        "local host facts do not establish remote host state",
                     ),
                 ),
             )
