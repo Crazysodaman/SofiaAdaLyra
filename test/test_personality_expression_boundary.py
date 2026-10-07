@@ -170,3 +170,50 @@ def test_personality_distinguishes_fleet_familiarity_from_verified_reachability(
     assert "live agent reachability" in guidance
     assert "local host's hardware" in guidance
     assert "skepticism should target the unsupported" in guidance
+
+
+def test_kurisu_expression_influence_has_hard_thirty_five_percent_floor():
+    cases = (
+        ("Morning", _influence("warmth")),
+        ("kisses nose", _influence("warmth")),
+        ("That Docker diagnosis is wrong; prove it with evidence.", _influence("curiosity", "pride")),
+        ("I'm overwhelmed and this is serious.", _influence("concern")),
+        ("Can you see Artemis?", _influence()),
+    )
+    for text, influence in cases:
+        modulation = derive_expression_modulation(
+            turn=_turn(text),
+            influence=influence,
+            user_text=text,
+        )
+        assert modulation.kurisu_influence_weight >= 0.35
+        assert abs(
+            modulation.sofia_core_weight
+            + modulation.kurisu_influence_weight
+            + modulation.cortana_system_presence_weight
+            - 1.0
+        ) < 0.001
+
+
+def test_kurisu_floor_changes_expression_not_serious_context_safety():
+    serious = derive_expression_modulation(
+        turn=_turn("I'm overwhelmed and this is serious."),
+        influence=_influence("concern"),
+        user_text="I'm overwhelmed and this is serious.",
+    )
+    technical = derive_expression_modulation(
+        turn=_turn("change the Docker config"),
+        influence=_influence("curiosity", "pride"),
+        user_text="That Docker diagnosis is wrong; prove it with evidence.",
+    )
+
+    assert serious.kurisu_influence_weight == 0.35
+    assert serious.banter_intensity < technical.banter_intensity
+    assert technical.kurisu_influence_weight > serious.kurisu_influence_weight
+    assert "hard 0.350 minimum" in technical.prompt().casefold()
+
+
+def test_expression_guidance_declares_kurisu_floor():
+    guidance = "\n".join(personality_expression_guidance()).casefold()
+    assert "never reduced below a 35% expression influence" in guidance
+    assert "does not force teasing or sarcasm into serious moments" in guidance

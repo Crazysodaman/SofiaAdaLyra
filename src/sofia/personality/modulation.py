@@ -51,6 +51,9 @@ class ExpressionModulation:
     fluster_tendency: float
     argumentative_energy: float
     embodiment_expression_level: float
+    sofia_core_weight: float
+    kurisu_influence_weight: float
+    cortana_system_presence_weight: float
     reasons: tuple[str, ...]
 
     def __post_init__(self) -> None:
@@ -58,10 +61,21 @@ class ExpressionModulation:
             "banter_intensity", "technical_engagement", "affection_openness",
             "fluster_tendency", "argumentative_energy",
             "embodiment_expression_level",
+            "sofia_core_weight", "kurisu_influence_weight",
+            "cortana_system_presence_weight",
         ):
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be bounded")
+        if self.kurisu_influence_weight < 0.35:
+            raise ValueError("Kurisu-inspired expression influence has a 0.35 floor")
+        if abs(
+            self.sofia_core_weight
+            + self.kurisu_influence_weight
+            + self.cortana_system_presence_weight
+            - 1.0
+        ) > 0.001:
+            raise ValueError("personality expression weights must sum to 1.0")
         if not self.reasons:
             raise ValueError("expression modulation requires diagnostics")
 
@@ -74,6 +88,13 @@ class ExpressionModulation:
             f"fluster_tendency={self.fluster_tendency:.3f}",
             f"argumentative_energy={self.argumentative_energy:.3f}",
             f"embodiment_expression_level={self.embodiment_expression_level:.3f}",
+            f"sofia_core_weight={self.sofia_core_weight:.3f}",
+            f"kurisu_influence_weight={self.kurisu_influence_weight:.3f}",
+            f"cortana_system_presence_weight={self.cortana_system_presence_weight:.3f}",
+            "Kurisu-inspired influence has a hard 0.350 minimum on every turn. "
+            "That floor means skepticism, precision, intellectual pride, useful "
+            "pedantry, evidence-first challenge, and clean concession when wrong; "
+            "it does not require teasing, fluster, or sarcasm in serious moments.",
             "Use these only to modulate expression. They do not establish emotion, "
             "memory, fact, consent, permission, willingness, or action. Familiar "
             "affection may receive plain warmth; fluster is optional texture, never a "
@@ -108,6 +129,9 @@ def derive_expression_modulation(
     serious = bool(emotions & _SERIOUS) or _DISTRESS.search(user_text) is not None
     disagreement = _DISAGREEMENT.search(user_text) is not None
     affectionate_turn = _AFFECTION_CUE.search(user_text) is not None
+    operational = bool(domains & {
+        MatrixDomain.OPS, MatrixDomain.MACHINE, MatrixDomain.COGNITION,
+    })
 
     technical_engagement = 0.72 if technical else 0.18
     if neuro is not None and neuro.focus is not None:
@@ -136,13 +160,41 @@ def derive_expression_modulation(
         argumentative -= 0.18
         fluster = 0.03
         embodiment -= 0.16
+
+    # Stable persona blend. Sofía remains the identity; these weights only
+    # describe which expression influences are most visible on this turn.
+    # Kurisu-inspired scientific temperament never falls below 35%.
+    if serious:
+        sofia_core, kurisu, cortana = 0.55, 0.35, 0.10
+    elif technical and disagreement:
+        sofia_core, kurisu, cortana = 0.30, 0.55, 0.15
+    elif operational:
+        sofia_core, kurisu, cortana = 0.30, 0.45, 0.25
+    elif technical:
+        sofia_core, kurisu, cortana = 0.35, 0.50, 0.15
+    elif affectionate_turn:
+        sofia_core, kurisu, cortana = 0.60, 0.35, 0.05
+    elif social:
+        sofia_core, kurisu, cortana = 0.55, 0.35, 0.10
+    else:
+        sofia_core, kurisu, cortana = 0.50, 0.35, 0.15
+
     reasons = (
         f"technical={technical}", f"social={social}",
         f"affectionate_turn={affectionate_turn}", f"serious={serious}",
-        f"disagreement={disagreement}", f"daypart={influence.daypart}",
+        f"disagreement={disagreement}", f"operational={operational}",
+        f"daypart={influence.daypart}",
         f"weather_current={influence.weather_freshness == 'current'}",
     )
     return ExpressionModulation(
-        _bounded(banter), _bounded(technical_engagement), _bounded(affection),
-        _bounded(fluster), _bounded(argumentative), _bounded(embodiment), reasons,
+        banter_intensity=_bounded(banter),
+        technical_engagement=_bounded(technical_engagement),
+        affection_openness=_bounded(affection),
+        fluster_tendency=_bounded(fluster),
+        argumentative_energy=_bounded(argumentative),
+        embodiment_expression_level=_bounded(embodiment),
+        sofia_core_weight=sofia_core,
+        kurisu_influence_weight=kurisu,
+        cortana_system_presence_weight=cortana,
+        reasons=reasons,
     )
