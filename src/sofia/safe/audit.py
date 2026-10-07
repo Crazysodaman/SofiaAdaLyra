@@ -155,7 +155,10 @@ class AuditChain:
             LIMIT 1
             """
         ).fetchone()
-        previous = self.GENESIS if row is None else row["event_hash"]
+        # The transaction belongs to the caller, so its row_factory is also
+        # caller-owned. This single-column lookup must work with SQLite's
+        # default tuple rows as well as sqlite3.Row.
+        previous = self.GENESIS if row is None else row[0]
         event_hash = self._event_hash(
             event_id=identifier,
             occurred_at=occurred,

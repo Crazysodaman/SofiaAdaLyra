@@ -8,6 +8,7 @@ from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEnrollment
 from sofia.ops.capability import OpsCapabilitySet, OpsToolService
 from sofia.ops.discovery import FleetDiscoveryEvidence
+from sofia.safe.audit import AuditChain
 from sofia.safe.execution_approval import (
     ExecutionApproval,
     ExecutionApprovalVerifier,
@@ -230,7 +231,17 @@ def test_fleet_enrollment_requires_exact_one_time_sparks_approval(tmp_path):
         approved_at=now,
         expires_at=now + timedelta(minutes=15),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    audit = AuditChain(state)
+    audit.append(
+        actor_id="system:test",
+        event_type="test.preexisting",
+        payload={"before": "fleet.enroll"},
+        occurred_at=now - timedelta(seconds=1),
+        event_id="fleet-enroll-preexisting-audit",
+    )
+    verifier = ExecutionApprovalVerifier(state)
+    verifier.record(approval)
+    assert "fleet.enroll" in verifier.active_capabilities(now=now)
 
     enrolled = service.enroll_candidate(
         {**parameters, "approval_id": approval.approval_id}
@@ -238,11 +249,15 @@ def test_fleet_enrollment_requires_exact_one_time_sparks_approval(tmp_path):
     assert enrolled["trusted"] is True
     assert enrolled["lifecycle"] == "enrolled"
     assert enrolled["node_id"] == str(node_id)
+    assert "fleet.enroll" not in verifier.active_capabilities(
+        now=now + timedelta(seconds=1)
+    )
 
     with pytest.raises(PermissionError):
         service.enroll_candidate(
             {**parameters, "approval_id": approval.approval_id}
         )
+    assert audit.verify() == (True, None)
 
 
 def test_fleet_enrollment_approval_cannot_be_replayed_for_changed_identity(tmp_path):
