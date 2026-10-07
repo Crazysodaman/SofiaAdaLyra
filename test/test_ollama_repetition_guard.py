@@ -1,6 +1,8 @@
 """In-memory Ollama text-repeat tests; no live model, tools, or SQLite."""
 from types import SimpleNamespace
 
+import pytest
+
 from sofia.cognition.model import (
     CognitiveMessage, CognitiveRequest, CognitiveResponse, CognitiveRole,
     CognitiveToolCall, CognitiveToolDefinition,
@@ -853,6 +855,14 @@ def test_single_machinery_metaphor_is_not_rejected_when_it_is_just_a_joke():
     assert len(client.calls) == 1
 
 
+def test_familiar_affection_can_receive_plain_warmth_without_fluster():
+    reply = "*One ear flicks.* Yeah, okay. I like that."
+    client = _Client(reply)
+
+    assert _provider(client).respond(_request(user="pets head")).content == reply
+    assert len(client.calls) == 1
+
+
 def test_social_reply_with_clustered_system_metaphors_is_rewritten():
     bad = (
         "Don't get used to this being a standard feature in my uptime log. "
@@ -913,6 +923,121 @@ def test_mixed_affection_emotion_turn_still_detects_recent_roleplay_reuse():
     client = _Client(repeated, repaired)
 
     response = _provider(client).respond(request)
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "banter",
+    (
+        "I could probably run diagnostics all day if you kept this going.",
+        "You're going to make me forget what I was debugging.",
+        "At this rate I'm going to need a reboot.",
+        "Maybe I should blame the compiler.",
+    ),
+)
+def test_hypothetical_technical_banter_is_not_treated_as_activity(banter):
+    client = _Client(banter)
+
+    assert _provider(client).respond(_request(user="kisses nose")).content == banter
+    assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "claim",
+    (
+        "I'm currently running diagnostics.",
+        "The build is compiling right now.",
+        "There are compilation errors.",
+        "I've been monitoring the server all afternoon.",
+        "I'll keep checking it after you leave.",
+    ),
+)
+def test_unsupported_factual_operational_activity_is_repaired(claim):
+    repaired = "*One ear flicks.* You caught me off guard, Sparks."
+    client = _Client(claim, repaired)
+
+    response = _provider(client).respond(_request(user="kisses nose"))
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+    assert any(
+        "technical or operational activity" in item["content"]
+        for item in client.calls[1]["messages"]
+        if item["role"] == "system"
+    )
+
+
+def test_prior_jython_topic_is_not_current_compilation_error_evidence():
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.USER, "How do I code an if statement in Jython?"),
+        _message(
+            CognitiveRole.ASSISTANT,
+            "Use `if condition:` followed by an indented body.",
+        ),
+        _message(CognitiveRole.USER, "kisses nose"),
+    ))
+    bad = "Smartass. Try not to distract me from the actual compilation errors."
+    good = "*One ear flicks.* Smartass. You caught me off guard."
+    client = _Client(bad, good)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == good
+    assert len(client.calls) == 2
+
+
+def test_unrelated_trusted_current_context_does_not_ground_activity():
+    request = CognitiveRequest(messages=(
+        _message(CognitiveRole.SYSTEM, "TRUSTED CURRENT AVATAR PRESENTATION"),
+        _message(CognitiveRole.USER, "kisses nose"),
+    ))
+    client = _Client(
+        "I'm currently running diagnostics.",
+        "*One ear flicks.* You caught me off guard.",
+    )
+
+    response = _provider(client).respond(request)
+
+    assert response.content == "*One ear flicks.* You caught me off guard."
+    assert len(client.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "claim",
+    (
+        "Pressure at the base of my ears makes the sensitive tips tingle.",
+        "That's the spot; my skin goes warm and I flinch.",
+        "My heart flutters and warmth spreads through my chest.",
+    ),
+)
+def test_represented_affection_cannot_invent_biological_sensation(claim):
+    request = CognitiveRequest(messages=(
+        _message(
+            CognitiveRole.SYSTEM,
+            "TRUSTED INTERACTION INTERPRETATION\nrepresented scene only",
+        ),
+        _message(CognitiveRole.USER, "pets head"),
+    ))
+    repaired = "*One ear flicks and my tail swishes once.* Yeah, I like that."
+    client = _Client(claim, repaired)
+
+    response = _provider(client).respond(request)
+
+    assert response.content == repaired
+    assert len(client.calls) == 2
+
+
+def test_short_affection_rejects_stage_direction_stack_and_monologue():
+    stacked = (
+        "My ears perk, my tail swishes, my eyes narrow, my posture shifts, "
+        "my voice softens, and my head tilts. " + "Warm teasing words. " * 72
+    )
+    repaired = "*One ear flicks.* That means a lot. I'm glad we're talking."
+    client = _Client(stacked, repaired)
+
+    response = _provider(client).respond(_request(user="missed you"))
 
     assert response.content == repaired
     assert len(client.calls) == 2

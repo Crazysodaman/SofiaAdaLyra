@@ -235,9 +235,13 @@ def test_persistent_goal_is_scoped_into_matrix_and_neuro_without_authority(
             now=datetime.now(timezone.utc),
         )
         requests.clear()
+        # Exercise the generative goal-context projection itself; ordinary
+        # exact goal commands are answered earlier by the deterministic host
+        # resolver and correctly never need an LLM request.
+        app.conversation.set_goal_command_handler(None)
 
         app.conversation.respond(
-            "What should we check next?",
+            "Tell me about goal Investigate Docker instability status.",
             principal=local_sparks_principal(),
         )
 
@@ -263,12 +267,20 @@ def test_goal_projection_failure_does_not_break_conversation(
     app = SofiaApplication(configuration(tmp_path))
     _capture_runtime(monkeypatch, app)
     app.start()
+    app.conversation.set_goal_command_handler(None)
     app.conversation.set_goal_context_provider(
         lambda principal, now: (_ for _ in ()).throw(RuntimeError("synthetic"))
     )
     try:
         response = app.conversation.respond(
             "Hello", principal=local_sparks_principal(),
+        )
+        assert response.content == "Captured."
+        assert app.conversation.last_goal_context_error is None
+
+        response = app.conversation.respond(
+            "Tell me about goal synthetic status.",
+            principal=local_sparks_principal(),
         )
         assert response.content == "Captured."
         assert app.conversation.last_goal_context_error == "RuntimeError"

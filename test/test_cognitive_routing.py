@@ -210,8 +210,15 @@ def test_verify_uses_primary_secondary_primary_sequence():
     synthesis_request = primary.requests[1]
     assert synthesis_request.tools == ()
     assert synthesis_request.allow_tools is False
-    assert "Reviewer critique:" in synthesis_request.messages[-1].content
-    assert "critique" in synthesis_request.messages[-1].content
+    assert synthesis_request.messages[-1].role is CognitiveRole.USER
+    assert synthesis_request.messages[-1].content == (
+        "Please verify this answer before replying."
+    )
+    review = synthesis_request.messages[-2]
+    assert review.role is CognitiveRole.SYSTEM
+    assert "INTERNAL VERIFY REVIEW CONTEXT" in review.content
+    assert "critique" in review.content
+    assert "non-authoritative" in review.content
 
 
 def test_verify_never_duplicates_tool_call():

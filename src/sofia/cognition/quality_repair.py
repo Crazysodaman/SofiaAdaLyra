@@ -205,6 +205,17 @@ def grounded_quality_fallback(
             "quietly observing or speaking softly for an ongoing stretch."
         ))
 
+    if issue == "stacked_social_stage_directions":
+        return CognitiveResponse(content=(
+            "*One ear flicks with a small, pleased tilt.* Yeah, okay. I like that."
+        ))
+
+    if issue == "unsupported_operational_activity_claim":
+        return CognitiveResponse(content=(
+            "I'm here with you now. I won't invent running diagnostics, builds, "
+            "or failures that the current evidence doesn't establish."
+        ))
+
     if issue == "incomplete_generation":
         detail = (
             "Your draft ended mid-sentence or on an unfinished clause. Rewrite the full "
@@ -223,6 +234,13 @@ def grounded_quality_fallback(
             "became a monologue. Rewrite it in one or two compact sentences. Preserve "
             "grounding and personality, but do not pad with repeated mood metaphors, "
             "service offers, or multiple restatements of the same point."
+        )
+    elif issue == "stacked_social_stage_directions":
+        detail = (
+            "The user gave a short social or affectionate cue, but your draft stacked "
+            "several stage directions. Keep at most one brief representational cue and "
+            "one or two natural dialogue sentences. Vary expression without narrating "
+            "ears, tail, eyes, posture, voice, head angle, and breathing together."
         )
     elif issue == "emotion_physical_sensation":
         detail = (
@@ -449,6 +467,14 @@ def build_rephrase_request(
             "Your draft claimed ongoing activity such as humming along, quietly observing, "
             "or continuously thinking about the conversation without recorded evidence. "
             "Answer only from the current grounded state and present exchange."
+        )
+    elif issue == "unsupported_operational_activity_claim":
+        detail = (
+            "Your draft represented technical or operational activity/state as actually "
+            "running, previously observed, failing, or scheduled without current evidence. "
+            "Remove the factual claim. Hypothetical, conditional, or clearly joking banter "
+            "is allowed; do not erase personality merely because it mentions diagnostics, "
+            "a compiler, a reboot, or debugging."
         )
     elif issue == "environment_physical_sensation":
         detail = (

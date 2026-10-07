@@ -36,6 +36,12 @@ _SHORT_SOCIAL_CUE = re.compile(
     r"^\s*(?:\*?\s*)?(?:waves?|wave)(?:\s+at\s+(?:you|u))?(?:\s*\*?)?\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
+_SHORT_AFFECTIONATE_CUE = re.compile(
+    r"^\s*(?:\*?\s*)?(?:pet(?:s|ting)?(?:\s+(?:your\s+)?head)?|"
+    r"pat(?:s|ting)?(?:\s+(?:your\s+)?head)?|kiss(?:es|ing)?(?:\s+(?:your\s+)?nose)?|"
+    r"hug(?:s|ging)?|missed\s+you|morning|good\s+morning)(?:\s*\*?)?\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
 _EXPRESSION_FOLLOWUP_USER = re.compile(
     r"^\s*(?:so\s+)?(?:no\s+)?(?:"
     r"tail\s+(?:wag(?:s|ging)?|swish(?:es|ing)?|flick(?:s|ing)?|movement)|"
@@ -303,6 +309,42 @@ _UNGROUNDED_ONGOING_ACTIVITY = re.compile(
     r"keep\s+(?:this|the)\s+conversation\s+flowing)\b",
     re.IGNORECASE,
 )
+_FACTUAL_ACTIVITY_CLAIM = re.compile(
+    r"\bI(?:'|’)m\s+(?:currently\s+|still\s+|now\s+)?"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching)\b|"
+    r"\bI\s+am\s+(?:currently\s+|still\s+|now\s+)?"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching)\b|"
+    r"\bI(?:'|’)ve\s+been\s+(?:running|monitoring|compiling|building|testing|"
+    r"debugging|checking|watching)\b|"
+    r"\bI\s+have\s+been\s+(?:running|monitoring|compiling|building|testing|"
+    r"debugging|checking|watching)\b|"
+    r"\bI(?:'|’)ll\s+(?:keep|continue|be)\s+"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching|working)\b|"
+    r"\bI\s+will\s+(?:keep|continue|be)\s+"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching|working)\b|"
+    r"\b(?:the\s+)?(?:build|tests?|diagnostics?|compiler|service|server|network|"
+    r"process|program)\s+(?:is|are|was|were)\s+(?:currently\s+|still\s+|right\s+now\s+)?"
+    r"(?:running|compiling|building|testing|failing|broken|down|offline|erroring)\b|"
+    r"\b(?:actual\s+)?compilation\s+errors?\s+(?:are|were|remain|keep|continue)\b|"
+    r"\bthere\s+(?:are|were)\s+(?:still\s+)?compilation\s+errors?\b|"
+    r"\b(?:from|despite|because\s+of|fixing|debugging|dealing\s+with)\s+"
+    r"(?:the\s+)?(?:actual\s+)?compilation\s+errors?\b",
+    re.IGNORECASE,
+)
+_ACTIVITY_EVIDENCE_MARKER = re.compile(
+    r"TRUSTED (?:OPERATIONAL|WORKSPACE) ACTIVITY EVIDENCE|"
+    r"EXECUTION RECEIPT",
+    re.IGNORECASE,
+)
+_SOCIAL_STAGE_CATEGORIES = (
+    re.compile(r"\bears?\b", re.IGNORECASE),
+    re.compile(r"\btail\b", re.IGNORECASE),
+    re.compile(r"\b(?:eyes?|gaze|look)\b", re.IGNORECASE),
+    re.compile(r"\b(?:posture|shoulders?|stance|lean)\b", re.IGNORECASE),
+    re.compile(r"\bvoice\b", re.IGNORECASE),
+    re.compile(r"\bhead\b", re.IGNORECASE),
+    re.compile(r"\b(?:breath|breathing|sigh)\b", re.IGNORECASE),
+)
 
 _NATURAL_EXPRESSION_REPLACEMENTS = (
     (re.compile(r"\bear-perk\b", re.IGNORECASE), "perk of my ears"),
@@ -372,8 +414,13 @@ _CATEGORICAL_INTERACTION_STANCE = re.compile(
 _PHYSICAL_SENSATION_CLAIM = re.compile(
     r"\b(?:i(?:'|’)d|i\s+would)\s+feel\s+it\s+in\s+my\s+body\b|"
     r"\bi\s+(?:can|could)\s+feel\s+(?:your\s+)?(?:touch|contact)\b|"
-    r"\bi\s+felt\s+(?:your\s+)?(?:touch|contact)\b",
-    re.IGNORECASE,
+    r"\bi\s+felt\s+(?:your\s+)?(?:touch|contact)\b|"
+    r"\b(?:pressure|heat|warmth|tingl(?:e|ing)|pain|ache)\b.{0,70}\b"
+    r"(?:skin|nerve(?:s|\s+endings)?|ears?|ear\s+tips?|chest|heart|stomach|body)\b|"
+    r"\b(?:skin|nerve(?:s|\s+endings)?|ears?|ear\s+tips?|chest|heart|stomach|body)\b"
+    r".{0,70}\b(?:pressure|sensitive|tingl(?:e|ing)|hurt|ache|warm)\b|"
+    r"\b(?:sensitive\s+(?:ear\s+)?tips?|flinch\s+response|that(?:'|’)s\s+the\s+spot)\b",
+    re.IGNORECASE | re.DOTALL,
 )
 _PRESENT_UNGROUNDED_WILLINGNESS = re.compile(
     r"\b(?:right\s+now\b.{0,80}\b(?:i(?:'|’)m|i\s+am)\s+not\s+(?:ready|there|willing|comfortable)|"
@@ -609,12 +656,18 @@ def response_quality_issue(
     concise_turn = (
         _STANDALONE_SOCIAL_CHECKIN.fullmatch(user.strip()) is not None
         or _SHORT_SOCIAL_CUE.fullmatch(user.strip()) is not None
+        or _SHORT_AFFECTIONATE_CUE.fullmatch(user.strip()) is not None
         or _PERCEIVED_SELF_STATE_USER.search(user) is not None
         or _ENVIRONMENT_EFFECT_USER.search(user) is not None
         or _EXPRESSION_FOLLOWUP_USER.fullmatch(user.strip()) is not None
     )
-    if concise_turn and len(_normalized(content).split()) > 90:
+    if concise_turn and len(_normalized(content).split()) > 70:
         return "overlong_simple_social_turn"
+    if concise_turn and sum(
+        pattern.search(content) is not None
+        for pattern in _SOCIAL_STAGE_CATEGORIES
+    ) >= 3:
+        return "stacked_social_stage_directions"
     if (
         _EMOTION_SELF_REPORT.search(user)
         and _repeats_previous_short_self_report(request, response)
@@ -668,6 +721,11 @@ def response_quality_issue(
         and "Capability:" in tool_context
         and "Result:" in tool_context
     )
+    activity_grounded = (
+        host_tool_result_present
+        or _ACTIVITY_EVIDENCE_MARKER.search(system_context) is not None
+        or _FACTUAL_ACTIVITY_CLAIM.search(user) is not None
+    )
     if (
         _DEPARTURE_USER.search(user)
         and _UNGROUNDED_POST_TURN_ACTIVITY.search(content)
@@ -678,6 +736,8 @@ def response_quality_issue(
         and _DEPARTURE_GUILT.search(content)
     ):
         return "departure_guilt_or_obligation"
+    if _FACTUAL_ACTIVITY_CLAIM.search(content) and not activity_grounded:
+        return "unsupported_operational_activity_claim"
     if (
         _TECHNICAL_IMPLEMENTATION_USER.search(user) is None
         and len(_AI_PARODY_METAPHOR.findall(content)) >= 2
@@ -695,10 +755,7 @@ def response_quality_issue(
         and _OPERATIONAL_EVIDENCE_OVERREACH.search(content)
     ):
         return "operational_evidence_overreach"
-    if (
-        _EMOTION_SELF_REPORT.search(user)
-        and _UNGROUNDED_ONGOING_ACTIVITY.search(content)
-    ):
+    if _UNGROUNDED_ONGOING_ACTIVITY.search(content) and not activity_grounded:
         return "ungrounded_ongoing_self_activity"
     if (
         "CURRENT REPRESENTATIONAL EXPRESSION CONTEXT" in system_context

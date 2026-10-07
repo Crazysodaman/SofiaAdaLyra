@@ -33,6 +33,7 @@ from sofia.emotion.appraisal import ConversationEmotionAppraiser
 from sofia.emotion.model import CurrentEmotionalState
 from sofia.emotion.journal import EmotionalJournal
 from sofia.personality.influence import ContinuityInfluence
+from sofia.personality.modulation import derive_expression_modulation
 from sofia.personality.observation_bridge import record_workspace_observation
 from sofia.personality.reflection import ReflectionJournal
 from sofia.personality.thought_agent import ReflectionOutcome, ThoughtAgent
@@ -755,6 +756,13 @@ class EmotionalConversationService(ConversationService):
             )
         self._current_contextual_influence = influence
 
+        expression_modulation = derive_expression_modulation(
+            turn=getattr(self, "_current_turn_matrix", None),
+            influence=influence,
+            user_text=("" if not messages else messages[-1].content),
+            neuro=getattr(self, "_current_neuro_snapshot", None),
+        )
+
         expression_plan = None
         current_user = (
             messages[-1]
@@ -779,6 +787,7 @@ class EmotionalConversationService(ConversationService):
         self._current_expression_plan = expression_plan
 
         projections = []
+        projections.append(expression_modulation.prompt())
         tracker = getattr(self, "_user_affect_tracker", None)
         if tracker is None:
             tracker = UserAffectTracker()

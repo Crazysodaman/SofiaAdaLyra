@@ -325,11 +325,14 @@ class ConversationService(ConversationMatrixMixin):
     ) -> CognitiveMessage | None:
         provider = self._goal_context_provider
         principal = self._principal_context()
+        context_plan = getattr(self, "_current_context_plan", None)
         if (
             provider is None
             or principal is None
             or current_user is None
             or self._current_matrix_message_id != current_user.id
+            or context_plan is None
+            or not context_plan.allows(MatrixDomain.GOALS)
         ):
             return None
         try:

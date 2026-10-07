@@ -679,6 +679,52 @@ def test_live_avatar_why_followup_stays_on_presentation_state(
         application.shutdown()
 
 
+def test_live_five_turn_social_avatar_jython_social_continuity(
+    monkeypatch, tmp_path
+):
+    application, captured = _application(
+        monkeypatch,
+        tmp_path,
+        (
+            "Pretty steady. *One ear gives a small flick.*",
+            "*One ear flicks.* Yeah, okay. I like that.",
+            "In Jython, use `if condition:` and indent the body beneath it.",
+            "*One ear flicks.* You do enjoy changing the subject, Sparks.",
+        ),
+    )
+    try:
+        first = application.conversation.respond("hru")
+        outfit = application.conversation.respond("what are you wearing?")
+        affection = application.conversation.respond("pets head")
+        technical = application.conversation.respond(
+            "so tell me how would I code an if statement in jython"
+        )
+        final = application.conversation.respond("kisses nose")
+
+        assert "steady" in first.content
+        assert outfit.content
+        assert "I like that" in affection.content
+        assert "if condition:" in technical.content
+        assert "changing the subject" in final.content
+        final_request = captured[-1]
+        retained = "\n".join(
+            message.content for message in final_request.messages
+            if message.role.value in {"user", "assistant"}
+        )
+        system = "\n".join(
+            message.content for message in final_request.messages
+            if message.role.value == "system"
+        )
+        assert "jython" in retained.casefold()
+        assert "compilation errors" not in final.content.casefold()
+        assert "running" not in final.content.casefold()
+        assert "TRUSTED GOAL CONTEXT" not in system
+        assert "reviewer critique" not in system.casefold()
+        assert "CURRENT PERSONALITY EXPRESSION MODULATION" in system
+    finally:
+        application.shutdown()
+
+
 
 def test_live_hru_uses_primary_personality_route_and_hides_old_event_log(
     monkeypatch, tmp_path

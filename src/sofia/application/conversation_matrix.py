@@ -755,6 +755,7 @@ class ConversationMatrixMixin:
             response,
             self._current_response_contract,
             self._current_evidence_matrix,
+            turn=self._current_turn_matrix,
         )
         # Deterministic host resolvers are also authoritative about absence.
         # A weather resolver saying that no provider produced current evidence,
@@ -806,6 +807,11 @@ class ConversationMatrixMixin:
             response,
             self._current_response_contract,
             self._current_evidence_matrix,
+            turn=self._current_turn_matrix,
+            retained_user_context="\n".join(
+                item.content for item in request.messages
+                if item.role is CognitiveRole.USER
+            ),
         )
         self._current_response_validation = validation
         if validation.disposition is ResponseValidationDisposition.PASS:
@@ -904,6 +910,11 @@ class ConversationMatrixMixin:
             retry,
             self._current_response_contract,
             self._current_evidence_matrix,
+            turn=self._current_turn_matrix,
+            retained_user_context="\n".join(
+                item.content for item in retry_request.messages
+                if item.role is CognitiveRole.USER
+            ),
         )
         if retry_validation.disposition is ResponseValidationDisposition.PASS:
             self._current_response_validation = retry_validation

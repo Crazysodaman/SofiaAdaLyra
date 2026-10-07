@@ -4,6 +4,11 @@ from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
 from sofia.personality.expression import personality_expression_guidance
 from sofia.personality.model import PersonalityProfile
+from sofia.personality.influence import ContinuityInfluence
+from sofia.personality.modulation import derive_expression_modulation
+from sofia.cognition.matrix import MatrixCoordinator, TurnEnvelope
+from sofia.cognition.matrix.defaults import default_matrix_registry
+from datetime import datetime, timezone
 
 
 def _assemble(personality, content="Who are you?"):
@@ -100,3 +105,60 @@ def test_expression_boundary_turns_kurisu_dial_up_without_turning_mean():
     assert "embarrassed at being caught caring" in guidance
     assert "challenge, counter, evidence, concession, tease" in guidance
     assert "more intellectual friction, not insults" in guidance
+
+
+def _influence(*emotions):
+    return ContinuityInfluence(
+        daypart="evening",
+        season="autumn",
+        daylight="night",
+        weather_condition="rain",
+        temperature_c=12.0,
+        weather_freshness="current",
+        location_freshness="current",
+        primary_emotion_evidence_refs=("emotion:test",),
+        emotional_tone="mixed" if emotions else "neutral",
+        primary_emotion=emotions[0] if emotions else None,
+        primary_intensity=0.7 if emotions else 0.0,
+        active_emotions=tuple(emotions),
+    )
+
+
+def _turn(text):
+    return MatrixCoordinator(registry=default_matrix_registry()).evaluate(TurnEnvelope(
+        message_id="expression-test",
+        session_id="session-test",
+        content=text,
+        created_at=datetime(2026, 10, 6, tzinfo=timezone.utc),
+    ))
+
+
+def test_expression_modulation_keeps_plain_warmth_and_contextual_banter():
+    affectionate = derive_expression_modulation(
+        turn=_turn("kisses nose"),
+        influence=_influence("warmth"),
+        user_text="kisses nose",
+    )
+    technical = derive_expression_modulation(
+        turn=_turn("change the Docker config"),
+        influence=_influence("curiosity", "pride"),
+        user_text="That Docker diagnosis is wrong; prove it with evidence.",
+    )
+
+    assert affectionate.affection_openness > affectionate.fluster_tendency
+    assert technical.technical_engagement > affectionate.technical_engagement
+    assert technical.argumentative_energy > affectionate.argumentative_energy
+    prompt = technical.prompt().casefold()
+    assert "evidence wins immediately" in prompt
+    assert "never sparks" in prompt
+    assert "do not establish emotion" in prompt
+
+
+def test_expression_guidance_declares_the_grounded_hierarchy():
+    guidance = "\n".join(personality_expression_guidance()).casefold()
+
+    assert "expression priority" in guidance
+    assert "correctness and grounded evidence come first" in guidance
+    assert "kurisu is an influence, never an impersonation" in guidance
+    assert "familiar affection may be plain warmth" in guidance
+    assert "no joke is mandatory" in guidance

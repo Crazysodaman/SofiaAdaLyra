@@ -159,6 +159,48 @@ def test_clothing_state_changes_are_avatar_action_requests(content):
     assert result.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
 
 
+@pytest.mark.parametrize(
+    "content",
+    (
+        "Want to change?",
+        "Do you want to change?",
+        "Wanna change?",
+        "Feel like changing outfits?",
+    ),
+)
+def test_elliptical_change_is_conversational_avatar_followup(content):
+    result = BaselineTurnClassifier().classify(envelope(content))
+
+    assert result.intent is MatrixIntent.GENERAL
+    assert result.history_policy is HistoryPolicy.LAST_TURN
+    assert result.response_strategy is ResponseStrategy.GENERATIVE
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+    assert result.relevance_for(MatrixDomain.SOCIAL) is MatrixRelevance.CONTEXTUAL
+    assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.NONE
+
+
+@pytest.mark.parametrize(
+    "content",
+    ("change into the black dress", "change the Docker config"),
+)
+def test_explicit_change_remains_an_action_request(content):
+    result = BaselineTurnClassifier().classify(envelope(content))
+
+    assert result.intent is MatrixIntent.ACTION_REQUEST
+    assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
+
+
+def test_elliptical_change_inherits_prior_avatar_context_without_authority():
+    classifier = BaselineTurnClassifier()
+    prior = classifier.classify(envelope("what are you wearing?", message_id="m1"))
+    current = classifier.classify(envelope("Want to change?", message_id="m2"))
+
+    inherited = _inherit_last_turn_domains(current, prior)
+
+    assert inherited.relevance_for(MatrixDomain.AVATAR) is not MatrixRelevance.NONE
+    assert inherited.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.NONE
+
+
 def test_do_it_is_action_followup_with_prior_turn_context():
     result = BaselineTurnClassifier().classify(envelope("do it"))
 
@@ -1037,6 +1079,37 @@ def test_response_matrix_rejects_any_missing_required_grounding():
         "required_evidence_unavailable:avatar.canonical"
         in result.reasons
     )
+
+
+def test_response_matrix_rejects_gross_topic_drift_but_allows_one_nerdy_joke():
+    turn = BaselineTurnClassifier().classify(envelope("kisses nose"))
+    evidence = EvidenceMatrix(requirements=(), records=())
+    contract = ResponseContract(require_grounded_claims=True)
+    validator = MatrixResponseValidator()
+
+    drift = validator.validate(
+        CognitiveResponse(
+            content=(
+                "Anyway, background.py needs a database schema migration, and "
+                "pytest should debug the provider architecture."
+            )
+        ),
+        contract,
+        evidence,
+        turn=turn,
+        retained_user_context="kisses nose",
+    )
+    joke = validator.validate(
+        CognitiveResponse(content="*One ear flicks.* You nearly rebooted my dignity."),
+        contract,
+        evidence,
+        turn=turn,
+        retained_user_context="kisses nose",
+    )
+
+    assert drift.disposition is ResponseValidationDisposition.RETRY
+    assert "gross_domain_drift" in drift.reasons
+    assert joke.disposition is ResponseValidationDisposition.PASS
 
 
 def test_evidence_matrix_requires_measurement_for_network_status():

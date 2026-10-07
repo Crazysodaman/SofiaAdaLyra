@@ -12,10 +12,36 @@ from .model import (
     EvidenceKind,
     EvidenceMatrix,
     EvidenceState,
+    MatrixDomain,
+    MatrixRelevance,
     ResponseContract,
     ResponseValidation,
     ResponseValidationDisposition,
     TurnMatrix,
+)
+
+
+_TECHNICAL_TOPIC_ANCHORS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("source-file", re.compile(r"\b[\w.-]+\.(?:py|js|ts|java|rs|go)\b", re.I)),
+    ("test-runner", re.compile(r"\b(?:pytest|unittest|test\s+suite)\b", re.I)),
+    (
+        "schema",
+        re.compile(
+            r"\b(?:database\s+schema|json\s+schema|schema\s+migration)\b",
+            re.I,
+        ),
+    ),
+    (
+        "debugging",
+        re.compile(r"\b(?:stack\s+trace|timeout\s+debugging|debugger)\b", re.I),
+    ),
+    (
+        "implementation",
+        re.compile(
+            r"\b(?:goal\s+implementation|provider\s+architecture|source\s+code)\b",
+            re.I,
+        ),
+    ),
 )
 
 
@@ -103,6 +129,9 @@ class MatrixResponseValidator:
         response: CognitiveResponse,
         contract: ResponseContract,
         evidence: EvidenceMatrix,
+        *,
+        turn: TurnMatrix | None = None,
+        retained_user_context: str = "",
     ) -> ResponseValidation:
         if not isinstance(response, CognitiveResponse):
             raise TypeError("response must be CognitiveResponse")
@@ -110,12 +139,52 @@ class MatrixResponseValidator:
             raise TypeError("contract must be ResponseContract")
         if not isinstance(evidence, EvidenceMatrix):
             raise TypeError("evidence must be EvidenceMatrix")
+        if turn is not None and not isinstance(turn, TurnMatrix):
+            raise TypeError("turn must be TurnMatrix or None")
+        if not isinstance(retained_user_context, str):
+            raise TypeError("retained_user_context must be str")
 
         content = response.content.strip()
         reasons: list[str] = []
 
         if contains_internal_reasoning_leak(content):
             reasons.append("internal_reasoning_leak")
+
+        # This is deliberately a gross-drift check, not a ban on technical
+        # vocabulary. A single nerdy joke remains valid personality. Two or
+        # more unrelated, concrete implementation-topic groups in a social or
+        # avatar response indicate that the model answered leaked context.
+        if turn is not None:
+            active_domains = {
+                item.domain for item in turn.domains
+                if item.relevance is not MatrixRelevance.NONE
+            }
+            social_turn = bool(active_domains & {
+                MatrixDomain.SOCIAL,
+                MatrixDomain.AVATAR,
+                MatrixDomain.INTERACTION,
+            })
+            technical_turn = bool(active_domains & {
+                MatrixDomain.DEV,
+                MatrixDomain.OPS,
+                MatrixDomain.COGNITION,
+                MatrixDomain.MACHINE,
+                MatrixDomain.INTEGRATE,
+            })
+            response_topics = {
+                name for name, pattern in _TECHNICAL_TOPIC_ANCHORS
+                if pattern.search(content)
+            }
+            retained_topics = {
+                name for name, pattern in _TECHNICAL_TOPIC_ANCHORS
+                if pattern.search(retained_user_context)
+            }
+            if (
+                social_turn
+                and not technical_turn
+                and len(response_topics - retained_topics) >= 2
+            ):
+                reasons.append("gross_domain_drift")
 
         if contract.require_grounded_claims:
             for requirement in evidence.missing_required:
@@ -229,6 +298,13 @@ class MatrixResponseValidator:
                 content=(
                     "I have the underlying evidence, but that draft exposed "
                     "internal reasoning instead of a clean user-facing answer."
+                )
+            )
+        if "gross_domain_drift" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "That draft drifted into unrelated implementation details. "
+                    "I'll answer the current conversation instead."
                 )
             )
         if "execution_claim_without_action_authority" in reasons:

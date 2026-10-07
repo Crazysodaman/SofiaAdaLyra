@@ -150,6 +150,11 @@ _ACTION = re.compile(
     r"delete|deploy|execute|migrate|move|update|upgrade|write|edit|change|control)\b",
     re.IGNORECASE,
 )
+_ELLIPTICAL_CHANGE_FOLLOWUP = re.compile(
+    r"^\s*(?:(?:(?:do\s+)?you\s+)?want\s+to\s+change|wanna\s+change|"
+    r"feel\s+like\s+changing)(?:\s+(?:outfits?|clothes?))?\s*[?!.]*\s*$",
+    re.IGNORECASE,
+)
 _NOTIFICATION_ACTION = re.compile(
     r"\b(?:send|push|deliver|create)\b.{0,48}\bnotification\b"
     r"|\bnotify\s+(?:me|sparks|the\s+owner)\b",
@@ -374,7 +379,10 @@ class BaselineTurnClassifier:
                 ),
             )
 
-        if _GENERIC_FOLLOWUP.fullmatch(text):
+        if (
+            _GENERIC_FOLLOWUP.fullmatch(text)
+            or _ELLIPTICAL_CHANGE_FOLLOWUP.fullmatch(text)
+        ):
             return TurnMatrix(
                 intent=MatrixIntent.GENERAL,
                 confidence=MatrixConfidence.HIGH,
@@ -385,6 +393,15 @@ class BaselineTurnClassifier:
                         MatrixDomain.SOCIAL,
                         MatrixRelevance.CONTEXTUAL,
                         "short follow-up should stay bound to the immediately prior turn",
+                    ),
+                    *(
+                        (_contribution(
+                            MatrixDomain.AVATAR,
+                            MatrixRelevance.CONTEXTUAL,
+                            "elliptical change question may inherit presentation context",
+                        ),)
+                        if _ELLIPTICAL_CHANGE_FOLLOWUP.fullmatch(text)
+                        else ()
                     ),
                 ),
             )
