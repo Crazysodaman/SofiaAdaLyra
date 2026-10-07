@@ -126,6 +126,16 @@ class DesktopApplicationWorker:
     def refresh_theme(self) -> None:
         self._submit("theme", None)
 
+    def load_tools(self) -> None:
+        self._submit("load_tools", None)
+
+    def run_tool(self, tool_name: str, parameters: dict) -> None:
+        if not isinstance(tool_name, str) or not tool_name.strip():
+            raise ValueError("tool_name must be nonempty")
+        if not isinstance(parameters, dict):
+            raise TypeError("parameters must be a dict")
+        self._submit("run_tool", (tool_name, dict(parameters)))
+
     def shutdown(self, current_draft: str) -> None:
         if not isinstance(current_draft, str):
             raise TypeError("current_draft must be a string")
@@ -308,6 +318,30 @@ class DesktopApplicationWorker:
                     self._events.put(("send_error", exc))
                 continue
 
+            if kind == "run_tool":
+                try:
+                    tool_name, parameters = payload
+                    outcome = controller.run_tool(tool_name, parameters)
+                    history = controller.history()
+                    try:
+                        palette = controller.theme_palette()
+                    except Exception:
+                        palette = canonical_theme()
+                    self._events.put(
+                        (
+                            "tool_complete",
+                            (
+                                history,
+                                palette,
+                                controller.matrix_status(),
+                                outcome.result,
+                            ),
+                        )
+                    )
+                except Exception as exc:
+                    self._events.put(("tool_error", exc))
+                continue
+
             if kind == "theme":
                 try:
                     self._events.put(
@@ -317,6 +351,13 @@ class DesktopApplicationWorker:
                     self._events.put(
                         ("theme", canonical_theme())
                     )
+                continue
+
+            if kind == "load_tools":
+                try:
+                    self._events.put(("tools", controller.tool_specs()))
+                except Exception as exc:
+                    self._events.put(("tool_error", exc))
                 continue
 
             if kind == "shutdown":

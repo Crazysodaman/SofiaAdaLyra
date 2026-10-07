@@ -173,6 +173,16 @@ class CognitiveToolDispatcher:
             for binding in self._bindings.values()
         )
 
+    @property
+    def bindings(self) -> tuple[CognitiveToolBinding, ...]:
+        """Return immutable host-owned bindings for trusted host UI surfaces.
+
+        This does not grant authority or expose handlers.  A caller still has
+        to dispatch through this object and the canonical CapabilityGateway.
+        """
+
+        return tuple(self._bindings.values())
+
     def definitions_for_authority(
         self,
         authority: Authority,

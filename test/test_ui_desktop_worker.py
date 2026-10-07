@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 from datetime import datetime, timezone
 from http.client import HTTPConnection
@@ -118,6 +119,42 @@ def test_worker_owns_real_application_for_full_lifecycle(
         ).fetchall()
     assert ("user", "Hello from one worker thread.") in rows
     assert any(role == "assistant" for role, _ in rows)
+
+
+def test_worker_runs_owner_selected_tool_then_sofia_responds(
+    tmp_path: Path,
+):
+    events: Queue[tuple[str, object]] = Queue()
+    worker = DesktopApplicationWorker(
+        configuration=replace(
+            _configuration(tmp_path),
+            filesystem_root=PROJECT_ROOT,
+        ),
+        session_id=None,
+        events=events,
+        discord_provisioning=DiscordProvisioning(enabled=False),
+    )
+    worker.start()
+    assert events.get(timeout=30)[0] == "started"
+    assert events.get(timeout=30)[0] == "persistence"
+    assert events.get(timeout=30)[0] == "discord_disabled"
+
+    worker.load_tools()
+    kind, specs = events.get(timeout=30)
+    assert kind == "tools"
+    assert any(item.tool_name == "inspect_dev_status" for item in specs)
+
+    worker.run_tool("inspect_dev_status", {})
+    kind, payload = events.get(timeout=30)
+    assert kind == "tool_complete"
+    history, _palette, _matrix_status, result = payload
+    assert result.capability == "dev.status"
+    assert result.kind.value == "success"
+    assert history[-2].content == "Owner-direct private tool: inspect_dev_status"
+    assert history[-1].actor == "sofia"
+
+    worker.shutdown("")
+    assert events.get(timeout=30)[0] == "shutdown_complete"
 
 
 def test_worker_initializes_provisioned_discord_on_same_application(

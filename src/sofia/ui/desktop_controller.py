@@ -13,6 +13,11 @@ from typing import Protocol
 
 from sofia.cognition.model import CognitiveResponse
 from sofia.ui.text import UITextClient, UITextMessage
+from sofia.ui.direct_tools import (
+    DirectToolOutcome,
+    DirectToolSpec,
+    OwnerDirectToolService,
+)
 from sofia.ui.theme import (
     AdaptiveThemePolicy,
     ThemePalette,
@@ -230,6 +235,39 @@ class DesktopWorkbenchController:
                 # conversation turn or make desktop chat unavailable.
                 pass
         return response
+
+    def tool_specs(self) -> tuple[DirectToolSpec, ...]:
+        if not self._started:
+            raise RuntimeError("desktop workbench is not started")
+        return OwnerDirectToolService(self._application).specs()
+
+    def run_tool(
+        self,
+        tool_name: str,
+        parameters: dict,
+    ) -> DirectToolOutcome:
+        """Run one owner-selected private tool and persist Sofía's response."""
+        if not self._started:
+            raise RuntimeError("desktop workbench is not started")
+        before_ids = {
+            message.message_id
+            for message in self._application.text_ui.history()
+        }
+        outcome = OwnerDirectToolService(self._application).execute(
+            tool_name,
+            parameters,
+        )
+        self._verify_send_persisted(
+            content=outcome.action_content,
+            before_ids=before_ids,
+        )
+        speak = getattr(self._application, "speak", None)
+        if callable(speak):
+            try:
+                speak(outcome.response.content)
+            except Exception:
+                pass
+        return outcome
 
     def _verify_send_persisted(
         self,

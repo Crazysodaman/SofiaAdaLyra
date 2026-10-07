@@ -6,6 +6,7 @@ from sofia.ui.desktop import (
     _chamfer_points,
     _format_exception_chain,
     main,
+    settings_window_command,
 )
 
 
@@ -22,6 +23,13 @@ def test_desktop_module_import_does_not_eagerly_import_tkinter():
 
 def test_desktop_main_is_callable():
     assert callable(main)
+
+
+def test_settings_button_uses_current_python_and_exact_state_path(tmp_path):
+    command = settings_window_command(tmp_path / "sofia.db")
+
+    assert command[1:3] == ("-m", "sofia.ui.settings_window")
+    assert command[-2:] == ("--state-path", str(tmp_path / "sofia.db"))
 
 
 def test_exception_chain_includes_root_cause():

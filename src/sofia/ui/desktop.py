@@ -7,9 +7,12 @@ is introduced here.
 """
 from __future__ import annotations
 
+import json
 from queue import Empty, Queue
 from dataclasses import replace
 from pathlib import Path
+import subprocess
+import sys
 from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.ui.control_center import DesktopControlSettingsStore
 import traceback
@@ -22,6 +25,17 @@ from sofia.ui.quick_tools import (
     quick_tool_labels,
 )
 from sofia.ui.theme import ThemePalette, canonical_theme
+
+
+def settings_window_command(state_path: Path) -> tuple[str, ...]:
+    """Return the exact isolated settings process command."""
+    return (
+        sys.executable,
+        "-m",
+        "sofia.ui.settings_window",
+        "--state-path",
+        str(Path(state_path)),
+    )
 
 
 def _format_exception_chain(
@@ -210,6 +224,7 @@ class _TkDesktopWorkbench:
         self._matrix_status = ""
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
+        self._tool_specs = ()
         self._palette = canonical_theme()
         self._adaptive_theme = self._tk.BooleanVar(
             master=self._root,
@@ -312,6 +327,22 @@ class _TkDesktopWorkbench:
             side="right",
             padx=(10, 0),
         )
+
+        self._settings_button = self._ttk.Button(
+            header,
+            text="Settings",
+            command=self._open_settings,
+            style="Sofia.TButton",
+        )
+        self._settings_button.pack(side="right", padx=(10, 0))
+
+        self._tools_button = self._ttk.Button(
+            header,
+            text="Tools",
+            command=self._open_tools,
+            style="Sofia.TButton",
+        )
+        self._tools_button.pack(side="right", padx=(10, 0))
 
         self._status = self._tk.StringVar(value="")
         status = self._ttk.Label(
@@ -520,6 +551,135 @@ class _TkDesktopWorkbench:
         )
         self._input.focus_set()
 
+    def _open_settings(self) -> None:
+        try:
+            subprocess.Popen(
+                settings_window_command(self._configuration.state_path),
+                cwd=str(Path.cwd()),
+                start_new_session=True,
+            )
+        except Exception as exc:
+            self._show_error("Settings could not open", str(exc))
+
+    def _open_tools(self) -> None:
+        if self._busy or not self._application_ready or not self._tool_specs:
+            return
+        from tkinter import messagebox
+
+        window = self._tk.Toplevel(self._root)
+        window.title("Sofía · Owner-direct private tools")
+        window.geometry("700x540")
+        window.minsize(560, 420)
+        window.configure(bg=self._palette.background)
+        body = self._ttk.Frame(window, padding=14, style="Sofia.TFrame")
+        body.pack(fill="both", expand=True)
+
+        self._ttk.Label(
+            body,
+            text=(
+                "You choose and run the tool. Sofía receives the settled result "
+                "and responds through cognition; she does not select the command."
+            ),
+            wraplength=650,
+            style="Sofia.TLabel",
+        ).pack(fill="x", pady=(0, 10))
+
+        by_name = {item.tool_name: item for item in self._tool_specs}
+        selection = self._tk.StringVar(value=self._tool_specs[0].tool_name)
+        chooser = self._ttk.Combobox(
+            body,
+            textvariable=selection,
+            values=tuple(by_name),
+            state="readonly",
+            style="Sofia.TCombobox",
+        )
+        chooser.pack(fill="x")
+        detail = self._tk.StringVar()
+        self._ttk.Label(
+            body,
+            textvariable=detail,
+            wraplength=650,
+            style="SofiaStatus.TLabel",
+        ).pack(fill="x", pady=(8, 8))
+
+        self._ttk.Label(
+            body,
+            text="Parameters (JSON object)",
+            style="Sofia.TLabel",
+        ).pack(anchor="w")
+        parameters = self._tk.Text(
+            body,
+            height=12,
+            wrap="word",
+            bg=self._palette.panel,
+            fg=self._palette.text,
+            insertbackground=self._palette.secondary,
+            selectbackground=self._palette.primary,
+            relief="flat",
+            padx=8,
+            pady=8,
+            font=("Consolas", 10),
+        )
+        parameters.pack(fill="both", expand=True, pady=(4, 10))
+        parameters.insert("1.0", "{}")
+
+        def refresh_detail(_event=None) -> None:
+            spec = by_name[selection.get()]
+            required = spec.parameter_schema.get("required", ())
+            required_text = ", ".join(required) if required else "none"
+            detail.set(
+                f"Capability: {spec.capability_name} · Level "
+                f"{int(spec.permission_level)} · {spec.privacy.value} · "
+                f"required: {required_text}\n{spec.description}"
+            )
+
+        def run_selected() -> None:
+            spec = by_name[selection.get()]
+            try:
+                parsed = json.loads(parameters.get("1.0", "end-1c"))
+                if not isinstance(parsed, dict):
+                    raise ValueError("parameters must be a JSON object")
+            except (json.JSONDecodeError, ValueError) as exc:
+                messagebox.showerror(
+                    "Invalid tool parameters",
+                    str(exc),
+                    parent=window,
+                )
+                return
+            if int(spec.permission_level) >= 3 and not messagebox.askyesno(
+                "Run consequential private tool?",
+                (
+                    f"Run {spec.tool_name} as an owner-direct private action?\n\n"
+                    "The normal capability policy and any required exact approval "
+                    "still apply. This click cannot be forged by the LLM."
+                ),
+                parent=window,
+            ):
+                return
+            window.destroy()
+            self._busy = True
+            self._set_enabled(False)
+            self._status.set(f"Running private tool: {spec.tool_name}...")
+            self._worker.run_tool(spec.tool_name, parsed)
+
+        chooser.bind("<<ComboboxSelected>>", refresh_detail)
+        controls = self._ttk.Frame(body, style="Sofia.TFrame")
+        controls.pack(fill="x")
+        self._ttk.Button(
+            controls,
+            text="Run privately",
+            command=run_selected,
+            style="Sofia.TButton",
+        ).pack(side="right")
+        self._ttk.Button(
+            controls,
+            text="Cancel",
+            command=window.destroy,
+            style="Sofia.TButton",
+        ).pack(side="right", padx=(0, 8))
+        refresh_detail()
+        chooser.focus_set()
+
     def _start_background(self) -> None:
         self._busy = True
         self._worker.start()
@@ -582,6 +742,7 @@ class _TkDesktopWorkbench:
                 self._render_history(history)
                 self._replace_input(draft)
                 self._set_enabled(True)
+                self._worker.load_tools()
                 self._status.set(self._ready_status())
                 if self._adaptive_theme.get():
                     self._apply_theme(palette)
@@ -595,6 +756,9 @@ class _TkDesktopWorkbench:
                 self._persistence_status = str(payload)
                 if self._application_ready and not self._busy:
                     self._status.set(self._ready_status())
+            elif kind == "tools":
+                self._tool_specs = tuple(payload)
+                self._set_enabled(self._application_ready and not self._busy)
             elif kind == "sent":
                 history, palette, matrix_status = payload
                 self._matrix_status = str(matrix_status)
@@ -648,6 +812,28 @@ class _TkDesktopWorkbench:
                 if self._close_requested:
                     self._begin_shutdown()
                     return
+            elif kind == "tool_complete":
+                history, palette, matrix_status, result = payload
+                self._matrix_status = str(matrix_status)
+                self._busy = False
+                self._render_history(history)
+                self._set_enabled(True)
+                self._status.set(
+                    self._ready_status()
+                    + f" · Tool {result.capability}: {result.kind.value}"
+                )
+                self._apply_theme(
+                    palette if self._adaptive_theme.get() else canonical_theme()
+                )
+                self._input.focus_set()
+            elif kind == "tool_error":
+                self._busy = False
+                self._set_enabled(True)
+                self._status.set(f"Tool failed: {type(payload).__name__}")
+                self._show_error(
+                    "Private tool failed",
+                    _format_exception_chain(payload),
+                )
             elif kind == "theme":
                 if self._adaptive_theme.get():
                     self._apply_theme(payload)
@@ -876,6 +1062,9 @@ class _TkDesktopWorkbench:
         self._send.configure(state=state)
         self._quick_tools.configure(
             state="readonly" if enabled else "disabled"
+        )
+        self._tools_button.configure(
+            state=("normal" if enabled and self._tool_specs else "disabled")
         )
 
     def _save_theme(self) -> None:

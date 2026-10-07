@@ -957,6 +957,88 @@ class ConversationService(ConversationMatrixMixin):
 
         return response
 
+    def respond_to_owner_tool_result(
+        self,
+        *,
+        action_content: str,
+        formatted_result: str,
+        principal: PrincipalContext,
+        channel: str = "desktop",
+    ) -> CognitiveResponse:
+        """Persist an owner-selected tool action and let Sofía answer its result.
+
+        Tool selection and execution have already happened at the trusted host
+        boundary.  Cognition receives only the settled result and cannot request
+        another tool in this response.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "ConversationService must be started before responding."
+            )
+        if not isinstance(action_content, str) or not action_content.strip():
+            raise ValueError("action_content must be nonempty")
+        if not isinstance(formatted_result, str) or not formatted_result.strip():
+            raise ValueError("formatted_result must be nonempty")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("principal must be a PrincipalContext")
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError("channel must be nonempty")
+        principal = self._bind_principal(principal)
+        user_message = ConversationMessage(
+            id=str(uuid4()),
+            session_id=self._session.id,
+            role=ConversationRole.USER,
+            content=action_content.strip(),
+            created_at=datetime.now(timezone.utc),
+        )
+        self._conversation_store.save(user_message)
+        self._after_user_message_saved(message=user_message, principal=principal)
+        self._record_shadow_matrix(
+            message=user_message,
+            principal=principal,
+            channel=channel.strip().casefold(),
+        )
+        self._observe_neuro_turn(message=user_message, channel=channel)
+
+        base = self._build_request()
+        request = CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "TRUSTED OWNER-DIRECT PRIVATE TOOL RESULT\n"
+                        "Sparks selected and ran this tool through the authenticated "
+                        "local host UI. The model did not select or execute it. Reply "
+                        "as Sofía to Sparks using only the settled result below. Do not "
+                        "request or invoke another tool, do not invent missing evidence, "
+                        "and do not claim success when the result is unauthorized, "
+                        "denied, failed, or unavailable.\n\n" + formatted_result
+                    ),
+                ),
+                *base.messages,
+            ),
+            tools=(),
+            allow_tools=False,
+            capability_allowlist=(),
+            route_hint=base.route_hint,
+        )
+        response = self._runtime.respond(
+            request,
+            principal=principal,
+            context_plan=self._current_context_plan,
+            privacy_plan=self._current_privacy_plan,
+            contextual_influence=self._current_contextual_influence,
+        )
+        self._capture_cognition_execution()
+        response = self._finalize_response(request, response, principal=principal)
+        response = self._matrix_finalize_response(
+            request,
+            response,
+            principal=principal,
+        )
+        self._persist_response(response)
+        return response
+
     def _persist_response(self, response: CognitiveResponse) -> None:
         """Save a settled reply and reload the same canonical session."""
         assistant_message = ConversationMessage(
