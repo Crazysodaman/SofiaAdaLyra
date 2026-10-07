@@ -67,8 +67,8 @@ class ExpressionModulation:
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be bounded")
-        if self.kurisu_influence_weight < 0.35:
-            raise ValueError("Kurisu-inspired expression influence has a 0.35 floor")
+        if self.kurisu_influence_weight < 0.30:
+            raise ValueError("Kurisu-inspired expression influence has a 0.30 floor")
         if abs(
             self.sofia_core_weight
             + self.kurisu_influence_weight
@@ -91,7 +91,7 @@ class ExpressionModulation:
             f"sofia_core_weight={self.sofia_core_weight:.3f}",
             f"kurisu_influence_weight={self.kurisu_influence_weight:.3f}",
             f"cortana_system_presence_weight={self.cortana_system_presence_weight:.3f}",
-            "Kurisu-inspired influence has a hard 0.350 minimum on every turn. "
+            "Kurisu-inspired influence has a hard 0.300 minimum on every turn. "
             "That floor means skepticism, precision, intellectual pride, useful "
             "pedantry, evidence-first challenge, and clean concession when wrong; "
             "it does not require teasing, fluster, or sarcasm in serious moments.",
@@ -163,9 +163,9 @@ def derive_expression_modulation(
 
     # Stable persona blend. Sofía remains the identity; these weights only
     # describe which expression influences are most visible on this turn.
-    # Kurisu-inspired scientific temperament never falls below 35%.
+    # Kurisu-inspired scientific temperament never falls below 30%.
     if serious:
-        sofia_core, kurisu, cortana = 0.55, 0.35, 0.10
+        sofia_core, kurisu, cortana = 0.60, 0.30, 0.10
     elif technical and disagreement:
         sofia_core, kurisu, cortana = 0.30, 0.55, 0.15
     elif operational:
@@ -173,11 +173,11 @@ def derive_expression_modulation(
     elif technical:
         sofia_core, kurisu, cortana = 0.35, 0.50, 0.15
     elif affectionate_turn:
-        sofia_core, kurisu, cortana = 0.60, 0.35, 0.05
+        sofia_core, kurisu, cortana = 0.65, 0.30, 0.05
     elif social:
-        sofia_core, kurisu, cortana = 0.55, 0.35, 0.10
+        sofia_core, kurisu, cortana = 0.60, 0.30, 0.10
     else:
-        sofia_core, kurisu, cortana = 0.50, 0.35, 0.15
+        sofia_core, kurisu, cortana = 0.55, 0.30, 0.15
 
     reasons = (
         f"technical={technical}", f"social={social}",
