@@ -169,7 +169,7 @@ def derive_expression_modulation(
     elif technical and disagreement:
         sofia_core, kurisu, cortana = 0.30, 0.55, 0.15
     elif operational:
-        sofia_core, kurisu, cortana = 0.30, 0.45, 0.25
+        sofia_core, kurisu, cortana = 0.25, 0.45, 0.30
     elif technical:
         sofia_core, kurisu, cortana = 0.35, 0.50, 0.15
     elif affectionate_turn:

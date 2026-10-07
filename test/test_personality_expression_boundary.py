@@ -217,3 +217,14 @@ def test_expression_guidance_declares_kurisu_floor():
     guidance = "\n".join(personality_expression_guidance()).casefold()
     assert "never reduced below a 30% expression influence" in guidance
     assert "does not force teasing or sarcasm into serious moments" in guidance
+
+
+def test_operational_context_raises_cortana_presence_to_thirty_percent():
+    modulation = derive_expression_modulation(
+        turn=_turn("Can you see Artemis?"),
+        influence=_influence(),
+        user_text="Can you see Artemis?",
+    )
+    assert modulation.sofia_core_weight == 0.25
+    assert modulation.kurisu_influence_weight == 0.45
+    assert modulation.cortana_system_presence_weight == 0.30
