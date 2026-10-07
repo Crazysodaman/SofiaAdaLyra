@@ -9,7 +9,10 @@ import re
 
 from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 
-from .visibility import asks_about_machine_visibility
+from .visibility import (
+    asks_about_machine_visibility,
+    asks_about_named_machine_hardware,
+)
 
 from .model import (
     AuthorityDecision,
@@ -140,7 +143,6 @@ class MatrixToolExposurePlanner:
         if _HARDWARE.search(text):
             _add(
                 capabilities,
-                "hardware.inspect",
                 "machine.list",
                 "machine.get",
                 "ops.fleet.list",
@@ -148,6 +150,10 @@ class MatrixToolExposurePlanner:
                 "remote.nodes",
                 "remote.hardware.inspect",
             )
+            # A named remote subject must never be answered with local-host
+            # hardware merely because the local read tool takes no arguments.
+            if not asks_about_named_machine_hardware(text):
+                capabilities.insert(0, "hardware.inspect")
         if _NETWORK.search(text):
             _add(capabilities, "network.inspect")
             if _DISCOVER.search(text) or _NETWORK_HOSTS.search(text):

@@ -91,6 +91,12 @@ class EnvironmentQueryResolver:
         return _normalize(query) in forms._GENERIC_SOURCE_FOLLOWUP_FORMS
 
     @classmethod
+    def is_generic_indoor_followup(cls, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        return _normalize(query) in forms._GENERIC_INDOOR_FOLLOWUP_FORMS
+
+    @classmethod
     def is_weather_or_forecast_query(cls, query: str) -> bool:
         if not isinstance(query, str):
             return False

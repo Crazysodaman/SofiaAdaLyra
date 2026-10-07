@@ -123,6 +123,7 @@ class EmotionalConversationService(ConversationService):
         self._clarification_journal: ClarificationJournal | None = None
         self._embodied_expression_planner = EmbodiedExpressionPlanner()
         self._current_expression_plan: EmbodiedExpressionPlan | None = None
+        self._previous_expression_modulation = None
         self._evolution_service = None
         self._last_emotion_appraisal_error: str | None = None
         self._pending_emotion_appraisal = None
@@ -675,6 +676,7 @@ class EmotionalConversationService(ConversationService):
         self._reflection_journal = None
         self._clarification_journal = None
         self._current_expression_plan = None
+        self._previous_expression_modulation = None
         tracker = getattr(self, "_user_affect_tracker", None)
         if tracker is not None:
             tracker.clear()
@@ -761,7 +763,9 @@ class EmotionalConversationService(ConversationService):
             influence=influence,
             user_text=("" if not messages else messages[-1].content),
             neuro=getattr(self, "_current_neuro_snapshot", None),
+            previous=getattr(self, "_previous_expression_modulation", None),
         )
+        self._previous_expression_modulation = expression_modulation
 
         expression_plan = None
         current_user = (

@@ -23,6 +23,29 @@ _NON_MACHINE_SUBJECTS = frozenset({
     "everyone", "somebody", "nobody", "screen", "image", "photo",
     "picture", "message", "text", "camera", "clearly",
 })
+_NAMED_MACHINE_HARDWARE = (
+    re.compile(
+        r"\bwhat\s+(?:hardware|cpu|gpu|ram|memory)\s+(?:does|is\s+on)\s+"
+        r"(?P<target>[a-z][a-z0-9_.-]{1,63})(?:\s+have)?\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?P<target>[a-z][a-z0-9_.-]{1,63})(?:'|’)?s\s+"
+        r"(?:hardware|cpu|gpu|ram|memory)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:hardware|cpu|gpu|ram|memory)\s+(?:on|for|of)\s+"
+        r"(?P<target>[a-z][a-z0-9_.-]{1,63})\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:inspect|check|query|show\s+me|get)\s+"
+        r"(?P<target>[a-z][a-z0-9_.-]{1,63})(?:'|’)?s?\s+"
+        r"(?:hardware|cpu|gpu|ram|memory)\b",
+        re.IGNORECASE,
+    ),
+)
 
 
 def asks_about_machine_visibility(content: str) -> bool:
@@ -38,3 +61,24 @@ def asks_about_machine_visibility(content: str) -> bool:
         match is not None
         and match.group("target").casefold() not in _NON_MACHINE_SUBJECTS
     )
+
+
+def asks_about_named_machine_hardware(content: str) -> bool:
+    """Recognize an explicitly named remote hardware subject.
+
+    Recognition selects read-only Fleet/remote tools only; it does not prove
+    that the target exists, is enrolled, or is reachable.
+    """
+    if not isinstance(content, str):
+        raise TypeError("content must be str")
+    for pattern in _NAMED_MACHINE_HARDWARE:
+        match = pattern.search(content)
+        if (
+            match is not None
+            and match.group("target").casefold() not in _NON_MACHINE_SUBJECTS
+            and match.group("target").casefold() not in {
+                "local", "localhost", "this", "current", "my",
+            }
+        ):
+            return True
+    return False

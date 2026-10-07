@@ -720,7 +720,7 @@ def test_live_five_turn_social_avatar_jython_social_continuity(
         assert "running" not in final.content.casefold()
         assert "TRUSTED GOAL CONTEXT" not in system
         assert "reviewer critique" not in system.casefold()
-        assert "CURRENT PERSONALITY EXPRESSION MODULATION" in system
+        assert system.count("CURRENT PERSONALITY EXPRESSION MODULATION") == 1
     finally:
         application.shutdown()
 

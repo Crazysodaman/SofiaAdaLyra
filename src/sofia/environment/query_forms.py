@@ -207,6 +207,18 @@ _GENERIC_SOURCE_FOLLOWUP_FORMS = frozenset(
     }
 )
 
+_GENERIC_INDOOR_FOLLOWUP_FORMS = frozenset(
+    {
+        "what about inside",
+        "how about inside",
+        "and inside",
+        "what's it like inside",
+        "what is it like inside",
+        "what about indoors",
+        "how about indoors",
+    }
+)
+
 _TEMPERATURE_UNIT_FORMS = frozenset(
     {
         "use f not c",

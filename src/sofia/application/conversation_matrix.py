@@ -46,6 +46,7 @@ from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.social.model import PrincipalContext
 from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
+from sofia.safe.permissions import PermissionLevel, capability_permission_policy
 
 
 def _matrix_context_window(
@@ -143,6 +144,34 @@ def _inherit_last_turn_domains(
         ),
         ambiguous=turn.ambiguous,
         schema_version=turn.schema_version,
+    )
+
+
+def _inherit_last_turn_read_tools(
+    turn: TurnMatrix,
+    current: ToolExposurePlan,
+    prior: ToolExposurePlan | None,
+) -> ToolExposurePlan:
+    """Retain only prior Level-1 reads for an explicit short follow-up.
+
+    Relevance continuity is not authority continuity: mutations, approvals,
+    and safe-autonomous actions are deliberately not inherited.
+    """
+    if turn.history_policy is not HistoryPolicy.LAST_TURN or prior is None:
+        return current
+    capabilities = list(current.capabilities)
+    for capability in prior.capabilities:
+        if (
+            capability_permission_policy(capability).level
+            is PermissionLevel.OBSERVE_READ
+            and capability not in capabilities
+        ):
+            capabilities.append(capability)
+    if tuple(capabilities) == current.capabilities:
+        return current
+    return ToolExposurePlan(
+        tuple(capabilities),
+        current.reason + "; inherited prior-turn Level-1 read relevance only",
     )
 
 
@@ -434,6 +463,7 @@ class ConversationMatrixMixin:
     ) -> None:
         """Plan the live matrix independently from best-effort trace persistence."""
         previous_turn = getattr(self, "_current_turn_matrix", None)
+        previous_exposure = getattr(self, "_current_tool_exposure_plan", None)
         self._reset_matrix_turn()
         execution_reader = getattr(
             self._runtime,
@@ -451,6 +481,7 @@ class ConversationMatrixMixin:
 
         store = getattr(self, "_matrix_trace_store", None)
         prior_turn = previous_turn
+        prior_exposure = previous_exposure
         trace_error: str | None = None
         if store is not None:
             try:
@@ -460,6 +491,7 @@ class ConversationMatrixMixin:
                 trace_error = "trace-read:" + type(exc).__name__
             if prior_trace is not None:
                 prior_turn = prior_trace.turn
+                prior_exposure = prior_trace.tool_exposure
 
         try:
             envelope = TurnEnvelope(
@@ -506,6 +538,11 @@ class ConversationMatrixMixin:
                 envelope,
                 turn,
                 authority_plan,
+            )
+            tool_exposure_plan = _inherit_last_turn_read_tools(
+                turn,
+                tool_exposure_plan,
+                prior_exposure,
             )
             response_contract = self._matrix_response_planner.plan(
                 turn,

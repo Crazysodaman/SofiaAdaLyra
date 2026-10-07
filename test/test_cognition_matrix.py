@@ -17,6 +17,7 @@ from sofia.runtime.evidence import project_matrix_evidence
 from sofia.application.conversation_matrix import (
     ConversationMatrixMixin,
     _inherit_last_turn_domains,
+    _inherit_last_turn_read_tools,
 )
 from sofia.cognition.matrix import (
     AuthorityDecision,
@@ -376,7 +377,7 @@ def test_docker_question_exposes_local_and_enrolled_remote_read_paths():
     assert plan.allow_tools is True
 
 
-def test_hardware_question_exposes_local_inventory_and_remote_read_paths():
+def test_named_remote_hardware_question_excludes_local_host_inspection():
     planner = MatrixToolExposurePlanner()
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
     env = envelope("what hardware does Eos have?")
@@ -386,7 +387,6 @@ def test_hardware_question_exposes_local_inventory_and_remote_read_paths():
     plan = planner.plan(env, turn, authority)
 
     assert {
-        "hardware.inspect",
         "machine.list",
         "machine.get",
         "ops.fleet.list",
@@ -394,7 +394,34 @@ def test_hardware_question_exposes_local_inventory_and_remote_read_paths():
         "remote.nodes",
         "remote.hardware.inspect",
     }.issubset(set(plan.capabilities))
+    assert "hardware.inspect" not in plan.capabilities
     assert plan.allow_tools is True
+
+
+def test_local_hardware_question_keeps_local_host_inspection():
+    planner = MatrixToolExposurePlanner()
+    coordinator = MatrixCoordinator(registry=default_matrix_registry())
+    env = envelope("what hardware does this computer have?")
+    turn = coordinator.evaluate(env)
+    authority = MatrixAuthorityPlanner().plan(env, turn, Authority())
+
+    assert "hardware.inspect" in planner.plan(env, turn, authority).capabilities
+
+
+def test_last_turn_followup_inherits_only_read_tools():
+    turn = MatrixCoordinator(registry=default_matrix_registry()).evaluate(
+        envelope("Do it")
+    )
+    current = ToolExposurePlan((), "no literal tool cue")
+    prior = ToolExposurePlan(
+        ("remote.hardware.inspect", "local.service.restart"),
+        "prior hardware request",
+    )
+
+    inherited = _inherit_last_turn_read_tools(turn, current, prior)
+
+    assert inherited.capabilities == ("remote.hardware.inspect",)
+    assert "Level-1 read" in inherited.reason
 
 
 def test_tool_exposure_keeps_read_only_inspection_for_unapproved_action():
@@ -1110,6 +1137,41 @@ def test_response_matrix_rejects_gross_topic_drift_but_allows_one_nerdy_joke():
     assert drift.disposition is ResponseValidationDisposition.RETRY
     assert "gross_domain_drift" in drift.reasons
     assert joke.disposition is ResponseValidationDisposition.PASS
+
+
+def test_social_checkin_rejects_stacked_machinery_metaphors():
+    turn = BaselineTurnClassifier().classify(envelope("hru"))
+    validator = MatrixResponseValidator()
+    contract = ResponseContract(require_grounded_claims=True)
+    result = validator.validate(
+        CognitiveResponse(
+            content="Kernel is warm; diagnostics say my system link needs a reboot."
+        ),
+        contract,
+        EvidenceMatrix(),
+        turn=turn,
+        retained_user_context="hru",
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "social_machinery_metaphor_stack" in result.reasons
+    assert "foxish" in validator.fallback(result, contract).content
+
+
+def test_environment_turn_rejects_invented_audio_connection_loss():
+    turn = BaselineTurnClassifier().classify(envelope("what's the weather?"))
+    result = MatrixResponseValidator().validate(
+        CognitiveResponse(
+            content="The weather is mild, but my audio connection dropped."
+        ),
+        ResponseContract(require_grounded_claims=True),
+        EvidenceMatrix(),
+        turn=turn,
+        retained_user_context="what's the weather?",
+    )
+
+    assert result.disposition is ResponseValidationDisposition.RETRY
+    assert "voice_runtime_claim_outside_context" in result.reasons
 
 
 def test_evidence_matrix_requires_measurement_for_network_status():

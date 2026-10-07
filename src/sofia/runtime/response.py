@@ -141,6 +141,22 @@ def respond_with_runtime_context(
             )
         ):
             environment_query = "what is your weather source"
+    elif (
+        user_content
+        and runtime._environment_query_resolver.is_generic_indoor_followup(
+            user_content
+        )
+    ):
+        previous_user_content = _previous_user_content(request)
+        if (
+            previous_user_content
+            and runtime._environment_query_resolver.is_weather_or_forecast_query(
+                previous_user_content
+            )
+        ):
+            # Resolve from the typed indoor observation. Never let a vague
+            # follow-up turn outdoor weather or model prose into room telemetry.
+            environment_query = "what is the indoor temperature"
 
     reflection_answer = None
     if (

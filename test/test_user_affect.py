@@ -83,6 +83,20 @@ def test_negated_sensitive_affect_is_not_recorded_as_positive_evidence():
         )
 
 
+def test_malformed_or_attributed_affect_envelope_never_reaches_user():
+    content = (
+        "Visible response.\n"
+        '<sofia-user-affect source="model">untrusted payload'
+    )
+    assert (
+        UserAffectAppraiser.strip_untrusted_envelope(content)
+        == "Visible response."
+    )
+    assert UserAffectAppraiser.strip_untrusted_envelope(
+        "Visible response.\n<SOFIA-USER-AFFECT>payload"
+    ) == "Visible response."
+
+
 def test_tracker_expires_and_has_no_durable_backing():
     assessment = UserAffectAssessment(
         affects=("frustrated",), source="inferred", valence=-0.6,

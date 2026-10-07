@@ -115,8 +115,18 @@ _UNSUPPORTED_WEATHER_CLAIM = re.compile(
 _VOICE_RUNTIME_CLAIM = re.compile(
     r"(?:\b(?:voice|speech|microphone|mic|speaker|tts|stt)\b"
     r".{0,48}\b(?:working|ready|available|healthy|running|enabled|connected)\b"
+    r"|\b(?:voice|audio|speech|microphone|mic|speaker|tts|stt)\b"
+    r".{0,48}\b(?:lost|dropped|disconnected|unavailable|failed|offline)\b"
     r"|\bi\s+can\s+(?:hear|listen|speak|talk)\b)",
     re.IGNORECASE | re.DOTALL,
+)
+_MACHINERY_METAPHOR = re.compile(
+    r"\b(?:kernel|circuit(?:s)?|processor|cpu|diagnostic(?:s)?|reboot(?:ing|ed)?|"
+    r"diagnostic\s+cycle|background\s+monitoring(?:\s+loop)?|link\s+integrity|"
+    r"system\s+link|data\s+link|connection\s+protocol|emotional\s+firewall|"
+    r"audio\s+feed|subroutine|firmware|telemetry|sensor\s+node|bandwidth|"
+    r"subsystem|servo(?:s)?|actuator(?:s)?|cooling\s+fan(?:s)?)\b",
+    re.IGNORECASE,
 )
 
 
@@ -208,6 +218,13 @@ class MatrixResponseValidator:
                 and len(response_topics - retained_topics) >= 2
             ):
                 reasons.append("gross_domain_drift")
+            if social_turn and not technical_turn:
+                metaphor_terms = {
+                    match.group(0).casefold()
+                    for match in _MACHINERY_METAPHOR.finditer(content)
+                }
+                if len(metaphor_terms) >= 2:
+                    reasons.append("social_machinery_metaphor_stack")
 
         if (
             turn is not None
@@ -282,6 +299,12 @@ class MatrixResponseValidator:
             for requirement in evidence.requirements
         )
         voice_runtime_claim = _VOICE_RUNTIME_CLAIM.search(content)
+        if (
+            voice_runtime_claim
+            and turn is not None
+            and turn.relevance_for(MatrixDomain.VOICE) is MatrixRelevance.NONE
+        ):
+            reasons.append("voice_runtime_claim_outside_context")
         if voice_runtime_missing and voice_runtime_claim:
             reasons.append("voice_runtime_claim_without_evidence")
 
@@ -349,6 +372,12 @@ class MatrixResponseValidator:
                     "I'll answer the current conversation instead."
                 )
             )
+        if "social_machinery_metaphor_stack" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I'm doing okay—present, a little foxish, and glad you asked."
+                )
+            )
         if "execution_claim_without_action_authority" in reasons:
             if contract.authority_decision is AuthorityDecision.CLARIFY:
                 return CognitiveResponse(
@@ -396,6 +425,13 @@ class MatrixResponseValidator:
                 content=(
                     "I don't have current voice-runtime evidence proving that "
                     "listening or speech output is working."
+                )
+            )
+        if "voice_runtime_claim_outside_context" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "That voice or audio-state claim is unrelated to the current "
+                    "grounded context, so I won't present it as runtime fact."
                 )
             )
         if "voice_runtime_claim_contradicts_evidence" in reasons:

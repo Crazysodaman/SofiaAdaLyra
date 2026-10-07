@@ -530,6 +530,12 @@ def test_generic_source_followup_is_classified_without_globally_hijacking_it():
     assert not resolver.might_match("where you pull the info")
 
 
+def test_generic_indoor_followup_requires_runtime_history_binding():
+    resolver = EnvironmentQueryResolver()
+    assert resolver.is_generic_indoor_followup("what about inside?")
+    assert not resolver.might_match("what about inside?")
+
+
 def test_missing_weather_without_location_explains_location_dependency():
     snapshot = EnvironmentService(
         EnvironmentConfiguration()

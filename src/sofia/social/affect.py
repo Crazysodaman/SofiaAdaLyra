@@ -295,5 +295,13 @@ class UserAffectAppraiser:
     def strip_untrusted_envelope(content: str) -> str:
         if not isinstance(content, str):
             raise TypeError("content must be a string")
-        start = content.rfind(_OPEN)
+        starts = tuple(
+            match.start()
+            for match in re.finditer(
+                r"<\s*sofia-user-affect\b",
+                content,
+                re.IGNORECASE,
+            )
+        )
+        start = -1 if not starts else starts[-1]
         return content if start < 0 else content[:start].rstrip()

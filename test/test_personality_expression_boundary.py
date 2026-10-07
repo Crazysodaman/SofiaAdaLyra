@@ -1,4 +1,6 @@
 """Batch G2 offline acceptance; no model-output fidelity is asserted."""
+from datetime import datetime, timezone
+
 from sofia.cognition.assembler import CognitiveContextAssembler
 from sofia.cognition.context import CognitiveContext
 from sofia.cognition.model import CognitiveMessage, CognitiveRequest, CognitiveRole
@@ -8,7 +10,11 @@ from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.modulation import derive_expression_modulation
 from sofia.cognition.matrix import MatrixCoordinator, TurnEnvelope
 from sofia.cognition.matrix.defaults import default_matrix_registry
-from datetime import datetime, timezone
+from sofia.neuro.model import (
+    HomeostaticState,
+    NeuralActivation,
+    NeuroStateSnapshot,
+)
 
 
 def _assemble(personality, content="Who are you?"):
@@ -228,3 +234,75 @@ def test_operational_context_raises_cortana_presence_to_thirty_percent():
     assert modulation.sofia_core_weight == 0.25
     assert modulation.kurisu_influence_weight == 0.45
     assert modulation.cortana_system_presence_weight == 0.30
+
+
+def _neuro(*, kind="fleet", source="fleet:node-offline", score=0.9, novelty=0.8):
+    activation = NeuralActivation(
+        key=f"{kind}:{source}", source=source, kind=kind,
+        score=score, novelty=novelty,
+        updated_at=datetime(2026, 10, 6, tzinfo=timezone.utc),
+    )
+    return NeuroStateSnapshot(
+        generated_at=datetime(2026, 10, 6, tzinfo=timezone.utc),
+        focus=activation,
+        homeostasis=HomeostaticState(
+            cognitive_load=0.3, novelty_load=novelty,
+            competition_pressure=0.4,
+        ),
+        active_signal_count=1,
+    )
+
+
+def test_neuro_failure_salience_adjusts_style_not_matrix_or_authority():
+    baseline = derive_expression_modulation(
+        turn=_turn("Can you see Artemis?"), influence=_influence(),
+        user_text="Can you see Artemis?",
+    )
+    modulated = derive_expression_modulation(
+        turn=_turn("Can you see Artemis?"), influence=_influence(),
+        user_text="Can you see Artemis?", neuro=_neuro(),
+    )
+
+    assert modulated.kurisu_influence_weight > baseline.kurisu_influence_weight
+    assert (
+        modulated.cortana_system_presence_weight
+        >= baseline.cortana_system_presence_weight
+    )
+    assert modulated.kurisu_influence_weight >= 0.30
+    assert abs(
+        modulated.sofia_core_weight + modulated.kurisu_influence_weight
+        + modulated.cortana_system_presence_weight - 1.0
+    ) < 0.001
+    prompt = modulated.prompt().casefold()
+    assert "do not establish" in prompt
+    assert "authority" in prompt
+    assert "tool results" in prompt
+
+
+def test_expression_smoothing_is_ephemeral_and_serious_context_bypasses_it():
+    previous = derive_expression_modulation(
+        turn=_turn("change the Docker config"),
+        influence=_influence("curiosity"),
+        user_text="That Docker diagnosis is wrong; prove it.",
+    )
+    social = derive_expression_modulation(
+        turn=_turn("hru"), influence=_influence(), user_text="hru",
+        previous=previous,
+    )
+    raw_social = derive_expression_modulation(
+        turn=_turn("hru"), influence=_influence(), user_text="hru",
+    )
+    serious = derive_expression_modulation(
+        turn=_turn("I'm overwhelmed and this is serious."),
+        influence=_influence("concern"),
+        user_text="I'm overwhelmed and this is serious.", previous=previous,
+    )
+
+    assert social.kurisu_influence_weight > raw_social.kurisu_influence_weight
+    assert "smoothing=major-context-shift" in social.reasons
+    assert (
+        serious.sofia_core_weight,
+        serious.kurisu_influence_weight,
+        serious.cortana_system_presence_weight,
+    ) == (0.60, 0.30, 0.10)
+    assert "smoothing=serious-bypass" in serious.reasons
