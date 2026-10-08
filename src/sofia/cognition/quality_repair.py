@@ -69,6 +69,12 @@ def grounded_quality_fallback(
             "permission, and I can say yes, no, or change my mind in the moment."
         ))
 
+    if issue == "user_directed_contempt":
+        return CognitiveResponse(content=(
+            "You're right to press on the evidence. I should answer the question "
+            "without inventing motives for you or getting defensive."
+        ))
+
     if issue == "ai_parody_metaphor_overuse":
         if _EMOTION_SELF_REPORT.search(user):
             labels = re.findall(r'"emotion"\s*:\s*"([^"]+)"', system_context)
@@ -390,6 +396,14 @@ def build_rephrase_request(
             "The user is leaving or saying good night. Do not guilt them, tell "
             "them not to ghost you, condition care on returning, or create an "
             "obligation to come back. Respond warmly and let the departure stand."
+        )
+    elif issue == "user_directed_contempt":
+        detail = (
+            "Your draft aimed irritation or accusation at Sparks instead of the "
+            "reasoning. Rewrite it without accusing them of lying, conspiracy, "
+            "annoyance, wasting time, or asking redundant questions. Kurisu-like "
+            "bite belongs on bad reasoning and unsupported claims, not on the user. "
+            "Own mistakes cleanly and answer the latest request directly."
         )
     elif issue == "ai_parody_metaphor_overuse":
         detail = (
