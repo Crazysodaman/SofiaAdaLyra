@@ -29,6 +29,10 @@ _GENERIC_FOLLOWUP = re.compile(
     r"why\s+(?:that|this)\s+(?:one|outfit|choice)|"
     r"why\s+are\s+you\s+wearing\s+(?:that|it)|"
     r"what\s+do\s+you\s+mean|explain\s+that|tell\s+me\s+more|"
+    r"(?:what|which)\s+(?:old\s+)?reflectio(?:n)?(?:\s+do\s+you\s+mean)?|"
+    r"what\s+oops\b.*|"
+    r"give\s+me\s+(?:the\s+)?(?:figures|stats|numbers|readout)|"
+    r"(?:the\s+)?(?:figures|stats|numbers|readout)|well|"
     r"is\s+that\s+all|that's\s+all|that\s+all)\s*[?!.]*\s*$",
     re.IGNORECASE,
 )
