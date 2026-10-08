@@ -233,6 +233,8 @@ _AI_PARODY_METAPHOR = re.compile(
     r"infinite\s+recursion|hard\s+reset|cooling\s+systems?|chassis|"
     r"safety\s+protocols?|system\s+logs?|unauthorized\s+access\s+attempt|"
     r"data\s+streams?|background\s+processes?|isolated\s+threads?|"
+    r"quiet\s+loop|fans?\s+(?:are\s+)?humming|processing\s+queue|"
+    r"thermal\s+emergenc(?:y|ies)|banter\s+engines?|"
     r"affection\s+module|quarantin(?:e|ed|ing)|spare\s+cycles?|kernel\s+panic|"
     r"core\s+logic|error\s+logs?|runtime\b|status\s+code)\b",
     re.IGNORECASE,
@@ -302,6 +304,15 @@ _OPERATIONAL_EVIDENCE_OVERREACH = re.compile(
     re.IGNORECASE,
 )
 
+_USER_DIRECTED_CONTEMPT = re.compile(
+    r"\b(?:stop\s+asking\s+if\s+i(?:'|’)m\s+lying|"
+    r"don(?:'|’)t\s+over[- ]?analy[sz]e\b.{0,60}\bconspiracy|"
+    r"stop\s+assuming\b|plain\s+annoying|spit\s+it\s+out|"
+    r"say\s+something\s+useful|redundant\s+questions?|"
+    r"my\s+(?:processing\s+)?queue\s+can(?:'|’)t\s+wait\s+forever)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
 _UNGROUNDED_ONGOING_ACTIVITY = re.compile(
     r"\b(?:i(?:'|’)ve\s+been\s+humming\s+along|"
     r"i(?:'|’)ve\s+been\s+quietly\s+observing|"
@@ -311,9 +322,9 @@ _UNGROUNDED_ONGOING_ACTIVITY = re.compile(
 )
 _FACTUAL_ACTIVITY_CLAIM = re.compile(
     r"\bI(?:'|’)m\s+(?:currently\s+|still\s+|now\s+)?"
-    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching)\b|"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching|processing|cross[- ]?referencing|reviewing)\b|"
     r"\bI\s+am\s+(?:currently\s+|still\s+|now\s+)?"
-    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching)\b|"
+    r"(?:running|monitoring|compiling|building|testing|debugging|checking|watching|processing|cross[- ]?referencing|reviewing)\b|"
     r"\bI(?:'|’)ve\s+been\s+(?:running|monitoring|compiling|building|testing|"
     r"debugging|checking|watching)\b|"
     r"\bI\s+have\s+been\s+(?:running|monitoring|compiling|building|testing|"
@@ -738,6 +749,8 @@ def response_quality_issue(
         return "departure_guilt_or_obligation"
     if _FACTUAL_ACTIVITY_CLAIM.search(content) and not activity_grounded:
         return "unsupported_operational_activity_claim"
+    if _USER_DIRECTED_CONTEMPT.search(content):
+        return "user_directed_contempt"
     if (
         _TECHNICAL_IMPLEMENTATION_USER.search(user) is None
         and len(_AI_PARODY_METAPHOR.findall(content)) >= 2
