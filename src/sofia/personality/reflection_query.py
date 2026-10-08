@@ -53,6 +53,11 @@ def _conversational_reflection(content: str) -> str:
 
 
 class ReflectionQueryResolver:
+    _FOLLOWUP_RE = re.compile(
+        r"\b(?:what|which)\s+(?:old\s+)?reflectio(?:n)?"
+        r"(?:\s+(?:do\s+you\s+mean|are\s+you\s+talking\s+about))?\b",
+        re.IGNORECASE,
+    )
     _QUERY_RE = re.compile(
         r"\b(?:"
         r"what(?:'s|\s+is)\s+on\s+your\s+mind"
@@ -70,7 +75,10 @@ class ReflectionQueryResolver:
     def might_match(cls, query: str) -> bool:
         return (
             isinstance(query, str)
-            and cls._QUERY_RE.search(_normalize(query)) is not None
+            and (
+                cls._QUERY_RE.search(_normalize(query)) is not None
+                or cls._FOLLOWUP_RE.search(_normalize(query)) is not None
+            )
         )
 
     def resolve(
@@ -107,11 +115,23 @@ class ReflectionQueryResolver:
         )
         latest = recent[0]
         latest_text = _conversational_reflection(latest.content)
+        normalized = _normalize(query)
+
+        if self._FOLLOWUP_RE.search(normalized) is not None:
+            refs = ", ".join(latest.evidence_refs)
+            return ReflectionQueryAnswer(
+                True,
+                (
+                    "The latest recorded reflection I can ground that to is "
+                    f"\"{latest.content}\" Subject: {latest.subject}. "
+                    f"Evidence refs: {refs}. That's all the recorded reflection "
+                    "establishes; I won't invent an explanation around it."
+                ),
+            )
 
         # Ordinary "what are you thinking about?" is conversational. Report
         # the newest actually recorded reflection without dumping audit rows or
         # timestamps unless the user explicitly asked for records/history.
-        normalized = _normalize(query)
         detail_requested = any(
             token in normalized
             for token in (
