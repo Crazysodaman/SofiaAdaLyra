@@ -66,6 +66,28 @@ _FLEET_EVIDENCE_REFS = frozenset({
     "capability:ops.fleet.get",
     "capability:remote.nodes",
 })
+_OPERATIONAL_CAPABILITY_PREFIXES = (
+    "capability:hardware.",
+    "capability:system.",
+    "capability:process.",
+    "capability:network.",
+    "capability:service.",
+    "capability:machine.",
+    "capability:ops.",
+    "capability:remote.",
+)
+
+
+def _has_operational_evidence(
+    response: CognitiveResponse,
+    evidence: EvidenceMatrix,
+) -> bool:
+    if evidence.state_for("operational.measurement") is EvidenceState.AVAILABLE:
+        return True
+    return any(
+        ref.startswith(_OPERATIONAL_CAPABILITY_PREFIXES)
+        for ref in response.evidence_refs
+    )
 
 
 _EXECUTION_CLAIM = re.compile(
@@ -99,13 +121,39 @@ _OPERATIONAL_MEASUREMENT_CLAIM = re.compile(
     r"|\buptime\s+(?:is|of|about|approximately)?\s*\d+(?:\.\d+)?\s*"
     r"(?:hours?|days?|weeks?)\b"
     r"|\b\d+\s*(?:cores?|threads?)\b"
-    r"|\b(?:throughput|benchmark|transfer\s+rate)\s*(?:is|:|at)?\s*"
-    r"\d+(?:\.\d+)?\s*(?:mb/s|gb/s|ops/s|requests?/s)\b"
+    r"|\b(?:throughput|benchmark|transfer\s+rate|latency|"
+    r"memory\s+fragmentation|thermal\s+output|cpu\s+usage|memory\s+usage)"
+    r"\s*(?:is|was|:|at|peaked\s+at)?\s*\d+(?:\.\d+)?\s*"
+    r"(?:%|ms|mb/s|gb/s|ops/s|requests?/(?:ms|s))\b"
     r"|\b(?:storage|disk)\s*[:=-]?\s*(?:primary|secondary|nvme|ssd|hdd|"
     r"\d+(?:\.\d+)?\s*(?:gb|tb))"
     r")",
     re.IGNORECASE,
 )
+_OPERATIONAL_STATUS_CLAIM = re.compile(
+    r"(?:"
+    r"\b(?:system|systems|telemetry|metrics?)\s+(?:is|are|was|were)\s+"
+    r"(?:green|stable|healthy|normal|nominal|normalized)\b"
+    r"|\bno\s+active\s+(?:faults?|errors?|thermal\s+emergenc(?:y|ies))\b"
+    r"|\b(?:resource|latency|cpu|memory|thermal)\s+spike\b"
+    r"|\b(?:flagged|reported|showed|shows)\b.{0,80}\b"
+    r"(?:resource\s+spike|latency\s+spike|fault|error|thermal|cpu|memory)\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
+_OPERATIONAL_EXECUTION_CLAIM = re.compile(
+    r"(?:"
+    r"\bi\s+(?:have\s+)?(?:just\s+)?(?:cleaned\s+up|killed|patched|"
+    r"normalized|defragged|repaired|fixed|cleared)\b.{0,100}\b"
+    r"(?:process(?:es)?|cache|metrics?|service|host|machine|server|fleet|"
+    r"system|memory|thermal|resource|artemis)\b"
+    r"|\b(?:process(?:es)?|cache|metrics?|service|host|machine|server|"
+    r"system|memory|resource)\b.{0,80}\b(?:was|were|has\s+been|have\s+been)\s+"
+    r"(?:killed|patched|normalized|defragged|repaired|fixed|cleared)\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
+
 _UNSUPPORTED_WEATHER_CLAIM = re.compile(
     r"\b(?:current\s+weather\s+(?:is|:)|it(?:'s|\s+is)\s+"
     r"(?:sunny|cloudy|raining|rainy|snowing|stormy)|"
@@ -236,6 +284,23 @@ class MatrixResponseValidator:
             and not _FLEET_EVIDENCE_REFS.intersection(response.evidence_refs)
         ):
             reasons.append("fleet_visibility_claim_without_fleet_evidence")
+
+        operational_claim = (
+            _NETWORK_MEASUREMENT_CLAIM.search(content)
+            or _OPERATIONAL_MEASUREMENT_CLAIM.search(content)
+            or _OPERATIONAL_STATUS_CLAIM.search(content)
+        )
+        if operational_claim and not _has_operational_evidence(response, evidence):
+            reasons.append("operational_claim_without_tool_evidence")
+
+        if (
+            _OPERATIONAL_EXECUTION_CLAIM.search(content)
+            and not any(
+                ref.startswith("execution-receipt:")
+                for ref in response.evidence_refs
+            )
+        ):
+            reasons.append("operational_execution_claim_without_receipt")
 
         if contract.require_grounded_claims:
             for requirement in evidence.missing_required:
@@ -375,7 +440,23 @@ class MatrixResponseValidator:
         if "social_machinery_metaphor_stack" in reasons:
             return CognitiveResponse(
                 content=(
-                    "I'm doing okay—present, a little foxish, and glad you asked."
+                    "That draft stacked system metaphors instead of answering the "
+                    "current turn. I discarded it rather than turn those metaphors "
+                    "into facts."
+                )
+            )
+        if "operational_execution_claim_without_receipt" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I don't have an execution receipt proving that operational "
+                    "cleanup or change happened, so I won't claim that it did."
+                )
+            )
+        if "operational_claim_without_tool_evidence" in reasons:
+            return CognitiveResponse(
+                content=(
+                    "I don't have current operational evidence supporting that "
+                    "status or figure, so I won't invent it."
                 )
             )
         if "execution_claim_without_action_authority" in reasons:
