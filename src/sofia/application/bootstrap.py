@@ -85,6 +85,7 @@ from sofia.cognition.v2 import (
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
 )
+from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
@@ -222,6 +223,9 @@ class SofiaApplication:
         self._fleet_machine_answers = FleetMachineAnswerCoordinator(
             dispatcher, self._cognitive_evidence_acquisition
         )
+        self._knowledge_answers = KnowledgeEvidenceCoordinator(
+            dispatcher, self._cognitive_evidence_acquisition
+        )
         self._turn_kernel = ProductionTurnKernel(
             SQLiteConversationFocusStore(configuration.state_path),
             entity_provider=self._cognition_entity_candidates,
@@ -278,9 +282,7 @@ class SofiaApplication:
             self._neuro
         )
         self._conversation_service.set_turn_kernel(self._turn_kernel)
-        self._conversation_service.set_v2_answer_handler(
-            self._fleet_machine_answers.answer
-        )
+        self._conversation_service.set_v2_answer_handler(self._answer_v2)
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
         )
@@ -380,6 +382,12 @@ class SofiaApplication:
     @property
     def cognitive_evidence_acquisition(self) -> EvidenceAcquisitionCoordinator:
         return self._cognitive_evidence_acquisition
+
+    def _answer_v2(self, **kwargs):
+        response = self._fleet_machine_answers.answer(**kwargs)
+        if response is not None:
+            return response
+        return self._knowledge_answers.answer(**kwargs)
 
     def _cognition_entity_candidates(self) -> tuple[EntityCandidate, ...]:
         """Project Fleet identities for reference resolution, never as facts."""
@@ -501,7 +509,7 @@ class SofiaApplication:
             self._neuro
         )
         service.set_turn_kernel(self._turn_kernel)
-        service.set_v2_answer_handler(self._fleet_machine_answers.answer)
+        service.set_v2_answer_handler(self._answer_v2)
         service.set_goal_context_provider(
             self._goal_context_for_principal
         )

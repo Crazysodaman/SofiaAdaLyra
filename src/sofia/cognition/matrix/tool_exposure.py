@@ -230,7 +230,12 @@ class MatrixToolExposurePlanner:
         if _GITHUB.search(text):
             _add(capabilities, "github.repository", "github.issues", "github.file", "github.pull_requests")
         if _KNOWLEDGE.search(text):
-            _add(capabilities, "knowledge.search", "knowledge.document")
+            _add(
+                capabilities,
+                "knowledge.search",
+                "knowledge.document",
+                "knowledge.graph",
+            )
         if _HOME_ASSISTANT.search(text):
             _add(capabilities, "home_assistant.services", "home_assistant.states", "home_assistant.state")
         if _PORTAINER.search(text):

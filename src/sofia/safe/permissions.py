@@ -190,6 +190,7 @@ _READ_ONLY = frozenset({
     "sqlite.state.integrity",
     "knowledge.search",
     "knowledge.document",
+    "knowledge.graph",
     "dev.status",
     "dev.candidates.list",
     "dev.candidate.get",

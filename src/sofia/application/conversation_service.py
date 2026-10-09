@@ -867,6 +867,7 @@ class ConversationService(ConversationMatrixMixin):
                     if self._current_tool_exposure_plan is None
                     else self._current_tool_exposure_plan.capabilities
                 ),
+                query=user_message.content,
             )
             if v2_response is not None:
                 if not isinstance(v2_response, CognitiveResponse):

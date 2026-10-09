@@ -75,6 +75,7 @@ class KnowledgeCapabilitySet:
         return (
             Capability("knowledge.search","Search durable provenance-backed project knowledge."),
             Capability("knowledge.document","Read one durable knowledge document and its source facts."),
+            Capability("knowledge.graph","Read provenance-linked knowledge graph edges."),
             Capability("knowledge.ingest.text","Ingest one authorized project text file into durable knowledge."),
             Capability("knowledge.ingest.pdf","Ingest one authorized project PDF/manual into durable knowledge."),
             Capability("knowledge.document.write","Write or replace one authorized project documentation file."),
@@ -91,6 +92,10 @@ class KnowledgeCapabilitySet:
         )
         if name=="knowledge.document": return self.service.document(
             p["document_id"],
+            principal_id=principal_id,audience_id=audience_id,
+        )
+        if name=="knowledge.graph": return self.service.graph(
+            p["entity"],limit=p.get("limit",20),
             principal_id=principal_id,audience_id=audience_id,
         )
         if name=="knowledge.ingest.text": return self.service.ingest_text(
@@ -129,6 +134,8 @@ def create_knowledge_tool_bindings()->tuple[CognitiveToolBinding,...]:
             {"query":{"type":"string"},"limit":{"type":"integer"}},("query",)),
         binding("inspect_knowledge_document","knowledge.document","Read a durable knowledge document and its provenance facts. Read-only.",
             {"document_id":{"type":"string"}},("document_id",)),
+        binding("inspect_knowledge_graph","knowledge.graph","Read provenance-linked relationships for an exact knowledge entity. Read-only.",
+            {"entity":{"type":"string"},"limit":{"type":"integer"}},("entity",)),
         binding("ingest_text_knowledge","knowledge.ingest.text","Ingest one authorized project text file into durable knowledge.",
             {"path":{"type":"string"},"version":{"type":"string"}},("path",)),
         binding("ingest_pdf_knowledge","knowledge.ingest.pdf","Ingest one authorized project PDF/manual into durable knowledge.",

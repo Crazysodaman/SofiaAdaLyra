@@ -110,6 +110,7 @@ _EVIDENCE_PREDICATES = {
     "machine": "machine.measurement.current",
     "ops": "ops.measurement.current",
     "cognition": "cognition.configuration",
+    "know": "knowledge.retrieval",
     "continuity": "continuity.current",
     "goals": "goals.current",
 }

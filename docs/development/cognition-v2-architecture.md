@@ -1,8 +1,24 @@
 # Cognition v2 architecture specification
 
-Status: Batches 1–8 are production-composed, including resource-aware dual-model
+Status: Batches 1–9 are production-composed, including resource-aware dual-model
 residency, concurrent role workers, and one authoritative cognition status
 projection.
+
+## Batch 9 KNOW v2
+
+KNOW now provides one hybrid retrieval interface over canonical SQLite FTS5,
+exact identifiers, deterministic semantic overlap, and optional bounded
+embeddings. Structured sections retain headings, metadata, hashes, versions,
+and page/line source locations; changed sources supersede prior revisions while
+preserving audit history. A provenance-linked graph indexes only explicit
+headings and links. Principal/audience eligibility is applied before results
+leave the service.
+
+Matrix v2 emits `knowledge.retrieval` evidence needs. The application-owned
+KNOW coordinator runs the existing authorized read capability and records its
+results in the cognition-v2 evidence ledger before producing a deterministic
+source answer. Neither FTS rank, embedding similarity, nor graph proximity is
+treated as factual authority.
 
 ## Batch 8 authoritative status and controls
 

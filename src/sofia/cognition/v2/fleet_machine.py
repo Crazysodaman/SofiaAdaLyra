@@ -71,6 +71,7 @@ class FleetMachineAnswerCoordinator:
         focus: ConversationFocus,
         principal: PrincipalContext | None,
         allowed_capabilities: tuple[str, ...],
+        query: str | None = None,
     ) -> CognitiveResponse | None:
         if not isinstance(allowed_capabilities, tuple):
             raise TypeError("allowed_capabilities must be tuple")
