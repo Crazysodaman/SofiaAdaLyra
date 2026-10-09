@@ -188,9 +188,8 @@ def test_live_casual_network_status_does_not_invent_telemetry(
     application, captured = _application(monkeypatch, tmp_path, ())
     try:
         reply = application.conversation.respond("So hows the network")
-        assert "don't have the required current measurement evidence" in (
-            reply.content
-        )
+        assert "don't have current operational evidence" in reply.content
+        assert "won't invent it" in reply.content
         assert captured == []
     finally:
         application.shutdown()

@@ -895,7 +895,8 @@ def test_matrix_network_no_evidence_is_recorded_without_fake_health(
 
         normalized = result.content.casefold()
         assert "don't have" in normalized
-        assert "measurement" in normalized or "network-health" in normalized
+        assert "operational evidence" in normalized
+        assert "won't invent" in normalized
         assert "no packet loss" not in normalized
         assert "all systems green" not in normalized
         trace = application.conversation.latest_matrix_trace()

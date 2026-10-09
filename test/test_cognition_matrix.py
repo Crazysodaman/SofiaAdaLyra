@@ -1155,7 +1155,9 @@ def test_social_checkin_rejects_stacked_machinery_metaphors():
 
     assert result.disposition is ResponseValidationDisposition.RETRY
     assert "social_machinery_metaphor_stack" in result.reasons
-    assert "foxish" in validator.fallback(result, contract).content
+    fallback = validator.fallback(result, contract).content.casefold()
+    assert "system metaphors" in fallback
+    assert "discarded" in fallback
 
 
 def test_environment_turn_rejects_invented_audio_connection_loss():
