@@ -105,12 +105,15 @@ class CognitiveRoutingConfiguration:
     primary: ProviderConfiguration | None = None
     secondary: ProviderConfiguration | None = None
     verify_enabled: bool = True
+    parallel_enabled: bool = True
+    fallback_enabled: bool = False
 
     def __post_init__(self) -> None:
         if type(self.enabled) is not bool:
             raise TypeError("routing enabled must be a bool")
-        if type(self.verify_enabled) is not bool:
-            raise TypeError("routing verify_enabled must be a bool")
+        for name in ("verify_enabled", "parallel_enabled", "fallback_enabled"):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"routing {name} must be a bool")
         for name in ("primary", "secondary"):
             value = getattr(self, name)
             if value is not None and not isinstance(

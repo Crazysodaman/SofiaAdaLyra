@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
 from sofia.application.emotional_conversation import EmotionalConversationService
+from sofia.application.emotional_conversation import ConversationActivityGroup
 
 
 def test_conversation_and_idle_thought_share_a_model_lock(monkeypatch):
@@ -46,3 +47,32 @@ def test_conversation_and_idle_thought_share_a_model_lock(monkeypatch):
     assert not user.is_alive() and not worker.is_alive()
     assert calls == ["conversation:start", "conversation:end", "reflection:start"]
     assert not service.ready_for_idle_reflection(idle_seconds=45)
+
+
+def test_activity_group_drains_started_turns_and_rejects_new_shutdown_work():
+    group = ConversationActivityGroup()
+    entered = Event()
+    release = Event()
+    drained = Event()
+
+    def foreground():
+        with group.foreground():
+            entered.set()
+            assert release.wait(timeout=3)
+
+    turn = Thread(target=foreground)
+    turn.start()
+    assert entered.wait(timeout=3)
+    shutdown = Thread(target=lambda: (group.begin_shutdown(), drained.set()))
+    shutdown.start()
+    assert not drained.wait(timeout=0.05)
+    release.set()
+    turn.join(timeout=3)
+    shutdown.join(timeout=3)
+    assert drained.is_set()
+
+    try:
+        with group.foreground():
+            raise AssertionError("draining gate admitted a new turn")
+    except RuntimeError as exc:
+        assert "draining" in str(exc)

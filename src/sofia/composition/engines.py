@@ -176,6 +176,8 @@ def create_cognitive_engine(
         return RoutingCognitiveEngine(
             registry=registry,
             verify_enabled=routing.verify_enabled,
+            parallel_enabled=routing.parallel_enabled,
+            fallback_enabled=routing.fallback_enabled,
             activity_store=activity_store,
         )
 

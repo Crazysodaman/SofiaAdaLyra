@@ -1471,6 +1471,24 @@ class ConversationService(ConversationMatrixMixin):
                 existing_hint=route_hint,
             ).mode.value
 
+        cognitive_plan = self.cognitive_plan
+        if cognitive_plan is not None:
+            cognitive_messages = (
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "COGNITIVE WORKER SCHEDULE\n"
+                        "Parallel workers: "
+                        + (
+                            "allowed"
+                            if cognitive_plan.budget.allow_parallelism
+                            else "disabled"
+                        )
+                    ),
+                ),
+                *cognitive_messages,
+            )
+
         return CognitiveRequest(
             messages=cognitive_messages,
             allow_tools=allow_tools,

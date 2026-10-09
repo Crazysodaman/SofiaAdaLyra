@@ -283,6 +283,7 @@ def test_channel_conversations_share_runtime_but_keep_audience_sessions_isolated
     discord_session = discord_conversation.session_id
     assert discord_session is not None
     assert discord_session != desktop_session
+    assert discord_conversation._model_lock is not application.conversation._model_lock
 
     application.conversation.respond(
         "Hello from the desktop.",

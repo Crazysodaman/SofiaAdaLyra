@@ -184,9 +184,10 @@ class SofiaApplication:
             state_plane=self._runtime.state_plane,
         )
         self._model_lock = RLock()
-        self._conversation_activity = ConversationActivityGroup(
-            self._model_lock
-        )
+        # Background state mutation keeps one application lock. Each
+        # conversation receives its own turn lock below, while routed Primary
+        # and Secondary workers synchronize independently inside cognition.
+        self._conversation_activity = ConversationActivityGroup()
         self._tts: TextToSpeechService = (
             create_tts_service_from_environment()
         )
@@ -235,7 +236,6 @@ class SofiaApplication:
         self._conversation_service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime,
             conversation_store=conversation_store,
-            model_lock=self._model_lock,
             activity_group=self._conversation_activity,
         )
         self._conversation_service.set_evolution_service(self._evolution)
@@ -483,7 +483,6 @@ class SofiaApplication:
         service: ConversationService = OptInInteractionConversationService(
             runtime=self._runtime,
             conversation_store=conversation_store,
-            model_lock=self._model_lock,
             activity_group=self._conversation_activity,
         )
         service.set_learning_coordinator(
@@ -1185,6 +1184,9 @@ class SofiaApplication:
             raise SofiaApplicationError(
                 "Sofía application can only start from a stopped state."
             )
+        conversation_activity = getattr(self, "_conversation_activity", None)
+        if conversation_activity is not None:
+            conversation_activity.accept_foreground()
 
         try:
             from sofia.config.user_settings import RuntimeUserSettingsStore
@@ -1432,9 +1434,12 @@ class SofiaApplication:
                 ) from exc
             self._model_lifecycle_worker = None
 
-        # Every conversation surface and idle reflection uses this lock around
-        # cognitive work. Crossing the same boundary here prevents teardown
-        # from closing shared stores/runtime underneath an in-flight reply.
+        # Background mutation retains the application lock. Foreground turns
+        # have per-session locks and are
+        # drained through the shared activity group before stores are closed.
+        conversation_activity = getattr(self, "_conversation_activity", None)
+        if conversation_activity is not None:
+            conversation_activity.begin_shutdown()
         with self._model_lock:
             try:
                 for service in reversed(

@@ -1,13 +1,13 @@
 """Application integration for evidence-linked emotional expression and reflection."""
 from __future__ import annotations
 
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import replace
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
 import re
-from threading import RLock
+from threading import Condition, RLock
 from time import monotonic
 from weakref import WeakSet
 
@@ -70,12 +70,42 @@ _LOG = logging.getLogger(__name__)
 class ConversationActivityGroup:
     """Aggregate foreground activity across all application conversation surfaces."""
 
-    def __init__(self, model_lock=None) -> None:
-        self._model_lock = model_lock if model_lock is not None else RLock()
+    def __init__(self) -> None:
+        self._condition = Condition(RLock())
+        self._active_foreground = 0
+        self._draining = False
         self._members: WeakSet = WeakSet()
 
     def register(self, service) -> None:
-        self._members.add(service)
+        with self._condition:
+            self._members.add(service)
+
+    @contextmanager
+    def foreground(self):
+        """Track a turn without serializing independent channel inference."""
+        with self._condition:
+            if self._draining:
+                raise RuntimeError("conversation activity is draining for shutdown")
+            self._active_foreground += 1
+        try:
+            yield
+        finally:
+            with self._condition:
+                self._active_foreground -= 1
+                self._condition.notify_all()
+
+    def begin_shutdown(self) -> None:
+        """Reject new turns and wait until already-started turns commit."""
+        with self._condition:
+            self._draining = True
+            self._condition.wait_for(lambda: self._active_foreground == 0)
+
+    def accept_foreground(self) -> None:
+        """Open the foreground gate for initial start or a clean restart."""
+        with self._condition:
+            if self._active_foreground:
+                raise RuntimeError("cannot reopen while foreground turns are active")
+            self._draining = False
 
     def ready_for_idle(self, *, idle_seconds: float) -> bool:
         if (
@@ -84,9 +114,9 @@ class ConversationActivityGroup:
             or idle_seconds < 0
         ):
             raise ValueError("idle_seconds must be a nonnegative number")
-        # All foreground model work uses the same lock. Crossing it here gives
-        # the scheduler a coherent view of every registered channel's activity.
-        with self._model_lock:
+        # The condition protects the cross-channel activity snapshot without
+        # serializing the independent per-session turn locks.
+        with self._condition:
             now = monotonic()
             members = tuple(self._members)
             return bool(members) and all(
@@ -141,7 +171,7 @@ class EmotionalConversationService(ConversationService):
         self._activity_group = (
             activity_group
             if activity_group is not None
-            else ConversationActivityGroup(self._model_lock)
+            else ConversationActivityGroup()
         )
         # Preserve the per-service activity contract used by deterministic
         # INTERACTION fast paths while aggregating those fields application-wide.
@@ -309,8 +339,12 @@ class EmotionalConversationService(ConversationService):
         """Serialize user inference against application-owned idle inference."""
         started = monotonic()
         self._active_user_requests += 1
+        activity = getattr(self, "_activity_group", None)
         try:
-            with self._model_lock:
+            foreground = (
+                activity.foreground() if activity is not None else nullcontext()
+            )
+            with foreground, self._model_lock:
                 acquired = monotonic()
                 try:
                     if principal is None:

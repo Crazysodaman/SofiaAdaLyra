@@ -242,6 +242,14 @@ def _routing_configuration_from_environ(
             "SOFIA_COGNITION_VERIFY_ENABLED",
             default=user_settings.cognitive_verify_enabled,
         ),
+        parallel_enabled=_environment_flag(
+            "SOFIA_COGNITION_PARALLEL_ENABLED",
+            default=True,
+        ),
+        fallback_enabled=_environment_flag(
+            "SOFIA_COGNITION_FALLBACK_ENABLED",
+            default=False,
+        ),
     )
 
 

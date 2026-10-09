@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
+from threading import RLock
 from time import perf_counter
 
 from sofia.cognition.activity import CognitiveModelActivityStore
@@ -293,6 +295,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         *,
         policy: CognitiveRoutingPolicy | None = None,
         verify_enabled: bool = True,
+        parallel_enabled: bool = True,
+        fallback_enabled: bool = False,
         activity_store: CognitiveModelActivityStore | None = None,
     ) -> None:
         if not isinstance(registry, CognitiveEngineRegistry):
@@ -304,6 +308,10 @@ class RoutingCognitiveEngine(CognitiveEngine):
             raise TypeError("policy must be a CognitiveRoutingPolicy or None")
         if type(verify_enabled) is not bool:
             raise TypeError("verify_enabled must be a bool")
+        if type(parallel_enabled) is not bool:
+            raise TypeError("parallel_enabled must be a bool")
+        if type(fallback_enabled) is not bool:
+            raise TypeError("fallback_enabled must be a bool")
         if (
             activity_store is not None
             and not isinstance(activity_store, CognitiveModelActivityStore)
@@ -315,10 +323,17 @@ class RoutingCognitiveEngine(CognitiveEngine):
         self.registry = registry
         self.policy = policy or CognitiveRoutingPolicy()
         self.verify_enabled = verify_enabled
+        self.parallel_enabled = parallel_enabled
+        self.fallback_enabled = fallback_enabled
         self.activity_store = activity_store
         self.last_decision: RoutingDecision | None = None
         self.last_execution: RoutingExecution | None = None
         self._execution_serial = 0
+        self._execution_lock = RLock()
+        self._role_locks = {
+            "primary": RLock(),
+            "secondary": RLock(),
+        }
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         decision = self.policy.decide(request)
@@ -341,7 +356,10 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         steps,
                     )
                 except CognitiveEngineError:
-                    if not self._tool_request_is_replay_safe(request):
+                    if (
+                        not self.fallback_enabled
+                        or not self._tool_request_is_replay_safe(request)
+                    ):
                         raise
                     fallback_count += 1
                     tool_fallback_used = True
@@ -366,12 +384,33 @@ class RoutingCognitiveEngine(CognitiveEngine):
                     return response
                 return primary_response
 
-            if decision.route is CognitiveRoute.VERIFY and self.verify_enabled:
+            if (
+                decision.route is CognitiveRoute.VERIFY
+                and self.verify_enabled
+                and self.parallel_enabled
+                and self._request_allows_parallelism(request)
+            ):
+                response, verification_passes = self._parallel_response(
+                    request,
+                    steps=steps,
+                    purpose="verification",
+                )
+            elif decision.route is CognitiveRoute.VERIFY and self.verify_enabled:
                 response, fallback_count, verification_passes = (
                     self._verified_response(
                         request,
                         steps=steps,
                     )
+                )
+            elif (
+                decision.route is CognitiveRoute.DEEP
+                and self.parallel_enabled
+                and self._request_allows_parallelism(request)
+            ):
+                response, verification_passes = self._parallel_response(
+                    request,
+                    steps=steps,
+                    purpose="deep reasoning",
                 )
             elif decision.route in {
                 CognitiveRoute.FAST,
@@ -392,14 +431,15 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 )
             return response
         finally:
-            self._execution_serial += 1
-            self.last_execution = RoutingExecution(
-                serial=self._execution_serial,
-                route=decision.route,
-                steps=tuple(steps),
-                fallback_count=fallback_count,
-                verification_passes=verification_passes,
-            )
+            with self._execution_lock:
+                self._execution_serial += 1
+                self.last_execution = RoutingExecution(
+                    serial=self._execution_serial,
+                    route=decision.route,
+                    steps=tuple(steps),
+                    fallback_count=fallback_count,
+                    verification_passes=verification_passes,
+                )
 
             emit_performance(
                 "router",
@@ -421,6 +461,15 @@ class RoutingCognitiveEngine(CognitiveEngine):
             if verb not in cls._REPLAY_SAFE_TOOL_VERBS:
                 return False
         return True
+
+    @staticmethod
+    def _request_allows_parallelism(request: CognitiveRequest) -> bool:
+        marker = "COGNITIVE WORKER SCHEDULE\nParallel workers: disabled"
+        return not any(
+            message.role is CognitiveRole.SYSTEM
+            and message.content == marker
+            for message in request.messages
+        )
 
     @staticmethod
     def _engine_model(engine: CognitiveEngine) -> str | None:
@@ -453,50 +502,184 @@ class RoutingCognitiveEngine(CognitiveEngine):
         request: CognitiveRequest,
         steps: list[RoutingExecutionStep],
     ) -> CognitiveResponse:
-        engine = self.registry.get(role)
-        model = self._engine_model(engine)
-        if self.activity_store is not None and model is not None:
-            self.activity_store.mark_busy(
-                role=role,
-                model=model,
-            )
-        try:
-            response = engine.respond(request)
-        except CognitiveEngineError:
+        with self._role_locks[role]:
+            engine = self.registry.get(role)
+            model = self._engine_model(engine)
+            if self.activity_store is not None and model is not None:
+                self.activity_store.mark_busy(
+                    role=role,
+                    model=model,
+                )
+            try:
+                response = engine.respond(request)
+            except Exception:
+                host = self._engine_host(engine)
+                if self.activity_store is not None and model is not None:
+                    self.activity_store.mark_finished(
+                        role=role,
+                        model=model,
+                        host=host,
+                        succeeded=False,
+                    )
+                steps.append(
+                    RoutingExecutionStep(
+                        role=role,
+                        model=model,
+                        host=host,
+                        succeeded=False,
+                    )
+                )
+                raise
             host = self._engine_host(engine)
             if self.activity_store is not None and model is not None:
                 self.activity_store.mark_finished(
                     role=role,
                     model=model,
                     host=host,
-                    succeeded=False,
+                    succeeded=True,
                 )
             steps.append(
                 RoutingExecutionStep(
                     role=role,
                     model=model,
                     host=host,
-                    succeeded=False,
+                    succeeded=True,
                 )
             )
-            raise
-        host = self._engine_host(engine)
-        if self.activity_store is not None and model is not None:
-            self.activity_store.mark_finished(
-                role=role,
-                model=model,
-                host=host,
-                succeeded=True,
+            return response
+
+    def _parallel_response(
+        self,
+        request: CognitiveRequest,
+        *,
+        steps: list[RoutingExecutionStep],
+        purpose: str,
+    ) -> tuple[CognitiveResponse, int]:
+        """Run independent workers concurrently, then join via Primary.
+
+        The Secondary receives a bounded, tool-free task. Both role-local step
+        lists are joined in stable role order so diagnostics do not depend on
+        thread completion order. Any worker failure is explicit; this path
+        never silently substitutes one configured role for another.
+        """
+        if request.tools:
+            raise CognitiveEngineError(
+                "parallel cognition cannot receive executable tool authority"
             )
-        steps.append(
-            RoutingExecutionStep(
-                role=role,
-                model=model,
-                host=host,
-                succeeded=True,
-            )
+        secondary_request = self._build_independent_review_request(
+            request,
+            purpose=purpose,
         )
-        return response
+        primary_steps: list[RoutingExecutionStep] = []
+        secondary_steps: list[RoutingExecutionStep] = []
+        with ThreadPoolExecutor(
+            max_workers=2,
+            thread_name_prefix="sofia-cognition",
+        ) as pool:
+            primary_future = pool.submit(
+                self._invoke, "primary", request, primary_steps
+            )
+            secondary_future = pool.submit(
+                self._invoke, "secondary", secondary_request, secondary_steps
+            )
+            primary_response = None
+            secondary_response = None
+            primary_error = None
+            secondary_error = None
+            try:
+                primary_response = primary_future.result()
+            except Exception as exc:
+                primary_error = exc
+            try:
+                secondary_response = secondary_future.result()
+            except Exception as exc:
+                secondary_error = exc
+        steps.extend(primary_steps)
+        steps.extend(secondary_steps)
+        if primary_error is not None or secondary_error is not None:
+            roles = ", ".join(
+                role for role, error in (
+                    ("primary", primary_error),
+                    ("secondary", secondary_error),
+                ) if error is not None
+            )
+            error = CognitiveEngineError(
+                f"parallel cognitive worker failure: {roles}"
+            )
+            raise error from (primary_error or secondary_error)
+        assert primary_response is not None
+        assert secondary_response is not None
+        if primary_response.tool_calls or secondary_response.tool_calls:
+            raise CognitiveEngineError(
+                "tool calls are forbidden in parallel reasoning results"
+            )
+        if len(primary_response.content.strip()) <= 1:
+            raise CognitiveEngineError("primary parallel worker returned no usable result")
+        if len(secondary_response.content.strip()) <= 1:
+            raise CognitiveEngineError("secondary parallel worker returned no usable result")
+        synthesis_request = self._build_synthesis_request(
+            request,
+            primary_response,
+            secondary_response,
+        )
+        final_response = self._invoke("primary", synthesis_request, steps)
+        if final_response.tool_calls:
+            raise CognitiveEngineError(
+                "joined reasoning cannot create a tool call"
+            )
+        return final_response, 2
+
+    @staticmethod
+    def _build_independent_review_request(
+        request: CognitiveRequest,
+        *,
+        purpose: str,
+    ) -> CognitiveRequest:
+        latest_user = next(
+            (
+                message for message in reversed(request.messages)
+                if message.role is CognitiveRole.USER
+            ),
+            None,
+        )
+        if latest_user is None:
+            raise ValueError("parallel cognition requires a user request")
+        evidence_context = tuple(
+            message for message in request.messages
+            if message.role is CognitiveRole.SYSTEM
+            and message.content.lstrip().startswith(("TRUSTED ", "CURRENT "))
+        )[-3:]
+        bounded_context = "\n\n".join(
+            message.content[:2000] for message in evidence_context
+        )
+        return CognitiveRequest(
+            messages=(
+                CognitiveMessage(
+                    role=CognitiveRole.SYSTEM,
+                    content=(
+                        "SECONDARY COGNITIVE WORKER (non-authoritative). "
+                        f"Perform an independent {purpose} pass over only the "
+                        "bounded material supplied here. Identify constraints, "
+                        "contradictions, unsupported assumptions, and useful "
+                        "alternatives. Do not claim execution, create facts, "
+                        "request tools, grant authority, or address the user. "
+                        "Return concise internal review notes."
+                        + (
+                            "\n\nBOUNDED HOST CONTEXT:\n" + bounded_context
+                            if bounded_context else ""
+                        )
+                    ),
+                ),
+                CognitiveMessage(
+                    role=CognitiveRole.USER,
+                    content=latest_user.content[:4000],
+                ),
+            ),
+            tools=(),
+            allow_tools=False,
+            capability_allowlist=(),
+            route_hint="fast",
+        )
 
     def _respond_with_fallback(
         self,
@@ -514,6 +697,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 )
             return response, 0
         except CognitiveEngineError as preferred_error:
+            if not self.fallback_enabled:
+                raise
             try:
                 return self._invoke(fallback_role, request, steps), 1
             except CognitiveEngineError as fallback_error:
@@ -530,6 +715,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         try:
             primary_response = self._invoke("primary", request, steps)
         except CognitiveEngineError as primary_error:
+            if not self.fallback_enabled:
+                raise
             try:
                 secondary_response = self._invoke(
                     "secondary",
@@ -571,6 +758,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 steps,
             )
         except CognitiveEngineError:
+            if not self.fallback_enabled:
+                raise
             return primary_response, fallback_count + 1, 0
 
         synthesis_request = self._build_synthesis_request(
@@ -585,6 +774,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 steps,
             )
         except CognitiveEngineError:
+            if not self.fallback_enabled:
+                raise
             return primary_response, fallback_count + 1, 1
 
         return final_response, fallback_count, 2

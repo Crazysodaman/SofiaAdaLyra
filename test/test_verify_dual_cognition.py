@@ -45,6 +45,9 @@ def test_dual_cognition_canary_accepts_expected_live_paths():
         deep=execution(
             CognitiveRoute.DEEP,
             step("primary", primary),
+            step("secondary", secondary),
+            step("primary", primary),
+            verification_passes=2,
         ),
         verify=execution(
             CognitiveRoute.VERIFY,
@@ -82,6 +85,9 @@ def test_dual_cognition_canary_rejects_fallback_or_wrong_model_path():
         deep=execution(
             CognitiveRoute.DEEP,
             step("primary", primary),
+            step("secondary", secondary),
+            step("primary", primary),
+            verification_passes=2,
         ),
         verify=execution(
             CognitiveRoute.VERIFY,
@@ -114,6 +120,9 @@ def test_dual_cognition_canary_requires_distinct_model_roles():
         deep=execution(
             CognitiveRoute.DEEP,
             step("primary", model),
+            step("secondary", model),
+            step("primary", model),
+            verification_passes=2,
         ),
         verify=execution(
             CognitiveRoute.VERIFY,

@@ -316,7 +316,11 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
     application, captured = _application(
         monkeypatch,
         tmp_path,
-        ("Hexapod gait planning uses coordinated leg phases.",),
+        (
+            "Primary draft about coordinated leg phases.",
+            "Independent review of the gait explanation.",
+            "Hexapod gait planning uses coordinated leg phases.",
+        ),
     )
     try:
         response = application.conversation.respond(
@@ -324,10 +328,11 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
         )
 
         assert "coordinated leg phases" in response.content
-        assert len(captured) == 1
+        assert len(captured) == 3
         system_text = "\n".join(
             message.content
-            for message in captured[0].messages
+            for request in captured
+            for message in request.messages
             if message.role.value == "system"
         )
         assert "Fitted breathable black technical shirt" not in system_text

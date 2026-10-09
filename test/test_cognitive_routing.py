@@ -1,4 +1,6 @@
 from pathlib import Path
+from threading import Barrier, Lock, enumerate as enumerate_threads
+from time import monotonic, sleep
 
 import pytest
 
@@ -47,6 +49,27 @@ class QueueEngine(CognitiveEngine):
         return result
 
 
+class OverlapEngine(CognitiveEngine):
+    def __init__(self, role, barrier, intervals, lock):
+        self.role = role
+        self.barrier = barrier
+        self.intervals = intervals
+        self.lock = lock
+        self.requests = []
+
+    def respond(self, request):
+        self.requests.append(request)
+        if self.role == "primary" and len(self.requests) == 2:
+            return CognitiveResponse(content="joined")
+        started = monotonic()
+        self.barrier.wait(timeout=2)
+        sleep(0.08)
+        ended = monotonic()
+        with self.lock:
+            self.intervals[self.role] = (started, ended)
+        return CognitiveResponse(content=f"{self.role} result")
+
+
 def request(text: str, *, tools=(), route_hint=None) -> CognitiveRequest:
     return CognitiveRequest(
         messages=(
@@ -75,7 +98,7 @@ def test_short_social_request_routes_to_secondary():
     primary = QueueEngine()
     secondary = QueueEngine(CognitiveResponse(content="fast"))
     engine = RoutingCognitiveEngine(
-        registry(primary, secondary)
+        registry(primary, secondary),
     )
 
     response = engine.respond(request("hru"))
@@ -91,7 +114,7 @@ def test_technical_request_routes_to_primary():
     primary = QueueEngine(CognitiveResponse(content="technical"))
     secondary = QueueEngine()
     engine = RoutingCognitiveEngine(
-        registry(primary, secondary)
+        registry(primary, secondary),
     )
 
     response = engine.respond(
@@ -153,7 +176,7 @@ def test_secondary_failure_falls_back_to_primary():
     )
     primary = QueueEngine(CognitiveResponse(content="primary fallback"))
     engine = RoutingCognitiveEngine(
-        registry(primary, secondary)
+        registry(primary, secondary), fallback_enabled=True,
     )
 
     response = engine.respond(request("hello"))
@@ -169,7 +192,7 @@ def test_primary_failure_falls_back_to_secondary():
     )
     secondary = QueueEngine(CognitiveResponse(content="secondary fallback"))
     engine = RoutingCognitiveEngine(
-        registry(primary, secondary)
+        registry(primary, secondary), fallback_enabled=True,
     )
 
     response = engine.respond(
@@ -356,6 +379,18 @@ def test_default_configuration_can_enable_selected_models(monkeypatch):
         == "huihui_ai/qwen3.5-abliterated:4B"
     )
     assert configuration.routing.secondary.context_size == 8192
+    assert configuration.routing.parallel_enabled is True
+    assert configuration.routing.fallback_enabled is False
+
+
+def test_model_fallback_requires_separate_operator_policy(monkeypatch):
+    monkeypatch.setenv("SOFIA_COGNITION_ROUTING_ENABLED", "1")
+    monkeypatch.setenv("SOFIA_COGNITION_FALLBACK_ENABLED", "1")
+
+    configuration = create_default_configuration()
+
+    assert configuration.routing is not None
+    assert configuration.routing.fallback_enabled is True
 
 
 def test_default_configuration_uses_persisted_routing_setting_without_flag(
@@ -457,7 +492,9 @@ def test_tool_enabled_primary_failure_does_not_fall_back_to_secondary():
 def test_reviewed_interaction_context_routes_to_primary():
     primary = QueueEngine(CognitiveResponse(content="grounded"))
     secondary = QueueEngine()
-    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary),
+    )
     value = CognitiveRequest(
         messages=(
             CognitiveMessage(
@@ -483,7 +520,9 @@ def test_reviewed_interaction_context_routes_to_primary():
 def test_incomplete_secondary_response_falls_back_to_primary():
     secondary = QueueEngine(CognitiveResponse(content="I"))
     primary = QueueEngine(CognitiveResponse(content="complete fallback"))
-    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary), fallback_enabled=True,
+    )
 
     response = engine.respond(request("hello"))
 
@@ -742,15 +781,129 @@ def test_matrix_fast_route_hint_forces_secondary():
 
 
 def test_matrix_deep_route_hint_forces_primary():
-    primary = QueueEngine(CognitiveResponse(content="primary-deep"))
-    secondary = QueueEngine()
+    primary = QueueEngine(
+        CognitiveResponse(content="primary-deep"),
+        CognitiveResponse(content="joined-deep"),
+    )
+    secondary = QueueEngine(CognitiveResponse(content="independent-review"))
     engine = RoutingCognitiveEngine(registry(primary, secondary))
 
     response = engine.respond(
         request("hello", route_hint="deep")
     )
 
-    assert response.content == "primary-deep"
+    assert response.content == "joined-deep"
+    assert engine.last_decision.route is CognitiveRoute.DEEP
+    assert len(primary.requests) == 2
+    assert len(secondary.requests) == 1
+
+
+def test_deep_workers_have_real_overlapping_execution_intervals():
+    barrier = Barrier(2)
+    intervals = {}
+    lock = Lock()
+    primary = OverlapEngine("primary", barrier, intervals, lock)
+    secondary = OverlapEngine("secondary", barrier, intervals, lock)
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    response = engine.respond(request("diagnose this", route_hint="deep"))
+
+    assert response.content == "joined"
+    primary_interval = intervals["primary"]
+    secondary_interval = intervals["secondary"]
+    assert max(primary_interval[0], secondary_interval[0]) < min(
+        primary_interval[1], secondary_interval[1]
+    )
+    assert [step.role for step in engine.last_execution.steps] == [
+        "primary", "secondary", "primary",
+    ]
+    assert not any(
+        thread.name.startswith("sofia-cognition") and thread.is_alive()
+        for thread in enumerate_threads()
+    )
+
+
+def test_secondary_parallel_task_is_bounded_and_has_no_tools_or_transcript():
+    primary = QueueEngine(
+        CognitiveResponse(content="primary"),
+        CognitiveResponse(content="joined"),
+    )
+    secondary = QueueEngine(CognitiveResponse(content="review"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    value = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="PRIVATE SECRET CONTEXT THAT IS NOT EVIDENCE",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="old user transcript",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.ASSISTANT,
+                content="old assistant transcript",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content="TRUSTED EVIDENCE\nsubject-bound fact",
+            ),
+            CognitiveMessage(
+                role=CognitiveRole.USER,
+                content="current question",
+            ),
+        ),
+        route_hint="deep",
+    )
+
+    engine.respond(value)
+
+    secondary_request = secondary.requests[0]
+    combined = "\n".join(message.content for message in secondary_request.messages)
+    assert "subject-bound fact" in combined
+    assert "current question" in combined
+    assert "PRIVATE SECRET" not in combined
+    assert "old user transcript" not in combined
+    assert "old assistant transcript" not in combined
+    assert secondary_request.tools == ()
+    assert secondary_request.allow_tools is False
+    assert secondary_request.capability_allowlist == ()
+
+
+def test_parallel_worker_failure_is_explicit_and_never_substitutes_roles():
+    primary = QueueEngine(CognitiveResponse(content="primary draft"))
+    secondary = QueueEngine(CognitiveEngineError("secondary unavailable"))
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+
+    with pytest.raises(CognitiveEngineError, match="secondary"):
+        engine.respond(request("diagnose this", route_hint="deep"))
+
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 1
+    assert engine.last_execution.fallback_count == 0
+
+
+def test_scheduler_can_disable_parallel_workers_without_downgrading_deep():
+    primary = QueueEngine(CognitiveResponse(content="primary only"))
+    secondary = QueueEngine()
+    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    value = CognitiveRequest(
+        messages=(
+            CognitiveMessage(
+                role=CognitiveRole.SYSTEM,
+                content=(
+                    "COGNITIVE WORKER SCHEDULE\n"
+                    "Parallel workers: disabled"
+                ),
+            ),
+            CognitiveMessage(role=CognitiveRole.USER, content="diagnose this"),
+        ),
+        route_hint="deep",
+    )
+
+    response = engine.respond(value)
+
+    assert response.content == "primary only"
     assert engine.last_decision.route is CognitiveRoute.DEEP
     assert len(primary.requests) == 1
     assert len(secondary.requests) == 0
@@ -830,7 +983,9 @@ def test_tool_request_falls_back_to_secondary_when_primary_engine_fails():
     secondary = QueueEngine(
         CognitiveResponse(content="", tool_calls=(tool_call,))
     )
-    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary), fallback_enabled=True,
+    )
 
     response = engine.respond(
         request(
@@ -865,7 +1020,9 @@ def test_verify_tool_request_does_not_reenter_failed_primary_after_secondary_fal
     secondary = QueueEngine(
         CognitiveResponse(content="Secondary degraded response.")
     )
-    engine = RoutingCognitiveEngine(registry(primary, secondary))
+    engine = RoutingCognitiveEngine(
+        registry(primary, secondary), fallback_enabled=True,
+    )
 
     response = engine.respond(
         request(

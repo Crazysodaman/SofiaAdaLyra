@@ -141,10 +141,10 @@ def assess_dual_cognition(
         "deep": (
             deep,
             CognitiveRoute.DEEP,
-            ("primary",),
-            (primary_model,),
+            ("primary", "secondary", "primary"),
+            (primary_model, secondary_model, primary_model),
             0,
-            0,
+            2,
         ),
         "verify": (
             verify,

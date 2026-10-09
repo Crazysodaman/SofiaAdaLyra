@@ -161,11 +161,24 @@ it does not absorb their authority.
 
 ## Concurrency contract
 
-The scheduler may overlap only tasks without a dependency edge. Primary and
-secondary model workers receive immutable inputs. They may return hypotheses,
-analysis, or critiques. The Turn Kernel serializes canonical focus, evidence,
-and conversation commits after results are validated. Tools are never replayed
-merely because another model is available.
+DEEP and VERIFY turns with no exposed tools run independent Primary and
+Secondary inference intervals concurrently. Primary receives the canonical
+request; Secondary receives only the latest user task plus at most three
+bounded host-owned `TRUSTED`/`CURRENT` context projections, with no tools or
+capability allowlist. Their immutable results are joined in stable role order
+and Primary performs the final synthesis. Secondary output remains review
+material, never evidence, authority, a receipt, or a state mutation.
+The validated V2 budget can still disable worker overlap under observed
+resource pressure without downgrading the requested reasoning depth.
+
+Tool-bearing turns remain single-worker so model concurrency cannot duplicate a
+capability request. Role-local locks prevent two turns from racing the same
+configured worker while still permitting Primary and Secondary to overlap.
+Conversation surfaces use separate turn locks, so one Discord session does not
+globally serialize an unrelated Desktop session. A shared activity drain gate
+rejects new work during shutdown and waits for already-started turns to commit.
+Fallback between configured roles is off by default and requires the separate
+`SOFIA_COGNITION_FALLBACK_ENABLED` operator policy.
 
 ## Performance contract
 
