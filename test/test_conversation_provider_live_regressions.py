@@ -368,7 +368,9 @@ def test_live_memory_query_without_retrieval_fails_closed(
 
         assert "won't invent a memory" in response.content
         assert "Serenity" not in response.content
-        assert len(captured) == 1
+        # V2 reviewed-memory absence is a validated deterministic AnswerPlan;
+        # no model call is needed to reject an invented memory.
+        assert captured == []
     finally:
         application.shutdown()
 

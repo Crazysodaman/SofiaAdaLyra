@@ -32,9 +32,10 @@ _ACTION_WORDS = frozenset({
 class ProductionTurnKernel:
     """Sole production owner of turn sequencing and conversation focus.
 
-    Matrix v1 and NEURO remain temporary delegated planners during Batch 2.
-    Their callbacks cannot change the kernel's audience partition or reference
-    resolution. Batch 3 replaces the Matrix delegate behind this boundary.
+    The v2 Matrix planner owns semantic planning. Legacy safety/privacy
+    projections remain downstream compatibility enforcement until the final
+    v1-removal batch; callbacks cannot change the kernel's audience partition
+    or reference resolution.
     """
 
     def __init__(
@@ -214,7 +215,10 @@ class ProductionTurnKernel:
         if not isinstance(evidence_refs, tuple):
             raise TypeError("evidence_refs must be tuple")
         factual = any(
-            ref.startswith(("capability:", "environment:", "memory-retrieval:"))
+            ref.startswith((
+                "capability:", "environment:", "evidence:",
+                "memory-retrieval:", "reflection:",
+            ))
             for ref in evidence_refs
         )
         executed = any(ref.startswith("execution-receipt:") for ref in evidence_refs)

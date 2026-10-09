@@ -950,3 +950,57 @@ class EmotionalConversationService(ConversationService):
             capability_allowlist=request.capability_allowlist,
             route_hint=request.route_hint,
         )
+
+    def _v2_expression_context(
+        self,
+        *,
+        current_user,
+        principal: PrincipalContext | None,
+    ):
+        """Build personality modulation only after a validated draft exists."""
+        _ = principal
+        if self._runtime.personality is None:
+            return None
+        subject = self._relationship_subject()
+        self.emotional_journal.record_user_cue(
+            message_id=current_user.id,
+            content=current_user.content,
+            occurred_at=current_user.created_at,
+            subject=subject,
+            allow_legacy_affection=self._should_record_legacy_affection(current_user),
+        )
+        self.emotional_journal.record_return_expectation_from_user_cue(
+            message_id=current_user.id,
+            content=current_user.content,
+            occurred_at=current_user.created_at,
+            subject=subject,
+        )
+        self.emotional_journal.observe_contact(
+            subject=subject,
+            message_id=current_user.id,
+            occurred_at=current_user.created_at,
+        )
+        now = datetime.now(timezone.utc)
+        state = self.emotional_journal.current_state(
+            now=now,
+            subject=subject,
+            scope=self.relationship_scope,
+        )
+        environment = self._runtime.environment_service.snapshot(
+            now=now,
+            refresh_providers=False,
+        )
+        influence = ContinuityInfluence.from_state(
+            emotion=state,
+            environment=environment,
+        )
+        modulation = derive_expression_modulation(
+            turn=getattr(self, "_current_turn_matrix", None),
+            influence=influence,
+            user_text=current_user.content,
+            neuro=getattr(self, "_current_neuro_snapshot", None),
+            previous=getattr(self, "_previous_expression_modulation", None),
+        )
+        self._current_contextual_influence = influence
+        self._previous_expression_modulation = modulation
+        return modulation

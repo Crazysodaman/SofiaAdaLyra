@@ -50,7 +50,8 @@ _DOMAIN_CONCEPTS = {
         "happy", "lonely", "mood", "sad", "upset",
     }),
     "memory": frozenset({
-        "earlier", "memory", "recall", "remember", "remembered",
+        "earlier", "memory", "mind", "recall", "reflection", "reflections",
+        "remember", "remembered", "thinking",
     }),
     "rel": frozenset({
         "bond", "companion", "relationship", "sparks", "together",
@@ -277,7 +278,11 @@ class MatrixV2Planner:
         if action is not ActionRequirement.NONE:
             return "action_request"
         if "memory" in domains:
-            return "memory_query"
+            return (
+                "reflection_query"
+                if tokens & {"mind", "reflection", "reflections", "thinking"}
+                else "memory_query"
+            )
         if {"machine", "ops", "cognition"} & set(domains):
             return "operational_query" if question else "operational_context"
         if "environment" in domains and question:

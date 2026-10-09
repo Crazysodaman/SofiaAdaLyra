@@ -16,6 +16,7 @@ from sofia.personality.reflection import RecordedThought
 class ReflectionQueryAnswer:
     recognized: bool
     content: str = ""
+    evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.recognized) is not bool:
@@ -24,6 +25,13 @@ class ReflectionQueryAnswer:
             raise TypeError("content must be str")
         if not self.recognized and self.content:
             raise ValueError("unrecognized reflection answer cannot contain content")
+        if not isinstance(self.evidence_refs, tuple) or any(
+            not isinstance(value, str) or not value.strip()
+            for value in self.evidence_refs
+        ):
+            raise ValueError("evidence_refs must contain nonempty strings")
+        if not self.recognized and self.evidence_refs:
+            raise ValueError("unrecognized reflection answer cannot contain evidence")
 
 
 def _normalize(query: str) -> str:
@@ -127,6 +135,9 @@ class ReflectionQueryResolver:
                     f"Evidence refs: {refs}. That's all the recorded reflection "
                     "establishes; I won't invent an explanation around it."
                 ),
+                tuple(dict.fromkeys((
+                    f"reflection:{latest.thought_id}", *latest.evidence_refs,
+                ))),
             )
 
         # Ordinary "what are you thinking about?" is conversational. Report
@@ -147,6 +158,9 @@ class ReflectionQueryResolver:
             return ReflectionQueryAnswer(
                 True,
                 f"Mostly {latest_text}.",
+                tuple(dict.fromkeys((
+                    f"reflection:{latest.thought_id}", *latest.evidence_refs,
+                ))),
             )
 
         if len(recent) == 1:
@@ -157,6 +171,9 @@ class ReflectionQueryResolver:
                     f"{latest.content} "
                     f"(recorded {latest.created_at.isoformat()})."
                 ),
+                tuple(dict.fromkeys((
+                    f"reflection:{latest.thought_id}", *latest.evidence_refs,
+                ))),
             )
 
         lines = ["My recent recorded reflections are:"]
@@ -165,4 +182,12 @@ class ReflectionQueryResolver:
                 f"- {item.content} "
                 f"(recorded {item.created_at.isoformat()})"
             )
-        return ReflectionQueryAnswer(True, "\n".join(lines))
+        return ReflectionQueryAnswer(
+            True,
+            "\n".join(lines),
+            tuple(dict.fromkeys(
+                value
+                for item in recent
+                for value in (f"reflection:{item.thought_id}", *item.evidence_refs)
+            )),
+        )

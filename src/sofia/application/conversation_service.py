@@ -403,6 +403,16 @@ class ConversationService(ConversationMatrixMixin):
             raise TypeError("v2 answer handler must be callable or None")
         self._v2_answer_handler = handler
 
+    def _v2_expression_context(
+        self,
+        *,
+        current_user: ConversationMessage,
+        principal: PrincipalContext | None,
+    ):
+        """Return optional channel-local expression state after truth planning."""
+        _ = current_user, principal
+        return None
+
     @property
     def last_goal_context_error(self) -> str | None:
         return self._last_goal_context_error
@@ -868,6 +878,10 @@ class ConversationService(ConversationMatrixMixin):
                     else self._current_tool_exposure_plan.capabilities
                 ),
                 query=user_message.content,
+                expression_context_provider=lambda: self._v2_expression_context(
+                    current_user=user_message,
+                    principal=principal,
+                ),
             )
             if v2_response is not None:
                 if not isinstance(v2_response, CognitiveResponse):

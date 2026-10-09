@@ -279,3 +279,37 @@ Opt-in performance traces now cover route budgets, cache hits/misses, SQLite
 operations, LLM calls/concurrency, process CPU, and peak RSS in addition to
 provider load, prompt, generation, total duration, and token counters. GPU and
 VRAM remain explicitly unknown where the host has no trustworthy observer.
+
+## Batch 11 domains and personality-after-truth
+
+The Turn Kernel produces v2 plans for environment, memory/reflection,
+knowledge, avatar, interaction, emotion, relationship, and ordinary social
+conversation in addition to operational work. Reflection language is a typed
+`reflection_query` over the memory domain; it still reports only durable
+reflection records, now with their record/evidence references.
+
+Simple environment and public-safe avatar self-facts, plus scoped reviewed
+memory retrieval, now become typed evidence atoms and pass through
+`EvidenceClaimPlanner` and `EvidenceClaimValidator`. Fleet/Machine and KNOW
+use the same `ValidatedAnswerDraft` boundary. Private avatar presentation stays
+at the existing grant boundary rather than being broadened by the v2 bridge.
+Natural social, emotion, relationship, and interaction turns continue to use
+generative wording because harmless expression does not require a retrieved
+document; their domain selection, context/privacy projection, routing, and
+post-generation claim/safety validation remain host owned.
+
+`PersonalityAfterTruthRenderer` receives only a validated `AnswerPlan` and a
+channel-local `ExpressionModulation`. It can add bounded natural framing, but
+cannot add tools, evidence, measurements, actions, memories, or receipts. The
+modulation is derived lazily only after a coordinator has a factual draft, so
+an unanswered/generative turn is not double-modulated. Matrix continues to set
+the expression baseline; operational/Fleet remains Sofía 25%, Kurisu-inspired
+45%, Cortana-inspired 30%, and the Kurisu-inspired floor remains 30%. NEURO,
+grounded emotion, relationship, daypart, season, daylight, and current weather
+may adjust expression within the existing bounded modulation rules, never
+truth, consent, willingness, privacy, permission, or authority.
+
+Every application-created channel installs the same v2 answer handler but
+builds expression context from its own scoped conversation service. Desktop,
+Discord/mobile channel sessions therefore share canonical evidence/runtime
+state without borrowing another channel's emotional or audience scope.

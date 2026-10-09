@@ -82,6 +82,8 @@ from sofia.cognition.v2 import (
     EvidenceAcquisitionCoordinator,
     EvidenceGraph,
     FleetMachineAnswerCoordinator,
+    PersonalityAfterTruthRenderer,
+    ProjectionAnswerCoordinator,
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
 )
@@ -226,6 +228,10 @@ class SofiaApplication:
         self._knowledge_answers = KnowledgeEvidenceCoordinator(
             dispatcher, self._cognitive_evidence_acquisition
         )
+        self._projection_answers = ProjectionAnswerCoordinator(
+            self._runtime, self._cognitive_evidence
+        )
+        self._personality_answer_renderer = PersonalityAfterTruthRenderer()
         self._turn_kernel = ProductionTurnKernel(
             SQLiteConversationFocusStore(configuration.state_path),
             entity_provider=self._cognition_entity_candidates,
@@ -384,10 +390,28 @@ class SofiaApplication:
         return self._cognitive_evidence_acquisition
 
     def _answer_v2(self, **kwargs):
-        response = self._fleet_machine_answers.answer(**kwargs)
-        if response is not None:
-            return response
-        return self._knowledge_answers.answer(**kwargs)
+        expression_provider = kwargs.pop("expression_context_provider", None)
+        draft = self._fleet_machine_answers.planned_answer(**kwargs)
+        if draft is None:
+            draft = self._knowledge_answers.planned_answer(**kwargs)
+        if draft is None:
+            draft = self._projection_answers.planned_answer(**kwargs)
+        if draft is None:
+            return None
+        expression = (
+            expression_provider()
+            if callable(expression_provider)
+            else None
+        )
+        if expression is None:
+            return CognitiveResponse(
+                content=draft.content,
+                evidence_refs=draft.evidence_refs,
+            )
+        return self._personality_answer_renderer.render(
+            draft,
+            expression_context=expression,
+        )
 
     def _cognition_entity_candidates(self) -> tuple[EntityCandidate, ...]:
         """Project Fleet identities for reference resolution, never as facts."""

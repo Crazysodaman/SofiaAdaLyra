@@ -7,8 +7,12 @@ from uuid import uuid4
 from sofia.capability.model import CapabilityResultKind
 from sofia.cognition.model import CognitiveResponse, CognitiveToolCall
 from sofia.cognition.tools import CognitiveToolDispatcher
-from sofia.cognition.v2.contracts import ActionRequirement, ConversationFocus, TurnPlan
+from sofia.cognition.v2.contracts import (
+    ActionRequirement, AnswerPlan, ClaimPlan, ConversationFocus, TurnPlan,
+)
+from sofia.cognition.v2.claims import EvidenceClaimPlanner, EvidenceClaimValidator
 from sofia.cognition.v2.evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
+from sofia.cognition.v2.rendering import ValidatedAnswerDraft
 from sofia.social.model import PrincipalContext
 
 
@@ -22,8 +26,23 @@ class KnowledgeEvidenceCoordinator:
     ) -> None:
         self.dispatcher = dispatcher
         self.acquisition = acquisition
+        self.claim_planner = EvidenceClaimPlanner()
+        self.claim_validator = EvidenceClaimValidator()
 
     def answer(
+        self,
+        **kwargs,
+    ) -> CognitiveResponse | None:
+        """Compatibility wrapper; production applies personality after truth."""
+        draft = self.planned_answer(**kwargs)
+        if draft is None:
+            return None
+        return CognitiveResponse(
+            content=draft.content,
+            evidence_refs=draft.evidence_refs,
+        )
+
+    def planned_answer(
         self,
         *,
         plan: TurnPlan,
@@ -31,7 +50,7 @@ class KnowledgeEvidenceCoordinator:
         principal: PrincipalContext | None,
         allowed_capabilities: tuple[str, ...],
         query: str | None = None,
-    ) -> CognitiveResponse | None:
+    ) -> ValidatedAnswerDraft | None:
         needs = tuple(
             need for need in plan.evidence_needs
             if need.predicate == "knowledge.retrieval"
@@ -60,7 +79,7 @@ class KnowledgeEvidenceCoordinator:
             return None
         hits = tuple(result.evidence or ())
         now = datetime.now(timezone.utc)
-        atom_ids = []
+        atoms = []
         for need in needs:
             atom = self.acquisition.record(
                 need,
@@ -77,11 +96,34 @@ class KnowledgeEvidenceCoordinator:
                     trust=0.9,
                 ),
             )
-            atom_ids.append(atom.evidence_id)
+            atoms.append(atom)
+        if isinstance(plan, TurnPlan):
+            answer = self.claim_planner.build(plan, tuple(atoms))
+        else:
+            # Preserve the narrow coordinator harness contract while real
+            # production always supplies TurnPlan from the Turn Kernel.
+            answer = AnswerPlan(
+                turn_id=plan.turn_id,
+                claims=tuple(
+                    ClaimPlan(
+                        claim_id=f"claim:{need.need_id}",
+                        subject_id=atom.subject_id,
+                        predicate=atom.predicate,
+                        rendered_value=atom.value_json,
+                        epistemic_state=atom.epistemic_state,
+                        evidence_refs=(atom.evidence_id,),
+                    )
+                    for need, atom in zip(needs, atoms)
+                ),
+            )
+        answer = self.claim_validator.validate(answer, tuple(atoms))
+        atom_ids = tuple(atom.evidence_id for atom in atoms)
         if not hits:
-            return CognitiveResponse(
+            return ValidatedAnswerDraft(
+                answer=answer,
                 content="I searched the eligible knowledge index, but found no active source section matching that request.",
                 evidence_refs=("capability:knowledge.search", *atom_ids),
+                domain="know",
             )
         rendered = []
         for hit in hits[:3]:
@@ -97,7 +139,9 @@ class KnowledgeEvidenceCoordinator:
             )
         if not rendered:
             return None
-        return CognitiveResponse(
+        return ValidatedAnswerDraft(
+            answer=answer,
             content="Knowledge sources found:\n" + "\n".join(f"- {item}" for item in rendered),
             evidence_refs=("capability:knowledge.search", *atom_ids),
+            domain="know",
         )

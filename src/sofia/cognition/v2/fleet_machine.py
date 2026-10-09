@@ -17,12 +17,14 @@ from .claims import EvidenceClaimPlanner, EvidenceClaimValidator
 from .contracts import (
     ActionRequirement,
     AcquisitionState,
+    AnswerPlan,
     ConversationFocus,
     EvidenceAtom,
     EvidenceNeed,
     TurnPlan,
 )
 from .evidence import CapabilityEvidencePayload, EvidenceAcquisitionCoordinator
+from .rendering import ValidatedAnswerDraft
 
 
 _SUPPORTED = {
@@ -66,13 +68,26 @@ class FleetMachineAnswerCoordinator:
 
     def answer(
         self,
+        **kwargs,
+    ) -> CognitiveResponse | None:
+        """Compatibility wrapper; production renders the returned plan later."""
+        draft = self.planned_answer(**kwargs)
+        if draft is None:
+            return None
+        return CognitiveResponse(
+            content=draft.content,
+            evidence_refs=draft.evidence_refs,
+        )
+
+    def planned_answer(
+        self,
         *,
         plan: TurnPlan,
         focus: ConversationFocus,
         principal: PrincipalContext | None,
         allowed_capabilities: tuple[str, ...],
         query: str | None = None,
-    ) -> CognitiveResponse | None:
+    ) -> ValidatedAnswerDraft | None:
         if not isinstance(allowed_capabilities, tuple):
             raise TypeError("allowed_capabilities must be tuple")
         needs = tuple(
@@ -97,7 +112,12 @@ class FleetMachineAnswerCoordinator:
         elif remote:
             prefix = "fleet-node:"
             if not reference.subject_id.startswith(prefix):
-                return self._unknown(plan, needs, reference.aliases, "the Fleet identity is incomplete")
+                return self._unknown_draft(
+                    plan,
+                    needs,
+                    reference.aliases,
+                    "the Fleet identity is incomplete",
+                )
             node_id = reference.subject_id[len(prefix):]
             tool = CognitiveToolCall(
                 name="inspect_remote_hardware",
@@ -160,17 +180,20 @@ class FleetMachineAnswerCoordinator:
         )
         label = reference.aliases[0] if reference.aliases else reference.subject_id
         if not answer.claims:
-            return self._unknown(plan, needs, reference.aliases, "the requested measurement was unavailable")
+            return self._unknown_draft(plan, needs, reference.aliases, "the requested measurement was unavailable")
         rendered = "; ".join(
             f"{self._label(claim.predicate)}: {self._render_claim(claim.predicate, claim.rendered_value)}"
             for claim in answer.claims
         )
-        return CognitiveResponse(
+        evidence_refs = tuple(dict.fromkeys((
+            f"capability:{capability}",
+            *(ref for claim in answer.claims for ref in claim.evidence_refs),
+        )))
+        return ValidatedAnswerDraft(
+            answer=answer,
             content=f"Observed {label} through the authenticated hardware inspection — {rendered}.",
-            evidence_refs=tuple(dict.fromkeys((
-                f"capability:{capability}",
-                *(ref for claim in answer.claims for ref in claim.evidence_refs),
-            ))),
+            evidence_refs=evidence_refs,
+            domain=("ops" if telemetry else "machine"),
         )
 
     @staticmethod
@@ -222,14 +245,21 @@ class FleetMachineAnswerCoordinator:
                 ),
             ))
         reason = result.error or "the authenticated inspection did not return usable evidence"
-        return self._unknown(plan, needs, aliases, reason)
+        return self._unknown_draft(plan, needs, aliases, reason)
 
     @staticmethod
-    def _unknown(plan, needs, aliases, reason):
+    def _unknown_draft(plan, needs, aliases, reason):
         label = aliases[0] if aliases else needs[0].subject_id
         metrics = ", ".join(FleetMachineAnswerCoordinator._label(n.predicate) for n in needs)
-        return CognitiveResponse(
+        return ValidatedAnswerDraft(
+            answer=AnswerPlan(
+                turn_id=plan.turn_id,
+                claims=(),
+                unknown_need_ids=tuple(need.need_id for need in needs),
+            ),
             content=f"I couldn't establish {label}'s {metrics}: {reason}. It remains unknown.",
+            evidence_refs=(),
+            domain="machine",
         )
 
     @staticmethod

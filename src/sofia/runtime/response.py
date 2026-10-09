@@ -394,7 +394,8 @@ def respond_with_runtime_context(
                         reflection_answer.content
                         + "\n\n"
                         + self_fact.content
-                    )
+                    ),
+                    evidence_refs=reflection_answer.evidence_refs,
                 )
             return CognitiveResponse(content=self_fact.content)
 
@@ -402,7 +403,10 @@ def respond_with_runtime_context(
         reflection_answer is not None
         and reflection_answer.recognized
     ):
-        return CognitiveResponse(content=reflection_answer.content)
+        return CognitiveResponse(
+            content=reflection_answer.content,
+            evidence_refs=reflection_answer.evidence_refs,
+        )
 
     environment_snapshot = None
     environment_details_needed = environment_details_relevant(
