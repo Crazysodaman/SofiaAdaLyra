@@ -41,3 +41,29 @@ def test_runtime_stop_remains_a_distinct_explicit_tray_command():
             {},
         )
     ]
+from threading import Event, Lock
+
+
+def test_slow_model_control_runs_off_the_tray_event_thread():
+    app = object.__new__(TrayAgentApplication)
+    app._model_control_lock = Lock()
+    app._model_control_active = False
+    app._last_error = None
+    app._cognition_runtime_state = type("State", (), {
+        "snapshot": lambda self: None,
+    })()
+    started = Event()
+    release = Event()
+    finished = Event()
+    app._refresh_model_runtime_state = lambda: finished.set()
+
+    def operation():
+        started.set()
+        assert release.wait(timeout=5)
+
+    app._queue_model_control(operation)
+
+    assert started.wait(timeout=1)
+    assert app._model_control_active is True
+    release.set()
+    assert finished.wait(timeout=1)

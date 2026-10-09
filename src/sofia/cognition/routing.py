@@ -7,6 +7,7 @@ from threading import RLock
 from time import perf_counter
 
 from sofia.cognition.activity import CognitiveModelActivityStore
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import (
     CognitiveMessage,
@@ -298,6 +299,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         parallel_enabled: bool = True,
         fallback_enabled: bool = False,
         activity_store: CognitiveModelActivityStore | None = None,
+        runtime_state_store: CognitionRuntimeStateStore | None = None,
+        local_host_id: str | None = None,
     ) -> None:
         if not isinstance(registry, CognitiveEngineRegistry):
             raise TypeError("registry must be a CognitiveEngineRegistry")
@@ -326,6 +329,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         self.parallel_enabled = parallel_enabled
         self.fallback_enabled = fallback_enabled
         self.activity_store = activity_store
+        self.runtime_state_store = runtime_state_store
+        self.local_host_id = local_host_id
         self.last_decision: RoutingDecision | None = None
         self.last_execution: RoutingExecution | None = None
         self._execution_serial = 0
@@ -440,6 +445,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                     fallback_count=fallback_count,
                     verification_passes=verification_passes,
                 )
+                if self.runtime_state_store is not None:
+                    self.runtime_state_store.publish_route(decision.route.value)
 
             emit_performance(
                 "router",
@@ -505,10 +512,18 @@ class RoutingCognitiveEngine(CognitiveEngine):
         with self._role_locks[role]:
             engine = self.registry.get(role)
             model = self._engine_model(engine)
+            request_host = self._engine_host(engine) or self.local_host_id
             if self.activity_store is not None and model is not None:
                 self.activity_store.mark_busy(
                     role=role,
                     model=model,
+                    host=request_host,
+                )
+            if self.runtime_state_store is not None and model is not None:
+                self.runtime_state_store.mark_request(
+                    role=role,
+                    model=model,
+                    host=request_host,
                 )
             try:
                 response = engine.respond(request)
@@ -520,6 +535,15 @@ class RoutingCognitiveEngine(CognitiveEngine):
                         model=model,
                         host=host,
                         succeeded=False,
+                    )
+                if self.runtime_state_store is not None and model is not None:
+                    self.runtime_state_store.mark_result(
+                        role=role,
+                        model=model,
+                        host=host or request_host,
+                        route="in_progress",
+                        succeeded=False,
+                        error="cognitive_worker_error",
                     )
                 steps.append(
                     RoutingExecutionStep(
@@ -536,6 +560,14 @@ class RoutingCognitiveEngine(CognitiveEngine):
                     role=role,
                     model=model,
                     host=host,
+                    succeeded=True,
+                )
+            if self.runtime_state_store is not None and model is not None:
+                self.runtime_state_store.mark_result(
+                    role=role,
+                    model=model,
+                    host=host or request_host,
+                    route="in_progress",
                     succeeded=True,
                 )
             steps.append(

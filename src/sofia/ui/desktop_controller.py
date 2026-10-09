@@ -12,6 +12,7 @@ import sqlite3
 from typing import Protocol
 
 from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.ui.text import UITextClient, UITextMessage
 from sofia.ui.direct_tools import (
     DirectToolOutcome,
@@ -136,6 +137,26 @@ class DesktopWorkbenchController:
             f"MATRIX {intent} [{domains}] req={requested_route} "
             f"actual={actual_route} path={path} model={model} "
             f"validation={validation}"
+        )
+
+    def cognition_status(self) -> str:
+        """Read the same authoritative projection used by tray diagnostics."""
+        path = getattr(self._application, "chat_state_path", None)
+        if path is None:
+            return "COGNITION unavailable"
+        state = CognitionRuntimeStateStore(path).snapshot()
+        if state is None:
+            return "COGNITION no-runtime-state"
+        models = ", ".join(
+            f"{item.role}:{item.model}@{item.host or 'none'} "
+            f"[{item.activity if item.activity == 'busy' else item.residency}]"
+            for item in state.models
+        )
+        constraints = "; ".join(state.resource_constraints) or "none"
+        return (
+            f"COGNITION mode={state.residency_mode} routing={state.routing_mode} "
+            f"workers={state.parallel_workers} route={state.latest_route or 'none'} "
+            f"models={models} constraints={constraints}"
         )
 
     def history(self) -> tuple[UITextMessage, ...]:

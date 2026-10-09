@@ -72,6 +72,7 @@ class TrayStatus:
     cognitive_auto_manage: bool = False
     cognitive_idle_unload_seconds: int | None = None
     cognitive_residency_mode: str | None = None
+    cognitive_routing_mode: str | None = None
     llm_primary_host: str | None = None
     llm_secondary_host: str | None = None
     cognitive_last_route: str | None = None
@@ -82,6 +83,17 @@ class TrayStatus:
     matrix_last_intent: str | None = None
     matrix_last_domains: tuple[str, ...] = ()
     matrix_last_validation: str | None = None
+    cognitive_parallel_workers: int = 1
+    cognitive_resource_constraints: tuple[str, ...] = ()
+    cognitive_execution_history: tuple[dict, ...] = ()
+    llm_primary_installed: bool | None = None
+    llm_secondary_installed: bool | None = None
+    llm_primary_last_request: datetime | None = None
+    llm_secondary_last_request: datetime | None = None
+    llm_primary_last_success: datetime | None = None
+    llm_secondary_last_success: datetime | None = None
+    llm_primary_error: str | None = None
+    llm_secondary_error: str | None = None
 
     @property
     def configured_llm_models(self) -> tuple[str, ...]:
@@ -278,7 +290,17 @@ class TrayCommand(str, Enum):
     LLM_INSTALL_SECONDARY = "llm_install_secondary"
     LLM_LOAD_PRIMARY = "llm_load_primary"
     LLM_LOAD_SECONDARY = "llm_load_secondary"
-    LLM_UNLOAD_MODEL = "llm_unload_model"
+    LLM_LOAD_BOTH = "llm_load_both"
+    LLM_UNLOAD_PRIMARY = "llm_unload_primary"
+    LLM_UNLOAD_SECONDARY = "llm_unload_secondary"
+    LLM_UNLOAD_BOTH = "llm_unload_both"
+    LLM_UNLOAD_MODEL = "llm_unload_both"
+    LLM_MODE_ON_DEMAND = "llm_mode_on_demand"
+    LLM_MODE_FAST = "llm_mode_fast_always_resident"
+    LLM_MODE_DUAL = "llm_mode_dual_resident"
+    LLM_MODE_RESOURCE = "llm_mode_resource_aware"
+    LLM_REFRESH = "llm_refresh"
+    LLM_VIEW_ERRORS = "llm_view_errors"
     RUNTIME_START = "runtime_start"
     RUNTIME_STOP = "runtime_stop"
     RUNTIME_RESTART = "runtime_restart"
@@ -307,7 +329,11 @@ def tray_menu_labels(status: TrayStatus) -> tuple[tuple[TrayCommand, str], ...]:
         (TrayCommand.LLM_INSTALL_SECONDARY, "Install secondary model"),
         (TrayCommand.LLM_LOAD_PRIMARY, "Load primary model"),
         (TrayCommand.LLM_LOAD_SECONDARY, "Load secondary model"),
-        (TrayCommand.LLM_UNLOAD_MODEL, unload_label),
+        (TrayCommand.LLM_LOAD_BOTH, "Load both models"),
+        (TrayCommand.LLM_UNLOAD_PRIMARY, "Unload primary model"),
+        (TrayCommand.LLM_UNLOAD_SECONDARY, "Unload secondary model"),
+        (TrayCommand.LLM_UNLOAD_BOTH, unload_label),
+        (TrayCommand.LLM_REFRESH, "Refresh actual model status"),
         (TrayCommand.RUNTIME_START, "Start Sofía runtime"),
         (TrayCommand.RUNTIME_STOP, "Stop Sofía runtime"),
         (TrayCommand.RUNTIME_RESTART, "Restart Sofía runtime"),
@@ -375,6 +401,19 @@ def tray_command_enabled(command: TrayCommand, status: TrayStatus) -> bool:
         return (
             status.cognitive_routing_enabled
             and status.llm_secondary_residency == "unloaded"
+        )
+    if command is TrayCommand.LLM_LOAD_BOTH:
+        return (
+            status.cognitive_routing_enabled
+            and status.llm_primary_residency == "unloaded"
+            and status.llm_secondary_residency == "unloaded"
+        )
+    if command is TrayCommand.LLM_UNLOAD_PRIMARY:
+        return status.llm_primary_residency in {"ready", "error"}
+    if command is TrayCommand.LLM_UNLOAD_SECONDARY:
+        return (
+            status.cognitive_routing_enabled
+            and status.llm_secondary_residency in {"ready", "error"}
         )
     if command is TrayCommand.RUNTIME_START:
         return status.runtime_state != "running"

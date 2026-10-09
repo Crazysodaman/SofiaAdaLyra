@@ -1,7 +1,26 @@
 # Cognition v2 architecture specification
 
-Status: Batches 1–7 are production-composed, including resource-aware dual-model
-residency and concurrent role workers.
+Status: Batches 1–8 are production-composed, including resource-aware dual-model
+residency, concurrent role workers, and one authoritative cognition status
+projection.
+
+## Batch 8 authoritative status and controls
+
+`CognitionRuntimeStateStore` is the shared, content-free projection for the
+actual composed runtime. Lifecycle reconciliation publishes configured model,
+installation, residency, host, errors, mode, and observed resource constraints.
+Routing publishes last request, busy/ready/error transitions, last success,
+actual host, route, parallel-worker count, and a bounded execution history.
+The tray no longer creates a second lifecycle manager to guess runtime state;
+tray, Models settings, Desktop diagnostics, and tests read the same projection.
+
+Primary/secondary/both load and unload controls remain protected by exact SAFE
+execution approvals. The controller re-reads Ollama inventory and refuses to
+report success unless installation/residency is confirmed. Slow model controls
+run outside the tray event thread, expose loading/unloading transitions, and
+refresh the shared projection after completion. Residency-mode controls persist
+through runtime settings and the live lifecycle worker observes them on its next
+bounded reconciliation.
 
 ## Batch 7 model lifecycle
 

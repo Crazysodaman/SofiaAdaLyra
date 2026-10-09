@@ -9,6 +9,7 @@ from typing import Any, Callable, Mapping, Protocol
 
 from sofia.cognition.engine import CognitiveEngine, CognitiveEngineError
 from sofia.cognition.model import CognitiveRequest, CognitiveResponse
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import ModelLifecycleConfiguration, ProviderConfiguration
 
@@ -135,6 +136,9 @@ class ModelLifecycleManager:
         managed_provider: str = "ollama",
         resource_observer: Callable[[], Any] | None = None,
         gaming_observer: Callable[[], bool | None] | None = None,
+        runtime_state_store: CognitionRuntimeStateStore | None = None,
+        local_host_id: str | None = None,
+        policy_observer: Callable[[], ModelLifecycleConfiguration] | None = None,
     ) -> None:
         if not isinstance(selection, CognitiveModelSelection):
             raise TypeError("selection must be CognitiveModelSelection")
@@ -148,6 +152,9 @@ class ModelLifecycleManager:
         self.managed_provider = managed_provider.strip()
         self.resource_observer = resource_observer
         self.gaming_observer = gaming_observer
+        self.runtime_state_store = runtime_state_store
+        self.local_host_id = local_host_id
+        self.policy_observer = policy_observer
         self._lock = RLock()
         self._transient: dict[str, ModelResidency] = {}
         self._last_error: dict[str, str] = {}
@@ -235,7 +242,7 @@ class ModelLifecycleManager:
                 installed, running = self._inventory()
             except ModelLifecycleError as exc:
                 error = type(exc.__cause__ or exc).__name__
-                return tuple(
+                result = tuple(
                     ModelLifecycleStatus(
                         role=role,
                         provider=provider.provider,
@@ -245,6 +252,8 @@ class ModelLifecycleManager:
                     )
                     for role, provider in self._managed_providers()
                 )
+                self._publish_statuses(result, at=moment)
+                return result
 
             result: list[ModelLifecycleStatus] = []
             for role, provider in self._managed_providers():
@@ -273,7 +282,35 @@ class ModelLifecycleManager:
                         last_error=self._last_error.get(model),
                     )
                 )
-            return tuple(result)
+            statuses = tuple(result)
+            self._publish_statuses(statuses, at=moment)
+            return statuses
+
+    def _publish_statuses(
+        self,
+        statuses: tuple[ModelLifecycleStatus, ...],
+        *,
+        at: datetime,
+    ) -> None:
+        if self.runtime_state_store is None:
+            return
+        for status in statuses:
+            self.runtime_state_store.publish_lifecycle(
+                role=status.role.value,
+                model=status.model,
+                host=(
+                    self.local_host_id
+                    if status.state in {ModelResidency.READY, ModelResidency.BUSY}
+                    else None
+                ),
+                residency=status.state.value,
+                installed=(
+                    None if status.state is ModelResidency.ERROR
+                    else status.state is not ModelResidency.UNAVAILABLE
+                ),
+                error=status.last_error,
+                at=at,
+            )
 
     def status(
         self,
@@ -565,6 +602,11 @@ class ModelLifecycleManager:
         *,
         now: datetime | None = None,
     ) -> ModelResidencyDecision:
+        if self.policy_observer is not None:
+            observed_policy = self.policy_observer()
+            if not isinstance(observed_policy, ModelLifecycleConfiguration):
+                raise TypeError("policy observer returned invalid lifecycle policy")
+            self.policy = observed_policy
         if not self.policy.enabled:
             decision = ModelResidencyDecision(
                 ModelResidencyMode(self.policy.residency_mode),
@@ -572,6 +614,12 @@ class ModelLifecycleManager:
                 ("automatic lifecycle management is disabled",),
             )
             self.last_decision = decision
+            if self.runtime_state_store is not None:
+                self.runtime_state_store.publish_decision(
+                    residency_mode=decision.mode.value,
+                    constraints=decision.reasons,
+                    at=now,
+                )
             return decision
         with self._lock:
             inventory = self.backend.models()
@@ -634,6 +682,13 @@ class ModelLifecycleManager:
                 tuple(unloaded),
             )
             self.last_decision = decision
+            if self.runtime_state_store is not None:
+                self.runtime_state_store.publish_decision(
+                    residency_mode=decision.mode.value,
+                    constraints=decision.reasons,
+                    at=now,
+                )
+                self.statuses(now=now)
             return decision
 
 

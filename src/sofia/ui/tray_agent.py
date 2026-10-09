@@ -10,22 +10,17 @@ import socket
 import sqlite3
 import subprocess
 import sys
+from threading import Lock, Thread
 import time
 from uuid import uuid4
 
 from sofia.config import create_production_configuration
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import ModelLifecycleConfiguration
-from sofia.cognition.activity import (
-    CognitiveActivityState,
-    CognitiveModelActivityStore,
-)
-from sofia.cognition.model_lifecycle import (
-    CognitiveModelRole,
-    ModelLifecycleManager,
-)
+from sofia.config.user_settings import RuntimeUserSettingsStore
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
+from sofia.cognition.model_lifecycle import CognitiveModelRole
 from sofia.cognition.matrix import MatrixTraceStore
-from sofia.integrations.ollama import OllamaAdapter
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import (
     ActivityMode,
@@ -93,6 +88,8 @@ class TrayAgentApplication:
         self._chat_process: subprocess.Popen | None = None
         self._settings_process: subprocess.Popen | None = None
         self._last_error: str | None = None
+        self._model_control_lock = Lock()
+        self._model_control_active = False
         self._execution_approvals = ExecutionApprovalVerifier(
             self.config.state_path
         )
@@ -105,7 +102,7 @@ class TrayAgentApplication:
         self._matrix_trace_store = MatrixTraceStore(
             self.config.state_path
         )
-        self._cognitive_activity_store = CognitiveModelActivityStore(
+        self._cognition_runtime_state = CognitionRuntimeStateStore(
             self.config.state_path
         )
         self._service = DesktopServiceController(
@@ -143,17 +140,6 @@ class TrayAgentApplication:
             state_path=self.config.state_path,
         )
         return configuration.model_lifecycle
-
-    @staticmethod
-    def _current_model_statuses(
-        selection: CognitiveModelSelection,
-        policy: ModelLifecycleConfiguration,
-    ):
-        return ModelLifecycleManager(
-            selection=selection,
-            policy=policy,
-            backend=OllamaAdapter(),
-        ).statuses()
 
     def _service_state(self, service_name: str) -> str:
         try:
@@ -207,13 +193,13 @@ class TrayAgentApplication:
         settings = self.settings_store.load()
         selection = self._current_model_selection()
         lifecycle_policy = self._current_model_lifecycle_policy()
-        lifecycle_statuses = self._current_model_statuses(
-            selection,
-            lifecycle_policy,
+        runtime_state_store = getattr(self, "_cognition_runtime_state", None)
+        runtime_projection = (
+            None if runtime_state_store is None else runtime_state_store.snapshot()
         )
-        lifecycle_by_role = {
-            item.role: item.state.value
-            for item in lifecycle_statuses
+        projected_models = {
+            item.role: item
+            for item in (() if runtime_projection is None else runtime_projection.models)
         }
         try:
             matrix_trace = self._matrix_trace_store.latest()
@@ -221,25 +207,6 @@ class TrayAgentApplication:
         except Exception:
             matrix_trace = None
             execution_trace = None
-        activity_store = getattr(
-            self,
-            "_cognitive_activity_store",
-            None,
-        )
-        try:
-            primary_activity = (
-                None
-                if activity_store is None
-                else activity_store.get("primary")
-            )
-            secondary_activity = (
-                None
-                if activity_store is None
-                else activity_store.get("secondary")
-            )
-        except Exception:
-            primary_activity = None
-            secondary_activity = None
         runtime_state = self._service_state(
             settings.runtime_service_name
         )
@@ -280,25 +247,16 @@ class TrayAgentApplication:
                 last_model = last_step.model
                 last_host = last_step.host or self.host_id
 
-        primary_residency = lifecycle_by_role.get(
-            CognitiveModelRole.PRIMARY
+        primary_runtime = projected_models.get("primary")
+        secondary_runtime = projected_models.get("secondary")
+        primary_residency = (
+            None if primary_runtime is None else
+            ("busy" if primary_runtime.activity == "busy" else primary_runtime.residency)
         )
-        secondary_residency = lifecycle_by_role.get(
-            CognitiveModelRole.SECONDARY
+        secondary_residency = (
+            None if secondary_runtime is None else
+            ("busy" if secondary_runtime.activity == "busy" else secondary_runtime.residency)
         )
-        if (
-            primary_activity is not None
-            and primary_activity.model == selection.primary.model
-            and primary_activity.state is CognitiveActivityState.BUSY
-        ):
-            primary_residency = "busy"
-        if (
-            secondary_activity is not None
-            and selection.secondary is not None
-            and secondary_activity.model == selection.secondary.model
-            and secondary_activity.state is CognitiveActivityState.BUSY
-        ):
-            secondary_residency = "busy"
 
         fleet_enabled = bool(
             getattr(
@@ -314,11 +272,10 @@ class TrayAgentApplication:
         local_resident_states = {"ready", "busy"}
         primary_host = None
         if (
-            primary_activity is not None
-            and primary_activity.state is CognitiveActivityState.BUSY
-            and primary_activity.host is not None
+            primary_runtime is not None
+            and primary_runtime.host is not None
         ):
-            primary_host = primary_activity.host
+            primary_host = primary_runtime.host
         elif (
             primary_residency in local_resident_states
             and llm_state == "running"
@@ -331,11 +288,10 @@ class TrayAgentApplication:
 
         secondary_host = None
         if (
-            secondary_activity is not None
-            and secondary_activity.state is CognitiveActivityState.BUSY
-            and secondary_activity.host is not None
+            secondary_runtime is not None
+            and secondary_runtime.host is not None
         ):
-            secondary_host = secondary_activity.host
+            secondary_host = secondary_runtime.host
         elif (
             secondary_residency in local_resident_states
             and llm_state == "running"
@@ -383,10 +339,23 @@ class TrayAgentApplication:
             cognitive_idle_unload_seconds=(
                 lifecycle_policy.idle_unload_seconds
             ),
-            cognitive_residency_mode=lifecycle_policy.residency_mode,
+            cognitive_residency_mode=(
+                lifecycle_policy.residency_mode
+                if runtime_projection is None
+                else runtime_projection.residency_mode
+            ),
+            cognitive_routing_mode=(
+                ("dual" if selection.routing_enabled else "single")
+                if runtime_projection is None
+                else runtime_projection.routing_mode
+            ),
             llm_primary_host=primary_host,
             llm_secondary_host=secondary_host,
-            cognitive_last_route=last_route,
+            cognitive_last_route=(
+                last_route
+                if runtime_projection is None
+                else runtime_projection.latest_route or last_route
+            ),
             cognitive_last_model=last_model,
             cognitive_last_host=last_host,
             cognitive_last_primary_host=last_primary_host,
@@ -394,6 +363,39 @@ class TrayAgentApplication:
             matrix_last_intent=matrix_intent,
             matrix_last_domains=matrix_domains,
             matrix_last_validation=matrix_validation,
+            cognitive_parallel_workers=(
+                1 if runtime_projection is None else runtime_projection.parallel_workers
+            ),
+            cognitive_resource_constraints=(
+                () if runtime_projection is None else runtime_projection.resource_constraints
+            ),
+            cognitive_execution_history=(
+                () if runtime_state_store is None else runtime_state_store.history(limit=10)
+            ),
+            llm_primary_installed=(
+                None if primary_runtime is None else primary_runtime.installed
+            ),
+            llm_secondary_installed=(
+                None if secondary_runtime is None else secondary_runtime.installed
+            ),
+            llm_primary_last_request=(
+                None if primary_runtime is None else primary_runtime.last_request_at
+            ),
+            llm_secondary_last_request=(
+                None if secondary_runtime is None else secondary_runtime.last_request_at
+            ),
+            llm_primary_last_success=(
+                None if primary_runtime is None else primary_runtime.last_success_at
+            ),
+            llm_secondary_last_success=(
+                None if secondary_runtime is None else secondary_runtime.last_success_at
+            ),
+            llm_primary_error=(
+                None if primary_runtime is None else primary_runtime.last_error
+            ),
+            llm_secondary_error=(
+                None if secondary_runtime is None else secondary_runtime.last_error
+            ),
         )
 
     def _spawn_module(self, module: str, *arguments: str) -> subprocess.Popen:
@@ -541,7 +543,15 @@ class TrayAgentApplication:
 
         if action is ServiceAction.UNLOAD_MODEL:
             selection = self._current_model_selection()
-            for model_name in selection.model_names:
+            if model_role is CognitiveModelRole.PRIMARY:
+                model_names = (selection.primary.model,)
+            elif model_role is CognitiveModelRole.SECONDARY:
+                if selection.secondary is None:
+                    raise ValueError("secondary model is not configured")
+                model_names = (selection.secondary.model,)
+            else:
+                model_names = selection.model_names
+            for model_name in model_names:
                 self._execute_approved_local_service_action(
                     target,
                     action,
@@ -552,6 +562,93 @@ class TrayAgentApplication:
         self._execute_approved_local_service_action(
             target,
             action,
+        )
+
+    def _unload_roles(self, roles: tuple[CognitiveModelRole, ...]) -> None:
+        for role in roles:
+            self._service_action(
+                ServiceKind.LLM_ENGINE,
+                ServiceAction.UNLOAD_MODEL,
+                model_role=role,
+            )
+
+    @staticmethod
+    def _payload_model_names(payload) -> frozenset[str]:
+        items = payload.get("models", ()) if isinstance(payload, dict) else ()
+        return frozenset(
+            str(item.get("name") or item.get("model")).strip()
+            for item in items
+            if isinstance(item, dict) and (item.get("name") or item.get("model"))
+        )
+
+    def _refresh_model_runtime_state(self) -> None:
+        selection = self._current_model_selection()
+        installed = self._payload_model_names(self._service.ollama.models())
+        running = self._payload_model_names(self._service.ollama.running())
+        for role, provider in (
+            ("primary", selection.primary),
+            ("secondary", selection.secondary),
+        ):
+            if provider is None:
+                continue
+            self._cognition_runtime_state.publish_lifecycle(
+                role=role,
+                model=provider.model,
+                host=self.host_id if provider.model in running else None,
+                installed=provider.model in installed,
+                residency=(
+                    "ready" if provider.model in running
+                    else ("unloaded" if provider.model in installed else "unavailable")
+                ),
+            )
+
+    def _queue_model_control(
+        self,
+        operation,
+        *,
+        transitions: tuple[tuple[str, str], ...] = (),
+    ) -> None:
+        with self._model_control_lock:
+            if self._model_control_active:
+                raise RuntimeError("a model control operation is already running")
+            self._model_control_active = True
+        snapshot = self._cognition_runtime_state.snapshot()
+        by_role = {
+            item.role: item
+            for item in (() if snapshot is None else snapshot.models)
+        }
+        for role, residency in transitions:
+            current = by_role.get(role)
+            if current is not None:
+                self._cognition_runtime_state.publish_lifecycle(
+                    role=role,
+                    model=current.model,
+                    host=current.host,
+                    installed=current.installed,
+                    residency=residency,
+                    error=current.last_error,
+                )
+
+        def run() -> None:
+            try:
+                operation()
+                self._refresh_model_runtime_state()
+                self._last_error = None
+            except Exception as exc:
+                self._last_error = f"{type(exc).__name__}: {exc}"
+            finally:
+                with self._model_control_lock:
+                    self._model_control_active = False
+
+        Thread(target=run, name="sofia-model-control", daemon=True).start()
+
+    def _set_residency_mode(self, mode: str) -> None:
+        store = RuntimeUserSettingsStore(self.config.state_path)
+        store.save(replace(store.load(), cognitive_model_residency_mode=mode))
+        snapshot = self._cognition_runtime_state.snapshot()
+        self._cognition_runtime_state.publish_decision(
+            residency_mode=mode,
+            constraints=(() if snapshot is None else snapshot.resource_constraints),
         )
 
     def handle(self, command: TrayCommand) -> bool:
@@ -579,31 +676,77 @@ class TrayAgentApplication:
             elif command is TrayCommand.LLM_RESTART:
                 self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.RESTART)
             elif command is TrayCommand.LLM_INSTALL_PRIMARY:
-                self._service_action(
-                    ServiceKind.LLM_ENGINE,
-                    ServiceAction.INSTALL_MODEL,
-                    model_role=CognitiveModelRole.PRIMARY,
+                self._queue_model_control(
+                    lambda: self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.INSTALL_MODEL,
+                        model_role=CognitiveModelRole.PRIMARY,
+                    ),
+                    transitions=(("primary", "loading"),),
                 )
             elif command is TrayCommand.LLM_INSTALL_SECONDARY:
-                self._service_action(
-                    ServiceKind.LLM_ENGINE,
-                    ServiceAction.INSTALL_MODEL,
-                    model_role=CognitiveModelRole.SECONDARY,
+                self._queue_model_control(
+                    lambda: self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.INSTALL_MODEL,
+                        model_role=CognitiveModelRole.SECONDARY,
+                    ),
+                    transitions=(("secondary", "loading"),),
                 )
             elif command is TrayCommand.LLM_LOAD_PRIMARY:
-                self._service_action(
-                    ServiceKind.LLM_ENGINE,
-                    ServiceAction.LOAD_MODEL,
-                    model_role=CognitiveModelRole.PRIMARY,
+                self._queue_model_control(
+                    lambda: self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.LOAD_MODEL,
+                        model_role=CognitiveModelRole.PRIMARY,
+                    ),
+                    transitions=(("primary", "loading"),),
                 )
             elif command is TrayCommand.LLM_LOAD_SECONDARY:
-                self._service_action(
-                    ServiceKind.LLM_ENGINE,
-                    ServiceAction.LOAD_MODEL,
-                    model_role=CognitiveModelRole.SECONDARY,
+                self._queue_model_control(
+                    lambda: self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.LOAD_MODEL,
+                        model_role=CognitiveModelRole.SECONDARY,
+                    ),
+                    transitions=(("secondary", "loading"),),
                 )
-            elif command is TrayCommand.LLM_UNLOAD_MODEL:
-                self._service_action(ServiceKind.LLM_ENGINE, ServiceAction.UNLOAD_MODEL)
+            elif command is TrayCommand.LLM_LOAD_BOTH:
+                self._queue_model_control(lambda: (
+                    self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.LOAD_MODEL,
+                        model_role=CognitiveModelRole.PRIMARY,
+                    ),
+                    self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.LOAD_MODEL,
+                        model_role=CognitiveModelRole.SECONDARY,
+                    ),
+                ), transitions=(("primary", "loading"), ("secondary", "loading")))
+            elif command is TrayCommand.LLM_UNLOAD_PRIMARY:
+                self._queue_model_control(
+                    lambda: self._unload_roles((CognitiveModelRole.PRIMARY,)),
+                    transitions=(("primary", "unloading"),),
+                )
+            elif command is TrayCommand.LLM_UNLOAD_SECONDARY:
+                self._queue_model_control(
+                    lambda: self._unload_roles((CognitiveModelRole.SECONDARY,)),
+                    transitions=(("secondary", "unloading"),),
+                )
+            elif command in {TrayCommand.LLM_UNLOAD_BOTH, TrayCommand.LLM_UNLOAD_MODEL}:
+                self._queue_model_control(
+                    lambda: self._service_action(
+                        ServiceKind.LLM_ENGINE, ServiceAction.UNLOAD_MODEL
+                    ),
+                    transitions=(("primary", "unloading"), ("secondary", "unloading")),
+                )
+            elif command is TrayCommand.LLM_MODE_ON_DEMAND:
+                self._set_residency_mode("on_demand")
+            elif command is TrayCommand.LLM_MODE_FAST:
+                self._set_residency_mode("fast_always_resident")
+            elif command is TrayCommand.LLM_MODE_DUAL:
+                self._set_residency_mode("dual_resident")
+            elif command is TrayCommand.LLM_MODE_RESOURCE:
+                self._set_residency_mode("resource_aware")
+            elif command is TrayCommand.LLM_REFRESH:
+                self._queue_model_control(self._refresh_model_runtime_state)
+            elif command is TrayCommand.LLM_VIEW_ERRORS:
+                self._open_settings("Models")
             elif command is TrayCommand.RUNTIME_START:
                 self._service_action(ServiceKind.SOFIA_RUNTIME, ServiceAction.START)
             elif command is TrayCommand.RUNTIME_STOP:

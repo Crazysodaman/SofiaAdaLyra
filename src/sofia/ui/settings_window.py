@@ -21,6 +21,7 @@ from sofia.config.model_catalog import (
 from sofia.config.user_settings import (
     RuntimeUserSettingsStore,
 )
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.environment.model import LocationSubject
 from sofia.machine.discovery import create_machine_discovery
 from sofia.ops.activity import ActivityMode, HostActivityStore
@@ -567,6 +568,39 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         lifecycle_frame,
         text="Unload after idle seconds",
     ).pack(anchor="w")
+    cognition_state = CognitionRuntimeStateStore(config.state_path).snapshot()
+    if cognition_state is not None:
+        ttk.Label(
+            lifecycle_frame,
+            text=(
+                "Actual runtime: "
+                + " | ".join(
+                    f"{item.role}={item.activity if item.activity == 'busy' else item.residency}"
+                    f"@{item.host or 'none'}"
+                    for item in cognition_state.models
+                )
+            ),
+            wraplength=690,
+        ).pack(anchor="w", pady=(6, 0))
+        ttk.Label(
+            lifecycle_frame,
+            text=(
+                f"Workers: {cognition_state.parallel_workers}; latest route: "
+                f"{cognition_state.latest_route or 'none'}; constraints: "
+                f"{'; '.join(cognition_state.resource_constraints) or 'none'}"
+            ),
+            wraplength=690,
+        ).pack(anchor="w", pady=(2, 0))
+        errors = tuple(
+            f"{item.role}: {item.last_error}"
+            for item in cognition_state.models
+            if item.last_error
+        )
+        ttk.Label(
+            lifecycle_frame,
+            text="Model errors: " + ("; ".join(errors) if errors else "none"),
+            wraplength=690,
+        ).pack(anchor="w", pady=(2, 0))
     ttk.Entry(
         lifecycle_frame,
         textvariable=cognitive_model_idle_unload_seconds,

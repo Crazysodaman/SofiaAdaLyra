@@ -1,4 +1,6 @@
 """Compose local, lifecycle-managed and fleet-routed cognitive engines."""
+from dataclasses import replace
+import os
 from sofia.cognition.activity import CognitiveModelActivityStore
 from sofia.cognition.llm_engine import LLMCognitiveEngine
 from sofia.cognition.fleet_engine import (
@@ -15,10 +17,12 @@ from sofia.cognition.routing import (
     CognitiveEngineRegistry,
     RoutingCognitiveEngine,
 )
+from sofia.cognition.runtime_state import CognitionRuntimeStateStore
 from sofia.cognition.rules import RuleEngine
 from sofia.cognition.test_engine import TestCognitiveEngine
 from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
+from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.ops.capability import OpsToolService
 from sofia.ops.local_telemetry import collect_local_telemetry
@@ -63,9 +67,34 @@ def create_model_lifecycle(
     ops_service: OpsToolService | None = None,
     local_host_id: str | None = None,
 ) -> ModelLifecycleManager | None:
+    selection = CognitiveModelSelection.from_configuration(configuration)
+    runtime_state_store = CognitionRuntimeStateStore(configuration.state_path)
+    runtime_state_store.configure(
+        models={
+            role.value: (
+                selection.primary.model
+                if role is CognitiveModelRole.PRIMARY
+                else selection.secondary.model
+            )
+            for role in (
+                (CognitiveModelRole.PRIMARY, CognitiveModelRole.SECONDARY)
+                if selection.secondary is not None
+                else (CognitiveModelRole.PRIMARY,)
+            )
+        },
+        residency_mode=configuration.model_lifecycle.residency_mode,
+        routing_mode=("dual" if selection.routing_enabled else "single"),
+        parallel_workers=(
+            2
+            if configuration.routing is not None
+            and configuration.routing.enabled
+            and configuration.routing.parallel_enabled
+            else 1
+        ),
+    )
+    runtime_state_store.clear_stale_busy()
     if not configuration.model_lifecycle.enabled:
         return None
-    selection = CognitiveModelSelection.from_configuration(configuration)
     if not any(
         provider.provider == "ollama"
         for provider in selection.providers
@@ -79,12 +108,22 @@ def create_model_lifecycle(
                 return None
             return mode is ActivityMode.GAMING
         gaming_observer = observe_gaming
+    def observe_policy():
+        settings = RuntimeUserSettingsStore(configuration.state_path).load()
+        mode = os.environ.get(
+            "SOFIA_COGNITION_MODEL_RESIDENCY_MODE",
+            settings.cognitive_model_residency_mode,
+        ).strip().casefold()
+        return replace(configuration.model_lifecycle, residency_mode=mode)
     return ModelLifecycleManager(
         selection=selection,
         policy=configuration.model_lifecycle,
         backend=OllamaAdapter(),
         resource_observer=collect_local_telemetry,
         gaming_observer=gaming_observer,
+        runtime_state_store=runtime_state_store,
+        local_host_id=local_host_id,
+        policy_observer=observe_policy,
     )
 
 
@@ -200,6 +239,10 @@ def create_cognitive_engine(
             parallel_enabled=routing.parallel_enabled,
             fallback_enabled=routing.fallback_enabled,
             activity_store=activity_store,
+            runtime_state_store=CognitionRuntimeStateStore(
+                configuration.state_path
+            ),
+            local_host_id=local_host_id,
         )
 
     if configuration.provider.provider == "test":

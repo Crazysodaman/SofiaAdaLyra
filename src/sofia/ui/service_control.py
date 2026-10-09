@@ -134,11 +134,13 @@ class DesktopServiceController:
             if not llm_model:
                 raise ValueError("LLM model identity required for install")
             self.ollama.pull(llm_model)
+            if llm_model not in self._model_names(self.ollama.models()):
+                raise RuntimeError("Ollama did not confirm the installed model")
             return ServiceControlResult(
                 target.host_id,
                 target.service_name,
                 action,
-                f"install requested for {llm_model}",
+                f"install confirmed for {llm_model}",
             )
 
         if action is ServiceAction.LOAD_MODEL:
@@ -150,11 +152,13 @@ class DesktopServiceController:
             if not keep_alive:
                 raise ValueError("LLM keep_alive required for load")
             self.ollama.load(llm_model, keep_alive=keep_alive)
+            if llm_model not in self._model_names(self.ollama.running()):
+                raise RuntimeError("Ollama did not confirm the loaded model")
             return ServiceControlResult(
                 target.host_id,
                 target.service_name,
                 action,
-                f"load requested for {llm_model}",
+                f"load confirmed for {llm_model}",
             )
 
         if action is ServiceAction.UNLOAD_MODEL:
@@ -163,11 +167,13 @@ class DesktopServiceController:
             if not llm_model:
                 raise ValueError("LLM model identity required for unload")
             self.ollama.unload(llm_model)
+            if llm_model in self._model_names(self.ollama.running()):
+                raise RuntimeError("Ollama did not confirm the unloaded model")
             return ServiceControlResult(
                 target.host_id,
                 target.service_name,
                 action,
-                f"unload requested for {llm_model}",
+                f"unload confirmed for {llm_model}",
             )
 
         command = {
@@ -184,4 +190,13 @@ class DesktopServiceController:
             target.service_name,
             action,
             detail,
+        )
+
+    @staticmethod
+    def _model_names(payload) -> frozenset[str]:
+        items = payload.get("models", ()) if isinstance(payload, dict) else ()
+        return frozenset(
+            str(item.get("name") or item.get("model")).strip()
+            for item in items
+            if isinstance(item, dict) and (item.get("name") or item.get("model"))
         )

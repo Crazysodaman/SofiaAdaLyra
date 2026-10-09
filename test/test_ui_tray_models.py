@@ -1,11 +1,5 @@
 from types import SimpleNamespace
 
-from sofia.cognition.activity import CognitiveActivityState
-from sofia.cognition.model_lifecycle import (
-    CognitiveModelRole,
-    ModelLifecycleStatus,
-    ModelResidency,
-)
 from sofia.config.model import ModelLifecycleConfiguration
 from sofia.ui.control_center import GameMode
 from sofia.ui.tray_agent import TrayAgentApplication
@@ -28,18 +22,46 @@ def _selection(primary: str, secondary: str | None = None):
     )
 
 
+def _runtime_projection(primary_state="unloaded", secondary_state=None, *, busy=None):
+    models = [SimpleNamespace(
+        role="primary", model="vendor/primary:9b", host="venus",
+        installed=True, residency=primary_state,
+        activity="busy" if busy == "primary" else "ready",
+        last_request_at=None, last_success_at=None, last_error=None,
+    )]
+    if secondary_state is not None:
+        models.append(SimpleNamespace(
+            role="secondary", model="vendor/open:4b",
+            host=(
+                "artemis" if busy == "secondary"
+                else (None if secondary_state == "unloaded" else "venus")
+            ),
+            installed=True, residency=secondary_state,
+            activity="busy" if busy == "secondary" else "ready",
+            last_request_at=None, last_success_at=None, last_error=None,
+        ))
+    return SimpleNamespace(
+        models=tuple(models), residency_mode="resource_aware",
+        routing_mode="dual" if secondary_state is not None else "single",
+        parallel_workers=2 if secondary_state is not None else 1,
+        latest_route=None, resource_constraints=(),
+    )
+
+
+def _attach_runtime(app, projection):
+    app._cognition_runtime_state = SimpleNamespace(
+        snapshot=lambda: projection,
+        history=lambda limit: (),
+    )
+
+
 def test_tray_status_exposes_single_effective_model():
     app=object.__new__(TrayAgentApplication)
     app._current_model_selection=lambda: _selection("vendor/single:7b")
     app._current_model_lifecycle_policy=lambda: ModelLifecycleConfiguration()
-    app._current_model_statuses=lambda selection, policy: (
-        ModelLifecycleStatus(
-            CognitiveModelRole.PRIMARY,
-            "ollama",
-            "vendor/single:7b",
-            ModelResidency.UNLOADED,
-        ),
-    )
+    projection = _runtime_projection()
+    projection.models[0].model = "vendor/single:7b"
+    _attach_runtime(app, projection)
     app.settings_store=SimpleNamespace(
         load=lambda: SimpleNamespace(
             runtime_service_name="SofiaAdaLyra",
@@ -73,20 +95,7 @@ def test_tray_status_exposes_primary_secondary_and_routing_mode():
         enabled=True,
         idle_unload_seconds=600,
     )
-    app._current_model_statuses=lambda selection, policy: (
-        ModelLifecycleStatus(
-            CognitiveModelRole.PRIMARY,
-            "ollama",
-            "vendor/primary:9b",
-            ModelResidency.READY,
-        ),
-        ModelLifecycleStatus(
-            CognitiveModelRole.SECONDARY,
-            "ollama",
-            "vendor/open:4b",
-            ModelResidency.BUSY,
-        ),
-    )
+    _attach_runtime(app, _runtime_projection("ready", "ready", busy="secondary"))
     app.settings_store=SimpleNamespace(
         load=lambda: SimpleNamespace(
             runtime_service_name="SofiaAdaLyra",
@@ -113,7 +122,7 @@ def test_tray_status_exposes_primary_secondary_and_routing_mode():
     assert status.cognitive_auto_manage is True
     assert status.cognitive_idle_unload_seconds == 600
     assert status.llm_primary_host == "venus"
-    assert status.llm_secondary_host == "venus"
+    assert status.llm_secondary_host == "artemis"
 
 
 def test_tray_status_exposes_last_matrix_and_actual_dual_llm_execution():
@@ -126,20 +135,7 @@ def test_tray_status_exposes_last_matrix_and_actual_dual_llm_execution():
         enabled=True,
         idle_unload_seconds=600,
     )
-    app._current_model_statuses=lambda selection, policy: (
-        ModelLifecycleStatus(
-            CognitiveModelRole.PRIMARY,
-            "ollama",
-            "vendor/primary:9b",
-            ModelResidency.READY,
-        ),
-        ModelLifecycleStatus(
-            CognitiveModelRole.SECONDARY,
-            "ollama",
-            "vendor/open:4b",
-            ModelResidency.UNLOADED,
-        ),
-    )
+    _attach_runtime(app, _runtime_projection("ready", "unloaded"))
     app.settings_store=SimpleNamespace(
         load=lambda: SimpleNamespace(
             runtime_service_name="SofiaAdaLyra",
@@ -225,20 +221,7 @@ def test_tray_busy_state_comes_from_canonical_runtime_activity():
         enabled=True,
         idle_unload_seconds=600,
     )
-    app._current_model_statuses=lambda selection, policy: (
-        ModelLifecycleStatus(
-            CognitiveModelRole.PRIMARY,
-            "ollama",
-            "vendor/primary:9b",
-            ModelResidency.READY,
-        ),
-        ModelLifecycleStatus(
-            CognitiveModelRole.SECONDARY,
-            "ollama",
-            "vendor/open:4b",
-            ModelResidency.UNLOADED,
-        ),
-    )
+    _attach_runtime(app, _runtime_projection("ready", "unloaded", busy="secondary"))
     app.settings_store=SimpleNamespace(
         load=lambda: SimpleNamespace(
             runtime_service_name="SofiaAdaLyra",
@@ -254,18 +237,6 @@ def test_tray_busy_state_comes_from_canonical_runtime_activity():
         latest=lambda: None,
         latest_with_execution=lambda: None,
     )
-    app._cognitive_activity_store=SimpleNamespace(
-        get=lambda role: (
-            SimpleNamespace(
-                model="vendor/open:4b",
-                state=CognitiveActivityState.BUSY,
-                host="artemis",
-            )
-            if role == "secondary"
-            else None
-        )
-    )
-
     status=app.status()
 
     assert status.llm_primary_residency == "ready"

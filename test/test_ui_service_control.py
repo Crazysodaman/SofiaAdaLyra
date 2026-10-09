@@ -30,18 +30,30 @@ class Ollama:
         self.pulled=[]
         self.loaded=[]
         self.unloaded=[]
+        self.installed=set()
+        self.resident=set()
 
     def pull(self,name):
         self.pulled.append(name)
+        self.installed.add(name)
         return {"done":True}
 
     def load(self,name,*,keep_alive):
         self.loaded.append((name,keep_alive))
+        self.installed.add(name)
+        self.resident.add(name)
         return {"done":True}
 
     def unload(self,name):
         self.unloaded.append(name)
+        self.resident.discard(name)
         return {"done":True}
+
+    def models(self):
+        return {"models":[{"name": name} for name in self.installed]}
+
+    def running(self):
+        return {"models":[{"name": name} for name in self.resident]}
 
 
 def test_local_runtime_service_action_uses_typed_maintenance():
@@ -75,7 +87,7 @@ def test_llm_unload_is_separate_from_stopping_ollama_service():
     )
     assert ollama.unloaded==["vendor/custom-open:4b"]
     assert local.calls==[]
-    assert result.detail=="unload requested for vendor/custom-open:4b"
+    assert result.detail=="unload confirmed for vendor/custom-open:4b"
 
 
 def test_remote_target_never_falls_back_to_local_service_control():
@@ -146,7 +158,7 @@ def test_llm_load_is_separate_from_starting_ollama_service():
     )
     assert ollama.loaded==[("vendor/custom-primary:any","6m")]
     assert local.calls==[]
-    assert result.detail=="load requested for vendor/custom-primary:any"
+    assert result.detail=="load confirmed for vendor/custom-primary:any"
 
 
 
@@ -166,4 +178,26 @@ def test_llm_install_pulls_model_without_loading_or_starting_service():
     assert ollama.pulled==["vendor/install-me:any"]
     assert ollama.loaded==[]
     assert local.calls==[]
-    assert result.detail=="install requested for vendor/install-me:any"
+    assert result.detail=="install confirmed for vendor/install-me:any"
+
+
+def test_model_control_refuses_success_when_ollama_state_is_not_confirmed():
+    class LyingOllama(Ollama):
+        def load(self, name, *, keep_alive):
+            self.loaded.append((name, keep_alive))
+            return {"done": True}
+
+    controller = DesktopServiceController(
+        local_host_id="venus",
+        local_maintenance=Local(),
+        ollama=LyingOllama(),
+        approval_verifier=Approval(),
+    )
+
+    with pytest.raises(RuntimeError, match="did not confirm"):
+        controller.execute(
+            ServiceTarget(ServiceKind.LLM_ENGINE, "venus", "Ollama"),
+            ServiceAction.LOAD_MODEL,
+            llm_model="vendor/not-really-loaded:any",
+            llm_keep_alive="5m",
+        )

@@ -339,6 +339,15 @@ class WindowsTrayAgent:
             1025: TrayCommand.LLM_LOAD_SECONDARY,
             1026: TrayCommand.LLM_INSTALL_PRIMARY,
             1027: TrayCommand.LLM_INSTALL_SECONDARY,
+            1028: TrayCommand.LLM_LOAD_BOTH,
+            1029: TrayCommand.LLM_UNLOAD_PRIMARY,
+            1050: TrayCommand.LLM_UNLOAD_SECONDARY,
+            1051: TrayCommand.LLM_MODE_ON_DEMAND,
+            1052: TrayCommand.LLM_MODE_FAST,
+            1053: TrayCommand.LLM_MODE_DUAL,
+            1054: TrayCommand.LLM_MODE_RESOURCE,
+            1055: TrayCommand.LLM_REFRESH,
+            1056: TrayCommand.LLM_VIEW_ERRORS,
             1030: TrayCommand.RUNTIME_START,
             1031: TrayCommand.RUNTIME_STOP,
             1032: TrayCommand.RUNTIME_RESTART,
@@ -400,6 +409,15 @@ class WindowsTrayAgent:
                     0,
                     f"Primary: {primary_label} [{primary_state}] @ {primary_host}",
                 )
+                primary_installed = (
+                    "unknown" if status.llm_primary_installed is None
+                    else ("yes" if status.llm_primary_installed else "no")
+                )
+                append(llm, MF_STRING | MF_GRAYED, 0, f"Primary installed: {primary_installed}")
+                if status.llm_primary_last_request is not None:
+                    append(llm, MF_STRING | MF_GRAYED, 0, f"Primary last request: {status.llm_primary_last_request.isoformat()}")
+                if status.llm_primary_last_success is not None:
+                    append(llm, MF_STRING | MF_GRAYED, 0, f"Primary last success: {status.llm_primary_last_success.isoformat()}")
                 if status.cognitive_routing_enabled:
                     secondary_label = (
                         status.llm_secondary_model or "not configured"
@@ -416,6 +434,15 @@ class WindowsTrayAgent:
                         0,
                         f"Secondary: {secondary_label} [{secondary_state}] @ {secondary_host}",
                     )
+                    secondary_installed = (
+                        "unknown" if status.llm_secondary_installed is None
+                        else ("yes" if status.llm_secondary_installed else "no")
+                    )
+                    append(llm, MF_STRING | MF_GRAYED, 0, f"Secondary installed: {secondary_installed}")
+                    if status.llm_secondary_last_request is not None:
+                        append(llm, MF_STRING | MF_GRAYED, 0, f"Secondary last request: {status.llm_secondary_last_request.isoformat()}")
+                    if status.llm_secondary_last_success is not None:
+                        append(llm, MF_STRING | MF_GRAYED, 0, f"Secondary last success: {status.llm_secondary_last_success.isoformat()}")
 
                 if status.cognitive_last_route is not None:
                     append(
@@ -432,6 +459,31 @@ class WindowsTrayAgent:
                         0,
                         f"Last model: {status.cognitive_last_model} @ {model_host}",
                     )
+                append(
+                    llm, MF_STRING | MF_GRAYED, 0,
+                    f"Parallel workers: {status.cognitive_parallel_workers}",
+                )
+                append(
+                    llm, MF_STRING | MF_GRAYED, 0,
+                    f"Routing mode: {status.cognitive_routing_mode or 'unknown'}",
+                )
+                for constraint in status.cognitive_resource_constraints[:2]:
+                    append(llm, MF_STRING | MF_GRAYED, 0, f"Constraint: {constraint}")
+                for execution in status.cognitive_execution_history[:3]:
+                    outcome = "ok" if execution.get("succeeded") else "error"
+                    append(
+                        llm, MF_STRING | MF_GRAYED, 0,
+                        "Execution: "
+                        f"{execution.get('role', 'unknown')} "
+                        f"{execution.get('model', 'unknown')} "
+                        f"@ {execution.get('host') or 'unknown'} [{outcome}]",
+                    )
+                for label, value in (
+                    ("Primary error", status.llm_primary_error),
+                    ("Secondary error", status.llm_secondary_error),
+                ):
+                    if value:
+                        append(llm, MF_STRING | MF_GRAYED, 0, f"{label}: {value}")
                 if status.cognitive_last_primary_host is not None:
                     append(
                         llm,
@@ -542,6 +594,15 @@ class WindowsTrayAgent:
                         1025,
                         "Load Secondary",
                     )
+                    both_flags = (
+                        MF_STRING
+                        if tray_command_enabled(TrayCommand.LLM_LOAD_BOTH, status)
+                        else MF_STRING | MF_GRAYED
+                    )
+                    append(llm, both_flags, 1028, "Load Both")
+                append(llm, MF_STRING, 1029, "Unload Primary")
+                if status.cognitive_routing_enabled:
+                    append(llm, MF_STRING, 1050, "Unload Secondary")
                 unload_label = (
                     "Unload configured model"
                     if len(status.configured_llm_models) <= 1
@@ -551,6 +612,19 @@ class WindowsTrayAgent:
                     )
                 )
                 append(llm, MF_STRING, 1023, unload_label)
+                append(llm, MF_SEPARATOR, 0, None)
+                for item_id, label, command, mode in (
+                    (1051, "Mode: On demand", TrayCommand.LLM_MODE_ON_DEMAND, "on_demand"),
+                    (1052, "Mode: Fast resident", TrayCommand.LLM_MODE_FAST, "fast_always_resident"),
+                    (1053, "Mode: Dual resident", TrayCommand.LLM_MODE_DUAL, "dual_resident"),
+                    (1054, "Mode: Resource aware", TrayCommand.LLM_MODE_RESOURCE, "resource_aware"),
+                ):
+                    flags = MF_STRING | (
+                        MF_CHECKED if status.cognitive_residency_mode == mode else 0
+                    )
+                    append(llm, flags, item_id, label)
+                append(llm, MF_STRING, 1055, "Refresh actual status")
+                append(llm, MF_STRING, 1056, "View model errors")
                 append(root, MF_POPUP, llm, f"{llm_label}: {status.llm_state}")
 
                 for item_id, label, command in (
