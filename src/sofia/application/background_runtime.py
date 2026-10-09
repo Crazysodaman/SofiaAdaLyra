@@ -6,12 +6,13 @@ and do not create a second runtime, conversation or state model.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import socket
 from typing import TYPE_CHECKING
 
 from sofia.application.background import ApplicationBackgroundCoordinator
+from sofia.application.presence import WorldAvailability, WorldEpistemicState
 from sofia.application.fleet_runtime import (
     create_fleet_bootstrap_coordinator, create_fleet_candidate_notifier,
     create_fleet_reconciliation_notifier,
@@ -95,6 +96,65 @@ def create_background_coordinator(
         refresh_neuro,
         interval_seconds=60.0,
     )
+
+    def refresh_presence(now):
+        """Project authoritative state without inferring health from silence."""
+        presence = application._presence
+        stamp = now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+        runtime_state = application._runtime.state.value
+        presence.record_state(
+            observation_id=f"world:runtime:{stamp}",
+            subject_id="runtime:sofia",
+            predicate="application.runtime_state",
+            source_id="runtime:lifecycle",
+            observed_at=now,
+            freshness=timedelta(minutes=3),
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.OBSERVED,
+            availability=(
+                WorldAvailability.HEALTHY
+                if runtime_state == "ready"
+                else WorldAvailability.DEGRADED
+            ),
+            value={"state": runtime_state},
+        )
+        activity = activity_store.state(host_id).effective
+        presence.record_state(
+            observation_id=f"world:activity:{stamp}",
+            subject_id=f"host:{host_id}",
+            predicate="user.availability",
+            source_id="ops:host_activity",
+            observed_at=now,
+            freshness=timedelta(minutes=3),
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.OBSERVED,
+            availability=WorldAvailability.NOT_APPLICABLE,
+            value={"activity": activity.value},
+            audience_id="sparks",
+        )
+        environment = application._runtime.environment_service.snapshot(
+            now=now, refresh_providers=False,
+        )
+        presence.record_state(
+            observation_id=f"world:environment:{stamp}",
+            subject_id="environment:current",
+            predicate="environment.context",
+            source_id="environment:snapshot",
+            observed_at=now,
+            freshness=timedelta(minutes=3),
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.OBSERVED,
+            availability=WorldAvailability.NOT_APPLICABLE,
+            value={
+                "season": None if environment.season is None else environment.season.value,
+                "daylight": None if environment.daylight is None else environment.daylight.state.value,
+                "weather_freshness": environment.weather_freshness.value,
+            },
+            audience_id="sparks",
+        )
+        return True
+
+    coordinator.set_task("presence_refresh", refresh_presence, interval_seconds=60.0)
     goal_production = getattr(application, "_goal_production", None)
     if goal_production is not None:
         coordinator.set_task(
@@ -139,6 +199,9 @@ def create_background_coordinator(
 
     if act_delivery_enabled:
         coordinator.set_act_delivery(deliver_act)
+        set_act_ready = getattr(coordinator, "set_act_ready", None)
+        if callable(set_act_ready):
+            set_act_ready(act_service.has_pending)
 
     def bridge_reflection_outreach(now):
         service = application._conversation_service

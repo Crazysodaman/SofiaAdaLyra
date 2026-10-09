@@ -8,6 +8,8 @@ from hashlib import sha256
 from pathlib import Path
 import sqlite3
 
+from sofia.act.diagnostics import OutreachTraceStore
+
 
 _CLAIM_LEASE = timedelta(minutes=5)
 
@@ -189,3 +191,11 @@ class MobileNotificationStore:
                 raise PermissionError(
                     "mobile notification is not claimed by this device"
                 )
+        if key.startswith("act:"):
+            notice_id = key.removeprefix("act:")
+            OutreachTraceStore(self.path).confirm_recipient(
+                notice_id=notice_id,
+                channel="mobile",
+                recorded_at=moment,
+                receipt_id=f"mobile-ack:{notice_id}",
+            )

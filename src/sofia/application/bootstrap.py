@@ -47,10 +47,17 @@ from sofia.application.conversation_service import ConversationService
 from sofia.application.idle_reflection import IdleReflectionWorker
 from sofia.application.background import ApplicationBackgroundCoordinator
 from sofia.application.background_runtime import create_background_coordinator
+from sofia.application.presence import (
+    InitiativeEvent,
+    PresenceInitiativeEngine,
+    WorldAvailability,
+    WorldEpistemicState,
+    WorldObservation,
+)
 from sofia.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
-    notification_route_from_environment,
 )
+from sofia.act.outreach import Importance, OutreachCategory
 from sofia.capability.gateway import CapabilityGateway
 from sofia.application.evolution import SofiaEvolutionService
 from sofia.application.fleet_runtime import (
@@ -306,6 +313,11 @@ class SofiaApplication:
         configure_act_delivery_from_environment(
             self._act_service
         )
+        self._presence = PresenceInitiativeEngine(
+            state_path=configuration.state_path,
+            act_service=self._act_service,
+            neuro_priority=self._neuro.background_priority,
+        )
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -363,6 +375,10 @@ class SofiaApplication:
     @property
     def act(self) -> SofiaActService:
         return self._act_service
+
+    @property
+    def presence(self) -> PresenceInitiativeEngine:
+        return self._presence
 
     @property
     def neuro(self) -> NeuroRuntime:
@@ -459,26 +475,37 @@ class SofiaApplication:
 
     def _notify_goal_review(self, goal, now: datetime) -> None:
         """Queue review through ACT's existing policy/dedupe/delivery path."""
-        route = self._act_service.delivery_route or notification_route_from_environment(
-            state_path=Path(self._configuration.state_path),
+        expires = (
+            min(goal.expires_at, now.replace(microsecond=0) + timedelta(days=7))
+            if goal.expires_at is not None else now + timedelta(days=7)
         )
-        if route is None:
-            return
-        channel, destination = route
-        self._act_service.queue_system_notice(
-            notice_id=f"goal-review:{goal.id}",
-            recipient_id=SPARKS_PRINCIPAL_ID,
-            channel=channel,
-            destination=destination,
-            evidence_id=goal.evidence_refs[0],
+        observation = WorldObservation(
+            observation_id=f"goal-review:{goal.id}",
+            subject_id=f"goal:{goal.id}",
+            predicate="goal.review_required",
+            source_id="goals:policy",
+            observed_at=now,
+            expires_at=expires,
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.KNOWN,
+            availability=WorldAvailability.NOT_APPLICABLE,
+            value={"evidence_ref": goal.evidence_refs[0]},
+            audience_id=goal.audience_id,
+        )
+        self._presence.consider(InitiativeEvent(
+            event_id=f"goal-review:{goal.id}",
+            trigger_kind="approval_request",
+            observation=observation,
             content=(
                 f"I noticed {goal.reason.rstrip('.').casefold()} and want to make "
                 f"'{goal.title}' an active goal. It needs your review first."
             ),
             created_at=now,
-            expires_at=min(goal.expires_at, now.replace(microsecond=0) + timedelta(days=7))
-            if goal.expires_at is not None else now + timedelta(days=7),
-        )
+            expires_at=expires,
+            category=OutreachCategory.OPERATIONAL,
+            importance=Importance.IMPORTANT,
+            salience=0.8,
+        ))
 
     @property
     def memory_review(self) -> MemoryReviewService:

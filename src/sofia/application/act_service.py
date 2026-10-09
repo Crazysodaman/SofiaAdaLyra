@@ -17,6 +17,7 @@ from sofia.act.delivery import (
 )
 from sofia.act.outreach import Importance, OutreachCategory, Policy
 from sofia.act.system_notice import SystemNoticeQueue
+from sofia.act.diagnostics import OutreachTraceStore
 from sofia.interaction.goal_journal import GoalJournal
 from sofia.personality.influence import ContinuityInfluence, outreach_salience
 from sofia.personality.reflection import ReflectionJournal
@@ -27,6 +28,7 @@ from sofia.ui.notifications import DesktopNotificationStore
 from sofia.discord.binding import BindingState, DiscordBindingStore
 from sofia.discord.proactive import DiscordProactiveSender
 from sofia.discord.provisioning import DiscordProvisioning
+from sofia.safe.operator_stop import OperatorStopStore
 
 
 class SofiaActService:
@@ -110,8 +112,11 @@ class SofiaActService:
         content: str,
         created_at: datetime,
         expires_at: datetime,
+        category: OutreachCategory = OutreachCategory.OPERATIONAL,
+        importance: Importance = Importance.ROUTINE,
+        salience: float = 0.5,
     ):
-        return SystemNoticeQueue(self.state_path).enqueue(
+        notice = SystemNoticeQueue(self.state_path).enqueue(
             notice_id=notice_id,
             recipient_id=recipient_id,
             channel=channel,
@@ -120,6 +125,25 @@ class SofiaActService:
             content=content,
             created_at=created_at,
             expires_at=expires_at,
+            category=category,
+            importance=importance,
+            salience=salience,
+        )
+        if not self.delivery_enabled:
+            OutreachTraceStore(self.state_path).record(
+                notice_id=notice.notice_id,
+                stage="suppressed",
+                reason="missing_transport",
+                recorded_at=created_at,
+                channel=channel,
+                destination=destination,
+            )
+        return notice
+
+    def has_pending(self) -> bool:
+        """Return queue readiness without claiming or evaluating policy."""
+        return SystemNoticeQueue(self.state_path).has_pending() or bool(
+            GoalJournal(self.state_path).pending(limit=1)
         )
 
     def bridge_reflection_outbox(
@@ -196,9 +220,14 @@ class SofiaActService:
     ) -> DeliveryRunResult | SendResult | None:
         if not self.delivery_enabled:
             return None
+        policy = self._policy
+        if policy is None:
+            return None
+        if OperatorStopStore(self.state_path).current().active:
+            policy = replace(policy, stop=True)
         notice_result = SystemNoticeQueue(self.state_path).deliver_one(
             sender=self._sender,
-            policy=self._policy,
+            policy=policy,
             now=now,
             busy=busy,
         )
@@ -217,7 +246,7 @@ class SofiaActService:
             result = runner.deliver(
                 message_id=message.id,
                 attempt_id=str(uuid4()),
-                policy=self._policy,
+                policy=policy,
                 now=now,
                 busy=busy,
             )

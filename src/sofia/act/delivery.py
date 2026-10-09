@@ -17,6 +17,7 @@ import sqlite3
 from typing import Callable
 
 from .history import delivery_history
+from .diagnostics import ensure_outreach_trace_schema, record_outreach_trace
 from .outreach import Candidate, Decision, History, Policy, evaluate
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,159}$")
@@ -168,6 +169,7 @@ class ActOutbox:
                         ON act_delivery_attempts(message_id, status);
                     """
                 )
+                ensure_outreach_trace_schema(db)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
@@ -256,6 +258,15 @@ class ActOutbox:
                     db.execute(
                         "INSERT INTO act_outbox_envelopes VALUES (?,?,?,?,?,?)",
                         desired,
+                    )
+                    record_outreach_trace(
+                        db,
+                        notice_id=message_id,
+                        stage="queued",
+                        reason="interact_message_bound",
+                        recorded_at=bound_at,
+                        channel=channel,
+                        destination=destination,
                     )
                 row = self._joined_message(db, message_id)
         return self._message_from_row(row)
@@ -399,6 +410,19 @@ class ActOutbox:
                 )
                 decision = evaluate(candidate, policy, history, moment, busy=busy)
                 if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                    deferred = decision in {
+                        Decision.BUSY, Decision.QUIET_HOURS, Decision.TOO_SOON,
+                        Decision.DAILY_LIMIT, Decision.CLOCK_UNCERTAIN,
+                    }
+                    record_outreach_trace(
+                        db,
+                        notice_id=message_id,
+                        stage="deferred" if deferred else "suppressed",
+                        reason=decision.value,
+                        recorded_at=moment,
+                        channel=bound.channel,
+                        destination=bound.destination,
+                    )
                     return ClaimResult("policy_blocked", decision)
 
                 claim = DeliveryClaim(
@@ -424,6 +448,24 @@ class ActOutbox:
                         claim.destination,
                         claim.claimed_at.isoformat(),
                     ),
+                )
+                record_outreach_trace(
+                    db,
+                    notice_id=message_id,
+                    stage="eligible",
+                    reason="act_policy_eligible",
+                    recorded_at=moment,
+                    channel=bound.channel,
+                    destination=bound.destination,
+                )
+                record_outreach_trace(
+                    db,
+                    notice_id=message_id,
+                    stage="transport_attempt",
+                    reason="sender_invoked",
+                    recorded_at=moment,
+                    channel=bound.channel,
+                    destination=bound.destination,
                 )
         return ClaimResult("claimed", Decision.ELIGIBLE_FOR_AUTHORIZATION, claim)
 
@@ -532,6 +574,27 @@ class ActOutbox:
                         next_retry,
                         claim.attempt_id,
                     ),
+                )
+                record_outreach_trace(
+                    db,
+                    notice_id=claim.message_id,
+                    stage=(
+                        "transport_accepted"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else "failed"
+                        if result.outcome is DeliveryOutcome.FAILED
+                        else "outcome_unknown"
+                    ),
+                    reason=(
+                        "transport_receipt_recorded"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else result.error_type or result.outcome.value
+                    ),
+                    recorded_at=when,
+                    channel=claim.channel,
+                    destination=claim.destination,
+                    receipt_id=result.receipt_id,
+                    recipient_confirmed=False,
                 )
         return result
 

@@ -228,6 +228,7 @@ class ApplicationBackgroundCoordinator:
             ),
         )
         self._act_delivery: Callable[[datetime], object | None] | None = None
+        self._act_ready: Callable[[], bool] | None = None
         self._act_last_run: datetime | None = None
         self._act_interval_seconds = 300.0
         self._tasks: dict[str, Callable[[datetime], object | None]] = {}
@@ -252,6 +253,11 @@ class ApplicationBackgroundCoordinator:
         self._act_delivery = callback
         if callback is None:
             self._act_last_run = None
+
+    def set_act_ready(self, callback: Callable[[], bool] | None) -> None:
+        if callback is not None and not callable(callback):
+            raise TypeError("ACT readiness callback must be callable or None")
+        self._act_ready = callback
 
     def set_task(
         self,
@@ -399,6 +405,36 @@ class ApplicationBackgroundCoordinator:
                 self.last_error = type(exc).__name__
                 raise
 
+        # Delivery gets a bounded opportunity before routine maintenance.
+        # A policy-deferred notice does not prevent other background work.
+        if self._act_delivery is not None and (
+            self._act_ready is None or self._act_ready()
+        ):
+            due = (
+                self._act_last_run is None
+                or (moment - self._act_last_run).total_seconds()
+                >= self._act_interval_seconds
+            )
+            if due:
+                claim_id = self.budget.claim("act_delivery", now=moment)
+                if claim_id is None:
+                    return "budget_busy"
+                try:
+                    result = self._act_delivery(moment)
+                    self._act_last_run = moment
+                    self.budget.finish(claim_id, now=moment)
+                    if result is not None:
+                        return "act_attempted"
+                except Exception as exc:
+                    self._act_last_run = moment
+                    self.budget.finish(
+                        claim_id,
+                        now=datetime.now(timezone.utc),
+                        error=exc,
+                    )
+                    self.last_error = type(exc).__name__
+                    raise
+
         task_names = sorted(self._tasks)
         if task_names:
             start = self._task_cursor % len(task_names)
@@ -450,35 +486,6 @@ class ApplicationBackgroundCoordinator:
                     )
                     self.last_error = type(exc).__name__
                     raise
-
-        if self._act_delivery is not None:
-            if (
-                self._act_last_run is not None
-                and (moment - self._act_last_run).total_seconds()
-                    < self._act_interval_seconds
-            ):
-                return "background_idle"
-            claim_id = self.budget.claim("act_delivery", now=moment)
-            if claim_id is None:
-                return "budget_busy"
-            try:
-                result = self._act_delivery(moment)
-                self._act_last_run = moment
-                self.budget.finish(claim_id, now=moment)
-                return (
-                    "act_idle"
-                    if result is None
-                    else "act_attempted"
-                )
-            except Exception as exc:
-                self._act_last_run = moment
-                self.budget.finish(
-                    claim_id,
-                    now=datetime.now(timezone.utc),
-                    error=exc,
-                )
-                self.last_error = type(exc).__name__
-                raise
 
         if self._tasks:
             return "background_idle"

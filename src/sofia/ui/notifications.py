@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
+from sofia.act.diagnostics import OutreachTraceStore
+
 
 @dataclass(frozen=True, slots=True)
 class DesktopNotification:
@@ -147,3 +149,11 @@ class DesktopNotificationStore:
             )
             if changed.rowcount != 1:
                 raise RuntimeError("desktop notification claim is no longer active")
+        if key.startswith("act:"):
+            notice_id = key.removeprefix("act:")
+            OutreachTraceStore(self.path).confirm_recipient(
+                notice_id=notice_id,
+                channel="desktop",
+                recorded_at=moment,
+                receipt_id=f"desktop-displayed:{notice_id}",
+            )

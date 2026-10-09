@@ -8,6 +8,10 @@ import sqlite3
 from uuid import uuid4
 
 from sofia.act.history import delivery_history
+from sofia.act.diagnostics import (
+    ensure_outreach_trace_schema,
+    record_outreach_trace,
+)
 from sofia.act.delivery import DeliveryOutcome, DeliveryPayload, SendResult
 from sofia.act.outreach import (
     Candidate,
@@ -72,6 +76,7 @@ class SystemNoticeQueue:
                         ON act_system_notice(category, finished_at);
                     """
                 )
+                ensure_outreach_trace_schema(db)
                 columns = {
                     row[1]
                     for row in db.execute(
@@ -94,6 +99,12 @@ class SystemNoticeQueue:
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
+
+    def has_pending(self) -> bool:
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM act_system_notice WHERE status='queued' LIMIT 1"
+            ).fetchone() is not None
 
     @staticmethod
     def _time(value: datetime) -> datetime:
@@ -198,6 +209,15 @@ class SystemNoticeQueue:
                         """,
                         desired,
                     )
+                    record_outreach_trace(
+                        db,
+                        notice_id=notice_id,
+                        stage="queued",
+                        reason="candidate_enqueued",
+                        recorded_at=created,
+                        channel=channel,
+                        destination=destination,
+                    )
         return SystemNotice(
             notice_id,
             recipient_id,
@@ -272,6 +292,28 @@ class SystemNoticeQueue:
                     raise RuntimeError(
                         "system notice delivery claim was lost"
                     )
+                record_outreach_trace(
+                    db,
+                    notice_id=payload.message_id,
+                    stage=(
+                        "transport_accepted"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else "failed"
+                        if result.outcome is DeliveryOutcome.FAILED
+                        else "outcome_unknown"
+                    ),
+                    reason=(
+                        "transport_receipt_recorded"
+                        if result.outcome is DeliveryOutcome.DELIVERED
+                        else result.error_type or result.outcome.value
+                    ),
+                    recorded_at=at,
+                    channel=payload.channel,
+                    destination=payload.destination,
+                    receipt_id=result.receipt_id,
+                    # Transport acceptance is not proof the recipient saw it.
+                    recipient_confirmed=False,
+                )
 
     def deliver_one(
         self,
@@ -322,6 +364,15 @@ class SystemNoticeQueue:
                             """,
                             (moment.isoformat(), row["notice_id"]),
                         )
+                        record_outreach_trace(
+                            db,
+                            notice_id=row["notice_id"],
+                            stage="expired",
+                            reason="candidate_expired_before_delivery",
+                            recorded_at=moment,
+                            channel=row["channel"],
+                            destination=row["destination"],
+                        )
                         continue
 
                     candidate = Candidate(
@@ -349,7 +400,33 @@ class SystemNoticeQueue:
                         busy=busy,
                     )
                     if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                        deferred = decision in {
+                            Decision.BUSY,
+                            Decision.QUIET_HOURS,
+                            Decision.TOO_SOON,
+                            Decision.DAILY_LIMIT,
+                            Decision.CLOCK_UNCERTAIN,
+                        }
+                        record_outreach_trace(
+                            db,
+                            notice_id=row["notice_id"],
+                            stage="deferred" if deferred else "suppressed",
+                            reason=decision.value,
+                            recorded_at=moment,
+                            channel=row["channel"],
+                            destination=row["destination"],
+                        )
                         continue
+
+                    record_outreach_trace(
+                        db,
+                        notice_id=row["notice_id"],
+                        stage="eligible",
+                        reason="act_policy_eligible",
+                        recorded_at=moment,
+                        channel=row["channel"],
+                        destination=row["destination"],
+                    )
 
                     attempt_id = str(uuid4())
                     changed = db.execute(
@@ -375,6 +452,15 @@ class SystemNoticeQueue:
                         destination=row["destination"],
                         evidence_id=row["evidence_id"],
                         content=row["content"],
+                    )
+                    record_outreach_trace(
+                        db,
+                        notice_id=row["notice_id"],
+                        stage="transport_attempt",
+                        reason="sender_invoked",
+                        recorded_at=moment,
+                        channel=row["channel"],
+                        destination=row["destination"],
                     )
                     break
 

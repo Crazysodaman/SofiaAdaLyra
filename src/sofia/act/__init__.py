@@ -1,5 +1,7 @@
 """PKG-ACT: bounded initiative/outreach and durable delivery boundaries."""
 
+from .diagnostics import OutreachTrace, OutreachTraceStore
+
 from .delivery import (
     ActDeliveryRunner,
     ActOutbox,
@@ -24,6 +26,8 @@ from .outreach import (
 from .system_notice import SystemNotice, SystemNoticeQueue
 
 __all__ = [
+    "OutreachTrace",
+    "OutreachTraceStore",
     "ActDeliveryRunner",
     "ActOutbox",
     "BoundMessage",
