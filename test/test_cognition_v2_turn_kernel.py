@@ -7,8 +7,11 @@ import pytest
 
 from sofia.application import SofiaApplication
 from sofia.cognition.v2 import (
+    AcquisitionState,
     ConversationFocusConflict,
     EntityCandidate,
+    EpistemicState,
+    EvidenceAtom,
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
     TurnKernelInput,
@@ -145,6 +148,28 @@ def test_typo_switch_correction_and_multiple_topics_are_structured(tmp_path):
     }
 
 
+def test_explicit_multi_entity_turn_preserves_all_references_and_requests(tmp_path):
+    coordinated = _coordinate(
+        _kernel(tmp_path / "sofia.db"),
+        "Compare CPU and RAM between Artemis and Venus.",
+        1,
+    )
+
+    assert coordinated.resolution.source == "explicit-multiple"
+    assert {
+        item.subject_id for item in coordinated.focus.references
+        if item.source_turn_id == "turn:1"
+    } == {"fleet-node:artemis", "fleet-node:venus"}
+    assert {
+        (item.subject_id, item.predicate)
+        for item in coordinated.focus.unresolved_requests
+    } == {
+        (subject, predicate)
+        for subject in ("fleet-node:artemis", "fleet-node:venus")
+        for predicate in ("machine.cpu", "machine.memory_bytes")
+    }
+
+
 def test_focus_is_restart_durable_and_audience_isolated(tmp_path):
     path = tmp_path / "sofia.db"
     first = _kernel(path)
@@ -187,9 +212,23 @@ def test_settlement_requires_typed_evidence_and_matches_subject(tmp_path):
     assert unchanged.unresolved_requests
     assert unchanged.pending_actions
 
-    factual = kernel.settle(action, evidence_refs=("capability:fleet.inspect",))
+    cpu = EvidenceAtom(
+        "evidence:artemis-cpu", "fleet-node:artemis", "machine.cpu",
+        '"Ryzen"', "capability:fleet.inspect", NOW,
+        "private:sparks", 0.95, EpistemicState.OBSERVED,
+        AcquisitionState.CURRENT,
+    )
+    factual = kernel.settle(
+        action,
+        evidence_refs=(cpu.evidence_id,),
+        evidence=(cpu,),
+    )
     assert all(
-        request.request_kind != "information"
+        request.predicate != "machine.cpu"
+        for request in factual.unresolved_requests
+    )
+    assert any(
+        request.predicate == "machine.hardware"
         for request in factual.unresolved_requests
     )
     assert factual.pending_actions
@@ -198,8 +237,47 @@ def test_settlement_requires_typed_evidence_and_matches_subject(tmp_path):
         action,
         evidence_refs=("execution-receipt:operation-1",),
     )
-    assert executed.unresolved_requests == ()
+    assert all(
+        request.request_kind != "action"
+        for request in executed.unresolved_requests
+    )
+    assert any(
+        request.predicate == "machine.hardware"
+        for request in executed.unresolved_requests
+    )
     assert executed.pending_actions == ()
+
+
+def test_partial_evidence_cannot_settle_other_subject_or_audience(tmp_path):
+    kernel = _kernel(tmp_path / "sofia.db")
+    coordinated = _coordinate(
+        kernel, "Compare CPU between Artemis and Venus.", 1,
+    )
+    wrong_scope = EvidenceAtom(
+        "evidence:wrong-scope", "fleet-node:artemis", "machine.cpu",
+        '"Ryzen"', "capability:fleet.inspect", NOW,
+        "private:someone-else", 0.95, EpistemicState.OBSERVED,
+        AcquisitionState.CURRENT,
+    )
+    unchanged = kernel.settle(
+        coordinated,
+        evidence_refs=(wrong_scope.evidence_id,),
+        evidence=(wrong_scope,),
+    )
+    assert len(unchanged.unresolved_requests) == 2
+
+    artemis = replace(wrong_scope,
+        evidence_id="evidence:artemis",
+        scope_id="private:sparks",
+    )
+    settled = kernel.settle(
+        coordinated,
+        evidence_refs=(artemis.evidence_id,),
+        evidence=(artemis,),
+    )
+    assert [(item.subject_id, item.predicate) for item in settled.unresolved_requests] == [
+        ("fleet-node:venus", "machine.cpu"),
+    ]
 
 
 def _configuration(tmp_path: Path) -> SofiaConfiguration:

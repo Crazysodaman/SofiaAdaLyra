@@ -224,9 +224,10 @@ def test_private_avatar_state_is_read_back_in_verified_local_session(
 
     application.text_ui.save_draft("what are you wearing?")
     current = application.text_ui.send()
-    assert current.content == (
+    assert current.content.endswith(
         "I'm not wearing any clothing in my current private AVATAR presentation."
     )
+    assert any(ref.startswith("evidence:") for ref in current.evidence_refs)
 
     application.shutdown()
 

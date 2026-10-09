@@ -53,6 +53,23 @@ def _focus(*, artemis: bool = False, pending: bool = False):
     )
 
 
+def _multi_focus() -> ConversationFocus:
+    references = (
+        FocusReference(
+            "reference:artemis", "fleet-node:artemis", "fleet-node",
+            "turn:matrix-v2", 1.0, aliases=("Artemis",),
+        ),
+        FocusReference(
+            "reference:venus", "fleet-node:venus", "fleet-node",
+            "turn:matrix-v2", 1.0, aliases=("Venus",),
+        ),
+    )
+    return ConversationFocus(
+        "session:matrix-v2", "private:sparks", 1,
+        primary_reference=references[0], references=references,
+    )
+
+
 def _snapshot(*, kind="ops", score=0.9, load=0.2, pressure=0.2):
     activation = NeuralActivation(
         key=f"{kind}:signal",
@@ -113,6 +130,46 @@ def test_matrix_v2_environment_plan_is_subject_scoped_and_deterministic():
     assert plan.evidence_needs[0].subject_id == "runtime:environment"
     assert plan.evidence_needs[0].scope_id == "private:sparks"
     assert plan.reasoning_requirement is ReasoningRequirement.DETERMINISTIC
+
+
+def test_matrix_v2_plans_every_requested_machine_property():
+    plan = MatrixV2Planner().plan(
+        _turn("What are Artemis CPU, GPU, RAM, disk, and CPU utilization?"),
+        _focus(artemis=True),
+    )
+
+    assert {(need.subject_id, need.predicate) for need in plan.evidence_needs} == {
+        ("fleet-node:artemis", "machine.cpu"),
+        ("fleet-node:artemis", "machine.gpu"),
+        ("fleet-node:artemis", "machine.memory_bytes"),
+        ("fleet-node:artemis", "machine.storage"),
+        ("fleet-node:artemis", "ops.cpu_percent"),
+    }
+
+
+def test_matrix_v2_comparison_preserves_every_subject_predicate_pair():
+    plan = MatrixV2Planner().plan(
+        _turn("Compare CPU and RAM between Artemis and Venus."),
+        _multi_focus(),
+    )
+
+    assert {(need.subject_id, need.predicate) for need in plan.evidence_needs} == {
+        (subject, predicate)
+        for subject in ("fleet-node:artemis", "fleet-node:venus")
+        for predicate in ("machine.cpu", "machine.memory_bytes")
+    }
+
+
+def test_matrix_v2_interleaved_properties_do_not_cross_attribute_hosts():
+    plan = MatrixV2Planner().plan(
+        _turn("What are Artemis CPU and Venus RAM?"),
+        _multi_focus(),
+    )
+
+    assert {(need.subject_id, need.predicate) for need in plan.evidence_needs} == {
+        ("fleet-node:artemis", "machine.cpu"),
+        ("fleet-node:venus", "machine.memory_bytes"),
+    }
 
 
 def test_neuro_can_promote_budget_but_cannot_add_evidence_or_downgrade_verify():

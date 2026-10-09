@@ -40,9 +40,9 @@ def split_multi_question(content: str) -> tuple[str, ...]:
     if not stripped:
         return ()
     parts = tuple(
-        part.strip(" \t\r\n?!.")
+        part.strip(" \t\r\n?!.,")
         for part in _BOUNDARY.split(stripped)
-        if part.strip(" \t\r\n?!.")
+        if part.strip(" \t\r\n?!.,")
     )
     return parts if len(parts) > 1 else (stripped.rstrip("?!."),)
 

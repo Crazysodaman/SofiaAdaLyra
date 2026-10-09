@@ -7,6 +7,7 @@ import re
 from uuid import uuid4
 
 from sofia.cognition.model import CognitiveResponse
+from sofia.cognition.matrix.multi_question import split_multi_question
 from sofia.environment.prompt import environment_details_relevant
 from sofia.personality.delivery import grounded_weather_delivery
 from sofia.social.model import PrincipalContext
@@ -21,7 +22,7 @@ from .contracts import (
     TurnPlan,
 )
 from .evidence import CognitiveEvidenceLedger
-from .rendering import ValidatedAnswerDraft
+from .rendering import ValidatedAnswerDraft, merge_validated_drafts
 
 
 class ProjectionAnswerCoordinator:
@@ -47,39 +48,83 @@ class ProjectionAnswerCoordinator:
         principal: PrincipalContext | None,
         allowed_capabilities: tuple[str, ...],
         query: str | None = None,
+        privacy_plan=None,
     ) -> ValidatedAnswerDraft | None:
+        drafts = self.planned_answers(
+            plan=plan,
+            focus=focus,
+            principal=principal,
+            allowed_capabilities=allowed_capabilities,
+            query=query,
+            privacy_plan=privacy_plan,
+        )
+        return merge_validated_drafts(plan, drafts)
+
+    def planned_answers(
+        self,
+        *,
+        plan: TurnPlan,
+        focus,
+        principal: PrincipalContext | None,
+        allowed_capabilities: tuple[str, ...],
+        query: str | None = None,
+        privacy_plan=None,
+    ) -> tuple[ValidatedAnswerDraft, ...]:
         _ = focus, allowed_capabilities
         if (
             plan.action_requirement is ActionRequirement.MUTATION
             or not isinstance(query, str)
             or not query.strip()
         ):
-            return None
+            return ()
         by_predicate = {need.predicate: need for need in plan.evidence_needs}
+        clauses = split_multi_question(query)
+        drafts = []
         if "environment.current" in by_predicate:
-            return self._environment(
-                plan, by_predicate["environment.current"], query,
-            )
+            for clause in clauses:
+                draft = self._environment(
+                    plan, by_predicate["environment.current"], clause,
+                )
+                if draft is not None:
+                    drafts.append(draft)
+                    break
         if "avatar.canonical" in by_predicate:
-            return self._avatar(
-                plan, by_predicate["avatar.canonical"], query, principal,
-            )
+            for clause in clauses:
+                draft = self._avatar(
+                    plan, by_predicate["avatar.canonical"], clause, principal,
+                    privacy_plan,
+                )
+                if draft is not None:
+                    drafts.append(draft)
+                    break
         if "memory.retrieval" in by_predicate:
-            if self.runtime._reflection_query_resolver.might_match(query):
-                return None
-            if re.search(
+            if any(
+                self.runtime._reflection_query_resolver.might_match(clause)
+                for clause in clauses
+            ):
+                return tuple(drafts)
+            memory_clause = next((
+                clause for clause in clauses
+                if re.search(
+                    r"\b(?:memory|memories|recall|remember|remembered)\b",
+                    clause,
+                    re.IGNORECASE,
+                )
+            ), None)
+            transcript_recall = any(re.search(
                 r"\b(?:what\s+did\s+i\s+say|what\s+have\s+i\s+said|"
                 r"conversation|earlier\s+in\s+(?:this|our)\s+chat)\b",
-                query,
+                clause,
                 re.IGNORECASE,
-            ):
-                # Durable transcript recall has its own bounded host retrieval
-                # in ConversationService and is not reviewed MEM state.
-                return None
-            return self._memory(
-                plan, by_predicate["memory.retrieval"], query, principal,
-            )
-        return None
+            ) for clause in clauses)
+            if not transcript_recall and memory_clause is not None:
+                draft = self._memory(
+                    plan, by_predicate["memory.retrieval"], memory_clause,
+                    principal,
+                )
+                if draft is not None:
+                    drafts.append(draft)
+        return tuple(drafts)
 
     def _environment(self, plan, need, query) -> ValidatedAnswerDraft | None:
         resolver = self.runtime._environment_query_resolver
@@ -129,14 +174,12 @@ class ProjectionAnswerCoordinator:
             )
         return self._draft(plan, (atom,), content, "environment")
 
-    def _avatar(self, plan, need, query, principal) -> ValidatedAnswerDraft | None:
+    def _avatar(
+        self, plan, need, query, principal, privacy_plan,
+    ) -> ValidatedAnswerDraft | None:
         if self.runtime.embodiment is None:
             return None
         resolver = self.runtime._avatar_self_fact_resolver
-        # The private-grant path remains in the existing runtime boundary; this
-        # coordinator never broadens private presentation eligibility.
-        if resolver.allows_private_projection(query):
-            return None
         projection = self.runtime.avatar_projection_for(principal=principal)
         authority = self.runtime.avatar_presentation
         if projection is None or authority is None:
@@ -150,6 +193,31 @@ class ProjectionAnswerCoordinator:
         )
         if not result.recognized:
             return None
+        if (
+            resolver.allows_private_projection(query)
+            and (
+                privacy_plan is None
+                or privacy_plan.allow_private_presentation_candidate
+            )
+        ):
+            private_grant = self.runtime._private_presentation_grants.resolve(
+                principal=principal,
+                explicit_current_opt_in=True,
+            )
+            if private_grant is not None:
+                private_projection = self.runtime.avatar_projection_for(
+                    principal=principal,
+                    private_grant=private_grant,
+                )
+                if private_projection is not None:
+                    projection = private_projection
+                    result = resolver.resolve(
+                        query,
+                        embodiment=self.runtime.embodiment,
+                        presentation=projection,
+                        available_outfit_ids=authority.available_outfit_ids,
+                        wardrobe_matrix=self.runtime._avatar_matrix_for(projection),
+                    )
         atom = self._record(
             need,
             value={

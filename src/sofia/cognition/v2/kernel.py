@@ -5,12 +5,14 @@ from dataclasses import replace
 from typing import Callable
 
 from .contracts import (
+    AcquisitionState,
     CoordinatedTurn,
     ConversationFocus,
+    EpistemicState,
+    EvidenceAtom,
     FocusReference,
     FocusTopic,
     PendingAction,
-    ReferenceResolution,
     TurnKernelInput,
     UnresolvedRequest,
 )
@@ -93,13 +95,15 @@ class ProductionTurnKernel:
                 session_id=turn.session_id,
                 audience_id=turn.audience_id,
             )
-            resolution, reference = self.resolver.resolve(
+            resolution, references = self.resolver.resolve_many(
                 turn.content,
                 focus=current,
                 candidates=candidates,
                 turn_id=turn.turn_id,
             )
-            updated = self._updated_focus(current, turn, resolution, reference)
+            updated = self._updated_focus(current, turn, references)
+            plan = self.matrix_planner.plan(turn, updated)
+            updated = self._with_planned_requests(updated, turn, plan)
             try:
                 committed = self.store.commit(
                     updated,
@@ -109,7 +113,7 @@ class ProductionTurnKernel:
                     turn,
                     committed,
                     resolution,
-                    self.matrix_planner.plan(turn, committed),
+                    plan,
                 )
             except ConversationFocusConflict:
                 continue
@@ -121,44 +125,40 @@ class ProductionTurnKernel:
     def _updated_focus(
         current: ConversationFocus,
         turn: TurnKernelInput,
-        resolution: ReferenceResolution,
-        reference: FocusReference | None,
+        turn_references: tuple[FocusReference, ...],
     ) -> ConversationFocus:
         references = list(current.references)
         primary = current.primary_reference
-        if reference is not None:
+        if turn_references:
+            turn_ids = {item.reference_id for item in turn_references}
             references = [
-                item for item in references
-                if item.reference_id != reference.reference_id
+                item for item in references if item.reference_id not in turn_ids
             ]
-            references.append(reference)
+            references.extend(turn_references)
             references = references[-16:]
-            primary = reference
+            primary = turn_references[0]
 
         topics = list(current.topics)
-        if primary is not None:
-            topic_id = f"topic:{primary.subject_id}"
-            topics = [item for item in topics if item.topic_id != topic_id]
+        active_references = turn_references or (() if primary is None else (primary,))
+        active_topic_ids = {f"topic:{item.subject_id}" for item in active_references}
+        topics = [
+            replace(item, salience=round(item.salience * 0.82, 3))
+            for item in topics
+            if item.topic_id not in active_topic_ids
+        ]
+        for index, item in enumerate(active_references):
             topics.append(FocusTopic(
-                topic_id=topic_id,
-                subject_ids=(primary.subject_id,),
+                topic_id=f"topic:{item.subject_id}",
+                subject_ids=(item.subject_id,),
                 last_turn_id=turn.turn_id,
-                salience=1.0,
+                salience=(1.0 if index == 0 else 0.9),
             ))
-            topics = [
-                replace(item, salience=round(item.salience * 0.82, 3))
-                if item.topic_id != topic_id else item
-                for item in topics[-8:]
-            ]
+        topics = topics[-8:]
 
         words = tuple(
             word.strip(".,!?;:'\"()[]{}").casefold()
             for word in turn.content.split()
             if word.strip(".,!?;:'\"()[]{}")
-        )
-        is_question = (
-            "?" in turn.content
-            or (bool(words) and words[0] in _QUESTION_WORDS)
         )
         command_words = words[1:] if words[:1] == ("please",) else words
         is_action = bool(
@@ -168,18 +168,6 @@ class ProductionTurnKernel:
                 or command_words[:2] == ("do", "it")
             )
         )
-        unresolved = [
-            item for item in current.unresolved_requests
-            if item.request_id != f"request:{turn.turn_id}"
-        ]
-        if is_question or is_action:
-            unresolved.append(UnresolvedRequest(
-                request_id=f"request:{turn.turn_id}",
-                source_turn_id=turn.turn_id,
-                subject_id=(None if primary is None else primary.subject_id),
-                request_kind=("action" if is_action else "information"),
-                created_at=turn.created_at,
-            ))
         pending = [
             item for item in current.pending_actions
             if item.action_id != f"action:{turn.turn_id}"
@@ -199,32 +187,98 @@ class ProductionTurnKernel:
             primary_reference=primary,
             references=tuple(references),
             topics=tuple(topics),
-            unresolved_requests=tuple(unresolved[-16:]),
-            pending_actions=tuple(pending[-8:]),
+            unresolved_requests=current.unresolved_requests,
+            pending_actions=tuple(pending),
         )
+
+    @staticmethod
+    def _with_planned_requests(current, turn, plan):
+        """Persist one unresolved unit for every exact planned evidence need."""
+        words = tuple(
+            word.strip(".,!?;:'\"()[]{}").casefold()
+            for word in turn.content.split()
+            if word.strip(".,!?;:'\"()[]{}")
+        )
+        is_question = "?" in turn.content or (
+            bool(words) and words[0] in _QUESTION_WORDS
+        )
+        command_words = words[1:] if words[:1] == ("please",) else words
+        is_action = bool(command_words and (
+            command_words[0] in _ACTION_WORDS
+            or command_words[:2] == ("do", "it")
+        ))
+        unresolved = [
+            item for item in current.unresolved_requests
+            if item.source_turn_id != turn.turn_id
+        ]
+        if plan.evidence_needs:
+            unresolved.extend(
+                UnresolvedRequest(
+                    request_id=f"request:{turn.turn_id}:need:{index}",
+                    source_turn_id=turn.turn_id,
+                    subject_id=need.subject_id,
+                    request_kind="information",
+                    created_at=turn.created_at,
+                    predicate=need.predicate,
+                    scope_id=need.scope_id,
+                )
+                for index, need in enumerate(plan.evidence_needs, start=1)
+            )
+        elif is_question:
+            unresolved.append(UnresolvedRequest(
+                request_id=f"request:{turn.turn_id}",
+                source_turn_id=turn.turn_id,
+                subject_id=(
+                    None if current.primary_reference is None
+                    else current.primary_reference.subject_id
+                ),
+                request_kind="information",
+                created_at=turn.created_at,
+            ))
+        if is_action:
+            unresolved.append(UnresolvedRequest(
+                request_id=f"request:{turn.turn_id}:action",
+                source_turn_id=turn.turn_id,
+                subject_id=(
+                    None if current.primary_reference is None
+                    else current.primary_reference.subject_id
+                ),
+                request_kind="action",
+                created_at=turn.created_at,
+            ))
+        return replace(current, unresolved_requests=tuple(unresolved))
 
     def settle(
         self,
         coordinated: CoordinatedTurn,
         *,
         evidence_refs: tuple[str, ...],
+        evidence: tuple[EvidenceAtom, ...] = (),
     ) -> ConversationFocus:
         """Resolve only work proven by evidence/receipts; preserve unknown work."""
         if not isinstance(coordinated, CoordinatedTurn):
             raise TypeError("coordinated must be CoordinatedTurn")
         if not isinstance(evidence_refs, tuple):
             raise TypeError("evidence_refs must be tuple")
-        factual = any(
-            ref.startswith((
-                "capability:", "environment:", "evidence:",
-                "memory-retrieval:", "reflection:",
-            ))
-            for ref in evidence_refs
+        if not isinstance(evidence, tuple) or any(
+            not isinstance(item, EvidenceAtom) for item in evidence
+        ):
+            raise TypeError("evidence must contain EvidenceAtom values")
+        factual = tuple(
+            item for item in evidence
+            if item.evidence_id in evidence_refs
+            and item.acquisition_state is AcquisitionState.CURRENT
+            and item.epistemic_state not in {
+                EpistemicState.HYPOTHESIS,
+                EpistemicState.UNKNOWN,
+            }
         )
         executed = any(ref.startswith("execution-receipt:") for ref in evidence_refs)
         if not factual and not executed:
             return coordinated.focus
-        target_subject = coordinated.resolution.subject_id
+        exact_keys = {
+            (item.subject_id, item.predicate, item.scope_id) for item in factual
+        }
         for _ in range(3):
             current = self.store.load(
                 session_id=coordinated.turn.session_id,
@@ -240,17 +294,24 @@ class ProductionTurnKernel:
                 unresolved_requests=tuple(
                     item for item in current.unresolved_requests
                     if not (
-                        (
-                            item.source_turn_id == coordinated.turn.turn_id
+                        item.request_kind == "information"
+                        and (
+                            (
+                                item.predicate is not None
+                                and (item.subject_id, item.predicate, item.scope_id)
+                                in exact_keys
+                            )
                             or (
-                                target_subject is not None
-                                and item.subject_id == target_subject
+                                item.predicate is None
+                                and item.source_turn_id == coordinated.turn.turn_id
+                                and bool(factual)
                             )
                         )
-                        and (
-                            executed
-                            or (factual and item.request_kind == "information")
-                        )
+                    )
+                    and not (
+                        item.request_kind == "action"
+                        and executed
+                        and item.source_turn_id == coordinated.turn.turn_id
                     )
                 ),
                 pending_actions=tuple(
@@ -259,10 +320,6 @@ class ProductionTurnKernel:
                         executed
                         and (
                             item.source_turn_id == coordinated.turn.turn_id
-                            or (
-                                target_subject is not None
-                                and item.subject_id == target_subject
-                            )
                         )
                     )
                 ),

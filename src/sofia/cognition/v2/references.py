@@ -1,4 +1,4 @@
-"""Deterministic entity/reference resolution over structured focus state."""
+"""Deterministic multi-entity reference resolution over structured focus."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,7 +34,7 @@ class EntityCandidate:
 
 
 class ConversationReferenceResolver:
-    """Resolve exact aliases first, then bounded typo/pronoun continuity."""
+    """Resolve every explicit entity, while retaining one primary discourse focus."""
 
     def resolve(
         self,
@@ -44,105 +44,100 @@ class ConversationReferenceResolver:
         candidates: tuple[EntityCandidate, ...] = (),
         turn_id: str,
     ) -> tuple[ReferenceResolution, FocusReference | None]:
+        resolution, references = self.resolve_many(
+            content, focus=focus, candidates=candidates, turn_id=turn_id,
+        )
+        return resolution, (None if not references else references[0])
+
+    def resolve_many(
+        self,
+        content: str,
+        *,
+        focus: ConversationFocus,
+        candidates: tuple[EntityCandidate, ...] = (),
+        turn_id: str,
+    ) -> tuple[ReferenceResolution, tuple[FocusReference, ...]]:
         if not isinstance(content, str) or not content.strip():
             raise ValueError("content must be nonempty")
         all_candidates = self._merge_candidates(focus, candidates)
-        tokens = tuple(_TOKEN.finditer(content))
-        normalized_tokens = tuple(
-            _normalized(match.group(0)) for match in tokens
-        )
-
-        local_tokens = {_normalized(match.group(0)) for match in tokens}
-        if (
+        matches = tuple(_TOKEN.finditer(content))
+        normalized_tokens = tuple(_normalized(item.group(0)) for item in matches)
+        local_tokens = set(normalized_tokens)
+        explicit_local = (
             "localhost" in local_tokens
             or "local" in local_tokens
             or (
-                "this" in local_tokens
-                and local_tokens & {"computer", "host", "machine", "system"}
+                bool(local_tokens & {"this", "my"})
+                and bool(local_tokens & {"computer", "host", "machine", "system"})
             )
-            or (
-                "my" in local_tokens
-                and local_tokens & {"computer", "host", "machine", "system"}
-            )
-        ):
-            reference = FocusReference(
+        )
+        resolved: list[FocusReference] = []
+        if explicit_local:
+            resolved.append(FocusReference(
                 reference_id="reference:runtime-local-host",
                 subject_id="runtime:local-host",
                 kind="local-host",
                 source_turn_id=turn_id,
                 confidence=1.0,
                 aliases=("local host",),
-            )
-            return (
-                ReferenceResolution(
-                    subject_id=reference.subject_id,
-                    reference_id=reference.reference_id,
-                    source="explicit-local",
-                    confidence=1.0,
-                ),
-                reference,
-            )
+            ))
 
-        exact = []
+        exact: list[tuple[int, int, EntityCandidate, str]] = []
         for candidate in all_candidates:
             for alias in candidate.aliases:
                 alias_tokens = tuple(
-                    _normalized(match.group(0))
-                    for match in _TOKEN.finditer(alias)
+                    _normalized(item.group(0)) for item in _TOKEN.finditer(alias)
                 )
-                value = _normalized(alias)
-                if value and self._contains_tokens(normalized_tokens, alias_tokens):
-                    exact.append((len(value), candidate, alias))
-        exact.sort(key=lambda item: item[0], reverse=True)
-        if exact:
-            selected, corrected = self._correction(content, exact)
-            if selected is None:
-                selected = exact[0][1]
-            reference = self._reference(selected, turn_id, 1.0)
-            return (
-                ReferenceResolution(
-                    subject_id=reference.subject_id,
-                    reference_id=reference.reference_id,
-                    source=("correction" if corrected is not None else "explicit"),
-                    confidence=1.0,
-                    corrected_subject_id=corrected,
-                ),
-                reference,
-            )
-
-        for match in tokens:
-            token = match.group(0)
-            normalized = _normalized(token)
-            if len(normalized) < 4 or normalized in _NON_ENTITY:
+                if not alias_tokens:
+                    continue
+                for index in self._matching_indices(normalized_tokens, alias_tokens):
+                    exact.append((index, -len(_normalized(alias)), candidate, alias))
+        exact.sort(key=lambda item: (item[0], item[1], item[2].subject_id))
+        corrected_subject = None
+        seen = {item.subject_id for item in resolved}
+        for _, _, candidate, alias in exact:
+            if candidate.subject_id in seen:
                 continue
-            best: tuple[float, EntityCandidate] | None = None
-            for candidate in all_candidates:
-                for alias in candidate.aliases:
-                    score = SequenceMatcher(
-                        None, normalized, _normalized(alias)
-                    ).ratio()
-                    if score >= 0.82 and (best is None or score > best[0]):
-                        best = (score, candidate)
-            if best is not None:
-                reference = self._reference(best[1], turn_id, best[0])
-                return (
-                    ReferenceResolution(
-                        subject_id=reference.subject_id,
-                        reference_id=reference.reference_id,
-                        source="fuzzy-alias",
-                        confidence=round(best[0], 3),
-                    ),
-                    reference,
-                )
+            alias_pattern = r"\s+".join(re.escape(part) for part in alias.split())
+            if re.search(
+                rf"\bnot\s+(?:the\s+)?{alias_pattern}\b",
+                content,
+                flags=re.IGNORECASE,
+            ):
+                corrected_subject = corrected_subject or candidate.subject_id
+                continue
+            resolved.append(self._reference(candidate, turn_id, 1.0))
+            seen.add(candidate.subject_id)
 
-        # A capitalized non-initial token is a bounded new named-entity
-        # candidate. It remains a discourse reference, never existence proof.
-        for index, match in enumerate(tokens):
+        if resolved:
+            primary = resolved[0]
+            return ReferenceResolution(
+                primary.subject_id,
+                primary.reference_id,
+                "correction" if corrected_subject is not None else (
+                    "explicit-local" if explicit_local and len(resolved) == 1
+                    else "explicit-multiple" if len(resolved) > 1
+                    else "explicit"
+                ),
+                1.0,
+                corrected_subject_id=corrected_subject,
+            ), tuple(resolved)
+
+        fuzzy = self._fuzzy(matches, all_candidates)
+        if fuzzy is not None:
+            score, candidate = fuzzy
+            reference = self._reference(candidate, turn_id, score)
+            return ReferenceResolution(
+                reference.subject_id, reference.reference_id,
+                "fuzzy-alias", round(score, 3),
+            ), (reference,)
+
+        for index, match in enumerate(matches):
             token = match.group(0)
             if (
                 token[0].isupper()
                 and _normalized(token) not in _NON_ENTITY
-                and (index > 0 or len(tokens) == 1)
+                and (index > 0 or len(matches) == 1)
             ):
                 reference = FocusReference(
                     reference_id=f"reference:entity-{_normalized(token)}",
@@ -152,47 +147,54 @@ class ConversationReferenceResolver:
                     confidence=0.75,
                     aliases=(token,),
                 )
-                return (
-                    ReferenceResolution(
-                        subject_id=reference.subject_id,
-                        reference_id=reference.reference_id,
-                        source="named-entity-candidate",
-                        confidence=0.75,
-                    ),
-                    reference,
-                )
+                return ReferenceResolution(
+                    reference.subject_id, reference.reference_id,
+                    "named-entity-candidate", 0.75,
+                ), (reference,)
 
         if focus.primary_reference is not None and (
-            any(_normalized(match.group(0)) in _PRONOUNS for match in tokens)
-            or len(tokens) <= 8
+            any(_normalized(item.group(0)) in _PRONOUNS for item in matches)
+            or len(matches) <= 8
         ):
             reference = focus.primary_reference
-            return (
-                ReferenceResolution(
-                    subject_id=reference.subject_id,
-                    reference_id=reference.reference_id,
-                    source="focused-reference",
-                    confidence=max(0.70, reference.confidence * 0.95),
-                ),
-                reference,
-            )
+            return ReferenceResolution(
+                reference.subject_id, reference.reference_id,
+                "focused-reference", max(0.70, reference.confidence * 0.95),
+            ), (reference,)
+        return ReferenceResolution(None, None, "unresolved", 0.0), ()
 
-        return ReferenceResolution(None, None, "unresolved", 0.0), None
+    @staticmethod
+    def _fuzzy(matches, candidates):
+        best: tuple[float, EntityCandidate] | None = None
+        for match in matches:
+            token = match.group(0)
+            normalized = _normalized(token)
+            if len(normalized) < 4 or normalized in _NON_ENTITY:
+                continue
+            for candidate in candidates:
+                for alias in candidate.aliases:
+                    score = SequenceMatcher(None, normalized, _normalized(alias)).ratio()
+                    if score >= 0.82 and (best is None or score > best[0]):
+                        best = (score, candidate)
+        return best
+
+    @staticmethod
+    def _matching_indices(content: tuple[str, ...], alias: tuple[str, ...]):
+        if not alias or len(alias) > len(content):
+            return ()
+        return tuple(
+            index for index in range(len(content) - len(alias) + 1)
+            if content[index:index + len(alias)] == alias
+        )
 
     @staticmethod
     def _candidate_for_reference(reference: FocusReference) -> EntityCandidate:
         return EntityCandidate(
-            subject_id=reference.subject_id,
-            kind=reference.kind,
-            aliases=reference.aliases,
-            evidence_refs=reference.evidence_refs,
+            reference.subject_id, reference.kind, reference.aliases,
+            reference.evidence_refs,
         )
 
-    def _merge_candidates(
-        self,
-        focus: ConversationFocus,
-        candidates: tuple[EntityCandidate, ...],
-    ) -> tuple[EntityCandidate, ...]:
+    def _merge_candidates(self, focus, candidates):
         merged = {
             item.subject_id: self._candidate_for_reference(item)
             for item in focus.references
@@ -202,11 +204,7 @@ class ConversationReferenceResolver:
         return tuple(merged[key] for key in sorted(merged))
 
     @staticmethod
-    def _reference(
-        candidate: EntityCandidate,
-        turn_id: str,
-        confidence: float,
-    ) -> FocusReference:
+    def _reference(candidate, turn_id, confidence):
         safe_subject = re.sub(r"[^A-Za-z0-9_.-]", "-", candidate.subject_id)
         return FocusReference(
             reference_id=f"reference:{safe_subject}",
@@ -217,32 +215,3 @@ class ConversationReferenceResolver:
             aliases=candidate.aliases,
             evidence_refs=candidate.evidence_refs,
         )
-
-    @staticmethod
-    def _contains_tokens(content: tuple[str, ...], alias: tuple[str, ...]) -> bool:
-        if not alias or len(alias) > len(content):
-            return False
-        return any(
-            content[index:index + len(alias)] == alias
-            for index in range(len(content) - len(alias) + 1)
-        )
-
-    @staticmethod
-    def _correction(content, exact):
-        """Return the positively named subject and any explicitly negated one."""
-        if "not" not in content.casefold():
-            return exact[0][1], None
-        negated = []
-        positive = []
-        for _, candidate, alias in exact:
-            alias_pattern = r"\s+".join(
-                re.escape(part) for part in alias.split()
-            )
-            pattern = rf"\bnot\s+(?:the\s+)?{alias_pattern}\b"
-            if re.search(pattern, content, flags=re.IGNORECASE):
-                negated.append(candidate)
-            else:
-                positive.append(candidate)
-        corrected = None if not negated else negated[0].subject_id
-        selected = None if not positive else positive[0]
-        return selected, corrected

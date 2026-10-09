@@ -23,6 +23,26 @@ contracts cannot broaden the plan, grant execution, manufacture evidence, or
 downgrade VERIFY. Historical Batch 1–3 passages below describe their state at
 those checkpoints and are superseded by this section.
 
+## Phase 1 multi-request correctness
+
+One turn may now retain multiple explicit subjects and multiple requested
+machine predicates. Matrix v2 emits a bounded exact cross-product for genuine
+comparisons and uses deterministic nearest-subject association for interleaved
+requests such as “Artemis CPU and Venus RAM.” The Turn Kernel stores each
+subject/predicate/audience evidence need as a separate unresolved unit. A
+response settles a unit only when its referenced evidence ID resolves through
+the application-owned ledger to a current non-unknown atom with the exact same
+subject, predicate, and scope. Capability labels and assistant prose cannot
+settle factual work.
+
+The Fleet/Machine coordinator groups acquisitions by subject and capability,
+preflights the complete exposure set before executing, validates remote node
+identity and reported outcome, and records one typed atom per requested
+predicate. Independently validated machine, KNOW, ENVIRONMENT, AVATAR, and MEM
+drafts can be joined into one answer without changing their claims. Evidence
+needs without a production resolver remain explicit unknowns; personality is
+still applied only after the merged `AnswerPlan` is fixed.
+
 ## Batch 9 KNOW v2
 
 KNOW now provides one hybrid retrieval interface over canonical SQLite FTS5,
@@ -126,9 +146,10 @@ The initial contracts are in `src/sofia/cognition/v2/contracts.py`:
 - `TurnKernelInput`: authenticated, channel-scoped input.
 - `ConversationFocus` and `FocusReference`: structured discourse state; a
   reference is explicitly not existence evidence.
-- `FocusTopic`, `UnresolvedRequest`, and `PendingAction`: bounded durable
-  discourse continuity. Only typed evidence settles information requests and
-  only execution receipts settle pending actions.
+- `FocusTopic`, `UnresolvedRequest`, and `PendingAction`: durable discourse
+  continuity. Predicate-scoped requests retain exact subject and audience;
+  only matching typed evidence settles information requests and only execution
+  receipts settle pending actions.
 - `EvidenceNeed`: subject/predicate/scope/freshness/trust requirement.
 - `EvidenceAtom`: subject-scoped value and provenance with separate epistemic
   and acquisition states.

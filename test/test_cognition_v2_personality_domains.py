@@ -7,11 +7,14 @@ import pytest
 from sofia.application import SofiaApplication
 from sofia.cognition.v2 import (
     AnswerPlan,
+    ClaimPlan,
     ConversationFocus,
+    EpistemicState,
     MatrixV2Planner,
     PersonalityAfterTruthRenderer,
     TurnKernelInput,
     ValidatedAnswerDraft,
+    merge_validated_drafts,
 )
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 from sofia.personality.modulation import ExpressionModulation
@@ -82,6 +85,40 @@ def test_personality_renderer_runs_after_answer_plan_without_changing_truth():
     assert rendered.tool_calls == ()
 
 
+def test_multi_question_drafts_merge_without_dropping_validated_claims():
+    plan = MatrixV2Planner().plan(
+        _turn("What time is it, and what are you wearing?"),
+        ConversationFocus("session:domain", "private:sparks", 1),
+    )
+    environment, avatar = plan.evidence_needs
+    drafts = (
+        ValidatedAnswerDraft(
+            AnswerPlan(plan.turn_id, (ClaimPlan(
+                f"claim:{environment.need_id}", environment.subject_id,
+                environment.predicate, "10:00", EpistemicState.OBSERVED,
+                ("evidence:time",),
+            ),)),
+            "It is 10:00.", ("evidence:time",), "environment",
+        ),
+        ValidatedAnswerDraft(
+            AnswerPlan(plan.turn_id, (ClaimPlan(
+                f"claim:{avatar.need_id}", avatar.subject_id,
+                avatar.predicate, "blue hoodie", EpistemicState.KNOWN,
+                ("evidence:outfit",),
+            ),)),
+            "I'm wearing a blue hoodie.", ("evidence:outfit",), "avatar",
+        ),
+    )
+
+    merged = merge_validated_drafts(plan, drafts)
+
+    assert merged is not None
+    assert len(merged.answer.claims) == 2
+    assert merged.answer.unknown_need_ids == ()
+    assert "10:00" in merged.content and "blue hoodie" in merged.content
+    assert merged.evidence_refs == ("evidence:time", "evidence:outfit")
+
+
 def _configuration(tmp_path: Path) -> SofiaConfiguration:
     personality = tmp_path / "personality.json"
     personality.write_text(
@@ -123,6 +160,27 @@ def test_environment_answer_uses_production_v2_evidence_then_personality(tmp_pat
             "Grounded answer:", "Here’s what I can actually support:",
             "The honest read:",
         ))
+    finally:
+        app.shutdown()
+
+
+def test_production_multi_question_combines_environment_and_avatar_evidence(tmp_path):
+    app = SofiaApplication(_configuration(tmp_path))
+    app.start()
+    try:
+        response = app.conversation.respond(
+            "What time is it, and what are you wearing?"
+        )
+        atoms = tuple(
+            app.cognitive_evidence.get(value)
+            for value in response.evidence_refs
+            if value.startswith("evidence:")
+        )
+
+        assert {atom.predicate for atom in atoms if atom is not None} == {
+            "environment.current", "avatar.canonical",
+        }, (response, app.conversation.cognitive_plan)
+        assert "Still unresolved" not in response.content
     finally:
         app.shutdown()
 

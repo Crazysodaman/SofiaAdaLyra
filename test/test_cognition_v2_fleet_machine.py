@@ -220,3 +220,92 @@ def test_claim_validator_rejects_cross_subject_evidence(tmp_path):
 
     with pytest.raises(ValueError, match="does not match exact"):
         EvidenceClaimValidator().validate(answer, (altered,))
+
+
+def test_multi_machine_multi_property_answer_keeps_values_on_exact_hosts(tmp_path):
+    system = CapabilitySystem(authorization_checker=lambda request: True)
+    capability = Capability(
+        "remote.hardware.inspect", "Inspect trusted machine evidence",
+    )
+
+    def inspect(request):
+        node_id = request.parameters["node_id"]
+        values = {
+            str(ARTEMIS_NODE): ("Artemis CPU", 64),
+            str(VENUS_NODE): ("Venus CPU", 32),
+        }
+        cpu, memory = values[node_id]
+        return {
+            "request_id": f"request-{node_id}",
+            "node_id": node_id,
+            "outcome": "reported_success",
+            "message": (
+                '{"hardware":{"cpu":"' + cpu
+                + '","memory_bytes":' + str(memory) + '}}'
+            ),
+        }
+
+    system.register(capability, inspect)
+    dispatcher = CognitiveToolDispatcher(
+        CapabilityGateway(system),
+        (CognitiveToolBinding(
+            CognitiveToolDefinition(
+                "inspect_remote_hardware", "Inspect trusted machine evidence",
+                {"type": "object", "properties": {"node_id": {"type": "string"}},
+                 "required": ["node_id"], "additionalProperties": False},
+            ),
+            capability.name,
+        ),),
+    )
+    ledger = CognitiveEvidenceLedger(tmp_path / "sofia.db")
+    coordinator = FleetMachineAnswerCoordinator(
+        dispatcher, EvidenceAcquisitionCoordinator(ledger),
+    )
+    references = tuple(
+        FocusReference(
+            f"reference:{label.casefold()}", f"fleet-node:{node_id}",
+            "fleet-node", "turn:comparison", 1.0, aliases=(label,),
+        )
+        for label, node_id in (("Artemis", ARTEMIS_NODE), ("Venus", VENUS_NODE))
+    )
+    needs = tuple(
+        EvidenceNeed(
+            f"need:{subject_index}:{predicate_index}",
+            reference.subject_id, predicate, "principal:sparks",
+            max_age_seconds=60, minimum_trust=0.8,
+        )
+        for subject_index, reference in enumerate(references, start=1)
+        for predicate_index, predicate in enumerate(
+            ("machine.cpu", "machine.memory_bytes"), start=1,
+        )
+    )
+    base = _plan()
+    plan = TurnPlan(
+        turn_id="turn:comparison", focus_revision=1,
+        domains=("machine", "ops"), evidence_needs=needs,
+        schedule=base.schedule, response_strategy=base.response_strategy,
+        action_requires_authority=False, intent=base.intent,
+        action_requirement=base.action_requirement,
+        reasoning_requirement=base.reasoning_requirement, budget=base.budget,
+    )
+    focus = ConversationFocus(
+        "session:test", "principal:sparks", 1,
+        primary_reference=references[0], references=references,
+    )
+
+    response = coordinator.answer(
+        plan=plan, focus=focus, principal=None,
+        allowed_capabilities=("remote.hardware.inspect",),
+    )
+
+    assert "Artemis — CPU: Artemis CPU; memory bytes: 64" in response.content
+    assert "Venus — CPU: Venus CPU; memory bytes: 32" in response.content
+    atoms = tuple(
+        ledger.get(ref) for ref in response.evidence_refs
+        if ref.startswith("evidence:")
+    )
+    assert {(atom.subject_id, atom.predicate) for atom in atoms} == {
+        (reference.subject_id, predicate)
+        for reference in references
+        for predicate in ("machine.cpu", "machine.memory_bytes")
+    }

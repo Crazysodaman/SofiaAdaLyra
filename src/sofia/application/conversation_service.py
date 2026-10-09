@@ -226,6 +226,7 @@ class ConversationService(ConversationMatrixMixin):
         self._goal_context_provider = None
         self._goal_command_handler = None
         self._v2_answer_handler = None
+        self._v2_evidence_reader = None
         self._last_goal_context_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
@@ -416,6 +417,12 @@ class ConversationService(ConversationMatrixMixin):
         if handler is not None and not callable(handler):
             raise TypeError("v2 answer handler must be callable or None")
         self._v2_answer_handler = handler
+
+    def set_v2_evidence_reader(self, reader) -> None:
+        """Install the host ledger lookup used for exact request settlement."""
+        if reader is not None and not callable(reader):
+            raise TypeError("v2 evidence reader must be callable or None")
+        self._v2_evidence_reader = reader
 
     def _v2_expression_context(
         self,
@@ -892,6 +899,7 @@ class ConversationService(ConversationMatrixMixin):
                     else self._current_tool_exposure_plan.capabilities
                 ),
                 query=user_message.content,
+                privacy_plan=self._current_privacy_plan,
                 expression_context_provider=lambda: self._v2_expression_context(
                     current_user=user_message,
                     principal=principal,
@@ -1213,9 +1221,20 @@ class ConversationService(ConversationMatrixMixin):
                 "ConversationService lost its active session."
             )
         if coordinated is not None:
+            reader = getattr(self, "_v2_evidence_reader", None)
+            evidence = ()
+            if reader is not None:
+                evidence = tuple(
+                    atom
+                    for reference in response.evidence_refs
+                    if reference.startswith("evidence:")
+                    for atom in (reader(reference),)
+                    if atom is not None
+                )
             self._latest_conversation_focus = self._turn_kernel.settle(
                 coordinated,
                 evidence_refs=response.evidence_refs,
+                evidence=evidence,
             )
             self._current_coordinated_turn = None
 

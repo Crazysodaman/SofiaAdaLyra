@@ -46,7 +46,11 @@ from .fleet_machine import FleetMachineAnswerCoordinator
 from .matrix import MatrixV2Planner
 from .references import ConversationReferenceResolver, EntityCandidate
 from .scheduler import ValidatedCognitiveScheduler
-from .rendering import PersonalityAfterTruthRenderer, ValidatedAnswerDraft
+from .rendering import (
+    PersonalityAfterTruthRenderer,
+    ValidatedAnswerDraft,
+    merge_validated_drafts,
+)
 from .domain_answers import ProjectionAnswerCoordinator
 
 __all__ = [
@@ -97,5 +101,6 @@ __all__ = [
     "ValidatedCognitiveScheduler",
     "PersonalityAfterTruthRenderer",
     "ValidatedAnswerDraft",
+    "merge_validated_drafts",
     "ProjectionAnswerCoordinator",
 ]

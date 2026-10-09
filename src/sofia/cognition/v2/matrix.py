@@ -128,18 +128,88 @@ _EVIDENCE_PREDICATES = {
 }
 
 
-def _machine_predicate(tokens: frozenset[str]) -> str:
-    if "cpu" in tokens and tokens & {"load", "usage", "utilization", "percent"}:
-        return "ops.cpu_percent"
-    if "cpu" in tokens:
-        return "machine.cpu"
-    if "gpu" in tokens:
-        return "machine.gpu"
-    if tokens & {"ram", "memory"}:
-        return "machine.memory_bytes"
-    if tokens & {"disk", "storage"}:
-        return "machine.storage"
-    return "machine.hardware"
+_UTILIZATION = frozenset({"load", "usage", "utilization", "percent"})
+_EXPLICIT_OPS = frozenset({
+    "container", "docker", "failure", "fault", "fleet", "health", "latency",
+    "offline", "process", "processes", "service", "telemetry", "uptime",
+})
+
+
+def _machine_properties(tokens: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
+    """Return every requested machine predicate and its semantic position."""
+    positions: list[tuple[str, int]] = []
+    token_set = frozenset(tokens)
+    cpu_positions = [index for index, token in enumerate(tokens) if token == "cpu"]
+    utilization_positions = [
+        index for index, token in enumerate(tokens) if token in _UTILIZATION
+    ]
+    other_properties = bool(token_set & {"gpu", "ram", "memory", "disk", "storage"})
+    if cpu_positions and (not utilization_positions or other_properties):
+        positions.append(("machine.cpu", cpu_positions[0]))
+    if cpu_positions and utilization_positions:
+        positions.append(("ops.cpu_percent", utilization_positions[0]))
+    for predicate, names in (
+        ("machine.gpu", {"gpu"}),
+        ("machine.memory_bytes", {"ram", "memory"}),
+        ("machine.storage", {"disk", "storage"}),
+    ):
+        indexes = [index for index, token in enumerate(tokens) if token in names]
+        if indexes:
+            positions.append((predicate, indexes[0]))
+    if not positions:
+        positions.append(("machine.hardware", 0))
+    return tuple(positions[:5])
+
+
+def _reference_position(tokens, reference) -> int | None:
+    positions = []
+    for alias in reference.aliases:
+        alias_tokens = _tokens(alias)
+        for index in range(max(0, len(tokens) - len(alias_tokens) + 1)):
+            if tokens[index:index + len(alias_tokens)] == alias_tokens:
+                positions.append(index)
+    return None if not positions else min(positions)
+
+
+def _machine_need_keys(turn, focus):
+    references = tuple(
+        item for item in focus.references if item.source_turn_id == turn.turn_id
+    )
+    if not references and focus.primary_reference is not None:
+        references = (focus.primary_reference,)
+    if not references:
+        references = (None,)
+    properties = _machine_properties(_tokens(turn.content))
+    positioned = tuple(
+        (item, None if item is None else _reference_position(_tokens(turn.content), item))
+        for item in references
+    )
+    known_positions = [position for _, position in positioned if position is not None]
+    comparison = bool(
+        frozenset(_tokens(turn.content))
+        & {"compare", "comparison", "versus", "vs", "between"}
+    )
+    outside_subject_span = bool(known_positions) and all(
+        position <= min(known_positions) or position >= max(known_positions)
+        for _, position in properties
+    )
+    keys = []
+    for predicate, property_position in properties:
+        targets = references
+        if len(references) > 1 and not comparison and not outside_subject_span:
+            distances = [
+                (abs(property_position - position), item)
+                for item, position in positioned if position is not None
+            ]
+            if distances:
+                nearest = min(distance for distance, _ in distances)
+                targets = tuple(item for distance, item in distances if distance == nearest)
+        for item in targets:
+            keys.append((
+                "runtime:local-host" if item is None else item.subject_id,
+                predicate,
+            ))
+    return tuple(dict.fromkeys(keys))[:16]
 
 
 def _tokens(content: str) -> tuple[str, ...]:
@@ -315,37 +385,42 @@ class MatrixV2Planner:
             reasoning,
             neuro_snapshot=neuro_snapshot,
         )
-        subject_id = (
-            reference.subject_id
-            if reference is not None
-            else (
-                "runtime:local-host"
-                if {"machine", "ops"} & set(domains)
-                else (
-                    "runtime:environment"
-                    if "environment" in domains
-                    else "runtime:sofia"
-                )
-            )
-        )
         scope_id = turn.audience_id or "audience:unbound"
+        need_keys: list[tuple[str, str, str]] = []
+        machine_keys = _machine_need_keys(turn, focus) if "machine" in domains else ()
+        need_keys.extend((subject, predicate, "machine") for subject, predicate in machine_keys)
+        current_references = tuple(
+            item for item in focus.references if item.source_turn_id == turn.turn_id
+        ) or (() if reference is None else (reference,))
+        for domain in domains:
+            if domain == "machine" or domain not in _EVIDENCE_PREDICATES:
+                continue
+            if domain == "ops" and machine_keys and not (token_set & _EXPLICIT_OPS):
+                continue
+            subjects = (
+                tuple(item.subject_id for item in current_references)
+                if domain == "ops" and current_references
+                else ("runtime:environment",)
+                if domain == "environment"
+                else ("runtime:sofia",)
+            )
+            need_keys.extend(
+                (subject, _EVIDENCE_PREDICATES[domain], domain)
+                for subject in subjects
+            )
+        need_keys = list(dict.fromkeys(need_keys))[:16]
         needs = tuple(
             EvidenceNeed(
                 need_id=f"need:{domain}:{index}",
                 subject_id=subject_id,
-                predicate=(
-                    _machine_predicate(token_set)
-                    if domain == "machine"
-                    else _EVIDENCE_PREDICATES[domain]
-                ),
+                predicate=predicate,
                 scope_id=scope_id,
                 max_age_seconds=(60.0 if domain in {"environment", "machine", "ops"}
                                  else 300.0),
                 minimum_trust=(0.8 if domain in {"machine", "ops", "body"}
                                else 0.6),
             )
-            for index, domain in enumerate(domains, start=1)
-            if domain in _EVIDENCE_PREDICATES
+            for index, (subject_id, predicate, domain) in enumerate(need_keys, start=1)
         )
         strategy = self._strategy(intent, action, bool(needs), domains)
         schedule = self.scheduler.schedule(

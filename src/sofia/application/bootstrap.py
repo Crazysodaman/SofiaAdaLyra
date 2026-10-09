@@ -82,6 +82,7 @@ from sofia.cognition.v2 import (
     EvidenceAcquisitionCoordinator,
     EvidenceGraph,
     FleetMachineAnswerCoordinator,
+    merge_validated_drafts,
     PersonalityAfterTruthRenderer,
     ProjectionAnswerCoordinator,
     ProductionTurnKernel,
@@ -289,6 +290,9 @@ class SofiaApplication:
         )
         self._conversation_service.set_turn_kernel(self._turn_kernel)
         self._conversation_service.set_v2_answer_handler(self._answer_v2)
+        self._conversation_service.set_v2_evidence_reader(
+            self._cognitive_evidence.get
+        )
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
         )
@@ -391,11 +395,20 @@ class SofiaApplication:
 
     def _answer_v2(self, **kwargs):
         expression_provider = kwargs.pop("expression_context_provider", None)
-        draft = self._fleet_machine_answers.planned_answer(**kwargs)
-        if draft is None:
-            draft = self._knowledge_answers.planned_answer(**kwargs)
-        if draft is None:
-            draft = self._projection_answers.planned_answer(**kwargs)
+        privacy_plan = kwargs.pop("privacy_plan", None)
+        drafts = []
+        for coordinator in (
+            self._fleet_machine_answers,
+            self._knowledge_answers,
+        ):
+            candidate = coordinator.planned_answer(**kwargs)
+            if candidate is not None:
+                drafts.append(candidate)
+        drafts.extend(self._projection_answers.planned_answers(
+            **kwargs,
+            privacy_plan=privacy_plan,
+        ))
+        draft = merge_validated_drafts(kwargs["plan"], tuple(drafts))
         if draft is None:
             return None
         expression = (
@@ -534,6 +547,7 @@ class SofiaApplication:
         )
         service.set_turn_kernel(self._turn_kernel)
         service.set_v2_answer_handler(self._answer_v2)
+        service.set_v2_evidence_reader(self._cognitive_evidence.get)
         service.set_goal_context_provider(
             self._goal_context_for_principal
         )

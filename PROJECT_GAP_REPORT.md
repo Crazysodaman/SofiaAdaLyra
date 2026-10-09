@@ -21,6 +21,21 @@ It distinguishes:
 
 # Executive summary
 
+> **Current cognition/verification status — 2026-10-09:** The P0 findings 1–5
+> below are retained as historical audit evidence, not current state. Cognition
+> v2 is the sole production semantic coordinator; multi-question,
+> multi-property, and multi-machine planning now preserves exact
+> subject/predicate/audience units until matching typed evidence settles each
+> one. Package CI has no `continue-on-error`, and Release Candidate Build uses
+> the hashed `requirements.verify.lock.windows-py312.txt` before invoking the
+> full gate, so a missing pytest dependency cannot appear green. The last
+> repository full gate before this phase was accepted at Batch 12. Current
+> GitHub branch protection could not be queried from the cloud runner because
+> the GitHub branch API returned `Forbidden`; it is therefore **unverified**,
+> not assumed to equal this report's 2026-10-02 `protected: false` observation.
+> Live Windows launch and real dual-Ollama execution remain host-only
+> acceptance.
+
 > **Superseding cognition status — 2026-10-09:** Executive items 4 and 5 below
 > were findings from the 2026-10-02 audit and are closed in source by Cognition
 > v2 Batch 12. The Turn Kernel/Matrix v2 plan is the sole production semantic

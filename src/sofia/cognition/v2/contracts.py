@@ -220,6 +220,8 @@ class UnresolvedRequest:
     subject_id: str | None
     request_kind: str
     created_at: datetime
+    predicate: str | None = None
+    scope_id: str | None = None
 
     def __post_init__(self) -> None:
         _identifier("request_id", self.request_id)
@@ -228,6 +230,14 @@ class UnresolvedRequest:
             _identifier("subject_id", self.subject_id)
         _identifier("request_kind", self.request_kind)
         _aware("created_at", self.created_at)
+        if self.predicate is not None:
+            _identifier("predicate", self.predicate)
+        if self.scope_id is not None:
+            _identifier("scope_id", self.scope_id)
+        if self.predicate is not None and self.subject_id is None:
+            raise ValueError("predicate-scoped requests require a subject_id")
+        if (self.predicate is None) != (self.scope_id is None):
+            raise ValueError("predicate and scope_id must both be present or absent")
 
 
 @dataclass(frozen=True, slots=True)

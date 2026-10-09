@@ -1,4 +1,4 @@
-"""Capture an honest, reproducible Cognition v1 control-path baseline.
+"""Capture an honest, reproducible Cognition v2 control-path baseline.
 
 This Batch 1 harness deliberately uses the deterministic test engine so it can
 run in CI without claiming live Ollama, GPU, token, or residency measurements.

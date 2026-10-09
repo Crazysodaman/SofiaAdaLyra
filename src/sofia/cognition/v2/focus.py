@@ -106,6 +106,8 @@ class SQLiteConversationFocusStore:
                     **{
                         **item,
                         "created_at": datetime.fromisoformat(item["created_at"]),
+                        "predicate": item.get("predicate"),
+                        "scope_id": item.get("scope_id"),
                     }
                 )
                 for item in payload["unresolved_requests"]
@@ -158,6 +160,8 @@ class SQLiteConversationFocusStore:
                         "subject_id": item.subject_id,
                         "request_kind": item.request_kind,
                         "created_at": item.created_at.isoformat(),
+                        "predicate": item.predicate,
+                        "scope_id": item.scope_id,
                     }
                     for item in focus.unresolved_requests
                 ],

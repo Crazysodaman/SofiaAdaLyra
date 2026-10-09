@@ -45,3 +45,15 @@ traces, and occupied 118,784 bytes. This is a single Linux CI control-path
 observation, not a percentile or live-Ollama claim. GPU load, VRAM, tokenizer
 counts, model residency, and real Primary/Secondary inference remained
 unavailable and therefore unknown.
+
+## Phase 1 correctness observation
+
+The matched deterministic measurement after multi-request correctness work
+observed 479.127 ms startup; 41.804 ms casual, 40.386 ms technical, 41.110 ms
+Fleet, and 45.072 ms follow-up turns; 0.059 ms process CPU during a 250 ms idle
+window; 74,158,080 bytes peak RSS; 109 SQLite queries, 4 writes, 1 cache hit,
+1 miss, and zero model calls. Against the single Batch 12 observation this run
+was lower in every recorded latency sample, while peak RSS was 847,872 bytes
+higher. These are individual CI-host observations, not stable percentiles or
+proof of a performance improvement. Live tokens, GPU/VRAM, model residency,
+and Primary/Secondary latency remain unmeasured here.
