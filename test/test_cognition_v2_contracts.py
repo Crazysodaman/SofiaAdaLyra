@@ -16,7 +16,9 @@ from sofia.cognition.v2 import (
     EvidenceAtom,
     EvidenceNeed,
     FocusReference,
+    FocusTopic,
     ModelWorkerRole,
+    UnresolvedRequest,
     TurnKernelInput,
     TurnPlan,
 )
@@ -81,6 +83,7 @@ def test_conversation_focus_is_session_and_audience_scoped():
         kind="fleet-node",
         source_turn_id="turn:1",
         confidence=1.0,
+        aliases=("Artemis",),
         evidence_refs=("fleet-inventory:revision-4",),
     )
     focus = ConversationFocus(
@@ -88,8 +91,20 @@ def test_conversation_focus_is_session_and_audience_scoped():
         audience_id="private:sparks",
         revision=4,
         primary_reference=reference,
-        active_topic_ids=("topic:artemis",),
-        unresolved_request_ids=("request:cpu",),
+        references=(reference,),
+        topics=(FocusTopic(
+            topic_id="topic:artemis",
+            subject_ids=("fleet-node:artemis",),
+            last_turn_id="turn:1",
+            salience=1.0,
+        ),),
+        unresolved_requests=(UnresolvedRequest(
+            request_id="request:cpu",
+            source_turn_id="turn:1",
+            subject_id="fleet-node:artemis",
+            request_kind="information",
+            created_at=NOW,
+        ),),
     )
 
     assert focus.primary_reference.subject_id == "fleet-node:artemis"

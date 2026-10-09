@@ -42,6 +42,12 @@ from sofia.social.model import PrincipalContext
 from sofia.social.store import SocialSessionStore
 from sofia.rel.store import RelationshipStore
 from sofia.neuro import NeuroRuntime, NeuroStateSnapshot, NeuroWakeMode
+from sofia.cognition.v2 import (
+    CoordinatedTurn,
+    ProductionTurnKernel,
+    SQLiteConversationFocusStore,
+    TurnKernelInput,
+)
 
 
 _LOG = logging.getLogger(__name__)
@@ -224,6 +230,11 @@ class ConversationService(ConversationMatrixMixin):
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
         self._current_neuro_message_id: str | None = None
         self._last_neuro_error: str | None = None
+        self._turn_kernel = ProductionTurnKernel(
+            SQLiteConversationFocusStore(runtime.configuration.state_path)
+        )
+        self._current_coordinated_turn: CoordinatedTurn | None = None
+        self._latest_conversation_focus = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -301,6 +312,62 @@ class ConversationService(ConversationMatrixMixin):
         self._current_neuro_message_id = None
         self._last_neuro_error = None
 
+    def set_turn_kernel(self, kernel: ProductionTurnKernel) -> None:
+        """Install the application-owned sole turn coordinator."""
+        if not isinstance(kernel, ProductionTurnKernel):
+            raise TypeError("kernel must be ProductionTurnKernel")
+        self._turn_kernel = kernel
+        self._current_coordinated_turn = None
+        self._latest_conversation_focus = None
+
+    @property
+    def conversation_focus(self):
+        coordinated = self._current_coordinated_turn
+        return (
+            coordinated.focus
+            if coordinated is not None
+            else self._latest_conversation_focus
+        )
+
+    def _coordinate_turn(
+        self,
+        *,
+        message: ConversationMessage,
+        principal: PrincipalContext | None,
+        channel: str,
+    ) -> CoordinatedTurn:
+        audience_id = None if principal is None else principal.audience_id
+        turn = TurnKernelInput(
+            turn_id=message.id,
+            session_id=message.session_id,
+            content=message.content,
+            created_at=message.created_at,
+            channel=channel,
+            principal_id=(None if principal is None else principal.principal_id),
+            audience_id=audience_id,
+        )
+
+        def plan(coordinated: CoordinatedTurn) -> None:
+            self._current_coordinated_turn = coordinated
+            self._record_shadow_matrix(
+                message=message,
+                principal=principal,
+                channel=channel,
+            )
+
+        def attend(coordinated: CoordinatedTurn) -> None:
+            self._current_coordinated_turn = coordinated
+            self._observe_neuro_turn(message=message, channel=channel)
+
+        coordinated = self._turn_kernel.coordinate(
+            turn,
+            planning_callback=plan,
+            attention_callback=attend,
+        )
+        self._current_coordinated_turn = coordinated
+        self._latest_conversation_focus = coordinated.focus
+        return coordinated
+
     def set_goal_context_provider(self, provider) -> None:
         """Install a bounded read-only canonical goal projection."""
         if provider is not None and not callable(provider):
@@ -346,6 +413,23 @@ class ConversationService(ConversationMatrixMixin):
             return None
         if not isinstance(content, str) or not content.strip():
             self._last_goal_context_error = "InvalidGoalContext"
+            return None
+        return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
+
+    def _focus_context_message(
+        self,
+        *,
+        current_user: ConversationMessage | None,
+    ) -> CognitiveMessage | None:
+        coordinated = self._current_coordinated_turn
+        if (
+            current_user is None
+            or coordinated is None
+            or coordinated.turn.turn_id != current_user.id
+        ):
+            return None
+        content = self._turn_kernel.prompt(coordinated)
+        if content is None:
             return None
         return CognitiveMessage(role=CognitiveRole.SYSTEM, content=content)
 
@@ -727,13 +811,9 @@ class ConversationService(ConversationMatrixMixin):
             message=user_message,
             principal=principal,
         )
-        self._record_shadow_matrix(
+        self._coordinate_turn(
             message=user_message,
             principal=principal,
-            channel=channel,
-        )
-        self._observe_neuro_turn(
-            message=user_message,
             channel=channel,
         )
 
@@ -993,12 +1073,11 @@ class ConversationService(ConversationMatrixMixin):
         )
         self._conversation_store.save(user_message)
         self._after_user_message_saved(message=user_message, principal=principal)
-        self._record_shadow_matrix(
+        self._coordinate_turn(
             message=user_message,
             principal=principal,
             channel=channel.strip().casefold(),
         )
-        self._observe_neuro_turn(message=user_message, channel=channel)
 
         base = self._build_request()
         request = CognitiveRequest(
@@ -1041,6 +1120,7 @@ class ConversationService(ConversationMatrixMixin):
 
     def _persist_response(self, response: CognitiveResponse) -> None:
         """Save a settled reply and reload the same canonical session."""
+        coordinated = self._current_coordinated_turn
         assistant_message = ConversationMessage(
             id=str(uuid4()),
             session_id=self._session.id,
@@ -1061,6 +1141,12 @@ class ConversationService(ConversationMatrixMixin):
             raise RuntimeError(
                 "ConversationService lost its active session."
             )
+        if coordinated is not None:
+            self._latest_conversation_focus = self._turn_kernel.settle(
+                coordinated,
+                evidence_refs=response.evidence_refs,
+            )
+            self._current_coordinated_turn = None
 
     def _finalize_response(
         self,
@@ -1098,6 +1184,8 @@ class ConversationService(ConversationMatrixMixin):
         """
 
         self._session = None
+        self._current_coordinated_turn = None
+        self._latest_conversation_focus = None
         self._conversation_store.close()
 
     def _build_request(self) -> CognitiveRequest:
@@ -1185,6 +1273,9 @@ class ConversationService(ConversationMatrixMixin):
                 *scoped_context,
                 *cognitive_messages,
             )
+        focus_context = self._focus_context_message(current_user=current_user)
+        if focus_context is not None:
+            cognitive_messages = (focus_context, *cognitive_messages)
         voice_context = self._matrix_voice_context_messages()
         if voice_context:
             cognitive_messages = (

@@ -175,6 +175,35 @@ def _inherit_last_turn_read_tools(
     )
 
 
+def _apply_focus_tool_scope(
+    plan: ToolExposurePlan,
+    coordinated,
+) -> ToolExposurePlan:
+    """Prevent a focused non-local subject from falling into local inspection."""
+    if coordinated is None:
+        return plan
+    focus = getattr(coordinated, "focus", None)
+    reference = getattr(focus, "primary_reference", None)
+    resolution = getattr(coordinated, "resolution", None)
+    if (
+        reference is None
+        or reference.kind == "local-host"
+        or getattr(resolution, "subject_id", None) != reference.subject_id
+        or "hardware.inspect" not in plan.capabilities
+    ):
+        return plan
+    capabilities = tuple(
+        capability
+        for capability in plan.capabilities
+        if capability != "hardware.inspect"
+    )
+    return ToolExposurePlan(
+        capabilities,
+        plan.reason
+        + "; Turn Kernel scoped hardware to the focused non-local subject",
+    )
+
+
 class ConversationMatrixMixin:
     """Matrix planning/trace/validation support for conversation services."""
 
@@ -543,6 +572,10 @@ class ConversationMatrixMixin:
                 turn,
                 tool_exposure_plan,
                 prior_exposure,
+            )
+            tool_exposure_plan = _apply_focus_tool_scope(
+                tool_exposure_plan,
+                getattr(self, "_current_coordinated_turn", None),
             )
             response_contract = self._matrix_response_planner.plan(
                 turn,

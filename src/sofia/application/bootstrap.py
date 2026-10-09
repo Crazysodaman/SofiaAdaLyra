@@ -76,6 +76,11 @@ from sofia.conversation.store import ConversationStore
 from sofia.cognition.engine import CognitiveEngineError
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleWorker
+from sofia.cognition.v2 import (
+    EntityCandidate,
+    ProductionTurnKernel,
+    SQLiteConversationFocusStore,
+)
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
@@ -197,6 +202,10 @@ class SofiaApplication:
             GoalStore(self._runtime.state_plane),
             evidence_verifier=GoalEvidenceIndex(configuration.state_path),
         )
+        self._turn_kernel = ProductionTurnKernel(
+            SQLiteConversationFocusStore(configuration.state_path),
+            entity_provider=self._cognition_entity_candidates,
+        )
         conversation_store = ConversationStore(configuration.state_path)
         if conversation_store.database_path.resolve() != Path(
             configuration.state_path
@@ -249,6 +258,7 @@ class SofiaApplication:
         self._conversation_service.set_neuro_runtime(
             self._neuro
         )
+        self._conversation_service.set_turn_kernel(self._turn_kernel)
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
         )
@@ -336,6 +346,26 @@ class SofiaApplication:
     @property
     def last_neuro_input_error(self) -> str | None:
         return self._last_neuro_input_error
+
+    def _cognition_entity_candidates(self) -> tuple[EntityCandidate, ...]:
+        """Project Fleet identities for reference resolution, never as facts."""
+        candidates = []
+        for host in self._runtime.ops_service.fleet():
+            host_id = host.get("host_id")
+            node_id = host.get("node_id")
+            if not isinstance(host_id, str) or not host_id.strip():
+                continue
+            subject_id = (
+                f"fleet-node:{node_id}"
+                if isinstance(node_id, str) and node_id.strip()
+                else f"fleet-host:{host_id}"
+            )
+            candidates.append(EntityCandidate(
+                subject_id=subject_id,
+                kind="fleet-node",
+                aliases=(host_id,),
+            ))
+        return tuple(candidates)
 
     def _goal_context_for_principal(self, principal, now: datetime) -> str | None:
         return self._goals.prompt_context(principal, now=now)
@@ -437,6 +467,7 @@ class SofiaApplication:
         service.set_neuro_runtime(
             self._neuro
         )
+        service.set_turn_kernel(self._turn_kernel)
         service.set_goal_context_provider(
             self._goal_context_for_principal
         )

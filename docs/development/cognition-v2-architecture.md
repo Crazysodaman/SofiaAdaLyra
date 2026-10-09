@@ -1,11 +1,12 @@
 # Cognition v2 architecture specification
 
-Status: Batch 1 contract, not production activation.
+Status: Batch 2 Turn Kernel and ConversationFocus are production-active.
 
-The repository at `17511643` still runs the existing cognition pipeline. The
-types under `sofia.cognition.v2` define migration hand-offs; they do not create
-a second engine or change production routing. Batch 2 will compose the first
-V2 owner, the Turn Kernel, into the existing entry point.
+Batch 2 composes one application-owned `ProductionTurnKernel` into ordinary
+conversation and owner-direct tool turns. It now owns turn sequencing and
+durable audience-scoped discourse focus. Existing Matrix v1 and NEURO are
+temporary delegates behind that boundary; Matrix replacement begins in Batch
+3. The V2 code does not create a second conversation engine or authority path.
 
 ## Invariants
 
@@ -51,6 +52,9 @@ The initial contracts are in `src/sofia/cognition/v2/contracts.py`:
 - `TurnKernelInput`: authenticated, channel-scoped input.
 - `ConversationFocus` and `FocusReference`: structured discourse state; a
   reference is explicitly not existence evidence.
+- `FocusTopic`, `UnresolvedRequest`, and `PendingAction`: bounded durable
+  discourse continuity. Only typed evidence settles information requests and
+  only execution receipts settle pending actions.
 - `EvidenceNeed`: subject/predicate/scope/freshness/trust requirement.
 - `EvidenceAtom`: subject-scoped value and provenance with separate epistemic
   and acquisition states.
@@ -62,6 +66,23 @@ The initial contracts are in `src/sofia/cognition/v2/contracts.py`:
 
 These contracts intentionally contain no permission grant, tool result,
 execution method, or mutable canonical state.
+
+## Active Batch 2 ownership
+
+`ProductionTurnKernel.coordinate()` commits focus before invoking planning and
+attention delegates, always in that order. `SQLiteConversationFocusStore`
+persists the structured focus in canonical `sofia.db` under a session/audience
+partition and uses compare-and-swap revisions. Fleet inventory contributes
+identity candidates only; those candidates are not reachability or state
+evidence. The provider receives a bounded focus projection that explicitly
+states the same limitation.
+
+The reference resolver uses structured aliases, bounded fuzzy matching,
+pronoun/ellipsis continuity, explicit local-host deixis, and correction
+handling. It retains multiple topic records while changing one primary focus.
+It does not grow a phrase-specific routing table. ConversationService remains
+the session/channel/persistence boundary, though further thinning depends on
+the Matrix v2 and evidence-graph migrations.
 
 ## Dependency direction
 

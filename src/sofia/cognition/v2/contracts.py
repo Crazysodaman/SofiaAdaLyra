@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 import re
-from typing import Protocol
+from typing import Callable, Protocol
 
 
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9_.:/-]{1,160}$")
@@ -125,6 +125,7 @@ class FocusReference:
     kind: str
     source_turn_id: str
     confidence: float
+    aliases: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -137,6 +138,66 @@ class FocusReference:
         ):
             raise ValueError("confidence must be in 0..1")
         _identifiers("evidence_refs", self.evidence_refs)
+        if not isinstance(self.aliases, tuple) or any(
+            not isinstance(alias, str) or not alias.strip() or len(alias) > 120
+            for alias in self.aliases
+        ):
+            raise ValueError("aliases must contain bounded nonempty strings")
+        if len({alias.casefold() for alias in self.aliases}) != len(self.aliases):
+            raise ValueError("aliases must not contain case-insensitive duplicates")
+
+
+@dataclass(frozen=True, slots=True)
+class FocusTopic:
+    topic_id: str
+    subject_ids: tuple[str, ...]
+    last_turn_id: str
+    salience: float
+
+    def __post_init__(self) -> None:
+        _identifier("topic_id", self.topic_id)
+        _identifiers("subject_ids", self.subject_ids)
+        _identifier("last_turn_id", self.last_turn_id)
+        if (
+            isinstance(self.salience, bool)
+            or not isinstance(self.salience, (int, float))
+            or not 0.0 <= float(self.salience) <= 1.0
+        ):
+            raise ValueError("salience must be in 0..1")
+
+
+@dataclass(frozen=True, slots=True)
+class UnresolvedRequest:
+    request_id: str
+    source_turn_id: str
+    subject_id: str | None
+    request_kind: str
+    created_at: datetime
+
+    def __post_init__(self) -> None:
+        _identifier("request_id", self.request_id)
+        _identifier("source_turn_id", self.source_turn_id)
+        if self.subject_id is not None:
+            _identifier("subject_id", self.subject_id)
+        _identifier("request_kind", self.request_kind)
+        _aware("created_at", self.created_at)
+
+
+@dataclass(frozen=True, slots=True)
+class PendingAction:
+    action_id: str
+    source_turn_id: str
+    subject_id: str | None
+    action_kind: str
+    created_at: datetime
+
+    def __post_init__(self) -> None:
+        _identifier("action_id", self.action_id)
+        _identifier("source_turn_id", self.source_turn_id)
+        if self.subject_id is not None:
+            _identifier("subject_id", self.subject_id)
+        _identifier("action_kind", self.action_kind)
+        _aware("created_at", self.created_at)
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,9 +208,10 @@ class ConversationFocus:
     audience_id: str | None
     revision: int
     primary_reference: FocusReference | None = None
-    active_topic_ids: tuple[str, ...] = ()
-    unresolved_request_ids: tuple[str, ...] = ()
-    pending_action_ids: tuple[str, ...] = ()
+    references: tuple[FocusReference, ...] = ()
+    topics: tuple[FocusTopic, ...] = ()
+    unresolved_requests: tuple[UnresolvedRequest, ...] = ()
+    pending_actions: tuple[PendingAction, ...] = ()
 
     def __post_init__(self) -> None:
         _identifier("session_id", self.session_id)
@@ -161,12 +223,74 @@ class ConversationFocus:
             self.primary_reference, FocusReference
         ):
             raise TypeError("primary_reference must be FocusReference or None")
-        for name in (
-            "active_topic_ids",
-            "unresolved_request_ids",
-            "pending_action_ids",
+        for name, expected in (
+            ("references", FocusReference),
+            ("topics", FocusTopic),
+            ("unresolved_requests", UnresolvedRequest),
+            ("pending_actions", PendingAction),
         ):
-            _identifiers(name, getattr(self, name))
+            values = getattr(self, name)
+            if not isinstance(values, tuple) or any(
+                not isinstance(value, expected) for value in values
+            ):
+                raise TypeError(f"{name} must contain {expected.__name__} values")
+        if self.primary_reference is not None and all(
+            item.reference_id != self.primary_reference.reference_id
+            for item in self.references
+        ):
+            raise ValueError("primary_reference must be present in references")
+
+    @property
+    def active_topic_ids(self) -> tuple[str, ...]:
+        return tuple(topic.topic_id for topic in self.topics)
+
+    @property
+    def unresolved_request_ids(self) -> tuple[str, ...]:
+        return tuple(item.request_id for item in self.unresolved_requests)
+
+    @property
+    def pending_action_ids(self) -> tuple[str, ...]:
+        return tuple(item.action_id for item in self.pending_actions)
+
+
+@dataclass(frozen=True, slots=True)
+class ReferenceResolution:
+    subject_id: str | None
+    reference_id: str | None
+    source: str
+    confidence: float
+    corrected_subject_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.subject_id is None) != (self.reference_id is None):
+            raise ValueError("subject_id and reference_id must both be present or absent")
+        if self.subject_id is not None:
+            _identifier("subject_id", self.subject_id)
+            _identifier("reference_id", self.reference_id or "")
+        _identifier("source", self.source)
+        if self.corrected_subject_id is not None:
+            _identifier("corrected_subject_id", self.corrected_subject_id)
+        if (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not 0.0 <= float(self.confidence) <= 1.0
+        ):
+            raise ValueError("confidence must be in 0..1")
+
+
+@dataclass(frozen=True, slots=True)
+class CoordinatedTurn:
+    turn: TurnKernelInput
+    focus: ConversationFocus
+    resolution: ReferenceResolution
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.turn, TurnKernelInput):
+            raise TypeError("turn must be TurnKernelInput")
+        if not isinstance(self.focus, ConversationFocus):
+            raise TypeError("focus must be ConversationFocus")
+        if not isinstance(self.resolution, ReferenceResolution):
+            raise TypeError("resolution must be ReferenceResolution")
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,13 +539,15 @@ class ConversationFocusStore(Protocol):
 
 
 class TurnKernel(Protocol):
-    """Sole coordinator contract; it does not imply an implementation yet."""
+    """Sole production turn-sequencing coordinator contract."""
 
-    def plan(
+    def coordinate(
         self,
         turn: TurnKernelInput,
-        focus: ConversationFocus,
-    ) -> TurnPlan: ...
+        *,
+        planning_callback: Callable[[CoordinatedTurn], object],
+        attention_callback: Callable[[CoordinatedTurn], object],
+    ) -> CoordinatedTurn: ...
 
 
 class CognitiveScheduler(Protocol):
