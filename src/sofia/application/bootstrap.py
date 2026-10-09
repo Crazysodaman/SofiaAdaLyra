@@ -81,6 +81,7 @@ from sofia.cognition.v2 import (
     EntityCandidate,
     EvidenceAcquisitionCoordinator,
     EvidenceGraph,
+    FleetMachineAnswerCoordinator,
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
 )
@@ -214,6 +215,12 @@ class SofiaApplication:
         self._cognitive_evidence_acquisition = EvidenceAcquisitionCoordinator(
             self._cognitive_evidence
         )
+        dispatcher = self._runtime.cognitive_system.tool_dispatcher
+        if dispatcher is None:
+            raise SofiaApplicationError("production cognitive tool dispatcher is required")
+        self._fleet_machine_answers = FleetMachineAnswerCoordinator(
+            dispatcher, self._cognitive_evidence_acquisition
+        )
         self._turn_kernel = ProductionTurnKernel(
             SQLiteConversationFocusStore(configuration.state_path),
             entity_provider=self._cognition_entity_candidates,
@@ -271,6 +278,9 @@ class SofiaApplication:
             self._neuro
         )
         self._conversation_service.set_turn_kernel(self._turn_kernel)
+        self._conversation_service.set_v2_answer_handler(
+            self._fleet_machine_answers.answer
+        )
         self._conversation_service.set_goal_context_provider(
             self._goal_context_for_principal
         )
@@ -492,6 +502,7 @@ class SofiaApplication:
             self._neuro
         )
         service.set_turn_kernel(self._turn_kernel)
+        service.set_v2_answer_handler(self._fleet_machine_answers.answer)
         service.set_goal_context_provider(
             self._goal_context_for_principal
         )

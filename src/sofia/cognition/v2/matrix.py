@@ -115,6 +115,20 @@ _EVIDENCE_PREDICATES = {
 }
 
 
+def _machine_predicate(tokens: frozenset[str]) -> str:
+    if "cpu" in tokens and tokens & {"load", "usage", "utilization", "percent"}:
+        return "ops.cpu_percent"
+    if "cpu" in tokens:
+        return "machine.cpu"
+    if "gpu" in tokens:
+        return "machine.gpu"
+    if tokens & {"ram", "memory"}:
+        return "machine.memory_bytes"
+    if tokens & {"disk", "storage"}:
+        return "machine.storage"
+    return "machine.hardware"
+
+
 def _tokens(content: str) -> tuple[str, ...]:
     return tuple(match.group(0).casefold() for match in _TOKEN.finditer(content))
 
@@ -215,7 +229,11 @@ class MatrixV2Planner:
             EvidenceNeed(
                 need_id=f"need:{domain}:{index}",
                 subject_id=subject_id,
-                predicate=_EVIDENCE_PREDICATES[domain],
+                predicate=(
+                    _machine_predicate(token_set)
+                    if domain == "machine"
+                    else _EVIDENCE_PREDICATES[domain]
+                ),
                 scope_id=scope_id,
                 max_age_seconds=(60.0 if domain in {"environment", "machine", "ops"}
                                  else 300.0),

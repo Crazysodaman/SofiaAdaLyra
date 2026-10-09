@@ -225,6 +225,7 @@ class ConversationService(ConversationMatrixMixin):
         self._voice_runtime_provider = None
         self._goal_context_provider = None
         self._goal_command_handler = None
+        self._v2_answer_handler = None
         self._last_goal_context_error: str | None = None
         self._neuro_runtime: NeuroRuntime | None = None
         self._current_neuro_snapshot: NeuroStateSnapshot | None = None
@@ -395,6 +396,12 @@ class ConversationService(ConversationMatrixMixin):
         if handler is not None and not callable(handler):
             raise TypeError("goal command handler must be callable or None")
         self._goal_command_handler = handler
+
+    def set_v2_answer_handler(self, handler) -> None:
+        """Install host-owned claim/evidence handling before model invocation."""
+        if handler is not None and not callable(handler):
+            raise TypeError("v2 answer handler must be callable or None")
+        self._v2_answer_handler = handler
 
     @property
     def last_goal_context_error(self) -> str | None:
@@ -848,6 +855,25 @@ class ConversationService(ConversationMatrixMixin):
                 response = self._matrix_finalize_deterministic_response(response)
                 self._persist_response(response)
                 return response
+
+        v2_handler = self._v2_answer_handler
+        if v2_handler is not None and self.cognitive_plan is not None:
+            v2_response = v2_handler(
+                plan=self.cognitive_plan,
+                focus=self.conversation_focus,
+                principal=principal,
+                allowed_capabilities=(
+                    ()
+                    if self._current_tool_exposure_plan is None
+                    else self._current_tool_exposure_plan.capabilities
+                ),
+            )
+            if v2_response is not None:
+                if not isinstance(v2_response, CognitiveResponse):
+                    raise RuntimeError("v2 answer handler returned an invalid response")
+                v2_response = self._matrix_finalize_deterministic_response(v2_response)
+                self._persist_response(v2_response)
+                return v2_response
 
         history = self._conversation_store.list_messages(
             self._session.id

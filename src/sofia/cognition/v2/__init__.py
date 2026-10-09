@@ -41,6 +41,8 @@ from .evidence import (
     EvidenceResolution,
 )
 from .kernel import ProductionTurnKernel
+from .claims import EvidenceClaimPlanner, EvidenceClaimValidator
+from .fleet_machine import FleetMachineAnswerCoordinator
 from .matrix import MatrixV2Planner
 from .references import ConversationReferenceResolver, EntityCandidate
 from .scheduler import ValidatedCognitiveScheduler
@@ -84,6 +86,9 @@ __all__ = [
     "EvidenceResolution",
     "SQLiteConversationFocusStore",
     "ProductionTurnKernel",
+    "EvidenceClaimPlanner",
+    "EvidenceClaimValidator",
+    "FleetMachineAnswerCoordinator",
     "MatrixV2Planner",
     "ConversationReferenceResolver",
     "EntityCandidate",
