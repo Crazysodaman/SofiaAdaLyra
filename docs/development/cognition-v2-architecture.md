@@ -1,12 +1,16 @@
 # Cognition v2 architecture specification
 
-Status: Batch 2 Turn Kernel and ConversationFocus are production-active.
+Status: Batch 3 Turn Kernel, ConversationFocus, Matrix v2, and scheduler are
+production-active.
 
-Batch 2 composes one application-owned `ProductionTurnKernel` into ordinary
-conversation and owner-direct tool turns. It now owns turn sequencing and
-durable audience-scoped discourse focus. Existing Matrix v1 and NEURO are
-temporary delegates behind that boundary; Matrix replacement begins in Batch
-3. The V2 code does not create a second conversation engine or authority path.
+The application composes one `ProductionTurnKernel` for ordinary conversation
+and owner-direct tool turns. It owns turn sequencing, durable audience-scoped
+discourse focus, and a validated Matrix v2 plan. The cognitive scheduler turns
+that plan into dependency-ordered work and bounded budgets. Existing Matrix v1
+context/evidence/authority adapters remain temporarily downstream while their
+owners migrate in Batches 4–5 and 12; Matrix v2 is authoritative for the
+cognitive route. V2 does not create a second conversation engine or authority
+path.
 
 ## Invariants
 
@@ -83,6 +87,28 @@ handling. It retains multiple topic records while changing one primary focus.
 It does not grow a phrase-specific routing table. ConversationService remains
 the session/channel/persistence boundary, though further thinning depends on
 the Matrix v2 and evidence-graph migrations.
+
+## Active Batch 3 planning
+
+`MatrixV2Planner` maps normalized concepts plus structured conversation focus
+into intent, relevant domains, subject-scoped evidence needs, action class,
+response strategy, and reasoning requirement. It uses exact deterministic
+checks for mutation and verification boundaries, but does not extend the old
+phrase-shaped regular-expression classifier. A focused Fleet subject carries
+through elliptical operational turns even when the new message has no host
+name.
+
+`ValidatedCognitiveScheduler` emits an acyclic `CognitiveSchedule`. Independent
+evidence-acquisition tasks may be marked parallel; reasoning depends on their
+completion, claim validation depends on reasoning, and rendering depends on
+validation. This is a work description only: it does not execute a capability,
+write canonical evidence, or grant authority.
+
+NEURO may promote bounded reasoning depth, reduce budgets under observed load,
+control optional parallelism, and contribute retrieval/background priority.
+It cannot add an evidence need, remove VERIFY, create truth, or change an
+action's authority requirement. Existing exact VERIFY routing is retained if a
+compatibility safety planner requests it.
 
 ## Dependency direction
 

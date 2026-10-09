@@ -15,6 +15,7 @@ from .contracts import (
     UnresolvedRequest,
 )
 from .focus import ConversationFocusConflict, SQLiteConversationFocusStore
+from .matrix import MatrixV2Planner
 from .references import ConversationReferenceResolver, EntityCandidate
 
 
@@ -41,6 +42,7 @@ class ProductionTurnKernel:
         store: SQLiteConversationFocusStore,
         *,
         entity_provider: Callable[[], tuple[EntityCandidate, ...]] | None = None,
+        matrix_planner: MatrixV2Planner | None = None,
     ) -> None:
         if not isinstance(store, SQLiteConversationFocusStore):
             raise TypeError("store must be SQLiteConversationFocusStore")
@@ -49,6 +51,7 @@ class ProductionTurnKernel:
         self.store = store
         self.entity_provider = entity_provider
         self.resolver = ConversationReferenceResolver()
+        self.matrix_planner = matrix_planner or MatrixV2Planner()
 
     def coordinate(
         self,
@@ -64,7 +67,16 @@ class ProductionTurnKernel:
             raise TypeError("kernel callbacks must be callable")
         coordinated = self._advance_focus(turn)
         planning_callback(coordinated)
-        attention_callback(coordinated)
+        neuro_snapshot = attention_callback(coordinated)
+        if neuro_snapshot is not None:
+            coordinated = replace(
+                coordinated,
+                plan=self.matrix_planner.plan(
+                    coordinated.turn,
+                    coordinated.focus,
+                    neuro_snapshot=neuro_snapshot,
+                ),
+            )
         return coordinated
 
     def _advance_focus(self, turn: TurnKernelInput) -> CoordinatedTurn:
@@ -92,7 +104,12 @@ class ProductionTurnKernel:
                     updated,
                     expected_revision=current.revision,
                 )
-                return CoordinatedTurn(turn, committed, resolution)
+                return CoordinatedTurn(
+                    turn,
+                    committed,
+                    resolution,
+                    self.matrix_planner.plan(turn, committed),
+                )
             except ConversationFocusConflict:
                 continue
         raise ConversationFocusConflict(

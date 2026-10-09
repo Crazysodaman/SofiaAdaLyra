@@ -28,6 +28,7 @@ from sofia.cognition.matrix import (
     MatrixResponsePlanner,
     MatrixResponseValidator,
     MatrixRelevance,
+    MatrixRoute,
     MatrixRoutingPlanner,
     MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
@@ -43,6 +44,7 @@ from sofia.cognition.matrix import (
     TurnMatrix,
 )
 from sofia.cognition.matrix.defaults import default_matrix_registry
+from sofia.cognition.v2 import ReasoningRequirement, TurnPlan
 from sofia.social.model import PrincipalContext
 from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
@@ -226,6 +228,33 @@ class ConversationMatrixMixin:
         self._reset_matrix_turn()
         self._matrix_execution_baseline_serial = 0
         self._last_matrix_error: str | None = None
+
+    def _apply_v2_cognitive_plan(self, plan: TurnPlan) -> None:
+        """Make V2 reasoning depth authoritative without changing authority."""
+        if not isinstance(plan, TurnPlan):
+            raise TypeError("plan must be TurnPlan")
+        route_by_requirement = {
+            ReasoningRequirement.FAST: "fast",
+            ReasoningRequirement.STANDARD: "standard",
+            ReasoningRequirement.DEEP: "deep",
+            ReasoningRequirement.VERIFY: "verify",
+        }
+        route_value = route_by_requirement.get(plan.reasoning_requirement)
+        if route_value is None:
+            return
+        if (
+            self._current_routing_plan is not None
+            and self._current_routing_plan.route is MatrixRoute.VERIFY
+            and route_value != MatrixRoute.VERIFY.value
+        ):
+            return
+        self._current_routing_plan = RoutingPlan(
+            MatrixRoute(route_value),
+            (
+                "Cognition v2 scheduler: "
+                f"{plan.budget.reason}; intent={plan.intent}"
+            ),
+        )
 
     def _reset_matrix_turn(self) -> None:
         """Clear derived state for one turn, retaining planners and trace storage."""

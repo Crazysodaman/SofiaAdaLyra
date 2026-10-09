@@ -89,9 +89,51 @@ class CognitiveTaskKind(str, Enum):
     RENDERING = "rendering"
 
 
+class ActionRequirement(str, Enum):
+    NONE = "none"
+    READ_ONLY = "read_only"
+    MUTATION = "mutation"
+    CLARIFY = "clarify"
+
+
+class ReasoningRequirement(str, Enum):
+    DETERMINISTIC = "deterministic"
+    FAST = "fast"
+    STANDARD = "standard"
+    DEEP = "deep"
+    VERIFY = "verify"
+
+
+@dataclass(frozen=True, slots=True)
+class CognitiveBudget:
+    """Bounded compute advice; it carries no truth or execution authority."""
+
+    token_budget: int
+    time_budget_ms: int
+    retrieval_limit: int
+    allow_parallelism: bool
+    background_priority: float = 0.0
+    reason: str = "default cognitive budget"
+
+    def __post_init__(self) -> None:
+        for name in ("token_budget", "time_budget_ms", "retrieval_limit"):
+            value = getattr(self, name)
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"{name} must be a positive int")
+        if type(self.allow_parallelism) is not bool:
+            raise TypeError("allow_parallelism must be bool")
+        if (
+            isinstance(self.background_priority, bool)
+            or not isinstance(self.background_priority, (int, float))
+            or not 0.0 <= float(self.background_priority) <= 1.0
+        ):
+            raise ValueError("background_priority must be in 0..1")
+        _text("reason", self.reason, limit=400)
+
+
 @dataclass(frozen=True, slots=True)
 class TurnKernelInput:
-    """Authenticated, channel-scoped input accepted by the future Turn Kernel."""
+    """Authenticated, channel-scoped input accepted by the Turn Kernel."""
 
     turn_id: str
     session_id: str
@@ -283,6 +325,7 @@ class CoordinatedTurn:
     turn: TurnKernelInput
     focus: ConversationFocus
     resolution: ReferenceResolution
+    plan: TurnPlan | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.turn, TurnKernelInput):
@@ -291,6 +334,8 @@ class CoordinatedTurn:
             raise TypeError("focus must be ConversationFocus")
         if not isinstance(self.resolution, ReferenceResolution):
             raise TypeError("resolution must be ReferenceResolution")
+        if self.plan is not None and not isinstance(self.plan, TurnPlan):
+            raise TypeError("plan must be TurnPlan or None")
 
 
 @dataclass(frozen=True, slots=True)
@@ -459,6 +504,10 @@ class TurnPlan:
     schedule: CognitiveSchedule
     response_strategy: str
     action_requires_authority: bool
+    intent: str = "general"
+    action_requirement: ActionRequirement = ActionRequirement.NONE
+    reasoning_requirement: ReasoningRequirement = ReasoningRequirement.STANDARD
+    budget: CognitiveBudget = CognitiveBudget(2048, 8000, 4, False)
 
     def __post_init__(self) -> None:
         _identifier("turn_id", self.turn_id)
@@ -474,6 +523,20 @@ class TurnPlan:
         _identifier("response_strategy", self.response_strategy)
         if type(self.action_requires_authority) is not bool:
             raise TypeError("action_requires_authority must be bool")
+        _identifier("intent", self.intent)
+        if not isinstance(self.action_requirement, ActionRequirement):
+            raise TypeError("action_requirement must be ActionRequirement")
+        if not isinstance(self.reasoning_requirement, ReasoningRequirement):
+            raise TypeError(
+                "reasoning_requirement must be ReasoningRequirement"
+            )
+        if not isinstance(self.budget, CognitiveBudget):
+            raise TypeError("budget must be CognitiveBudget")
+        if (
+            self.action_requirement is ActionRequirement.MUTATION
+            and not self.action_requires_authority
+        ):
+            raise ValueError("mutation plans must require authority evaluation")
 
 
 @dataclass(frozen=True, slots=True)
@@ -551,7 +614,15 @@ class TurnKernel(Protocol):
 
 
 class CognitiveScheduler(Protocol):
-    def schedule(self, plan: TurnPlan) -> CognitiveSchedule: ...
+    def schedule(
+        self,
+        *,
+        turn_id: str,
+        evidence_needs: tuple[EvidenceNeed, ...],
+        reasoning_requirement: ReasoningRequirement,
+        response_strategy: str,
+        budget: CognitiveBudget,
+    ) -> CognitiveSchedule: ...
 
 
 class EvidenceAcquirer(Protocol):

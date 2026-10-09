@@ -1,17 +1,14 @@
-"""Cognition v2 architectural contracts.
-
-Batch 1 defines ownership and data boundaries only. Production coordination
-continues through the existing pipeline until the Turn Kernel is introduced in
-Batch 2 and explicitly composed as the sole coordinator.
-"""
+"""Production Cognition v2 contracts, Turn Kernel, Matrix, and scheduler."""
 
 from .contracts import (
     AcquisitionState,
+    ActionRequirement,
     AnswerPlan,
     ClaimPlanner,
     ClaimPlan,
     ClaimValidator,
     CognitiveSchedule,
+    CognitiveBudget,
     CognitiveTask,
     CognitiveTaskKind,
     CoordinatedTurn,
@@ -27,6 +24,7 @@ from .contracts import (
     PersonalityRenderer,
     PendingAction,
     ReferenceResolution,
+    ReasoningRequirement,
     CognitiveScheduler,
     TurnKernel,
     TurnKernelInput,
@@ -35,15 +33,19 @@ from .contracts import (
 )
 from .focus import ConversationFocusConflict, SQLiteConversationFocusStore
 from .kernel import ProductionTurnKernel
+from .matrix import MatrixV2Planner
 from .references import ConversationReferenceResolver, EntityCandidate
+from .scheduler import ValidatedCognitiveScheduler
 
 __all__ = [
     "AcquisitionState",
+    "ActionRequirement",
     "AnswerPlan",
     "ClaimPlanner",
     "ClaimPlan",
     "ClaimValidator",
     "CognitiveSchedule",
+    "CognitiveBudget",
     "CognitiveTask",
     "CognitiveTaskKind",
     "CoordinatedTurn",
@@ -59,6 +61,7 @@ __all__ = [
     "PersonalityRenderer",
     "PendingAction",
     "ReferenceResolution",
+    "ReasoningRequirement",
     "CognitiveScheduler",
     "TurnKernel",
     "TurnKernelInput",
@@ -67,6 +70,8 @@ __all__ = [
     "ConversationFocusConflict",
     "SQLiteConversationFocusStore",
     "ProductionTurnKernel",
+    "MatrixV2Planner",
     "ConversationReferenceResolver",
     "EntityCandidate",
+    "ValidatedCognitiveScheduler",
 ]

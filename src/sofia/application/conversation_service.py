@@ -235,6 +235,7 @@ class ConversationService(ConversationMatrixMixin):
         )
         self._current_coordinated_turn: CoordinatedTurn | None = None
         self._latest_conversation_focus = None
+        self._latest_cognitive_plan = None
         self._filesystem_orchestrator = (
             FilesystemOrchestrator(
                 runtime=runtime,
@@ -319,6 +320,7 @@ class ConversationService(ConversationMatrixMixin):
         self._turn_kernel = kernel
         self._current_coordinated_turn = None
         self._latest_conversation_focus = None
+        self._latest_cognitive_plan = None
 
     @property
     def conversation_focus(self):
@@ -327,6 +329,15 @@ class ConversationService(ConversationMatrixMixin):
             coordinated.focus
             if coordinated is not None
             else self._latest_conversation_focus
+        )
+
+    @property
+    def cognitive_plan(self):
+        coordinated = self._current_coordinated_turn
+        return (
+            coordinated.plan
+            if coordinated is not None
+            else self._latest_cognitive_plan
         )
 
     def _coordinate_turn(
@@ -355,9 +366,10 @@ class ConversationService(ConversationMatrixMixin):
                 channel=channel,
             )
 
-        def attend(coordinated: CoordinatedTurn) -> None:
+        def attend(coordinated: CoordinatedTurn):
             self._current_coordinated_turn = coordinated
             self._observe_neuro_turn(message=message, channel=channel)
+            return self._current_neuro_snapshot
 
         coordinated = self._turn_kernel.coordinate(
             turn,
@@ -366,6 +378,9 @@ class ConversationService(ConversationMatrixMixin):
         )
         self._current_coordinated_turn = coordinated
         self._latest_conversation_focus = coordinated.focus
+        self._latest_cognitive_plan = coordinated.plan
+        if coordinated.plan is not None:
+            self._apply_v2_cognitive_plan(coordinated.plan)
         return coordinated
 
     def set_goal_context_provider(self, provider) -> None:
@@ -448,13 +463,13 @@ class ConversationService(ConversationMatrixMixin):
         *,
         message: ConversationMessage,
         channel: str,
-    ) -> None:
+    ) -> NeuroStateSnapshot | None:
         runtime = getattr(self, "_neuro_runtime", None)
         self._last_neuro_error = None
         if runtime is None:
             self._current_neuro_snapshot = None
             self._current_neuro_message_id = None
-            return
+            return None
         try:
             self._current_neuro_snapshot = runtime.observe_turn(
                 content=message.content,
@@ -471,6 +486,7 @@ class ConversationService(ConversationMatrixMixin):
                 "NEURO turn observation failed; continuing without neural "
                 "attention context"
             )
+        return self._current_neuro_snapshot
 
     def _neuro_context_message(
         self,
@@ -1186,6 +1202,7 @@ class ConversationService(ConversationMatrixMixin):
         self._session = None
         self._current_coordinated_turn = None
         self._latest_conversation_focus = None
+        self._latest_cognitive_plan = None
         self._conversation_store.close()
 
     def _build_request(self) -> CognitiveRequest:
