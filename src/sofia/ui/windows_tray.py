@@ -470,7 +470,8 @@ class WindowsTrayAgent:
                     )
 
                 residency_label = (
-                    f"Auto residency: on, unload after "
+                    f"Auto residency: {status.cognitive_residency_mode or 'on'}, "
+                    f"unload after "
                     f"{status.cognitive_idle_unload_seconds}s"
                     if status.cognitive_auto_manage
                     else "Auto residency: off"

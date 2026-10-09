@@ -21,6 +21,8 @@ from sofia.config.cognitive_models import CognitiveModelSelection
 from sofia.config.model import SofiaConfiguration
 from sofia.integrations.ollama import OllamaAdapter
 from sofia.ops.capability import OpsToolService
+from sofia.ops.local_telemetry import collect_local_telemetry
+from sofia.ops.activity import ActivityMode
 
 
 def _create_llm_engine(
@@ -30,7 +32,13 @@ def _create_llm_engine(
     role: CognitiveModelRole | None = None,
 ):
     provider = create_llm_provider(
-        provider_configuration
+        provider_configuration,
+        keep_alive=(
+            lifecycle.policy.keep_alive
+            if lifecycle is not None
+            and provider_configuration.provider == "ollama"
+            else None
+        ),
     )
     engine = LLMCognitiveEngine(
         configuration=provider_configuration,
@@ -51,6 +59,9 @@ def _create_llm_engine(
 
 def create_model_lifecycle(
     configuration: SofiaConfiguration,
+    *,
+    ops_service: OpsToolService | None = None,
+    local_host_id: str | None = None,
 ) -> ModelLifecycleManager | None:
     if not configuration.model_lifecycle.enabled:
         return None
@@ -60,10 +71,20 @@ def create_model_lifecycle(
         for provider in selection.providers
     ):
         return None
+    gaming_observer = None
+    if ops_service is not None and local_host_id:
+        def observe_gaming() -> bool | None:
+            mode = ops_service.activity.state(local_host_id).effective
+            if mode is ActivityMode.UNKNOWN:
+                return None
+            return mode is ActivityMode.GAMING
+        gaming_observer = observe_gaming
     return ModelLifecycleManager(
         selection=selection,
         policy=configuration.model_lifecycle,
         backend=OllamaAdapter(),
+        resource_observer=collect_local_telemetry,
+        gaming_observer=gaming_observer,
     )
 
 

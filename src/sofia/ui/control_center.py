@@ -71,6 +71,7 @@ class TrayStatus:
     llm_secondary_residency: str | None = None
     cognitive_auto_manage: bool = False
     cognitive_idle_unload_seconds: int | None = None
+    cognitive_residency_mode: str | None = None
     llm_primary_host: str | None = None
     llm_secondary_host: str | None = None
     cognitive_last_route: str | None = None

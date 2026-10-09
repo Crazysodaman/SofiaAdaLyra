@@ -87,3 +87,16 @@ def test_ollama_generation_options_are_omitted_when_unconfigured():
 
     assert "options" not in client.kwargs
     assert "think" not in client.kwargs
+
+
+def test_ollama_chat_uses_the_lifecycle_keep_alive():
+    client = FakeOllamaClient()
+    provider = OllamaProvider(
+        ProviderConfiguration(provider="ollama", model="configured:model"),
+        client=client,
+        keep_alive="17m",
+    )
+
+    provider.respond(make_request())
+
+    assert client.kwargs["keep_alive"] == "17m"

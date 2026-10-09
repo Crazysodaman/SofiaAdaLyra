@@ -278,6 +278,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     cognitive_model_keep_alive = tk.StringVar(
         value=runtime.cognitive_model_keep_alive
     )
+    cognitive_model_residency_mode = tk.StringVar(
+        value=runtime.cognitive_model_residency_mode
+    )
 
     discord_enabled = tk.BooleanVar(value=runtime.discord_enabled)
     discord_owner = tk.StringVar(
@@ -548,6 +551,18 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         text="Automatically install missing configured models",
         variable=cognitive_model_auto_install,
     ).pack(anchor="w", pady=(0, 6))
+    ttk.Label(lifecycle_frame, text="Residency policy").pack(anchor="w")
+    ttk.Combobox(
+        lifecycle_frame,
+        textvariable=cognitive_model_residency_mode,
+        values=(
+            "resource_aware",
+            "fast_always_resident",
+            "dual_resident",
+            "on_demand",
+        ),
+        state="readonly",
+    ).pack(anchor="w", fill="x", pady=(2, 5))
     ttk.Label(
         lifecycle_frame,
         text="Unload after idle seconds",
@@ -1328,6 +1343,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 ),
                 cognitive_model_keep_alive=(
                     cognitive_model_keep_alive.get().strip()
+                ),
+                cognitive_model_residency_mode=(
+                    cognitive_model_residency_mode.get().strip()
                 ),
                 discord_enabled=bool(discord_enabled.get()),
                 discord_owner_user_id=_optional_int(

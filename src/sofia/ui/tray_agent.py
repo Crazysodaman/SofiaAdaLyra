@@ -383,6 +383,7 @@ class TrayAgentApplication:
             cognitive_idle_unload_seconds=(
                 lifecycle_policy.idle_unload_seconds
             ),
+            cognitive_residency_mode=lifecycle_policy.residency_mode,
             llm_primary_host=primary_host,
             llm_secondary_host=secondary_host,
             cognitive_last_route=last_route,

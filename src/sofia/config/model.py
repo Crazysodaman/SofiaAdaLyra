@@ -140,6 +140,7 @@ class ModelLifecycleConfiguration:
     auto_install_missing: bool = False
     idle_unload_seconds: int = 1800
     keep_alive: str = "10m"
+    residency_mode: str = "resource_aware"
 
     def __post_init__(self) -> None:
         if type(self.enabled) is not bool:
@@ -160,6 +161,16 @@ class ModelLifecycleConfiguration:
         ):
             raise ValueError(
                 "model lifecycle keep_alive must be a nonempty bounded string"
+            )
+        if self.residency_mode not in {
+            "on_demand",
+            "fast_always_resident",
+            "dual_resident",
+            "resource_aware",
+        }:
+            raise ValueError(
+                "model lifecycle residency_mode must be on_demand, "
+                "fast_always_resident, dual_resident, or resource_aware"
             )
 
 

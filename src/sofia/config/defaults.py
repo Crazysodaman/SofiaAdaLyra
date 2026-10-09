@@ -274,6 +274,10 @@ def _model_lifecycle_configuration_from_environ(
             default=user_settings.cognitive_model_idle_unload_seconds,
         ),
         keep_alive=keep_alive,
+        residency_mode=os.environ.get(
+            "SOFIA_COGNITION_MODEL_RESIDENCY_MODE",
+            user_settings.cognitive_model_residency_mode,
+        ).strip().casefold(),
     )
 
 

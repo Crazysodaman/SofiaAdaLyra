@@ -1,7 +1,24 @@
 # Cognition v2 architecture specification
 
-Status: Batch 4 Turn Kernel, ConversationFocus, Matrix v2, scheduler, and the
-subject-scoped evidence/truth layer are production-composed.
+Status: Batches 1–7 are production-composed, including resource-aware dual-model
+residency and concurrent role workers.
+
+## Batch 7 model lifecycle
+
+One `ModelLifecycleManager` now owns installation, explicit load/unload,
+request activity, idle reclamation, and reconciliation for both configured
+roles. The operator can select `on_demand`, `fast_always_resident`,
+`dual_resident`, or the default `resource_aware` mode in persistent settings.
+Ollama chat and explicit load use the same configured keep-alive.
+
+Resource-aware mode uses only observed host facts. It keeps both roles resident
+when installed model byte sizes and available RAM demonstrate capacity. Gaming,
+throttling, high CPU pressure, or insufficient RAM keeps the fast role resident
+and the primary role on demand. Missing sensors remain explicitly unknown and
+produce a conservative decision reason; GPU/VRAM capability is never invented.
+Busy-request accounting is authoritative, so reconciliation cannot unload a
+model during active inference. Every load and unload is checked against a fresh
+Ollama residency inventory before it is reported as successful.
 
 The application composes one `ProductionTurnKernel` for ordinary conversation
 and owner-direct tool turns. It owns turn sequencing, durable audience-scoped

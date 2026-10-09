@@ -25,7 +25,7 @@ from sofia.config.model import FleetCognitionConfiguration, FleetBootstrapConfig
 from sofia.act.outreach import Policy
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 6
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 7
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +107,7 @@ class RuntimeUserSettings:
     cognitive_model_auto_install: bool = True
     cognitive_model_idle_unload_seconds: int = 1800
     cognitive_model_keep_alive: str = "10m"
+    cognitive_model_residency_mode: str = "resource_aware"
 
     discord_enabled: bool = False
     discord_owner_user_id: int | None = None
@@ -236,6 +237,13 @@ class RuntimeUserSettings:
             raise ValueError(
                 "cognitive_model_keep_alive must be a nonempty bounded string"
             )
+        if self.cognitive_model_residency_mode not in {
+            "on_demand",
+            "fast_always_resident",
+            "dual_resident",
+            "resource_aware",
+        }:
+            raise ValueError("invalid cognitive model residency mode")
 
         for name in (
             "discord_enabled",
@@ -542,6 +550,8 @@ class RuntimeUserSettingsStore:
             data["fleet_discovery_max_hosts_per_scope"] = 256
         if version < 6:
             data["update_restart_mode"] = "automatic"
+        if version < 7:
+            data["cognitive_model_residency_mode"] = "resource_aware"
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["fleet_discovery_targets"] = tuple(
             data.get("fleet_discovery_targets", ())

@@ -14,6 +14,7 @@ from sofia.cognition.model_lifecycle import (
     LifecycleManagedCognitiveEngine,
     ModelLifecycleManager,
     ModelResidency,
+    ModelResidencyMode,
     ModelUnavailableError,
 )
 from sofia.cognition.routing import (
@@ -32,14 +33,18 @@ NOW = datetime(2026, 9, 29, 18, 0, tzinfo=timezone.utc)
 
 
 class Backend:
-    def __init__(self, *, installed=(), running=()):
+    def __init__(self, *, installed=(), running=(), sizes=None):
         self.installed=set(installed)
         self.resident=set(running)
+        self.sizes=dict(sizes or {})
         self.loads=[]
         self.unloads=[]
 
     def models(self):
-        return {"models":[{"name":name} for name in sorted(self.installed)]}
+        return {"models":[
+            {"name":name, **({"size": self.sizes[name]} if name in self.sizes else {})}
+            for name in sorted(self.installed)
+        ]}
 
     def running(self):
         return {"models":[{"name":name} for name in sorted(self.resident)]}
@@ -360,3 +365,90 @@ def test_verify_route_wakes_and_uses_both_lifecycle_managed_models():
         step.model for step in router.last_execution.successful_steps
     ) == (primary_name, secondary_name, primary_name)
     assert router.last_execution.verification_passes == 2
+
+
+class Telemetry:
+    def __init__(self, *, available_ram, cpu=10.0, throttled=False):
+        self.ram_total_bytes = available_ram + 1_000
+        self.ram_used_bytes = 1_000
+        self.cpu_percent = cpu
+        self.gpu_percent = None
+        self.vram_total_bytes = None
+        self.vram_used_bytes = None
+        self.throttled = throttled
+
+
+def test_resource_aware_keeps_both_models_resident_when_observed_ram_covers_sizes():
+    names = ("vendor/primary:any", "vendor/secondary:any")
+    backend = Backend(installed=names, sizes={name: 2_000 for name in names})
+    manager = ModelLifecycleManager(
+        selection=_selection(*names),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+        resource_observer=lambda: Telemetry(available_ram=5_000),
+    )
+
+    decision = manager.reconcile_residency(now=NOW)
+
+    assert decision.mode is ModelResidencyMode.RESOURCE_AWARE
+    assert decision.desired_roles == (
+        CognitiveModelRole.PRIMARY,
+        CognitiveModelRole.SECONDARY,
+    )
+    assert decision.loaded_models == names
+    assert backend.resident == set(names)
+
+
+def test_resource_aware_does_not_invent_capacity_when_ram_is_unobserved():
+    names = ("vendor/primary:any", "vendor/secondary:any")
+    backend = Backend(installed=names, sizes={name: 2_000 for name in names})
+    manager = ModelLifecycleManager(
+        selection=_selection(*names),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+    )
+
+    decision = manager.reconcile_residency(now=NOW)
+
+    assert decision.desired_roles == (CognitiveModelRole.SECONDARY,)
+    assert "unobserved" in decision.reasons[0]
+    assert backend.resident == {names[1]}
+
+
+def test_resource_pressure_never_unloads_active_inference():
+    names = ("vendor/primary:any", "vendor/secondary:any")
+    backend = Backend(
+        installed=names,
+        running=names,
+        sizes={name: 2_000 for name in names},
+    )
+    manager = ModelLifecycleManager(
+        selection=_selection(*names),
+        policy=ModelLifecycleConfiguration(enabled=True),
+        backend=backend,
+        resource_observer=lambda: Telemetry(available_ram=1_000),
+    )
+    manager.begin_use(CognitiveModelRole.PRIMARY, now=NOW)
+
+    decision = manager.reconcile_residency(now=NOW)
+
+    assert names[0] in backend.resident
+    assert "active" in " ".join(decision.reasons)
+
+
+def test_explicit_dual_residency_does_not_depend_on_unobserved_sensors():
+    names = ("vendor/primary:any", "vendor/secondary:any")
+    backend = Backend(installed=names)
+    manager = ModelLifecycleManager(
+        selection=_selection(*names),
+        policy=ModelLifecycleConfiguration(
+            enabled=True,
+            residency_mode="dual_resident",
+        ),
+        backend=backend,
+    )
+
+    decision = manager.reconcile_residency(now=NOW)
+
+    assert decision.desired_roles == manager.configured_roles
+    assert backend.resident == set(names)

@@ -6,6 +6,8 @@ from sofia.config.model import ProviderConfiguration
 
 def create_llm_provider(
     configuration: ProviderConfiguration,
+    *,
+    keep_alive: str | None = None,
 ) -> LLMProvider:
     """
     Construct the configured LLM provider adapter.
@@ -17,6 +19,7 @@ def create_llm_provider(
     if configuration.provider == "ollama":
         return OllamaProvider(
             configuration=configuration,
+            keep_alive=keep_alive,
         )
 
     raise ValueError(

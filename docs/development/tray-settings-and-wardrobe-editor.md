@@ -15,7 +15,7 @@ controls; the schema version is migration metadata.
 | ACT | Delivery enabled by default, desktop/Discord/Home Assistant channel, mute, notification service, explicit local quiet-hours selectors/timezone, intervals and category quotas | `ui_runtime_settings`; ACT policy and operational notice destination |
 | Fleet | Cognitive placement, fallback, resource limits, host lists, discovery controls, agent provisioning settings and enrolled-node inspection | Existing discovery preferences plus typed cognition/bootstrap preferences; production configuration and reviewed Fleet workflows |
 | Workloads | Game mode and service names | `ui_control_settings` and `ops_activity_override`; tray and service controller |
-| Models | Models, context sizes, thinking, routing, verification, residency management, installation, idle timeout, keep-alive, temperature, seed and maximum output tokens | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
+| Models | Models, context sizes, thinking, routing, verification, four-mode resource-aware residency management, installation, idle timeout, keep-alive, temperature, seed and maximum output tokens | `ui_runtime_settings`; provider, routing and model lifecycle configuration |
 | Integrations | Discord IDs/token and Home Assistant URL/token/entity selection | Nonsecret preferences in SQLite; tokens remain protected by Windows DPAPI |
 | Environment | Location, timezone, coordinates, subjects, NWS station/user agent and freshness intervals | Existing environment preferences and hot reload |
 | Avatar | Automatic routines; approved public daily outfit; current presentation and presets | Owner preferences plus canonical `avatar_presentation_state` |

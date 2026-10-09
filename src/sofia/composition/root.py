@@ -420,11 +420,16 @@ def compose(
         ),
     )
 
-    model_lifecycle = create_model_lifecycle(
-        configuration
-    )
     remote_inference_client = None
-    local_host_id = None
+    try:
+        local_host_id = create_machine_discovery().discover().identity.machine_id
+    except Exception:
+        local_host_id = None
+    model_lifecycle = create_model_lifecycle(
+        configuration,
+        ops_service=ops_service,
+        local_host_id=local_host_id,
+    )
     if configuration.fleet_cognition.enabled:
         remote_inference_client = create_configured_remote_inference_client(
             state_path
@@ -434,9 +439,10 @@ def compose(
                 "Fleet cognition is enabled but pinned-mTLS remote transport "
                 "is not configured"
             )
-        local_host_id = (
-            create_machine_discovery().discover().identity.machine_id
-        )
+        if local_host_id is None:
+            raise ValueError(
+                "Fleet cognition is enabled but local host identity could not be observed"
+            )
     cognitive_engine = create_cognitive_engine(
         configuration,
         lifecycle=model_lifecycle,

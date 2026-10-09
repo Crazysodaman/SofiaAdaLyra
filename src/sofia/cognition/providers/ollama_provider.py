@@ -30,9 +30,20 @@ from sofia.config.model import ProviderConfiguration
 class OllamaProvider(LLMProvider):
     """Translate Ollama generation options, messages and tool calls."""
 
-    def __init__(self, configuration: ProviderConfiguration, client: Client | None = None):
+    def __init__(
+        self,
+        configuration: ProviderConfiguration,
+        client: Client | None = None,
+        *,
+        keep_alive: str | None = None,
+    ):
         self.configuration = configuration
         self.client = client if client is not None else Client()
+        if keep_alive is not None and (
+            not isinstance(keep_alive, str) or not keep_alive.strip()
+        ):
+            raise ValueError("keep_alive must be a nonempty string or None")
+        self.keep_alive = keep_alive
 
     def respond(self, request: CognitiveRequest) -> CognitiveResponse:
         response = self._respond_once(request)
@@ -98,6 +109,8 @@ class OllamaProvider(LLMProvider):
         self, *, request: CognitiveRequest, messages: list[dict], tools: list[dict],
     ) -> dict:
         kwargs = {"model": self.configuration.model, "messages": messages}
+        if self.keep_alive is not None:
+            kwargs["keep_alive"] = self.keep_alive
         if tools:
             kwargs["tools"] = tools
         options = self._build_generation_options()
