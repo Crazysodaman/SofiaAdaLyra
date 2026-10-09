@@ -25,7 +25,9 @@ from sofia.cognition.matrix import (
     MatrixDomain,
     ResponseValidationDisposition,
 )
-from sofia.cognition.performance import emit_performance
+from sofia.cognition.performance import (
+    efficiency_snapshot, emit_performance, performance_trace_enabled,
+)
 from sofia.conversation.model import ConversationRole
 from sofia.conversation.store import ConversationStore
 from sofia.emotion.clarification import ClarificationJournal
@@ -367,6 +369,22 @@ class EmotionalConversationService(ConversationService):
                     emit_performance("conversation",
                         lock_wait_ms=(acquired - started) * 1000,
                         elapsed_ms=(monotonic() - started) * 1000)
+                    if performance_trace_enabled():
+                        metrics = efficiency_snapshot()
+                        emit_performance(
+                            "runtime",
+                            cache_hits=metrics.cache_hits,
+                            cache_misses=metrics.cache_misses,
+                            sqlite_queries=metrics.sqlite_queries,
+                            sqlite_writes=metrics.sqlite_writes,
+                            llm_calls=metrics.llm_calls,
+                            concurrent_model_calls=metrics.concurrent_model_calls,
+                            peak_concurrent_model_calls=(
+                                metrics.peak_concurrent_model_calls
+                            ),
+                            process_cpu_ms=metrics.process_cpu_ms,
+                            peak_rss_bytes=metrics.peak_rss_bytes,
+                        )
         finally:
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1

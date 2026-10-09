@@ -21,6 +21,7 @@ from time import perf_counter, process_time, sleep
 from typing import Callable
 
 from sofia.application import SofiaApplication
+from sofia.cognition.performance import efficiency_snapshot
 from sofia.config.model import ProviderConfiguration, SofiaConfiguration
 
 
@@ -113,6 +114,7 @@ def _database_counts(path: Path) -> dict[str, int]:
 
 def capture_baseline() -> dict[str, object]:
     """Run fixed control-path scenarios and return machine-readable evidence."""
+    efficiency_before = efficiency_snapshot()
     with tempfile.TemporaryDirectory(prefix="sofia-cognition-v2-baseline-") as raw:
         root = Path(raw)
         configuration = _configuration(root)
@@ -151,13 +153,11 @@ def capture_baseline() -> dict[str, object]:
             database = _database_counts(Path(configuration.state_path))
         finally:
             application.shutdown()
+    efficiency_after = efficiency_snapshot()
 
     unavailable = {
         "prompt_tokens": "deterministic test engine exposes no tokenizer counts",
         "generation_tokens": "deterministic test engine exposes no tokenizer counts",
-        "sqlite_operation_count": (
-            "current stores own separate connections and expose no shared counter"
-        ),
         "gpu_load": "no portable production GPU observer was active",
         "vram_bytes": "no portable production VRAM observer was active",
         "model_residency": "test engine has no Ollama residency",
@@ -181,6 +181,22 @@ def capture_baseline() -> dict[str, object]:
         "scenarios": scenarios,
         "idle_250ms": idle,
         "database": database,
+        "efficiency": {
+            "cache_hits": efficiency_after.cache_hits - efficiency_before.cache_hits,
+            "cache_misses": (
+                efficiency_after.cache_misses - efficiency_before.cache_misses
+            ),
+            "sqlite_queries": (
+                efficiency_after.sqlite_queries - efficiency_before.sqlite_queries
+            ),
+            "sqlite_writes": (
+                efficiency_after.sqlite_writes - efficiency_before.sqlite_writes
+            ),
+            "llm_calls": efficiency_after.llm_calls - efficiency_before.llm_calls,
+            "peak_concurrent_model_calls": (
+                efficiency_after.peak_concurrent_model_calls
+            ),
+        },
         "unavailable": unavailable,
         "interpretation": (
             "These values baseline application/Matrix/NEURO/context/persistence "

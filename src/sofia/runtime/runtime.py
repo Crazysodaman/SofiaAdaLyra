@@ -1,5 +1,5 @@
 """Foundational runtime lifecycle and canonical subsystem ownership."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from sofia.package_metadata import application_name, application_version
@@ -66,6 +66,7 @@ from sofia.personality.model import PersonalityProfile
 from sofia.personality.reflection_query import ReflectionQueryResolver
 from sofia.personality.store import PersonalityStore
 from sofia.runtime.evidence import project_matrix_evidence
+from sofia.runtime.hot_state import HotState, HotStateEntry
 from sofia.runtime.response import respond_with_runtime_context
 from sofia.runtime.model import RuntimeState
 from sofia.self_model.model import (
@@ -237,6 +238,8 @@ class SofiaRuntime:
         self._runtime_continuity: RuntimeContinuity | None = None
         self._workspace_changes: FilesystemChangeEvent | None = None
         self._pending_continuity_event: ContinuityEvent | None = None
+        self._hot_state = HotState(capacity=64)
+        self._runtime_revision = 0
 
     @property
     def state(self) -> RuntimeState:
@@ -388,6 +391,11 @@ class SofiaRuntime:
     def state_plane(self) -> StatePlane:
         return self._state_plane
 
+    @property
+    def hot_state(self) -> HotState:
+        """Return non-authoritative, revisioned runtime projections."""
+        return self._hot_state
+
 
     @property
     def environment_service(self) -> EnvironmentService:
@@ -463,12 +471,16 @@ class SofiaRuntime:
         ):
             return None
 
+        cached = self._hot_state.get("runtime:operational")
+        if cached is not None and isinstance(cached.value, OperationalState):
+            return cached.value
+
         model_selection = CognitiveModelSelection.from_configuration(
             self._configuration
         )
         provider_configuration = model_selection.primary
 
-        return OperationalState(
+        state = OperationalState(
             runtime_id=self._runtime_id,
             started_at=self._started_at,
             lifecycle_state=self._state.value,
@@ -477,6 +489,18 @@ class SofiaRuntime:
             provider=provider_configuration.provider,
             model=provider_configuration.model,
         )
+        now = datetime.now(timezone.utc)
+        self._hot_state.publish(
+            "runtime:operational",
+            HotStateEntry(
+                value=state,
+                revision=max(1, self._runtime_revision),
+                observed_at=now,
+                expires_at=now + timedelta(minutes=5),
+                source="runtime:lifecycle",
+            ),
+        )
+        return state
 
     @property
     def operational_self_model(
@@ -585,6 +609,8 @@ class SofiaRuntime:
             )
             self._filesystem_authorization = None
             self._state = RuntimeState.READY
+            self._runtime_revision += 1
+            self._hot_state.invalidate("runtime:operational")
 
             self._operational_store.record_started(
                 runtime_id=runtime_id,
@@ -869,6 +895,7 @@ class SofiaRuntime:
         self._core_state = None
         self._avatar_presentation = None
         self._environment_service.invalidate()
+        self._hot_state.invalidate("runtime:operational")
         self._runtime_id = None
         self._started_at = None
         self._runtime_continuity = None

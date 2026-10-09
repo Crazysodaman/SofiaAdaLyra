@@ -239,3 +239,43 @@ CPU time, prompt/generated tokens, model duration/residency, database reads and
 writes, cache hits, and observed resource pressure. Missing sensors stay
 unknown. Batch 1's CI-host baseline is in `cognition-v2-baseline.json`; it is a
 control-path baseline, not live Ollama evidence.
+
+## Batch 10 efficiency implementation
+
+The production Matrix context plan remains the relevance authority. Optional
+environment, memory, avatar, operational, continuity, relationship, habit,
+voice, goal, and filesystem projections are assembled only when the plan
+allows their domain. Identity, Constitution, grounding, authenticated
+principal/privacy, and personality rendering rules remain invariant rather
+than being treated as optional facts. Conversation history is bounded by the
+plan, and explicit old-turn retrieval is separately bounded and provenance
+linked.
+
+Ollama now receives route-sensitive context/output limits: FAST uses a 2,048
+token context target, STANDARD 4,096, DEEP/OPEN 8,192, and VERIFY 16,384. Every
+target is capped by the configured model limits. This changes allocation only;
+it cannot downgrade Matrix routing or VERIFY.
+
+`HotState` is a bounded LRU projection carrying `revision`, `observed_at`,
+`expires_at`, and `source`. Runtime operational state uses it in production.
+Expired or older projections are ignored, and publication wakes internal
+waiters. Canonical state remains in its owning service/SQLite record; HotState
+cannot write it back. External devices and providers retain periodic freshness
+polling because they cannot publish an in-process event reliably.
+
+`SQLiteAccess` centralizes WAL setup, foreign-key/busy policy, bounded open
+readers, a per-database write lock, transaction batching, required-index
+verification, and content-free counters. State Plane and KNOW index operations
+use this shared policy. Schemas and authority remain with their existing
+stores; no ORM or parallel database was introduced.
+
+Quality repair still permits at most one text-only retry and never re-executes
+tools. Long repair requests now retain all trusted SYSTEM grounding but only
+the latest eight dialogue messages. Deterministic V2 AnswerPlans continue to
+render before model invocation, avoiding a repair call entirely when host code
+already has the answer.
+
+Opt-in performance traces now cover route budgets, cache hits/misses, SQLite
+operations, LLM calls/concurrency, process CPU, and peak RSS in addition to
+provider load, prompt, generation, total duration, and token counters. GPU and
+VRAM remain explicitly unknown where the host has no trustworthy observer.

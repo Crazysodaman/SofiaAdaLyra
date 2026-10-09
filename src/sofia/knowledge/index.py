@@ -11,6 +11,8 @@ import re
 import sqlite3
 from typing import Callable
 
+from sofia.state.sqlite_access import shared_sqlite_access
+
 
 EmbeddingProvider = Callable[[str], tuple[float, ...]]
 
@@ -59,7 +61,8 @@ class KnowledgeIndex:
     ) -> None:
         self.path = Path(path)
         self.embedding_provider = embedding_provider
-        with closing(self._connect()) as db, db:
+        self._sqlite = shared_sqlite_access(self.path)
+        with self._sqlite.transaction(immediate=True, row_factory=sqlite3.Row) as db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS knowledge_section (
@@ -92,12 +95,14 @@ class KnowledgeIndex:
                 ON knowledge_graph_edge(entity);
                 """
             )
+        missing = self._sqlite.verify_indexes(
+            "idx_knowledge_section_document", "idx_knowledge_graph_entity",
+        )
+        if missing:
+            raise RuntimeError("knowledge index initialization missed required indexes")
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA busy_timeout=10000")
-        return db
+        return self._sqlite.connect(row_factory=sqlite3.Row)
 
     @staticmethod
     def make_section(
@@ -147,7 +152,7 @@ class KnowledgeIndex:
                     raise ValueError("embedding provider returned an invalid vector")
                 embeddings[item.section_id] = tuple(float(value) for value in vector)
         document_id = sections[0].document_id
-        with closing(self._connect()) as db, db:
+        with self._sqlite.transaction(immediate=True, row_factory=sqlite3.Row) as db:
             old_ids = tuple(
                 row[0] for row in db.execute(
                     "SELECT section_id FROM knowledge_section WHERE document_id=?",

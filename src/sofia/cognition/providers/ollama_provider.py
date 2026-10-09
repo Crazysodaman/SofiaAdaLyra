@@ -13,7 +13,10 @@ from sofia.cognition.model import (
     CognitiveToolCall,
     CognitiveToolDefinition,
 )
-from sofia.cognition.performance import emit_performance, ollama_metric
+from sofia.cognition.budgets import model_token_budget
+from sofia.cognition.performance import (
+    emit_performance, model_call_finished, model_call_started, ollama_metric,
+)
 from sofia.cognition.provider import LLMProvider, LLMProviderError
 from sofia.cognition.repetition_guard import (
     naturalize_embodied_semantics,
@@ -82,6 +85,7 @@ class OllamaProvider(LLMProvider):
         tools = [self._tool_to_ollama(tool) for tool in request.tools]
         kwargs = self._build_chat_kwargs(request=request, messages=messages, tools=tools)
         started = perf_counter()
+        model_call_started()
         try:
             response = self.client.chat(**kwargs)
         except ResponseError as exc:
@@ -90,8 +94,15 @@ class OllamaProvider(LLMProvider):
         except Exception as exc:
             emit_performance("ollama", elapsed_ms=(perf_counter() - started) * 1000)
             raise LLMProviderError("Ollama provider failed to process the cognitive request.") from exc
+        finally:
+            model_call_finished()
 
         elapsed_ms = (perf_counter() - started) * 1000
+        budget = model_token_budget(
+            request.route_hint,
+            configured_context=self.configuration.context_size,
+            configured_output=self.configuration.max_output_tokens,
+        )
         emit_performance(
             "ollama",
             elapsed_ms=elapsed_ms,
@@ -101,7 +112,9 @@ class OllamaProvider(LLMProvider):
             provider_total_ms=ollama_metric(response, "total_duration", duration=True),
             prompt_tokens=ollama_metric(response, "prompt_eval_count"),
             generated_tokens=ollama_metric(response, "eval_count"),
-            context_tokens=self.configuration.context_size,
+            context_tokens=budget.context_tokens,
+            context_budget=budget.context_tokens,
+            output_budget=budget.output_tokens,
         )
         return self._response_from_ollama(response)
 
@@ -113,23 +126,28 @@ class OllamaProvider(LLMProvider):
             kwargs["keep_alive"] = self.keep_alive
         if tools:
             kwargs["tools"] = tools
-        options = self._build_generation_options()
+        options = self._build_generation_options(request=request)
         if options:
             kwargs["options"] = options
         if self.configuration.thinking is not None:
             kwargs["think"] = self.configuration.thinking
         return kwargs
 
-    def _build_generation_options(self) -> dict:
+    def _build_generation_options(self, *, request: CognitiveRequest) -> dict:
         options: dict[str, int | float] = {}
         if self.configuration.temperature is not None:
             options["temperature"] = self.configuration.temperature
         if self.configuration.seed is not None:
             options["seed"] = self.configuration.seed
-        if self.configuration.context_size is not None:
-            options["num_ctx"] = self.configuration.context_size
-        if self.configuration.max_output_tokens is not None:
-            options["num_predict"] = self.configuration.max_output_tokens
+        budget = model_token_budget(
+            request.route_hint,
+            configured_context=self.configuration.context_size,
+            configured_output=self.configuration.max_output_tokens,
+        )
+        if budget.context_tokens is not None:
+            options["num_ctx"] = budget.context_tokens
+        if budget.output_tokens is not None:
+            options["num_predict"] = budget.output_tokens
         return options
 
     @staticmethod

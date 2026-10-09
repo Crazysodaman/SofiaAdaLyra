@@ -7,7 +7,94 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import dataclass
+from threading import Lock
+from time import process_time
 from typing import Any
+
+try:
+    import resource
+except ImportError:  # pragma: no cover - Windows
+    resource = None
+
+
+@dataclass(frozen=True)
+class EfficiencySnapshot:
+    cache_hits: int
+    cache_misses: int
+    sqlite_queries: int
+    sqlite_writes: int
+    llm_calls: int
+    concurrent_model_calls: int
+    peak_concurrent_model_calls: int
+    process_cpu_ms: float
+    peak_rss_bytes: int | None
+
+
+class _EfficiencyLedger:
+    def __init__(self) -> None:
+        self.lock = Lock()
+        self.cache_hits = self.cache_misses = 0
+        self.sqlite_queries = self.sqlite_writes = 0
+        self.llm_calls = self.concurrent_model_calls = 0
+        self.peak_concurrent_model_calls = 0
+
+    def snapshot(self) -> EfficiencySnapshot:
+        with self.lock:
+            usage = (
+                None if resource is None
+                else resource.getrusage(resource.RUSAGE_SELF)
+            )
+            rss = None if usage is None else int(usage.ru_maxrss)
+            if rss is not None and sys.platform != "darwin":
+                rss *= 1024
+            return EfficiencySnapshot(
+                self.cache_hits, self.cache_misses,
+                self.sqlite_queries, self.sqlite_writes,
+                self.llm_calls, self.concurrent_model_calls,
+                self.peak_concurrent_model_calls,
+                process_time() * 1000,
+                rss,
+            )
+
+
+_LEDGER = _EfficiencyLedger()
+
+
+def record_cache(*, hit: bool) -> None:
+    with _LEDGER.lock:
+        if hit:
+            _LEDGER.cache_hits += 1
+        else:
+            _LEDGER.cache_misses += 1
+
+
+def record_sqlite(*, write: bool) -> None:
+    with _LEDGER.lock:
+        _LEDGER.sqlite_queries += 1
+        if write:
+            _LEDGER.sqlite_writes += 1
+
+
+def model_call_started() -> None:
+    with _LEDGER.lock:
+        _LEDGER.llm_calls += 1
+        _LEDGER.concurrent_model_calls += 1
+        _LEDGER.peak_concurrent_model_calls = max(
+            _LEDGER.peak_concurrent_model_calls,
+            _LEDGER.concurrent_model_calls,
+        )
+
+
+def model_call_finished() -> None:
+    with _LEDGER.lock:
+        _LEDGER.concurrent_model_calls = max(
+            0, _LEDGER.concurrent_model_calls - 1,
+        )
+
+
+def efficiency_snapshot() -> EfficiencySnapshot:
+    return _LEDGER.snapshot()
 
 
 def performance_trace_enabled() -> bool:
@@ -28,8 +115,12 @@ def emit_performance(stage: str, **values: Any) -> None:
         "generated_tokens", "context_tokens",
         "route_code", "routing_score", "fallback_count",
         "verification_passes",
+        "cache_hits", "cache_misses", "sqlite_queries", "sqlite_writes",
+        "llm_calls", "concurrent_model_calls", "peak_concurrent_model_calls",
+        "process_cpu_ms", "peak_rss_bytes", "context_budget",
+        "output_budget",
     }
-    if stage not in {"conversation", "idle_reflection", "ollama", "router"}:
+    if stage not in {"conversation", "idle_reflection", "ollama", "router", "runtime"}:
         raise ValueError("Unsupported performance trace stage.")
     if set(values) - allowed:
         raise ValueError("Unsupported performance trace field.")

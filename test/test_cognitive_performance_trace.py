@@ -54,7 +54,8 @@ def test_opt_in_reports_provider_counters_but_never_content(monkeypatch, capsys)
     assert "[sofia-perf] ollama" in log
     for field in ("load_ms=2000.0", "prompt_eval_ms=3000.0",
                   "generation_ms=4000.0", "provider_total_ms=9000.0",
-                  "prompt_tokens=300", "generated_tokens=30", "context_tokens=20000"):
+                  "prompt_tokens=300", "generated_tokens=30", "context_tokens=20000",
+                  "context_budget=20000", "output_budget=unknown"):
         assert field in log
     assert "elapsed_ms=" in log
     assert "canary" not in log and "test-model" not in log

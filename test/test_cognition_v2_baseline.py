@@ -17,6 +17,10 @@ def test_cognition_v2_control_path_baseline_is_measured_without_fake_metrics():
     }
     assert baseline["database"]["conversation_messages"] == 8
     assert baseline["database"]["matrix_traces"] == 4
+    assert baseline["efficiency"]["sqlite_queries"] > 0
+    assert baseline["efficiency"]["sqlite_writes"] > 0
+    assert baseline["efficiency"]["cache_hits"] >= 0
+    assert "sqlite_operation_count" not in baseline["unavailable"]
     assert "live primary model was not invoked" in (
         baseline["unavailable"]["primary_model_inference"]
     )

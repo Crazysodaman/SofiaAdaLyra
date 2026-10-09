@@ -582,8 +582,21 @@ def build_rephrase_request(
             "and factual grounding."
         ),
     )
+    # Repair should not pay to replay an arbitrarily long conversation. Keep
+    # every system grounding message and only the latest bounded dialogue.
+    prefix = request.messages[:-1]
+    if len(prefix) > 12:
+        systems = tuple(
+            message for message in prefix
+            if message.role is CognitiveRole.SYSTEM
+        )
+        dialogue = tuple(
+            message for message in prefix
+            if message.role is not CognitiveRole.SYSTEM
+        )[-8:]
+        prefix = (*systems, *dialogue)
     return CognitiveRequest(
-        messages=(*request.messages[:-1], instruction, request.messages[-1]),
+        messages=(*prefix, instruction, request.messages[-1]),
         tools=(),
         allow_tools=False,
         route_hint=request.route_hint,

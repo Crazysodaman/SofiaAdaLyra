@@ -4,10 +4,10 @@ from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 import sqlite3
-from threading import RLock
 
 from sofia.state.model import StateClass, StateKey, StateRecord
 from sofia.state.plane import StatePlane, StatePlaneConflictError
+from sofia.state.sqlite_access import shared_sqlite_access
 
 
 class SQLiteStatePlane(StatePlane):
@@ -18,19 +18,14 @@ class SQLiteStatePlane(StatePlane):
     def __init__(self, database_path: Path | str) -> None:
         self.path = Path(database_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = RLock()
+        self._sqlite = shared_sqlite_access(self.path)
+        # State Plane compare-and-swap writes share the database-wide writer
+        # boundary with other migrated stores.
+        self._lock = self._sqlite.write_lock
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(
-            str(self.path),
-            timeout=10.0,
-            check_same_thread=False,
-        )
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA busy_timeout = 10000")
-        db.execute("PRAGMA foreign_keys = ON")
-        return db
+        return self._sqlite.connect(row_factory=sqlite3.Row)
 
     def _initialize(self) -> None:
         with self._lock, closing(self._connect()) as db, db:
