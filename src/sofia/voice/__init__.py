@@ -1,6 +1,5 @@
 """Voice runtime, TTS and expression planning."""
 from .factory import create_tts_service_from_environment
-from .matrix import VoiceMatrixEvaluator
 from .prosody_matrix import VoiceProsodyMatrix, VoiceProsodyPlan, VoiceProsodyProfile, VoiceUrgency
 from .sapi import WindowsSapiBackend
 from .tts import (
@@ -18,7 +17,6 @@ __all__ = [
     "TTSPlaybackState",
     "TTSStatus",
     "TextToSpeechService",
-    "VoiceMatrixEvaluator",
     "VoiceProsodyMatrix",
     "VoiceProsodyPlan",
     "VoiceProsodyProfile",

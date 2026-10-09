@@ -2,13 +2,7 @@
 
 import pytest
 
-from sofia.authority.matrix import AuthorityMatrixEvaluator
 from sofia.authority.model import Authority
-from sofia.cognition.matrix.model import (
-    MatrixDomain,
-    MatrixIntent,
-    MatrixRelevance,
-)
 
 
 def test_authority_defaults_to_response_and_proposal() -> None:
@@ -184,34 +178,3 @@ def test_capability_lookup_rejects_surrounding_whitespace(
 
     with pytest.raises(ValueError, match="surrounding"):
         authority.can_use_capability(capability)
-
-
-
-def test_authority_matrix_evaluator_enforces_action_request_invariant() -> None:
-    turn = type(
-        "Turn",
-        (),
-        {"intent": MatrixIntent.ACTION_REQUEST},
-    )()
-
-    contribution = AuthorityMatrixEvaluator().evaluate(
-        object(),
-        turn,
-    )
-
-    assert contribution is not None
-    assert contribution.domain is MatrixDomain.AUTHORITY
-    assert contribution.relevance is MatrixRelevance.REQUIRED
-
-
-def test_authority_matrix_evaluator_ignores_non_action_turns() -> None:
-    turn = type(
-        "Turn",
-        (),
-        {"intent": MatrixIntent.GENERAL},
-    )()
-
-    assert AuthorityMatrixEvaluator().evaluate(
-        object(),
-        turn,
-    ) is None

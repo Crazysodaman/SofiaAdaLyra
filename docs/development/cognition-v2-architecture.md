@@ -1,8 +1,27 @@
 # Cognition v2 architecture specification
 
-Status: Batches 1–9 are production-composed, including resource-aware dual-model
-residency, concurrent role workers, and one authoritative cognition status
-projection.
+Status: Batches 1–12 are production-composed. The Turn Kernel and Matrix v2 are
+the sole semantic coordinator; resource-aware dual-model residency, concurrent
+role workers, one authoritative cognition status projection, typed domain
+answers, and personality-after-truth are live in the normal application path.
+
+## Batch 12 production cutover
+
+Every ordinary, owner-direct, guarded interaction, clarification, and live-offer
+turn now enters the application-owned `ProductionTurnKernel`. Its `TurnPlan`
+alone determines intent, domains, history policy, evidence needs, action class,
+response strategy, and cognitive route. The former phrase classifier, evaluator
+registry, package evaluators, Matrix coordinator, evidence planner, and routing
+planner have been deleted. Traces contain one completed schema-v2 decision and
+are no longer written as shadow decisions.
+
+The remaining `sofia.cognition.matrix` package is intentionally a host safeguard
+layer, not a second semantic planner. It projects the authoritative v2 plan into
+the established privacy, context-window, authority, capability-exposure,
+evidence-resolution, response-validation, and diagnostic contracts. Those
+contracts cannot broaden the plan, grant execution, manufacture evidence, or
+downgrade VERIFY. Historical Batch 1–3 passages below describe their state at
+those checkpoints and are superseded by this section.
 
 ## Batch 9 KNOW v2
 
@@ -58,11 +77,10 @@ Ollama residency inventory before it is reported as successful.
 The application composes one `ProductionTurnKernel` for ordinary conversation
 and owner-direct tool turns. It owns turn sequencing, durable audience-scoped
 discourse focus, and a validated Matrix v2 plan. The cognitive scheduler turns
-that plan into dependency-ordered work and bounded budgets. Existing Matrix v1
-context/evidence/authority adapters remain temporarily downstream while their
-owners migrate in Batches 4–5 and 12; Matrix v2 is authoritative for the
-cognitive route. V2 does not create a second conversation engine or authority
-path.
+that plan into dependency-ordered work and bounded budgets. The retained
+context/authority/privacy/tool/response adapters are deterministic safeguards
+projected from Matrix v2, not Matrix v1 semantic owners. V2 does not create a
+second conversation engine or authority path.
 
 ## Invariants
 

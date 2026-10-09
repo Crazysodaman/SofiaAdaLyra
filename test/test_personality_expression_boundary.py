@@ -8,8 +8,8 @@ from sofia.personality.expression import personality_expression_guidance
 from sofia.personality.model import PersonalityProfile
 from sofia.personality.influence import ContinuityInfluence
 from sofia.personality.modulation import derive_expression_modulation
-from sofia.cognition.matrix import MatrixCoordinator, TurnEnvelope
-from sofia.cognition.matrix.defaults import default_matrix_registry
+from test.matrix_v2_support import V2MatrixCoordinator as MatrixCoordinator, v2_registry as default_matrix_registry
+from sofia.cognition.matrix import TurnEnvelope
 from sofia.neuro.model import (
     HomeostaticState,
     NeuralActivation,

@@ -84,6 +84,24 @@ class ProjectionAnswerCoordinator:
     def _environment(self, plan, need, query) -> ValidatedAnswerDraft | None:
         resolver = self.runtime._environment_query_resolver
         if not resolver.might_match(query):
+            if re.search(r"\bweather\b", query, re.IGNORECASE):
+                atom = self._unknown_atom(
+                    need,
+                    source="environment:service",
+                    expires_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+                )
+                answer = self.claim_validator.validate(
+                    self.claim_planner.build(plan, (atom,)), (atom,)
+                )
+                return ValidatedAnswerDraft(
+                    answer=answer,
+                    content=(
+                        "I don't have current weather evidence to ground how "
+                        "it would influence my delivery, so I won't invent an effect."
+                    ),
+                    evidence_refs=(atom.evidence_id,),
+                    domain="environment",
+                )
             return None
         snapshot = self.runtime.environment_service.snapshot(
             refresh_providers=environment_details_relevant(query),

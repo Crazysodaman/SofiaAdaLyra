@@ -565,7 +565,9 @@ class MatrixTrace:
     response_validation: ResponseValidation | None = None
     routing: RoutingPlan | None = None
     cognition_execution: CognitionExecutionTrace | None = None
-    shadow: bool = True
+    # Retained for backward-compatible decoding of historical trace rows.
+    # Production v2 writes completed traces only.
+    shadow: bool = False
     context_active: bool = False
 
     def __post_init__(self) -> None:

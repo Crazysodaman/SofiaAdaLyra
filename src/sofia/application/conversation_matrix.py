@@ -16,35 +16,37 @@ from sofia.cognition.matrix import (
     CognitionExecutionTrace,
     ContextPlan,
     EvidenceMatrix,
+    EvidenceKind,
+    EvidenceRequirement,
     EvidenceRecord,
     EvidenceState,
     HistoryPolicy,
     MatrixAuthorityPlanner,
     MatrixContextPlanner,
-    MatrixCoordinator,
+    MatrixConfidence,
     MatrixDomain,
-    MatrixEvidencePlanner,
     MatrixEvidenceResolver,
+    MatrixIntent,
     MatrixResponsePlanner,
     MatrixResponseValidator,
     MatrixRelevance,
     MatrixRoute,
-    MatrixRoutingPlanner,
     MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
     MatrixTrace,
     MatrixTraceStore,
     ResponseContract,
+    ResponseStrategy,
     ResponseValidation,
     ResponseValidationDisposition,
     RoutingPlan,
     PrivacyProjectionPlan,
     ToolExposurePlan,
+    DomainContribution,
     TurnEnvelope,
     TurnMatrix,
 )
-from sofia.cognition.matrix.defaults import default_matrix_registry
-from sofia.cognition.v2 import ReasoningRequirement, TurnPlan
+from sofia.cognition.v2 import ActionRequirement, ReasoningRequirement, TurnPlan
 from sofia.social.model import PrincipalContext
 from sofia.neuro import NeuroWakeMode
 from sofia.voice.tts import TTSStatus
@@ -75,6 +77,7 @@ def _matrix_context_window(
         or plan.history_policy in {
             HistoryPolicy.NONE,
             HistoryPolicy.RETRIEVE_SPECIFIC,
+            HistoryPolicy.BOUNDED_RECENT,
         }
     ):
         return bounded
@@ -206,20 +209,173 @@ def _apply_focus_tool_scope(
     )
 
 
+_V2_INTENTS = {
+    "general": MatrixIntent.GENERAL,
+    "general_query": MatrixIntent.GENERAL,
+    "social": MatrixIntent.GENERAL,
+    "social_checkin": MatrixIntent.SOCIAL_CHECKIN,
+    "environment_query": MatrixIntent.ENVIRONMENT_QUERY,
+    "avatar_query": MatrixIntent.AVATAR_QUERY,
+    "memory_query": MatrixIntent.MEMORY_QUERY,
+    "reflection_query": MatrixIntent.MEMORY_QUERY,
+    "interaction_followup": MatrixIntent.INTERACTION_FOLLOWUP,
+    "operational_query": MatrixIntent.OPERATIONAL_QUERY,
+    "operational_context": MatrixIntent.OPERATIONAL_QUERY,
+    "action_request": MatrixIntent.ACTION_REQUEST,
+    "goal_management": MatrixIntent.GOAL_MANAGEMENT,
+    "verification": MatrixIntent.OPERATIONAL_QUERY,
+}
+_V2_STRATEGIES = {
+    "deterministic": ResponseStrategy.DETERMINISTIC,
+    "generative": ResponseStrategy.GENERATIVE,
+    "hybrid": ResponseStrategy.HYBRID,
+    "tool-assisted": ResponseStrategy.TOOL_ASSISTED,
+    "clarify": ResponseStrategy.CLARIFY,
+}
+_FOLLOWUP_WORDS = frozenset({
+    "again", "figures", "her", "him", "it", "reflection", "stats",
+    "that", "them", "those", "well", "why", "more", "all", "change",
+    "changing", "quiet", "seem",
+})
+
+
+def _v2_history_policy(plan: TurnPlan, content: str) -> HistoryPolicy:
+    """Derive prompt history from the authoritative v2 plan."""
+    words = tuple(
+        token.strip(".,!?;:'\"()[]{}").casefold()
+        for token in content.split()
+        if token.strip(".,!?;:'\"()[]{}")
+    )
+    if plan.intent == "goal_management":
+        return HistoryPolicy.NONE
+    if plan.intent == "interaction_followup":
+        return HistoryPolicy.LAST_TURN
+    if {"environment", "emotion"} <= set(plan.domains):
+        return HistoryPolicy.NONE
+    if plan.intent == "memory_query" and any(
+        marker in content.casefold()
+        for marker in (
+            "what did i say", "what have i said", "earlier", "in this chat",
+        )
+    ):
+        return HistoryPolicy.RETRIEVE_SPECIFIC
+    if (
+        words[:2] == ("do", "it")
+        or (len(words) <= 5 and bool(set(words) & _FOLLOWUP_WORDS))
+    ):
+        return HistoryPolicy.LAST_TURN
+    if plan.intent in {
+        "environment_query", "operational_query", "verification", "avatar_query",
+        "social_checkin",
+    }:
+        return HistoryPolicy.NONE
+    if plan.action_requirement is not ActionRequirement.NONE:
+        return HistoryPolicy.BOUNDED_RECENT
+    return HistoryPolicy.BOUNDED_RECENT
+
+
+def _v2_safeguard_turn(plan: TurnPlan, content: str) -> TurnMatrix:
+    """Project one v2 semantic plan into retained deterministic safeguards."""
+    domain_values = list(plan.domains)
+    if (
+        plan.action_requirement is not ActionRequirement.NONE
+        and plan.action_requirement is not ActionRequirement.READ_ONLY
+        and "authority" not in domain_values
+    ):
+        domain_values.append("authority")
+    evidence_domains = {
+        need.predicate.split(".", 1)[0] for need in plan.evidence_needs
+    }
+    domains = tuple(
+        DomainContribution(
+            MatrixDomain(value),
+            (
+                MatrixRelevance.CONTEXTUAL
+                if value == "social" and plan.intent in {"general", "general_query"}
+                else MatrixRelevance.REQUIRED
+                if value in evidence_domains
+                or value in {"goals", "authority"}
+                or value in set(plan.domains)
+                else MatrixRelevance.RELEVANT
+            ),
+            "authoritative Cognition v2 turn plan",
+        )
+        for value in domain_values
+        if value in MatrixDomain._value2member_map_
+    )
+    return TurnMatrix(
+        intent=_V2_INTENTS.get(plan.intent, MatrixIntent.GENERAL),
+        confidence=MatrixConfidence.HIGH,
+        history_policy=_v2_history_policy(plan, content),
+        response_strategy=_V2_STRATEGIES.get(
+            plan.response_strategy,
+            ResponseStrategy.GENERATIVE,
+        ),
+        domains=domains,
+        ambiguous=plan.action_requirement is ActionRequirement.CLARIFY,
+        schema_version=2,
+    )
+
+
+def _v2_evidence_matrix(plan: TurnPlan) -> EvidenceMatrix:
+    """Translate typed v2 needs for the retained host evidence resolver."""
+    requirements: list[EvidenceRequirement] = []
+    seen: set[str] = set()
+    for need in plan.evidence_needs:
+        prefix = need.predicate.split(".", 1)[0]
+        key = (
+            "operational.measurement"
+            if prefix in {"machine", "ops", "body"}
+            else "relationship.prior_contact"
+            if prefix == "relationship"
+            else need.predicate
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        kind = (
+            EvidenceKind.MEASURED
+            if prefix in {"machine", "ops", "body"}
+            else EvidenceKind.REMEMBERED
+            if prefix in {"memory", "knowledge", "relationship", "habit"}
+            else EvidenceKind.CANONICAL
+            if prefix in {"avatar", "cognition"}
+            else EvidenceKind.CURRENT
+        )
+        requirements.append(EvidenceRequirement(
+            key,
+            kind,
+            not (
+                (
+                    key == "operational.measurement"
+                    and plan.action_requirement is ActionRequirement.MUTATION
+                )
+                # These domains either have a dedicated downstream grounding
+                # boundary or may produce harmless non-factual prose. The v2
+                # need still drives acquisition/tool exposure; the retained
+                # response validator must not reject every draft merely because
+                # a sensor/interpretation/status lookup is unavailable.
+                or prefix in {"body", "interaction", "goals"}
+            ),
+        ))
+    if plan.action_requirement is not ActionRequirement.NONE:
+        requirements.append(EvidenceRequirement(
+            "action.execution_receipt",
+            EvidenceKind.EXECUTION_RECEIPT,
+            False,
+        ))
+    return EvidenceMatrix(tuple(requirements), ())
+
+
 class ConversationMatrixMixin:
     """Matrix planning/trace/validation support for conversation services."""
 
     def _initialize_matrix_state(self) -> None:
-        self._matrix_coordinator = MatrixCoordinator(
-            registry=default_matrix_registry()
-        )
         self._matrix_context_planner = MatrixContextPlanner()
-        self._matrix_evidence_planner = MatrixEvidencePlanner()
         self._matrix_evidence_resolver = MatrixEvidenceResolver()
         self._matrix_authority_planner = MatrixAuthorityPlanner()
         self._matrix_response_planner = MatrixResponsePlanner()
         self._matrix_response_validator = MatrixResponseValidator()
-        self._matrix_routing_planner = MatrixRoutingPlanner()
         self._matrix_privacy_planner = MatrixPrivacyPlanner(
             self._runtime.configuration.state_path
         )
@@ -512,14 +668,14 @@ class ConversationMatrixMixin:
             if item.relevance is not MatrixRelevance.NONE
         )
 
-    def _record_shadow_matrix(
+    def _project_v2_safeguards(
         self,
         *,
         message: ConversationMessage,
         principal: PrincipalContext | None,
         channel: str,
     ) -> None:
-        """Plan the live matrix independently from best-effort trace persistence."""
+        """Project the sole v2 semantic plan into retained host safeguards."""
         previous_turn = getattr(self, "_current_turn_matrix", None)
         previous_exposure = getattr(self, "_current_tool_exposure_plan", None)
         self._reset_matrix_turn()
@@ -562,13 +718,14 @@ class ConversationMatrixMixin:
                 ),
                 channel=channel,
             )
-            turn = self._matrix_coordinator.evaluate(envelope)
+            coordinated = getattr(self, "_current_coordinated_turn", None)
+            plan = None if coordinated is None else coordinated.plan
+            if not isinstance(plan, TurnPlan):
+                raise RuntimeError("Cognition v2 did not produce a TurnPlan")
+            turn = _v2_safeguard_turn(plan, message.content)
             turn = _inherit_last_turn_domains(turn, prior_turn)
             context_plan = self._matrix_context_planner.plan(turn)
-            evidence_requirements = self._matrix_evidence_planner.plan(
-                turn,
-                envelope,
-            )
+            evidence_requirements = _v2_evidence_matrix(plan)
             availability = self._runtime.matrix_evidence_availability(
                 required_keys=tuple(
                     item.key
@@ -611,9 +768,16 @@ class ConversationMatrixMixin:
                 evidence,
                 authority_plan,
             )
-            routing_plan = self._matrix_routing_planner.plan(
-                envelope,
-                turn,
+            route_by_requirement = {
+                ReasoningRequirement.DETERMINISTIC: MatrixRoute.FAST,
+                ReasoningRequirement.FAST: MatrixRoute.FAST,
+                ReasoningRequirement.STANDARD: MatrixRoute.STANDARD,
+                ReasoningRequirement.DEEP: MatrixRoute.DEEP,
+                ReasoningRequirement.VERIFY: MatrixRoute.VERIFY,
+            }
+            routing_plan = RoutingPlan(
+                route_by_requirement[plan.reasoning_requirement],
+                "authoritative Cognition v2 reasoning requirement",
             )
         except Exception as exc:
             # Planning failure must not broaden provider context. Keep chat
@@ -644,27 +808,9 @@ class ConversationMatrixMixin:
         self._current_routing_plan = routing_plan
         self._last_matrix_error = trace_error
 
-        if store is None:
-            return
-        try:
-            store.record(
-                MatrixTrace(
-                    envelope=envelope,
-                    turn=turn,
-                    context=context_plan,
-                    evidence=evidence,
-                    authority=authority_plan,
-                    privacy=privacy_plan,
-                    tool_exposure=tool_exposure_plan,
-                    response_contract=response_contract,
-                    routing=routing_plan,
-                    created_at=datetime.now(timezone.utc),
-                    shadow=True,
-                    context_active=True,
-                )
-            )
-        except Exception as exc:
-            self._last_matrix_error = "trace-write:" + type(exc).__name__
+        # Persist only the completed turn below. The former pre-response
+        # "shadow" trace duplicated lifecycle state and could be mistaken for
+        # a second cognition authority.
 
     def _record_current_matrix_trace(self) -> None:
         store = getattr(self, "_matrix_trace_store", None)

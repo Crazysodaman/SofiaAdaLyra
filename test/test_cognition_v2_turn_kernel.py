@@ -79,6 +79,37 @@ def test_kernel_preserves_reference_across_required_elliptical_sequence(tmp_path
     )
 
 
+def test_required_acceptance_conversation_preserves_and_corrects_subject(tmp_path):
+    kernel = _kernel(tmp_path / "sofia.db")
+    sequence = (
+        "So what are you thinking?",
+        "What reflection?",
+        "Can you see Artemis?",
+        "What are her stats?",
+        "What's her CPU?",
+        "Do it.",
+        "Give me the figures.",
+        "Well?",
+        "Those stats belong to Venus, not Artemis.",
+        "Can you actually verify Artemis?",
+    )
+
+    turns = tuple(
+        _coordinate(kernel, content, index)
+        for index, content in enumerate(sequence, start=1)
+    )
+
+    assert turns[2].focus.primary_reference.subject_id == "fleet-node:artemis"
+    assert all(
+        turn.focus.primary_reference.subject_id == "fleet-node:artemis"
+        for turn in turns[3:8]
+    )
+    assert turns[8].focus.primary_reference.subject_id == "fleet-node:venus"
+    assert turns[8].resolution.corrected_subject_id == "fleet-node:artemis"
+    assert turns[9].focus.primary_reference.subject_id == "fleet-node:artemis"
+    assert turns[9].plan.reasoning_requirement.value == "verify"
+
+
 def test_kernel_sequences_planning_before_attention(tmp_path):
     events = []
     coordinated = _coordinate(

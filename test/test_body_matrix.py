@@ -1,8 +1,7 @@
 from datetime import datetime, timezone
 
-from sofia.body.matrix import BodyMatrixEvaluator
+from test.matrix_v2_support import V2TurnClassifier as BaselineTurnClassifier
 from sofia.cognition.matrix import (
-    BaselineTurnClassifier,
     MatrixDomain,
     MatrixRelevance,
     TurnEnvelope,
@@ -27,15 +26,11 @@ def test_body_matrix_requires_body_domain_for_hexapod_context():
     envelope = _envelope("Explain the Gaia hexapod servo limits.")
     turn = BaselineTurnClassifier().classify(envelope)
 
-    contribution = BodyMatrixEvaluator().evaluate(envelope, turn)
-
-    assert contribution is not None
-    assert contribution.domain is MatrixDomain.BODY
-    assert contribution.relevance is MatrixRelevance.REQUIRED
+    assert turn.relevance_for(MatrixDomain.BODY) is MatrixRelevance.REQUIRED
 
 
 def test_body_matrix_ignores_unrelated_chat():
     envelope = _envelope("How are you?")
     turn = BaselineTurnClassifier().classify(envelope)
 
-    assert BodyMatrixEvaluator().evaluate(envelope, turn) is None
+    assert turn.relevance_for(MatrixDomain.BODY) is MatrixRelevance.NONE

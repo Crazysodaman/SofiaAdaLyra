@@ -97,7 +97,8 @@ class ValidatedCognitiveScheduler:
         if not isinstance(evidence_needs, tuple):
             raise TypeError("evidence_needs must be tuple")
         if response_strategy not in {
-            "clarify", "deterministic", "generative", "tool-assisted",
+            "clarify", "deterministic", "generative", "hybrid",
+            "tool-assisted",
         }:
             raise ValueError("unsupported response_strategy")
         tasks = []

@@ -3,17 +3,19 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from test.matrix_v2_support import (
+    V2MatrixCoordinator as MatrixCoordinator,
+    v2_registry as default_matrix_registry,
+)
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
-    MatrixCoordinator,
     MatrixDomain,
     MatrixIntent,
     MatrixRelevance,
     MatrixToolExposurePlanner,
     TurnEnvelope,
 )
-from sofia.cognition.matrix.defaults import default_matrix_registry
 
 
 NOW = datetime(2026, 10, 2, 21, 0, tzinfo=timezone.utc)
@@ -130,7 +132,9 @@ def test_ordinary_service_restart_remains_ops():
     )
 
     assert turn.intent is MatrixIntent.ACTION_REQUEST
-    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.RELEVANT
+    # V2 requires current OPS evidence for an operational mutation target;
+    # authority is still evaluated separately.
+    assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.REQUIRED
     assert turn.relevance_for(MatrixDomain.DEV) is MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.KNOW) is MatrixRelevance.NONE
     assert turn.relevance_for(MatrixDomain.INTEGRATE) is MatrixRelevance.NONE

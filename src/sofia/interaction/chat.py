@@ -485,13 +485,9 @@ class InteractiveConversationService(EmotionalConversationService):
                     message=user,
                     principal=principal,
                 )
-                self._record_shadow_matrix(
+                self._coordinate_turn(
                     message=user,
                     principal=principal,
-                    channel=channel,
-                )
-                self._observe_neuro_turn(
-                    message=user,
                     channel=channel,
                 )
                 if command is not None or stopped_gesture:

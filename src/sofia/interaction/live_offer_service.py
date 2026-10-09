@@ -125,20 +125,13 @@ def respond_staged_offer(
                     message=user,
                     principal=principal,
                 )
-            record_matrix = getattr(
-                service,
-                "_record_shadow_matrix",
-                None,
-            )
-            if record_matrix is not None:
-                record_matrix(
+            coordinate_turn = getattr(service, "_coordinate_turn", None)
+            if coordinate_turn is not None:
+                coordinate_turn(
                     message=user,
                     principal=principal,
                     channel=channel,
                 )
-            observe_neuro = getattr(service, "_observe_neuro_turn", None)
-            if observe_neuro is not None:
-                observe_neuro(message=user, channel=channel)
             intent = parse_user_action(user.content, message_id=user.id)
             if (intent is None or intent.modality != 'offered'
                     or intent.action_id != 'hug'):

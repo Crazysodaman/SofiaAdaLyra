@@ -5,19 +5,21 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from sofia.application.conversation_service import ConversationService
+from test.matrix_v2_support import v2_evidence
+from test.matrix_v2_support import (
+    V2MatrixCoordinator as MatrixCoordinator,
+    v2_registry as default_matrix_registry,
+)
 from sofia.cognition.matrix import (
     ContextPlan,
     EvidenceKind,
     HistoryPolicy,
     MatrixContextPlanner,
-    MatrixCoordinator,
     MatrixDomain,
-    MatrixEvidencePlanner,
     MatrixPrivacyPlanner,
     MatrixRelevance,
     TurnEnvelope,
 )
-from sofia.cognition.matrix.defaults import default_matrix_registry
 from sofia.conversation.model import (
     ConversationMessage,
     ConversationRole,
@@ -90,10 +92,7 @@ def test_relationship_question_is_first_class_required_domain():
     plan = MatrixContextPlanner().plan(turn)
     assert MatrixDomain.REL in plan.included_domains
 
-    evidence = MatrixEvidencePlanner().plan(
-        turn,
-        envelope("How long was I gone?"),
-    )
+    evidence = v2_evidence(envelope("How long was I gone?"))
     requirement = next(
         item
         for item in evidence.requirements
@@ -103,17 +102,15 @@ def test_relationship_question_is_first_class_required_domain():
     assert requirement.required is True
 
 
-def test_social_checkin_can_use_relationship_context_without_requiring_history():
+def test_social_checkin_does_not_require_relationship_history():
     turn = coordinator().evaluate(envelope("hru"))
 
-    assert turn.relevance_for(MatrixDomain.REL) is MatrixRelevance.CONTEXTUAL
-    evidence = MatrixEvidencePlanner().plan(turn, envelope("hru"))
-    requirement = next(
-        item
+    assert turn.relevance_for(MatrixDomain.REL) is MatrixRelevance.NONE
+    evidence = v2_evidence(envelope("hru"))
+    assert all(
+        item.key != "relationship.prior_contact"
         for item in evidence.requirements
-        if item.key == "relationship.prior_contact"
     )
-    assert requirement.required is False
 
 
 def test_explicit_routine_language_is_first_class_habit_domain():
@@ -125,10 +122,7 @@ def test_explicit_routine_language_is_first_class_habit_domain():
     plan = MatrixContextPlanner().plan(turn)
     assert MatrixDomain.HABIT in plan.included_domains
 
-    evidence = MatrixEvidencePlanner().plan(
-        turn,
-        envelope("You know I normally get home around 5"),
-    )
+    evidence = v2_evidence(envelope("You know I normally get home around 5"))
     requirement = next(
         item
         for item in evidence.requirements

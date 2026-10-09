@@ -32,7 +32,6 @@ _SUPPORTED = {
     "machine.gpu": ("gpu",),
     "machine.memory_bytes": ("memory_bytes",),
     "machine.storage": ("storage",),
-    "machine.hardware": ("hardware",),
     "ops.cpu_percent": ("cpu_percent",),
 }
 

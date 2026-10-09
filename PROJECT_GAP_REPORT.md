@@ -21,6 +21,15 @@ It distinguishes:
 
 # Executive summary
 
+> **Superseding cognition status — 2026-10-09:** Executive items 4 and 5 below
+> were findings from the 2026-10-02 audit and are closed in source by Cognition
+> v2 Batch 12. The Turn Kernel/Matrix v2 plan is the sole production semantic
+> coordinator; the v1 classifier, coordinator, evaluator registry/package
+> evaluators, evidence planner, and routing planner have been removed. Retained
+> Matrix modules enforce privacy, authority, tool exposure, evidence resolution,
+> response validation, and diagnostics downstream of that one plan. Live
+> Windows and real dual-Ollama acceptance remain separate deployment evidence.
+
 Sofía has a substantial architecture. The major gaps are no longer “missing packages.” They are concentrated in:
 
 1. **current verification is red;**

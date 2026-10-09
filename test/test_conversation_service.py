@@ -709,19 +709,19 @@ def test_conversation_records_active_matrix_trace_before_persistence(
         application.shutdown()
 
 
-def test_matrix_shadow_failure_never_breaks_conversation(
+def test_v2_safeguard_projection_failure_never_broadens_conversation(
     tmp_path: Path,
     monkeypatch,
 ):
     application = create_application(tmp_path)
     application.start()
 
-    def fail(_envelope):
-        raise RuntimeError("synthetic shadow failure")
+    def fail(_turn):
+        raise RuntimeError("synthetic safeguard projection failure")
 
     monkeypatch.setattr(
-        application.conversation._matrix_coordinator,
-        "evaluate",
+        application.conversation._matrix_context_planner,
+        "plan",
         fail,
     )
     try:
@@ -1203,25 +1203,28 @@ def test_matrix_context_window_filters_excluded_domains_across_history_policies(
         current_message_id="current-u",
     )
 
-    assert tuple(message.id for message in visible) == (
-        "social-u",
-        "social-a",
-        "current-u",
+    expected = (
+        ("env-u", "env-a", "social-u", "social-a", "current-u")
+        if history_policy is HistoryPolicy.BOUNDED_RECENT
+        else ("social-u", "social-a", "current-u")
     )
+    assert tuple(message.id for message in visible) == expected
 
 
 def test_last_turn_followup_inherits_prior_semantic_domains_as_context_only():
     from datetime import datetime, timezone
 
     from sofia.application.conversation_matrix import _inherit_last_turn_domains
+    from test.matrix_v2_support import (
+        V2MatrixCoordinator as MatrixCoordinator,
+        v2_registry as default_matrix_registry,
+    )
     from sofia.cognition.matrix import (
         MatrixContextPlanner,
-        MatrixCoordinator,
         MatrixDomain,
         MatrixRelevance,
         TurnEnvelope,
     )
-    from sofia.cognition.matrix.defaults import default_matrix_registry
 
     coordinator = MatrixCoordinator(registry=default_matrix_registry())
     now = datetime(2026, 10, 2, 23, 0, tzinfo=timezone.utc)

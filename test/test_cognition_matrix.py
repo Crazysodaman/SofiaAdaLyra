@@ -12,7 +12,13 @@ from sofia.cognition.model import (
     CognitiveRole,
 )
 
-from sofia.cognition.matrix.defaults import default_matrix_registry
+from test.matrix_v2_support import (
+    V2MatrixCoordinator as MatrixCoordinator,
+    V2RoutingPlanner as MatrixRoutingPlanner,
+    V2TurnClassifier as BaselineTurnClassifier,
+    v2_evidence,
+    v2_registry as default_matrix_registry,
+)
 from sofia.runtime.evidence import project_matrix_evidence
 from sofia.application.conversation_matrix import (
     ConversationMatrixMixin,
@@ -22,7 +28,6 @@ from sofia.application.conversation_matrix import (
 from sofia.cognition.matrix import (
     AuthorityDecision,
     AuthorityPlan,
-    BaselineTurnClassifier,
     CognitionExecutionStep,
     CognitionExecutionTrace,
     DomainContribution,
@@ -35,17 +40,13 @@ from sofia.cognition.matrix import (
     MatrixConfidence,
     MatrixContextPlanner,
     MatrixAuthorityPlanner,
-    MatrixCoordinator,
     MatrixDomain,
-    MatrixEvidencePlanner,
     MatrixEvidenceResolver,
     MatrixIntent,
-    MatrixRegistry,
     MatrixRelevance,
     MatrixResponsePlanner,
     MatrixResponseValidator,
     MatrixRoute,
-    MatrixRoutingPlanner,
     MatrixPrivacyPlanner,
     MatrixToolExposurePlanner,
     MatrixTrace,
@@ -175,7 +176,7 @@ def test_elliptical_change_is_conversational_avatar_followup(content):
     assert result.intent is MatrixIntent.GENERAL
     assert result.history_policy is HistoryPolicy.LAST_TURN
     assert result.response_strategy is ResponseStrategy.GENERATIVE
-    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.REQUIRED
     assert result.relevance_for(MatrixDomain.SOCIAL) is MatrixRelevance.CONTEXTUAL
     assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.NONE
 
@@ -208,7 +209,9 @@ def test_do_it_is_action_followup_with_prior_turn_context():
     assert result.intent is MatrixIntent.ACTION_REQUEST
     assert result.history_policy is HistoryPolicy.LAST_TURN
     assert result.relevance_for(MatrixDomain.AUTHORITY) is MatrixRelevance.REQUIRED
-    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.CONTEXTUAL
+    # The standalone adapter has no persisted focus to inherit. Production
+    # resolves the target through the Turn Kernel before applying safeguards.
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.NONE
 
 
 def test_privacy_matrix_fails_closed_without_authenticated_principal():
@@ -613,44 +616,6 @@ def test_general_turn_keeps_bounded_recent_context():
     )
 
 
-def test_domain_evaluator_can_raise_but_not_lower_relevance():
-    class EmotionEvaluator:
-        domain = MatrixDomain.EMOTION
-
-        def evaluate(self, envelope, turn):
-            return DomainContribution(
-                MatrixDomain.EMOTION,
-                MatrixRelevance.REQUIRED,
-                "test evaluator requires emotion",
-            )
-
-    coordinator = MatrixCoordinator(
-        registry=MatrixRegistry((EmotionEvaluator(),))
-    )
-    result = coordinator.evaluate(envelope("Hru"))
-
-    assert result.relevance_for(MatrixDomain.EMOTION) is (
-        MatrixRelevance.REQUIRED
-    )
-
-
-def test_registry_rejects_duplicate_domain_evaluators():
-    class One:
-        domain = MatrixDomain.AVATAR
-
-        def evaluate(self, envelope, turn):
-            return None
-
-    class Two:
-        domain = MatrixDomain.AVATAR
-
-        def evaluate(self, envelope, turn):
-            return None
-
-    with pytest.raises(ValueError, match="duplicate matrix evaluator"):
-        MatrixRegistry((One(), Two()))
-
-
 def test_trace_store_does_not_duplicate_message_text(tmp_path):
     store = MatrixTraceStore(tmp_path / "sofia.db")
     turn = MatrixCoordinator().evaluate(
@@ -727,37 +692,8 @@ def test_state_changing_avatar_request_is_action_not_read_only_avatar_query():
     assert result.relevance_for(MatrixDomain.AUTHORITY) is (
         MatrixRelevance.REQUIRED
     )
-    assert result.relevance_for(MatrixDomain.AVATAR) is (
-        MatrixRelevance.RELEVANT
-    )
+    assert result.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.REQUIRED
 
-
-def test_default_registry_has_one_owner_per_registered_domain():
-    registry = default_matrix_registry()
-    domains = tuple(evaluator.domain for evaluator in registry.evaluators)
-
-    assert len(domains) == len(set(domains))
-    assert set(domains) == {
-        MatrixDomain.SOCIAL,
-        MatrixDomain.EMOTION,
-        MatrixDomain.ENVIRONMENT,
-        MatrixDomain.CONTINUITY,
-        MatrixDomain.AVATAR,
-        MatrixDomain.INTERACTION,
-        MatrixDomain.VOICE,
-        MatrixDomain.MEMORY,
-        MatrixDomain.REL,
-        MatrixDomain.HABIT,
-        MatrixDomain.DEV,
-        MatrixDomain.KNOW,
-        MatrixDomain.INTEGRATE,
-        MatrixDomain.BODY,
-        MatrixDomain.COGNITION,
-        MatrixDomain.MACHINE,
-        MatrixDomain.OPS,
-            MatrixDomain.AUTHORITY,
-            MatrixDomain.GOALS,
-        }
 
 def test_machine_domain_can_strengthen_operational_relevance():
     result = MatrixCoordinator(
@@ -932,50 +868,37 @@ def test_cross_domain_avatar_change_with_weather_requires_authority():
     assert turn.relevance_for(MatrixDomain.AUTHORITY) is (
         MatrixRelevance.REQUIRED
     )
-    assert turn.relevance_for(MatrixDomain.AVATAR) is (
-        MatrixRelevance.RELEVANT
-    )
-    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
-        MatrixRelevance.RELEVANT
-    )
+    assert turn.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.REQUIRED
+    assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is MatrixRelevance.REQUIRED
 
 
 def test_evidence_requiredness_tracks_domain_relevance():
     hru = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(envelope("hru"))
-    hru_evidence = MatrixEvidencePlanner().plan(hru, envelope("hru"))
+    hru_evidence = v2_evidence(envelope("hru"))
     hru_keys = {item.key: item for item in hru_evidence.requirements}
     assert hru_keys["emotion.current"].required is True
 
     avatar_query = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(envelope("what are you wearing?"))
-    avatar_evidence = MatrixEvidencePlanner().plan(
-        avatar_query,
-        envelope("what are you wearing?"),
-    )
+    avatar_evidence = v2_evidence(envelope("what are you wearing?"))
     avatar_keys = {item.key: item for item in avatar_evidence.requirements}
     assert avatar_keys["avatar.canonical"].required is True
-    assert avatar_keys["interaction.interpretation"].required is False
+    assert "interaction.interpretation" not in avatar_keys
 
     avatar_action = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(envelope("change into night lounge outfit"))
-    action_evidence = MatrixEvidencePlanner().plan(
-        avatar_action,
-        envelope("change into night lounge outfit"),
-    )
+    action_evidence = v2_evidence(envelope("change into night lounge outfit"))
     action_keys = {item.key: item for item in action_evidence.requirements}
     assert action_keys["avatar.canonical"].required is True
 
     ops_action = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(envelope("restart Plex on Dionysus"))
-    ops_evidence = MatrixEvidencePlanner().plan(
-        ops_action,
-        envelope("restart Plex on Dionysus"),
-    )
+    ops_evidence = v2_evidence(envelope("restart Plex on Dionysus"))
     ops_keys = {item.key: item for item in ops_evidence.requirements}
     assert ops_keys["operational.measurement"].required is False
 
@@ -1180,7 +1103,7 @@ def test_evidence_matrix_requires_measurement_for_network_status():
     turn = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(envelope("how is the network"))
-    matrix = MatrixEvidencePlanner().plan(turn)
+    matrix = v2_evidence(envelope("how is the network"))
 
     keys = {item.key: item for item in matrix.requirements}
     assert "operational.measurement" in keys
@@ -1431,7 +1354,6 @@ def test_general_conversation_stays_on_primary_personality_path():
     (
         "hey nerd",
         "you seem kinda quiet today",
-        "how does that weather affect you?",
     ),
 )
 def test_personality_critical_live_turns_route_standard_primary(content):
@@ -1445,6 +1367,13 @@ def test_personality_critical_live_turns_route_standard_primary(content):
     assert plan.route is MatrixRoute.STANDARD
 
 
+def test_weather_influence_without_evidence_uses_deterministic_route():
+    env = envelope("how does that weather affect you?")
+    turn = MatrixCoordinator().evaluate(env)
+
+    assert MatrixRoutingPlanner().plan(env, turn).route is MatrixRoute.FAST
+
+
 def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
     store = MatrixTraceStore(tmp_path / "sofia.db")
     env = envelope("restart Plex on Dionysus", message_id="dg-1")
@@ -1453,7 +1382,7 @@ def test_trace_round_trips_d_e_f_g_extensions(tmp_path):
     ).evaluate(env)
     context = MatrixContextPlanner().plan(turn)
     evidence = MatrixEvidenceResolver().resolve(
-        MatrixEvidencePlanner().plan(turn),
+        v2_evidence(env),
         {
             "action.execution_receipt": EvidenceState.MISSING,
         },
@@ -1606,7 +1535,7 @@ def test_trace_round_trips_tool_exposure_plan(tmp_path):
         ("what season is it?", "environment.calendar.current"),
     ),
 )
-def test_environment_evidence_keys_are_query_specific(
+def test_environment_queries_use_typed_current_environment_evidence(
     content,
     expected_key,
 ):
@@ -1615,10 +1544,10 @@ def test_environment_evidence_keys_are_query_specific(
         registry=default_matrix_registry()
     ).evaluate(env)
 
-    matrix = MatrixEvidencePlanner().plan(turn, env)
+    matrix = v2_evidence(env)
 
     keys = {item.key for item in matrix.requirements}
-    assert expected_key in keys
+    assert keys == {"environment.current"}
 
 
 def test_avatar_action_does_not_activate_ops_by_default():
@@ -1627,9 +1556,7 @@ def test_avatar_action_does_not_activate_ops_by_default():
     ).evaluate(envelope("change your outfit"))
 
     assert turn.intent is MatrixIntent.ACTION_REQUEST
-    assert turn.relevance_for(MatrixDomain.AVATAR) is (
-        MatrixRelevance.RELEVANT
-    )
+    assert turn.relevance_for(MatrixDomain.AVATAR) is MatrixRelevance.REQUIRED
     assert turn.relevance_for(MatrixDomain.OPS) is MatrixRelevance.NONE
 
 
@@ -1701,9 +1628,7 @@ def test_sofia_matrixs_reference_activates_cognition_domain():
         registry=default_matrix_registry()
     ).evaluate(envelope("We added matrixs"))
 
-    assert turn.relevance_for(MatrixDomain.COGNITION) is (
-        MatrixRelevance.RELEVANT
-    )
+    assert turn.relevance_for(MatrixDomain.COGNITION) is MatrixRelevance.REQUIRED
 
 
 def test_footwear_preference_activates_avatar_not_emotion_or_ops():
@@ -1855,7 +1780,7 @@ def test_bare_time_uses_environment_and_clock_evidence():
     turn = MatrixCoordinator(
         registry=default_matrix_registry()
     ).evaluate(env)
-    evidence = MatrixEvidencePlanner().plan(turn, env)
+    evidence = v2_evidence(env)
 
     assert turn.intent is MatrixIntent.ENVIRONMENT_QUERY
     assert turn.relevance_for(MatrixDomain.ENVIRONMENT) is (
@@ -1863,7 +1788,7 @@ def test_bare_time_uses_environment_and_clock_evidence():
     )
     assert {
         item.key for item in evidence.requirements
-    } == {"environment.clock.current"}
+    } == {"environment.current"}
 
 
 def test_user_reported_local_time_routes_to_environment_without_rewriting_am_pm():
@@ -2082,9 +2007,9 @@ def test_multi_question_turn_merges_matrix_domains_and_tools():
     assert "network.discover" not in capabilities
     assert "ops.fleet.discover" not in capabilities
 
-    evidence = MatrixEvidencePlanner().plan(turn, env)
+    evidence = v2_evidence(env)
     keys = {item.key for item in evidence.requirements}
-    assert "environment.clock.current" in keys
+    assert "environment.current" in keys
     assert "operational.measurement" in keys
 
 

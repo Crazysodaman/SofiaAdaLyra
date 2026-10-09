@@ -1,6 +1,4 @@
-"""Message-matrix coordination contracts and shadow-mode tracing."""
-from .classifier import BaselineTurnClassifier
-from .routing_plan import MatrixRoutingPlanner
+"""Retained deterministic cognition safeguards and diagnostic tracing."""
 from .privacy import MatrixPrivacyPlanner
 from .tool_exposure import MatrixToolExposurePlanner
 from .influence import (
@@ -14,15 +12,9 @@ from .influence import (
 from .response import MatrixResponsePlanner, MatrixResponseValidator
 from .multi_question import merge_question_turns, split_multi_question
 from .expression_plan import EmbodiedExpressionPlan, EmbodiedExpressionPlanner, recent_expression_ids
-from .evidence import MatrixEvidencePlanner, MatrixEvidenceResolver
+from .evidence import MatrixEvidenceResolver
 from .authority import MatrixAuthorityPlanner
 from .context_plan import MatrixContextPlanner
-from .coordinator import (
-    MatrixCoordinator,
-    MatrixDomainEvaluator,
-    MatrixRegistry,
-    TurnClassifier,
-)
 from .model import (
     MATRIX_SCHEMA_VERSION,
     AuthorityDecision,
@@ -59,7 +51,6 @@ __all__ = [
     "MATRIX_SCHEMA_VERSION",
     "AuthorityDecision",
     "AuthorityPlan",
-    "BaselineTurnClassifier",
     "CognitionExecutionStep",
     "CognitionExecutionTrace",
     "ContextPlan",
@@ -79,21 +70,16 @@ __all__ = [
     "InfluenceSignal",
     "InfluenceSurface",
     "MatrixConfidence",
-    "MatrixCoordinator",
     "MatrixContextPlanner",
     "MatrixDomain",
-    "MatrixDomainEvaluator",
     "MatrixIntent",
-    "MatrixRegistry",
     "MatrixRelevance",
     "MatrixAuthorityPlanner",
-    "MatrixEvidencePlanner",
     "MatrixEvidenceResolver",
     "MatrixResponsePlanner",
     "MatrixResponseValidator",
     "merge_question_turns",
     "split_multi_question",
-    "MatrixRoutingPlanner",
     "MatrixPrivacyPlanner",
     "MatrixToolExposurePlanner",
     "MatrixRoute",
@@ -106,7 +92,6 @@ __all__ = [
     "ResponseStrategy",
     "ResponseValidation",
     "ResponseValidationDisposition",
-    "TurnClassifier",
     "TurnEnvelope",
     "recent_expression_ids",
     "TurnMatrix",

@@ -361,7 +361,7 @@ class ConversationService(ConversationMatrixMixin):
 
         def plan(coordinated: CoordinatedTurn) -> None:
             self._current_coordinated_turn = coordinated
-            self._record_shadow_matrix(
+            self._project_v2_safeguards(
                 message=message,
                 principal=principal,
                 channel=channel,
@@ -372,7 +372,21 @@ class ConversationService(ConversationMatrixMixin):
             self._observe_neuro_turn(message=message, channel=channel)
             return self._current_neuro_snapshot
 
-        coordinated = self._turn_kernel.coordinate(
+        kernel = getattr(self, "_turn_kernel", None)
+        if kernel is None:
+            # Some specialized conversation services are constructed by
+            # narrow host adapters rather than ConversationService.__init__.
+            # They still use the same v2 kernel; lazily composing it here
+            # avoids resurrecting a parallel classifier for those paths.
+            configuration = getattr(self._runtime, "configuration", None)
+            state_path = (
+                self._conversation_store.database_path
+                if configuration is None
+                else configuration.state_path
+            )
+            kernel = ProductionTurnKernel(SQLiteConversationFocusStore(state_path))
+            self._turn_kernel = kernel
+        coordinated = kernel.coordinate(
             turn,
             planning_callback=plan,
             attention_callback=attend,

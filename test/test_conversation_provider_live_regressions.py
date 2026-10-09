@@ -111,10 +111,10 @@ def test_matrix_planning_failure_fails_narrow_not_broad(
         ("I can't ground a live state from that turn.",),
     )
     try:
-        def broken_evaluate(envelope):
+        def broken_plan(turn):
             raise RuntimeError("synthetic matrix failure")
 
-        application.conversation._matrix_coordinator.evaluate = broken_evaluate
+        application.conversation._matrix_context_planner.plan = broken_plan
 
         response = application.conversation.respond("hru")
 
@@ -328,7 +328,9 @@ def test_matrix_general_conversation_keeps_full_context_during_safe_rollout(
         )
 
         assert "coordinated leg phases" in response.content
-        assert len(captured) == 3
+        # Cognition v2 routes this ordinary explanatory turn to one primary
+        # worker; there is no retired AUTO router issuing duplicate drafts.
+        assert len(captured) == 1
         system_text = "\n".join(
             message.content
             for request in captured
@@ -766,7 +768,7 @@ def test_live_hru_uses_primary_personality_route_and_hides_old_event_log(
         application.shutdown()
 
 
-def test_live_weather_affect_turn_uses_primary_and_no_emotional_history_dump(
+def test_live_weather_affect_turn_fails_closed_without_model_or_history_dump(
     monkeypatch, tmp_path
 ):
     application, captured = _application(
@@ -783,21 +785,13 @@ def test_live_weather_affect_turn_uses_primary_and_no_emotional_history_dump(
         )
 
         assert "don't have current weather evidence" in reply.content
-        assert len(captured) == 1
-        system_text = "\n".join(
-            message.content
-            for message in captured[0].messages
-            if message.role.value == "system"
-        )
-        assert "MODELED EMOTIONAL CONTEXT" not in system_text
-        assert "RECORDED REFLECTIONS" not in system_text
+        assert captured == []
 
         trace = application.conversation.latest_matrix_trace()
         assert trace is not None
         assert trace.routing is not None
-        assert trace.routing.route.value == "standard"
-        assert trace.cognition_execution is not None
-        assert trace.cognition_execution.successful_steps[0].role == "primary"
+        assert trace.routing.route.value == "fast"
+        assert trace.cognition_execution is None
     finally:
         application.shutdown()
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from .contracts import (
     ActionRequirement,
@@ -20,46 +21,54 @@ _QUESTION_OPENERS = frozenset({
     "show", "tell", "what", "when", "where", "which", "who", "why",
 })
 _READ_ACTIONS = frozenset({
-    "browse", "check", "find", "inspect", "list", "look", "open", "read",
+    "browse", "check", "discover", "find", "inspect", "list", "look", "open", "read",
     "scan", "search", "show", "summarize",
 })
 _MUTATION_ACTIONS = frozenset({
-    "apply", "change", "delete", "deploy", "edit", "execute", "install",
-    "migrate", "move", "reboot", "remove", "restart", "shutdown", "start",
-    "stop", "uninstall", "update", "upgrade", "write",
+    "apply", "change", "create", "delete", "deploy", "design", "edit",
+    "execute", "generate", "install", "make", "migrate", "move", "reboot",
+    "remove", "restart", "send", "set", "shutdown", "start", "stop", "swap",
+    "switch", "wear",
+    "take", "turn", "undress", "uninstall", "update", "upgrade", "write",
 })
 _VERIFY_CONCEPTS = frozenset({
     "confirm", "double-check", "recheck", "sure", "verify",
 })
 _DOMAIN_CONCEPTS = {
     "environment": frozenset({
-        "date", "daylight", "forecast", "humidity", "location", "outside",
+        "date", "day", "daylight", "forecast", "humidity", "location", "outside",
         "rain", "season", "snow", "sunrise", "sunset", "temperature",
         "time", "timezone", "weather", "wind",
     }),
     "avatar": frozenset({
         "appearance", "body", "clothes", "clothing", "ears", "hair",
-        "outfit", "tail", "wear", "wearing", "wardrobe",
+        "outfit", "tail", "wear", "wearing", "wardrobe", "underwear",
+        "panties", "bra", "bralette", "bikini", "boots", "footwear",
+        "foot", "garment", "hoodie", "jacket", "shoes", "socks", "undress",
     }),
     "interaction": frozenset({
-        "affection", "gesture", "hug", "interaction", "kiss", "pat",
-        "pose", "touch",
+        "affection", "gesture", "gestures", "hug", "interaction",
+        "interactions", "kiss", "kisses", "pat", "pats", "pose", "touch",
+        "touches",
     }),
     "emotion": frozenset({
-        "angry", "arousal", "desire", "emotion", "feel", "feeling",
-        "happy", "lonely", "mood", "sad", "upset",
+        "affect", "angry", "arousal", "desire", "emotion", "feel", "feeling",
+        "happy", "lonely", "mood", "quiet", "sad", "upset",
     }),
     "memory": frozenset({
         "earlier", "memory", "mind", "recall", "reflection", "reflections",
         "remember", "remembered", "thinking",
     }),
     "rel": frozenset({
-        "bond", "companion", "relationship", "sparks", "together",
+        "bond", "companion", "gone", "relationship", "reunion", "return",
+        "sparks", "together",
     }),
-    "habit": frozenset({"habit", "pattern", "routine", "usually"}),
+    "habit": frozenset({
+        "habit", "normally", "pattern", "routine", "usually",
+    }),
     "dev": frozenset({
         "code", "codebase", "commit", "git", "github", "pytest", "repo",
-        "repository", "software",
+        "repository", "software", "jython", "python", "programming",
     }),
     "know": frozenset({
         "document", "documentation", "knowledge", "manual", "pdf",
@@ -84,10 +93,12 @@ _DOMAIN_CONCEPTS = {
     }),
     "ops": frozenset({
         "container", "docker", "failure", "fault", "fleet", "health",
-        "latency", "offline", "process", "service", "telemetry",
+        "latency", "offline", "process", "processes", "service",
+        "telemetry", "uptime",
     }),
     "cognition": frozenset({
-        "cognition", "llm", "matrix", "model", "neuro", "ollama",
+        "cognition", "llm", "matrix", "matrixs", "matrixes", "matrices",
+        "model", "neuro", "ollama",
         "primary", "routing", "secondary",
     }),
     "goals": frozenset({"goal", "goals"}),
@@ -132,7 +143,12 @@ def _machine_predicate(tokens: frozenset[str]) -> str:
 
 
 def _tokens(content: str) -> tuple[str, ...]:
-    return tuple(match.group(0).casefold() for match in _TOKEN.finditer(content))
+    normalized = unicodedata.normalize("NFKD", content).encode(
+        "ascii", "ignore"
+    ).decode("ascii")
+    return tuple(
+        match.group(0).casefold() for match in _TOKEN.finditer(normalized)
+    )
 
 
 class MatrixV2Planner:
@@ -192,22 +208,108 @@ class MatrixV2Planner:
         if not domains:
             domains.append("social")
 
-        command_tokens = tokens[1:] if tokens[:1] == ("please",) else tokens
+        if "emotion" in domains and "it" in token_set and "interaction" not in domains:
+            domains.append("interaction")
+        if token_set & {"want", "wanna"} and token_set & {"change", "changing"}:
+            if "avatar" not in domains:
+                domains.append("avatar")
+        if {"feel", "changing"} <= token_set and "avatar" not in domains:
+            domains.append("avatar")
+        if token_set >= {"where", "i"} and "environment" not in domains:
+            domains.append("environment")
+        if (
+            token_set & {"am", "pm"}
+            and any(token.isdigit() for token in tokens)
+            and "environment" not in domains
+        ):
+            domains.append("environment")
+        if {"changed", "restart"} <= token_set and "continuity" not in domains:
+            domains.append("continuity")
+
+        command_tokens = tokens
+        if command_tokens[:1] in {("please",), ("sofia",)}:
+            command_tokens = command_tokens[1:]
         first = None if not command_tokens else command_tokens[0]
         elliptical_action = command_tokens[:2] == ("do", "it")
-        if first in _MUTATION_ACTIONS:
+        conditional_change = bool(
+            token_set & {"want", "wanna", "feel"}
+            and token_set & {"change", "changing"}
+        )
+        later_mutation = bool(
+            ("," in turn.content or "?" in turn.content)
+            and token_set & {"restart", "design", "generate", "create"}
+        )
+        if first in _MUTATION_ACTIONS and not conditional_change:
+            action = ActionRequirement.MUTATION
+        elif later_mutation:
             action = ActionRequirement.MUTATION
         elif first in _READ_ACTIONS:
             action = ActionRequirement.READ_ONLY
-        elif elliptical_action and focus.pending_actions:
+        elif elliptical_action:
             action = ActionRequirement.CLARIFY
         else:
             action = ActionRequirement.NONE
 
-        question = "?" in turn.content or (
-            bool(tokens) and tokens[0] in _QUESTION_OPENERS
+        if "machine" in domains and token_set & {
+            "cpu", "gpu", "hardware", "ram", "storage",
+        } and not token_set & {"recall", "remember", "remembered"}:
+            domains = [domain for domain in domains if domain != "memory"]
+        if (
+            action is ActionRequirement.READ_ONLY
+            and "machine" in domains
+            and "ops" not in domains
+        ):
+            domains.append("ops")
+        if (
+            "machine" in domains
+            and token_set & {"fleet", "other", "see"}
+            and "ops" not in domains
+        ):
+            domains.append("ops")
+
+        question = (
+            "?" in turn.content
+            or (bool(tokens) and tokens[0] in _QUESTION_OPENERS)
+            or (len(tokens) == 1 and token_set & {"date", "time", "weather"})
+            or bool(token_set & {"am", "pm"})
+            or token_set & {"hru"}
+            or tokens[:3] in {("how", "are", "you"), ("how", "r", "u")}
         )
         intent = self._intent(domains, token_set, action, question)
+        if (
+            {"interaction", "emotion"} <= set(domains)
+            and "it" in token_set
+            and question
+        ):
+            intent = "interaction_followup"
+        if conditional_change:
+            intent = "general"
+            if "social" not in domains:
+                domains.append("social")
+        if (
+            len(tokens) <= 5
+            and token_set & {"why", "all", "more"}
+            and action is ActionRequirement.NONE
+        ):
+            intent = "general"
+        if "emotion" in domains and token_set & {"quiet", "seem"}:
+            intent = "social_checkin"
+            if "social" not in domains:
+                domains.append("social")
+        if {"environment", "emotion"} <= set(domains):
+            intent = "general"
+        if intent == "social_checkin" and token_set & {"mean", "relationship"}:
+            if "rel" not in domains:
+                domains.append("rel")
+        if intent == "social_checkin" and "emotion" not in domains:
+            domains.append("emotion")
+        if "body" in domains and not token_set & {
+            "battery", "collision", "gaia", "orientation", "proximity",
+            "sensor", "servo", "stability",
+        }:
+            domains.remove("body")
+            if not domains:
+                domains.append("social")
         reasoning = self._reasoning(intent, domains, token_set, action)
         reasoning, budget = self.scheduler.budget(
             reasoning,
@@ -245,7 +347,7 @@ class MatrixV2Planner:
             for index, domain in enumerate(domains, start=1)
             if domain in _EVIDENCE_PREDICATES
         )
-        strategy = self._strategy(intent, action, bool(needs))
+        strategy = self._strategy(intent, action, bool(needs), domains)
         schedule = self.scheduler.schedule(
             turn_id=turn.turn_id,
             evidence_needs=needs,
@@ -275,7 +377,7 @@ class MatrixV2Planner:
             return "goal_management"
         if tokens & _VERIFY_CONCEPTS:
             return "verification"
-        if action is not ActionRequirement.NONE:
+        if action in {ActionRequirement.MUTATION, ActionRequirement.CLARIFY}:
             return "action_request"
         if "memory" in domains:
             return (
@@ -299,6 +401,10 @@ class MatrixV2Planner:
             return ReasoningRequirement.VERIFY
         if intent == "goal_management":
             return ReasoningRequirement.DETERMINISTIC
+        if "environment" in domains and "emotion" in domains:
+            # The host environment coordinator can answer the grounded
+            # influence question—or explicit lack of evidence—without a model.
+            return ReasoningRequirement.DETERMINISTIC
         if {"ops", "machine", "dev", "body"} & set(domains):
             return ReasoningRequirement.DEEP
         if {"social", "emotion", "interaction", "rel", "memory"} & set(domains):
@@ -308,11 +414,19 @@ class MatrixV2Planner:
         return ReasoningRequirement.FAST
 
     @staticmethod
-    def _strategy(intent, action, has_evidence):
+    def _strategy(intent, action, has_evidence, domains):
         if intent == "goal_management":
             return "deterministic"
         if action is ActionRequirement.CLARIFY:
             return "clarify"
-        if action is not ActionRequirement.NONE or has_evidence:
+        if action is not ActionRequirement.NONE:
             return "tool-assisted"
+        if intent == "environment_query":
+            return "deterministic"
+        if intent == "operational_query":
+            if set(domains) <= {"cognition"}:
+                return "deterministic"
+            return "tool-assisted"
+        if intent in {"avatar_query", "memory_query", "reflection_query"}:
+            return "hybrid"
         return "generative"

@@ -33,3 +33,15 @@ inference/load duration, GPU/VRAM, residency, and real dual-model overlap were
 not available from the deterministic test provider. The production Ollama
 adapter records those values when the provider supplies them; missing sensors
 remain `unknown`.
+
+## Batch 12 final control-path observation
+
+The matched deterministic measurement at base revision `9a2a43e` observed
+480.393 ms startup; 44.012 ms casual, 44.386 ms technical, 43.630 ms Fleet,
+and 49.825 ms follow-up turns; 0.062 ms process CPU during a 250 ms idle window;
+73,310,208 bytes peak RSS; 109 SQLite queries, 4 writes, 1 cache hit, 1 miss,
+and zero model calls. The temporary database contained 8 messages, 4 completed
+traces, and occupied 118,784 bytes. This is a single Linux CI control-path
+observation, not a percentile or live-Ollama claim. GPU load, VRAM, tokenizer
+counts, model residency, and real Primary/Secondary inference remained
+unavailable and therefore unknown.
