@@ -1,7 +1,7 @@
 # Cognition v2 architecture specification
 
-Status: Batch 3 Turn Kernel, ConversationFocus, Matrix v2, and scheduler are
-production-active.
+Status: Batch 4 Turn Kernel, ConversationFocus, Matrix v2, scheduler, and the
+subject-scoped evidence/truth layer are production-composed.
 
 The application composes one `ProductionTurnKernel` for ordinary conversation
 and owner-direct tool turns. It owns turn sequencing, durable audience-scoped
@@ -109,6 +109,34 @@ control optional parallelism, and contribute retrieval/background priority.
 It cannot add an evidence need, remove VERIFY, create truth, or change an
 action's authority requirement. Existing exact VERIFY routing is retained if a
 compatibility safety planner requests it.
+
+## Active Batch 4 evidence ownership
+
+`CognitiveEvidenceLedger` is the append-only canonical record for typed V2
+evidence in `sofia.db`. Every atom carries an exact subject, predicate, JSON
+value, reviewed source, observation/expiry time, scope, trust, epistemic state,
+acquisition state, and evidence ID. Dependency edges are scope-checked and
+acyclic by construction because only already-recorded evidence can be a
+dependency.
+
+`EvidenceGraph` resolves an `EvidenceNeed` by exact subject/predicate/scope. It
+applies maximum age, explicit expiry, trust, future-timestamp, contradiction,
+revocation, failure, and unavailable-state rules. Evidence about Venus is
+therefore invisible to an Artemis need even when its predicate is identical.
+Hypotheses and unknowns do not satisfy operational fact needs.
+
+Corrections are durable transactions. The directly corrected evidence becomes
+`CONTRADICTED`; every dependent inference/hypothesis becomes `REVOKED`; history
+is preserved. `EvidenceAcquisitionCoordinator` accepts only a host-normalized
+payload paired with an existing `CapabilityResult`, verifies the exact
+subject/predicate/scope and capability source, and records success, failure, or
+unavailability without treating authority denial as a fact.
+
+Observed/known evidence cannot cite conversation/assistant prose as its source,
+and `execution.*` predicates require an `execution-receipt:*` source. Batch 5
+connects Fleet/Machine capability results and the claim/answer pipeline to this
+ledger; legacy string-prefix evidence remains a compatibility input until that
+domain migration is complete.
 
 ## Dependency direction
 

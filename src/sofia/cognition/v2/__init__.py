@@ -32,6 +32,14 @@ from .contracts import (
     UnresolvedRequest,
 )
 from .focus import ConversationFocusConflict, SQLiteConversationFocusStore
+from .evidence import (
+    CapabilityEvidencePayload,
+    CognitiveEvidenceLedger,
+    EvidenceAcquisitionCoordinator,
+    EvidenceConflict,
+    EvidenceGraph,
+    EvidenceResolution,
+)
 from .kernel import ProductionTurnKernel
 from .matrix import MatrixV2Planner
 from .references import ConversationReferenceResolver, EntityCandidate
@@ -68,6 +76,12 @@ __all__ = [
     "TurnPlan",
     "UnresolvedRequest",
     "ConversationFocusConflict",
+    "CapabilityEvidencePayload",
+    "CognitiveEvidenceLedger",
+    "EvidenceAcquisitionCoordinator",
+    "EvidenceConflict",
+    "EvidenceGraph",
+    "EvidenceResolution",
     "SQLiteConversationFocusStore",
     "ProductionTurnKernel",
     "MatrixV2Planner",

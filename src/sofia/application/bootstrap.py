@@ -77,7 +77,10 @@ from sofia.cognition.engine import CognitiveEngineError
 from sofia.cognition.model import CognitiveResponse
 from sofia.cognition.model_lifecycle import ModelLifecycleWorker
 from sofia.cognition.v2 import (
+    CognitiveEvidenceLedger,
     EntityCandidate,
+    EvidenceAcquisitionCoordinator,
+    EvidenceGraph,
     ProductionTurnKernel,
     SQLiteConversationFocusStore,
 )
@@ -201,6 +204,15 @@ class SofiaApplication:
         self._goals = GoalService(
             GoalStore(self._runtime.state_plane),
             evidence_verifier=GoalEvidenceIndex(configuration.state_path),
+        )
+        self._cognitive_evidence = CognitiveEvidenceLedger(
+            configuration.state_path
+        )
+        self._cognitive_evidence_graph = EvidenceGraph(
+            self._cognitive_evidence
+        )
+        self._cognitive_evidence_acquisition = EvidenceAcquisitionCoordinator(
+            self._cognitive_evidence
         )
         self._turn_kernel = ProductionTurnKernel(
             SQLiteConversationFocusStore(configuration.state_path),
@@ -346,6 +358,18 @@ class SofiaApplication:
     @property
     def last_neuro_input_error(self) -> str | None:
         return self._last_neuro_input_error
+
+    @property
+    def cognitive_evidence(self) -> CognitiveEvidenceLedger:
+        return self._cognitive_evidence
+
+    @property
+    def cognitive_evidence_graph(self) -> EvidenceGraph:
+        return self._cognitive_evidence_graph
+
+    @property
+    def cognitive_evidence_acquisition(self) -> EvidenceAcquisitionCoordinator:
+        return self._cognitive_evidence_acquisition
 
     def _cognition_entity_candidates(self) -> tuple[EntityCandidate, ...]:
         """Project Fleet identities for reference resolution, never as facts."""

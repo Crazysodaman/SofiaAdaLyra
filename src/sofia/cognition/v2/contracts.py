@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import json
 import re
 from typing import Callable, Protocol
 
@@ -48,6 +49,10 @@ def _identifiers(name: str, values: tuple[str, ...]) -> tuple[str, ...]:
     if len(set(normalized)) != len(normalized):
         raise ValueError(f"{name} must not contain duplicates")
     return normalized
+
+
+def _reject_json_constant(value: str):
+    raise ValueError(f"invalid JSON constant: {value}")
 
 
 class EpistemicState(str, Enum):
@@ -392,6 +397,13 @@ class EvidenceAtom:
         ):
             _identifier(name, getattr(self, name))
         _text("value_json", self.value_json)
+        try:
+            json.loads(
+                self.value_json,
+                parse_constant=_reject_json_constant,
+            )
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError("value_json must contain valid finite JSON") from exc
         _aware("observed_at", self.observed_at)
         if self.expires_at is not None:
             _aware("expires_at", self.expires_at)
