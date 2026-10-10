@@ -364,6 +364,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Memory",
     "World",
     "Creative",
+    "Life & Projects",
     "Preferences",
     "EVOLVE",
     "Permissions",

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 from threading import RLock
 
@@ -104,9 +105,11 @@ from sofia.interaction.world_store import VirtualWorldStore
 from sofia.personality.preferences import PreferenceRegistry
 from sofia.rel.nicknames import NicknameRegistry
 from sofia.creative import (
-    CreativeExplorer, CreativeService, CreativeStore, CreativeWorkspaceManager,
-    CreativeWorldBridge, ManagedAssetStore,
+    CreativeArtifactCapability, CreativeExplorer, CreativeService,
+    CreativeStore, CreativeWorkspaceManager, CreativeWorldBridge,
+    ManagedAssetStore,
 )
+from sofia.life import LifeProject, SelfDirectedLifeCoordinator
 from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
@@ -379,6 +382,27 @@ class SofiaApplication:
             notify_review=self._notify_goal_review,
             wake_recorder=self._neuro.record_wake_outcome,
         )
+        self._life = SelfDirectedLifeCoordinator(
+            state_path=configuration.state_path,
+            goals=self._goals,
+            gateway=CapabilityGateway(self._runtime.capability_system),
+            creative_store=self._creative_store,
+            creative_explorer=self._creative_explorer,
+            world=self._world_store,
+            creative_world=self._creative_world,
+            preferences=self._preference_registry,
+            nicknames=self._nickname_registry,
+            share_callback=self._share_life_project,
+        )
+        if "creative.artifact.create" not in self._runtime.capability_system.capability_names():
+            creative_capability = CreativeArtifactCapability(
+                self._creative_service,
+                claim_authorization=self._life.store.claim_artifact_authorization,
+                finish_authorization=self._life.store.finish_artifact_authorization,
+            )
+            self._runtime.capability_system.register(
+                creative_capability.capability, creative_capability.execute,
+            )
         configure_fleet_enrollment_notices(
             ops_service=self._runtime.ops_service,
             act_service=self._act_service,
@@ -435,6 +459,10 @@ class SofiaApplication:
     @property
     def autonomous_work(self) -> AutonomousWorkCoordinator:
         return self._autonomous_work
+
+    @property
+    def life(self) -> SelfDirectedLifeCoordinator:
+        return self._life
 
     @property
     def neuro(self) -> NeuroRuntime:
@@ -598,6 +626,35 @@ class SofiaApplication:
             importance=Importance.IMPORTANT,
             salience=0.8,
         ))
+
+    def _share_life_project(
+        self, project: LifeProject, message: str,
+        evidence_refs: tuple[str, ...], now: datetime,
+    ) -> bool:
+        """Offer an explicitly chosen project share through existing ACT policy."""
+        digest = sha256(
+            (project.project_id + "\0" + message + "\0" + "\0".join(evidence_refs)).encode()
+        ).hexdigest()[:32]
+        observation = WorldObservation(
+            observation_id=f"life-share:{digest}",
+            subject_id=f"life-project:{project.project_id.split(':')[-1]}",
+            predicate="life.project_share_chosen",
+            source_id="life:project-forge",
+            observed_at=now, expires_at=now + timedelta(days=7),
+            confidence=1.0,
+            epistemic_state=WorldEpistemicState.KNOWN,
+            availability=WorldAvailability.NOT_APPLICABLE,
+            value={"project_id": project.project_id, "evidence_refs": evidence_refs},
+            audience_id=project.audience_id,
+        )
+        decision = self._presence.consider(InitiativeEvent(
+            event_id=f"life-share:{digest}", trigger_kind="reflection",
+            observation=observation, content=message,
+            created_at=now, expires_at=now + timedelta(days=7),
+            category=OutreachCategory.SOCIAL,
+            importance=Importance.ROUTINE, salience=0.65,
+        ))
+        return decision.status == "queued"
 
     @property
     def memory_review(self) -> MemoryReviewService:
@@ -1337,6 +1394,9 @@ class SofiaApplication:
         autonomous_work = getattr(self, "_autonomous_work", None)
         if autonomous_work is not None:
             autonomous_work.close()
+        life = getattr(self, "_life", None)
+        if life is not None:
+            life.close()
 
         lifecycle_worker = getattr(
             self,
@@ -1662,6 +1722,9 @@ class SofiaApplication:
         autonomous_work = getattr(self, "_autonomous_work", None)
         if autonomous_work is not None:
             autonomous_work.close()
+        life = getattr(self, "_life", None)
+        if life is not None:
+            life.close()
         lifecycle_worker = getattr(
             self,
             "_model_lifecycle_worker",

@@ -376,7 +376,9 @@ class AutonomousWorkCoordinator:
         return {"failures_discovered": failures, "proposals_created": proposals, "jobs_started": started}
 
     def has_pending(self) -> bool:
-        return bool(self.work_store.ready(limit=1))
+        return bool(self.work_store.ready(
+            limit=1, kinds=tuple(self.manager.handlers),
+        ))
 
     def close(self) -> None:
         self.manager.close(wait=False)

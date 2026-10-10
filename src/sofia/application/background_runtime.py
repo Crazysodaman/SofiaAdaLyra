@@ -228,6 +228,42 @@ def create_background_coordinator(
             interval_seconds=60.0,
         )
 
+    life = getattr(application, "_life", None)
+    if life is not None:
+        def run_independent_life(now):
+            from sofia.social.principals import local_sparks_principal
+            activity = activity_store.state(host_id).effective
+            busy = activity in {
+                ActivityMode.GAMING,
+                ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }
+            snapshot = application._neuro.last_snapshot
+            pressure = 0.0 if snapshot is None else max(
+                snapshot.homeostasis.cognitive_load,
+                snapshot.homeostasis.competition_pressure,
+            )
+            with application._model_lock:
+                project = life.consider_new_project(
+                    generate=lambda request: application._runtime.respond(
+                        request, principal=local_sparks_principal(),
+                    ),
+                    now=now, busy=busy, resource_pressure=pressure,
+                )
+                result = life.tick(
+                    now=now, busy=busy, resource_pressure=pressure,
+                )
+            return result if (
+                project is not None
+                or result["jobs_started"] or result["scheduled"]
+            ) else None
+
+        coordinator.set_task(
+            "independent_life",
+            run_independent_life,
+            interval_seconds=300.0,
+        )
+
     def bridge_reflection_outreach(now):
         service = application._conversation_service
         if not hasattr(service, "current_emotional_state"):

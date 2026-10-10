@@ -220,6 +220,7 @@ _SAFE_AUTONOMOUS = frozenset({
     "evolve.code.candidate.build",
     "evolve.code.candidate.verify",
     "evolve.code.release.accept",
+    "creative.artifact.create",
 })
 
 _REVERSIBLE = frozenset({

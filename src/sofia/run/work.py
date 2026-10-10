@@ -276,7 +276,17 @@ class DurableWorkStore:
                 (plan_id, job_id, step_order, depends_on_job_id),
             )
 
-    def ready(self, *, limit: int) -> tuple[WorkJob, ...]:
+    def ready(
+        self, *, limit: int, kinds: tuple[str, ...] | None = None,
+    ) -> tuple[WorkJob, ...]:
+        if kinds is not None and not kinds:
+            return ()
+        kind_clause = ""
+        parameters: list[object] = []
+        if kinds is not None:
+            kind_clause = " AND job.kind IN (" + ",".join("?" for _ in kinds) + ")"
+            parameters.extend(kinds)
+        parameters.append(limit)
         with closing(self._connect()) as db:
             rows = db.execute(
                 """SELECT job.* FROM autonomous_work_job AS job
@@ -285,8 +295,9 @@ class DurableWorkStore:
                   ON dependency.job_id=step.depends_on_job_id
                 WHERE job.status='queued'
                   AND (step.depends_on_job_id IS NULL OR dependency.status='completed')
+                """ + kind_clause + """
                 ORDER BY job.priority DESC,job.created_at,job.job_id LIMIT ?""",
-                (limit,),
+                parameters,
             ).fetchall()
         return tuple(self._job(row) for row in rows)
 
@@ -436,7 +447,9 @@ class TaskExecutionManager:
             capacity = self.max_workers - len(self._active)
             active_cost = sum(self.store.get(job_id).resource_cost for job_id in self._active)
         started = 0
-        for job in self.store.ready(limit=max(0, capacity)):
+        for job in self.store.ready(
+            limit=max(0, capacity), kinds=tuple(self.handlers),
+        ):
             if active_cost + job.resource_cost > 100:
                 continue
             if moment >= job.deadline:

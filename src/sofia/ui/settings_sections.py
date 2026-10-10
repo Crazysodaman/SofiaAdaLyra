@@ -147,6 +147,13 @@ class SettingsSections:
         self.sql_panel(frames["World"], "Avatar and object interaction receipts", "world_interaction_receipt")
         from .creative_panel import CreativePanel
         self.creative = CreativePanel(self, frames["Creative"])
+        self.sql_panel(frames["Life & Projects"], "Independent projects", "life_project")
+        self.sql_panel(frames["Life & Projects"], "Project decisions and history", "life_project_event")
+        self.sql_panel(frames["Life & Projects"], "Milestones", "life_project_milestone")
+        self.sql_panel(frames["Life & Projects"], "Artifact critiques", "life_artifact_evaluation")
+        self.sql_panel(frames["Life & Projects"], "Experience journal and scrapbook", "life_experience")
+        self.sql_panel(frames["Life & Projects"], "Activity and inactivity choices", "life_selection")
+        self.sql_panel(frames["Life & Projects"], "Resource usage", "life_resource_usage")
         self.sql_panel(frames["Preferences"], "Evidence-backed preference revisions", "personality_preference_revision")
         self.sql_panel(frames["Preferences"], "Nickname proposals and feedback", "rel_nickname_proposal")
         self.sql_panel(frames["Preferences"], "Nickname lifecycle evidence", "rel_nickname_event")

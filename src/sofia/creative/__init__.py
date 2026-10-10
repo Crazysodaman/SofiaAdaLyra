@@ -9,11 +9,13 @@ from .service import CreativeService, CreativeWorkspaceManager, ManagedAssetStor
 from .store import CreativeStore
 from .explorer import CreativeExplorer
 from .world_bridge import CreativeWorldBridge
+from .capability import CreativeArtifactCapability, creative_request_digest
 
 __all__ = [
     "ArtifactKind", "ArtifactRevision", "CreativeProject", "CreativeRequest",
     "CreativeToolProbe", "GeneratedArtifact", "DevCandidateArtifactAdapter",
     "NativeCreativeAdapter", "CreativeService", "CreativeWorkspaceManager",
     "ManagedAssetStore", "CreativeStore",
-    "CreativeExplorer", "CreativeWorldBridge",
+    "CreativeExplorer", "CreativeWorldBridge", "CreativeArtifactCapability",
+    "creative_request_digest",
 ]

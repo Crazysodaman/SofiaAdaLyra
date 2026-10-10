@@ -179,6 +179,7 @@ PRODUCTION_COMPONENT_SCHEMAS = tuple(
         "personality-preferences",
         "rel-nicknames",
         "creative-inventory",
+        "life-project-forge",
     )
 )
 
