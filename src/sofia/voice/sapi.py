@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from threading import Event
 
 from .prosody_matrix import VoiceProsodyProfile
 from .tts import (
@@ -124,6 +125,7 @@ class WindowsSapiBackend:
         text: str,
         profile: VoiceProsodyProfile,
         voice_hint: str | None = None,
+        cancel: Event | None = None,
     ) -> TTSPlaybackReceipt:
         if not isinstance(profile, VoiceProsodyProfile):
             raise TypeError("profile must be VoiceProsodyProfile")
@@ -145,7 +147,18 @@ class WindowsSapiBackend:
 
             voice.Rate = sapi_rate(profile.rate_scale)
             voice.Volume = sapi_volume(profile.volume_scale)
-            voice.Speak(text)
+            voice.Speak(text, 1)  # asynchronous so barge-in can be honored
+            while not voice.WaitUntilDone(100):
+                if cancel is not None and cancel.is_set():
+                    voice.Speak("", 3)  # async + purge pending speech
+                    return TTSPlaybackReceipt(
+                        utterance_id=utterance_id,
+                        state=TTSPlaybackState.CANCELLED,
+                        backend_name=self.name,
+                        voice_name=selected,
+                        applied_controls=("rate", "volume"),
+                        error="speech interrupted",
+                    )
 
             return TTSPlaybackReceipt(
                 utterance_id=utterance_id,

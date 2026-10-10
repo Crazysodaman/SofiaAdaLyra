@@ -12,6 +12,7 @@ from time import monotonic
 from weakref import WeakSet
 
 from sofia.application.conversation_service import ConversationService
+from sofia.application.expression_runtime import ExpressionRuntime
 from sofia.cognition.model import (
     CognitiveMessage,
     CognitiveRequest,
@@ -162,6 +163,9 @@ class EmotionalConversationService(ConversationService):
         self._user_affect_tracker = UserAffectTracker()
         self._last_user_affect_error: str | None = None
         self._pending_user_affect = None
+        self._expression_runtime: ExpressionRuntime | None = None
+        self._presentation_revision_provider = None
+        self._last_expression_runtime_error: str | None = None
         self._model_lock = model_lock if model_lock is not None else RLock()
         if (
             activity_group is not None
@@ -362,6 +366,10 @@ class EmotionalConversationService(ConversationService):
                         )
                     self._persist_pending_emotion_appraisal()
                     self._persist_pending_user_affect()
+                    self._record_expression_decision(
+                        response=response,
+                        principal=principal,
+                    )
                     return response
                 finally:
                     # Includes request construction/persistence as well as the
@@ -388,6 +396,60 @@ class EmotionalConversationService(ConversationService):
         finally:
             self._last_user_activity = monotonic()
             self._active_user_requests -= 1
+
+    def set_expression_runtime(
+        self, runtime: ExpressionRuntime, *, presentation_revision_provider,
+    ) -> None:
+        if not isinstance(runtime, ExpressionRuntime):
+            raise TypeError("runtime must be ExpressionRuntime")
+        if not callable(presentation_revision_provider):
+            raise TypeError("presentation_revision_provider must be callable")
+        self._expression_runtime = runtime
+        self._presentation_revision_provider = presentation_revision_provider
+
+    @property
+    def last_expression_runtime_error(self) -> str | None:
+        return self._last_expression_runtime_error
+
+    def _record_expression_decision(self, *, response, principal) -> None:
+        """Bind settled text to emotion/prosody/gesture without claiming output."""
+        runtime = getattr(self, "_expression_runtime", None)
+        if runtime is None or getattr(self, "_session", None) is None:
+            return
+        try:
+            messages = self.messages()
+            if not messages or messages[-1].role is not ConversationRole.ASSISTANT:
+                raise RuntimeError("settled assistant message is unavailable")
+            assistant = messages[-1]
+            resolved_principal = principal or self._principal_context()
+            now = assistant.created_at
+            state = self.current_emotional_state(now=now)
+            influence = getattr(self, "_current_contextual_influence", None)
+            if not isinstance(influence, ContinuityInfluence):
+                environment = self._runtime.environment_service.snapshot(
+                    now=now, refresh_providers=False,
+                )
+                influence = ContinuityInfluence.from_state(
+                    emotion=state, environment=environment,
+                )
+            matrix = getattr(self, "_current_turn_matrix", None)
+            intent = "conversation"
+            if matrix is not None:
+                intent = matrix.intent.value
+            revision = int(self._presentation_revision_provider())
+            runtime.decide(
+                message_id=assistant.id, session_id=self.session.id,
+                principal=resolved_principal, intent=intent,
+                text=response.content, state=state, influence=influence,
+                plan=self.current_expression_plan,
+                presentation_revision=revision, created_at=now,
+            )
+            self._last_expression_runtime_error = None
+        except Exception as exc:
+            # Text is already canonical. Presentation bookkeeping is isolated.
+            self._last_expression_runtime_error = (
+                f"{type(exc).__name__}: {exc}"
+            )
 
     @property
     def last_emotion_appraisal_error(self) -> str | None:

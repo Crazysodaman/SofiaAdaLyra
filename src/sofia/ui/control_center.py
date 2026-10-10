@@ -356,6 +356,7 @@ MASTER_SETTINGS_SECTIONS = (
     "Integrations",
     "Environment",
     "Avatar",
+    "Voice",
     "Wardrobe",
     "Mood & Emotion",
     "NEURO",

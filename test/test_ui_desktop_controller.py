@@ -97,6 +97,23 @@ def test_controller_send_saves_draft_before_generation():
     assert controller.draft_text() == ""
 
 
+def test_voice_failure_does_not_invalidate_text_response():
+    app = FakeApplication()
+
+    def fail_voice(_content: str):
+        raise RuntimeError("speaker unavailable")
+
+    app.speak = fail_voice
+    controller = DesktopWorkbenchController(app)
+    controller.start()
+
+    response = controller.send("keep text working")
+
+    assert response.content == "response"
+    assert app.text_ui.sent == ["keep text working"]
+    assert controller.draft_text() == ""
+
+
 def test_failed_send_preserves_exact_draft():
     app = FakeApplication()
     app.text_ui.fail_send = True

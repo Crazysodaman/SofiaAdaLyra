@@ -223,6 +223,15 @@ class MobileCompanionGateway:
         now = datetime.now(timezone.utc)
         state = conversation.current_emotional_state(now=now)
         expression = conversation.current_expression_plan
+        expression_runtime = getattr(self.application, "expression_runtime", None)
+        decision = (
+            None if expression_runtime is None
+            else expression_runtime.latest(principal)
+        )
+        output_receipts = (
+            () if decision is None
+            else expression_runtime.receipts(decision.decision_id)
+        )
         grant = self.private_grants.resolve(
             principal=principal,
             explicit_current_opt_in=private_mode,
@@ -255,6 +264,22 @@ class MobileCompanionGateway:
                 "alternates": list(expression.alternates),
                 "pose": expression.pose,
                 "intensity": expression.intensity,
+            },
+            "expression_output": None if decision is None else {
+                "decision_id": decision.decision_id,
+                "message_id": decision.message_id,
+                "gesture": decision.gesture,
+                "pose": decision.pose,
+                "receipts": [
+                    {
+                        "output": item.output,
+                        "status": item.status,
+                        "acknowledged": item.acknowledged,
+                        "backend": item.backend,
+                        "occurred_at": item.occurred_at.isoformat(),
+                    }
+                    for item in output_receipts
+                ],
             },
             "avatar": None if presentation is None else {
                 "outfit_id": presentation.outfit_id,

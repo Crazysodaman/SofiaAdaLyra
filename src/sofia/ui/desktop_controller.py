@@ -49,6 +49,7 @@ class DesktopWorkbenchController:
         self._started = False
         self._theme_policy = AdaptiveThemePolicy()
         self._last_persistence_receipt: str | None = None
+        self._last_expression_output = None
 
     @property
     def started(self) -> bool:
@@ -247,15 +248,71 @@ class DesktopWorkbenchController:
             self._application.text_ui.save_draft(content)
             raise
 
+        history = self._application.text_ui.history()
+        assistant = next(
+            (item for item in reversed(history) if item.actor == "sofia"), None
+        )
+        expression_runtime = getattr(self._application, "expression_runtime", None)
+        decision = (
+            None if assistant is None or expression_runtime is None
+            else expression_runtime.get_for_message(assistant.message_id)
+        )
+        runtime = getattr(self._application, "runtime", None)
+        presentation = (
+            None if runtime is None else runtime.avatar_presentation_projection
+        )
+        self._last_expression_output = (decision, presentation)
         speak = getattr(self._application, "speak", None)
         if callable(speak):
             try:
-                speak(response.content)
+                try:
+                    speak(
+                        response.content,
+                        decision_id=None if decision is None else decision.decision_id,
+                    )
+                except TypeError:
+                    speak(response.content)
             except Exception:
                 # Audio is presentation. It must never invalidate a durable
                 # conversation turn or make desktop chat unavailable.
                 pass
         return response
+
+    def expression_output(self):
+        """Return the current decision and public-safe canonical presentation."""
+        return self._last_expression_output
+
+    def avatar_presentation(self):
+        runtime = getattr(self._application, "runtime", None)
+        return None if runtime is None else runtime.avatar_presentation_projection
+
+    def speech_input_probe(self):
+        service = getattr(self._application, "stt", None)
+        return None if service is None else service.probe()
+
+    def listen_once(self, callback):
+        listen = getattr(self._application, "listen_once", None)
+        if not callable(listen):
+            raise RuntimeError("application has no speech input service")
+        interrupt = getattr(self._application, "interrupt_speech", None)
+        if callable(interrupt):
+            interrupt()
+        return listen(callback)
+
+    def cancel_listening(self) -> bool:
+        cancel = getattr(self._application, "cancel_listening", None)
+        return False if not callable(cancel) else bool(cancel())
+
+    def acknowledge_avatar_output(
+        self, *, decision_id: str, rendered: bool, backend: str, detail: str,
+    ):
+        recorder = getattr(self._application, "acknowledge_avatar_output", None)
+        if not callable(recorder):
+            raise RuntimeError("application has no avatar acknowledgement owner")
+        return recorder(
+            decision_id=decision_id, rendered=rendered,
+            backend=backend, detail=detail,
+        )
 
     def tool_specs(self) -> tuple[DirectToolSpec, ...]:
         if not self._started:
@@ -285,7 +342,27 @@ class DesktopWorkbenchController:
         speak = getattr(self._application, "speak", None)
         if callable(speak):
             try:
-                speak(outcome.response.content)
+                history = self._application.text_ui.history()
+                assistant = next(
+                    (item for item in reversed(history) if item.actor == "sofia"), None
+                )
+                expression_runtime = getattr(self._application, "expression_runtime", None)
+                decision = (
+                    None if assistant is None or expression_runtime is None
+                    else expression_runtime.get_for_message(assistant.message_id)
+                )
+                runtime = getattr(self._application, "runtime", None)
+                presentation = (
+                    None if runtime is None else runtime.avatar_presentation_projection
+                )
+                self._last_expression_output = (decision, presentation)
+                try:
+                    speak(
+                        outcome.response.content,
+                        decision_id=None if decision is None else decision.decision_id,
+                    )
+                except TypeError:
+                    speak(outcome.response.content)
             except Exception:
                 pass
         return outcome

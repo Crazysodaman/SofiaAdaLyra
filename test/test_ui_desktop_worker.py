@@ -224,6 +224,45 @@ def test_worker_initializes_provisioned_discord_on_same_application(
     assert stops == starts
 
 
+def test_worker_emits_expression_and_records_renderer_acknowledgement(tmp_path: Path):
+    events: Queue[tuple[str, object]] = Queue()
+    worker = DesktopApplicationWorker(
+        configuration=_configuration(tmp_path),
+        session_id=None,
+        events=events,
+        discord_provisioning=DiscordProvisioning(enabled=False),
+        expression_events=True,
+    )
+    worker.start()
+    assert events.get(timeout=30)[0] == "started"
+    kind, presentation = events.get(timeout=30)
+    assert kind == "avatar_idle"
+    assert presentation.outfit_id
+    assert events.get(timeout=30)[0] == "persistence"
+    assert events.get(timeout=30)[0] == "discord_disabled"
+    worker.send("Show me a little personality.")
+    assert events.get(timeout=30)[0] == "persistence"
+    assert events.get(timeout=30)[0] == "sent"
+    kind, payload = events.get(timeout=30)
+    assert kind == "expression"
+    decision, presentation = payload
+    assert decision is not None
+    assert presentation.source_revision == decision.presentation_revision
+    worker.acknowledge_avatar(
+        decision.decision_id, rendered=True,
+        backend="fixture-renderer", detail="visible frame painted",
+    )
+    worker.shutdown("")
+    assert events.get(timeout=30)[0] == "shutdown_complete"
+    with sqlite3.connect(tmp_path / "sofia.db") as database:
+        row = database.execute(
+            "SELECT status,acknowledged FROM expression_output_receipt "
+            "WHERE decision_id=? AND output='avatar'",
+            (decision.decision_id,),
+        ).fetchone()
+    assert row == ("rendered", 1)
+
+
 def test_worker_marshals_mobile_requests_onto_application_thread(
     tmp_path: Path,
     monkeypatch,

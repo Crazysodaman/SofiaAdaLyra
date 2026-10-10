@@ -55,6 +55,7 @@ from sofia.application.presence import (
     WorldObservation,
 )
 from sofia.application.autonomous_work import AutonomousWorkCoordinator
+from sofia.application.expression_runtime import ExpressionRuntime
 from sofia.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
 )
@@ -131,11 +132,14 @@ from sofia.ui.text import UITextClient
 from sofia.voice import (
     TTSPlaybackReceipt,
     TTSStatus,
+    SpeechInputService,
+    SpeechInputReceiptStore,
     TextToSpeechService,
     VoiceProsodyMatrix,
     VoiceProsodyProfile,
     VoiceUrgency,
     create_tts_service_from_environment,
+    create_stt_service_from_settings,
 )
 
 
@@ -198,8 +202,16 @@ class SofiaApplication:
         # and Secondary workers synchronize independently inside cognition.
         self._conversation_activity = ConversationActivityGroup()
         self._tts: TextToSpeechService = (
-            create_tts_service_from_environment()
+            create_tts_service_from_environment(
+                self._environment_settings_store.load()
+            )
         )
+        self._stt: SpeechInputService = create_stt_service_from_settings(
+            self._environment_settings_store.load()
+        )
+        self._stt_receipts = SpeechInputReceiptStore(configuration.state_path)
+        self._expression_runtime = ExpressionRuntime(configuration.state_path)
+        self._tts.add_receipt_listener(self._record_voice_expression_receipt)
         self._channel_conversations: list[ConversationService] = []
         self._neuro = NeuroRuntime(
             observability=NeuroObservabilityStore(configuration.state_path)
@@ -304,6 +316,10 @@ class SofiaApplication:
         goal_conversation = GoalConversationResolver(self._goals)
         self._conversation_service.set_goal_command_handler(
             goal_conversation.resolve
+        )
+        self._conversation_service.set_expression_runtime(
+            self._expression_runtime,
+            presentation_revision_provider=self._presentation_revision,
         )
         self._act_service = SofiaActService(
             Path(configuration.state_path)
@@ -590,6 +606,10 @@ class SofiaApplication:
         service.set_goal_command_handler(
             GoalConversationResolver(self._goals).resolve
         )
+        service.set_expression_runtime(
+            self._expression_runtime,
+            presentation_revision_provider=self._presentation_revision,
+        )
         clothing_actions = getattr(
             self,
             "_clothing_action_service",
@@ -627,6 +647,59 @@ class SofiaApplication:
         """Return the application-owned non-blocking TTS service."""
         return self._tts
 
+    @property
+    def expression_runtime(self) -> ExpressionRuntime:
+        return self._expression_runtime
+
+    @property
+    def stt(self) -> SpeechInputService:
+        return self._stt
+
+    def listen_once(self, callback, *, timeout_seconds: float = 12.0):
+        """Begin one explicit push-to-talk capture; never ambient listening."""
+        def observed(receipt):
+            self._stt_receipts.record(receipt)
+            callback(receipt)
+        return self._stt.listen(observed, timeout_seconds=timeout_seconds)
+
+    def cancel_listening(self) -> bool:
+        return self._stt.cancel()
+
+    def interrupt_speech(self) -> bool:
+        return self._tts.interrupt()
+
+    def _presentation_revision(self) -> int:
+        bundle = getattr(self, "_presentation_bundle", None)
+        return 0 if bundle is None else bundle.authority.current.revision
+
+    def _record_voice_expression_receipt(self, receipt, decision_id) -> None:
+        if decision_id is None:
+            return
+        status = receipt.state.value
+        self._expression_runtime.receipt(
+            decision_id=decision_id, output="voice", status=status,
+            acknowledged=status == "spoken", backend=receipt.backend_name,
+            detail=receipt.error or receipt.voice_name or status,
+            occurred_at=datetime.now(timezone.utc),
+            dedupe_key=f"{receipt.utterance_id}:{status}",
+        )
+
+    def acknowledge_avatar_output(
+        self, *, decision_id: str, rendered: bool, backend: str,
+        detail: str = "",
+    ):
+        status = (
+            "rendered" if rendered
+            else ("cancelled" if "stopped" in detail.casefold() else "failed")
+        )
+        return self._expression_runtime.receipt(
+            decision_id=decision_id, output="avatar",
+            status=status,
+            acknowledged=rendered, backend=backend,
+            detail=detail or ("frame acknowledged" if rendered else "render failed"),
+            occurred_at=datetime.now(timezone.utc),
+        )
+
     def voice_runtime_status(self) -> TTSStatus:
         """Return current host-owned TTS runtime evidence."""
         return self._tts.status()
@@ -636,6 +709,7 @@ class SofiaApplication:
         content: str,
         *,
         urgency: VoiceUrgency = VoiceUrgency.NORMAL,
+        decision_id: str | None = None,
     ) -> TTSPlaybackReceipt:
         """Queue one persisted Sofía reply for local speech output."""
         if not isinstance(content, str) or not content.strip():
@@ -672,6 +746,7 @@ class SofiaApplication:
         receipt = self._tts.submit(
             content,
             profile=profile,
+            correlation_id=decision_id,
         )
         urgency_value = {
             VoiceUrgency.NORMAL: 0.25,
@@ -1548,6 +1623,10 @@ class SofiaApplication:
                     "Sofía application failed to shut down."
                 ) from exc
             finally:
+                try:
+                    self._stt.cancel()
+                except Exception:
+                    pass
                 try:
                     self._tts.stop()
                 except Exception:

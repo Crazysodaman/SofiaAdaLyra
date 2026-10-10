@@ -73,6 +73,7 @@ class DesktopApplicationWorker:
         session_id: str | None,
         events: Queue[tuple[str, object]],
         discord_provisioning: DiscordProvisioning | None = None,
+        expression_events: bool = False,
     ) -> None:
         if not isinstance(configuration, SofiaConfiguration):
             raise TypeError("configuration must be SofiaConfiguration")
@@ -97,6 +98,9 @@ class DesktopApplicationWorker:
         self._configuration = configuration
         self._session_id = session_id
         self._events = events
+        if type(expression_events) is not bool:
+            raise TypeError("expression_events must be bool")
+        self._expression_events = expression_events
         self._discord_provisioning = discord_provisioning
         self._commands: Queue[tuple[str, object]] = Queue()
         self._thread: Thread | None = None
@@ -135,6 +139,20 @@ class DesktopApplicationWorker:
         if not isinstance(parameters, dict):
             raise TypeError("parameters must be a dict")
         self._submit("run_tool", (tool_name, dict(parameters)))
+
+    def acknowledge_avatar(
+        self, decision_id: str, *, rendered: bool, backend: str, detail: str,
+    ) -> None:
+        self._submit(
+            "avatar_ack",
+            (decision_id, rendered, backend, detail),
+        )
+
+    def listen_once(self) -> None:
+        self._submit("listen_once", None)
+
+    def cancel_listening(self) -> None:
+        self._submit("cancel_listening", None)
 
     def shutdown(self, current_draft: str) -> None:
         if not isinstance(current_draft, str):
@@ -239,6 +257,10 @@ class DesktopApplicationWorker:
             self._events.put(
                 ("started", (history, draft, palette))
             )
+            if self._expression_events:
+                presentation = controller.avatar_presentation()
+                if presentation is not None:
+                    self._events.put(("avatar_idle", presentation))
             self._events.put(
                 ("persistence", controller.persistence_status())
             )
@@ -299,6 +321,30 @@ class DesktopApplicationWorker:
                     self._events.put(("draft_error", exc))
                 continue
 
+            if kind == "avatar_ack":
+                try:
+                    decision_id, rendered, backend, detail = payload
+                    controller.acknowledge_avatar_output(
+                        decision_id=decision_id, rendered=rendered,
+                        backend=backend, detail=detail,
+                    )
+                except Exception as exc:
+                    self._events.put(("avatar_error", exc))
+                continue
+
+            if kind == "listen_once":
+                try:
+                    controller.listen_once(
+                        lambda receipt: self._events.put(("voice_input", receipt))
+                    )
+                except Exception as exc:
+                    self._events.put(("voice_input_error", exc))
+                continue
+
+            if kind == "cancel_listening":
+                controller.cancel_listening()
+                continue
+
             if kind == "send":
                 try:
                     controller.send(payload)
@@ -311,9 +357,10 @@ class DesktopApplicationWorker:
                     self._events.put(
                         ("persistence", controller.persistence_status())
                     )
-                    self._events.put(
-                        ("sent", (history, palette, matrix_status))
-                    )
+                    self._events.put(("sent", (history, palette, matrix_status)))
+                    expression_output = controller.expression_output()
+                    if self._expression_events and expression_output is not None:
+                        self._events.put(("expression", expression_output))
                 except Exception as exc:
                     self._events.put(("send_error", exc))
                 continue
@@ -338,6 +385,9 @@ class DesktopApplicationWorker:
                             ),
                         )
                     )
+                    expression_output = controller.expression_output()
+                    if self._expression_events and expression_output is not None:
+                        self._events.put(("expression", expression_output))
                 except Exception as exc:
                     self._events.put(("tool_error", exc))
                 continue

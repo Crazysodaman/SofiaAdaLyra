@@ -25,7 +25,7 @@ from sofia.config.model import FleetCognitionConfiguration, FleetBootstrapConfig
 from sofia.act.outreach import Policy
 
 
-CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 7
+CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +91,13 @@ class RuntimeUserSettings:
     idle_reflections_enabled: bool | None = None
     habit_learning_enabled: bool | None = None
     avatar_routines_enabled: bool = True
+    avatar_renderer_enabled: bool = True
     avatar_daily_outfit: str | None = None
+    voice_output_enabled: bool = False
+    voice_input_enabled: bool = False
+    voice_muted: bool = False
+    voice_output_name: str | None = None
+    voice_input_device: str | None = None
     fleet_cognition: FleetCognitionConfiguration | None = None
     fleet_bootstrap: FleetBootstrapConfiguration | None = None
     outreach: OutreachSettings | None = None
@@ -148,12 +154,25 @@ class RuntimeUserSettings:
         if self.avatar_daily_outfit is not None:
             if not isinstance(self.avatar_daily_outfit, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", self.avatar_daily_outfit) is None:
                 raise ValueError("Daily outfit must be a bounded wardrobe ID")
-        for name in ("adaptive_theme", "avatar_routines_enabled"):
+        for name in (
+            "adaptive_theme", "avatar_routines_enabled",
+            "avatar_renderer_enabled", "voice_output_enabled",
+            "voice_input_enabled", "voice_muted",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean")
         for name in ("idle_reflections_enabled", "habit_learning_enabled"):
             if getattr(self, name) is not None and type(getattr(self, name)) is not bool:
                 raise TypeError(f"{name} must be boolean or None")
+        for name in ("voice_output_name", "voice_input_device"):
+            value = getattr(self, name)
+            if value is not None and (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value.strip()) > 256
+                or any(character in value for character in "\r\n\x00")
+            ):
+                raise ValueError(f"{name} must be bounded text or None")
         for name, kind in (("fleet_cognition", FleetCognitionConfiguration), ("fleet_bootstrap", FleetBootstrapConfiguration), ("outreach", OutreachSettings)):
             if getattr(self, name) is not None and not isinstance(getattr(self, name), kind):
                 raise TypeError(f"{name} must be {kind.__name__} or None")
@@ -552,6 +571,13 @@ class RuntimeUserSettingsStore:
             data["update_restart_mode"] = "automatic"
         if version < 7:
             data["cognitive_model_residency_mode"] = "resource_aware"
+        if version < 8:
+            data["avatar_renderer_enabled"] = True
+            data["voice_output_enabled"] = False
+            data["voice_input_enabled"] = False
+            data["voice_muted"] = False
+            data["voice_output_name"] = None
+            data["voice_input_device"] = None
         data["schema_version"] = CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
         data["fleet_discovery_targets"] = tuple(
             data.get("fleet_discovery_targets", ())

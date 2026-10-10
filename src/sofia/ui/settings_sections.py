@@ -48,6 +48,28 @@ class SettingsSections:
         boolean("Sofía", "idle_reflections_enabled", "Enable idle reflection", runtime.idle_reflections_enabled if runtime.idle_reflections_enabled is not None else os.environ.get("SOFIA_IDLE_REFLECTIONS", "").lower() not in ("0", "false", "off"))
         boolean("Sofía", "habit_learning_enabled", "Learn habits from supported observations", runtime.habit_learning_enabled if runtime.habit_learning_enabled is not None else os.environ.get("SOFIA_HABIT_LEARNING", "1").lower() in ("1", "true", "on"))
         boolean("Avatar", "avatar_routines_enabled", "Automatically select attire for supported routines", runtime.avatar_routines_enabled)
+        boolean("Avatar", "avatar_renderer_enabled", "Show the optional desktop avatar renderer", runtime.avatar_renderer_enabled)
+        boolean("Voice", "voice_output_enabled", "Enable local speech output", runtime.voice_output_enabled)
+        boolean("Voice", "voice_input_enabled", "Enable push-to-talk microphone input", runtime.voice_input_enabled)
+        boolean("Voice", "voice_muted", "Mute microphone and speaker presentation", runtime.voice_muted)
+        for field, label in (
+            ("voice_output_name", "Preferred installed voice (blank uses host default)"),
+            ("voice_input_device", "Microphone device ID (blank uses host default)"),
+        ):
+            variable = tk.StringVar(root, value=getattr(runtime, field) or "")
+            self.variables[field] = variable
+            ttk.Label(frames["Voice"], text=label).pack(anchor="w", pady=(8, 2))
+            ttk.Entry(frames["Voice"], textvariable=variable).pack(fill="x")
+        self.sql_panel(frames["Voice"], "Cross-modal output receipts", "expression_output_receipt")
+        self.sql_panel(frames["Voice"], "Microphone input receipts", "voice_input_receipt")
+        ttk.Label(
+            frames["Voice"],
+            text=(
+                "Microphone capture is push-to-talk and disabled by default. "
+                "Text remains authoritative when speech or rendering fails."
+            ),
+            wraplength=660,
+        ).pack(anchor="w", pady=8)
 
         restart_mode = tk.StringVar(root, value=runtime.update_restart_mode)
         self.variables["update_restart_mode"] = restart_mode
@@ -171,6 +193,8 @@ class SettingsSections:
             except ValueError as exc:
                 raise ValueError(f"{name.replace('_', ' ')} must be numeric") from exc
         result["avatar_daily_outfit"] = result["avatar_daily_outfit"] or None
+        result["voice_output_name"] = result["voice_output_name"] or None
+        result["voice_input_device"] = result["voice_input_device"] or None
         for key, (initial, variables) in self.groups.items():
             result[key] = type(initial)(**{name: parse_field(variable.get(), getattr(initial, name), name) for name, variable in variables.items()})
         return result
@@ -236,6 +260,7 @@ class SettingsSections:
         self.ttk.Label(parent, text="Daily outfit on restart (blank retains current daily attire)").pack(anchor="w", pady=(8, 2))
         self.ttk.Combobox(parent, textvariable=value, values=("", *outfits), state="readonly").pack(fill="x")
         self.sql_panel(parent, "Current presentation", "avatar_presentation_state")
+        self.sql_panel(parent, "Cross-modal expression decisions", "expression_decision")
         self.viewer(parent, "Public wardrobe presets", lambda: "\n\n".join(f"{plan.outfit_id}\nGarments: {', '.join(plan.item_ids)}" for plan in catalog.presets if not plan.private_only))
 
     def memory_panel(self, parent):

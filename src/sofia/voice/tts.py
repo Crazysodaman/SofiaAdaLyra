@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import inspect
 from queue import Empty, Full, Queue
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 from time import monotonic, sleep
-from typing import Protocol
+from typing import Callable, Protocol
 from uuid import uuid4
 
 from .prosody_matrix import VoiceProsodyProfile
@@ -17,6 +18,7 @@ class TTSPlaybackState(str, Enum):
     SPOKEN = "spoken"
     FAILED = "failed"
     REJECTED = "rejected"
+    CANCELLED = "cancelled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +137,7 @@ class _Utterance:
     text: str
     profile: VoiceProsodyProfile
     voice_hint: str | None
+    correlation_id: str | None
 
 
 class TTSBackend(Protocol):
@@ -212,6 +215,10 @@ class TextToSpeechService:
         self._lock = Lock()
         self._probe: TTSBackendProbe | None = None
         self._last_receipt: TTSPlaybackReceipt | None = None
+        self._current_cancel: Event | None = None
+        self._receipt_listeners: list[
+            Callable[[TTSPlaybackReceipt, str | None], None]
+        ] = []
 
     @property
     def enabled(self) -> bool:
@@ -221,6 +228,26 @@ class TextToSpeechService:
     def last_receipt(self) -> TTSPlaybackReceipt | None:
         with self._lock:
             return self._last_receipt
+
+    def add_receipt_listener(
+        self, listener: Callable[[TTSPlaybackReceipt, str | None], None],
+    ) -> None:
+        if not callable(listener):
+            raise TypeError("receipt listener must be callable")
+        with self._lock:
+            self._receipt_listeners.append(listener)
+
+    def _publish(
+        self, receipt: TTSPlaybackReceipt, correlation_id: str | None,
+    ) -> None:
+        with self._lock:
+            self._last_receipt = receipt
+            listeners = tuple(self._receipt_listeners)
+        for listener in listeners:
+            try:
+                listener(receipt, correlation_id)
+            except Exception:
+                pass
 
     def start(self) -> TTSStatus:
         if self._thread is not None:
@@ -296,6 +323,7 @@ class TextToSpeechService:
         text: str,
         *,
         profile: VoiceProsodyProfile | None = None,
+        correlation_id: str | None = None,
     ) -> TTSPlaybackReceipt:
         spoken = prepare_spoken_text(text)
         profile = profile or VoiceProsodyProfile()
@@ -317,8 +345,7 @@ class TextToSpeechService:
                 voice_name=status.selected_voice,
                 error=status.reason,
             )
-            with self._lock:
-                self._last_receipt = receipt
+            self._publish(receipt, correlation_id)
             return receipt
 
         try:
@@ -328,6 +355,7 @@ class TextToSpeechService:
                     text=spoken,
                     profile=profile,
                     voice_hint=self._voice_hint,
+                    correlation_id=correlation_id,
                 )
             )
         except Full:
@@ -338,8 +366,7 @@ class TextToSpeechService:
                 voice_name=status.selected_voice,
                 error="TTS queue is full",
             )
-            with self._lock:
-                self._last_receipt = receipt
+            self._publish(receipt, correlation_id)
             return receipt
 
         receipt = TTSPlaybackReceipt(
@@ -348,8 +375,7 @@ class TextToSpeechService:
             backend_name=self._backend.name,
             voice_name=status.selected_voice,
         )
-        with self._lock:
-            self._last_receipt = receipt
+        self._publish(receipt, correlation_id)
         return receipt
 
     def wait_until_idle(self, *, timeout: float = 5.0) -> bool:
@@ -368,6 +394,8 @@ class TextToSpeechService:
         cancel_pending: bool = True,
         timeout: float = 0.5,
     ) -> None:
+        if cancel_pending:
+            self.interrupt()
         if cancel_pending:
             while True:
                 try:
@@ -388,19 +416,56 @@ class TextToSpeechService:
         thread.join(timeout=timeout)
         self._thread = None
 
+    def interrupt(self) -> bool:
+        """Request cancellation of current speech and discard queued speech."""
+        with self._lock:
+            current = self._current_cancel
+        if current is not None:
+            current.set()
+        cancelled = current is not None
+        while True:
+            try:
+                item = self._queue.get_nowait()
+            except Empty:
+                break
+            else:
+                self._queue.task_done()
+                if item is not None:
+                    cancelled = True
+                    receipt = TTSPlaybackReceipt(
+                        utterance_id=item.utterance_id,
+                        state=TTSPlaybackState.CANCELLED,
+                        backend_name=self._backend.name,
+                        error="speech interrupted before playback",
+                    )
+                    self._publish(receipt, item.correlation_id)
+        return cancelled
+
     def _run(self) -> None:
         while True:
             item = self._queue.get()
             try:
                 if item is None:
                     return
+                cancel = Event()
+                with self._lock:
+                    self._current_cancel = cancel
                 try:
-                    receipt = self._backend.speak(
-                        utterance_id=item.utterance_id,
-                        text=item.text,
-                        profile=item.profile,
-                        voice_hint=item.voice_hint,
-                    )
+                    if "cancel" in inspect.signature(self._backend.speak).parameters:
+                        receipt = self._backend.speak(
+                            utterance_id=item.utterance_id,
+                            text=item.text,
+                            profile=item.profile,
+                            voice_hint=item.voice_hint,
+                            cancel=cancel,
+                        )
+                    else:
+                        receipt = self._backend.speak(
+                            utterance_id=item.utterance_id,
+                            text=item.text,
+                            profile=item.profile,
+                            voice_hint=item.voice_hint,
+                        )
                 except Exception as exc:
                     receipt = TTSPlaybackReceipt(
                         utterance_id=item.utterance_id,
@@ -408,7 +473,8 @@ class TextToSpeechService:
                         backend_name=self._backend.name,
                         error=f"{type(exc).__name__}: {exc}",
                     )
-                with self._lock:
-                    self._last_receipt = receipt
+                self._publish(receipt, item.correlation_id)
             finally:
+                with self._lock:
+                    self._current_cancel = None
                 self._queue.task_done()

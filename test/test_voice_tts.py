@@ -6,6 +6,10 @@ from sofia.voice.tts import (
     TextToSpeechService,
     prepare_spoken_text,
 )
+from threading import Event
+from dataclasses import replace
+from sofia.config.user_settings import RuntimeUserSettings
+from sofia.voice.factory import create_tts_service_from_environment
 
 
 class FakeBackend:
@@ -158,3 +162,38 @@ def test_spoken_text_removes_markdown_noise_and_code_blocks():
         "Here is bold and a link. "
         "Code block omitted from speech. Done."
     )
+
+
+def test_interrupt_cancels_active_speech_and_publishes_final_receipt():
+    started = Event()
+
+    class InterruptibleBackend(FakeBackend):
+        def speak(self, *, utterance_id, text, profile, voice_hint=None, cancel=None):
+            started.set()
+            assert cancel is not None
+            cancel.wait(2)
+            return TTSPlaybackReceipt(
+                utterance_id=utterance_id,
+                state=TTSPlaybackState.CANCELLED,
+                backend_name=self.name,
+                error="speech interrupted",
+            )
+
+    service = TextToSpeechService(InterruptibleBackend(), enabled=True)
+    service.start()
+    try:
+        service.submit("A long response")
+        assert started.wait(1)
+        assert service.interrupt() is True
+        assert service.wait_until_idle(timeout=2)
+        assert service.last_receipt.state is TTSPlaybackState.CANCELLED
+    finally:
+        service.stop()
+
+
+def test_persisted_mute_overrides_legacy_environment_enable(monkeypatch):
+    monkeypatch.setenv("SOFIA_TTS_ENABLED", "true")
+    settings = replace(
+        RuntimeUserSettings(), voice_output_enabled=True, voice_muted=True,
+    )
+    assert create_tts_service_from_environment(settings).enabled is False

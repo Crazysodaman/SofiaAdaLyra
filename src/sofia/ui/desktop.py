@@ -2,8 +2,8 @@
 
 Tkinter is imported lazily so headless tests and non-desktop package consumers
 do not require a display server. The shell uses one canonical SofiaApplication
-and its text_ui adapter. No renderer, voice, browser, or raw OS-control surface
-is introduced here.
+and its text_ui adapter. Its optional avatar and push-to-talk controls are
+presentation surfaces over application-owned decisions, never state authority.
 """
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ from sofia.ui.quick_tools import (
     quick_tool_labels,
 )
 from sofia.ui.theme import ThemePalette, canonical_theme
+from sofia.ui.avatar_renderer import AvatarRenderRequest, TkAvatarRenderer
+from sofia.voice import SpeechInputState
 
 
 def settings_window_command(state_path: Path) -> tuple[str, ...]:
@@ -217,18 +219,25 @@ class _TkDesktopWorkbench:
             configuration=configuration,
             session_id=session_id,
             events=self._events,
+            expression_events=True,
         )
         self._application_ready = False
         self._busy = False
+        self._listening = False
         self._persistence_status = ""
         self._matrix_status = ""
         self._close_requested = False
         self._last_rendered_ids: tuple[str, ...] = ()
         self._tool_specs = ()
         self._palette = canonical_theme()
+        runtime_settings = RuntimeUserSettingsStore(configuration.state_path).load()
+        self._avatar_renderer_enabled = runtime_settings.avatar_renderer_enabled
+        self._voice_input_enabled = (
+            runtime_settings.voice_input_enabled and not runtime_settings.voice_muted
+        )
         self._adaptive_theme = self._tk.BooleanVar(
             master=self._root,
-            value=RuntimeUserSettingsStore(configuration.state_path).load().adaptive_theme,
+            value=runtime_settings.adaptive_theme,
         )
         self._theme_name = self._tk.StringVar(
             master=self._root,
@@ -249,7 +258,7 @@ class _TkDesktopWorkbench:
 
     def _configure_window(self) -> None:
         self._root.title("Sofía")
-        self._root.geometry("1040x720")
+        self._root.geometry("1040x820")
         self._root.minsize(720, 480)
         self._root.configure(
             bg=self._palette.background
@@ -344,6 +353,22 @@ class _TkDesktopWorkbench:
         )
         self._tools_button.pack(side="right", padx=(10, 0))
 
+        self._stop_gesture_button = self._ttk.Button(
+            header,
+            text="Stop gesture",
+            command=self._stop_avatar_gesture,
+            style="Sofia.TButton",
+        )
+        self._stop_gesture_button.pack(side="right", padx=(10, 0))
+
+        self._voice_button = self._ttk.Button(
+            header,
+            text="Talk",
+            command=self._toggle_voice_input,
+            style="Sofia.TButton",
+        )
+        self._voice_button.pack(side="right", padx=(10, 0))
+
         self._status = self._tk.StringVar(value="")
         status = self._ttk.Label(
             header,
@@ -351,6 +376,21 @@ class _TkDesktopWorkbench:
             style="SofiaStatus.TLabel",
         )
         status.pack(side="right")
+
+        self._avatar_canvas = self._tk.Canvas(
+            outer,
+            height=300,
+            highlightthickness=1,
+            highlightbackground=self._palette.primary,
+            bd=0,
+            relief="flat",
+            bg=self._palette.panel,
+        )
+        if self._avatar_renderer_enabled:
+            self._avatar_canvas.pack(fill="x", pady=(0, 10))
+        self._avatar_renderer = TkAvatarRenderer(
+            root=self._root, canvas=self._avatar_canvas,
+        )
 
         self._history_shell = self._tk.Canvas(
             outer,
@@ -752,6 +792,9 @@ class _TkDesktopWorkbench:
                 if self._close_requested:
                     self._begin_shutdown()
                     return
+            elif kind == "avatar_idle":
+                if self._avatar_renderer_enabled:
+                    self._avatar_renderer.render_idle(payload)
             elif kind == "persistence":
                 self._persistence_status = str(payload)
                 if self._application_ready and not self._busy:
@@ -826,6 +869,8 @@ class _TkDesktopWorkbench:
                     palette if self._adaptive_theme.get() else canonical_theme()
                 )
                 self._input.focus_set()
+            elif kind == "expression":
+                self._render_expression(payload)
             elif kind == "tool_error":
                 self._busy = False
                 self._set_enabled(True)
@@ -893,6 +938,38 @@ class _TkDesktopWorkbench:
                     "Desktop worker error",
                     _format_exception_chain(payload),
                 )
+            elif kind == "avatar_error":
+                self._status.set(
+                    f"Avatar output failed: {type(payload).__name__}"
+                )
+            elif kind == "voice_input":
+                receipt = payload
+                if receipt.state is SpeechInputState.LISTENING:
+                    self._listening = True
+                    self._voice_button.configure(text="Cancel listening", state="normal")
+                    self._status.set("Listening through the selected microphone...")
+                elif receipt.state is SpeechInputState.COMPLETED:
+                    self._listening = False
+                    self._busy = False
+                    self._voice_button.configure(text="Talk")
+                    self._replace_input(receipt.transcript or "")
+                    self._set_enabled(True)
+                    self._send_current()
+                else:
+                    self._listening = False
+                    self._busy = False
+                    self._voice_button.configure(text="Talk")
+                    self._set_enabled(True)
+                    self._status.set(
+                        f"Speech input {receipt.state.value}: "
+                        f"{receipt.error or 'no transcript'}"
+                    )
+            elif kind == "voice_input_error":
+                self._listening = False
+                self._busy = False
+                self._voice_button.configure(text="Talk")
+                self._set_enabled(True)
+                self._status.set(f"Speech input failed: {type(payload).__name__}")
 
         self._root.after(80, self._poll_events)
 
@@ -983,6 +1060,10 @@ class _TkDesktopWorkbench:
         self._input_shell.configure(
             bg=palette.background
         )
+        self._avatar_canvas.configure(
+            bg=palette.panel,
+            highlightbackground=palette.primary,
+        )
         self._send.apply_palette(
             palette
         )
@@ -996,6 +1077,48 @@ class _TkDesktopWorkbench:
         self._theme_name.set(
             f"Theme: {label}"
         )
+
+    def _render_expression(self, output) -> None:
+        if output is None or not self._avatar_renderer_enabled:
+            return
+        decision, presentation = output
+        if decision is None or presentation is None:
+            return
+
+        def completed(decision_id: str, rendered: bool, detail: str) -> None:
+            self._worker.acknowledge_avatar(
+                decision_id,
+                rendered=rendered,
+                backend=self._avatar_renderer.backend_name,
+                detail=detail,
+            )
+
+        self._avatar_renderer.render(
+            AvatarRenderRequest(decision, presentation),
+            completed=completed,
+        )
+
+    def _stop_avatar_gesture(self) -> None:
+        decision_id = self._avatar_renderer.stop()
+        if decision_id is not None:
+            self._worker.acknowledge_avatar(
+                decision_id,
+                rendered=False,
+                backend=self._avatar_renderer.backend_name,
+                detail="operator stopped gesture before completion",
+            )
+
+    def _toggle_voice_input(self) -> None:
+        if self._listening:
+            self._worker.cancel_listening()
+            return
+        if self._busy or not self._application_ready:
+            return
+        self._busy = True
+        self._set_enabled(False)
+        self._voice_button.configure(state="normal", text="Cancel listening")
+        self._status.set("Opening microphone for one push-to-talk capture...")
+        self._worker.listen_once()
 
     def _refresh_theme(self) -> None:
         palette = canonical_theme()
@@ -1065,6 +1188,13 @@ class _TkDesktopWorkbench:
         )
         self._tools_button.configure(
             state=("normal" if enabled and self._tool_specs else "disabled")
+        )
+        self._voice_button.configure(
+            state=(
+                "normal"
+                if self._listening or (enabled and self._voice_input_enabled)
+                else "disabled"
+            )
         )
 
     def _save_theme(self) -> None:
