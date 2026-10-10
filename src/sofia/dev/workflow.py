@@ -7,7 +7,10 @@ from tempfile import TemporaryDirectory
 import subprocess
 import sys
 from .git_workspace import GitWorkspace,GitWorkspaceError,path_in_scope
-from .opencode import EngineeringExecutionRequest,OpenCodeAdapter
+from .opencode import (
+    EngineeringExecutionRequest, OpenCodeAdapter, OpenCodeCommand,
+    _run_engineering_process,
+)
 
 @dataclass(frozen=True)
 class EngineeringCandidate:
@@ -31,10 +34,11 @@ class EngineeringWorkflow:
         sandbox:Path,
         request:EngineeringExecutionRequest,
     )->subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            (sys.executable,"-m","pytest","-q",*request.tests),
-            cwd=sandbox,text=True,capture_output=True,check=False,
-            timeout=request.timeout_seconds,
+        return _run_engineering_process(
+            OpenCodeCommand(
+                (sys.executable,"-m","pytest","-q",*request.tests), sandbox,
+            ),
+            timeout_seconds=request.timeout_seconds,
         )
 
     def build(self,request:EngineeringExecutionRequest)->EngineeringCandidate:
@@ -68,7 +72,10 @@ class EngineeringWorkflow:
                     )
                     result=adapter.execute(iteration_request)
                     changed=sg.require_changes_within(request.allowed_paths)
-                    if result.returncode!=0:
+                    if not changed:
+                        verification_output="OpenCode produced no candidate changes."
+                        passed=False
+                    elif result.returncode!=0:
                         verification_output=(result.stdout+"\n"+result.stderr)[-8000:]
                         passed=False
                     elif request.tests:
@@ -79,6 +86,10 @@ class EngineeringWorkflow:
                         passed=True
                     if passed:
                         patch=sg.patch()
+                        if not patch.strip():
+                            raise GitWorkspaceError(
+                                "candidate changed paths but produced no reviewable patch"
+                            )
                         digest=(
                             sha256(verification_output.encode("utf-8")).hexdigest()
                             if verification_output else None

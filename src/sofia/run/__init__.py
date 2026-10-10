@@ -30,6 +30,14 @@ from .windows_service_spec import (
     WindowsServiceSpec,
     service_specs,
 )
+from .work import (
+    DurableWorkStore,
+    TaskExecutionManager,
+    WorkJob,
+    WorkOverloadError,
+    WorkResult,
+    WorkStatus,
+)
 
 __all__ = [
     "ApplicationHeartbeat",
@@ -52,4 +60,10 @@ __all__ = [
     "WATCHDOG_SERVICE",
     "WindowsServiceSpec",
     "service_specs",
+    "DurableWorkStore",
+    "TaskExecutionManager",
+    "WorkJob",
+    "WorkOverloadError",
+    "WorkResult",
+    "WorkStatus",
 ]

@@ -9,6 +9,10 @@ from .opencode import (
     OpenCodeAdapter,
     OpenCodeCommand,
     OpenCodeExecutionError,
+    OpenCodeConfigurationError,
+    OpenCodeMissingExecutableError,
+    OpenCodeTimeoutError,
+    OpenCodeScopeError,
 )
 from sofia.dev.opencode import WorkspaceGuard, WorkspaceViolation
 from .git_workspace import (
@@ -29,6 +33,10 @@ __all__ = [
     'OpenCodeAdapter',
     'OpenCodeCommand',
     'OpenCodeExecutionError',
+    'OpenCodeConfigurationError',
+    'OpenCodeMissingExecutableError',
+    'OpenCodeTimeoutError',
+    'OpenCodeScopeError',
     'GitSnapshot',
     'GitWorkspace',
     'GitWorkspaceError',

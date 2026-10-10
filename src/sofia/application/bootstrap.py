@@ -54,6 +54,7 @@ from sofia.application.presence import (
     WorldEpistemicState,
     WorldObservation,
 )
+from sofia.application.autonomous_work import AutonomousWorkCoordinator
 from sofia.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
 )
@@ -186,10 +187,7 @@ class SofiaApplication:
         # not the pre-review constructor input.
         self._configuration = self._runtime.configuration
         configuration = self._configuration
-        self._evolution = SofiaEvolutionService(
-            configuration=configuration,
-            state_plane=self._runtime.state_plane,
-        )
+        self._evolution = self._runtime.evolution_service
         self._release_manager = create_release_manager(
             configuration=configuration,
             state_plane=self._runtime.state_plane,
@@ -318,6 +316,13 @@ class SofiaApplication:
             act_service=self._act_service,
             neuro_priority=self._neuro.background_priority,
         )
+        self._autonomous_work = AutonomousWorkCoordinator(
+            state_path=configuration.state_path,
+            workspace=Path(configuration.filesystem_root),
+            evolution=self._evolution,
+            code_orchestrator=self._runtime.code_evolution_orchestrator,
+            presence=self._presence,
+        )
         self._goal_production = GoalProductionCoordinator(
             goals=self._goals,
             state_path=configuration.state_path,
@@ -379,6 +384,10 @@ class SofiaApplication:
     @property
     def presence(self) -> PresenceInitiativeEngine:
         return self._presence
+
+    @property
+    def autonomous_work(self) -> AutonomousWorkCoordinator:
+        return self._autonomous_work
 
     @property
     def neuro(self) -> NeuroRuntime:
@@ -1171,6 +1180,9 @@ class SofiaApplication:
                 errors.append(f"background:{type(exc).__name__}")
             self._background = None
             self._idle_worker = None
+        autonomous_work = getattr(self, "_autonomous_work", None)
+        if autonomous_work is not None:
+            autonomous_work.close()
 
         lifecycle_worker = getattr(
             self,
@@ -1493,6 +1505,9 @@ class SofiaApplication:
                 ) from exc
             self._background = None
             self._idle_worker = None
+        autonomous_work = getattr(self, "_autonomous_work", None)
+        if autonomous_work is not None:
+            autonomous_work.close()
         lifecycle_worker = getattr(
             self,
             "_model_lifecycle_worker",

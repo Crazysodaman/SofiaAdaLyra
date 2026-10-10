@@ -150,6 +150,9 @@ class SofiaRuntime:
             state_path=configuration.state_path,
             adult_verified=configuration.avatar_private_adult_verified,
         )
+        self._dev_service = None
+        self._evolution_service = None
+        self._code_evolution_orchestrator = None
         if (
             model_lifecycle is not None
             and not isinstance(model_lifecycle, ModelLifecycleManager)
@@ -382,6 +385,40 @@ class SofiaRuntime:
     @property
     def capability_system(self) -> CapabilitySystem:
         return self._capability_system
+
+    def install_engineering_services(
+        self, *, dev_service, evolution_service, code_orchestrator,
+    ) -> None:
+        """Attach the exact services registered in the capability system."""
+        if self._dev_service is not None:
+            raise RuntimeError("engineering services are already installed")
+        if not callable(getattr(dev_service, "build", None)):
+            raise TypeError("DEV service must implement build")
+        if not callable(getattr(evolution_service, "propose_code", None)):
+            raise TypeError("EVOLVE service must implement propose_code")
+        if not callable(getattr(code_orchestrator, "build_candidate", None)):
+            raise TypeError("code orchestrator must implement build_candidate")
+        self._dev_service = dev_service
+        self._evolution_service = evolution_service
+        self._code_evolution_orchestrator = code_orchestrator
+
+    @property
+    def dev_service(self):
+        if self._dev_service is None:
+            raise RuntimeError("DEV service is not composed")
+        return self._dev_service
+
+    @property
+    def evolution_service(self):
+        if self._evolution_service is None:
+            raise RuntimeError("EVOLVE service is not composed")
+        return self._evolution_service
+
+    @property
+    def code_evolution_orchestrator(self):
+        if self._code_evolution_orchestrator is None:
+            raise RuntimeError("code evolution orchestrator is not composed")
+        return self._code_evolution_orchestrator
 
     @property
     def configuration(self) -> SofiaConfiguration:

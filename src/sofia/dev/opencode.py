@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
-import re, shutil, subprocess, sys
+import os, re, shutil, signal, subprocess, sys
 
 
 class WorkspaceViolation(RuntimeError): pass
@@ -39,6 +39,49 @@ class WorkspaceGuard:
         return candidate
 
 class OpenCodeExecutionError(RuntimeError): pass
+class OpenCodeConfigurationError(OpenCodeExecutionError): pass
+class OpenCodeMissingExecutableError(OpenCodeExecutionError): pass
+class OpenCodeTimeoutError(OpenCodeExecutionError): pass
+class OpenCodeScopeError(OpenCodeExecutionError): pass
+
+
+def engineering_worker_environment() -> dict[str, str]:
+    """Minimal environment: omit tokens, cloud credentials, and app secrets."""
+    allowed = (
+        "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC",
+        "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL", "PYTHONUTF8",
+    )
+    result = {key: os.environ[key] for key in allowed if key in os.environ}
+    result["SOFIA_ENGINEERING_WORKER"] = "1"
+    return result
+
+
+def _run_engineering_process(
+    command: OpenCodeCommand, *, timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    process = subprocess.Popen(
+        command.argv, cwd=command.cwd, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=engineering_worker_environment(), stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        if os.name == "posix":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            process.kill()
+        process.communicate()
+        raise OpenCodeTimeoutError(
+            f"OpenCode exceeded {timeout_seconds}s"
+        ) from exc
+    return subprocess.CompletedProcess(
+        command.argv, process.returncode, stdout, stderr,
+    )
 
 @dataclass(frozen=True)
 class EngineeringExecutionRequest:
@@ -82,7 +125,10 @@ class EngineeringExecutionResult:
 
 class OpenCodeAdapter:
     def __init__(self,workspace:Path,executable:str="opencode",agent:str|None=None)->None:
-        self.workspace=workspace.resolve(); self.executable=executable
+        self.workspace=workspace.resolve()
+        if not isinstance(executable,str) or not executable.strip() or len(executable)>512:
+            raise OpenCodeConfigurationError("OpenCode executable configuration is invalid")
+        self.executable=executable.strip()
         if agent is not None and re.fullmatch(r"[A-Za-z0-9_-]{1,64}",agent) is None:
             raise ValueError("OpenCode agent name is invalid")
         self.agent=agent
@@ -109,7 +155,7 @@ class OpenCodeAdapter:
             raise PermissionError("OpenCode execution requires explicit authority")
         WorkspaceGuard(self.workspace,request.allowed_paths)
         exe=shutil.which(self.executable)
-        if exe is None: raise OpenCodeExecutionError(f"OpenCode executable not found: {self.executable}")
+        if exe is None: raise OpenCodeMissingExecutableError(f"OpenCode executable not found: {self.executable}")
         scope="\n".join(f"- {item}" for item in request.allowed_paths)
         tests="\n".join(f"- {item}" for item in request.tests) or "- none supplied"
         engineering_prompt=(
@@ -128,15 +174,37 @@ class OpenCodeAdapter:
         before=self.changed_paths()
         if before: self.verify_scope(request,before)
         try:
-            completed=subprocess.run(command.argv,cwd=command.cwd,text=True,capture_output=True,timeout=request.timeout_seconds,check=False)
-        except (OSError,subprocess.TimeoutExpired) as exc: raise OpenCodeExecutionError(str(exc)) from exc
+            completed=_run_engineering_process(
+                command, timeout_seconds=request.timeout_seconds,
+            )
+        except OSError as exc:
+            raise OpenCodeExecutionError(str(exc)) from exc
         changed=self.changed_paths()
         try: self.verify_scope(request,changed)
         except WorkspaceViolation as exc:
-            raise OpenCodeExecutionError(f"OpenCode changed path outside approved scope: {exc}") from exc
+            raise OpenCodeScopeError(f"OpenCode changed path outside approved scope: {exc}") from exc
+        total_bytes=0
+        for relative in changed:
+            target=(self.workspace/relative)
+            if target.is_file(): total_bytes+=target.stat().st_size
+        if total_bytes>64*1024*1024:
+            raise OpenCodeScopeError("OpenCode candidate exceeds the 64 MiB changed-file budget")
+        stdout=completed.stdout[-262144:]
+        stderr=completed.stderr[-262144:]
+        completed=subprocess.CompletedProcess(completed.args,completed.returncode,stdout,stderr)
         tests_passed=None
         if completed.returncode==0 and request.tests:
-            test=subprocess.run((sys.executable,"-m","pytest","-q",*request.tests),cwd=self.workspace,text=True,capture_output=True,timeout=request.timeout_seconds,check=False)
+            test=_run_engineering_process(
+                OpenCodeCommand(
+                    (sys.executable,"-m","pytest","-q",*request.tests),
+                    self.workspace,
+                ),
+                timeout_seconds=request.timeout_seconds,
+            )
             tests_passed=test.returncode==0
-            completed=subprocess.CompletedProcess(completed.args,completed.returncode,completed.stdout+"\n"+test.stdout,completed.stderr+"\n"+test.stderr)
+            completed=subprocess.CompletedProcess(
+                completed.args,completed.returncode,
+                (completed.stdout+"\n"+test.stdout)[-262144:],
+                (completed.stderr+"\n"+test.stderr)[-262144:],
+            )
         return EngineeringExecutionResult(request.proposal_id,completed.returncode,completed.stdout,completed.stderr,request.base_sha,changed,tests_passed,False)

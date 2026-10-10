@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any
+from threading import BoundedSemaphore
 
 from sofia.capability.model import Capability, CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
@@ -161,6 +162,7 @@ class DevToolService:
         )
         self.approval_verifier = approval_verifier
         self._applied_proposal_id: str | None = None
+        self._build_slots = BoundedSemaphore(1)
 
     def _authorize(
         self,
@@ -233,8 +235,13 @@ class DevToolService:
             tests=tuple(parameters.get("tests", ())),
             max_iterations=int(parameters.get("max_iterations", 3)),
         )
-        candidate = self.workflow.build(request)
-        self.store.put(candidate)
+        if not self._build_slots.acquire(blocking=False):
+            raise RuntimeError("DEV isolated build capacity is exhausted")
+        try:
+            candidate = self.workflow.build(request)
+            self.store.put(candidate)
+        finally:
+            self._build_slots.release()
         return {
             "proposal_id": candidate.proposal_id,
             "base_sha": candidate.base_sha,

@@ -149,7 +149,20 @@ class CodeEvolutionOrchestrator:
                 "changed_paths": list(candidate["changed_paths"]),
                 "allowed_paths": list(candidate["allowed_paths"]),
                 "tests_passed": candidate["tests_passed"],
+                "tests": list(candidate.get("tests", proposal.tests)),
+                "iterations": int(candidate.get("iterations", 1)),
+                "verification_output_sha256": candidate.get(
+                    "verification_output_sha256"
+                ),
                 "patch_sha256": sha256(patch.encode("utf-8")).hexdigest(),
+                "risk": "isolated_candidate_only",
+                "rollback": "discard durable candidate; production workspace unchanged",
+                "isolation": {
+                    "detached_worktree": True,
+                    "environment_scrubbed": True,
+                    "network_isolation": False,
+                    "security_boundary": "host process authority remains authoritative",
+                },
             },
             observed_at=now,
             recorded_at=now,

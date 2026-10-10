@@ -203,6 +203,31 @@ def create_background_coordinator(
         if callable(set_act_ready):
             set_act_ready(act_service.has_pending)
 
+    autonomous_work = getattr(application, "_autonomous_work", None)
+    if autonomous_work is not None:
+        def run_autonomous_work(now):
+            activity = activity_store.state(host_id).effective
+            busy = activity in {
+                ActivityMode.GAMING,
+                ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }
+            snapshot = application._neuro.last_snapshot
+            pressure = 0.0 if snapshot is None else max(
+                snapshot.homeostasis.cognitive_load,
+                snapshot.homeostasis.competition_pressure,
+            )
+            result = autonomous_work.tick(
+                now=now, busy=busy, resource_pressure=pressure,
+            )
+            return result if any(result.values()) else None
+
+        coordinator.set_task(
+            "autonomous_work",
+            run_autonomous_work,
+            interval_seconds=60.0,
+        )
+
     def bridge_reflection_outreach(now):
         service = application._conversation_service
         if not hasattr(service, "current_emotional_state"):

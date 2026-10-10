@@ -508,6 +508,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
         role: str,
         request: CognitiveRequest,
         steps: list[RoutingExecutionStep],
+        *,
+        defer_finish: bool = False,
     ) -> CognitiveResponse:
         with self._role_locks[role]:
             engine = self.registry.get(role)
@@ -529,14 +531,14 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 response = engine.respond(request)
             except Exception:
                 host = self._engine_host(engine)
-                if self.activity_store is not None and model is not None:
+                if not defer_finish and self.activity_store is not None and model is not None:
                     self.activity_store.mark_finished(
                         role=role,
                         model=model,
                         host=host,
                         succeeded=False,
                     )
-                if self.runtime_state_store is not None and model is not None:
+                if not defer_finish and self.runtime_state_store is not None and model is not None:
                     self.runtime_state_store.mark_result(
                         role=role,
                         model=model,
@@ -555,14 +557,14 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 )
                 raise
             host = self._engine_host(engine)
-            if self.activity_store is not None and model is not None:
+            if not defer_finish and self.activity_store is not None and model is not None:
                 self.activity_store.mark_finished(
                     role=role,
                     model=model,
                     host=host,
                     succeeded=True,
                 )
-            if self.runtime_state_store is not None and model is not None:
+            if not defer_finish and self.runtime_state_store is not None and model is not None:
                 self.runtime_state_store.mark_result(
                     role=role,
                     model=model,
@@ -579,6 +581,22 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 )
             )
             return response
+
+    def _finish_deferred_role(self, role: str, *, succeeded: bool) -> None:
+        """Publish one parallel worker result only after the pair has joined."""
+        engine = self.registry.get(role)
+        model = self._engine_model(engine)
+        host = self._engine_host(engine) or self.local_host_id
+        if self.activity_store is not None and model is not None:
+            self.activity_store.mark_finished(
+                role=role, model=model, host=host, succeeded=succeeded,
+            )
+        if self.runtime_state_store is not None and model is not None:
+            self.runtime_state_store.mark_result(
+                role=role, model=model, host=host, route="in_progress",
+                succeeded=succeeded,
+                error=None if succeeded else "cognitive_worker_error",
+            )
 
     def _parallel_response(
         self,
@@ -609,10 +627,12 @@ class RoutingCognitiveEngine(CognitiveEngine):
             thread_name_prefix="sofia-cognition",
         ) as pool:
             primary_future = pool.submit(
-                self._invoke, "primary", request, primary_steps
+                self._invoke, "primary", request, primary_steps,
+                defer_finish=True,
             )
             secondary_future = pool.submit(
-                self._invoke, "secondary", secondary_request, secondary_steps
+                self._invoke, "secondary", secondary_request, secondary_steps,
+                defer_finish=True,
             )
             primary_response = None
             secondary_response = None
@@ -626,6 +646,8 @@ class RoutingCognitiveEngine(CognitiveEngine):
                 secondary_response = secondary_future.result()
             except Exception as exc:
                 secondary_error = exc
+        self._finish_deferred_role("primary", succeeded=primary_error is None)
+        self._finish_deferred_role("secondary", succeeded=secondary_error is None)
         steps.extend(primary_steps)
         steps.extend(secondary_steps)
         if primary_error is not None or secondary_error is not None:

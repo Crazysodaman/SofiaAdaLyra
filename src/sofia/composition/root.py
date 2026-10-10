@@ -217,13 +217,14 @@ def compose(
         configuration=configuration,
         state_plane=state_plane,
     )
+    code_evolution_orchestrator = CodeEvolutionOrchestrator(
+        lifecycle=evolution_service.lifecycle,
+        dev_service=dev_service,
+        verifier=SubprocessCandidateVerificationRunner(filesystem_root),
+    )
     evolve_capabilities = EvolveCapabilitySet(
         evolution_service,
-        code_orchestrator=CodeEvolutionOrchestrator(
-            lifecycle=evolution_service.lifecycle,
-            dev_service=dev_service,
-            verifier=SubprocessCandidateVerificationRunner(filesystem_root),
-        ),
+        code_orchestrator=code_evolution_orchestrator,
     )
 
     machine_service = MachineToolService(
@@ -504,6 +505,11 @@ def compose(
         operational_store=operational_store,
         filesystem_observation_store=filesystem_observation_store,
         model_lifecycle=model_lifecycle,
+    )
+    runtime.install_engineering_services(
+        dev_service=dev_service,
+        evolution_service=evolution_service,
+        code_orchestrator=code_evolution_orchestrator,
     )
 
     runtime_holder["runtime"] = runtime
