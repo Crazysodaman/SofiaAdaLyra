@@ -7,7 +7,7 @@ from sofia.creative import (
     ArtifactKind, CreativeProject, CreativeRequest, CreativeService,
     CreativeStore, CreativeWorkspaceManager, DevCandidateArtifactAdapter,
     ManagedAssetStore, NativeCreativeAdapter, CreativeExplorer,
-    CreativeWorldBridge,
+    CreativeWorldBridge, path_component,
 )
 from sofia.interaction.world_model import ObjectKind, Transform
 from sofia.interaction.world_store import VirtualWorldStore
@@ -206,3 +206,136 @@ def test_verified_authored_object_can_be_placed_in_world(tmp_path):
     assert receipt.action == "create"
     assert placed.asset_id == "artifact:fox-cube:r1"
     assert placed.state["artifact_sha256"] == artifact.content_sha256
+
+
+ILLEGAL_WINDOWS_COMPONENT_CHARS = frozenset('<>:"/\\|?*')
+
+
+def test_canonical_colon_identifiers_map_to_windows_safe_components():
+    for identifier in (
+        "project:e757e6a918347aa5a4635ad06efd",
+        "request:bcc212416fcf4cc891f05359bce8e4ca",
+        "artifact:ABC.def:ghi",
+    ):
+        component = path_component(identifier)
+        assert component == path_component(identifier)
+        assert ILLEGAL_WINDOWS_COMPONENT_CHARS.isdisjoint(component)
+        assert component not in {".", ".."}
+        assert not any(ord(char) < 32 for char in component)
+        assert len(component) <= 100
+        assert not Path(component).is_absolute()
+
+
+def test_path_components_reject_traversal_and_absolute_paths():
+    with pytest.raises(TypeError):
+        path_component(None)
+    for invalid in (".", "..", "", "../escape", "a/b", "a\\b", "C:\\evil", "/tmp/evil"):
+        with pytest.raises(ValueError):
+            path_component(invalid)
+
+
+def test_distinct_identifiers_do_not_collide_case_insensitively():
+    upper = path_component("project:Alpha")
+    lower = path_component("project:alpha")
+    assert upper != lower
+    assert upper.casefold() != lower.casefold()
+
+
+def test_creative_service_preserves_canonical_ids_and_writes_safe_paths(tmp_path):
+    project_id = "project:e757e6a918347aa5a4635ad06efd"
+    artifact_id = "artifact:bcc212416fcf4cc891f05359bce8e4ca"
+    store = CreativeStore(tmp_path / "sofia.db")
+    store.create_project(CreativeProject(
+        project_id, "Colon Project", "sofia", "local:text", NOW,
+    ))
+    service = CreativeService(
+        store, CreativeWorkspaceManager(tmp_path / "workspaces"),
+        ManagedAssetStore(tmp_path / "assets", max_asset_bytes=2_000_000),
+    )
+    revision = service.create(
+        CreativeRequest(
+            "request:client", project_id, artifact_id, ArtifactKind.TEXT,
+            "Colon artifact", "sofia", "sofia", "local:text", "private",
+            {"content": "colon-safe"}, "goal:x",
+        ),
+        NativeCreativeAdapter(), now=NOW,
+    )
+
+    reopened = CreativeStore(store.path)
+    persisted = reopened.latest(artifact_id, "sofia", "local:text")
+    assert persisted == revision
+    assert persisted.project_id == project_id
+    assert persisted.artifact_id == artifact_id
+
+    path = Path(revision.content_path)
+    assert path.is_file()
+    for part in path.relative_to(tmp_path).parts:
+        assert ILLEGAL_WINDOWS_COMPONENT_CHARS.isdisjoint(part)
+        assert part not in {".", ".."}
+
+
+def test_workspace_allocation_rejects_symlink_escape(tmp_path):
+    root = tmp_path / "workspaces"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = root / path_component("project:escaped")
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation is not permitted on this host")
+
+    manager = CreativeWorkspaceManager(root)
+    with pytest.raises(PermissionError, match="escaped"):
+        manager.allocate(CreativeRequest(
+            "request:escaped", "project:escaped", "artifact:escaped",
+            ArtifactKind.TEXT, "Escaped", "sofia", "sofia", "local:text",
+            "private", {"content": "x"}, "goal:x",
+        ))
+
+
+def test_restart_preserves_artifact_identity_access_and_hash(tmp_path):
+    project_id = "project:restart"
+    artifact_id = "artifact:restart"
+    store = CreativeStore(tmp_path / "sofia.db")
+    store.create_project(CreativeProject(
+        project_id, "Restart", "sofia", "local:text", NOW,
+    ))
+    service = CreativeService(
+        store, CreativeWorkspaceManager(tmp_path / "workspaces"),
+        ManagedAssetStore(tmp_path / "assets", max_asset_bytes=2_000_000),
+    )
+    created = service.create(
+        CreativeRequest(
+            "request:restart", project_id, artifact_id, ArtifactKind.TEXT,
+            "Restart artifact", "sofia", "sofia", "local:text", "private",
+            {"content": "durable bytes"}, "goal:x",
+        ),
+        NativeCreativeAdapter(), now=NOW,
+    )
+
+    reopened_store = CreativeStore(store.path)
+    reopened = CreativeService(
+        reopened_store, CreativeWorkspaceManager(tmp_path / "workspaces"),
+        ManagedAssetStore(tmp_path / "assets", max_asset_bytes=2_000_000),
+    )
+    assert reopened_store.latest(artifact_id, "sofia", "local:text") == created
+    assert reopened_store.latest(artifact_id, "other", "local:text") is None
+    path, media_type = CreativeExplorer(reopened_store).verified_preview(
+        artifact_id, owner_principal_id="sofia", audience_id="local:text",
+    )
+    assert path.is_file() and media_type == "text/plain"
+    assert path.read_bytes() == b"durable bytes"
+
+    second = reopened.create(
+        CreativeRequest(
+            "request:restart-2", project_id, artifact_id, ArtifactKind.TEXT,
+            "Restart artifact", "sofia", "sofia", "local:text", "private",
+            {"content": "second edition"}, "goal:x",
+        ),
+        NativeCreativeAdapter(), now=NOW,
+    )
+    assert second.revision == 2
+    assert CreativeStore(store.path).history(
+        artifact_id, "sofia", "local:text",
+    )[-1] == second

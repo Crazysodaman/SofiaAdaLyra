@@ -5,6 +5,7 @@ from .model import (
     CreativeToolProbe, GeneratedArtifact,
 )
 from .adapters import DevCandidateArtifactAdapter, NativeCreativeAdapter
+from .paths import path_component
 from .service import CreativeService, CreativeWorkspaceManager, ManagedAssetStore
 from .store import CreativeStore
 from .explorer import CreativeExplorer
@@ -17,5 +18,5 @@ __all__ = [
     "NativeCreativeAdapter", "CreativeService", "CreativeWorkspaceManager",
     "ManagedAssetStore", "CreativeStore",
     "CreativeExplorer", "CreativeWorldBridge", "CreativeArtifactCapability",
-    "creative_request_digest",
+    "creative_request_digest", "path_component",
 ]

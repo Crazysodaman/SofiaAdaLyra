@@ -8,6 +8,7 @@ import shutil
 from uuid import uuid4
 
 from .model import ArtifactRevision, CreativeRequest, GeneratedArtifact
+from .paths import path_component
 from .store import CreativeStore
 
 
@@ -17,7 +18,13 @@ class CreativeWorkspaceManager:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def allocate(self, request: CreativeRequest) -> Path:
-        path = self.root / request.project_id / f"{request.request_id}-{uuid4().hex[:8]}"
+        project_component = path_component(request.project_id)
+        request_component = path_component(request.request_id)
+        path = self.root / project_component / f"{request_component}-{uuid4().hex[:8]}"
+        try:
+            path.resolve().relative_to(self.root.resolve())
+        except ValueError as exc:
+            raise PermissionError("creative workspace escaped its isolated root") from exc
         path.mkdir(parents=True, exist_ok=False)
         return path
 
