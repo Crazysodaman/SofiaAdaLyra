@@ -116,6 +116,8 @@ class SettingsSections:
         self.group(frames["Fleet"], "fleet_bootstrap", "Agent provisioning", runtime.fleet_bootstrap or config.fleet_bootstrap)
         ttk.Label(frames["Fleet"], text="Host IDs, targets and scopes are comma-separated. Discovery does not enroll hosts; provisioning requires the existing reviewed authority, package digest and signer.", wraplength=660).pack(anchor="w", pady=8)
         self.sql_panel(frames["Fleet"], "Enrolled nodes", "distributed_node_identity")
+        self.sql_panel(frames["Fleet"], "Software and capability health evidence", "ops_dependency_observation")
+        self.sql_panel(frames["Fleet"], "Verified platform installation receipts", "ops_platform_install_receipt")
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
@@ -139,6 +141,15 @@ class SettingsSections:
         from .goals_panel import GoalsPanel
         self.goals = GoalsPanel(self, frames["Goals"])
         self.memory_panel(frames["Memory"])
+        self.sql_panel(frames["World"], "Persistent spaces", "world_space")
+        self.sql_panel(frames["World"], "Scene objects and inventory", "world_object")
+        self.sql_panel(frames["World"], "World revision history", "world_revision")
+        self.sql_panel(frames["World"], "Avatar and object interaction receipts", "world_interaction_receipt")
+        from .creative_panel import CreativePanel
+        self.creative = CreativePanel(self, frames["Creative"])
+        self.sql_panel(frames["Preferences"], "Evidence-backed preference revisions", "personality_preference_revision")
+        self.sql_panel(frames["Preferences"], "Nickname proposals and feedback", "rel_nickname_proposal")
+        self.sql_panel(frames["Preferences"], "Nickname lifecycle evidence", "rel_nickname_event")
         self.sql_panel(frames["EVOLVE"], "Reviewed revisions", "evolve_reviewed_revisions")
         self.sql_panel(frames["EVOLVE"], "Configuration authority records", "state_plane_record", where="namespace='configuration'")
         self.sql_panel(frames["EVOLVE"], "Autonomous activity queue", "autonomous_work_job")

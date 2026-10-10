@@ -35,6 +35,7 @@ from sofia.avatar.wardrobe_planner import (
     WardrobeContext,
     wardrobe_emotion_influences,
 )
+from sofia.avatar.preference_bridge import wardrobe_preferences_from_registry
 from sofia.avatar.presentation_runtime import (
     PresentationRuntimeBundle,
     load_or_bootstrap_presentation,
@@ -99,6 +100,14 @@ from sofia.cognition.v2 import (
 )
 from sofia.knowledge.evidence import KnowledgeEvidenceCoordinator
 from sofia.interaction.opt_in_service import OptInInteractionConversationService
+from sofia.interaction.world_store import VirtualWorldStore
+from sofia.personality.preferences import PreferenceRegistry
+from sofia.rel.nicknames import NicknameRegistry
+from sofia.creative import (
+    CreativeExplorer, CreativeService, CreativeStore, CreativeWorkspaceManager,
+    CreativeWorldBridge, ManagedAssetStore,
+)
+from sofia.ops.dependencies import DependencyEvidenceStore, default_dependency_registry
 from sofia.runtime.internal_workspace import normalize_runtime_workspace_awareness
 from sofia.run.heartbeat import ApplicationHeartbeatStore
 from sofia.ops.backup_topology import backup_topology_enabled
@@ -293,6 +302,28 @@ class SofiaApplication:
             configuration.state_path,
             state_plane=self._runtime.state_plane,
         )
+        self._preference_registry = PreferenceRegistry(configuration.state_path)
+        self._nickname_registry = NicknameRegistry(configuration.state_path)
+        self._world_store = VirtualWorldStore(configuration.state_path)
+        local_principal = local_sparks_principal()
+        self._world_store.ensure_foundation(
+            owner_principal_id="sofia",
+            audience_id=local_principal.audience_id,
+            now=datetime.now(timezone.utc),
+        )
+        self._creative_store = CreativeStore(configuration.state_path)
+        creative_root = Path(configuration.state_path).parent / "creative"
+        self._creative_service = CreativeService(
+            self._creative_store,
+            CreativeWorkspaceManager(creative_root / "workspaces"),
+            ManagedAssetStore(creative_root / "assets"),
+        )
+        self._creative_explorer = CreativeExplorer(self._creative_store)
+        self._creative_world = CreativeWorldBridge(
+            self._creative_store, self._world_store,
+        )
+        self._dependency_registry = default_dependency_registry()
+        self._dependency_evidence = DependencyEvidenceStore(configuration.state_path)
         self._conversation_service.set_habit_continuity(
             self._habit_continuity
         )
@@ -417,6 +448,42 @@ class SofiaApplication:
     @property
     def goals(self) -> GoalService:
         return self._goals
+
+    @property
+    def world(self) -> VirtualWorldStore:
+        return self._world_store
+
+    @property
+    def creative(self) -> CreativeService:
+        return self._creative_service
+
+    @property
+    def creative_store(self) -> CreativeStore:
+        return self._creative_store
+
+    @property
+    def creative_explorer(self) -> CreativeExplorer:
+        return self._creative_explorer
+
+    @property
+    def creative_world(self) -> CreativeWorldBridge:
+        return self._creative_world
+
+    @property
+    def preferences(self) -> PreferenceRegistry:
+        return self._preference_registry
+
+    @property
+    def nicknames(self) -> NicknameRegistry:
+        return self._nickname_registry
+
+    @property
+    def dependency_registry(self):
+        return self._dependency_registry
+
+    @property
+    def dependency_evidence(self) -> DependencyEvidenceStore:
+        return self._dependency_evidence
 
     @property
     def last_neuro_input_error(self) -> str | None:
@@ -1237,6 +1304,18 @@ class SofiaApplication:
             if bundle is None
             else bundle.catalog.reviewed_preferences()
         )
+        general_preferences = wardrobe_preferences_from_registry(
+            self._preference_registry,
+            audience_id=local_sparks_principal().audience_id,
+            context=context.activity.value,
+        )
+        general_keys = {
+            (item.actor, item.target, item.ids) for item in general_preferences
+        }
+        preferences = tuple(
+            item for item in preferences
+            if (item.actor, item.target, item.ids) not in general_keys
+        ) + general_preferences
         return routine.evaluate(
             context,
             operation_id=operation_id,

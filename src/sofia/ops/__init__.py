@@ -32,6 +32,16 @@ from .bootstrap import (
     AgentPackage,AgentInstaller,BootstrapCandidate,BootstrapDisposition,BootstrapPlan,
     FleetBootstrapExecutor,FleetBootstrapPlanner,InstallAuthority,InstallReceipt,
 )
+from .dependencies import (
+    DependencyEvidenceStore, DependencyHealth, DependencyObservation,
+    DependencyRegistry, DependencyTier, SoftwareDependency,
+    default_dependency_registry,
+)
+from .platform_install import (
+    InstallOperation, InstallOutcome, OfflineArtifactCache, PlatformArtifact,
+    PlatformInstallCoordinator, PlatformInstallPlan, PlatformInstallReceipt,
+    PlatformInstallStore, PlatformKind, RecoveryBundle,
+)
 
 __all__ = [
     'HostLifecycle',
@@ -92,4 +102,21 @@ __all__ = [
     'FleetDiscoveryEnrollmentResult',
     'FleetDiscoveryResult',
     'FleetDiscoverySource',
+    'DependencyEvidenceStore',
+    'DependencyHealth',
+    'DependencyObservation',
+    'DependencyRegistry',
+    'DependencyTier',
+    'SoftwareDependency',
+    'default_dependency_registry',
+    'InstallOperation',
+    'InstallOutcome',
+    'OfflineArtifactCache',
+    'PlatformArtifact',
+    'PlatformInstallCoordinator',
+    'PlatformInstallPlan',
+    'PlatformInstallReceipt',
+    'PlatformInstallStore',
+    'PlatformKind',
+    'RecoveryBundle',
 ]

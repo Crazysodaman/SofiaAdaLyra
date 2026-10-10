@@ -173,6 +173,12 @@ PRODUCTION_COMPONENT_SCHEMAS = tuple(
         "personality-reflection",
         "habit-continuity",
         "run-heartbeat",
+        "ops-dependencies",
+        "ops-platform-install",
+        "virtual-world",
+        "personality-preferences",
+        "rel-nicknames",
+        "creative-inventory",
     )
 )
 
