@@ -476,6 +476,20 @@ The search adapter must receive its own destination/tool permissions, privacy ru
 
 Parallel package work is permitted when it cannot bypass these gates or silently broaden authority.
 
+### Phase 6 Windows Project Forge repair and acceptance (2026-10-10)
+
+**Status:** Windows filesystem-path repair implemented and reported passing its targeted gates in a local, uncommitted working tree. **Not merged, not full Phase 6 production acceptance.** The canonical `project:`/`request:` IDs caused `WinError 123` when used as Windows directory components; subsequent failed artifact creation produced the downstream missing `artifact_id`.
+
+- [x] **Root cause and targeted correction reported:** `CreativeWorkspaceManager.allocate` now maps canonical project/request identifiers to deterministic, Windows-safe `id-<sha256-hex>` path components; a resolved-containment guard rejects workspace escape. Canonical database identifiers remain unchanged, and duplicate request workspaces are not silently reused.
+- [x] **Focused Windows evidence reported:** all six originally failing tests now pass; `test_life_project_forge.py` **19 passed**, `test_phase6_application_wiring.py` **2 passed**, `test_creative_infrastructure.py` **20 passed / 1 skipped**, and `test_run_work_handler_isolation.py` **1 passed**. RUN, REL, DEV and INTEGRATE package slices passed. SAFE, INTERACT and SOCIAL still have environment-associated failures requiring confirmation after host repair. This is supplied test evidence, not independent current-`main` certification.
+- [ ] **Review and commit only the intended repair** on existing `main`: `src/sofia/creative/paths.py`, `src/sofia/creative/service.py`, `src/sofia/creative/__init__.py`, and `test/test_creative_infrastructure.py` (four paths, including new file). Verify hash/path validation, symlink containment, persistence, revision isolation and replay protections. Leave pre-existing `Setup-SofiaFleetArtemis.ps1` untracked/untouched; do not create a branch.
+- [ ] **Test the symlink-escape guard on a Windows runner with symlink privileges.** The privilege-dependent regression was skipped locally, so its protection is not yet proven by that Windows gate.
+- [ ] **Repair the Windows test environment, not the implementation to appease imports:** remove or replace the stale editable-install reference to `C:\SofiaAdaLyra-canary\src`, install from the intended checkout in the active venv, and confirm subprocess `python -c` imports point to the same workspace as pytest. Re-run the settings-persistence and seven interaction-import-order tests without `PYTHONPATH` masking; verify that prior environment-only failures actually disappear.
+- [ ] **Track the UNC/SMB desktop worker timeout as a separate issue:** `test_ui_desktop_worker.py::test_worker_runs_owner_selected_tool_then_sofia_responds` reportedly fails identically with the creative patch reverted. Investigate the event/startup timeout and network-root assumptions without folding an unrelated repair into Project Forge.
+- [ ] **Run supervised production Windows Phase 6 end-to-end acceptance:** governed SELF goal creation and exact one-use grant; project planning, authorized tool execution, real artifact creation/hash validation, revision/persistence, pause/restart/resume, completion or decline, privacy/project-scope isolation, and replay rejection using the normal application/RUN path.
+- [ ] **Close the exact-head release gate:** re-run affected package gates and full regression on a single pinned `main` revision, record any remaining skips/failures and distinguish host/environment issues from source regressions. Do not mark overall Phase 6 production-ready until live evidence and outstanding host-only gates are evaluated.
+
+
 ## Machine-role cleanup and filesystem convergence
 
 PKG-CLEAN owns host cleanup policy with DEV, OPS, RUN, SAFE and VERIFY support. Cleanup is role-aware rather than a generic delete-old-files pass.
