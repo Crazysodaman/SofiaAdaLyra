@@ -1554,3 +1554,117 @@ def test_life_idle_dedupe_does_not_hide_changed_foreground_state(tmp_path):
         assert life.store.selections(limit=100) == selections
     finally:
         life.close()
+
+
+def test_life_subjective_preference_recovers_after_interrupted_write(
+    tmp_path, monkeypatch,
+):
+    """A committed critique can replay only its missing original preference."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        original_revise = life.preferences.revise
+        def interrupted(**_kwargs):
+            raise OSError("simulated interruption after LIFE SQLite commit")
+        monkeypatch.setattr(life.preferences, "revise", interrupted)
+        evaluation_args = dict(
+            artifact_id=str(job.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.LIKE,
+            objective_results={"text_contains:Foxfire": True},
+            reason="A recorded, personally valued creative outcome.",
+            evidence_refs=(str(job.result["evidence_ref"]),),
+            preserve_for_research=False,
+        )
+        with pytest.raises(OSError, match="interruption"):
+            life.evaluate_artifact(
+                project.project_id, **evaluation_args,
+                now=now + timedelta(seconds=4),
+            )
+        assert len(life.store.evaluations(project.project_id)) == 1
+        evaluation = life.store.evaluations(project.project_id)[0]
+        assert any(
+            item.kind == "artifact_evaluated"
+            and item.metadata["interest_learning"]["evaluation_id"]
+            == evaluation.evaluation_id
+            for item in life.store.experiences(
+                audience_id=project.audience_id, include_private=True,
+            )
+        )
+        monkeypatch.setattr(life.preferences, "revise", original_revise)
+        healed = life.learn_from_experiences(
+            now=now + timedelta(seconds=5),
+        )
+        assert healed["applied"] == 1
+        scope = dict(
+            subject=PreferenceSubject.SOFIA, category="creation",
+            target_id=evaluation.artifact_id, context="project",
+            audience_id=project.audience_id,
+        )
+        preference = life.preferences.current(**scope)
+        assert preference is not None
+        assert preference.disposition is PreferenceDisposition.LIKE
+        assert len(life.preferences.history(**scope)) == 1
+        replay = life.evaluate_artifact(
+            project.project_id, **evaluation_args,
+            now=now + timedelta(seconds=6),
+        )
+        assert replay.evaluation_id == evaluation.evaluation_id
+        assert len(life.preferences.history(**scope)) == 1
+    finally:
+        life.close()
+
+
+def test_old_life_critique_never_overwrites_later_preference(tmp_path, monkeypatch):
+    """Repairing a previous evaluation must not erase newer operator preference."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job = wait_for_job(life, life.store.jobs(project.project_id)[0])
+        assert job.status is WorkStatus.COMPLETED
+        original = life.preferences.revise
+        def interrupted(**_kwargs):
+            raise OSError("interrupted preference write")
+        monkeypatch.setattr(life.preferences, "revise", interrupted)
+        with pytest.raises(OSError):
+            life.evaluate_artifact(
+                project.project_id,
+                artifact_id=str(job.result["artifact_id"]),
+                technical_outcome=TechnicalOutcome.VALID,
+                personal_judgment=PersonalJudgment.LIKE,
+                objective_results={"text_contains:Foxfire": True},
+                reason="Initial recorded opinion.",
+                evidence_refs=(str(job.result["evidence_ref"]),),
+                preserve_for_research=False,
+                now=now + timedelta(seconds=4),
+            )
+        monkeypatch.setattr(life.preferences, "revise", original)
+        evaluation = life.store.evaluations(project.project_id)[0]
+        scope = dict(
+            subject=PreferenceSubject.SOFIA, category="creation",
+            target_id=evaluation.artifact_id, context="project",
+            audience_id=project.audience_id,
+        )
+        newer = life.preferences.revise(
+            **scope, disposition=PreferenceDisposition.DISLIKE,
+            strength=0.8, confidence=0.9,
+            reason="Later separately evidenced correction.",
+            evidence_ref=str(job.result["evidence_ref"]),
+            expected_revision=None, now=now + timedelta(seconds=10),
+        )
+        learned = life.learn_from_experiences(
+            now=now + timedelta(seconds=11),
+        )
+        assert learned["applied"] == 1
+        assert life.preferences.current(**scope) == newer
+        assert len(life.preferences.history(**scope)) == 1
+    finally:
+        life.close()
