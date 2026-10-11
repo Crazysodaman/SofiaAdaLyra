@@ -32,6 +32,49 @@ class HyperVAdapter:
         cmd=f"Stop-VM -Name {self._ps(name)} -ErrorAction Stop"
         if force: cmd+=" -TurnOff"
         self._runner(cmd+" | Out-Null")
+    def workshop_handoff_vm(self) -> dict[str, Any]:
+        """Read the exact OWNER-CREATED Hephaestus VM, no hypervisor writes.
+
+        The VM may have no OS, guest tools, interpreter, IP or Fleet agent.
+        This operation runs on Artemis with its own Hyper-V host credentials.
+        """
+        command=(
+            "$ErrorActionPreference='Stop'; "
+            "$v=Get-VM -Name 'Hephaestus' -ErrorAction Stop; "
+            "if ($v.Name -cne 'Hephaestus') { throw 'VM identity mismatch' }; "
+            "$disks=@(Get-VMHardDiskDrive -VMName 'Hephaestus' -ErrorAction Stop "
+            "| ForEach-Object { "
+            "$disk=Get-VHD -Path $_.Path -ErrorAction Stop; "
+            "[pscustomobject]@{Path=[string]$_.Path; Size=[long]$disk.Size} }); "
+            "$nics=@(Get-VMNetworkAdapter -VMName 'Hephaestus' "
+            "-ErrorAction Stop | ForEach-Object { "
+            "$sw=Get-VMSwitch -Name $_.SwitchName -ErrorAction Stop; "
+            "[pscustomobject]@{Name=[string]$_.SwitchName; "
+            "SwitchType=[string]$sw.SwitchType} }); "
+            "$dvd=@(Get-VMDvdDrive -VMName 'Hephaestus' "
+            "-ErrorAction Stop | Where-Object {$_.Path} | "
+            "ForEach-Object {[string]$_.Path}); "
+            "$fw=Get-VMFirmware -VMName 'Hephaestus' -ErrorAction Stop; "
+            "[pscustomobject]@{ "
+            "VmId=[string]$v.Id; Name=[string]$v.Name; "
+            "Generation=[int]$v.Generation; State=[string]$v.State; "
+            "Processors=[int]$v.ProcessorCount; "
+            "StartupMemoryBytes=[long]$v.MemoryStartup; "
+            "Disks=$disks; NetworkAdapters=$nics; DvdPaths=$dvd; "
+            "SecureBoot=[string]$fw.SecureBoot; "
+            "SecureBootTemplate=[string]$fw.SecureBootTemplate; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o') "
+            "} | ConvertTo-Json -Depth 5 -Compress"
+        )
+        raw=self._runner(command)
+        try:
+            result=json.loads(raw)
+        except (ValueError,TypeError) as exc:
+            raise HyperVError("invalid read-only Hephaestus VM observation") from exc
+        if not isinstance(result,dict) or result.get("Name")!="Hephaestus":
+            raise HyperVError("wrong Hyper-V VM identity observed")
+        return result
+
     def workshop_host(self) -> dict[str, Any]:
         """Host-only read-only Hyper-V capacity and topology observation.
 
