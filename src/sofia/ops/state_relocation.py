@@ -357,11 +357,19 @@ def stage_verified_state_home(
             raise BackupError(
                 "destination was replaced, redirected or left local storage"
             )
-        _publish_new_home_without_replacing(
-            staging, destination,
-            recheck_authorization=final_authority_and_erasure_check,
-        )
-        published = True
+        # The actual deletion owner uses this same cross-process lock when
+        # appending a new signed instruction. Serialize its append against
+        # the final journal recheck AND the directory rename. Otherwise a
+        # memory deletion could slip between those two operations and a
+        # newly published candidate would resurrect the deleted candidate.
+        # This is a local cooperating-writer lock, NOT cross-host fencing
+        # or evidence of a globally newest external journal.
+        with ledger._exclusive():
+            _publish_new_home_without_replacing(
+                staging, destination,
+                recheck_authorization=final_authority_and_erasure_check,
+            )
+            published = True
     finally:
         if not published:
             # Deleting only our randomly created workdir never overwrites
