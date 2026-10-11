@@ -2218,6 +2218,46 @@ No tests/CI, live database rewrite, on-host index rebuild or
 cross-host cutover performed. Original requirements remain partial
 until end-to-end temporal correctness and acceptance evidence exist.
 
+
+
+### Phase 06 item 67: Explicit fiction cannot become automatic autobiography
+
+Production `ConversationLearningCoordinator._is_learnable` previously
+treated text matching an explicit `remember that...` or stable
+`I like/prefer...` prefix as eligible for an additional durable
+`PROPOSED` personal memory candidate without checking whether
+the user had explicitly identified a fictional/roleplay/hypothetical
+context. Private review would still gate promotion, but the
+candidate's very creation could misleadingly label a roleplay
+claim as a user autobiographical fact and impose correction burden.
+
+Production `src/sofia/application/conversation_learning.py`
+now declines **automatic** candidate generation on clear
+`in this roleplay`, `as my character`,
+`pretend`, `hypothetically` and explicit story/game
+framing. This is a narrow conservative **source admission**
+filter, NOT a universal fact/fiction classifier or a mechanism
+to delete actual source messages. Original conversation
+evidence remains in its original audience with the existing
+retention controls, and a deliberate authorized human
+memory-review path is unaffected. User statements about
+ordinary real-world gaming interests not framed as fiction
+retain the normal proposed-candidate path.
+
+- Production filter `7d841ae8c4619b46713b97c190037a54800c3a13`,
+  corrected regex escaping `342fd21a85ef507840eaef70f89674fc94c34c5c`
+  (`[skip ci]`).
+- Deferred source-classification regression
+  `test/test_ws2_memory_private_admission.py` at
+  `c1e08d36b77e7c32ed1d7a772af5ff0692d4c10a`
+  (`[skip ci]`).
+
+Original relevance: CA-302, CA-305, CA-5803, CA-5804.
+There is still no complete observed-versus-inferred semantic
+ontology, reviewed subjective interpretation pipeline,
+independent end-to-end fiction-label propagation or run
+acceptance. Tests/CI and live memory stores untouched.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
