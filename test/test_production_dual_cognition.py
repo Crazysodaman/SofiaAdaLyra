@@ -1,3 +1,6 @@
+from dataclasses import replace
+
+from sofia.config.model import FleetCognitionConfiguration
 from sofia.cognition.model_lifecycle import (
     LifecycleManagedCognitiveEngine,
 )
@@ -84,3 +87,46 @@ def test_legacy_auto_install_configuration_never_enables_host_model_download(
     configured=create_production_configuration(state_path=state_path)
     assert configured.model_lifecycle.enabled is True
     assert configured.model_lifecycle.auto_install_missing is False
+
+
+def test_gpu_less_canonical_host_does_not_manage_local_ollama_for_remote_only_fleet(tmp_path):
+    """Artemis can own memory and runtime while Venus alone owns GPU inference."""
+    configuration = create_production_configuration(
+        state_path=tmp_path / "future-canonical" / "sofia.db",
+    )
+    remote_only = replace(
+        configuration,
+        fleet_cognition=FleetCognitionConfiguration(
+            enabled=True,
+            local_fallback=False,
+            gpu_required=True,
+            auto_provision_models=False,
+            allowed_host_ids=("enrolled-venus-host-id",),
+        ),
+    )
+    assert create_model_lifecycle(
+        remote_only, local_host_id="enrolled-artemis-host-id",
+    ) is None
+    # The same operator-approved GPU host can still manage local model
+    # residency when that host actually owns the canonical runtime.
+    assert create_model_lifecycle(
+        remote_only, local_host_id="enrolled-venus-host-id",
+    ) is not None
+
+
+def test_remote_only_host_stays_model_lifecycle_free_if_no_gpu_present(tmp_path):
+    configuration = create_production_configuration(
+        state_path=tmp_path / "future-host" / "sofia.db",
+    )
+    remote_only = replace(
+        configuration,
+        fleet_cognition=FleetCognitionConfiguration(
+            enabled=True,
+            allowed_host_ids=("verified-gpu-node",),
+            local_fallback=False,
+            gpu_required=True,
+        ),
+    )
+    # This is a policy/host-ID preflight. No Ollama process, installation,
+    # grant, migration or remote connection is made.
+    assert create_model_lifecycle(remote_only, local_host_id="artemis") is None
