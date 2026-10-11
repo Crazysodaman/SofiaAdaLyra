@@ -23,6 +23,10 @@ def _bundle(tmp_path: Path) -> tuple[Path, Path]:
     (bundle / "agent.json").write_text("{}", encoding="utf-8")
     for name in ("fleet-ca.pem", "artemis-server.pem", "artemis-server-key.pem"):
         (bundle / "certs" / name).write_text(name, encoding="utf-8")
+    (bundle / "agent-dependencies.lock").write_text(
+        "cryptography==45.0.0 --hash=sha256:" + "a" * 64 + "\n",
+        encoding="utf-8",
+    )
     wheel = tmp_path / "sofia_ada_lyra-0.1.0-py3-none-any.whl"
     wheel.write_bytes(b"reviewed-wheel")
     return bundle, wheel
@@ -58,7 +62,7 @@ def test_windows_paths_are_absolute_and_reject_command_breakout():
         _safe_windows_path(r"relative\path", "stage")
 
 
-def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
+def test_rendered_installer_is_hash_pinned_and_exact_controller_scoped():
     script = render_installer(
         stage_path=r"H:\Users\Crazysodaman\FleetTransfer\ArtemisAgent",
         install_root=r"C:\ProgramData\SofiaAdaLyra\FleetAgent",
@@ -66,10 +70,12 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
         package_sha256="a" * 64,
         node_id=NODE_ID,
         listen_port=7443,
+        controller_ip="192.168.1.71",
     )
     assert "$ExpectedHash = '" + ("a" * 64) + "'" in script
     assert "Get-FileHash -Algorithm SHA256" in script
-    assert "-RemoteAddress LocalSubnet" in script
+    assert "-RemoteAddress $ControllerIp -Profile Private" in script
+    assert "-RemoteAddress LocalSubnet" not in script
     assert "sofia.distributed.agent_main" in script
     assert "bootstrap-receipt.json" in script
     assert "Get-CimInstance Win32_Process" in script
@@ -84,7 +90,7 @@ def test_rendered_installer_is_hash_pinned_and_local_subnet_scoped():
     assert '$AgentPid = [int]$AgentService.ProcessId' in script
     assert 'service_name = $ServiceName' in script
     assert 'service_state = [string]$AgentService.State' in script
-    assert 'pip install --disable-pip-version-check cryptography pywin32' in script
+    assert 'pip install --disable-pip-version-check --require-hashes -r $DependencyLock' in script
     assert "Stop-Process -Id $ManagedProcess.ProcessId" in script
     assert "foreach ($Attempt in 1..5)" in script
     assert "foreach ($Attempt in 1..20)" in script
@@ -111,6 +117,8 @@ def test_prepare_stage_copies_only_reviewed_bundle_and_generated_installer(tmp_p
         controller_stage_directory=stage,
         remote_stage_path=r"H:\Users\Crazysodaman\FleetTransfer\ArtemisAgent",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=lambda *_: None,
     )
 
@@ -127,6 +135,7 @@ def test_prepare_stage_copies_only_reviewed_bundle_and_generated_installer(tmp_p
     assert (active_stage / "certs" / "artemis-server.pem").is_file()
     assert (active_stage / "certs" / "artemis-server-key.pem").is_file()
     assert (active_stage / wheel.name).read_bytes() == b"reviewed-wheel"
+    assert (active_stage / "agent-dependencies.lock").is_file()
 
 
 def test_prepare_stage_overrides_agent_config_port(tmp_path: Path):
@@ -143,6 +152,8 @@ def test_prepare_stage_overrides_agent_config_port(tmp_path: Path):
         controller_stage_directory=tmp_path / "stage",
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         listen_port=9999,
         launcher=lambda *_: None,
     )
@@ -163,6 +174,8 @@ def test_prepare_stage_rejects_changed_wheel(tmp_path: Path):
         controller_stage_directory=tmp_path / "stage",
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=lambda *_: None,
     )
     with pytest.raises(RuntimeError, match="hash"):
@@ -202,6 +215,8 @@ def test_install_requires_matching_verified_remote_receipt(tmp_path: Path):
         controller_stage_directory=stage,
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=launcher,
         timeout_seconds=1,
     )
@@ -242,6 +257,8 @@ def test_install_rejects_wrong_node_receipt(tmp_path: Path):
         controller_stage_directory=stage,
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=launcher,
         timeout_seconds=1,
     )
@@ -285,6 +302,8 @@ def test_windows_cim_bootstrap_cleans_private_stage_on_launcher_failure(tmp_path
         controller_stage_directory=stage,
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=failed_launcher,
         timeout_seconds=1,
     )
@@ -322,6 +341,8 @@ def test_windows_cim_bootstrap_cleans_private_stage_after_bad_receipt(tmp_path: 
         controller_stage_directory=tmp_path / "stage",
         remote_stage_path=r"H:\Fleet\Artemis",
         node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
         launcher=wrong_node_launcher,
         timeout_seconds=1,
     )
@@ -329,3 +350,34 @@ def test_windows_cim_bootstrap_cleans_private_stage_after_bad_receipt(tmp_path: 
         installer.install(_candidate(), _package(wheel))
     assert installer._active_controller_stage_directory is not None
     assert not installer._active_controller_stage_directory.exists()
+
+
+def test_windows_cim_bootstrap_refuses_wildcard_controller_and_unhashed_lock(tmp_path: Path):
+    bundle, wheel = _bundle(tmp_path)
+    with pytest.raises(ValueError, match="unsafe or non-canonical"):
+        render_installer(
+            stage_path=r"H:\Fleet\Artemis",
+            install_root=r"C:\ProgramData\SofiaAdaLyra\FleetAgent",
+            wheel_name=wheel.name,
+            package_sha256="a" * 64,
+            node_id=NODE_ID,
+            listen_port=7443,
+            controller_ip="0.0.0.0",
+        )
+    (bundle / "agent-dependencies.lock").write_text(
+        "cryptography\n", encoding="utf-8",
+    )
+    installer = WindowsCimBootstrapInstaller(
+        host="Artemis",
+        credential_user=r"Artemis\Administrator",
+        bundle_directory=bundle,
+        wheel_path=wheel,
+        controller_stage_directory=tmp_path / "stage",
+        remote_stage_path=r"H:\Fleet\Artemis",
+        node_id=NODE_ID,
+        controller_ip="192.168.1.71",
+        dependency_lock_path=bundle / "agent-dependencies.lock",
+        launcher=lambda *_: None,
+    )
+    with pytest.raises(ValueError, match="reviewed pinned hashes"):
+        installer.prepare_stage(_package(wheel))
