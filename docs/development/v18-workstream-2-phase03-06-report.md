@@ -3404,6 +3404,44 @@ Home wizard, host fencing or live cutover.
 No tests/CI, Windows UI execution,
 folder creation or production migration.
 
+
+
+### Phase 03 operator cutover ADR: Original-design gates and unresolved privilege location
+
+The original V18 Phase 03 checklist includes design/research
+gates in addition to implementation. The verified
+Venus-now/Artemis-Debian-13-later host policy, genuine
+`BackupEngine`, `CanonicalSQLiteGuard`,
+`state_relocation`, signed nonactive pointer,
+external erasure journal and source failure receipts
+have been consolidated into one operator-cutover
+design contract:
+
+`docs/development/ws2-phase03-operator-cutover-contract-2026-10-11.md`,
+commit `14378197f4f6e3177eda975b8e9f715660f2e734`
+(`[skip ci]`).
+
+It details the observable state machine
+`OBSERVE → QUIESCE_REQUESTED → SOURCE_FENCED
+→ SNAPSHOT_VERIFIED → STAGED_NONACTIVE →
+PENDING_SIGNED → COMMIT_AUTHORIZED →
+ACTIVE_VERIFIED → OLD_COPY_RETIRED`, receipts
+required at each gate, failure/rollback
+classification for Git, Discord, Home Assistant,
+JMRI, Hyper-V, signed erasure and new writer
+writes, tiered/portable retention, clean-host
+restore drills and the explicit **external**
+privileged broker/key custody decisions.
+
+**Do not mark Phase 03 completed from this ADR.**
+There is still no accepted independent host-fence
+implementation, two independently restored live
+recovery snapshots, validated clean Debian guest,
+signed active pointer commit or tested rollback.
+This document is a source-grounded design
+deliverable, not an LLM authority grant.
+No tests/CI/live commands executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
