@@ -119,6 +119,11 @@ class LifeStore:
                     status TEXT NOT NULL, reason TEXT NOT NULL,
                     suggestion_id TEXT, project_id TEXT
                 );
+                CREATE TABLE IF NOT EXISTS life_draft_attempt (
+                    project_id TEXT NOT NULL, utc_day TEXT NOT NULL,
+                    attempted_at TEXT NOT NULL,
+                    PRIMARY KEY(project_id,utc_day)
+                );
                 CREATE TABLE IF NOT EXISTS life_artifact_authorization (
                     request_id TEXT PRIMARY KEY, project_id TEXT NOT NULL,
                     artifact_id TEXT NOT NULL, request_digest TEXT NOT NULL,
@@ -540,6 +545,18 @@ class LifeStore:
                 (slot, now.astimezone(timezone.utc).isoformat()),
             )
         return slot if changed.rowcount == 1 else None
+
+    def claim_daily_draft_attempt(self, project_id: str, *, now: datetime) -> bool:
+        """Prevent repeated LLM drafting every background wake after failure."""
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise ValueError("project ID required")
+        stamp = now.astimezone(timezone.utc)
+        with closing(self._connect()) as db, db:
+            change = db.execute(
+                "INSERT OR IGNORE INTO life_draft_attempt VALUES(?,?,?)",
+                (project_id, stamp.date().isoformat(), stamp.isoformat()),
+            )
+        return change.rowcount == 1
 
     def finish_idea_attempt(
         self, slot_key: str, *, status: str, reason: str,
