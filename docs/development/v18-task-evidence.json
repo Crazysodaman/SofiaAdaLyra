@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "bb116083a774ab3c4f00492e367c718775cca8c1",
+  "reviewed_main_sha": "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
   "audit_date_utc": "2026-10-11",
-  "notice": "Only concrete code paths individually inspected are classified. Unassessed means NOT individually audited, not unimplemented. Source-coded remains UNVERIFIED until exact-head CI and relevant live evidence. Updated for production repair commits a9ec36e, c3ebbf3 and bb11608.",
+  "notice": "Individual source-path crosswalk reviewed through main 1805a8a. Partial wiring does not prove a whole task coded. No CI, tests, mobile build, state relocation, host deployment, or multi-device acceptance run. All 700 task acceptance receipts remain open.",
   "tasks": [
     {
       "id": "CA-001",
@@ -1786,9 +1786,16 @@
       "phase": "03",
       "source_topic": "52",
       "master_line": 331,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/config/layout.py",
+        "src/sofia/config/state_home_pointer.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -1996,9 +2003,16 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 358,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/config/layout.py",
+        "src/sofia/ops/state_mobility.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2026,9 +2040,16 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 361,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/config/layout.py",
+        "src/sofia/ops/state_mobility.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2159,10 +2180,15 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/conversation/lifelong.py",
-        "src/sofia/mobile/gateway.py"
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/mobile/server.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/SofiaApi.kt"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
       ],
       "accepted": false
     },
@@ -2181,9 +2207,16 @@
       "phase": "04",
       "source_topic": "63",
       "master_line": 393,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2201,9 +2234,16 @@
       "phase": "04",
       "source_topic": "63",
       "master_line": 395,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2411,9 +2451,16 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 436,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/social/store.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2421,9 +2468,16 @@
       "phase": "05",
       "source_topic": "41",
       "master_line": 437,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2459,10 +2513,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/conversation/lifelong.py"
+        "src/sofia/conversation/lifelong.py",
+        "test/test_mobile_delivery.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
       ],
       "accepted": false
     },
@@ -2474,10 +2532,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/conversation/store.py"
+        "src/sofia/conversation/store.py",
+        "src/sofia/conversation/lifelong.py"
       ],
       "evidence_commits": [
-        "bb116083a774ab3c4f00492e367c718775cca8c1"
+        "bb116083a774ab3c4f00492e367c718775cca8c1",
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
       ],
       "accepted": false
     },
@@ -2536,9 +2598,16 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 450,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2562,7 +2631,10 @@
         "src/sofia/social/store.py"
       ],
       "evidence_commits": [
-        "bb116083a774ab3c4f00492e367c718775cca8c1"
+        "bb116083a774ab3c4f00492e367c718775cca8c1",
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
       ],
       "accepted": false
     },
@@ -2581,9 +2653,16 @@
       "phase": "05",
       "source_topic": "53",
       "master_line": 454,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2638,10 +2717,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/mobile/gateway.py",
-        "src/sofia/conversation/lifelong.py"
+        "src/sofia/conversation/lifelong.py",
+        "src/sofia/social/store.py"
       ],
       "evidence_commits": [
-        "bb116083a774ab3c4f00492e367c718775cca8c1"
+        "bb116083a774ab3c4f00492e367c718775cca8c1",
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
       ],
       "accepted": false
     },
@@ -2660,9 +2743,16 @@
       "phase": "05",
       "source_topic": "55",
       "master_line": 464,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "src/sofia/conversation/lifelong.py"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {
@@ -2690,9 +2780,16 @@
       "phase": "05",
       "source_topic": "55",
       "master_line": 467,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/mobile/gateway.py",
+        "mobile/android/app/src/main/java/ai/sofia/mobile/MainActivity.kt"
+      ],
+      "evidence_commits": [
+        "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
+        "caf294974e4b03af8f26a78c770c4f42141c2a3b",
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+      ],
       "accepted": false
     },
     {

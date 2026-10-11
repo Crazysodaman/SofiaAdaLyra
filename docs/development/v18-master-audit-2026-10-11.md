@@ -141,3 +141,34 @@ The CI, Windows, Android-build and Fleet tests remain deliberately deferred,
 so no CA ID was moved to `accepted`. Any subsequent phase-completion report
 must cite the exact Git commit, source code, executing test/live receipt and
 all remaining CA requirements before describing the whole phase as done.
+
+## Source audit continuation: 2026-10-11, through main 1805a8a
+
+The exact 700-task evidence ledger was reconciled against the three newest
+production commits: `9c8e8b1` (request-id mobile at-most-once receipts),
+`caf2949` (session audience binding and first-writer-wins mappings), and
+`1805a8a` (protected seed no-clobber publication).
+
+**Source states:** 6 code-present/unverified; 34 partially wired;
+660 not yet individually audited; **0 accepted**. These are evidence
+classifications, not implementation percentages. Current code paths now
+support partial findings for stable CA identifiers covering mobile
+request/event identity, cross-device delivery, audience immutability,
+reconnect conflict handling, graceful degraded delivery and protection
+of the canonical state files against concurrent startup overwrites.
+
+**Boundaries remaining:**
+- The current global mobile bearer token is shared between phones. The
+  client-claimed `device_id` is not an independently enrolled credential.
+  Device impersonation/revocation therefore remains an unresolved Phase 05
+  threat-model and implementation task. Rollout needs an operator-approved
+  pairing/migration policy.
+- A durable mobile `request_id` establishes at-most-once dispatch, not
+  exactly-once conversation acceptance plus external effects. Interrupted
+  turns are explicitly uncertain and must not be auto-executed.
+- Protected file seeding is now atomic create-if-absent, but cross-host
+  state relocation still requires an independently privileged actual
+  fencing/cutover controller; the existing staging primitives must not
+  be promoted by model text.
+- No Android build, GitHub CI run, Windows production proof or Fleet host
+  test was executed. Per earlier instruction testing remains postponed.
