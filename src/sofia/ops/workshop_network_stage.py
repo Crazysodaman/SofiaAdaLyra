@@ -96,6 +96,46 @@ class WorkshopNetworkStageStore:
         )
 
 
+
+def verified_host_stage_report(payload:object, *, vm:UUID, now:datetime)->bool:
+    """Validate host-reported staging identity/freshness, NOT guest isolation.
+
+    Failure means the host effect is UNKNOWN, not that it was rolled back.
+    Only independent follow-up workshop.inspect can establish isolation.
+    """
+    if not isinstance(payload,dict) or not isinstance(vm,UUID):
+        return False
+    if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("aware source comparison time required")
+    from sofia.ops.workshop_network import (
+        HOST_ADDRESS,GUEST_ADDRESS,PREFIX_LENGTH,
+    )
+    if (
+        payload.get("Outcome")!="host_internal_link_staged"
+        or payload.get("VmState")!="Off"
+        or payload.get("SwitchName")!=SWITCH_NAME
+        or payload.get("SwitchType")!="Internal"
+        or payload.get("HostIPv4")!=f"{HOST_ADDRESS}/{PREFIX_LENGTH}"
+        or payload.get("GuestIPv4")!=f"{GUEST_ADDRESS}/{PREFIX_LENGTH}"
+        or payload.get("GuestConfigured") is not False
+        or payload.get("NatEnabled") is not False
+    ):
+        return False
+    try:
+        reported_vm=UUID(payload["VmId"])
+        observed_at=datetime.fromisoformat(
+            payload["ObservedAtUtc"].replace("Z","+00:00")
+        )
+    except (KeyError,AttributeError,TypeError,ValueError):
+        return False
+    if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+        return False
+    return (
+        reported_vm==vm
+        and timedelta(0)<=now-observed_at<=timedelta(minutes=3)
+    )
+
+
 def stage_approved_internal_network(
     *,state_path:Path|str,service:RemoteFleetToolService,
     artemis_node_id:str,hyperv_vm_id:str,approval_id:str,at:datetime,
@@ -151,14 +191,8 @@ def stage_approved_internal_network(
             ):
                 import json
                 host=json.loads(response["message"])
-                if (
-                    isinstance(host,dict)
-                    and host.get("VmId")==str(vm)
-                    and host.get("Outcome")=="host_internal_link_staged"
-                    and host.get("SwitchName")==SWITCH_NAME
-                    and host.get("SwitchType")=="Internal"
-                    and host.get("GuestConfigured") is False
-                    and host.get("NatEnabled") is False
+                if verified_host_stage_report(
+                    host,vm=vm,now=datetime.now(timezone.utc),
                 ):
                     status="HOST_STAGE_REPORTED"
     except Exception:
