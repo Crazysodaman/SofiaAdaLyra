@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Callable
 from uuid import UUID
 
@@ -80,6 +81,7 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
         remote_prepare: RemotePrepare | None = None,
         policy: FleetCognitionPolicy,
         workload_id: str,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         if not isinstance(local, CognitiveEngine):
             raise TypeError("local must be a CognitiveEngine")
@@ -105,6 +107,9 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
         self.remote_prepare = remote_prepare
         self.policy = policy
         self.workload_id = workload_id.strip()
+        if clock is not None and not callable(clock):
+            raise TypeError("Fleet inference placement clock must be callable")
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
         self.last_host_id: str | None = None
         self.last_remote = False
 
@@ -186,6 +191,7 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
             self._contract(),
             hosts,
             activities=activities,
+            now=self._clock(),
         )
         host_id = decision.host_id
         if host_id is None:
