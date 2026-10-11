@@ -76,11 +76,18 @@ class SofiaApi(private val settings: SecureSettings) {
 
     fun chat(message: String, requestId: String): JSONObject {
         val config = settings.load()
-        return post("/v1/mobile/chat", JSONObject()
+        val response = post("/v1/mobile/chat", JSONObject()
             .put("device_id", settings.deviceId)
             .put("message", message)
             .put("private_mode", config.privateMode)
             .put("request_id", requestId))
+        MobileDeliveryReceiptProof.verify(
+            response,
+            expectedRequestId = requestId,
+            expectedDeviceId = settings.deviceId,
+            expectedPrivateMode = config.privateMode,
+        )
+        return response
     }
 
     fun state(): JSONObject {
