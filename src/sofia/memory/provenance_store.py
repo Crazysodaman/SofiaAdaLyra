@@ -137,6 +137,22 @@ class DurableMemoryCandidateStore:
                 )
                 """
             )
+            # A verified reviewed-memory source is an immutable link to
+            # current canonical originals, not a copied claim that can outlive
+            # original erasure or a changed conversation audience.
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memory_candidate_source_review (
+                    candidate_id TEXT PRIMARY KEY,
+                    source_session_id TEXT NOT NULL,
+                    principal_id TEXT NOT NULL,
+                    audience_id TEXT NOT NULL,
+                    audience_kind TEXT NOT NULL,
+                    reviewed_at TEXT NOT NULL,
+                    FOREIGN KEY(candidate_id) REFERENCES memory_candidate(candidate_id)
+                )
+                """
+            )
             db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS memory_candidate_validity (
@@ -354,6 +370,65 @@ class DurableMemoryCandidateStore:
             ).fetchone()
         return None if row is None or row[0] is None else datetime.fromisoformat(row[0])
 
+    def require_current_original_at_recall(
+        self, candidate_id: UUID, *, session_id: str,
+        principal_id: str, audience_id: str, audience_kind: str,
+    ) -> None:
+        """Record extra fail-closed eligibility for *reviewed* real originals.
+
+        This adds a guard; it never creates approval, grants any audience, or
+        changes a candidate's reviewed/immutable source bytes. It is called
+        only after the application independently re-reads original evidence.
+        """
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        for value in (session_id, principal_id, audience_id, audience_kind):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("complete verified source binding is required")
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute(
+                    "SELECT status,principal_id,audience_id "
+                    "FROM memory_candidate WHERE candidate_id=?",
+                    (str(candidate_id),),
+                ).fetchone()
+                if row is None:
+                    raise LookupError("candidate does not exist")
+                if row[0] != CandidateStatus.PROPOSED.value:
+                    raise ValueError("only proposed candidates can gain source recall guard")
+                if row[1] != principal_id or row[2] not in (None, audience_id):
+                    raise PermissionError("source review belongs to another audience")
+                source = db.execute(
+                    "SELECT COUNT(*),MIN(session_id),MAX(session_id) "
+                    "FROM memory_candidate_source WHERE candidate_id=?",
+                    (str(candidate_id),),
+                ).fetchone()
+                if (
+                    source is None or not 1 <= int(source[0]) <= 64
+                    or source[1] != session_id or source[2] != session_id
+                ):
+                    raise ValueError("bounded single-session original review required")
+                prior = db.execute(
+                    "SELECT source_session_id,principal_id,audience_id,audience_kind "
+                    "FROM memory_candidate_source_review WHERE candidate_id=?",
+                    (str(candidate_id),),
+                ).fetchone()
+                expected = (session_id, principal_id, audience_id, audience_kind)
+                if prior is not None:
+                    if tuple(prior) != expected:
+                        raise PermissionError("original source review binding cannot change")
+                    return
+                db.execute(
+                    "INSERT INTO memory_candidate_source_review VALUES(?,?,?,?,?,?)",
+                    (
+                        str(candidate_id), session_id, principal_id,
+                        audience_id, audience_kind,
+                        _utc(datetime.now(timezone.utc)),
+                    ),
+                )
+
     def is_recall_eligible(
         self, candidate_id: UUID, *, at: datetime | None = None,
     ) -> bool:
@@ -362,7 +437,8 @@ class DurableMemoryCandidateStore:
             raise TypeError("candidate_id must be UUID")
         stamp = _utc(at or datetime.now(timezone.utc))
         with self._lock:
-            row = self._require_db().execute(
+            db = self._require_db()
+            row = db.execute(
                 "SELECT 1 FROM memory_candidate c "
                 "LEFT JOIN memory_candidate_validity v "
                 "ON v.candidate_id=c.candidate_id "
@@ -370,7 +446,50 @@ class DurableMemoryCandidateStore:
                 "AND (v.expires_at IS NULL OR v.expires_at>?)",
                 (str(candidate_id), CandidateStatus.PROMOTED.value, stamp),
             ).fetchone()
-        return row is not None
+            if row is None:
+                return False
+            reviewed = db.execute(
+                "SELECT source_session_id,principal_id,audience_id,audience_kind "
+                "FROM memory_candidate_source_review WHERE candidate_id=?",
+                (str(candidate_id),),
+            ).fetchone()
+            if reviewed is None:
+                # Historic low-level imported candidates predate source review
+                # attestations. Do not silently rewrite or erase those rows.
+                return True
+            originals = db.execute(
+                "SELECT src.session_id,src.role,src.content,src.created_at,"
+                "m.id,m.role,m.content,m.created_at,"
+                "s.principal_id,s.audience_id,s.audience_kind "
+                "FROM memory_candidate_source AS src "
+                "LEFT JOIN conversation_messages AS m "
+                "ON m.id=src.message_id AND m.session_id=src.session_id "
+                "LEFT JOIN social_session_principal AS s "
+                "ON s.session_id=m.session_id "
+                "WHERE src.candidate_id=? ORDER BY src.ordinal",
+                (str(candidate_id),),
+            ).fetchall()
+            if not originals or len(originals) > 64:
+                return False
+            for source in originals:
+                if (
+                    source[0] != reviewed[0]
+                    or source[4] is None
+                    or source[1] != source[5]
+                    or source[2] != source[6]
+                    or source[8] != reviewed[1]
+                    or source[9] != reviewed[2]
+                    or source[10] != reviewed[3]
+                ):
+                    return False
+                try:
+                    before = datetime.fromisoformat(source[3])
+                    current = datetime.fromisoformat(source[7])
+                except (TypeError, ValueError):
+                    return False
+                if before.astimezone(timezone.utc) != current.astimezone(timezone.utc):
+                    return False
+            return True
 
     def iter_promoted_summaries(
         self,
