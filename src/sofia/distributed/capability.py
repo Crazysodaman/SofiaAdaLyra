@@ -140,6 +140,10 @@ class RemoteFleetToolService:
             )
         now=datetime.now(timezone.utc)
         timeout_seconds=10.0
+        if capability=="workshop.bootstrap" and operation=="start":
+            # Fully independent protected grant is still mandatory.
+            # Booting verified offline media can require hashing a large ISO.
+            timeout_seconds=300.0
         if capability=="workshop.inspect" and operation=="media":
             # Hashing a large approved local image may take multiple seconds.
             # This remains a bounded read-only operation; no VM is created.
