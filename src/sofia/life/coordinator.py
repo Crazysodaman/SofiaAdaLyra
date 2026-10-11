@@ -611,6 +611,8 @@ class SelfDirectedLifeCoordinator:
 
     def complete(self, project_id: str, *, reason: str, now: datetime) -> LifeProject:
         project = self._project(project_id)
+        if len(set(project.brief.objectives)) != len(project.brief.objectives):
+            raise ValueError("legacy original objectives are ambiguous; completion needs correction")
         if project.goal_id is None:
             raise ValueError("active project has no canonical goal")
         evaluations = self.store.evaluations(project_id)
@@ -811,6 +813,20 @@ class SelfDirectedLifeCoordinator:
                     and (artifact_id, revision) in self.store.artifacts(project.project_id)
                 )
                 if job.status is WorkStatus.COMPLETED:
+                    if len(set(project.brief.objectives)) != len(project.brief.objectives):
+                        disposition = "ambiguous_original_objectives_require_review"
+                        reviews.append({
+                            "project_id": project.project_id,
+                            "job_id": job.job_id,
+                            "status": job.status.value,
+                            "disposition": disposition,
+                            "artifact_id": artifact_id if verified_link else None,
+                            "revision": revision if verified_link else None,
+                            "evidence_ref": None,
+                        })
+                        if len(reviews) >= limit:
+                            return tuple(reviews)
+                        continue
                     critique = (
                         evaluated.get((artifact_id, revision))
                         if verified_link else None
@@ -1378,6 +1394,8 @@ class SelfDirectedLifeCoordinator:
     ) -> ArtifactEvaluation:
         project = self._project(project_id)
         self._verify_evidence(evidence_refs)
+        if len(set(project.brief.objectives)) != len(project.brief.objectives):
+            raise ValueError("legacy original objectives are ambiguous; require reviewed correction")
         path, _media = self.creative_explorer.verified_preview(
             artifact_id, owner_principal_id=SOFIA_CREATIVE_OWNER,
             audience_id=project.audience_id,
@@ -1566,7 +1584,8 @@ class SelfDirectedLifeCoordinator:
         idempotent without introducing a parallel LIFE scheduler.
         """
         if (
-            project.scope is not ProjectScope.PERSONAL_PRIVATE
+            len(set(project.brief.objectives)) != len(project.brief.objectives)
+            or project.scope is not ProjectScope.PERSONAL_PRIVATE
             or project.status is not ProjectStatus.ACTIVE
             or evaluation.project_id != project.project_id
             or (evaluation.artifact_id, evaluation.artifact_revision) != (artifact_id, revision)
@@ -1756,6 +1775,8 @@ class SelfDirectedLifeCoordinator:
         """
         if project.scope is not ProjectScope.PERSONAL_PRIVATE:
             return 0, "awaiting_owner_review"
+        if len(set(project.brief.objectives)) != len(project.brief.objectives):
+            return 0, "ambiguous_original_objectives_require_review"
         jobs = tuple(self.work_store.get(key) for key in self.store.jobs(project.project_id))
         if not jobs:
             return 0, "no_work"
