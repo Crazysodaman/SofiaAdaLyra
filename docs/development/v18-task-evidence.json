@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+  "reviewed_main_sha": "388801e718bbdfb45213874b114772b77645e5ef",
   "audit_date_utc": "2026-10-11",
-  "notice": "Strict full-production-wiring standard at 2c159415d0ddfe7a8e610bed448c97665dd6fe3f: 6 source-traced coded/tests-only, 64 partial (not coding complete), 630 individually unassessed, 0 accepted. Phase09 RUN-backed objective milestones and no-placeholder autonomous authoring were coded directly on main. CA-2202 is partial because non-text/story autonomously authored media kinds are not fully implemented. Tests and live hosts deferred, canonical writer host undecided.",
+  "notice": "Workstream 1: V18 acceptance claims now require the same production-wiring evidence as coded/tests-only candidates (source and regression commits 288b030, 855d74e). CA-007 and CA-3302 remain partial. No tests, CI or live acceptance run. Previous ledger statuses for other tasks retained.",
   "tasks": [
     {
       "id": "CA-001",
@@ -81,10 +81,20 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 70,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/v18_roadmap.py"
+      ],
+      "evidence_commits": [
+        "288b030537b6c54794dd7641cfc975e815de4556",
+        "855d74e3ec206b9dd52667a7f4e15e3c7cb30b09"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "388801e718bbdfb45213874b114772b77645e5ef",
+        "depth": "source_slice_observed",
+        "interpretation": "V18 validation gate now rejects accepted claims missing production wiring; focused regression source authored but unexecuted. Only this evidence-integrity requirement inspected; full CA task remains partial."
+      }
     },
     {
       "id": "CA-1201",
@@ -337,13 +347,15 @@
         "docs/development/v18-task-evidence.json"
       ],
       "evidence_commits": [
-        "1925361e1362520c11980987167a410a6635deb0"
+        "1925361e1362520c11980987167a410a6635deb0",
+        "288b030537b6c54794dd7641cfc975e815de4556",
+        "855d74e3ec206b9dd52667a7f4e15e3c7cb30b09"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "at_sha": "388801e718bbdfb45213874b114772b77645e5ef",
         "depth": "source_slice_observed",
-        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+        "interpretation": "V18 validation gate now rejects accepted claims missing production wiring; focused regression source authored but unexecuted. Only this evidence-integrity requirement inspected; full CA task remains partial."
       }
     },
     {
