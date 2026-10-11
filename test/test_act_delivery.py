@@ -11,7 +11,7 @@ from sofia.act import (
     Policy,
     SendResult,
 )
-from sofia.act.outreach import OutreachCategory
+from sofia.act.outreach import Decision, OutreachCategory
 from sofia.act.system_notice import SystemNoticeQueue
 
 T0 = datetime(2026, 9, 25, 14, tzinfo=timezone.utc)
@@ -410,3 +410,38 @@ def test_social_system_notice_counts_toward_outbox_social_limits(state):
 
     assert result.status == "policy_blocked"
     assert result.outreach_decision.value == "too_soon"
+
+
+def test_fresh_stop_releases_unsent_interact_claim_without_burning_attempt(state):
+    outbox = ActOutbox(state)
+    bind(outbox)
+    sent = []
+    runner = ActDeliveryRunner(
+        outbox,
+        lambda payload: (
+            sent.append(payload)
+            or SendResult(DeliveryOutcome.DELIVERED, receipt_id="resumed:1")
+        ),
+    )
+    blocked = runner.deliver(
+        message_id="m1", attempt_id="attempt-denied",
+        policy=enabled_policy(), now=T0,
+        pre_send_decision=lambda: Decision.STOPPED,
+    )
+    assert blocked.claim_result.status == "policy_blocked"
+    assert blocked.claim_result.outreach_decision is Decision.STOPPED
+    assert blocked.send_result is None
+    assert sent == []
+    assert queue_status(state, "m1") == "queued"
+    with sqlite3.connect(state) as db:
+        assert db.execute(
+            "SELECT count(*) FROM act_delivery_attempts WHERE message_id='m1'"
+        ).fetchone()[0] == 0
+    allowed = runner.deliver(
+        message_id="m1", attempt_id="attempt-resumed",
+        policy=enabled_policy(), now=T0 + timedelta(seconds=1),
+        pre_send_decision=lambda: Decision.ELIGIBLE_FOR_AUTHORIZATION,
+    )
+    assert allowed.send_result.outcome is DeliveryOutcome.DELIVERED
+    assert len(sent) == 1
+    assert queue_status(state, "m1") == "delivered"
