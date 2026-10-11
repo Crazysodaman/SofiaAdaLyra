@@ -1544,6 +1544,17 @@ class SelfDirectedLifeCoordinator:
         verified_procedure_sources = dict(
             self.procedures.verified_proof_projects(limit=64)
         )
+        # Validate each source group once per operator request, not once
+        # per project card. Artifact hashing is real disk I/O and must
+        # remain bounded even after years of completed creative history.
+        currently_verified_procedures = {
+            procedure_id
+            for procedure_id, source_project_ids
+            in verified_procedure_sources.items()
+            if self._verified_procedure_origins_current(
+                source_project_ids, now=now,
+            )
+        }
         for project in projects[:limit]:
             goal = visible.get(project.goal_id)
             milestone_rows = self.store.milestones(project.project_id)
@@ -1747,13 +1758,7 @@ class SelfDirectedLifeCoordinator:
                     tuple(
                         entry.procedure_id
                         for entry in self.procedures.available_for_project(project)
-                        if (
-                            entry.procedure_id in verified_procedure_sources
-                            and self._verified_procedure_origins_current(
-                                verified_procedure_sources[entry.procedure_id],
-                                now=now,
-                            )
-                        )
+                        if entry.procedure_id in currently_verified_procedures
                     )
                     if project.scope is ProjectScope.PERSONAL_PRIVATE
                     and project.goal_id is not None
