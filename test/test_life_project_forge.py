@@ -2446,3 +2446,65 @@ def test_unknown_original_objective_pauses_project_without_revisions(tmp_path):
         assert len(life.store.jobs(project.project_id)) == 1
     finally:
         life.close()
+
+
+def test_life_ideation_rejects_oversized_model_json_before_parse(tmp_path):
+    """An untrusted model cannot force unbounded optional-idea JSON handling."""
+    from sofia.life.idea_agent import ProjectIdeaAgent, ProjectIdeaGenerationError
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        evidence = life.record_observation(
+            kind="interest", source="test:known",
+            assertion="A real small private writing interest.", now=now,
+        )
+        interest = life.revise_interest(
+            name="tiny-atlas", context="creative",
+            strength=0.8, confidence=0.9,
+            reason="Grounded personal writing curiosity.",
+            evidence_refs=(evidence,), now=now,
+        )
+        def oversize(_request):
+            return CognitiveResponse(content=json.dumps({
+                "name": "An oversized untrusted project",
+                "description": "x" * 20_000,
+                "objectives": ["text_contains:one"],
+                "optional_success_criteria": [],
+                "artifact_kind": "text",
+                "confidence": 0.8,
+                "curiosity": 0.8,
+                "pursue": True,
+                "reason": "Not a bounded request.",
+                "originating_interest_id": interest.interest_id,
+            }))
+        with pytest.raises(ProjectIdeaGenerationError, match="cognitive budget"):
+            ProjectIdeaAgent(oversize).suggest(
+                interests=(interest,), experience_summaries=(),
+                now=now,
+            )
+        assert life.store.list_scope(
+            owner_principal_id="sofia:self", audience_id="local:text",
+        ) == ()
+    finally:
+        life.close()
+
+
+def test_life_draft_rejects_oversized_model_output_before_artifact_submission(
+    tmp_path,
+):
+    """No artifact or RUN job may be minted by an over-budget model response."""
+    from sofia.life.draft_agent import ProjectDraftAgent, ProjectDraftGenerationError
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        def oversize(_request):
+            return CognitiveResponse(content=json.dumps({
+                "content": "A" * 70_000,
+            }))
+        with pytest.raises(ProjectDraftGenerationError, match="response budget"):
+            ProjectDraftAgent(oversize).draft(project, ArtifactKind.TEXT)
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
+    finally:
+        life.close()
