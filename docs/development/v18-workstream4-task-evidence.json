@@ -8,7 +8,8 @@
     "Each of 182 IDs reconciled to the original 700-ID ledger by exact ID and phase.",
     "phase_inventory_only is not an individual audit, not proof of absent code, and not complete.",
     "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run.",
-    "2026-10-11 continuation: owner NEURO toggle and explicit model download approval fencing source-coded on main; no CI, tests, or host action."
+    "2026-10-11 continuation: owner NEURO toggle and explicit model download approval fencing source-coded on main; no CI, tests, or host action.",
+    "2026-10-11 owner clarification: code_ready_for_tests means connected to production with authored regression tests but tests NOT EXECUTED; code_accepted remains false until user verification. Three Phase 15 scoped tasks meet coding-only gate. Models 6608/6609 remain partial pending host switch broker and lifecycle controls."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -27,7 +28,17 @@
     "df10d915d725c7fe7cc23ac14d6ba306f30565fe",
     "43f1e8b5020efe8bdedd0f8ad78597cac15fd669",
     "528193e98020bde34f89874a42acfb0a26e99f2b",
-    "c6d5680f34a022e4f90a78cc717219ebb82c9fa3"
+    "c6d5680f34a022e4f90a78cc717219ebb82c9fa3",
+    "98ef1b6e989241297e7b33573b07f5ba813120d6",
+    "e4f4ed2974f1bee5fd732e12b0afa364f07d98b7",
+    "fcee724b0fc2f19379ee3fce7a7b6837509e1c75",
+    "dd96f236d9440dfafc418cf5e31f01b09d63c82d",
+    "f98190854870f031573c9f7eaf373c4b6bfd722f",
+    "87297d6a482fc744e41a7884792a8239b5920989",
+    "c2ce1d373b3fde1331b60ccab67e30af3b442cd5",
+    "4ce3bb16f10269bf9e1f962a7d1b0fd0c8940d0d",
+    "6a741d975c0cd94eca6d747ef5cc06c77e3a5deb",
+    "305395ae9cebd01195960afc2ddd35c78cb26cf7"
   ],
   "tasks": [
     {
@@ -38,7 +49,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2102",
@@ -49,7 +61,8 @@
       "finding": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2103",
@@ -59,7 +72,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2104",
@@ -69,7 +83,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2105",
@@ -79,7 +94,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2106",
@@ -89,7 +105,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3201",
@@ -99,7 +116,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3202",
@@ -109,7 +127,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3203",
@@ -119,7 +138,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3204",
@@ -129,7 +149,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3205",
@@ -139,7 +160,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3206",
@@ -149,7 +171,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3207",
@@ -159,7 +182,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3208",
@@ -169,7 +193,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3209",
@@ -179,7 +204,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3210",
@@ -189,7 +215,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3211",
@@ -199,7 +226,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3212",
@@ -209,7 +237,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3213",
@@ -219,7 +248,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3214",
@@ -229,7 +259,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3901",
@@ -239,7 +270,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3902",
@@ -249,7 +281,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3903",
@@ -259,7 +292,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3904",
@@ -269,7 +303,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3905",
@@ -279,7 +314,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3906",
@@ -289,7 +325,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3907",
@@ -299,7 +336,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3908",
@@ -309,7 +347,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3909",
@@ -319,7 +358,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3910",
@@ -329,7 +369,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4401",
@@ -339,7 +380,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4402",
@@ -349,7 +391,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4403",
@@ -359,7 +402,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4404",
@@ -369,7 +413,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4405",
@@ -379,7 +424,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4406",
@@ -389,7 +435,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4407",
@@ -399,7 +446,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6601",
@@ -409,7 +457,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6602",
@@ -419,7 +468,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6603",
@@ -429,7 +479,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6604",
@@ -439,7 +490,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6605",
@@ -449,7 +501,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6606",
@@ -459,7 +512,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6607",
@@ -469,7 +523,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6608",
@@ -480,7 +535,8 @@
       "finding": "Existing governed role promotion transaction now verifies exact durable row transition counts for accepted, uncertain and rolled-back status before reporting success. Concurrent ledger tampering returns uncertainty instead of fabricated acceptance. Regression tests written, unexecuted; trusted host broker and live traffic acceptance still missing.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6609",
@@ -491,7 +547,8 @@
       "finding": "No automatic startup downloads; legacy bulk/install config flag permanently inert; explicit lifecycle pull now requires callback verifying exact role/model/operator receipt, and Settings no longer offers auto install. Host SAFE broker and full promotion approval policy remain open. Source tests authored, unexecuted.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6610",
@@ -501,7 +558,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6611",
@@ -511,7 +569,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6612",
@@ -521,7 +580,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1501",
@@ -531,7 +591,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1502",
@@ -541,7 +602,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1503",
@@ -551,7 +613,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1504",
@@ -561,7 +624,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1505",
@@ -571,7 +635,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-1506",
@@ -581,7 +646,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6201",
@@ -592,7 +658,8 @@
       "finding": "Consent permit/receipt isn't OS screen capture, SAFE integration or screenshot-derived observation.",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6202",
@@ -602,7 +669,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6203",
@@ -612,7 +680,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6204",
@@ -622,7 +691,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6205",
@@ -632,7 +702,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6206",
@@ -642,7 +713,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6207",
@@ -652,7 +724,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6208",
@@ -662,7 +735,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6209",
@@ -672,7 +746,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6210",
@@ -682,7 +757,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6211",
@@ -692,7 +768,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6212",
@@ -702,7 +779,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6213",
@@ -712,7 +790,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6214",
@@ -722,7 +801,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6215",
@@ -732,7 +812,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6216",
@@ -742,7 +823,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6217",
@@ -752,7 +834,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6218",
@@ -762,7 +845,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2801",
@@ -772,7 +856,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2802",
@@ -782,7 +867,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2803",
@@ -792,7 +878,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2804",
@@ -802,7 +889,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2805",
@@ -812,7 +900,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2806",
@@ -822,7 +911,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2807",
@@ -832,7 +922,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2808",
@@ -842,7 +933,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2809",
@@ -852,7 +944,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2810",
@@ -862,7 +955,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2811",
@@ -872,7 +966,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2812",
@@ -882,7 +977,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2813",
@@ -892,7 +988,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2814",
@@ -902,7 +999,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2815",
@@ -912,7 +1010,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2816",
@@ -922,7 +1021,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2817",
@@ -932,7 +1032,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2818",
@@ -942,7 +1043,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2819",
@@ -952,7 +1054,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2820",
@@ -962,7 +1065,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2821",
@@ -972,7 +1076,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2822",
@@ -982,7 +1087,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2823",
@@ -992,7 +1098,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2824",
@@ -1002,7 +1109,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2901",
@@ -1012,7 +1120,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2902",
@@ -1022,7 +1131,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2903",
@@ -1032,7 +1142,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2904",
@@ -1042,7 +1153,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2905",
@@ -1052,7 +1164,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2906",
@@ -1062,7 +1175,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2907",
@@ -1072,7 +1186,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2908",
@@ -1082,7 +1197,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2909",
@@ -1092,7 +1208,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2910",
@@ -1102,7 +1219,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2911",
@@ -1112,7 +1230,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2912",
@@ -1122,7 +1241,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2913",
@@ -1132,7 +1252,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2914",
@@ -1142,7 +1263,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2915",
@@ -1152,7 +1274,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2916",
@@ -1162,7 +1285,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2917",
@@ -1172,7 +1296,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2918",
@@ -1182,7 +1307,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2919",
@@ -1192,7 +1318,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2920",
@@ -1202,7 +1329,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2921",
@@ -1212,7 +1340,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2922",
@@ -1222,7 +1351,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3601",
@@ -1232,7 +1362,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3602",
@@ -1242,7 +1373,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3603",
@@ -1252,7 +1384,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3604",
@@ -1262,7 +1395,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3605",
@@ -1272,7 +1406,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3606",
@@ -1282,7 +1417,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3607",
@@ -1292,7 +1428,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3608",
@@ -1302,7 +1439,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3609",
@@ -1312,7 +1450,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-3610",
@@ -1322,7 +1461,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4301",
@@ -1332,7 +1472,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4302",
@@ -1342,7 +1483,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4303",
@@ -1352,7 +1494,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4304",
@@ -1362,7 +1505,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4305",
@@ -1372,7 +1516,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4306",
@@ -1382,7 +1527,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-4307",
@@ -1392,7 +1538,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6701",
@@ -1403,7 +1550,8 @@
       "finding": "Training research-only manifest isn't authorized model training.",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6702",
@@ -1413,7 +1561,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6703",
@@ -1423,7 +1572,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6704",
@@ -1433,7 +1583,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6705",
@@ -1443,7 +1594,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6706",
@@ -1453,7 +1605,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6707",
@@ -1463,7 +1616,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6708",
@@ -1473,7 +1627,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6709",
@@ -1483,7 +1638,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6710",
@@ -1493,7 +1649,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6711",
@@ -1503,7 +1660,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-6712",
@@ -1513,7 +1671,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-701",
@@ -1524,7 +1683,8 @@
       "finding": "Baseline NEURO and circuit present, but benchmark/acceptance absent.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-702",
@@ -1532,10 +1692,11 @@
       "master_line": 1139,
       "global_ledger_before": "unassessed",
       "source_review": "code_path_integrated_unverified",
-      "finding": "src/sofia/application/bootstrap.py -> src/sofia/neuro/runtime.py -> src/sofia/neuro/store.py; CircuitCompetition influences eligible ranking; pending benchmarks.",
+      "finding": "One shared production NEURO runtime invokes CircuitCompetition after trusted TTL and eligibility filtering; output ranks only existing signals; tests authored and not executed.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-703",
@@ -1543,10 +1704,11 @@
       "master_line": 1140,
       "global_ledger_before": "unassessed",
       "source_review": "code_path_integrated_unverified",
-      "finding": "Invalid and unexpected engineered circuit failures now fall back to deterministic salience; regression unexecuted (b7fcec5).",
+      "finding": "Competition scores, membership and winner consistency validated; exceptions and invalid results revert to deterministic salience; bounded iteration prevents unbounded recurrence; tests authored and not executed.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-704",
@@ -1556,7 +1718,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-705",
@@ -1566,7 +1729,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-706",
@@ -1576,7 +1740,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-707",
@@ -1586,7 +1751,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-708",
@@ -1596,7 +1762,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-715",
@@ -1606,18 +1773,20 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-709",
       "phase": "15",
       "master_line": 1147,
       "global_ledger_before": "unassessed",
-      "source_review": "partially_implemented_unverified",
-      "finding": "Algorithm version, winner/salience-margin/current-turn-precedence metadata and canonical owner toggle now reach one production NEURO attention path and diagnostic store. Tests written/unexecuted. Algorithm parameter control, independent ablation and host acceptance remain open.",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "Versioned salience input dictionary and competition parameters, per-turn selected/baseline/winner diagnostics, durable owner toggle and one-click reset epoch now feed the canonical runtime. Tests authored and not executed.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-710",
@@ -1627,7 +1796,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-711",
@@ -1637,7 +1807,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-712",
@@ -1647,7 +1818,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-713",
@@ -1657,7 +1829,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-714",
@@ -1667,7 +1840,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2001",
@@ -1677,7 +1851,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2002",
@@ -1687,7 +1862,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2003",
@@ -1697,7 +1873,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2004",
@@ -1707,7 +1884,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2005",
@@ -1717,7 +1895,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2006",
@@ -1727,7 +1906,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-2007",
@@ -1737,7 +1917,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-801",
@@ -1748,7 +1929,8 @@
       "finding": "Research preregistration type has no study runner or independent results/controls.",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-802",
@@ -1759,7 +1941,8 @@
       "finding": "Operational self-model exists; no conclusion about subjective experience is justified.",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-803",
@@ -1769,7 +1952,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-804",
@@ -1779,7 +1963,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-805",
@@ -1789,7 +1974,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-806",
@@ -1799,7 +1985,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-807",
@@ -1809,7 +1996,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-808",
@@ -1819,7 +2007,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-809",
@@ -1829,7 +2018,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-810",
@@ -1839,7 +2029,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-811",
@@ -1849,7 +2040,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     },
     {
       "id": "CA-812",
@@ -1859,7 +2051,8 @@
       "source_review": "phase_inventory_only",
       "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
       "code_accepted": false,
-      "tests_executed": false
+      "tests_executed": false,
+      "code_ready_for_tests": false
     }
   ]
 }
