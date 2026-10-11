@@ -214,7 +214,8 @@ def start_owner_approved_installer(
     material.pop("observed_at",None)
     recorded=dict(previous["observation"])
     recorded.pop("observed_at",None)
-    for key in ("os_disk_paths","os_disk_sizes_gib","nic_switches","dvd_paths"):
+    for key in ("os_disk_paths","os_disk_sizes_gib","nic_switches","dvd_paths",
+                "firmware_boot_order"):
         if isinstance(material.get(key),tuple):
             material[key]=json.loads(json.dumps(material[key]))
     if material!=recorded:
