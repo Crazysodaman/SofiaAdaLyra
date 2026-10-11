@@ -274,6 +274,9 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     cognitive_model_idle_unload_seconds = tk.StringVar(
         value=str(runtime.cognitive_model_idle_unload_seconds)
     )
+    cognitive_model_idle_preload_seconds = tk.StringVar(
+        value=str(runtime.cognitive_model_idle_preload_seconds)
+    )
     cognitive_model_keep_alive = tk.StringVar(
         value=runtime.cognitive_model_keep_alive
     )
@@ -559,6 +562,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         lifecycle_frame,
         textvariable=cognitive_model_residency_mode,
         values=(
+            "hybrid_gaming_idle",
             "resource_aware",
             "fast_always_resident",
             "dual_resident",
@@ -606,6 +610,14 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
     ttk.Entry(
         lifecycle_frame,
         textvariable=cognitive_model_idle_unload_seconds,
+    ).pack(anchor="w", fill="x", pady=(2, 5))
+    ttk.Label(
+        lifecycle_frame,
+        text="Hybrid: preload after Windows desktop idle seconds (default 1800)",
+    ).pack(anchor="w")
+    ttk.Entry(
+        lifecycle_frame,
+        textvariable=cognitive_model_idle_preload_seconds,
     ).pack(anchor="w", fill="x", pady=(2, 5))
     ttk.Label(
         lifecycle_frame,
@@ -1846,6 +1858,10 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 cognitive_model_idle_unload_seconds=_positive(
                     cognitive_model_idle_unload_seconds.get(),
                     "Model idle unload seconds",
+                ),
+                cognitive_model_idle_preload_seconds=_positive(
+                    cognitive_model_idle_preload_seconds.get(),
+                    "Desktop idle preload seconds",
                 ),
                 cognitive_model_keep_alive=(
                     cognitive_model_keep_alive.get().strip()
