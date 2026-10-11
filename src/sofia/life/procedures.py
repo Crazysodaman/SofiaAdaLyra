@@ -253,6 +253,16 @@ class LifeProcedureCatalog:
             ).fetchone()
             return self._decode(row, int(count))
 
+    def has_source_project(self, project_id: str) -> bool:
+        """Fast idempotency check before replaying expensive source validation."""
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise ValueError("original project ID required")
+        with closing(self._connect()) as db:
+            return db.execute(
+                "SELECT 1 FROM life_procedure_proof "
+                "WHERE project_id=? LIMIT 1", (project_id,),
+            ).fetchone() is not None
+
     def available_for_project(
         self, project: LifeProject, *, limit: int = 8,
     ) -> tuple[ProcedureRecord, ...]:
