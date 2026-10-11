@@ -348,6 +348,7 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
         tools.extend((
             _tool("hyperv.vms","List local Hyper-V virtual machines. Read-only.",_object(),lambda p:hv.vms()),
             _tool("hyperv.vm","Inspect one local Hyper-V VM. Read-only.",_object({"name":{"type":"string"}},["name"]),lambda p:hv.vm(p["name"])),
+            _tool("hyperv.sofia.inspect","Read-only canonical Sofia VM inventory and Debian provisioning blockers; no OS or writer authority inferred.",_object(),lambda p:hv.sofia_guest_inventory()),
             _tool("hyperv.vm.start","Start one explicitly named local Hyper-V VM.",_object({"name":{"type":"string"}},["name"]),lambda p:hv.start(p["name"])),
             _tool("hyperv.vm.stop","Stop one explicitly named local Hyper-V VM.",
                 _object({"name":{"type":"string"},"force":{"type":"boolean"}},["name"]),
