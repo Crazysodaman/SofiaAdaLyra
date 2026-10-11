@@ -685,3 +685,19 @@ def test_bare_presence_keeps_observed_ip_separate_from_reverse_dns(monkeypatch):
     assert evidence.hostname == "unapproved.example.invalid"
     assert evidence.observed_endpoint_hostname == "192.0.2.2"
     assert evidence.observed_node_id is None
+
+
+def test_mtls_discovery_rejects_pathologically_nested_json(monkeypatch):
+    """Even within the byte cap, untrusted JSON must not crash discovery."""
+    class DeepResponseConnection(FakeConnection):
+        def getresponse(self):
+            if self.path == "/v1/identity":
+                return FakeResponse(
+                    b'{"node_id":' + b"[" * 2000
+                    + b"1" + b"]" * 2000 + b"}"
+                )
+            pytest.fail("Malformed identity must not proceed to capabilities")
+
+    source = _source(monkeypatch)
+    monkeypatch.setattr(discovery_module, "HTTPSConnection", DeepResponseConnection)
+    assert source.discover() == ()
