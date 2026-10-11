@@ -182,3 +182,63 @@ def test_real_game_wins_when_steam_utilities_are_also_running():
     )
     assert gaming is True
     assert game == "Spyro-Win64-Shipping.exe"
+
+
+
+def test_stale_venus_auto_activity_never_outranks_fresh_windows_gpu_worker():
+    """Deferred Phase 11 gaming-first Fleet ranking with frozen clocks."""
+    workload = WorkloadContract(
+        "small-fleet-llm", "1", ("windows",), ("x86_64",),
+    )
+    stale_venus = HostActivityState(
+        "venus", ActivityMode.AUTO, ActivityMode.NORMAL,
+        NOW - timedelta(minutes=8), "old-process-inspection",
+    )
+    fresh_worker = HostActivityState(
+        "gpu-windows", ActivityMode.AUTO, ActivityMode.NORMAL,
+        NOW, "current-process-inspection",
+    )
+    decision = PlacementEngine().choose(
+        workload, (_host("venus", 5), _host("gpu-windows", 30)),
+        activities={"venus": stale_venus, "gpu-windows": fresh_worker},
+        now=NOW,
+    )
+    assert decision.host_id == "gpu-windows"
+
+
+def test_missing_activity_does_not_outrank_fresh_non_gaming_worker():
+    workload = WorkloadContract(
+        "small-fleet-llm", "1", ("windows",), ("x86_64"),
+    )
+    decision = PlacementEngine().choose(
+        workload, (_host("venus", 1), _host("gpu-windows", 70)),
+        activities={
+            "gpu-windows": HostActivityState(
+                "gpu-windows", ActivityMode.AUTO, ActivityMode.NORMAL,
+                NOW, "current-process-inspection",
+            ),
+        },
+        now=NOW,
+    )
+    assert decision.host_id == "gpu-windows"
+
+
+def test_explicit_manual_normal_override_remains_owner_authority():
+    workload = WorkloadContract(
+        "small-fleet-llm", "1", ("windows",), ("x86_64"),
+    )
+    decision = PlacementEngine().choose(
+        workload, (_host("venus", 5), _host("gpu-windows", 30)),
+        activities={
+            "venus": HostActivityState(
+                "venus", ActivityMode.NORMAL, ActivityMode.NORMAL,
+                NOW - timedelta(days=1), "operator-override",
+            ),
+            "gpu-windows": HostActivityState(
+                "gpu-windows", ActivityMode.AUTO, ActivityMode.NORMAL,
+                NOW, "process-inspection",
+            ),
+        },
+        now=NOW,
+    )
+    assert decision.host_id == "venus"
