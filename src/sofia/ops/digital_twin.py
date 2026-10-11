@@ -302,6 +302,145 @@ def simulate_hypothetical_failure(
     )
 
 
+@dataclass(frozen=True,slots=True)
+class TwinExperimentDisposition:
+    decision: str
+    reasons: tuple[str,...]
+    requires_operator_review: bool = True
+    may_launch_real_experiment: bool = False
+
+
+def assess_twin_experiment(
+    *,snapshot:TwinSnapshot,result:TwinSimulationResult,
+    at:datetime,verified_hypothesis:bool=True,
+    repeated_failure_count:int=0,host_cpu_budget_ms:int=100,
+    observed_cpu_ms:float=0,
+) -> TwinExperimentDisposition:
+    """Stop synthetic research when evidence is not adequate for interpretation."""
+    if not isinstance(snapshot,TwinSnapshot) or not isinstance(result,TwinSimulationResult):
+        raise TypeError("source-grounded hypothetical experiment required")
+    if (
+        type(repeated_failure_count) is not int
+        or repeated_failure_count<0 or repeated_failure_count>100
+        or type(host_cpu_budget_ms) is not int
+        or not 1<=host_cpu_budget_ms<=10000
+        or type(observed_cpu_ms) not in {int,float}
+        or not 0<=observed_cpu_ms<=100_000
+    ):
+        raise ValueError("bounded experiment failure and compute observations required")
+    reasons=[]
+    if not verified_hypothesis:
+        reasons.append("hypothesis lacks independent falsification rule")
+    if result.telemetry_stale_or_missing:
+        reasons.append("source telemetry stale or missing")
+    if repeated_failure_count>=3:
+        reasons.append("repeated failures without independent learning evidence")
+    if observed_cpu_ms>host_cpu_budget_ms:
+        reasons.append("simulation would displace foreground resource budget")
+    if len(snapshot.dependencies)==0:
+        reasons.append("no owner-reviewed dependency edges; only an isolated node is modeled")
+    return TwinExperimentDisposition(
+        decision="ABANDON_RESEARCH" if reasons else "REVIEW_SYNTHETIC_ONLY",
+        reasons=tuple(reasons),
+    )
+
+
+class TwinExperimentStore:
+    """Immutable bounded reproducibility capsule in canonical state."""
+
+    def __init__(self,state_path:Path|str):
+        self.path=Path(state_path)
+        self._guard=CanonicalSQLiteGuard(self.path)
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ops_twin_experiment_capsule("
+                "capsule_id TEXT PRIMARY KEY, capsule_sha256 TEXT NOT NULL,"
+                "source_sha256 TEXT NOT NULL, capsule_json TEXT NOT NULL,"
+                "created_at TEXT NOT NULL)"
+            )
+
+    def record(self,*,snapshot:TwinSnapshot,result:TwinSimulationResult,
+               disposition:TwinExperimentDisposition,at:datetime)->str:
+        if result.source_snapshot_sha256!=snapshot.digest:
+            raise PermissionError("simulation result did not come from supplied snapshot")
+        if disposition.may_launch_real_experiment:
+            raise PermissionError("synthetic result cannot authorize action")
+        capsule={
+            "schema":"homelab-twin-capsule-v1",
+            "source":"OPS_FLEET_CANONICAL and owner_declared_edges",
+            "tool_version":"sofia.ops.digital_twin:dependency_graph_v1",
+            "fixed_seed":0,
+            "fidelity":snapshot.fidelity,
+            "input_digest":snapshot.digest,
+            "observed_input_hosts":tuple({
+                "host_id":item.host_id,
+                "telemetry_at":item.observed_at.isoformat()
+                    if item.observed_at is not None else None,
+                "lifecycle":item.lifecycle,
+                "trusted":item.trusted,
+            } for item in snapshot.hosts),
+            "owner_reviewed_edges":tuple({
+                "dependent_host_id":edge.dependent_host_id,
+                "prerequisite_host_id":edge.prerequisite_host_id,
+                "kind":edge.kind,
+                "reviewed_at":edge.reviewed_at.isoformat(),
+                "receipt":edge.approval_ref,
+            } for edge in snapshot.dependencies),
+            "scenario":result.scenario,
+            "target_host_id":result.initial_host_id,
+            "result":asdict(result),
+            "disposition":asdict(disposition),
+            "evaluator":"hypothetical dependency reachability only",
+            "real_world_implementation":"NOT EXECUTED",
+            "approved_host_action":False,
+        }
+        document=json.dumps(
+            capsule,sort_keys=True,separators=(",", ":"),allow_nan=False,
+        )
+        if len(document)>65_536:
+            raise ValueError("experiment capsule exceeds reviewed bound")
+        digest=sha256(document.encode("utf-8")).hexdigest()
+        capsule_id="twin:"+uuid4().hex
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(
+                "INSERT INTO ops_twin_experiment_capsule VALUES(?,?,?,?,?)",
+                (capsule_id,digest,snapshot.digest,document,
+                 at.astimezone(timezone.utc).isoformat()),
+            )
+            db.execute(
+                "DELETE FROM ops_twin_experiment_capsule WHERE capsule_id NOT IN "
+                "(SELECT capsule_id FROM ops_twin_experiment_capsule "
+                "ORDER BY created_at DESC,capsule_id DESC LIMIT 32)"
+            )
+        return capsule_id
+
+    def recent(self,*,limit:int=8)->tuple[dict,...]:
+        if type(limit) is not int or not 1<=limit<=32:
+            raise ValueError("capsule limit must be 1..32")
+        with closing(self._guard.connect(timeout=10)) as db:
+            rows=db.execute(
+                "SELECT capsule_id,capsule_sha256,capsule_json "
+                "FROM ops_twin_experiment_capsule "
+                "ORDER BY created_at DESC,capsule_id DESC LIMIT ?",(limit,),
+            ).fetchall()
+        reports=[]
+        for capsule_id,digest,raw in rows:
+            if sha256(raw.encode("utf-8")).hexdigest()!=digest:
+                raise RuntimeError("synthetic experiment capsule hash corruption")
+            item=json.loads(raw)
+            reports.append({
+                "capsule_id":capsule_id,"capsule_sha256":digest,
+                "scenario":item["scenario"],
+                "target_host_id":item["target_host_id"],
+                "fidelity":item["fidelity"],
+                "decision":item["disposition"]["decision"],
+                "actual_host_action":False,
+                "source_digest":item["input_digest"],
+            })
+        return tuple(reports)
+
+
 def run_digital_twin_scenario(*,service,scenario:str,target_host_id:str,
                               at:datetime)->dict:
     """Read actual canonical OPS host inventory; compute ONLY hypothetical effects."""
@@ -311,7 +450,15 @@ def run_digital_twin_scenario(*,service,scenario:str,target_host_id:str,
     result=simulate_hypothetical_failure(
         current,scenario=scenario,target_host_id=target_host_id,at=at,
     )
+    disposition=assess_twin_experiment(
+        snapshot=current,result=result,at=at,
+    )
+    capsule_id=TwinExperimentStore(service.state_path).record(
+        snapshot=current,result=result,disposition=disposition,at=at,
+    )
     report=asdict(result)
+    report["experiment_capsule_id"]=capsule_id
+    report["review_disposition"]=asdict(disposition)
     report["source_host_count"]=len(current.hosts)
     report["source_reviewed_edge_count"]=len(current.dependencies)
     report["scientific_limit"]=(
