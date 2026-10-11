@@ -473,36 +473,48 @@ class WindowsCimBootstrapInstaller:
             raise ValueError("bootstrap candidate does not match approved host")
 
         installer = self.prepare_stage(package)
-        if self._active_controller_stage_directory is None or self._active_remote_stage_path is None:
+        stage_directory = self._active_controller_stage_directory
+        if stage_directory is None or self._active_remote_stage_path is None:
             raise RuntimeError("bootstrap stage was not initialized")
-        (self._active_controller_stage_directory / "bootstrap-receipt.json").unlink(missing_ok=True)
-        remote_installer = str(PureWindowsPath(self._active_remote_stage_path) / installer.name)
-        self.launcher(self.host, self.credential_user, remote_installer)
-        evidence = self.wait_for_receipt()
-
-        if evidence.host_id.casefold() != self.host.casefold():
-            raise RuntimeError("bootstrap host identity mismatch")
-        if evidence.node_id != self.node_id:
-            raise RuntimeError("bootstrap node identity mismatch")
-        if evidence.package_sha256 != package.sha256:
-            raise RuntimeError("bootstrap package hash mismatch")
-
-        print(
-            f"remote bootstrap verified: host={evidence.host_id} "
-            f"pid={evidence.process_id} port={evidence.listen_port} "
-            f"python={evidence.python_version}"
-        )
         try:
-            shutil.rmtree(self._active_controller_stage_directory)
-        except OSError as exc:
-            print(f"warning: verified bootstrap stage cleanup failed: {exc}")
-        return InstallReceipt(
-            candidate.host_id,
-            package.package_id,
-            package.version,
-            package.sha256,
-            True,
-        )
+            (stage_directory / "bootstrap-receipt.json").unlink(missing_ok=True)
+            remote_installer = str(
+                PureWindowsPath(self._active_remote_stage_path) / installer.name
+            )
+            self.launcher(self.host, self.credential_user, remote_installer)
+            evidence = self.wait_for_receipt()
+
+            if evidence.host_id.casefold() != self.host.casefold():
+                raise RuntimeError("bootstrap host identity mismatch")
+            if evidence.node_id != self.node_id:
+                raise RuntimeError("bootstrap node identity mismatch")
+            if evidence.package_sha256 != package.sha256:
+                raise RuntimeError("bootstrap package hash mismatch")
+
+            print(
+                f"remote bootstrap verified: host={evidence.host_id} "
+                f"pid={evidence.process_id} port={evidence.listen_port} "
+                f"python={evidence.python_version}"
+            )
+            return InstallReceipt(
+                candidate.host_id,
+                package.package_id,
+                package.version,
+                package.sha256,
+                True,
+            )
+        finally:
+            # The controller stage contains a copied TLS private key.
+            # Always remove it after the receipt attempt, including launch
+            # failures, bad identity, timeouts, and interrupted verification.
+            # Fail rather than announce successful provisioning if sensitive
+            # staging cannot be cleaned.
+            try:
+                shutil.rmtree(stage_directory)
+            finally:
+                self._active_controller_stage_directory = None
+                self._active_remote_stage_path = None
+
 
 
 def main(argv: list[str] | None = None) -> int:
