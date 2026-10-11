@@ -263,8 +263,8 @@ class PresenceInitiativeEngine:
         neuro_priority: Callable[[str], float] | None = None,
     ) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("existing application state database required")
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("existing nonredirected application state database required")
         if not isinstance(act_service, SofiaActService):
             raise TypeError("act_service must be SofiaActService")
         if neuro_priority is not None and not callable(neuro_priority):
@@ -318,7 +318,14 @@ class PresenceInitiativeEngine:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        # A vanished owner state cannot become an invented second observation
+        # and outreach history during background refresh or reconnection.
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical Presence state missing or redirected")
+        db = sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw",
+            timeout=10, uri=True,
+        )
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA busy_timeout=10000")
         return db
