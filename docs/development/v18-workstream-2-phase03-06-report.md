@@ -2610,6 +2610,47 @@ and must be independently verified during final acceptance.
 No real index rebuild, tests, CI, backup or host
 actions executed.
 
+
+
+### Phase 06 item 76: FTS readiness requires canonical index and trigger structure
+
+The existing `ConversationFullTextSearch.status()` returned
+`ready=True` solely from the persistent
+`conversation_fts_meta.is_ready` marker, even when a
+later DDL failure, partial external maintenance or manual
+index deletion removed the `conversation_messages_fts`
+virtual table or one of its source-sync triggers.
+An unusable/degrading optional index should never be
+advertised as healthy and then be treated as authoritative
+historical source coverage.
+
+The production status reader now verifies that all four
+canonical SQLite objects exist with their expected kinds:
+one FTS5 virtual table plus the `INSERT`, `DELETE`,
+`UPDATE` source-maintenance triggers. If any is absent,
+it reports not ready; `keyword_search` refuses to search
+the unusable index, while the real conversation path uses
+the **current-audience checked canonical SQL original
+fallback** established in Item 65. The stored source
+count remains diagnostic only, not permission or semantic
+trust. An independent privileged offline rebuild is still
+required for repair, including Item 75's final approval
+check before commit.
+
+- Production `54757f9c4090ab6ff4a1923fa331ffabcf3abea2`
+  (`[skip ci]`).
+- Deferred synthetic SQLite degraded-structure tests
+  `test/test_ws2_fts_readiness_structure.py`,
+  `1f2d9850dced2554cee475b5aaf90f766ca34ce8`
+  (`[skip ci]`).
+
+Original CA relevance: CA-5002, CA-5006,
+CA-5604, CA-5608. A structurally present but internally
+corrupt FTS5 index still requires a privileged content
+integrity/rebuild campaign; these status checks do not
+prove completeness or correct matches. No tests/CI,
+live index mutation or deployment occurred.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
