@@ -139,13 +139,16 @@ class SofiaApi(private val settings: SecureSettings) {
         return post("/v1/mobile/main/page", body)
     }
 
-    fun visibleThreads(limit: Int = 30): JSONObject {
+    fun visibleThreads(
+        limit: Int = 30, includeArchived: Boolean = false,
+    ): JSONObject {
         require(limit in 1..50) { "A bounded list of project threads is required" }
         val config = settings.load()
         return post("/v1/mobile/threads", JSONObject()
             .put("device_id", settings.deviceId)
             .put("private_mode", config.privateMode)
-            .put("limit", limit))
+            .put("limit", limit)
+            .put("include_archived", includeArchived))
     }
 
     fun projectThreadPage(
