@@ -45,7 +45,9 @@ def test_new_mixed_offset_sources_are_stored_and_paged_in_true_utc_order(tmp_pat
         assert store.get_session(session.id).updated_at == after
 
         second_page = store.list_messages_page(
-            session.id, after=(page[0].created_at, page[0].id), limit=2,
+            session.id,
+            after=(page[0].created_at.astimezone(ahead), page[0].id),
+            limit=2,
         )
         assert [message.id for message in second_page] == ["source:newer"]
     finally:
