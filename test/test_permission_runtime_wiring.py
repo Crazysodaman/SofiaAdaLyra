@@ -4,6 +4,8 @@ import sqlite3
 
 import pytest
 
+from test.owner_auth_fixture import resume_with_signed_owner_proof
+
 from test.owner_auth_fixture import record_verified_owner_approval
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -194,7 +196,7 @@ def test_operator_stop_blocks_direct_integration_handler_even_with_standing_gran
         registration.handler(request)
     assert not (tmp_path / "blocked-by-stop").exists()
 
-    stop.set(active=False, updated_by="Sparks", reason="operator resumes")
+    resume_with_signed_owner_proof(stop, reason="operator resumes")
     registration.handler(request)
     assert (tmp_path / "blocked-by-stop").is_dir()
 
@@ -571,8 +573,8 @@ def test_dev_direct_service_approval_and_build_honor_durable_operator_stop(tmp_p
             {"proposal_id": "candidate", "approval_id": "signed-but-stopped"},
         )
 
-    service.operator_stop.set(
-        active=False, updated_by="Sparks", reason="operator resumes",
+    resume_with_signed_owner_proof(
+        service.operator_stop, reason="operator resumes",
     )
     service._authorize(DevOperation.BUILD, {"proposal_id": "candidate"})
 
