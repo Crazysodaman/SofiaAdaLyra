@@ -53,3 +53,28 @@ def test_request_rejects_invalid_override_timeout(monkeypatch):
         JsonHttpClient(
             "http://127.0.0.1:11434",
         ).request("GET","/api/tags",timeout=0)
+
+
+def test_read_only_json_metadata_has_hard_response_byte_ceiling(monkeypatch):
+    observed=[]
+    class SizedResponse:
+        def __enter__(self): return self
+        def __exit__(self,*args): return False
+        def read(self,size=None):
+            observed.append(size)
+            return b"x" * size
+
+    monkeypatch.setattr(
+        http_module,"urlopen",
+        lambda *_a,**_k: SizedResponse(),
+    )
+    with pytest.raises(ServiceHTTPError,match="exceeded max_bytes"):
+        JsonHttpClient("http://127.0.0.1:11434").request(
+            "POST","/api/show",payload={"name":"approved:1b"},max_bytes=1024,
+        )
+    assert observed == [1025]
+
+    with pytest.raises(ValueError,match="max_bytes"):
+        JsonHttpClient("http://127.0.0.1:11434").request(
+            "GET","/api/tags",max_bytes=4 * 1024 * 1024 + 1,
+        )
