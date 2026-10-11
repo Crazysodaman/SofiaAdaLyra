@@ -2657,3 +2657,68 @@ def test_motivation_budget_and_operator_authority_outrank_curiosity(tmp_path):
         assert life.store.jobs(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_life_counterfactual_choices_do_not_apply_simulated_results(tmp_path):
+    """Only the original eligible continue choice can authorize LIFE selection."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        before_events = life.store.events(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        )
+        decision = life.compare_optional_choices(
+            now=now + timedelta(seconds=3),
+            busy=False, resource_pressure=0.1,
+        )
+        assert decision["simulation_only"] is True
+        assert decision["recommendation"] == "continue"
+        assert decision["selected_project_id"] == project.project_id
+        options = {item["choice"]: item for item in decision["choices"]}
+        assert set(options) == {
+            "continue", "switch", "postpone", "ask", "abandon",
+        }
+        assert all(item["hypothetical"] for item in options.values())
+        assert options["continue"]["eligible"] is True
+        assert options["switch"]["eligible"] is False
+        assert options["postpone"]["eligible"] is True
+        assert options["abandon"]["eligible"] is False
+        assert life.store.events(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        ) == before_events
+        assert life.store.jobs(project.project_id) == ()
+        assert life.select_activity(
+            now=now + timedelta(seconds=4), busy=False,
+            resource_pressure=0.1,
+        ).project_id == project.project_id
+    finally:
+        life.close()
+
+
+def test_life_counterfactual_choice_postpones_under_foreground_priority(tmp_path):
+    """Even highly motivated projects have a legitimate idle alternative."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        options = life.compare_optional_choices(
+            now=now + timedelta(seconds=3),
+            busy=True, resource_pressure=0.1,
+        )
+        assert options["recommendation"] == "postpone"
+        assert options["selected_project_id"] is None
+        assert all(item["hypothetical"] for item in options["choices"])
+        assert any(
+            item["choice"] == "postpone" and item["eligible"]
+            for item in options["choices"]
+        )
+        assert life.select_activity(
+            now=now + timedelta(seconds=3),
+            busy=True, resource_pressure=0.1,
+        ).kind.value == "inactivity"
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
