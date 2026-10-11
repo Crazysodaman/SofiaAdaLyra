@@ -675,3 +675,11 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 
 - A static source audit identified two authored-but-unexecuted test fixture defects: `Goal` requires a bounded `blocked_reason` for the BLOCKED status, and `SelfDirectedLifeCoordinator._verify_evidence` rejects empty LIFE transition evidence. The new GOALS-blocked test helper now supplies the original reason, and the atomic RUN admission race creates/passes a verified source observation to pause and resume.
 - Original production authority has not been weakened and no tests, CI or host actions were run. These repairs make future owner acceptance capable of reaching the intended source races.
+
+
+## Phase 09 final creative one-use authorization CAS against original RUN (2026-10-11)
+
+- **Original CA IDs:** CA-202, CA-207, CA-2402, CA-1606. Remaining full task acceptance not claimed.
+- **Found:** the real `CreativeArtifactCapability.execute` uses the `LifeStore.claim_artifact_authorization` one-use writer before creating bytes, but its SQL only required the current project to be ACTIVE. An already-running original RUN job that passed the executor's earlier status/revision gate could witness LIFE pause/resume before the actual grant claim; the old one-use auth remained claimable even though its project revision was revoked.
+- **Production correction:** `claim_artifact_authorization` now obtains the canonical SQLite `BEGIN IMMEDIATE` lock, verifies the still-authorized scoped grant and current ACTIVE project revision, then looks up only real original associated RUN jobs in RUNNING state with the exact originating project revision, goal ID and request/artifact/project identity. A unique matching original job is required before atomic one-use claim. No new durable tables, modified capability request schema, model authority or remote/physical operation. A legacy job lacking version proof safely fails closed; the existing SAFE/GOALS executor guards remain separate.
+- **Deferred source regressions:** valid original RUNNING job grants once only, QUEUED never grants, and pause/resume after a job began cannot claim its old one-use auth. Tests/CI not run; no creative bytes generated.
