@@ -394,7 +394,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             else ""
         )
     )
-    grant_scope = tk.StringVar(value="{}")
+    grant_scope = tk.StringVar(value='{"name":"SofiaAdaLyra"}')
     grant_expiry_minutes = tk.StringVar(value="")
 
     general = frames["General"]
@@ -953,7 +953,7 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         text=(
             'Scope is an exact parameter subset. Example: '
             '{"container_id":"mealie"} or {"name":"SofiaAdaLyra"}. '
-            "An empty {} scope grants that capability broadly."
+            "An empty {} scope is rejected, and legacy empty-scope grants cannot authorize actions."
         ),
         wraplength=690,
     ).pack(anchor="w", pady=(6, 6))
@@ -965,6 +965,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         for grant in permission_store.grants(active_only=False):
             if grant.revoked_at is not None:
                 state_text = "revoked"
+            elif not grant.scope:
+                state_text = "disabled: empty scope"
             elif not grant.is_active_at(now):
                 state_text = "expired"
             else:
@@ -995,6 +997,8 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         try:
             capability = grant_capability.get().strip()
             scope = _permission_scope(grant_scope.get())
+            if not scope:
+                raise ValueError("Standing grants require a nonempty exact parameter scope")
             minutes = _optional_expiry_minutes(
                 grant_expiry_minutes.get()
             )
