@@ -137,3 +137,22 @@ cross-channel transcript. Private-mode and standard-mode sessions are distinct,
 and switching modes clears onscreen messages/drafts/history. A former private
 conversation never automatically appears in the standard Main view. Main
 retrieval cannot grant actions, touch Fleet, or deliver protected content.
+
+## Unconfirmed sends and offline recovery
+
+Only one outgoing chat turn can be unresolved at a time. Before sending, the
+Android app synchronously stores the exact message and stable request ID in
+its AES-GCM encrypted, Android Keystore-backed local outbox. If the app is
+terminated or the network drops, reopen the app to recover that exact text.
+The client never transmits it automatically on startup or reconnect.
+
+Check **Main history** before retrying. Choosing **Send** again submits the
+same message with the same request ID, so a completed host operation can
+return its existing receipt rather than creating a duplicate. If the host
+still considers the attempt uncertain, it returns 409 and does not replay it.
+You can use **Discard unresolved send on this phone** to remove the local
+record, but that cannot undo a message already delivered on the host.
+Pairing/server/private-mode changes are blocked until that outstanding
+record has been confirmed or explicitly discarded. The phone is not a
+second writable Sofía database and never autonomously replays external
+effects. Multi-message offline synchronization remains a separate V18 task.

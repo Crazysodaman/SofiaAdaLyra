@@ -73,12 +73,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingPrivateMode: Boolean? = null
 
     init {
+        recoverUnconfirmed()
         receivePending()
+    }
+
+    private fun recoverUnconfirmed() {
+        try {
+            val retained = secure.pendingOutbound() ?: return
+            if (retained.matches(config)) {
+                draft = retained.text
+                pendingText = retained.text
+                pendingRequestId = retained.requestId
+                pendingPrivateMode = retained.privateMode
+                status = "Unconfirmed earlier send restored. Check Main history before retrying."
+            } else {
+                status = "Unconfirmed message belongs to another pairing/mode; resolve before sending."
+            }
+        } catch (failure: Exception) {
+            status = "Pending message storage unavailable; discard explicitly to resume."
+        }
+    }
+
+    fun discardUnconfirmed() {
+        if (busy) return
+        try {
+            secure.discardUnconfirmedOutbound()
+            pendingText = null
+            pendingRequestId = null
+            pendingPrivateMode = null
+            status = "Unconfirmed send discarded locally. It may already exist on the host."
+        } catch (failure: Exception) {
+            status = failure.message ?: "Unable to discard local send"
+        }
     }
 
     fun receivePending() {
         secure.consumeIncoming().forEach { messages += ChatLine("Sofía", it) }
     }
+
+    fun hasUnconfirmedSend(): Boolean =
+        try { secure.pendingOutbound() != null } catch (_: Exception) { true }
 
     fun serviceNeeded(value: CompanionSettings = config): Boolean =
         secure.ready(value) && (value.shareSensors || value.proactiveNotifications)
@@ -89,6 +123,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.token != config.token || next.baseUrl != config.baseUrl) {
+            if (secure.pendingOutbound() != null) {
+                status = "Resolve or explicitly discard the unconfirmed send before re-pairing"
+                return
+            }
             // Old server/audience material must not appear under a newly
             // paired credential. Keep only the owner's unsent local draft.
             secure.clearIncoming()
@@ -115,6 +153,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         if (next.privateMode != config.privateMode) {
+            if (secure.pendingOutbound() != null) {
+                status = "Resolve or discard the unconfirmed send before changing privacy mode"
+                return
+            }
             // The previous mode's transcript and unopened notification
             // bodies must not remain on a shared screen.
             secure.clearIncoming()
@@ -131,7 +173,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             gesture = "still"
         }
         save(next)
-        status = "Privacy mode changed; refresh host state"
+        if (config.privateMode == next.privateMode) {
+            status = "Privacy mode changed; refresh host state"
+        }
     }
 
     fun showChat() { historyOpen = false }
@@ -178,14 +222,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun send() {
         val text = draft.trim()
         if (text.isEmpty() || busy) return
+        val prior = try { secure.pendingOutbound() } catch (failure: Exception) {
+            status = "Encrypted outbox unreadable; owner must explicitly discard it"
+            return
+        }
+        if (prior != null && (!prior.matches(config) || prior.text != text)) {
+            status = "An earlier send is unresolved; resend those exact bytes or discard it"
+            return
+        }
+        val requestId = prior?.requestId ?: UUID.randomUUID().toString()
+        try {
+            // An interrupted app cannot change the identity or body of a
+            // request that might have been accepted by the canonical host.
+            secure.reserveOutbound(config, text, requestId)
+        } catch (failure: Exception) {
+            status = failure.message ?: "Unable to persist outgoing request"
+            return
+        }
         draft = ""
-        val requestId = if (
-            pendingText == text && pendingPrivateMode == config.privateMode
-        ) pendingRequestId ?: UUID.randomUUID().toString()
-        else UUID.randomUUID().toString()
         pendingText = text
-        pendingPrivateMode = config.privateMode
         pendingRequestId = requestId
+        pendingPrivateMode = config.privateMode
         val pending = ChatLine("You", text)
         val index = messages.size
         messages += pending
@@ -194,14 +251,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val result = withContext(Dispatchers.IO) {
                     api.chat(text, requestId)
                 }
+                // Response is only considered complete after the durable
+                // local request journal is acknowledged.
+                secure.confirmOutbound(requestId)
                 pendingText = null
                 pendingRequestId = null
                 pendingPrivateMode = null
                 messages += ChatLine("Sofía", result.getString("response"))
                 applyState(result)
             } catch (failure: Exception) {
-                // A timeout does NOT mean the host did not receive the
-                // message. Do not blindly replay an uncertain send.
+                // No blind retry: HTTP failure may follow durable host effects.
+                // Keep original nonce/content encrypted across app restarts.
                 if (index < messages.size && messages[index] == pending) {
                     messages.removeAt(index)
                 }
@@ -423,6 +483,19 @@ private fun SofiaScreen(model: MainViewModel) {
                 )
                 Button(onClick = model::send, enabled = !model.busy, modifier = Modifier.fillMaxWidth()) {
                     Text(if (model.busy) "Waiting…" else "Send")
+                }
+                if (model.hasUnconfirmedSend()) {
+                    Text(
+                        "A previous send may already be on the server. Check Main history " +
+                            "before retrying the same message or discarding it.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(
+                        onClick = model::discardUnconfirmed, enabled = !model.busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Discard unresolved send on this phone")
+                    }
                 }
             }
             Spacer(Modifier.height(4.dp))
