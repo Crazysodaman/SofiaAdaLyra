@@ -141,21 +141,8 @@ class SelfDirectedLifeCoordinator:
 
     @staticmethod
     def _experience_digest(experience: ExperienceRecord) -> str:
-        document = {
-            "experience_id": experience.experience_id,
-            "project_id": experience.project_id,
-            "kind": experience.kind,
-            "summary": experience.summary,
-            "evidence_refs": experience.evidence_refs,
-            "audience_id": experience.audience_id,
-            "private": experience.private,
-            "occurred_at": experience.occurred_at.astimezone(timezone.utc).isoformat(),
-            "recorded_at": experience.recorded_at.astimezone(timezone.utc).isoformat(),
-            "metadata": dict(experience.metadata),
-        }
-        return sha256(json.dumps(
-            document, sort_keys=True, separators=(",", ":"),
-        ).encode()).hexdigest()
+        # Match the durable LifeStore transaction's exact source fingerprint.
+        return LifeStore.experience_digest(experience)
 
     def learn_from_experiences(
         self, *, now: datetime, limit: int = 16,
