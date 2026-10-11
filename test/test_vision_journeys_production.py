@@ -81,11 +81,11 @@ def test_bounded_receipt_only_after_adapter_reports_correct_window_and_bytes(tmp
     store=ScreenJourneyReceiptStore(state)
     store.record(evidence)
     store.record(evidence)
-    result=store.status(audience_id="local:text")
+    result=store.status(principal_id="person:sparks",audience_id="local:text")
     assert len(result["observations"])==1
     assert result["pixel_storage"] is False
     assert result["screen_control_authorized"] is False
-    assert store.status(audience_id="discord:private")["observations"]==()
+    assert store.status(principal_id="person:sparks",audience_id="discord:private")["observations"]==()
     with sqlite3.connect(state) as db:
         rows=db.execute(
             "SELECT digest_sha256,target_hash,has_pixels FROM vision_observed_frame"
@@ -109,7 +109,7 @@ def test_bounded_watch_can_store_multiple_digests_but_no_pixels(tmp_path):
     store=ScreenJourneyReceiptStore(tmp_path/"sofia.db")
     store.record(first)
     store.record(second)
-    assert len(store.status(audience_id="local:text")["observations"])==2
+    assert len(store.status(principal_id="person:sparks",audience_id="local:text")["observations"])==2
     with pytest.raises(PermissionError,match="expired"):
         accept_actual_picked_frame(
             watch,pixel_bytes=b"after session deadline",
