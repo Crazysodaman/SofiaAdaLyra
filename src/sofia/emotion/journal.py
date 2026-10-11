@@ -774,6 +774,70 @@ class EmotionalJournal:
             principal_id=row[11], audience_id=row[12], audience_kind=row[13],
         ) for row in rows)
 
+    def historical_episodes(
+        self, *, start: datetime, end: datetime,
+        scope: SocialScope, limit: int = 50,
+    ) -> tuple[EmotionalEvent, ...]:
+        """Source-scoped historical event recall independent of current mood.
+
+        Uses original event time, not latest revision time, to answer
+        what occurred in a historical period. Corrections remain visible.
+        No cross-audience or unscoped browsing is performed.
+        """
+        from_time, to_time = _aware_utc(start), _aware_utc(end)
+        if to_time <= from_time:
+            raise ValueError("end must follow start")
+        if not isinstance(scope, SocialScope):
+            raise TypeError("explicit SocialScope required for lifelong history")
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("bounded history limit required")
+        clauses = ["e.occurred_at>=?", "e.occurred_at<?", "e.scope_kind=?"]
+        args: list[object] = [
+            from_time.isoformat(), to_time.isoformat(), scope.kind.value,
+        ]
+        if scope.kind is ScopeKind.RELATIONSHIP:
+            clauses += ["e.principal_id=?", "e.audience_id IS NULL"]
+            args.append(scope.principal_id)
+        elif scope.kind is ScopeKind.AUDIENCE:
+            clauses += [
+                "e.principal_id=?", "e.audience_id=?", "e.audience_kind=?",
+            ]
+            args.extend((
+                scope.principal_id, scope.audience_id, scope.audience_kind.value,
+            ))
+        else:
+            clauses += ["e.principal_id IS NULL", "e.audience_id IS NULL"]
+        args.append(limit)
+        query = """
+            SELECT e.event_id,e.occurred_at,e.source,e.evidence_ref,
+                   e.description,e.original_emotions,
+                   (SELECT r.revised_emotions FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
+                   (SELECT COUNT(*) FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id),
+                   (SELECT r.revised_at FROM emotional_revisions r
+                    WHERE r.event_id=e.event_id ORDER BY r.revision_id DESC LIMIT 1),
+                   e.subject,e.scope_kind,e.principal_id,e.audience_id,e.audience_kind
+            FROM emotional_events e WHERE """ + " AND ".join(clauses) + """
+            ORDER BY e.occurred_at DESC,e.event_id DESC LIMIT ?
+        """
+        with self._connect() as db:
+            rows = db.execute(query, tuple(args)).fetchall()
+        return tuple(EmotionalEvent(
+            event_id=row[0], occurred_at=datetime.fromisoformat(row[1]),
+            source=row[2], evidence_ref=row[3], description=row[4],
+            original_emotions=tuple(json.loads(row[5])),
+            current_emotions=tuple(json.loads(row[6] if row[6] is not None else row[5])),
+            revision_count=row[7],
+            appraised_at=(
+                datetime.fromisoformat(row[8])
+                if row[8] is not None
+                else datetime.fromisoformat(row[1])
+            ),
+            subject=row[9], scope_kind=row[10], principal_id=row[11],
+            audience_id=row[12], audience_kind=row[13],
+        ) for row in rows)
+
     def current_state(
         self, *, now: datetime, subject: str | None = None,
         scope: SocialScope | None = None,
