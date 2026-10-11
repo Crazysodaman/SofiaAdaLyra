@@ -68,3 +68,19 @@ def test_fresh_production_configuration_is_dual_model_and_auto_managed(tmp_path)
     assert configuration.provider.model==configuration.routing.primary.model
     assert configuration.model_lifecycle.enabled is True
     assert configuration.model_lifecycle.auto_install_missing is False
+
+
+def test_legacy_auto_install_configuration_never_enables_host_model_download(
+    tmp_path, monkeypatch,
+):
+    state_path=tmp_path/"protected"/"sofia.db"
+    RuntimeUserSettingsStore(state_path).save(
+        RuntimeUserSettings(
+            cognitive_model_auto_manage=True,
+            cognitive_model_auto_install=True,
+        )
+    )
+    monkeypatch.setenv("SOFIA_COGNITION_MODEL_AUTO_INSTALL", "1")
+    configured=create_production_configuration(state_path=state_path)
+    assert configured.model_lifecycle.enabled is True
+    assert configured.model_lifecycle.auto_install_missing is False
