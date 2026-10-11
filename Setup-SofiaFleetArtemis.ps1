@@ -164,8 +164,17 @@ function Prepare-OnVenus {
         (Join-Path $bundle "certs\fleet-ca.pem") -Force
     Copy-Item (Join-Path $FleetRoot "artemis\artemis-server.pem") `
         (Join-Path $bundle "certs\artemis-server.pem") -Force
+    $bundleKey = Join-Path $bundle "certs\artemis-server-key.pem"
     Copy-Item (Join-Path $FleetRoot "artemis\artemis-server-key.pem") `
-        (Join-Path $bundle "certs\artemis-server-key.pem") -Force
+        $bundleKey -Force
+    # The duplicated key must not inherit broad controller-directory ACLs.
+    # Keep the current operator plus built-in Administrator and SYSTEM only.
+    $operatorSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    & icacls.exe $bundleKey "/inheritance:r" "/grant:r" `
+        "*${operatorSid}:F" "*S-1-5-18:F" "*S-1-5-32-544:F" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Cannot restrict temporary controller TLS key ACL."
+    }
 
     $agentConfig = [ordered]@{
         node_id                           = $nodeId
@@ -336,6 +345,25 @@ function Prepare-OnVenus {
         Copy-Item (Join-Path $bundle "*") $remoteCanary -Recurse -Force
         Copy-Item $wheel.FullName $remoteCanary -Force
 
+        # Fail closed before telling the operator to start Artemis. The
+        # private key must be the same bytes, with ACLs tightened while
+        # still in staging rather than after a future agent start.
+        $remoteKey = Join-Path $remoteCanary "certs\artemis-server-key.pem"
+        if (-not (Test-Path -LiteralPath $remoteKey -PathType Leaf)) {
+            throw "TLS private key was not copied to Artemis."
+        }
+        $sourceHash = (Get-FileHash -LiteralPath `
+            (Join-Path $FleetRoot "artemis\artemis-server-key.pem") -Algorithm SHA256).Hash
+        $remoteHash = (Get-FileHash -LiteralPath $remoteKey -Algorithm SHA256).Hash
+        if ($sourceHash -ne $remoteHash) {
+            throw "Transferred Artemis TLS private-key hash differs from canonical PKI."
+        }
+        & icacls.exe $remoteKey "/inheritance:r" "/grant:r" `
+            "*S-1-5-18:F" "*S-1-5-32-544:F" | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Cannot restrict Artemis staged TLS private-key ACL."
+        }
+
         if ($PSCommandPath -and (Test-Path $PSCommandPath -PathType Leaf)) {
             Copy-Item $PSCommandPath `
                 (Join-Path $remoteCanary "Setup-SofiaFleetArtemis.ps1") `
@@ -346,6 +374,13 @@ function Prepare-OnVenus {
     }
     finally {
         Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
+        # The original canonical PKI key remains untouched. The temporary
+        # duplicate is not a persistent runtime secret and is removed even
+        # after a failed copy. -SkipCopy deliberately keeps a restricted
+        # bundle for explicit operator-managed offline transfer.
+        if (Test-Path -LiteralPath $bundleKey -PathType Leaf) {
+            Remove-Item -LiteralPath $bundleKey -Force -ErrorAction Stop
+        }
     }
 
     Write-Host ""
