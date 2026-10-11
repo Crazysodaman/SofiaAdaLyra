@@ -290,3 +290,10 @@ This addresses a narrow authority-race path, **not** full atomic GOALS/LIFE two-
 **Remaining:** preferences are owned by a different existing writer transaction and are not made atomic with LIFE evaluation here; interrupted manual subjective preference application still needs replay-safe repair. Real crash-injection, Windows handle/lock, full-suite and installed-release gates are explicitly deferred. No tests or CI were run.
 
 - Typed experience metadata repair: `be35582f` validates both canonical record classes before reading metadata and accepts the declared Mapping contract without relaxing the atomic provenance fields. No tests run.
+
+## Bounded inactivity-selection storage checkpoint
+
+- `467a7a60`: The original `SelfDirectedLifeCoordinator.select_activity` now reuses the most recent inactivity selection for up to one hour only when project absence, exact decision reason, busy state and resource pressure match. A changed quiet window, foreground activity, pressure, new project or expired interval persists a fresh honest selection. This is the existing application background worker and LifeStore, not a second scheduler or duplicate state.
+- `c1f7d02b`: Two unexecuted regressions check repeated no-input ticks do not produce 300-second duplicate idle rows, while changed presence context immediately records a distinct decision.
+
+This reduces unnecessary long-absence SQLite writes and is one bounded CA-108/CA-605/CA-1305 coding measure, not a full 24-hour soak, model wakeup, disk/notification resource acceptance. Tests/CI were not run, and no live host was touched.
