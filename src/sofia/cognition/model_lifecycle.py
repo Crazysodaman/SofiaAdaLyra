@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+import math
 from threading import Event, RLock, Thread
 from typing import Any, Callable, Mapping, Protocol
 
@@ -210,29 +211,44 @@ class ModelLifecycleManager:
             ) from exc
 
     def _resource_observation(self) -> ModelResourceObservation:
-        observed = self.resource_observer() if self.resource_observer else None
-        total = getattr(observed, "ram_total_bytes", None)
-        used = getattr(observed, "ram_used_bytes", None)
-        available = (
-            max(0, total - used)
-            if type(total) is int and type(used) is int
-            else None
-        )
-        vram_total = getattr(observed, "vram_total_bytes", None)
-        vram_used = getattr(observed, "vram_used_bytes", None)
-        vram_available = (
-            max(0, vram_total - vram_used)
-            if type(vram_total) is int and type(vram_used) is int
-            else None
-        )
-        gaming = self.gaming_observer() if self.gaming_observer else None
+        # Missing, invalid and failed monitoring is UNKNOWN, never "plenty
+        # of free resources". Keep model load decisions conservative.
+        try:
+            observed = self.resource_observer() if self.resource_observer else None
+        except Exception:
+            observed = None
+        def available_bytes(total_name: str, used_name: str) -> int | None:
+            total = getattr(observed, total_name, None)
+            used = getattr(observed, used_name, None)
+            if (
+                type(total) is not int or type(used) is not int
+                or total < 0 or not 0 <= used <= total
+            ):
+                return None
+            return total - used
+        def utilization(name: str) -> float | None:
+            value = getattr(observed, name, None)
+            if (
+                type(value) not in {int, float}
+                or not math.isfinite(value)
+                or not 0 <= value <= 100
+            ):
+                return None
+            return float(value)
+        try:
+            gaming = self.gaming_observer() if self.gaming_observer else None
+        except Exception:
+            gaming = None
         return ModelResourceObservation(
-            cpu_percent=getattr(observed, "cpu_percent", None),
-            ram_available_bytes=available,
-            gpu_percent=getattr(observed, "gpu_percent", None),
-            vram_available_bytes=vram_available,
-            throttled=getattr(observed, "throttled", None),
-            gaming=gaming,
+            cpu_percent=utilization("cpu_percent"),
+            ram_available_bytes=available_bytes("ram_total_bytes", "ram_used_bytes"),
+            gpu_percent=utilization("gpu_percent"),
+            vram_available_bytes=available_bytes("vram_total_bytes", "vram_used_bytes"),
+            throttled=(
+                getattr(observed, "throttled", None)
+                if type(getattr(observed, "throttled", None)) is bool else None
+            ),
+            gaming=gaming if type(gaming) is bool else None,
         )
 
     def statuses(self, *, now: datetime | None = None) -> tuple[ModelLifecycleStatus, ...]:
@@ -573,6 +589,10 @@ class ModelLifecycleManager:
             return ModelResidencyDecision(
                 mode, (fast,), ("observed available VRAM is zero; primary stays on demand",)
             )
+        if observation.gpu_percent is not None and observation.vram_available_bytes is None:
+            return ModelResidencyDecision(
+                mode, (fast,), ("GPU observed but available VRAM is unknown; primary stays on demand",)
+            )
         if len(roles) < 2:
             return ModelResidencyDecision(mode, roles, ("only one role is configured",))
         names = tuple(self.provider_for(role).model for role in roles)
@@ -590,6 +610,15 @@ class ModelLifecycleManager:
                 mode,
                 (fast,),
                 (f"observed available RAM {observation.ram_available_bytes} is below model bytes {required}",),
+            )
+        if (
+            observation.vram_available_bytes is not None
+            and observation.gpu_percent is not None
+            and required > observation.vram_available_bytes
+        ):
+            return ModelResidencyDecision(
+                mode, (fast,),
+                ("observed available VRAM is below combined model image bytes; primary stays on demand",),
             )
         return ModelResidencyDecision(
             mode,

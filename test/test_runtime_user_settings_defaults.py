@@ -266,7 +266,7 @@ def test_fresh_production_style_configuration_uses_dual_cognition_defaults(
         == configuration.routing.primary.model
     )
     assert configuration.model_lifecycle.enabled is True
-    assert configuration.model_lifecycle.auto_install_missing is True
+    assert configuration.model_lifecycle.auto_install_missing is False
 
 
 def test_private_avatar_adult_verification_defaults_off_and_requires_host_flag(

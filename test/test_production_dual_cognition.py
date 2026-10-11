@@ -67,4 +67,4 @@ def test_fresh_production_configuration_is_dual_model_and_auto_managed(tmp_path)
     assert configuration.routing.secondary is not None
     assert configuration.provider.model==configuration.routing.primary.model
     assert configuration.model_lifecycle.enabled is True
-    assert configuration.model_lifecycle.auto_install_missing is True
+    assert configuration.model_lifecycle.auto_install_missing is False

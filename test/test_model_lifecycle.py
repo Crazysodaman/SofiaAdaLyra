@@ -452,3 +452,66 @@ def test_explicit_dual_residency_does_not_depend_on_unobserved_sensors():
 
     assert decision.desired_roles == manager.configured_roles
     assert backend.resident == set(names)
+
+
+def test_resource_observation_rejects_invalid_and_inconsistent_telemetry():
+    from types import SimpleNamespace
+
+    backend = Backend(
+        installed=("vendor/primary:any", "vendor/secondary:any"),
+        sizes={"vendor/primary:any": 1024, "vendor/secondary:any": 1024},
+    )
+    manager = ModelLifecycleManager(
+        selection=_selection(),
+        policy=ModelLifecycleConfiguration(enabled=True, residency_mode="resource_aware"),
+        backend=backend,
+        resource_observer=lambda: SimpleNamespace(
+            ram_total_bytes=8192, ram_used_bytes=8193,
+            vram_total_bytes=4096, vram_used_bytes=0,
+            cpu_percent=float("nan"), gpu_percent=35,
+        ),
+    )
+    observation = manager._resource_observation()
+    assert observation.ram_available_bytes is None
+    assert observation.cpu_percent is None
+    decision = manager.reconcile_residency(now=NOW)
+    assert decision.desired_roles == (CognitiveModelRole.SECONDARY,)
+    assert backend.loads == [("vendor/secondary:any", manager.policy.keep_alive)]
+
+
+def test_resource_aware_gpu_capacity_does_not_guess_dual_residency():
+    from types import SimpleNamespace
+
+    backend = Backend(
+        installed=("vendor/primary:any", "vendor/secondary:any"),
+        sizes={"vendor/primary:any": 2048, "vendor/secondary:any": 2048},
+    )
+    manager = ModelLifecycleManager(
+        selection=_selection(),
+        policy=ModelLifecycleConfiguration(enabled=True, residency_mode="resource_aware"),
+        backend=backend,
+        resource_observer=lambda: SimpleNamespace(
+            ram_total_bytes=16000, ram_used_bytes=2000,
+            vram_total_bytes=3200, vram_used_bytes=2000,
+            cpu_percent=12, gpu_percent=30,
+        ),
+    )
+    decision = manager.reconcile_residency(now=NOW)
+    assert decision.desired_roles == (CognitiveModelRole.SECONDARY,)
+    assert "VRAM" in " ".join(decision.reasons)
+
+
+def test_resource_observer_failure_is_unknown_not_no_pressure():
+    def broken():
+        raise OSError("monitor offline")
+    manager = ModelLifecycleManager(
+        selection=_selection(), policy=ModelLifecycleConfiguration(enabled=True),
+        backend=Backend(installed=("vendor/primary:any", "vendor/secondary:any")),
+        resource_observer=broken, gaming_observer=broken,
+    )
+    observation = manager._resource_observation()
+    assert observation.ram_available_bytes is None
+    assert observation.gaming is None
+    assert manager.reconcile_residency(now=NOW).desired_roles == (
+        CognitiveModelRole.SECONDARY,
+    )
