@@ -1841,6 +1841,44 @@ CA-6108, CA-6404, CA-6807. No live erasure, host changes,
 automatic migration, tests or CI. The original task IDs are not
 marked accepted by this focused coding slice.
 
+
+
+### Phase 03 item 58: Hold external memory-erasure append lock across offline restore publication
+
+Audited the actual `BackupEngine.restore` path (distinct from the
+operator-staged relocation wrapper hardened in item 52).
+It replayed and verified the independently authenticated memory-deletion
+journal against its temporary SQLite candidate, then checked the external
+journal once more **before** a potentially long file-by-file copy into
+the selected offline recovery target. A fresh signed deletion could
+be appended just after that check and before the backup's old data
+finished publishing. This was a real local deleted-memory resurrection
+window when an authorized deletion writer and offline restore shared
+the journal's local failure domain.
+
+Production `src/sofia/ops/backup.py` now takes
+`MemoryDeletionLedger._exclusive()` around the final authenticated
+journal comparison **and** the complete offline restore publication,
+including file replacement and Linux parent-directory fsync. It reuses
+the existing lock taken by the real `MemoryDeletionLedger.request`
+append path, so cooperating local writers cannot advance the deletion
+chain during publication. Restore still fails closed on journal
+changes, missing authenticated records, broken replay or durability
+errors; failed restores do not authorize runtime activation or erase
+the journal. It is intentionally a lock that may delay a local
+deletion while a large offline restore finishes, not a claim that
+SQLite and all archives have acquired distributed transactional atomicity.
+
+- Production `5231e2de88a288e8e9f32a7b94a27a3bfbc37981` (`[skip ci]`).
+- Deferred encrypted-archive fixture `test/test_ws2_restore_erasure_lock.py`,
+  `75e25ead859ca18f2c0bc45dea87e2e757c59eb3` (`[skip ci]`).
+- Original relevance: CA-5202, CA-5204, CA-6105,
+  CA-6108, CA-6404, CA-6810.
+
+No distributed fencing, independent globally current journal head,
+host/VM migration, tests, CI or live change is claimed.
+Original V18 task statuses remain unchanged.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
