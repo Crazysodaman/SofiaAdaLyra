@@ -3125,7 +3125,9 @@
         "test/test_ops_agent_discovery.py",
         "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md",
         "src/sofia/cognition/tools.py",
-        "test/test_cognitive_tools.py"
+        "test/test_cognitive_tools.py",
+        "src/sofia/integrations/http.py",
+        "test/test_integrations_http_timeout.py"
       ],
       "evidence_commits": [
         "6ef64f1bcb4823033902835d0ea688af7b71e08f",
@@ -3139,7 +3141,9 @@
         "8c22a580d740165491526b7375c5f7ed6ccd03a0",
         "9aed9928db13f2223a09d1940278319eebf47d1c",
         "b7837372d43cb98d77e045d3d2f3121689537784",
-        "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8"
+        "59c1bb10fae9ed3a90a9857cbf7bc14cce3494a8",
+        "830da4b8dc2a1a68a85f819a133866ca146daa70",
+        "e28745679a3cc99a74805b151efa552d970aea62"
       ],
       "accepted": false,
       "audit_observation": {
@@ -3172,6 +3176,19 @@
           "production_route": "CognitiveSystem tool result -> CognitiveToolDispatcher.format_result -> tagged external evidence -> 32K-character maximum and explicit truncation notice -> model TOOL message.",
           "fulfilled_slice": "Oversized third-party tool evidence can no longer be sent wholesale in a single cognitive tool result; tests authored only.",
           "remaining": "Input bytes and generic-evidence normalization are still potentially large before final formatting. Secret redaction and end-to-end action/injection denial are not complete."
+        },
+        {
+          "source_paths": [
+            "src/sofia/integrations/http.py",
+            "test/test_integrations_http_timeout.py"
+          ],
+          "commits": [
+            "830da4b8dc2a1a68a85f819a133866ca146daa70",
+            "e28745679a3cc99a74805b151efa552d970aea62"
+          ],
+          "production_route": "Existing Home Assistant/Portainer/GitHub/Ollama/JMRI/Discord integration adapter -> JsonHttpClient.request -> bounded 4MiB JSON response or bounded 501-byte HTTP error body -> typed remote content consumer.",
+          "fulfilled_slice": "All JSON HTTP metadata calls now have a default finite response cap; explicit None cannot silently bypass it; HTTP error bodies no longer read without a byte bound; pathological JSON nesting fails as service error. Regression contracts authored, not executed.",
+          "remaining": "Original CA-1906 includes forged receipts, malicious SVG/files, hostile memories, secret-bearing content, runaway retry and end-to-end exfiltration denials. Those remain open; new default ceiling needs separate compatibility and network acceptance."
         }
       ]
     },
