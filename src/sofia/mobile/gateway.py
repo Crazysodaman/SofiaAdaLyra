@@ -427,6 +427,35 @@ class MobileCompanionGateway:
             display_name="Sparks",
         )
 
+    def _authorize_completed_presentation(
+        self, saved: dict[str, object], *, private_mode: bool,
+    ) -> None:
+        """A durable delivery receipt never perpetuates a revoked grant.
+
+        The canonical receipt remains intact as evidence; returned content
+        is blocked when it was produced under private/adult presentation
+        rights that the host has subsequently withdrawn.
+        """
+        if not isinstance(saved, dict) or saved.get("private_mode") is not private_mode:
+            raise MobileDeliveryUncertain(
+                "stored completion has an incompatible privacy audience"
+            )
+        if not private_mode:
+            return
+        authority = self.permissions.private_adult_authority()
+        if not authority.private_chat:
+            raise PermissionError("current private chat grant required for replay")
+        if type(saved.get("adult_chat_enabled")) is not bool or type(
+            saved.get("adult_avatar_enabled")
+        ) is not bool:
+            raise MobileDeliveryUncertain(
+                "historic private presentation grant evidence missing"
+            )
+        if saved["adult_chat_enabled"] and not authority.adult_chat:
+            raise PermissionError("current adult chat grant required for replay")
+        if saved["adult_avatar_enabled"] and not authority.adult_avatar:
+            raise PermissionError("current adult avatar grant required for replay")
+
     def chat(
         self,
         *,
@@ -491,7 +520,16 @@ class MobileCompanionGateway:
                     ):
                         raise MobileDeliveryConflict("request ID was reused with a different scope or message")
                     if existing[3] == "completed" and existing[4] is not None:
-                        return json.loads(existing[4])
+                        try:
+                            saved = json.loads(existing[4])
+                        except (TypeError, ValueError) as exc:
+                            raise MobileDeliveryUncertain(
+                                "stored completion is unreadable"
+                            ) from exc
+                        self._authorize_completed_presentation(
+                            saved, private_mode=private_mode,
+                        )
+                        return saved
                     raise MobileDeliveryUncertain(
                         "a prior mobile delivery is not independently settled"
                     )
@@ -674,6 +712,9 @@ class MobileCompanionGateway:
                 saved = None
             if not isinstance(saved, dict):
                 return {"status": "uncertain"}
+            self._authorize_completed_presentation(
+                saved, private_mode=private_mode,
+            )
             proof = saved.get("delivery_receipt")
             if (
                 not isinstance(proof, dict)
