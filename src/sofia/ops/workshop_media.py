@@ -167,7 +167,7 @@ def render_preseed(*, console_admin_crypted_password: str) -> str:
         "d-i partman/confirm_nooverwrite boolean true",
         "d-i base-installer/kernel/image string linux-image-amd64",
         "tasksel tasksel/first multiselect standard",
-        "d-i pkgsel/include string sudo",
+        "d-i pkgsel/include string sudo nftables",
         "d-i pkgsel/upgrade select none",
         "popularity-contest popularity-contest/participate boolean false",
         "d-i grub-installer/only_debian boolean true",
@@ -235,6 +235,34 @@ def render_first_boot_policy() -> str:
         "'  address 172.30.250.2' "
         "'  netmask 255.255.255.252' > /etc/network/interfaces",
         "chmod 0644 /etc/network/interfaces",
+        "# Drop all guest forwarding and disallow external routing.",
+        "printf '%s\\n' 'net.ipv4.ip_forward=0' "
+        "'net.ipv6.conf.all.forwarding=0' "
+        "> /etc/sysctl.d/90-sofia-workshop.conf",
+        "# Default DENY even if a later host bridge/NAT is mistakenly added.",
+        "test -x /usr/sbin/nft || exit 1",
+        "printf '%s\\n' "
+        "'flush ruleset' "
+        "'table inet sofia_workshop {' "
+        "' chain input {' "
+        "'  type filter hook input priority filter; policy drop;' "
+        "'  iifname \"lo\" accept' "
+        "'  ct state established,related accept' "
+        "'  ip saddr 172.30.250.1 ip daddr 172.30.250.2 "
+        "tcp dport 7443 accept' "
+        "' }' "
+        "' chain forward {' "
+        "'  type filter hook forward priority filter; policy drop;' "
+        "' }' "
+        "' chain output {' "
+        "'  type filter hook output priority filter; policy drop;' "
+        "'  oifname \"lo\" accept' "
+        "'  ct state established,related accept' "
+        "' }' "
+        "'}' > /etc/nftables.conf",
+        "chmod 0644 /etc/nftables.conf",
+        "/usr/sbin/nft -c -f /etc/nftables.conf",
+        "/usr/bin/systemctl enable nftables.service",
         "exit 0",
         "",
     ))
