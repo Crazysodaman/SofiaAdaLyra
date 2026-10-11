@@ -570,3 +570,51 @@ def test_verified_procedure_audit_rotates_to_older_source_after_restart(
         assert life.store.jobs(fourth.project_id) == (fourth_job.job_id,)
     finally:
         life.close()
+
+
+def test_exact_draft_source_lookup_is_not_global_recent_catalog_page(
+    tmp_path, monkeypatch,
+):
+    """Older exactly compatible verified skill remains usable at draft time."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        later = now + timedelta(minutes=1)
+        second, evidence2 = _second_same_capability_project(life, first, later)
+        _original_authorized_completion(life, second, evidence2, later)
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8),
+        ) == 2
+        third, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        precedent = life.procedures.available_for_project(third)[0]
+        assert set(life.procedures.source_projects_for_compatible_precedent(
+            procedure=precedent, project=third,
+        )) == {first.project_id, second.project_id}
+        def global_page_is_not_an_admission_gate(**_kwargs):
+            raise AssertionError("global newest-N list cannot hide exact skill")
+        monkeypatch.setattr(
+            life.procedures, "verified_proof_projects",
+            global_page_is_not_an_admission_gate,
+        )
+        assert life._current_verified_procedures_for_draft(
+            third, now=now + timedelta(minutes=2, seconds=3),
+        ) == (precedent,)
+        with pytest.raises(ValueError, match="bounded original"):
+            life.procedures.source_projects_for_compatible_precedent(
+                procedure=precedent, project=third, limit=1,
+            )
+        life.procedures.quarantine(
+            precedent.procedure_id, reason="operator revoked this source",
+            now=now + timedelta(minutes=2, seconds=4),
+        )
+        assert life.procedures.source_projects_for_compatible_precedent(
+            procedure=precedent, project=third,
+        ) == ()
+        assert life.store.jobs(third.project_id) == ()
+    finally:
+        life.close()
