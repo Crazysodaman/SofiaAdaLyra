@@ -58,3 +58,54 @@ def test_stop_state_persists_on_real_canonical_database(tmp_path):
     )
     assert saved.active
     assert OperatorStopStore(path).current() == saved
+
+
+def test_stop_resume_writes_tamper_evident_audit_in_same_transaction(tmp_path):
+    from sofia.safe.audit import AuditChain
+
+    path = _canonical_db(tmp_path)
+    stop = OperatorStopStore(path)
+    timestamp = datetime(2026, 10, 11, tzinfo=timezone.utc)
+    stop.set(
+        active=True, updated_by="Sparks",
+        reason="owner stop", at=timestamp,
+    )
+    stop.set(
+        active=False, updated_by="Sparks",
+        reason="owner resume", at=timestamp,
+    )
+    with closing(sqlite3.connect(path)) as db:
+        events = db.execute(
+            "SELECT event_type, payload_json FROM safe_audit_event "
+            "WHERE event_type LIKE 'operator.stop.%' ORDER BY sequence"
+        ).fetchall()
+    assert [event[0] for event in events] == [
+        "operator.stop.activated", "operator.stop.cleared",
+    ]
+    assert '"previously_active":false' in events[0][1]
+    assert '"previously_active":true' in events[1][1]
+    assert AuditChain(path).verify() == (True, None)
+
+
+def test_failure_to_audit_operator_transition_rolls_back_stop_mutation(
+    tmp_path, monkeypatch,
+):
+    path = _canonical_db(tmp_path)
+    stop = OperatorStopStore(path)
+    assert stop.current().active is False
+
+    def reject_audit(*args, **kwargs):
+        raise RuntimeError("canonical audit append unavailable")
+
+    monkeypatch.setattr(stop.audit, "append_in_transaction", reject_audit)
+    with pytest.raises(RuntimeError, match="audit append unavailable"):
+        stop.set(
+            active=True, updated_by="Sparks",
+            reason="must not claim a recorded stop",
+        )
+    assert stop.current().active is False
+    with closing(sqlite3.connect(path)) as db:
+        assert db.execute(
+            "SELECT count(*) FROM safe_audit_event "
+            "WHERE event_type LIKE 'operator.stop.%'"
+        ).fetchone()[0] == 0
