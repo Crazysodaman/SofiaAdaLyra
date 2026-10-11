@@ -111,26 +111,34 @@ def active_project(
 
 
 def record_interest_signal(life, project, *, evidence_ref, judgment, when, ordinal=1):
-    evaluation = ArtifactEvaluation(
-        f"evaluation:interest-{ordinal}", project.project_id,
-        f"artifact:interest-{ordinal}", ordinal, TechnicalOutcome.VALID,
-        judgment, {project.brief.objectives[0]: True},
-        "A source-backed personal judgment was recorded.", (evidence_ref,),
-        False, when,
+    """Create genuine linked RUN bytes, objective review and experience."""
+    job = life.schedule_artifact(
+        project.project_id, artifact_kind=ArtifactKind.TEXT,
+        title=f"Recorded interest attempt {ordinal}",
+        specification={"content": (
+            "A real authoring trial with a scoped original artifact, "
+            f"independent creative byte receipt and iteration {ordinal}."
+        )},
+        evidence_ref=evidence_ref, now=when,
     )
-    life.store.record_evaluation(evaluation)
-    return life._experience(
-        project=project, kind="artifact_evaluated",
-        summary=f"Grounded evaluation recorded {judgment.value}.",
-        evidence_refs=(evidence_ref,), now=when,
-        metadata={
-            "interest_learning": {
-                "schema": 1,
-                "evaluation_id": evaluation.evaluation_id,
-                "originating_interest": project.originating_interest,
-                "confidence": project.confidence,
-            },
-        },
+    life.manager.tick(now=when)
+    settled = wait_for_job(life, job.job_id)
+    assert settled.status is WorkStatus.COMPLETED
+    evaluation = life.evaluate_artifact(
+        project.project_id, artifact_id=str(settled.result["artifact_id"]),
+        technical_outcome=TechnicalOutcome.INCONCLUSIVE,
+        personal_judgment=judgment,
+        objective_results={objective: None for objective in project.brief.objectives},
+        reason="A reviewed personal response to real, independently checked work.",
+        evidence_refs=(str(settled.result["evidence_ref"]), evidence_ref),
+        preserve_for_research=False, now=when,
+    )
+    experiences = life.store.experiences(
+        audience_id=project.audience_id, include_private=True,
+    )
+    return next(
+        item for item in experiences if item.kind == "artifact_evaluated"
+        and item.metadata["interest_learning"]["evaluation_id"] == evaluation.evaluation_id
     )
 
 
