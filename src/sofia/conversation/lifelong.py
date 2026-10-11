@@ -191,6 +191,11 @@ class LifelongThreadStore:
             }
             if "archived_at" not in thread_columns:
                 db.execute("ALTER TABLE lifelong_thread ADD COLUMN archived_at TEXT")
+            # Legacy projects cannot be assigned an audience from a shared
+            # owner ID alone. Their source links must be checked at use time.
+            for name in ("project_audience_id", "project_audience_kind"):
+                if name not in thread_columns:
+                    db.execute("ALTER TABLE lifelong_thread ADD COLUMN " + name + " TEXT")
             if "canonical_sequence" not in columns:
                 db.execute(
                     "ALTER TABLE lifelong_thread_event "
@@ -568,6 +573,42 @@ class LifelongThreadStore:
                          if row["archived_at"] is not None else None),
         )
 
+    @staticmethod
+    def _project_scope_allowed(
+        db: sqlite3.Connection, *, row: sqlite3.Row,
+        principal: PrincipalContext,
+    ) -> bool:
+        """Verify an existing project uses only this actual source audience.
+
+        New projects have an immutable creation-audience tag. Old projects
+        lacking that tag are eligible only when *all* existing source links
+        and current session bindings agree on the same authenticated scope.
+        Mixed/unlinked legacy projects need independent owner review.
+        """
+        if row["kind"] != "project":
+            return False
+        if row["project_audience_id"] is not None:
+            return (
+                row["project_audience_id"] == principal.audience_id
+                and row["project_audience_kind"] == principal.audience_kind.value
+            )
+        counts = db.execute(
+            "SELECT COUNT(*),SUM(CASE WHEN "
+            "e.visibility='source_audience' AND e.source_audience_id=? "
+            "AND m.id IS NOT NULL AND s.principal_id=? "
+            "AND s.audience_id=? AND s.audience_kind=? "
+            "THEN 1 ELSE 0 END) "
+            "FROM lifelong_thread_event AS e "
+            "LEFT JOIN conversation_messages AS m "
+            "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
+            "LEFT JOIN social_session_principal AS s ON s.session_id=m.session_id "
+            "WHERE e.thread_id=?",
+            (principal.audience_id, principal.principal_id,
+             principal.audience_id, principal.audience_kind.value,
+             row["thread_id"]),
+        ).fetchone()
+        return counts[0] > 0 and counts[1] == counts[0]
+
     def get_or_create(
         self, *, owner: PrincipalContext,
         kind: str = "main", name: str = "Main",
@@ -594,15 +635,31 @@ class LifelongThreadStore:
                     (owner.principal_id, name),
                 ).fetchone()
             if row is not None:
+                if kind == "project" and not self._project_scope_allowed(
+                    db, row=row, principal=owner,
+                ):
+                    raise PermissionError(
+                        "project name is unavailable in this source audience"
+                    )
                 return self._decode(row)
             identifier = f"thread:{uuid4().hex}"
             when = datetime.now(timezone.utc).isoformat()
-            db.execute(
-                "INSERT INTO lifelong_thread("
+            if kind == "project":
+                db.execute(
+                    "INSERT INTO lifelong_thread("
+                    "thread_id,owner_principal_id,kind,name,created_at,"
+                    "project_audience_id,project_audience_kind) "
+                    "VALUES(?,?,?,?,?,?,?)",
+                    (identifier, owner.principal_id, kind, name, when,
+                     owner.audience_id, owner.audience_kind.value),
+                )
+            else:
+                db.execute(
+                    "INSERT INTO lifelong_thread("
                     "thread_id,owner_principal_id,kind,name,created_at) "
                     "VALUES(?,?,?,?,?)",
-                (identifier, owner.principal_id, kind, name, when),
-            )
+                    (identifier, owner.principal_id, kind, name, when),
+                )
             return LifelongThread(identifier, owner.principal_id, kind, name,
                                   datetime.fromisoformat(when))
 
