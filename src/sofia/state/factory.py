@@ -12,6 +12,7 @@ import tempfile
 from sofia.state.plane import StatePlane
 from sofia.state.replication import ReplicatedStatePlane, SQLiteReplicationWitness
 from sofia.state.sqlite_plane import SQLiteStatePlane
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def _enabled(name: str, default: bool = False) -> bool:
@@ -117,10 +118,14 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
     Replication remains opt-in so adding HA code cannot silently move production
     authority. The witness path must be distinct from every data-bearing target.
     """
-    primary_path = Path(state_path).resolve()
-    primary = SQLiteStatePlane(primary_path)
+    # Ordinary single-host installation retains its explicit bootstrap path.
+    # Opt-in replication must NEVER create state before its independent writer
+    # witness has been validated. That could turn a failed HA startup into
+    # an unapproved new authority on another host.
     if not _enabled("SOFIA_STATE_REPLICATION_ENABLED", False):
-        return primary
+        return SQLiteStatePlane(Path(state_path).resolve())
+    primary_guard = CanonicalSQLiteGuard(Path(state_path).absolute())
+    primary_path = primary_guard.canonical_path
 
     witness_raw = os.environ.get("SOFIA_STATE_WITNESS_PATH", "").strip()
     replicas_raw = os.environ.get("SOFIA_STATE_REPLICAS", "").strip()
@@ -139,11 +144,17 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
     if witness_path in all_paths:
         raise ValueError("replication witness must not share a data target path")
 
+    # Witness is independently persisted control-plane evidence. It must
+    # survive previous boots and remain on the same original file identity.
+    # Its ordinary constructor refuses missing, replaced, or blank files.
+    witness = SQLiteReplicationWitness(witness_path)
     if _enabled("SOFIA_STATE_REPLICATION_AUTO_SEED", False):
         for _, path in specs:
+            primary_guard.validate()
             _seed_sqlite(primary_path, path.resolve())
+            primary_guard.validate()
 
-    targets: dict[str, StatePlane] = {"primary": primary}
+    targets: dict[str, StatePlane] = {"primary": SQLiteStatePlane(primary_path)}
     for target_id, path in specs:
         resolved = path.resolve()
         if not resolved.exists():
@@ -151,6 +162,7 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
                 f"replica target {target_id} does not exist; seed it first or "
                 "enable SOFIA_STATE_REPLICATION_AUTO_SEED"
             )
+        CanonicalSQLiteGuard(path.absolute())
         targets[target_id] = SQLiteStatePlane(resolved)
 
     writer_id = os.environ.get(
@@ -164,7 +176,7 @@ def create_state_plane(state_path: Path | str) -> StatePlane:
     ttl = int(os.environ.get("SOFIA_STATE_WRITER_TTL_SECONDS", "30"))
     return ReplicatedStatePlane(
         targets,
-        witness=SQLiteReplicationWitness(witness_path),
+        witness=witness,
         writer_id=writer_id,
         primary_target_id=primary_target,
         ttl_seconds=ttl,
