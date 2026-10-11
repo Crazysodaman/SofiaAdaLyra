@@ -7,12 +7,23 @@
   "notices": [
     "Each of 182 IDs reconciled to the original 700-ID ledger by exact ID and phase.",
     "phase_inventory_only is not an individual audit, not proof of absent code, and not complete.",
-    "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run."
+    "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run.",
+    "2026-10-11 continuation: owner NEURO toggle and explicit model download approval fencing source-coded on main; no CI, tests, or host action."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
     "57da4138f1e9545ad96067ce78d50fb12d8bd1dc",
-    "b7fcec5b4a0edc9bd347d5d26821458a3862fb22"
+    "b7fcec5b4a0edc9bd347d5d26821458a3862fb22",
+    "b27714d1972991b0a372221e5733a20bbd47f989",
+    "0a036177f72a91d40fb585a7edbc256785aa4956",
+    "e6a804dd7adf65bbf90d5018535452d95ef75587",
+    "3eb645ce917f5a2a2ef1814b7215beeb4e72b651",
+    "a0767b4cf7df4b09933c93d9a8cc27b2869ef735",
+    "4dd7994ac7cccaeb94c3018a7647fe003b2fd770",
+    "57945a2bace1210e3cbdf66b3a0cd680c76527bd",
+    "bf1e265cec8b6d70563ad1e8746e7037f65900c8",
+    "38706ecb3ca0b4176e8d9e1b35e3200200f1efc3",
+    "7d938160f34f5aa07f293dd730ee827528f3edf5"
   ],
   "tasks": [
     {
@@ -473,7 +484,7 @@
       "master_line": 955,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "Startup auto-pull removed 57da413; independent model authorization controls still incomplete.",
+      "finding": "No automatic startup downloads; legacy bulk/install config flag permanently inert; explicit lifecycle pull now requires callback verifying exact role/model/operator receipt, and Settings no longer offers auto install. Host SAFE broker and full promotion approval policy remain open. Source tests authored, unexecuted.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false
@@ -1599,7 +1610,7 @@
       "master_line": 1147,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "Algorithm version and persisted selection explanation; no persisted one-click owner disable.",
+      "finding": "Bounded competition algorithm version/explanation now emitted in production; owner NEURO toggle durably saved in canonical RuntimeUserSettings and read on foreground/background refresh; tests authored but unexecuted. Per-turn benchmark/reset UI and independent verification remain open.",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false
