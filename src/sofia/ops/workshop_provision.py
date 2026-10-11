@@ -6,7 +6,7 @@ independent Fleet identity binding, resource proof and image attestation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
@@ -424,6 +424,28 @@ def preview_owner_hephaestus_plan(
         payload=payload,authenticated_fleet_host_id=str(node),
         vm_root=vm_root,
     )
+    # The host administrator must opt in to an offline media root. If it is
+    # absent or image hashing times out, keep SHA-256 UNKNOWN and preflight
+    # blocked. Never claim an image was observed from an owner-typed digest.
+    try:
+        media=remote_service.invoke(
+            str(node),"workshop.inspect","media",
+            {"image_path":installer_image_path},
+        )
+        if (
+            isinstance(media,dict)
+            and media.get("node_id")==str(node)
+            and media.get("outcome")=="reported_success"
+            and isinstance(media.get("message"),str)
+            and len(media["message"])<=4096
+        ):
+            inspected=json.loads(media["message"])
+            fingerprint=inspected.get("sha256") if isinstance(inspected,dict) else None
+            if isinstance(fingerprint,str) and _SHA.fullmatch(fingerprint):
+                observed=replace(observed,image_sha256=fingerprint)
+    except (PermissionError, RuntimeError, ValueError, LookupError, OSError):
+        # The digest is unobserved, not a permission to provision anyway.
+        pass
     plan=WorkshopProvisionPlan(
         plan_id="hephaestus:"+uuid4().hex,
         hypervisor_host_id=str(node),
