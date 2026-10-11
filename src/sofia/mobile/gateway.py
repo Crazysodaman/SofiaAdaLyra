@@ -290,7 +290,10 @@ class MobileCompanionGateway:
             "received_at": received.isoformat(),
         }
 
-    def _conversation(self, device_id: str, *, private_mode: bool):
+    def _conversation(
+        self, device_id: str, *, private_mode: bool,
+        admitted_generation: int | None = None,
+    ):
         """Resume only the session belonging to the exact device AND audience.
 
         Legacy device-only sessions migrate if their CURRENT authenticated
@@ -298,8 +301,16 @@ class MobileCompanionGateway:
         legacy session is never reused for private conversation.
         """
         mode = "private" if private_mode else "standard"
-        generation = self.credentials.active_generation(device_id) or 1
-        principal = self._principal(device_id, private_mode=private_mode)
+        generation = (
+            self.credentials.active_generation(device_id) or 1
+            if admitted_generation is None else admitted_generation
+        )
+        if type(generation) is not int or generation < 1:
+            raise ValueError("positive admitted credential generation required")
+        principal = self._principal(
+            device_id, private_mode=private_mode,
+            admitted_generation=generation,
+        )
         key = (device_id, mode, generation)
         existing = self._conversations.get(key)
         if existing is not None:
@@ -408,10 +419,18 @@ class MobileCompanionGateway:
         self._conversations[key] = conversation
         return conversation
 
-    def _principal(self, device_id: str, *, private_mode: bool):
+    def _principal(
+        self, device_id: str, *, private_mode: bool,
+        admitted_generation: int | None = None,
+    ):
         digest = sha256(device_id.encode("utf-8")).hexdigest()[:20]
         mode = "private" if private_mode else "standard"
-        generation = self.credentials.active_generation(device_id) or 1
+        generation = (
+            self.credentials.active_generation(device_id) or 1
+            if admitted_generation is None else admitted_generation
+        )
+        if type(generation) is not int or generation < 1:
+            raise ValueError("positive admitted credential generation required")
         # Generation one preserves existing authenticated mobile audience
         # history. A re-paired device must not inherit a prior bearer epoch's
         # private memories or its previously linked social sessions.
@@ -558,8 +577,30 @@ class MobileCompanionGateway:
             # The durable processing claim prevents replay on a second host
             # even if the first host disappears before finalization.
             try:
-                conversation = self._conversation(device, private_mode=private_mode)
-                principal = self._principal(device, private_mode=private_mode)
+                # The bearer generation was verified in the durable
+                # BEGIN IMMEDIATE admission transaction. Do not let a
+                # pairing rotation during a slow turn redirect this
+                # request into the new generation's session or memory scope.
+                conversation = self._conversation(
+                    device, private_mode=private_mode,
+                    admitted_generation=generation,
+                )
+                principal = self._principal(
+                    device, private_mode=private_mode,
+                    admitted_generation=generation,
+                )
+                if credential is not None:
+                    with closing(self._connect()) as check_db:
+                        valid = check_db.execute(
+                            "SELECT 1 FROM mobile_device_credential "
+                            "WHERE device_id=? AND token_sha256=? "
+                            "AND generation=? AND status='active'",
+                            (device, fingerprint, generation),
+                        ).fetchone()
+                    if valid is None:
+                        raise MobileCredentialRevoked(
+                            "chat bearer rotated before original cognition"
+                        )
                 response = conversation.respond(
                     content, principal=principal,
                     channel=("mobile-private" if private_mode else "mobile-standard"),
