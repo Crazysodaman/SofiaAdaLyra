@@ -1035,3 +1035,44 @@ def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
         assert sent == []
     finally:
         life.close()
+
+
+
+def test_owner_stop_during_project_check_vetoes_transport_at_final_global_gate(
+    state, monkeypatch,
+):
+    """A project check cannot keep using a now-revoked global send grant."""
+    from sofia.act.outreach import Decision
+
+    sent = []
+    service = configured(state, sent)
+    queued = PresenceInitiativeEngine(
+        state_path=state, act_service=service,
+    ).consider(event(event_id="between-final-checks"))
+    assert queued.status == "queued"
+
+    observed = []
+    def stop_while_project_guard_runs(_payload):
+        observed.append("project_guard")
+        OperatorStopStore(state).set(
+            active=True, updated_by="Sparks",
+            reason="Stop outreach after first global check.", at=NOW,
+        )
+        return Decision.ELIGIBLE_FOR_AUTHORIZATION
+
+    monkeypatch.setattr(
+        service, "_fresh_life_project_pre_send_decision",
+        stop_while_project_guard_runs,
+    )
+    assert service.deliver_one(now=NOW) is None
+    assert observed == ["project_guard"]
+    assert sent == []
+    trace = OutreachTraceStore(state).history(notice_id=queued.notice_id)
+    assert any(
+        row.stage == "deferred" and row.reason == Decision.STOPPED.value
+        for row in trace
+    )
+    assert not any(
+        row.stage in {"transport_attempt", "transport_accepted"}
+        for row in trace
+    )
