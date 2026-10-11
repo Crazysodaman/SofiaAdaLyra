@@ -548,3 +548,11 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Source correction:** existing `SofiaApplication → LIFE background tick → _reconcile_canonical_goal_lifecycle` now treats GOALS `BLOCKED` as a pause; a GOALS-derived paused project resumes only if every original linked RUN job has status `COMPLETED`, or no jobs exist. RUN authority, potential external effects, cancellation and approval remain separate. A manual pause never auto-resumes. This code cannot execute a RUN job or grant SAFE privileges.
 - **Deferred regression:** `test/test_life_goal_run_resume_fence.py` covers BLOCKED→PAUSED, seven unfinished/unsafe original work states under resumed GOALS, and positive no-job resume. Tests and CI were not run; no host, model, service, physical robot or external system operated.
 - **Next boundary:** current-goal revision CAS at resume and full terminal-state race/expiry matrix still require source work and user verification. Workstream 1 owns the shared 700-task evidence ledger.
+
+
+## Phase 10: exact verified procedural evidence at draft time (2026-10-11)
+
+- **Original IDs addressed:** CA-1403, CA-1405 (both partial, never accepted by unexecuted source tests).
+- **Found:** the production LIFE draft path required a relevant exact-match skill to appear in a global newest-64 proof report. Newer unrelated procedures could starve its otherwise valid source verification.
+- **Changed:** `LifeProcedureCatalog.source_projects_for_compatible_precedent` now fetches original evidence IDs for the current exact scope, definition, environment and still-verified procedure, with bounded fail-closed size. `SelfDirectedLifeCoordinator._current_verified_procedures_for_draft` continues checking all original RUN, GOALS, project and creative bytes independently before any non-executable source hints reach the real ProjectDraftAgent. SAFE/RUN remain authoritative.
+- **Regression source:** genuine two-original-project proof is available even when global index is inaccessible; bad limit and quarantined proof are rejected. Written, **not run**; no CI, host or external service invoked.
