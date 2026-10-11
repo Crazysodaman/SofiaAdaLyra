@@ -107,6 +107,39 @@ fencing of already-open connections, or failover/backup epoch barrier.
 Multi-file restore publication is not globally atomic and needs a separate
 operator-approved migration/restore procedure. No host move was made.
 
+### Android proactive-notification durable ACK and audience clearing (Phase 04)
+
+Production route:
+`SensorSyncService` → `SofiaApi.claimNotification` →
+`SensorSyncService.display` →
+`SecureSettings.storeIncoming` Android Keystore-encrypted cache →
+Android NotificationManager → `SofiaApi.acknowledgeNotification` →
+`MobileCompanionGateway.acknowledge_notification` →
+`MobileNotificationStore` canonical acknowledged receipt.
+
+Previously `storeIncoming` asynchronously saved encrypted content with
+`SharedPreferences.Editor.apply()`, while the server acknowledgment could
+complete first. A crash or power loss could therefore lose the private local
+preview after the host permanently recorded completion.
+Storage and local consumption now require `.commit()` success, and a failed
+local save returns false from the service display path, withholding ACK and
+letting the existing server-side claim lease expire/redeliver.
+Corrupted existing ciphertext no longer becomes an empty inbox or gets
+silently overwritten; the UI catches unreadability and retains ciphertext
+for explicit recovery. Privacy/paired-server changes only proceed after
+durable inbox clear; credential settings also use durable commit.
+
+Code commits:
+- `c2806c7fb5fc0daa5875c965e801aba37c7fb386` secure cache.
+- `8e1705f66806cd190f7e5d45914d2d56753c2529` Main UI fail-closed.
+- `4ccef7a1daea6193f20c40e6d7889a8c217739a5` service ACK boundary.
+- `d4341b3ffa669d8f38eeb3efffe247f80af0c03a` device test cases,
+  authored, **not executed**.
+
+CA relevance: CA-6303, CA-6304, CA-6306, CA-4109, CA-5303.
+This is a focused production fix, not completion of any whole task ID.
+Device/host acceptance and offline stress are still pending.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
