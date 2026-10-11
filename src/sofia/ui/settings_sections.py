@@ -506,6 +506,126 @@ class SettingsSections:
         self.sql_panel(frames["Fleet"], "Enrolled nodes", "distributed_node_identity")
         self.sql_panel(frames["Fleet"], "Software and capability health evidence", "ops_dependency_observation")
         self.sql_panel(frames["Fleet"], "Verified platform installation receipts", "ops_platform_install_receipt")
+        # Hephaestus first-stage operator preflight. Read-only Artemis mTLS
+        # inspection and a plan preview never create or install a guest.
+        from queue import Empty, Queue
+        from threading import Thread
+        from sofia.distributed.capability import create_configured_remote_fleet_service
+        from sofia.ops.workshop_provision import preview_owner_hephaestus_plan
+
+        ttk.Label(
+            frames["Fleet"],
+            text="HEPHAESTUS / ARTEMIS (Hyper-V) - read-only workshop plan",
+        ).pack(anchor="w", pady=(10, 2))
+        ttk.Label(
+            frames["Fleet"],
+            text=(
+                "Use the exact enrolled Artemis node UUID and a locally "
+                "approved/pinned Debian image path and SHA-256. The provisional "
+                "guest is Hephaestus, 2 vCPU, 4 GiB RAM, 60 GiB disk, PRIVATE "
+                "network only. Preview cannot create a VM, network or enrollment."
+            ),
+            wraplength=660,
+        ).pack(anchor="w", pady=4)
+        lab_node = tk.StringVar(root, value="")
+        lab_root = tk.StringVar(root, value="")
+        lab_image = tk.StringVar(root, value="")
+        lab_digest = tk.StringVar(root, value="")
+        for text, var in (
+            ("Artemis verified Fleet node UUID", lab_node),
+            ("Dedicated Windows VM root (for example D:\\SofiaLab\\Hephaestus)", lab_root),
+            ("Approved local Debian image path on Artemis", lab_image),
+            ("Independent installer image SHA-256", lab_digest),
+        ):
+            ttk.Label(frames["Fleet"], text=text).pack(anchor="w", pady=(4, 2))
+            ttk.Entry(frames["Fleet"], textvariable=var).pack(fill="x")
+        lab_preview = {"text": (
+            "No Artemis preflight has been observed. Source identity, "
+            "capacity, reserved VMs, switch, image and approval remain UNKNOWN."
+        )}
+        lab_view = self.viewer(
+            frames["Fleet"], "Hephaestus review-only plan and blockers",
+            lambda: lab_preview["text"],
+        )
+        lab_result_queue = Queue()
+        lab_busy = {"busy": False}
+
+        def review_hephaestus_plan():
+            if lab_busy["busy"]:
+                return
+            inputs = (
+                lab_node.get().strip(), lab_root.get().strip(),
+                lab_image.get().strip(), lab_digest.get().strip().lower(),
+            )
+            if not all(inputs):
+                raise ValueError(
+                    "Artemis node UUID, VM root, local Debian image path "
+                    "and verified SHA-256 must be supplied before preview"
+                )
+            lab_busy["busy"] = True
+            lab_preview_button.configure(state="disabled")
+
+            def inspect_worker():
+                service = None
+                try:
+                    service = create_configured_remote_fleet_service(
+                        config.state_path,
+                    )
+                    if service is None:
+                        raise PermissionError(
+                            "authenticated pinned-mTLS Fleet service unavailable"
+                        )
+                    preview = preview_owner_hephaestus_plan(
+                        remote_service=service,
+                        artemis_node_id=inputs[0],
+                        vm_root=inputs[1],
+                        installer_image_path=inputs[2],
+                        installer_image_sha256=inputs[3],
+                        at=datetime.now(timezone.utc),
+                    )
+                    lab_result_queue.put(("ok", preview.readable()))
+                except Exception as exc:
+                    lab_result_queue.put((
+                        "error", f"{type(exc).__name__}: {exc}. "
+                        "No host operation was authorized or performed.",
+                    ))
+                finally:
+                    if service is not None:
+                        service.close()
+
+            Thread(
+                target=inspect_worker,
+                name="sofia-hyperv-workshop-readonly-preflight",
+                daemon=False,
+            ).start()
+
+        lab_preview_button = ttk.Button(
+            frames["Fleet"],
+            text="Inspect Artemis and preview Hephaestus plan (read only)",
+            command=self.guarded(review_hephaestus_plan),
+        )
+        lab_preview_button.pack(anchor="w", pady=(4, 8))
+
+        def poll_lab_preview():
+            try:
+                outcome, detail = lab_result_queue.get_nowait()
+            except Empty:
+                pass
+            else:
+                lab_busy["busy"] = False
+                lab_preview_button.configure(state="normal")
+                lab_preview["text"] = detail
+                lab_view.refresh()
+                if outcome == "error":
+                    self.messagebox.showerror(
+                        "Artemis read-only preflight denied",
+                        detail,
+                        parent=root,
+                    )
+            if root.winfo_exists():
+                root.after(350, poll_lab_preview)
+
+        root.after(350, poll_lab_preview)
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
