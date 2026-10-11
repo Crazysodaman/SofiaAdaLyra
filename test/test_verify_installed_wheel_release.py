@@ -128,3 +128,21 @@ def test_release_gate_tests_the_exact_candidate_wheel_not_a_separate_source_inst
     assert '$actualHash -ne $env:RELEASE_WHEEL_SHA256' in pipeline
     assert 'pip install --no-index --no-deps --force-reinstall "$wheelPath"' in pipeline
     assert 'pip install --no-deps "$env:SOFIA_RELEASE_SOURCE"' not in pipeline
+
+
+def test_release_artifacts_do_not_dirty_exact_sha_checkout_before_gate():
+    """Fresh checkout must stay clean while wheel and source proof are produced."""
+    root = Path(__file__).resolve().parents[1]
+    pipeline = (root / ".github/workflows/release-candidate.yml").read_text(
+        encoding="utf-8",
+    )
+    assert 'SOFIA_RELEASE_VENV=$(Join-Path $env:RUNNER_TEMP' in pipeline
+    assert 'SOFIA_RELEASE_EVIDENCE=$(Join-Path $env:RUNNER_TEMP' in pipeline
+    assert 'SOFIA_VERIFICATION_EVIDENCE=$(Join-Path $env:RUNNER_TEMP' in pipeline
+    assert '$distA = Join-Path $env:RUNNER_TEMP "sofia-dist-a"' in pipeline
+    assert '$distB = Join-Path $env:RUNNER_TEMP "sofia-dist-b"' in pipeline
+    assert '"RELEASE_WHEEL=$($WheelA.FullName)"' in pipeline
+    assert 'python -m venv .releasevenv' not in pipeline
+    assert 'Copy-Item $WheelA.FullName $WheelA.Name' not in pipeline
+    assert '--evidence "$env:SOFIA_RELEASE_EVIDENCE"' in pipeline
+    assert '--evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE"' in pipeline

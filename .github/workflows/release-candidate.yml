@@ -47,6 +47,9 @@ jobs:
           # release-source/test directory otherwise duplicates pytest modules.
           $sourceRoot = Join-Path $env:RUNNER_TEMP "sofia-release-source"
           "SOFIA_RELEASE_SOURCE=$sourceRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SOFIA_RELEASE_VENV=$(Join-Path $env:RUNNER_TEMP 'sofia-release-venv')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SOFIA_RELEASE_EVIDENCE=$(Join-Path $env:RUNNER_TEMP 'source-provenance.json')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SOFIA_VERIFICATION_EVIDENCE=$(Join-Path $env:RUNNER_TEMP 'verification-evidence.json')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           New-Item -ItemType Directory -Force "$sourceRoot" | Out-Null
           $archive = Join-Path $env:RUNNER_TEMP "sofia-tracked-source.tar"
           git archive --format=tar HEAD -o "$archive"
@@ -57,54 +60,56 @@ jobs:
       - name: Verify exact hashed runtime lock
         shell: pwsh
         run: |
-          python -m venv .releasevenv
+          python -m venv "$env:SOFIA_RELEASE_VENV"
           # Keep the interpreter-bundled pip; do not fetch an unpinned toolchain.
-          .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock.windows-py312.txt
-          .\.releasevenv\Scripts\python.exe -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes -r requirements.lock.windows-py312.txt
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
         run: |
           $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
-          New-Item -ItemType Directory -Force dist-a,dist-b | Out-Null
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-a "$env:SOFIA_RELEASE_SOURCE"
-          .\.releasevenv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist-b "$env:SOFIA_RELEASE_SOURCE"
-          $WheelA = Get-ChildItem dist-a\*.whl | Select-Object -First 1
-          $WheelB = Get-ChildItem dist-b\*.whl | Select-Object -First 1
+          # Keep temporary wheels outside the exact-SHA checkout.
+          $distA = Join-Path $env:RUNNER_TEMP "sofia-dist-a"
+          $distB = Join-Path $env:RUNNER_TEMP "sofia-dist-b"
+          New-Item -ItemType Directory -Force $distA,$distB | Out-Null
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distA" "$env:SOFIA_RELEASE_SOURCE"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distB" "$env:SOFIA_RELEASE_SOURCE"
+          $WheelA = Get-ChildItem -LiteralPath $distA -Filter *.whl -File | Select-Object -First 1
+          $WheelB = Get-ChildItem -LiteralPath $distB -Filter *.whl -File | Select-Object -First 1
           if ($null -eq $WheelA -or $null -eq $WheelB) { throw "reproducibility build did not create both wheels" }
           $HashA = (Get-FileHash -Algorithm SHA256 $WheelA.FullName).Hash.ToLowerInvariant()
           $HashB = (Get-FileHash -Algorithm SHA256 $WheelB.FullName).Hash.ToLowerInvariant()
           Write-Output "wheel_a_sha256=$HashA"
           Write-Output "wheel_b_sha256=$HashB"
           if ($HashA -ne $HashB) { throw "release wheel is not reproducible" }
-          Copy-Item $WheelA.FullName $WheelA.Name
-          "RELEASE_WHEEL=$($WheelA.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_WHEEL=$($WheelA.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "RELEASE_WHEEL_SHA256=$HashA" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install exactly the reproducibly built candidate wheel
         shell: pwsh
         run: |
-          $wheelPath = Join-Path $env:GITHUB_WORKSPACE $env:RELEASE_WHEEL
+          $wheelPath = $env:RELEASE_WHEEL
           if (-not (Test-Path -LiteralPath $wheelPath -PathType Leaf)) { throw "candidate wheel is missing" }
           $actualHash = (Get-FileHash -LiteralPath $wheelPath -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualHash -ne $env:RELEASE_WHEEL_SHA256) { throw "candidate wheel changed after reproducibility proof" }
-          .\.releasevenv\Scripts\python.exe -m pip install --no-index --no-deps --force-reinstall "$wheelPath"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --no-index --no-deps --force-reinstall "$wheelPath"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Assert exact source and installed package provenance
         shell: pwsh
         run: |
-          .\.releasevenv\Scripts\python.exe -m sofia.verify.source_provenance `
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.source_provenance `
             --checkout "$env:GITHUB_WORKSPACE" `
             --archive "$env:SOFIA_RELEASE_SOURCE" `
-            --venv ".releasevenv" `
-            --evidence "source-provenance.json"
+            --venv "$env:SOFIA_RELEASE_VENV" `
+            --evidence "$env:SOFIA_RELEASE_EVIDENCE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run revision-bound verification gate
         shell: pwsh
         run: |
-          .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path verification-evidence.json
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.verify.gate --phase full --installed-wheel-only --repo "$env:GITHUB_WORKSPACE" --evidence-path "$env:SOFIA_VERIFICATION_EVIDENCE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Construct and verify release evidence
@@ -121,7 +126,7 @@ jobs:
             "--wheel",$env:RELEASE_WHEEL,
             "--source",$env:SOFIA_RELEASE_SOURCE,
             "--constitution-hash",(Join-Path $env:SOFIA_RELEASE_SOURCE "src\sofia\constitution\constitution.sha256"),
-            "--verification-evidence","verification-evidence.json",
+            "--verification-evidence",$env:SOFIA_VERIFICATION_EVIDENCE,
             "--output","release-evidence"
           )
           if ($env:RELEASE_ID) {
@@ -134,9 +139,9 @@ jobs:
             $Args += @("--parent-release-id",$env:PARENT_RELEASE_ID)
             $Args += @("--parent-manifest-sha256",$env:PARENT_MANIFEST_SHA256)
           }
-          & .\.releasevenv\Scripts\python.exe @Args
+          & & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" @Args
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\.releasevenv\Scripts\python.exe -m sofia.dev.release_cli verify --release-dir release-evidence
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m sofia.dev.release_cli verify --release-dir release-evidence
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload unsigned release candidate evidence
@@ -145,5 +150,5 @@ jobs:
           name: release-candidate-${{ github.sha }}
           path: |
             release-evidence
-            source-provenance.json
+            ${{ runner.temp }}/source-provenance.json
           if-no-files-found: error
