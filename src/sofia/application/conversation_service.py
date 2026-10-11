@@ -611,6 +611,17 @@ class ConversationService(ConversationMatrixMixin):
             or self._current_matrix_message_id != current_user.id
         ):
             return None
+        runtime = getattr(self, "_neuro_runtime", None)
+        if runtime is not None:
+            # Record a genuine downstream read from the same bounded NEURO
+            # broadcast. User-event time is the logical turn clock, including
+            # deterministic replay fixtures; no separate workspace authority.
+            workspace = runtime.read_workspace(
+                consumer="conversation",
+                at=current_user.created_at,
+            )
+            if workspace is None:
+                return None
         return CognitiveMessage(
             role=CognitiveRole.SYSTEM,
             content=snapshot.prompt(),
