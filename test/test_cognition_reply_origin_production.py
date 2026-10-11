@@ -134,3 +134,26 @@ def test_unknown_model_origin_is_honestly_unknown(tmp_path):
     assert result["kind"]=="unknown" and result["steps"]==()
     assert "not proof" in result["note"]
     store.close()
+
+
+def test_failed_model_attempt_does_not_claim_that_it_authored_saved_reply(tmp_path):
+    path,store,session=setup(tmp_path)
+    msg=saved(store,session)
+    origin=ReplyModelOriginStore(path)
+    failed=CognitionExecutionTrace(
+        serial=19,actual_route="deep",
+        steps=(CognitionExecutionStep(
+            "primary","unavailable:model","venus",False
+        ),),
+    )
+    origin.record(
+        assistant_message_id=msg.id,session_id=session.id,
+        execution=failed,principal=local_sparks_principal(),at=NOW,
+    )
+    receipt=origin.inspect(
+        assistant_message_id=msg.id,
+        principal=local_sparks_principal(),
+    )
+    assert receipt["kind"]=="unknown"
+    assert receipt["steps"][0]["succeeded"] is False
+    store.close()
