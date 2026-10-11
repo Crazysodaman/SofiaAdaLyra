@@ -27,7 +27,8 @@
     "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes.",
     "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run.",
     "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions.",
-    "2026-10-11: CA-6702 reviewed Hephaestus training-lab resource/separation design wired to EVOLVE Settings and actual read-only OPS, no training execution path or existing guest OS. Host GPU worker choice awaits separate authorization."
+    "2026-10-11: CA-6702 reviewed Hephaestus training-lab resource/separation design wired to EVOLVE Settings and actual read-only OPS, no training execution path or existing guest OS. Host GPU worker choice awaits separate authorization.",
+    "2026-10-11 OPTION B: User chose dedicated Hyper-V Internal host-to-guest link for existing OS-less Hephaestus VM. Production source updated on main: exact opt-in Artemis one-use SAFE/Fleet network stage, read-only original VM preflight, no siblings/NAT/ICS/IPv4 or IPv6 forwarding, host Public firewall default-deny, 172.30.250.1/30↔172.30.250.2/30, signed Debian nftables default DROP and no gateway/DNS. Live Artemis network and VM untouched; guest not installed; no tests/CI; CA-2806/2909 remain open pending measured isolation proof."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -1116,11 +1117,12 @@
       "phase": "13",
       "master_line": 1025,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner chose dedicated Internal host-to-guest switch on existing OS-less Hephaestus. Production Artemis opt-in, exact VM GUID pinned Level-4 one-use SAFE+Fleet staging now supports separate read-only original-switch preflight, protected creation/attachment of only Sofia-Hephaestus-Internal, static 172.30.250.1/30 host and guest 172.30.250.2/30, host Public firewall default-deny, no IPv4/IPv6 forwarding, DNS, gateway, overlapping WinNAT or ICS and no sibling VM. Signed Debian firstboot nftables defaults INPUT/OUTPUT/FORWARD drop and configures no guest gateway/DNS. Fresh host observations and rechecks gate installer. Full guest-to-LAN/Internet negative reachability tests impossible until Debian installed, so not code-ready for independent acceptance."
     },
     {
       "id": "CA-2807",
@@ -1418,11 +1420,12 @@
       "phase": "13",
       "master_line": 1055,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Owner-selected preexisting VM, not new self-provisioned VM. Exact host-admin opt-in Internal switch stage only; fails target name/type collisions and other VM attachment; read-only old network preflight; separate Level-4 user approval and protected Artemis Fleet. Host Windows Public firewall must default inbound Block, disabled forwarding and NAT/ICS, guest nftables default-deny signed ISO. Guest and actual host ACL traffic observation remains a deferred acceptance gate; original new-VM auto-provision task still not completely implemented."
     },
     {
       "id": "CA-2910",
@@ -1469,7 +1472,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "Existing owner-created Hephaestus has no OS. Exact host-side unattended Debian boot, one-use protected grant and canonical RESERVED/INSTALLER_BOOT_STARTED/UNCERTAIN status are coded. OS completion and independent guest hardening/attestation, Fleet trust, recovery and live acceptance have not happened; this remains partial."
+      "finding": "Separate exact existing-VM Internal network mutation now durably reserves a single per-VM attempt and preserves UNCERTAIN on lost replies; no blind retry of New-VMSwitch or NIC reconfiguration. Installer path preserves RESERVED/UNCERTAIN too. Full restart-safe multi-substep VM provisioning recovery and independently verified orphan cleanup remain incomplete."
     },
     {
       "id": "CA-2914",
@@ -1700,7 +1703,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Typed owner-created blank Hephaestus handoff binds exact Artemis pinned-mTLS node UUID, Hyper-V VM GUID, existing VHDX, Gen2/CPU/RAM/disk, Private NIC, observed boot order, Linux-compatible Secure Boot and hash-pinned offline installer. Host INSPECT path plus owner Fleet Settings preview/source receipts are real production wiring, with unexecuted regressions."
+      "finding": "Typed owner-created blank Hephaestus handoff binds exact Artemis pinned-mTLS node UUID, Hyper-V VM GUID, existing VHDX, Gen2/CPU/RAM/disk, Private NIC, observed boot order, Linux-compatible Secure Boot and hash-pinned offline installer. Host INSPECT path plus owner Fleet Settings preview/source receipts are real production wiring, with unexecuted regressions. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted."
     },
     {
       "id": "CA-4302",
@@ -1712,7 +1715,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "No-OS bootstrap paradox implemented: independent Artemis Hyper-V host side can read the exact blank VM before any guest agent. An opt-in, host-admin pinned VM/disk/ISO operation rechecks offline hash and starts only that VM's unattended Debian installer after one-use Level-4 grant. No in-guest calls or VM creation. Tests written, unexecuted; OS installation proof remains separate."
+      "finding": "No-OS bootstrap paradox implemented: independent Artemis Hyper-V host side can read the exact blank VM before any guest agent. An opt-in, host-admin pinned VM/disk/ISO operation rechecks offline hash and starts only that VM's unattended Debian installer after one-use Level-4 grant. No in-guest calls or VM creation. Tests written, unexecuted; OS installation proof remains separate. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted."
     },
     {
       "id": "CA-4303",
@@ -1724,7 +1727,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Operator-selected owner-created Hyper-V Gen2 VM now has a production offline Debian 13 DVD-1 ISO remaster path: owner compares cloud-image/NoCloud, manual and preseed ISO alternatives in architecture guide; actual signed UEFI GRUB automatic-installer media builder uses independently pinned Debian DVD SHA, locally entered SHA-512 crypt password, password-required console admin, locked root/nonlogin worker, SSH masked, no network mirror and halt-on-install. Artemis Fleet checks an independently pinned owner Ed25519 manifest and actual ISO digest before preflight or protected boot. Regression tests authored not run; final Hyper-V UEFI/installer completion still unverified."
+      "finding": "Operator-selected owner-created Hyper-V Gen2 VM now has a production offline Debian 13 DVD-1 ISO remaster path: owner compares cloud-image/NoCloud, manual and preseed ISO alternatives in architecture guide; actual signed UEFI GRUB automatic-installer media builder uses independently pinned Debian DVD SHA, locally entered SHA-512 crypt password, password-required console admin, locked root/nonlogin worker, SSH masked, no network mirror and halt-on-install. Artemis Fleet checks an independently pinned owner Ed25519 manifest and actual ISO digest before preflight or protected boot. Regression tests authored not run; final Hyper-V UEFI/installer completion still unverified. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted."
     },
     {
       "id": "CA-4304",
@@ -1748,7 +1751,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Production Fleet Settings owner confirmation writes exact single-use SAFE receipt for Artemis node/VM GUID/VHDX/unattended ISO SHA/handoff fingerprint. RemoteFleetToolService consumes one-use approval before mTLS transport and requires exact protected Fleet grant; short scoped grant is revoked after attempt. Bootstrap records STARTED vs UNCERTAIN, never claims guest OS installed or authorizes future Fleet enrollment. Tests written, not run."
+      "finding": "Production Fleet Settings owner confirmation writes exact single-use SAFE receipt for Artemis node/VM GUID/VHDX/unattended ISO SHA/handoff fingerprint. RemoteFleetToolService consumes one-use approval before mTLS transport and requires exact protected Fleet grant; short scoped grant is revoked after attempt. Bootstrap records STARTED vs UNCERTAIN, never claims guest OS installed or authorizes future Fleet enrollment. Tests written, not run. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted."
     },
     {
       "id": "CA-4306",
@@ -1760,7 +1763,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": false,
-      "finding": "The existing OS-less owner VM is inspected via authenticated Artemis Hyper-V prior to installation. Host-side approved ISO boot now yields durable INSTALLER_BOOT_STARTED/UNCERTAIN with no fabricated OS proof. Follow-up read-only workshop.inspect/installer_status obtains power/DVD/firmware and integration-service observations and stores canonical source receipts. Guest-side signed heartbeat, installer completion criteria, exact media cleanup, quarantine and postinstall trusted guest identity still not coded/verified, so task remains partial."
+      "finding": "Host-side authenticated Hyper-V observation can now inspect existing VM pre-Internal networking and a host-only read-only post-boot status; owner one-use Internal network stage is fully source-wired with canonical HOST_STAGE_REPORTED / UNCERTAIN, and separate one-use installer boot. Actual Debian guest OS attestation, mTLS heartbeat and media cleanup remain unobserved and incomplete."
     },
     {
       "id": "CA-4307",
