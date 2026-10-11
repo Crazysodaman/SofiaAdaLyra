@@ -5,7 +5,7 @@ Synthetic authenticated archive fixtures only. No live state or tests run.
 import pytest
 
 from sofia.ops.backup import BackupCipher, BackupEngine, BackupError
-from test.test_ops_backup_restore import NOW, make_state
+from test.test_ops_backup_restore import NOW, make_state, make_erasure_journal
 
 
 def _archive(tmp_path):
@@ -67,6 +67,7 @@ def test_restore_checks_second_payload_read_after_successful_verify(
             backup_dir=archive,
             target_state_path=tmp_path / "recovered" / "sofia.db",
             verifier="synthetic-fixture",
+            erasure_journal=make_erasure_journal(tmp_path),
         )
 
 
