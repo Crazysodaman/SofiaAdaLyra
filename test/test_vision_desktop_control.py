@@ -166,3 +166,67 @@ def test_venus_requires_fresh_non_override_and_game_clear(monkeypatch):
     monkeypatch.setattr(dc, "game_process_clear", lambda: False)
     with pytest.raises(PermissionError, match="running game"):
         dc.require_workstation_clear("canonical.db", "Venus", instant)
+
+
+def test_live_process_inspection_detects_running_nonsteam_game(monkeypatch):
+    """No game detection depends on psutil or Steam membership alone."""
+    from sofia.system import capability as caps
+    from sofia.system.model import (
+        ProcessInspection, SystemCapability, SystemCapabilityName,
+        SystemCapabilityResultKind,
+    )
+    processes = [
+        ProcessInspection(pid=10, name="explorer.exe",
+                          executable=r"C:\Windows\explorer.exe"),
+        ProcessInspection(pid=11, name="factorio.exe",
+                          executable=r"D:\Games\Factorio\factorio.exe"),
+    ]
+    gate = SystemCapability(SystemCapabilityName.PROCESS_INSPECT, "Read running processes")
+    class Backend:
+        supported_capabilities = (gate,)
+        def execute(self, request):
+            assert request.capability == gate
+            assert request.parameters == {"limit": 2048}
+            return SimpleNamespace(
+                kind=SystemCapabilityResultKind.SUCCESS,
+                evidence={"processes": tuple(processes)},
+            )
+    monkeypatch.setattr(dc.sys, "platform", "win32")
+    monkeypatch.setattr(caps, "create_local_system_backend", lambda: Backend())
+    assert dc.game_process_clear() is False
+    processes.pop()
+    assert dc.game_process_clear() is True
+    processes[:] = [ProcessInspection(pid=20, name=""),
+                    ProcessInspection(pid=10, name="explorer.exe")]
+    with pytest.raises(PermissionError, match="unknown running process"):
+        dc.game_process_clear()
+
+
+def test_live_process_inspection_failure_never_means_safe_to_click(monkeypatch):
+    from sofia.system import capability as caps
+    from sofia.system.model import (
+        ProcessInspection, SystemCapability, SystemCapabilityName,
+        SystemCapabilityResultKind,
+    )
+    gate = SystemCapability(SystemCapabilityName.PROCESS_INSPECT, "Read running processes")
+    result = SimpleNamespace(
+        kind=SystemCapabilityResultKind.UNAVAILABLE,
+        evidence={},
+    )
+    class Backend:
+        supported_capabilities = (gate,)
+        def execute(self, _request):
+            return result
+    monkeypatch.setattr(dc.sys, "platform", "win32")
+    monkeypatch.setattr(caps, "create_local_system_backend", lambda: Backend())
+    with pytest.raises(PermissionError, match="not fully observable"):
+        dc.game_process_clear()
+    result.kind = SystemCapabilityResultKind.SUCCESS
+    result.evidence = {"processes": ()}
+    with pytest.raises(PermissionError, match="missing or truncated"):
+        dc.game_process_clear()
+    result.evidence = {"processes": tuple(
+        ProcessInspection(pid=i + 1, name="process.exe") for i in range(2048)
+    )}
+    with pytest.raises(PermissionError, match="missing or truncated"):
+        dc.game_process_clear()
