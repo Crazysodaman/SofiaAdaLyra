@@ -67,6 +67,7 @@ def reviewed_state(tmp_path):
         observed_boot_sha256=SHA,
         fleet_vm_receipt="fixture:vm",
         fleet_media_receipt="fixture:iso",
+        approved_media_policy="hephaestus-debian13-console-admin-v1",
     )
     WorkshopHandoffStore(state).record(preview)
     params={
@@ -108,7 +109,7 @@ def fake_service(state,at,*,result="reported_success",mutated=False,
             return {
                 "node_id":str(NODE),"outcome":"reported_success",
                 "request_id":str(uuid4()),
-                "message":json.dumps({"sha256":SHA,"kind":".iso"}),
+                "message":json.dumps({"sha256":SHA,"kind":".iso","owner_signed":True,"policy_version":"hephaestus-debian13-console-admin-v1"}),
             }
         if capability=="workshop.bootstrap" and operation=="start":
             # The production RemoteFleetToolService.invoke does this guard,
