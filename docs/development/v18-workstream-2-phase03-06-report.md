@@ -1107,6 +1107,27 @@ Deferred pre-claim and mid-cognition rotation regressions:
 Original CA relevance: CA-4103, CA-4104, CA-4110, CA-5304,
 CA-5306, CA-6302 and CA-6311. No tests run or live host changed.
 
+### Phase 05: App-level project header egress respects original audience
+
+`SofiaApplication.lifelong_threads_for(principal)` is the real
+desktop/Discord-facing thread discovery entrypoint. It previously called
+`LifelongThreadStore.list_threads(owner=...)`, which checks only the shared
+owner principal. Consequently, a Discord or desktop channel could receive
+the **title** of a source-private project that belongs to the same user but
+was created under another conversation audience. The production call
+now uses the existing `list_visible_threads(owner,limit)` canonical
+SQL source-binding predicate rather than introducing a new store or
+duplicating original event text. Message retrieval remains scoped through
+`visible_messages`; this closes the *metadata* disclosure and correctly
+limits after filtering.
+
+Production commit: `075e000f56af5ecd8cae79a7a4f3fa2f273b98f5`.
+Deferred real-store application entrypoint regression:
+`ce06cb46aaff39cc128ca56dacfeb799935c9a6b`.
+No tests/CI run; no channel messages emitted, grants updated or host
+modified. CA relevance: CA-4103, CA-4105, CA-4107, CA-4109, CA-5304,
+CA-6304, CA-6310.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
