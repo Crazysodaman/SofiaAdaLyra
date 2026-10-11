@@ -958,6 +958,36 @@ No replica was seeded on live machines.
    retrieval and conversation/LIFE callers, temporal corrections, revocation
    and principal/audience isolation. Measure context budget and abstention.
 
+## Operator architecture decision: Venus now, Artemis later (2026-10-11)
+
+**Decision supplied by the operator, not inferred from hardware:**
+
+- Current production authority: **Venus** holds the sole writable canonical
+  `sofia.db`, Sofía runtime, desktop UI and available GPU inference.
+- Future architecture: a dedicated **Sofia VM on Artemis** owns the single
+  canonical runtime, `sofia.db`, memory, goals, scheduling and services.
+  The other Artemis VMs remain available as separately scoped test agents.
+- Future compute split: **Venus** provides RTX 3080 Ti inference and desktop
+  UI over an authenticated, explicitly provisioned network connection;
+  the Artemis Sofia VM is not required to have a GPU. No model fallback is
+  implicitly approved.
+- If Venus inference becomes unavailable, Artemis must retain canonical
+  state and continue explicitly eligible non-LLM scheduling/service work.
+  Cognition-dependent work becomes unavailable/deferred and must **never**
+  fabricate an LLM reply or silently substitute another model.
+- The single-writer handoff from Venus to Artemis is **not authorized now**.
+  It requires a reviewed snapshot, host identity and independent fencing
+  proof, old writer shutdown, source/backup integrity verification, explicit
+  operator cutover approval, and a tested failback/rollback procedure.
+  Direct network-shared SQLite WAL and dual simultaneous writers are forbidden.
+- This design decision does **not** permit modifying existing Windows
+  services, certificates, environment configuration, host paths, database
+  placement, GPU providers, network firewalls, or VM startup state.
+
+Future host-independent coding must preserve these invariants. Physical
+writer fencing, authenticated inference fail-closed behavior, and actual
+migration acceptance remain separate implementation/verification gates.
+
 ## Hard boundaries
 
 - Canonical writer TODAY: **Venus**. FUTURE approved target: **Artemis** only after separately verified, operator-authorized migration. No cutover authorized.
