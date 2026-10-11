@@ -3632,10 +3632,14 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/ops/recovery_export.py",
-        "src/sofia/ops/backup.py"
+        "src/sofia/ops/backup.py",
+        "scripts/verify_sofia_portable_export.py",
+        "test/test_ws2_portable_export_validator.py"
       ],
       "evidence_commits": [
-        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6"
+        "70b1fe36cd97dadf3e56cacd1de7be93c2fef6b6",
+        "401cc215aa5c346275b0425f755519b602f2b134",
+        "14378197f4f6e3177eda975b8e9f715660f2e734"
       ],
       "accepted": false
     },
@@ -3726,9 +3730,16 @@
       "phase": "03",
       "source_topic": "61",
       "master_line": 345,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/recovery_export.py",
+        "scripts/verify_sofia_portable_export.py",
+        "test/test_ws2_portable_export_validator.py"
+      ],
+      "evidence_commits": [
+        "401cc215aa5c346275b0425f755519b602f2b134",
+        "14378197f4f6e3177eda975b8e9f715660f2e734"
+      ],
       "accepted": false
     },
     {
@@ -3827,9 +3838,16 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 356,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ui/settings_sections.py",
+        "src/sofia/ops/state_mobility.py",
+        "test/test_ws2_state_home_destination_builder.py"
+      ],
+      "evidence_commits": [
+        "842495ed95f2a2e8bca9480d53b791a2999b0f84",
+        "14378197f4f6e3177eda975b8e9f715660f2e734"
+      ],
       "accepted": false
     },
     {
@@ -3985,9 +4003,17 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 366,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/ops/state_relocation.py",
+        "src/sofia/ops/state_promotion.py",
+        "test/test_ws2_partial_bundle_restore_uncertainty.py"
+      ],
+      "evidence_commits": [
+        "11385df88b83f4da10a6cc27d589e99fe9084181",
+        "14378197f4f6e3177eda975b8e9f715660f2e734"
+      ],
       "accepted": false
     },
     {
