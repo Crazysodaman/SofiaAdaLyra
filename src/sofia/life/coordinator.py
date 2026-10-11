@@ -797,12 +797,14 @@ class SelfDirectedLifeCoordinator:
                 ProjectStatus.SUPERSEDED,
             }:
                 condition, origin = "finished", "life_project.status"
+            elif uncertain is not None:
+                # A protective LIFE pause must never hide an unresolved
+                # potentially executed remote RUN effect from the operator.
+                condition, origin = "uncertain", "autonomous_work_job.status"
             elif project.status is ProjectStatus.PAUSED:
                 condition, origin = "paused", "life_project.status"
             elif project.status is ProjectStatus.FAILED:
                 condition, origin = "failed", "life_project.status"
-            elif uncertain is not None:
-                condition, origin = "uncertain", "autonomous_work_job.status"
             elif blocked is not None:
                 condition, origin = "blocked", "autonomous_work_job.status"
             elif approval is not None:
