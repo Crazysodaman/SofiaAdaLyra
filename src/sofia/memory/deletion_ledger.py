@@ -222,6 +222,15 @@ class MemoryDeletionLedger:
                 raise MemoryErasureError("bounded deletion journal is full")
             # A writer process needs an external single-writer lock/lease for
             # this separate failure-domain artifact, just as sofia.db does.
+            # The consent witness checked before acquiring that lock may be
+            # revoked during the lock wait or HMAC scan. Recheck it inside the
+            # lock immediately before publishing a signed tombstone.
+            if approve(
+                str(candidate_id), principal_id, audience_id, authority_ref,
+            ) is not True:
+                raise PermissionError(
+                    "independent memory erasure approval expired before append"
+                )
             self._check_path()
             flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_CLOEXEC", 0)
             if hasattr(os, "O_NOFOLLOW"):
