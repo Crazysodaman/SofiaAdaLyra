@@ -581,3 +581,18 @@ def test_mtls_discovery_requests_bounded_bytes_from_both_endpoints(monkeypatch):
 
     assert len(source.discover()) == 1
     assert requested == [discovery_module.MAX_DISCOVERY_BODY_BYTES + 1] * 2
+
+
+def test_mtls_discovery_fails_closed_on_malformed_http_response(monkeypatch):
+    """Broken authenticated HTTP framing must not crash the discovery cycle."""
+    from http.client import BadStatusLine
+
+    class MalformedResponseConnection(FakeConnection):
+        def getresponse(self):
+            raise BadStatusLine("malformed peer response")
+
+    source = _source(monkeypatch)
+    monkeypatch.setattr(
+        discovery_module, "HTTPSConnection", MalformedResponseConnection,
+    )
+    assert source.discover() == ()
