@@ -135,6 +135,14 @@ class TrainingDatasetStore:
         raw=json.dumps(data,sort_keys=True,separators=(",",":"))
         with closing(self._guard.connect(timeout=10)) as db,db:
             db.execute("BEGIN IMMEDIATE")
+            revoked=db.execute(
+                "SELECT 1 FROM evolve_training_dataset_revocation WHERE digest=?",
+                (review.digest,),
+            ).fetchone()
+            if revoked is not None:
+                raise PermissionError(
+                    "permanently revoked dataset cannot be re-recorded as reviewed"
+                )
             found=db.execute("SELECT metadata FROM evolve_training_dataset_review WHERE digest=?",
                              (review.digest,)).fetchone()
             if found is not None:
