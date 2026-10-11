@@ -1743,7 +1743,12 @@ class ConversationService(ConversationMatrixMixin):
             # index is absent, incomplete, or no token match is found. Neither
             # path widens the authenticated session or audience.
             candidates = ()
-            if terms:
+            # Both FTS and SQL fallback must resolve original source text
+            # against a CURRENT canonical social-session binding. A legacy
+            # unbound session cannot obtain historical recall merely by
+            # supplying a known session ID.
+            bound_search_principal = self._social_store.get(self._session.id)
+            if terms and bound_search_principal is not None:
                 try:
                     from sofia.conversation.fulltext_search import (
                         ConversationFullTextSearch,
@@ -1755,13 +1760,7 @@ class ConversationService(ConversationMatrixMixin):
                     # authority. It runs only for sessions with a current
                     # canonical social binding and SQL verifies the binding
                     # again before returning any original source text.
-                    bound_search_principal = self._social_store.get(
-                        self._session.id
-                    )
-                    if (
-                        bound_search_principal is not None
-                        and fulltext.status().ready
-                    ):
+                    if fulltext.status().ready:
                         candidates = fulltext.keyword_search(
                             session_id=self._session.id, terms=terms,
                             limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
@@ -1773,12 +1772,13 @@ class ConversationService(ConversationMatrixMixin):
                         "Optional full-text conversation retrieval unavailable: %s",
                         type(exc).__name__,
                     )
-            if not candidates:
+            if not candidates and bound_search_principal is not None:
                 candidates = self._conversation_store.search_messages(
                     self._session.id, terms=terms,
                     exclude_message_id=current_user.id,
                     user_only=user_only,
                     limit=_MAX_SPECIFIC_RETRIEVAL_MESSAGES,
+                    authorized_principal=bound_search_principal,
                 )
             else:
                 candidates = tuple(
