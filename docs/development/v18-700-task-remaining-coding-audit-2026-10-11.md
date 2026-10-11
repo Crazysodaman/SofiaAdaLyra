@@ -18,9 +18,9 @@
 
 **Coding-complete means fully wired into the real production path, with only tests/CI/live evidence left.** A partial implementation, dormant module, unused adapter, test fixture, research contract or uncalled helper is **NOT coded-complete**, regardless of code volume. The [enforced production-wiring standard](v18-production-wiring-gate-2026-10-11.md) now requires an explicit application/CI entrypoint, actual composition, calling path, implementation, side-effect/output path and exact reviewed revision before any `code_present_unverified` label is allowed.
 
-**The six code-present tasks** have source-traced candidate production paths but are not tested or deployed. **All 63 partial tasks are coding-incomplete under this stricter definition.** Their existence is not counted as finished implementation. The 630 unassessed tasks are genuinely unknown and must not be called placeholders simply because they have not been traced.
+**The six code-present tasks** have source-traced candidate production paths but are not tested or deployed. **All 64 partial tasks are coding-incomplete under this stricter definition.** Their existence is not counted as finished implementation. The 630 unassessed tasks are genuinely unknown and must not be called placeholders simply because they have not been traced.
 
-**Progress reporting must not infer an overall coding-done percentage from the 6/63/631 counts.** The 6 are fully-wired source candidates, not accepted; the remaining 694 are a mixture of unfinished, unknown and research/verification requirements, not a validated list of 694 missing features.
+**Progress reporting must not infer an overall coding-done percentage from the 6/64/630 counts.** The 6 are fully-wired source candidates, not accepted; the remaining 694 are a mixture of unfinished, unknown and research/verification requirements, not a validated list of 694 missing features.
 
 ## What the numbers MEAN
 
@@ -44,7 +44,7 @@ The original task-label distribution is **397** labeled design/research, **112**
 | Phase | Area | Original tasks | Code-present (not verified) | Partial | Still needs task-specific inspection |
 |---|---|---:|---:|---:|---:|
 | 00 | Architecture/owners | 65 | 0 | 5 | 60 |
-| 01 | CI/release/acceptance | 66 | 4 | 8 | 54 |
+| 01 | CI/release/acceptance | 66 | 4 | 9 | 53 |
 | 02 | SAFE/operator | 30 | 0 | 1 | 29 |
 | 03 | State/recovery | 46 | 0 | 6 | 40 |
 | 04 | Offline/survival | 22 | 0 | 7 | 15 |
@@ -60,7 +60,7 @@ The original task-label distribution is **397** labeled design/research, **112**
 | 14 | Model adaptation | 12 | 0 | 1 | 11 |
 | 15 | NEURO/connectome | 22 | 0 | 1 | 21 |
 | 16 | Consciousness research | 12 | 0 | 2 | 10 |
-| **Total** | | **700** | **6** | **63** | **631** |
+| **Total** | | **700** | **6** | **64** | **630** |
 
 ## Reconciled work since previous evidence checkpoint
 
@@ -110,7 +110,7 @@ All above jobs remain **unaccepted** because tests were deferred at the owner's 
 ## Concrete next work and how to update progress
 
 - Finish and audit Codex Job 5 before marking further LIFE requirements source-complete.
-- Continue per-ID semantic source inspection of the **631** entries, linking actual callers, guards, durability, audience, tests and production paths, and use `partial_wiring` or `code_present_unverified` only when individually evidenced.
+- Continue per-ID semantic source inspection of the **630** entries, linking actual callers, guards, durability, audience, tests and production paths, and use `partial_wiring` or `code_present_unverified` only when individually evidenced.
 - Separate **needs-new-code**, **needs-decision/research**, and **coded-needs-verification** in later passes. Only then calculate a credible coding-done/coding-left fraction.
 - After deferred exact-head focused/full CI and relevant Venus/Artemis/Android tests, evaluate production acceptance separately. Never flip `accepted` from source presence.
 
