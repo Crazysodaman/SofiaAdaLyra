@@ -131,3 +131,61 @@ def test_source_outcomes_can_be_recorded_even_under_busy_cognition(tmp_path):
         )[0].status == "uncertain"
     finally:
         life.close()
+
+
+def test_exact_original_terminal_receipt_survives_unrelated_observation_volume(
+    tmp_path,
+):
+    """Last-100 diagnostic pagination cannot hide current original RUN proof."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        original = life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="original RUN effect uncertain",
+            now=now + timedelta(seconds=4),
+        )
+        assert original.status is WorkStatus.UNCERTAIN
+        receipt = life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=5),
+        )[0]
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id,
+            job_id=job.job_id, status="uncertain",
+        ) == receipt
+        # Test-only malformed derived rows have no corresponding original
+        # autonomous_work_event and must never become RUN authority.
+        with sqlite3.connect(life.path) as db:
+            for i in range(105):
+                db.execute(
+                    "INSERT INTO life_run_outcome_observation VALUES(?,?,?,?,?,?,?)",
+                    (
+                        receipt.run_event_id + 1000 + i,
+                        project.project_id, f"unlinked-test-job:{i}", "blocked",
+                        "invalid imported diagnostic observation",
+                        receipt.run_at.isoformat(),
+                        receipt.observed_at.isoformat(),
+                    ),
+                )
+        assert receipt not in life.store.run_outcome_observations(
+            project.project_id, limit=100,
+        )
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id,
+            job_id=job.job_id, status="uncertain",
+        ) == receipt
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id,
+            job_id="unlinked-test-job:0", status="blocked",
+        ) is None
+        # Real original evidence still pauses LIFE; no re-execution occurs.
+        assert life._reconcile_terminal_run_projects(
+            now=now + timedelta(seconds=6),
+        ) == 1
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.store.jobs(project.project_id) == (job.job_id,)
+    finally:
+        life.close()
