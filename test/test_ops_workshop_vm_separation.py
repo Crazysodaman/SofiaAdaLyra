@@ -41,12 +41,10 @@ def test_distinct_hephaestus_workshop_can_be_review_eligible_not_self_created():
 
 def test_workshop_network_and_exact_operator_approval_still_required():
     spec = _spec("Experiment-Guest")
-    without_approval = LaboratoryExperiment(
-        **{**spec.__dict__, "operator_approval_ref": None}
-    )
-    exposed = LaboratoryExperiment(
-        **{**spec.__dict__, "network_mode": "bridged"}
-    )
+    from dataclasses import replace
+
+    without_approval = replace(spec, operator_approval_ref=None)
+    exposed = replace(spec, network_mode="bridged")
     assert not review_lab_experiment(without_approval).review_eligible
     assert not review_lab_experiment(exposed).review_eligible
 
