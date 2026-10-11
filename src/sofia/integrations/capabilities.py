@@ -88,6 +88,7 @@ def _with_execution_approval(
             for key, value in parameters.items()
             if key != "approval_id"
         }
+        used_standing_grant = False
 
         if policy.level is PermissionLevel.NEVER_SELF_AUTHORIZED:
             raise PermissionError(
@@ -102,7 +103,7 @@ def _with_execution_approval(
                 standing_parameters,
             )
         ):
-            pass
+            used_standing_grant = True
         else:
             verifier.consume(
                 approval_id=approval_id,
@@ -111,6 +112,13 @@ def _with_execution_approval(
                 now=datetime.now(timezone.utc),
             )
 
+        # A standing grant can be revoked after initial admission. Check
+        # its exact scope again at the effect boundary rather than treating
+        # a prior observation as an enduring permission token.
+        if used_standing_grant and not permission_store.allows_standing(
+            capability_name, standing_parameters,
+        ):
+            raise PermissionError("standing permission was revoked before execution")
         # Recheck the durable stop at the last locally controlled boundary.
         # A consumed approval must never override a newly active stop.
         if operator_stop.current().active:
