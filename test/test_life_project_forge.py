@@ -3210,3 +3210,23 @@ def test_retired_interest_cannot_abandon_active_project_with_pending_run(tmp_pat
         assert report["scheduled"] == 0
     finally:
         life.close()
+
+
+def test_phase09_active_project_retains_source_and_goal_authority(tmp_path):
+    """Causal regression: an activated private project remains eligible for its first RUN task."""
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now, objectives=("text_contains:Foxfire",))
+        at = now + timedelta(seconds=3)
+        signals = life.motivation_signals(now=at, busy=False, resource_pressure=0.0)
+        selected = next((item for item in signals if item.project_id == project.project_id), None)
+        assert selected is not None
+        assert selected.eligible, (
+            f"initial LIFE source/GOALS state cannot schedule: {selected.reason}; "
+            f"goal_id={project.goal_id}; evidence={evidence}"
+        )
+        assert life.compare_optional_choices(
+            now=at, busy=False, resource_pressure=0.0
+        )["selected_project_id"] == project.project_id
+    finally:
+        life.close()
