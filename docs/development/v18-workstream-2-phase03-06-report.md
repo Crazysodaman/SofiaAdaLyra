@@ -2651,6 +2651,55 @@ integrity/rebuild campaign; these status checks do not
 prove completeness or correct matches. No tests/CI,
 live index mutation or deployment occurred.
 
+
+
+### Phase 05 item 77: Owner-audience project rename and reversible archive
+
+The actual `LifelongThreadStore` owned one canonical logical Main and
+optional named project threads, but had no source-authorized rename or
+archive/restore lifecycle: projects could be created/read/linked, yet
+the owner could not revise a title or hide a completed project
+without replacing/deleting source history.
+
+Production `src/sofia/conversation/lifelong.py` now stores nullable
+`archived_at` in its **existing canonical thread table**, with an
+additive old-schema migration and explicit column lists for all
+legacy Main/project INSERT routes. `LifelongThread` projects now
+retain their archive state. New `rename_project` and
+`set_project_archived` methods operate in `BEGIN IMMEDIATE`
+and require exact owner principal PLUS a currently visible
+original project message with matching audience and audience kind.
+Source-free titles lack audience proof and fail closed until linked.
+Main cannot be renamed/archived as a project. Name collisions fail,
+and source messages/event links are never rewritten or deleted.
+
+Default `list_threads` and `list_visible_threads` hide archived
+projects. Explicit `include_archived=True` enables archive discovery
+for later restoration, maintaining the same source-audience admission
+before SQL LIMIT. Existing Android thread selection continues to
+list unarchived visible headers by default; no cross-channel copying
+or project-event write route was added.
+
+- Canonical archive schema/default listing:
+  `fc45a510e966cc558e8b40bce8f7adc5d59f51ef`.
+- Real project owner/audience mutation methods:
+  `a49b75446d430d2698487f7d19337e25ad49a4aa`.
+- Reversible archived-thread discovery:
+  `06e9584249099d6ed29350b4fb1501551b536a79`.
+- Deferred canonical SQLite regressions
+  `test/test_ws2_project_thread_lifecycle.py`
+  `72209fd350183e8ecd8aad2e7eea1a63ae8d6c40`
+  and assertion correction `649d8ab491b1e94eab5dfbcdca7e7f8d7e2adbe6`,
+  all `[skip ci]`.
+
+Original relevance: CA-4113, CA-5301, CA-5506, CA-5706,
+CA-6306. **Still partial**: the desktop/mobile controls for
+authenticated project rename/archive, owner-selected active
+project routing, topic continuity and complete archival search/export
+need independent production wiring and final acceptance.
+No tests/CI, schema migration of a live installation, deployment,
+host change or original-source mutation has been performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
