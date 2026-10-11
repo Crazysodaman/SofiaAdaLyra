@@ -185,6 +185,46 @@ def create_background_coordinator(
     )
     host_id = socket.gethostname()
 
+    # Model discovery is a scheduled READ ONLY inventory, not an installation
+    # or inference worker. It reuses the owner's /tags /version /show service,
+    # canonical cognition_model_inventory, and RUN's existing single-flight
+    # budget. No new independent polling thread or approval source exists.
+    from sofia.config.cognitive_models import CognitiveModelSelection
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    from sofia.machine.discovery import create_machine_discovery
+
+    configured_model_providers = CognitiveModelSelection.from_configuration(
+        application._configuration
+    ).providers
+    if any(provider.provider == "ollama" for provider in configured_model_providers):
+        def model_discovery_ready() -> bool:
+            return activity_store.state(host_id).effective not in {
+                ActivityMode.GAMING,
+                ActivityMode.BUSY,
+                ActivityMode.DO_NOT_DISTURB,
+            }
+
+        def discover_local_models(now):
+            observed_host = (
+                create_machine_discovery().discover().identity.machine_id
+            )
+            observed = refresh_local_model_inventory(
+                state_path=Path(application._configuration.state_path),
+                host_id=observed_host,
+                at=now,
+                details_limit=4,
+            )
+            # Empty inventory is still a truthful observation; never infer
+            # compatibility, accept licenses, install, or switch an LLM role.
+            return {"observed_models": len(observed)}
+
+        coordinator.set_task(
+            "cognition_model_discovery",
+            discover_local_models,
+            interval_seconds=21600.0,
+            ready=model_discovery_ready,
+        )
+
     def deliver_act(now):
         activity = activity_store.state(host_id).effective
         busy = activity in {
