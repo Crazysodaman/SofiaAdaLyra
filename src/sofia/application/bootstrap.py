@@ -860,6 +860,22 @@ class SofiaApplication:
             now=now or datetime.now(timezone.utc),
         )
 
+    def record_owner_life_outreach_feedback(
+        self, *, principal: PrincipalContext, project_id: str,
+        original_event_id: str, feedback: str,
+        at: datetime | None = None,
+    ) -> None:
+        """Authenticated owner feedback goes to the existing Presence owner.
+
+        The caller must come from a real UI/paired channel principal; model
+        text and delivery receipts never count as a human's preference.
+        """
+        self._presence.record_owner_life_update_feedback(
+            principal=principal, project_id=project_id,
+            original_event_id=original_event_id,
+            feedback=feedback, at=at or datetime.now(timezone.utc),
+        )
+
     @property
     def stt(self) -> SpeechInputService:
         return self._stt
