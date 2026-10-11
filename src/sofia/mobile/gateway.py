@@ -229,6 +229,7 @@ class MobileCompanionGateway:
                     canonical_sequence=payload["canonical_sequence"],
                     turn_position=payload["turn_position"],
                     message_id=payload["message_id"],
+                    credential=credential,
                 )
             if operation == "/v1/mobile/notifications/claim":
                 if set(payload) != {"device_id", "private_mode"}:
@@ -651,13 +652,18 @@ class MobileCompanionGateway:
     def acknowledge_main_seen(
         self, *, device_id: object, private_mode: object,
         canonical_sequence: object, turn_position: object,
-        message_id: object,
+        message_id: object, credential: str,
     ) -> dict[str, object]:
         device = self._device(device_id)
         if type(private_mode) is not bool:
             raise TypeError("private_mode must be bool")
         if private_mode and not self.permissions.private_adult_authority().private_chat:
             raise PermissionError("private Main read receipt requires host grant")
+        if self.credentials.authenticate(credential) != device:
+            raise MobileCredentialRevoked("device bearer revoked before Main read")
+        fingerprint = self.credentials._digest(credential)
+        if fingerprint is None:
+            raise MobileCredentialRevoked("valid device bearer required")
         generation = self.credentials.active_generation(device)
         if generation is None:
             raise PermissionError("active paired mobile device required")
@@ -668,6 +674,7 @@ class MobileCompanionGateway:
                 principal=self._principal(device, private_mode=private_mode),
                 canonical_sequence=canonical_sequence,
                 turn_position=turn_position, message_id=message_id,
+                credential_sha256=fingerprint,
             )
 
     def claim_notification(
