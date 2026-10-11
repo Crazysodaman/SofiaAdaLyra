@@ -64,7 +64,10 @@ def _fsync_linux_restored_tree(staging: Path) -> None:
     _fsync_linux_entry(staging.parent, directory=True)
 
 
-def _publish_new_home_without_replacing(staging: Path, destination: Path) -> None:
+def _publish_new_home_without_replacing(
+    staging: Path, destination: Path, *,
+    recheck_authorization: Callable[[], bool] | None = None,
+) -> None:
     """Atomically publish ONLY when the entire destination name is absent.
 
     A pre-rename Path.exists check alone cannot protect an empty owner home
@@ -80,6 +83,19 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
         raise FileNotFoundError("verified staging directory is missing")
     if destination.exists() or destination.is_symlink():
         raise FileExistsError("destination home already exists")
+    if recheck_authorization is not None and not callable(recheck_authorization):
+        raise TypeError("final operator/fence recheck must be callable")
+
+    def verify_immediately_before_rename() -> None:
+        if (
+            recheck_authorization is not None
+            and recheck_authorization() is not True
+        ):
+            raise PermissionError(
+                "operator approval or old-writer fence was withdrawn before "
+                "publishing verified state home"
+            )
+
     if sys.platform.startswith("linux"):
         # The backup restore used file-by-file replacement without an explicit
         # durable directory barrier. Flush the ENTIRE verified candidate
@@ -99,6 +115,9 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
             ctypes.c_int, ctypes.c_char_p, ctypes.c_uint,
         )
         renameat2.restype = ctypes.c_int
+        # Reconfirm independently privileged authorization AFTER the potentially
+        # long file/directory flush, as close as possible to publication.
+        verify_immediately_before_rename()
         # AT_FDCWD = -100, RENAME_NOREPLACE = 1 on Linux.
         result = renameat2(
             -100, os.fsencode(staging),
@@ -129,6 +148,7 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
         return
     if os.name == "nt":
         # Windows' os.rename rejects existing destination directories.
+        verify_immediately_before_rename()
         os.rename(staging, destination)
         return
     raise RuntimeError(
@@ -300,7 +320,10 @@ def stage_verified_state_home(
             raise BackupError(
                 "destination was replaced, redirected or left local storage"
             )
-        _publish_new_home_without_replacing(staging, destination)
+        _publish_new_home_without_replacing(
+            staging, destination,
+            recheck_authorization=lambda: independently_verify_authorization(proof),
+        )
         published = True
     finally:
         if not published:
