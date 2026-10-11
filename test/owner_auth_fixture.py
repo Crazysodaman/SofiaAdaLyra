@@ -110,3 +110,77 @@ def resume_with_signed_owner_proof(store, *, reason: str, now=None):
         at=moment, approval_id=approval.approval_id,
         expected_updated_at=expected_updated_at,
     )
+
+def _signed_permission_approval(
+    store, *, operation: str, exact: dict, now=None,
+) -> str:
+    from datetime import datetime, timezone
+    moment = now or datetime.now(timezone.utc)
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()), capability=operation,
+        request_fingerprint=__import__(
+            "sofia.safe.execution_approval", fromlist=["execution_fingerprint"]
+        ).execution_fingerprint(operation, exact),
+        approved_by="Sparks", approved_at=moment,
+        expires_at=moment + timedelta(minutes=5),
+    )
+    record_verified_owner_approval(
+        ExecutionApprovalVerifier(store.path), approval,
+    )
+    return approval.approval_id
+
+
+def grant_with_signed_owner(
+    store, capability, *, scope=None, expires_at=None, grant_id=None,
+    now=None, **kwargs,
+):
+    from sofia.safe.permissions import standing_grant_parameters
+    from datetime import datetime, timezone
+    from uuid import uuid4
+    moment = now or datetime.now(timezone.utc)
+    identifier = grant_id or str(uuid4())
+    exact = standing_grant_parameters(
+        capability, scope=scope, grant_id=identifier, expires_at=expires_at,
+    )
+    approval_id = _signed_permission_approval(
+        store, operation="safe.permission.standing.grant",
+        exact=exact, now=moment,
+    )
+    return store.grant(
+        capability, scope=scope, expires_at=expires_at,
+        grant_id=identifier, now=moment,
+        approval_id=approval_id, **kwargs,
+    )
+
+
+def revoke_with_signed_owner(store, grant_id, *, now=None, **kwargs):
+    from datetime import datetime, timezone
+    moment = now or datetime.now(timezone.utc)
+    approval_id = _signed_permission_approval(
+        store, operation="safe.permission.standing.revoke",
+        exact={"grant_id": grant_id}, now=moment,
+    )
+    return store.revoke(
+        grant_id, now=moment, approval_id=approval_id, **kwargs,
+    )
+
+
+def private_with_signed_owner(
+    store, *, private_chat, adult_chat, adult_avatar,
+    adult_external_delivery, now=None, **kwargs,
+):
+    from sofia.safe.permissions import private_authority_parameters
+    from datetime import datetime, timezone
+    moment = now or datetime.now(timezone.utc)
+    values = private_authority_parameters(
+        private_chat=private_chat, adult_chat=adult_chat,
+        adult_avatar=adult_avatar,
+        adult_external_delivery=adult_external_delivery,
+    )
+    approval_id = _signed_permission_approval(
+        store, operation="safe.permission.private_authority.change",
+        exact=values, now=moment,
+    )
+    return store.set_private_adult_authority(
+        **values, now=moment, approval_id=approval_id, **kwargs,
+    )
