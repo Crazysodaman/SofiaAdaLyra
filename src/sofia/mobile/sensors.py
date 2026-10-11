@@ -15,6 +15,7 @@ from sofia.environment.model import (
     MobileDeviceObservation,
 )
 from sofia.environment.provider import EnvironmentProviderObservation
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 from .model import MobileSensorReport
 from .pairing import MobileDeviceCredentialStore
@@ -33,6 +34,7 @@ class MobileSensorStore:
         self.path = Path(state_path)
         if not self.path.is_file() or self.path.is_symlink():
             raise FileNotFoundError("existing canonical state database required for mobile sensors")
+        self._guard = CanonicalSQLiteGuard(self.path)
         # Authority still lives in the canonical pairing table, not in a
         # location/sensor payload claiming an arbitrary device identifier.
         MobileDeviceCredentialStore(self.path)
@@ -47,11 +49,8 @@ class MobileSensorStore:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        # mode=rw refuses to create a second SQLite file if the canonical
-        # state disappears while the mobile environment worker is running.
-        db = sqlite3.connect(
-            self.path.absolute().as_uri() + "?mode=rw", uri=True, timeout=10,
-        )
+        # Refuse both missing and replaced state while this worker is alive.
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
