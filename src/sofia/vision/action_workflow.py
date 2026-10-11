@@ -135,3 +135,69 @@ class ScreenActionWorkflow:
             input_submitted=True, desired_effect_verified=False,
             reason=reason,
         )
+
+
+    def perform_staged(
+        self, review: ReviewedScreenAction, *,
+        approve_capture, approve_input,
+    ) -> ScreenActionObservation:
+        """Authorize separately at each effect boundary, never in advance.
+
+        FIDO2 challenges expire quickly; getting three bearer approvals
+        before the first capture is not reliable. This method invokes the
+        independent owner WebAuthn ceremony immediately before each separate
+        OS capture or exact input. A model callback cannot grant authority:
+        each returned token is independently verified/consumed by SAFE.
+        """
+        if not isinstance(review, ReviewedScreenAction):
+            raise TypeError("owner-reviewed exact action required")
+        if not callable(approve_capture) or not callable(approve_input):
+            raise TypeError("verified owner authorization callbacks required")
+        before_token = approve_capture(review.before)
+        if not isinstance(before_token, str) or not before_token:
+            raise PermissionError("initial owner capture approval missing")
+        before = self.capture_service.capture_once(
+            review.before, approval_id=before_token,
+        )
+        digest = before.evidence.receipt.digest_sha256
+        input_token = approve_input(review.action)
+        if not isinstance(input_token, str) or input_token in {"", before_token}:
+            raise PermissionError("new action-bound owner approval required")
+        try:
+            result = self.input_service.execute(
+                review.action, approval_id=input_token,
+            )
+        except (OSError, RuntimeError, PermissionError, TimeoutError):
+            return ScreenActionObservation(
+                status="uncertain_during_submission",
+                before_digest=digest, after_digest=None,
+                input_submitted=False, desired_effect_verified=False,
+                reason="input effect uncertain; operator review required before any replay",
+            )
+        if result.get("status") != "os_input_submitted" or result.get("effect_verified") is not False:
+            raise PermissionError("untrusted input receipt claimed effect verification")
+        try:
+            after_token = approve_capture(review.after)
+            if (not isinstance(after_token, str) or
+                after_token in {"", before_token, input_token}):
+                raise PermissionError("new post-action screenshot approval required")
+            after = self.capture_service.capture_once(
+                review.after, approval_id=after_token,
+            )
+        except (OSError, RuntimeError, PermissionError, TimeoutError):
+            return ScreenActionObservation(
+                status="uncertain_after_submission",
+                before_digest=digest, after_digest=None,
+                input_submitted=True, desired_effect_verified=False,
+                reason="post-action owner capture or visual evidence unavailable",
+            )
+        post = after.evidence.receipt.digest_sha256
+        changed = post != digest
+        return ScreenActionObservation(
+            status=("submitted_visual_change_unattributed" if changed
+                    else "submitted_no_visible_change"),
+            before_digest=digest, after_digest=post,
+            input_submitted=True, desired_effect_verified=False,
+            reason=("image changed but desired app effect unverified" if changed
+                    else "image unchanged; desired app effect unverified"),
+        )
