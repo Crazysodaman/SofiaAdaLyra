@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "59137b5835f1a1d79652a0440e245d7554274064",
+  "reviewed_main_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
   "audit_date_utc": "2026-10-11",
-  "notice": "Workstream 1: canonical LIFE/ACT UI snapshot, atomic SAFE stop audit, protected SQLite owners, and fail-closed ACT post-claim authorization outage source committed [skip ci]. All tests deferred. Other workstream task records/statuses preserved.",
+  "notice": "WS1 owner host decision 2026-10-11: Venus current single canonical writer; future operator-approved Artemis runtime/DB with Venus GPU via existing mTLS Fleet inference. Local model lifecycle bypass wired for explicit remote-only canonical host; tests deferred. CA-004/3102/3103/3111 remain partial, original master unchanged, other workstreams preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -72,10 +72,23 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 67,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py"
+      ],
+      "evidence_commits": [
+        "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
+        "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
+        "8202ad16fafef728bcd7860ffa239483bbf04f24"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "depth": "owner_decision_and_source_wired_gpu_split",
+        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
+      }
     },
     {
       "id": "CA-005",
@@ -231,10 +244,23 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 86,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py"
+      ],
+      "evidence_commits": [
+        "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
+        "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
+        "8202ad16fafef728bcd7860ffa239483bbf04f24"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "depth": "owner_decision_and_source_wired_gpu_split",
+        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
+      }
     },
     {
       "id": "CA-3103",
@@ -244,16 +270,22 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/state/replication.py",
-        "src/sofia/ops/backup.py"
+        "src/sofia/ops/backup.py",
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py"
       ],
       "evidence_commits": [
-        "1925361e1362520c11980987167a410a6635deb0"
+        "1925361e1362520c11980987167a410a6635deb0",
+        "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
+        "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
+        "8202ad16fafef728bcd7860ffa239483bbf04f24"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
-        "depth": "source_slice_observed",
-        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "depth": "owner_decision_and_source_wired_gpu_split",
+        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
       }
     },
     {
@@ -341,10 +373,23 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 95,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/composition/engines.py",
+        "test/test_production_dual_cognition.py"
+      ],
+      "evidence_commits": [
+        "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
+        "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
+        "8202ad16fafef728bcd7860ffa239483bbf04f24"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "depth": "owner_decision_and_source_wired_gpu_split",
+        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
+      }
     },
     {
       "id": "CA-3112",
