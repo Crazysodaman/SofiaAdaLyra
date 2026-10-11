@@ -28,6 +28,7 @@ class VerifiedStateHome:
 
 def read_verified_state_home(
     *, pointer_path: Path, key_path: Path, expected_writer_host_id: str,
+    minimum_writer_epoch: int = 1,
 ) -> VerifiedStateHome:
     """Require exact HMAC, writer host and canonical protected-state presence.
 
@@ -43,6 +44,8 @@ def read_verified_state_home(
         or len(expected_writer_host_id) > 160
     ):
         raise ValueError("exact host identity required")
+    if type(minimum_writer_epoch) is not int or minimum_writer_epoch < 1:
+        raise ValueError("positive external writer epoch floor required")
     if pointer_path.is_symlink() or key_path.is_symlink():
         raise PermissionError("state-home trust files must not be symlinks")
     raw_key = key_path.read_bytes()
@@ -71,8 +74,8 @@ def read_verified_state_home(
     if host != expected_writer_host_id:
         raise PermissionError("state home was authorized for a different host")
     epoch = document["epoch"]
-    if type(epoch) is not int or epoch < 1:
-        raise ValueError("invalid canonical writer epoch")
+    if type(epoch) is not int or epoch < minimum_writer_epoch:
+        raise ValueError("state-home writer epoch is invalid or too old")
     receipt = document["operator_approval_ref"]
     if not isinstance(receipt, str) or not receipt.strip() or len(receipt) > 300:
         raise ValueError("operator-approved cutover reference required")
@@ -84,6 +87,14 @@ def read_verified_state_home(
         raise ValueError("canonical state root must be an absolute host-local path")
     if root.is_symlink() or not root.is_dir():
         raise ValueError("state home must exist as a real directory")
+    resolved_root = root.resolve(strict=True)
+    if (
+        resolved_root == key_path.resolve(strict=True)
+        or resolved_root in key_path.resolve(strict=True).parents
+        or resolved_root == pointer_path.resolve(strict=True)
+        or resolved_root in pointer_path.resolve(strict=True).parents
+    ):
+        raise ValueError("trust key and location pointer must live outside the state home")
     if not (root / "sofia.db").is_file():
         raise FileNotFoundError("verified state home lacks sofia.db")
     if not (root / "protected" / "identity.json").is_file():
