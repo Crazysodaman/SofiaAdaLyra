@@ -96,6 +96,31 @@ def stage_verified_state_home(
         failure_domain=failure_domain,
     )
     manifest = backup_engine.verify(bundle)
+    # A backup can verify perfectly while omitting files it never collected.
+    # Confirm that every persistent file in this operator-fenced home has an
+    # entry in the authenticated encrypted manifest. Missing external assets
+    # must be explicitly classified before another cutover attempt.
+    archived = {entry.logical_path for entry in manifest.entries}
+    transient_sqlite = {"sofia.db-wal", "sofia.db-shm", "sofia.db-journal"}
+    persistent: set[str] = set()
+    root = origin
+    for item in root.rglob("*"):
+        if item.is_symlink():
+            raise BackupError("state relocation refuses symbolic-link entries")
+        if not item.is_file():
+            continue
+        relative = item.relative_to(root).as_posix()
+        if relative in transient_sqlite:
+            continue
+        persistent.add(relative)
+    missing = sorted(persistent - archived)
+    if missing:
+        raise BackupError(
+            "encrypted backup omits persistent state files: "
+            + ", ".join(missing[:16])
+        )
+    if "sofia.db" not in archived:
+        raise BackupError("authenticated backup manifest lacks canonical database")
     restored = backup_engine.restore(
         backup_dir=bundle,
         target_state_path=destination / "sofia.db",
