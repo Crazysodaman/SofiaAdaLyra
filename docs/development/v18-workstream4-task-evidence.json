@@ -9,7 +9,8 @@
     "phase_inventory_only is not an individual audit, not proof of absent code, and not complete.",
     "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run.",
     "2026-10-11 continuation: owner NEURO toggle and explicit model download approval fencing source-coded on main; no CI, tests, or host action.",
-    "2026-10-11 owner clarification: code_ready_for_tests means connected to production with authored regression tests but tests NOT EXECUTED; code_accepted remains false until user verification. Three Phase 15 scoped tasks meet coding-only gate. Models 6608/6609 remain partial pending host switch broker and lifecycle controls."
+    "2026-10-11 owner clarification: code_ready_for_tests means connected to production with authored regression tests but tests NOT EXECUTED; code_accepted remains false until user verification. Three Phase 15 scoped tasks meet coding-only gate. Models 6608/6609 remain partial pending host switch broker and lifecycle controls.",
+    "2026-10-11: CA-6601 source-coded read-only local Ollama inventory and human license review in owner Settings; code-ready but intentionally untested and does not grant license acceptance."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -43,7 +44,16 @@
     "45d9f40ec643ae1e038405e6390ec34de27c488f",
     "c31f5622083d41b637faa98aaf2992e86026832e",
     "bdbc06b8493d885c684fc00180ffcc22592ab2f7",
-    "2f6ee3eab6d0e445a769235233d70ee4da49ec73"
+    "2f6ee3eab6d0e445a769235233d70ee4da49ec73",
+    "8918b0e14b8000351062931cd2cc14529dd30baa",
+    "87285cc8737a968cfd0d0444dc2a5f61d35e6216",
+    "05bd711cd9e78f1b236a583f055da9e45c9d43af",
+    "7b1296b1bd44a27f25979c912709d9f11d26cdad",
+    "d0a0ef9cf947a2899cd3de262708e342ec4bea9d",
+    "f32c05455543473f14e72271f33ef00e1adce53b",
+    "e399958c239b979316b81d33868b8c48b5fabdad",
+    "3584e1b08d462199d02faf61533c2f408b50b775",
+    "536697b57c3d5c928975ea4a78b0b6bbd0636782"
   ],
   "tasks": [
     {
@@ -459,11 +469,12 @@
       "phase": "11",
       "master_line": 947,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production owner Models panel now performs bounded, read-only local Ollama /api/tags, /api/version and /api/show inspection; persists configured/installed roles, host identity, provider version, digests, bytes, quantization, advertised context/modality/tools, and hash + bounded review text of license terms into canonical state. Advertised capabilities explicitly unverified. Degraded/missing data remain unknown. Regression tests authored, not run."
     },
     {
       "id": "CA-6602",
