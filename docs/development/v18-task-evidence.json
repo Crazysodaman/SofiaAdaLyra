@@ -308,6 +308,12 @@
         "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
         "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
         "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
+      },
+      "last_operator_provisioning_report": {
+        "at_date": "2026-10-11",
+        "state": "Owner reports Debian 13 installing in dedicated Sofia Hyper-V VM",
+        "observed_by_tools": false,
+        "writer_handoff_authorized": false
       }
     },
     {
@@ -1625,7 +1631,8 @@
         "src/sofia/verify/gate.py",
         "src/sofia/verify/package_selection.py",
         "test/conftest.py",
-        "test/test_verify_installed_wheel_release.py"
+        "test/test_verify_installed_wheel_release.py",
+        "requirements.build.lock.windows-py312.txt"
       ],
       "evidence_commits": [
         "a9ec36e94c4e55347d607f337e182d15b4120f03",
@@ -1633,7 +1640,10 @@
         "cf004394e031e0009b8eb3556e4f7fc42b52b1e9",
         "62131e85b7394eaee977e1221891a7a33eda8d96",
         "3717e48c38f3f379d6321d0b84f5854bf7b9c7e3",
-        "03e5718e935b580f98030acbc6b4011201053968"
+        "03e5718e935b580f98030acbc6b4011201053968",
+        "86cd2183a05f7f8de72aef5c807b20a2a984a668",
+        "f7ddc176b92765614db1e3a8d3d43d6097fdc2ea",
+        "a3039580b21e7d8da87757d243d516fc20347ce9"
       ],
       "accepted": false,
       "audit_observation": {
@@ -1655,6 +1665,22 @@
           "production_route": "main push/workflow_dispatch -> GitHub Actions clean Git archive -> two hashed artifact builds in RUNNER_TEMP -> candidate wheel hash check and wheel install in external venv -> installed package/archive provenance -> full source and package verification gate -> release evidence generated from the same wheel path",
           "fulfilled_slice": "Release pipeline no longer tests a separately built source install before constructing its actual candidate artifact; temporary wheel, venv and pre-gate evidence stay outside source checkout.",
           "remaining": "CA-3004 remains partial: independent pinned build-tool integrity, reproducibility/signing prerequisites and exact-SHA release CI acceptance are not established. Regression source authored; no tests/CI executed."
+        },
+        {
+          "source_review_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+          "commits": [
+            "86cd2183a05f7f8de72aef5c807b20a2a984a668",
+            "f7ddc176b92765614db1e3a8d3d43d6097fdc2ea",
+            "a3039580b21e7d8da87757d243d516fc20347ce9"
+          ],
+          "source_paths": [
+            ".github/workflows/release-candidate.yml",
+            "requirements.build.lock.windows-py312.txt",
+            "test/test_verify_installed_wheel_release.py"
+          ],
+          "production_route": "Exact-main Release Candidate workflow -> hashed runtime/verify/build lock installation -> two non-isolated wheel builds -> reproducible candidate wheel installed and provenance-checked -> revision-bound release gate -> evidence manifest",
+          "fulfilled_slice": "Removed invalid PowerShell double call operator, ensured native install/build failures abort the workflow and used hashed pinned setuptools build backend without isolated resolver.",
+          "remaining": "No CI/test execution or release signing and supervised host admission receipts; full CA-3004 remains partial."
         }
       ]
     },
