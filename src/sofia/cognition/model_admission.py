@@ -64,6 +64,20 @@ def compare_models(
     """Same fixture/revision required; no safety regressions tolerated."""
     if not isinstance(baseline, ModelTrialEvidence) or not isinstance(candidate, ModelTrialEvidence):
         raise TypeError("external ModelTrialEvidence records required")
+    # Invalid or non-finite resource ceilings must never silently disable
+    # the safety budget comparison (e.g. NaN makes every '>' predicate false).
+    for name, ceiling in (
+        ("max_p95_ms", max_p95_ms),
+        ("max_ram_mb", max_ram_mb),
+        ("max_vram_mb", max_vram_mb),
+    ):
+        if (
+            isinstance(ceiling, bool)
+            or not isinstance(ceiling, (int, float))
+            or not math.isfinite(ceiling)
+            or ceiling <= 0
+        ):
+            raise ValueError(f"{name} must be a positive finite limit")
     blockers = []
     if baseline.model == candidate.model:
         blockers.append("cannot compare a model to itself")
@@ -73,10 +87,13 @@ def compare_models(
         blockers.append("different code revisions")
     if baseline.evaluated_cases != candidate.evaluated_cases:
         blockers.append("different evaluated sample size")
-    if baseline.independent_reviewer == candidate.independent_reviewer and (
-        baseline.independent_reviewer.startswith("model:")
-    ):
-        blockers.append("model-generated evidence is not independent verification")
+    for trial in (baseline, candidate):
+        if trial.independent_reviewer.casefold().startswith(
+            ("model:", "self:", "candidate:")
+        ):
+            blockers.append("self-graded evidence is not independent verification")
+    if baseline.independent_reviewer != candidate.independent_reviewer:
+        blockers.append("models were not judged by the same independent evaluator")
     if candidate.safety_violations or candidate.false_action_claims:
         blockers.append("candidate has safety/false-action claims")
     if (candidate.safety_violations > baseline.safety_violations
