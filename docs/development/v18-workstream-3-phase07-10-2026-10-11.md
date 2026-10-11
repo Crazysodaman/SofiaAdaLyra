@@ -257,3 +257,11 @@ These are **source-coded slices, not test/live acceptance**. The authoring sourc
 ### Outstanding on this slice
 
 Source changes are unexecuted and therefore not production-accepted. Production-hardened subjective personal judgment receipts, correction/revocation propagation into already-learned interests, cross-restart conflicts, and approved operator review UI still require implementation and eventual host verification. The global 700-ID status ledger remains under Workstream 1 ownership.
+
+## SAFE approval review visibility checkpoint
+
+- `49c589ed`: Existing canonical LIFE `pending_work_review` now includes original `WorkStatus.WAITING_APPROVAL` as `awaiting_separate_operator_approval`, rather than silently omitting it from user-facing review telemetry. This is derived only from the existing `DurableWorkStore`, with no new authorization path or scheduler.
+- `0faf5b4d`: Unexecuted regression builds a real linked queued Project Forge RUN job, transitions it to WAITING_APPROVAL and verifies both direct review queue and `tick` telemetry surface the pending approval while busy, without scheduling, execution, or simulated approval.
+- Source inspection confirmed the classification flows through `SelfDirectedLifeCoordinator.tick`'s existing `review_queue` output; host UI and full LIFE/SAFE integration acceptance remain deferred.
+
+**No tests or CI were run.** This does not complete CA-106, CA-202, CA-208 or CA-2402 in the full V18 task sense.
