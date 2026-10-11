@@ -452,6 +452,34 @@ class PresenceInitiativeEngine:
             epistemic_state=WorldEpistemicState(row["epistemic_state"]),
         )
 
+    def recent_life_project_outreach(
+        self, *, now: datetime, recipient_id: str = SPARKS_PRINCIPAL_ID,
+        hours: int = 24,
+    ) -> bool:
+        """Derived social restraint from the existing ACT opportunity ledger.
+
+        One optional owner-only LIFE celebration per day is plenty. This
+        uses persisted original Presence decisions, not a new scheduling or
+        notification counter; human opt-out and quiet still apply separately.
+        """
+        if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
+            raise ValueError("source-aware outreach clock required")
+        if type(hours) is not int or not 1 <= hours <= 168:
+            raise ValueError("bounded outreach interval required")
+        if not isinstance(recipient_id, str) or _ID.fullmatch(recipient_id) is None:
+            raise ValueError("authenticated recipient identity required")
+        cutoff = (self._utc(now) - timedelta(hours=hours)).isoformat()
+        with closing(self._connect()) as db:
+            row = db.execute(
+                """SELECT 1 FROM presence_initiative_opportunity
+                   WHERE recipient_id=? AND trigger_kind='task_completed'
+                   AND event_id LIKE 'life-complete:%'
+                   AND status='queued' AND created_at>=?
+                   LIMIT 1""",
+                (recipient_id, cutoff),
+            ).fetchone()
+        return row is not None
+
     def consider(self, event: InitiativeEvent) -> InitiativeDecision:
         if not isinstance(event, InitiativeEvent):
             raise TypeError("event must be InitiativeEvent")
