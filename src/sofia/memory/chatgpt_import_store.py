@@ -6,6 +6,7 @@ import sqlite3
 from threading import RLock
 
 from sofia.memory.chatgpt_import import ChatGPTMemoryImportBatch, ChatGPTMemoryImportItem
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 class ChatGPTMemoryImportStore:
@@ -19,11 +20,19 @@ class ChatGPTMemoryImportStore:
     def __init__(self, database_path: Path | str) -> None:
         self._database_path = Path(database_path)
         self._lock = RLock()
-        self._connection = sqlite3.connect(
-            str(self._database_path),
-            timeout=5.0,
-            check_same_thread=False,
+        self._guard = (
+            CanonicalSQLiteGuard(self._database_path)
+            if self._database_path.is_file() else None
         )
+        self._connection = (
+            self._guard.connect(timeout=5.0, check_same_thread=False)
+            if self._guard is not None
+            else sqlite3.connect(
+                str(self._database_path), timeout=5.0, check_same_thread=False,
+            )
+        )
+        if self._guard is None:
+            self._guard = CanonicalSQLiteGuard(self._database_path)
         self._initialize()
 
     def _initialize(self) -> None:
@@ -229,4 +238,6 @@ class ChatGPTMemoryImportStore:
     def _require_connection(self) -> sqlite3.Connection:
         if self._connection is None:
             raise RuntimeError("ChatGPT memory import store is closed")
+        # An open sqlite handle must not outlive its original canonical file.
+        self._guard.validate()
         return self._connection
