@@ -1013,26 +1013,66 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
             + f" | {current.reason} | {current.updated_at.isoformat()}"
         )
 
+    stop_feedback = Queue()
+    resume_busy = {"active": False}
+
     def change_operator_stop(*, active: bool) -> None:
+        if resume_busy["active"]:
+            return
         operation = "PAUSE" if active else "RESUME"
         if not active and not messagebox.askyesno(
             "Resume optional autonomy?",
             "Resume optional LIFE work and approved ACT deliveries? "
             "Previously authorized side effects still require their own "
-            "normal permission checks.",
+            "normal permission checks. Clearing the stop also requires "
+            "fresh FIDO2 owner authentication.",
             parent=root,
         ):
             return
         try:
-            operator_stop_store.set(
-                active=active, updated_by="Sparks",
-                reason=(
-                    "operator paused optional autonomy in Settings"
-                    if active else "operator resumed optional autonomy in Settings"
-                ),
+            reason = (
+                "operator paused optional autonomy in Settings"
+                if active else "operator resumed optional autonomy in Settings"
             )
-            refresh_operator_stop()
-            status.set(f"Operator stop: {operation.lower()} recorded in canonical state.")
+            if active:
+                # Emergency PAUSE must never wait for Windows Hello/FIDO2.
+                operator_stop_store.set(
+                    active=True, updated_by="Sparks", reason=reason,
+                )
+                refresh_operator_stop()
+                status.set("Operator stop: pause recorded in canonical state.")
+                return
+
+            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.safe.owner_browser import authorize_exact_action
+
+            credential_id = select_security_key_for_settings(
+                config.state_path, parent=root,
+            )
+            resume_busy["active"] = True
+            status.set("Waiting for fresh FIDO2 approval to resume optional work")
+
+            def resume_in_worker() -> None:
+                try:
+                    approval = authorize_exact_action(
+                        config.state_path,
+                        capability="operator.stop.resume",
+                        parameters={"active": False, "reason": reason},
+                        credential_id=credential_id, expires_seconds=90,
+                    )
+                    operator_stop_store.set(
+                        active=False, updated_by="Sparks", reason=reason,
+                        approval_id=approval.approval_id,
+                    )
+                    stop_feedback.put(("success", "Operator stop cleared with signed FIDO2 approval"))
+                except Exception as exc:
+                    stop_feedback.put(("error", f"{type(exc).__name__}: {exc}"))
+
+            Thread(
+                target=resume_in_worker,
+                name="sofia-owner-authenticated-operator-resume",
+                daemon=False,
+            ).start()
         except Exception as exc:
             messagebox.showerror(
                 "Operator stop unchanged", f"{type(exc).__name__}: {exc}",
@@ -1065,6 +1105,22 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
         wraplength=680,
     ).pack(anchor="w", pady=(6, 0))
     refresh_operator_stop()
+
+    def poll_operator_resume() -> None:
+        try:
+            outcome, detail = stop_feedback.get_nowait()
+        except Empty:
+            pass
+        else:
+            resume_busy["active"] = False
+            refresh_operator_stop()
+            status.set(detail)
+            if outcome == "error":
+                messagebox.showerror("Operator stop unchanged", detail, parent=root)
+        if root.winfo_exists():
+            root.after(250, poll_operator_resume)
+
+    root.after(250, poll_operator_resume)
 
     outreach_controls = ttk.LabelFrame(
         permissions, text="Optional outreach", padding=8,
