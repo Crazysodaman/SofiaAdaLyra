@@ -58,19 +58,22 @@ class BackupEntry:
         logical = PurePosixPath(self.logical_path)
         windows = PureWindowsPath(self.logical_path)
         if (
-            not self.logical_path or "\\x00" in self.logical_path
-            or "\\\\" in self.logical_path or ":" in self.logical_path
+            not self.logical_path or chr(0) in self.logical_path
+            or chr(92) in self.logical_path
+            or any(character in self.logical_path for character in '<>:"|?*')
             or logical.is_absolute() or windows.is_absolute()
             or windows.drive or ".." in logical.parts
             or "." in logical.parts
+            or self.logical_path in {".", ".."}
             or logical.as_posix() != self.logical_path
             or any(PureWindowsPath(part).is_reserved() for part in logical.parts)
         ):
             raise ValueError("logical_path must be a safe relative path")
         payload = PurePosixPath(self.payload_name)
         if (
-            not self.payload_name or "\\x00" in self.payload_name
-            or "\\\\" in self.payload_name or ":" in self.payload_name
+            not self.payload_name or chr(0) in self.payload_name
+            or chr(92) in self.payload_name
+            or any(character in self.payload_name for character in '<>:"|?*')
             or payload.name != self.payload_name
             or self.payload_name in {".", ".."}
             or PureWindowsPath(self.payload_name).drive
