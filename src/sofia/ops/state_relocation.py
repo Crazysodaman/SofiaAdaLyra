@@ -7,7 +7,10 @@ Never rewrites a bootstrap pointer, switches active writers or starts Sofia.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import shutil
+import tempfile
 from typing import Callable
 
 from sofia.ops.backup import BackupEngine, BackupError
@@ -126,16 +129,58 @@ def stage_verified_state_home(
         )
     if "sofia.db" not in archived:
         raise BackupError("authenticated backup manifest lacks canonical database")
-    restored = backup_engine.restore(
-        backup_dir=bundle,
-        target_state_path=destination / "sofia.db",
-        verifier=f"approved-relocation:{proof.operator_approval_ref}",
-        replace_existing=False,
-    )
-    if not restored.succeeded or restored.backup_id != manifest.backup_id:
-        raise BackupError("staged restore did not match its verified manifest")
-    # We do not modify SOFIA_STATE_ROOT, the signed pointer or the old writer.
-    # Promotion is a separate broker operation with an epoch and rollback gate.
+    # Do NOT restore into the destination file-by-file. On interruption
+    # that would strand a plausible but incomplete "Sofia" state home.
+    # Restore into a fresh sibling on the SAME approved local filesystem,
+    # and only publish a verified whole directory as a non-active candidate.
+    # An existing destination, even an empty one, is not owned by staging.
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError(
+            "verified stage requires a fresh absent destination home"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError(
+            "verified stage destination appeared after preflight"
+        )
+    staging = Path(tempfile.mkdtemp(
+        prefix=f".{destination.name}.restore-", dir=destination.parent,
+    ))
+    published = False
+    try:
+        restored = backup_engine.restore(
+            backup_dir=bundle,
+            target_state_path=staging / "sofia.db",
+            verifier=f"approved-relocation:{proof.operator_approval_ref}",
+            replace_existing=False,
+        )
+        if not restored.succeeded or restored.backup_id != manifest.backup_id:
+            raise BackupError("staged restore did not match its verified manifest")
+        if not (staging / "sofia.db").is_file():
+            raise BackupError("verified staging claim has no canonical database")
+        if not (staging / "protected" / "identity.json").is_file():
+            raise BackupError("verified staging claim has no protected identity")
+        # Recheck all destination ancestry before publication, never
+        # silently replace a previously existing home. A host-privileged
+        # cutover/fencing broker is still necessary for adversarial races.
+        from sofia.ops.state_mobility import _unsafe_ancestor, _filesystem_kind
+        if (
+            destination.exists() or destination.is_symlink()
+            or _unsafe_ancestor(destination)
+            or _filesystem_kind(destination) != "local"
+        ):
+            raise BackupError(
+                "destination was replaced, redirected or left local storage"
+            )
+        os.rename(staging, destination)
+        published = True
+    finally:
+        if not published:
+            # Deleting only our randomly created workdir never overwrites
+            # the owner-selected destination or modifies the old writer.
+            shutil.rmtree(staging)
+    # Neither the bootstrap state pointer nor the active writer is touched.
+    # A reviewed host-privileged cutover is independently required.
     return StagedStateHome(
         backup_dir=bundle,
         destination_state_path=destination / "sofia.db",
