@@ -319,6 +319,8 @@ def assess_twin_experiment(
     """Stop synthetic research when evidence is not adequate for interpretation."""
     if not isinstance(snapshot,TwinSnapshot) or not isinstance(result,TwinSimulationResult):
         raise TypeError("source-grounded hypothetical experiment required")
+    if not isinstance(at,datetime) or at.tzinfo is None or at.utcoffset() is None:
+        raise ValueError("aware experiment time required")
     if (
         type(repeated_failure_count) is not int
         or repeated_failure_count<0 or repeated_failure_count>100
@@ -331,6 +333,8 @@ def assess_twin_experiment(
     reasons=[]
     if not verified_hypothesis:
         reasons.append("hypothesis lacks independent falsification rule")
+    if not timedelta(0)<=at-snapshot.generated_at<=timedelta(minutes=5):
+        reasons.append("source topology snapshot expired or future-dated")
     if result.telemetry_stale_or_missing:
         reasons.append("source telemetry stale or missing")
     if repeated_failure_count>=3:
@@ -361,6 +365,8 @@ class TwinExperimentStore:
 
     def record(self,*,snapshot:TwinSnapshot,result:TwinSimulationResult,
                disposition:TwinExperimentDisposition,at:datetime)->str:
+        if not isinstance(at,datetime) or at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("aware experiment receipt time required")
         if result.source_snapshot_sha256!=snapshot.digest:
             raise PermissionError("simulation result did not come from supplied snapshot")
         if disposition.may_launch_real_experiment:
