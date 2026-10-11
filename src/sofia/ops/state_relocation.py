@@ -1,0 +1,117 @@
+"""Operator-gated, non-promoting staged relocation of one canonical state home.
+
+Reuses BackupEngine's consistent SQLite snapshot, encrypted state bundle,
+manifest MAC, full restore verification and protected-identity checks.
+Never rewrites a bootstrap pointer, switches active writers or starts Sofia.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
+
+from sofia.ops.backup import BackupEngine, BackupError
+from sofia.ops.state_mobility import inspect_state_relocation
+
+
+@dataclass(frozen=True, slots=True)
+class RelocationAuthorization:
+    """Evidence carried from an independently privileged control plane."""
+
+    source_state_path: Path
+    destination_root: Path
+    writer_host_id: str
+    next_writer_epoch: int
+    operator_approval_ref: str
+    writer_fence_ref: str
+
+
+@dataclass(frozen=True, slots=True)
+class StagedStateHome:
+    backup_dir: Path
+    destination_state_path: Path
+    backup_id: str
+    writer_host_id: str
+    proposed_writer_epoch: int
+    verified_restore: bool
+    activated: bool = False
+
+
+def stage_verified_state_home(
+    *, proof: RelocationAuthorization,
+    independently_verify_authorization: Callable[[RelocationAuthorization], bool],
+    backup_engine: BackupEngine,
+    encrypted_backup_root: Path,
+    failure_domain: str,
+) -> StagedStateHome:
+    """Copy/verify state after independently proven exclusive-writer fencing.
+
+    This operation deliberately stops before any host activation or pointer
+    promotion. Authenticated human approval and writer fencing must be
+    established OUTSIDE the model and supplied via a trusted controller.
+    """
+    if not isinstance(proof, RelocationAuthorization):
+        raise TypeError("typed relocation authorization required")
+    if not callable(independently_verify_authorization):
+        raise TypeError("independent control-plane approval verifier required")
+    if not isinstance(backup_engine, BackupEngine):
+        raise TypeError("existing encrypted BackupEngine required")
+    if not isinstance(encrypted_backup_root, Path) or not encrypted_backup_root.is_absolute():
+        raise ValueError("absolute operator-approved encrypted backup root required")
+    if any(not isinstance(v, str) or not v.strip() for v in (
+        proof.writer_host_id, proof.operator_approval_ref,
+        proof.writer_fence_ref, failure_domain,
+    )):
+        raise ValueError("complete privileged approval and fencing provenance required")
+    if type(proof.next_writer_epoch) is not int or proof.next_writer_epoch < 1:
+        raise ValueError("positive next writer epoch required")
+    if independently_verify_authorization(proof) is not True:
+        raise PermissionError("writer fencing / owner approval was not verified")
+    preflight = inspect_state_relocation(
+        proof.source_state_path, proof.destination_root,
+    )
+    if not preflight.eligible_for_review:
+        raise ValueError("relocation preflight rejected: " + ", ".join(preflight.blockers))
+    unsafe = tuple(w for w in preflight.warnings if w.startswith((
+        "unclassified_state_root_items:",
+        "state_root_inventory_truncated",
+        "missing_or_external_component:",
+    )))
+    if unsafe:
+        raise ValueError("incomplete protected state manifest: " + "; ".join(unsafe))
+    backup_root = encrypted_backup_root.absolute()
+    origin = proof.source_state_path.absolute().parent
+    destination = proof.destination_root.absolute()
+    if (
+        backup_root == origin or origin in backup_root.parents
+        or backup_root == destination or destination in backup_root.parents
+        or backup_root in origin.parents or backup_root in destination.parents
+        or backup_root.is_symlink()
+    ):
+        raise ValueError("backup destination must be a separate approved location")
+    bundle, _evidence = backup_engine.create(
+        state_path=proof.source_state_path,
+        destination_root=backup_root,
+        source_host_id=proof.writer_host_id,
+        failure_domain=failure_domain,
+    )
+    manifest = backup_engine.verify(bundle)
+    restored = backup_engine.restore(
+        backup_dir=bundle,
+        target_state_path=destination / "sofia.db",
+        verifier=f"approved-relocation:{proof.operator_approval_ref}",
+        replace_existing=False,
+    )
+    if not restored.succeeded or restored.backup_id != manifest.backup_id:
+        raise BackupError("staged restore did not match its verified manifest")
+    # We do not modify SOFIA_STATE_ROOT, the signed pointer or the old writer.
+    # Promotion is a separate broker operation with an epoch and rollback gate.
+    return StagedStateHome(
+        backup_dir=bundle,
+        destination_state_path=destination / "sofia.db",
+        backup_id=manifest.backup_id,
+        writer_host_id=proof.writer_host_id,
+        proposed_writer_epoch=proof.next_writer_epoch,
+        verified_restore=True,
+        activated=False,
+    )
