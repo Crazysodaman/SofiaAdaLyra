@@ -648,3 +648,10 @@ The application-owned last send authorization now rechecks original OBSERVED/KNO
 - **Original CA IDs:** CA-403, CA-404, CA-405, CA-408, CA-410, CA-1007 and CA-2407; still partial, with final acceptance deferred.
 - **Found:** the voluntary LIFE outreach bridge compared only three source fields after model latency and did not re-assert the originally approved exact route. Source-backed interest eligibility was also not checked for candidate updates after a source disappeared.
 - **Production correction:** the existing original LIFE update projection checks current principal/audience/fresh original interest refs; the real background bridge requires exact refreshed original moment and private route equality before its existing Presence/ACT enqueue call. No competing sender or social scheduler. Source commits `e5a7c78`, `375f9b8`; regression `bd17015` authored but unexecuted. There is no evidence of actual delivery, user view or renderer acknowledgement.
+
+## Follow-up: replays must never resurrect a Presence observation (2026-10-11)
+
+- **Original IDs:** CA-401/404/405/407/410/2407/2602, partial clauses.
+- **Confirmed active entrypoint flaw:** `PresenceInitiativeEngine.consider` persisted an event's world observation before checking an existing `presence_initiative_opportunity` record. Repetition after source deletion could restore old grounding and change ACT's later fresh-source decision. A concurrent identical duplicate could also throw SQLite unique constraint after the idempotent ACT enqueue.
+- **Production `9de4c3f`:** initial original-event lookup and identity check precedes any observation record creation; canonical atomic `INSERT OR IGNORE` + original decision/identity read-back resolves duplicate consideration. No new sender, no revived original source, no fabricated viewed/read status.
+- **Regressions `c40e482` and `8150b31`:** source deletion/replay, changed event identity, and concurrent two-worker idempotent decision, all authored but not run. Cross-channel true recipient/device acknowledgements and prospective thread behavior remain open.
