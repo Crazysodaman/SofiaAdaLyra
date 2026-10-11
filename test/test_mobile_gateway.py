@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from http.client import HTTPConnection
 import json
 import pytest
+
+from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
 from types import SimpleNamespace
 
 from sofia.emotion.model import ActiveEmotion, CurrentEmotionalState
@@ -86,7 +88,7 @@ def _gateway(tmp_path):
     # Mobile infrastructure must never manufacture one by accident.
     (tmp_path / "state.db").touch()
     gateway = MobileCompanionGateway(app, state_path=tmp_path / "state.db")
-    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(tmp_path / "state.db"), 
         private_chat=True,
         adult_chat=True,
         adult_avatar=True,
@@ -178,7 +180,7 @@ def test_proactive_notification_preview_requires_external_authority(tmp_path):
         notification_id=claimed["id"],
     ) == {"acknowledged": True}
 
-    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(tmp_path / "state.db"), 
         private_chat=True,
         adult_chat=True,
         adult_avatar=True,
@@ -258,7 +260,7 @@ def test_non_loopback_server_requires_tls():
 
 def test_private_mobile_chat_requires_a_fresh_host_grant(tmp_path):
     app, gateway = _gateway(tmp_path)
-    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(tmp_path / "state.db"), 
         private_chat=False,
         adult_chat=False, adult_avatar=False, adult_external_delivery=False,
     )
@@ -282,7 +284,7 @@ def test_private_mobile_chat_requires_a_fresh_host_grant(tmp_path):
 
 def test_private_mobile_http_denied_as_403_without_exposing_message(tmp_path):
     app, gateway = _gateway(tmp_path)
-    PermissionStore(tmp_path / "state.db").set_private_adult_authority(
+    private_with_signed_owner(PermissionStore(tmp_path / "state.db"), 
         private_chat=False,
         adult_chat=False, adult_avatar=False, adult_external_delivery=False,
     )
