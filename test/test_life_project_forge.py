@@ -2722,3 +2722,94 @@ def test_life_counterfactual_choice_postpones_under_foreground_priority(tmp_path
         assert life.store.jobs(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_canonical_private_life_causal_trace_links_actual_work(tmp_path):
+    """No fabricated graph: project → RUN → review → retained experience."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Original causal artifact",
+            specification={
+                "content": "Foxfire is the independently checked source artifact.",
+            },
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.manager.tick(now=now + timedelta(seconds=4))
+        result = wait_for_job(life, job.job_id)
+        assert result.status is WorkStatus.COMPLETED
+        evaluation = life.evaluate_artifact(
+            project.project_id,
+            artifact_id=str(result.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Source predicate passed.",
+            evidence_refs=(str(result.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=5),
+        )
+        before = len(life.store.events(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        ))
+        trace = life.project_causal_trace(
+            project.project_id, now=now + timedelta(seconds=6),
+        )
+        assert trace["project_id"] == project.project_id
+        assert trace["audience_id"] == project.audience_id
+        assert trace["goal_id"] == project.goal_id
+        assert trace["authority"] == "read_only_canonical_source_trace"
+        assert trace["intention_events"]
+        assert any(item["job_id"] == job.job_id for item in trace["run_actions"])
+        assert any(
+            row["evaluation_id"] == evaluation.evaluation_id
+            and row["source_state"] == "recorded_not_reverified"
+            for row in trace["artifact_evaluations"]
+        )
+        assert any(
+            item["linked_evaluation_id"] == evaluation.evaluation_id
+            and item["kind"] == "artifact_evaluated"
+            for item in trace["experiences"]
+        )
+        assert life.project_causal_trace(
+            project.project_id, now=now + timedelta(seconds=6),
+        ) == trace
+        assert len(life.store.events(
+            project.project_id,
+            owner_principal_id=project.owner_principal_id,
+            audience_id=project.audience_id,
+        )) == before
+    finally:
+        life.close()
+
+
+def test_missing_source_never_reappears_as_causal_experience_summary(tmp_path):
+    """A vanished original evidence ref cannot surface its narrative as truth."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(life, now)
+        life.store.record_experience(ExperienceRecord(
+            "experience:orphaned-source", project.project_id,
+            "claimed_achievement", "An unverified private accomplishment.",
+            ("evidence:no-longer-accessible",), project.audience_id,
+            True, now + timedelta(seconds=3), now + timedelta(seconds=3),
+            {"source": "unavailable"},
+        ))
+        trace = life.project_causal_trace(
+            project.project_id, now=now + timedelta(seconds=4),
+        )
+        row = next(
+            item for item in trace["experiences"]
+            if item["experience_id"] == "experience:orphaned-source"
+        )
+        assert row["source_state"] == "unknown"
+        assert row["summary"] is None
+        assert row["kind"] == "unknown"
+        assert row["source_evidence_refs"] == ()
+    finally:
+        life.close()
