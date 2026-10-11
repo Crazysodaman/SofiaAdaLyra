@@ -85,6 +85,20 @@ class DurableMemoryCandidateStore:
                 )
             db.execute(
                 """
+                CREATE TABLE IF NOT EXISTS memory_candidate_correction (
+                    new_candidate_id TEXT PRIMARY KEY,
+                    old_candidate_id TEXT NOT NULL UNIQUE,
+                    linked_at TEXT NOT NULL,
+                    FOREIGN KEY(new_candidate_id)
+                        REFERENCES memory_candidate(candidate_id),
+                    FOREIGN KEY(old_candidate_id)
+                        REFERENCES memory_candidate(candidate_id),
+                    CHECK(new_candidate_id != old_candidate_id)
+                )
+                """
+            )
+            db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS memory_candidate_source (
                     candidate_id TEXT NOT NULL,
                     ordinal INTEGER NOT NULL,
@@ -367,11 +381,123 @@ class DurableMemoryCandidateStore:
             ) from exc
 
     def promote(self, candidate_id: UUID) -> None:
-        self._transition(
-            candidate_id,
-            CandidateStatus.PROPOSED,
-            CandidateStatus.PROMOTED,
-        )
+        """Operator-reviewed promotion, atomically superseding a corrected fact."""
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be a UUID")
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                link = db.execute(
+                    "SELECT old_candidate_id FROM memory_candidate_correction "
+                    "WHERE new_candidate_id=?", (str(candidate_id),),
+                ).fetchone()
+                if link is None:
+                    changed = db.execute(
+                        "UPDATE memory_candidate SET status=? "
+                        "WHERE candidate_id=? AND status=?",
+                        (CandidateStatus.PROMOTED.value, str(candidate_id),
+                         CandidateStatus.PROPOSED.value),
+                    )
+                    if changed.rowcount != 1:
+                        raise ValueError("candidate must be proposed before promotion")
+                    return
+                old_id = link[0]
+                candidates = db.execute(
+                    "SELECT candidate_id,status,principal_id,audience_id "
+                    "FROM memory_candidate WHERE candidate_id IN (?,?)",
+                    (str(candidate_id), old_id),
+                ).fetchall()
+                by_id = {row[0]: row for row in candidates}
+                original, replacement = by_id.get(old_id), by_id.get(str(candidate_id))
+                if (
+                    original is None or replacement is None
+                    or original[1] != CandidateStatus.PROMOTED.value
+                    or replacement[1] != CandidateStatus.PROPOSED.value
+                    or tuple(original[2:]) != tuple(replacement[2:])
+                ):
+                    raise ValueError(
+                        "correction requires a promoted original and same-scope proposal"
+                    )
+                # SQLite serializes this exact reversible state transition;
+                # neither the old nor the new fact is doubly promoted.
+                old_changed = db.execute(
+                    "UPDATE memory_candidate SET status=? "
+                    "WHERE candidate_id=? AND status=?",
+                    (CandidateStatus.REVOKED.value, old_id,
+                     CandidateStatus.PROMOTED.value),
+                )
+                new_changed = db.execute(
+                    "UPDATE memory_candidate SET status=? "
+                    "WHERE candidate_id=? AND status=?",
+                    (CandidateStatus.PROMOTED.value, str(candidate_id),
+                     CandidateStatus.PROPOSED.value),
+                )
+                if old_changed.rowcount != 1 or new_changed.rowcount != 1:
+                    raise RuntimeError("atomic memory correction could not settle")
+
+    def link_correction(
+        self, replacement_id: UUID, superseded_id: UUID,
+    ) -> None:
+        """Stage a correction for explicit reviewer approval via promote().
+
+        Does not change either candidate's status. Original and replacement
+        preserve their exact source evidence and must share one principal/audience.
+        """
+        if not isinstance(replacement_id, UUID) or not isinstance(superseded_id, UUID):
+            raise TypeError("correction IDs must be UUID")
+        if replacement_id == superseded_id:
+            raise ValueError("a candidate cannot supersede itself")
+        with self._lock:
+            db = self._require_db()
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                rows = db.execute(
+                    "SELECT candidate_id,status,principal_id,audience_id "
+                    "FROM memory_candidate WHERE candidate_id IN (?,?)",
+                    (str(replacement_id), str(superseded_id)),
+                ).fetchall()
+                by_id = {row[0]: row for row in rows}
+                replacement = by_id.get(str(replacement_id))
+                original = by_id.get(str(superseded_id))
+                if (
+                    replacement is None or original is None
+                    or replacement[1] != CandidateStatus.PROPOSED.value
+                    or original[1] != CandidateStatus.PROMOTED.value
+                    or tuple(replacement[2:]) != tuple(original[2:])
+                ):
+                    raise ValueError(
+                        "correction must link a proposed and promoted same-scope fact"
+                    )
+                existing = db.execute(
+                    "SELECT new_candidate_id,old_candidate_id "
+                    "FROM memory_candidate_correction "
+                    "WHERE new_candidate_id=? OR old_candidate_id=?",
+                    (str(replacement_id), str(superseded_id)),
+                ).fetchone()
+                if existing is not None:
+                    if existing != (str(replacement_id), str(superseded_id)):
+                        raise ValueError("candidate is already part of another correction")
+                    return
+                db.execute(
+                    "INSERT INTO memory_candidate_correction "
+                    "(new_candidate_id,old_candidate_id,linked_at) VALUES(?,?,?)",
+                    (str(replacement_id), str(superseded_id),
+                     datetime.now(timezone.utc).isoformat()),
+                )
+
+    def correction_link(self, candidate_id: UUID) -> tuple[UUID, UUID] | None:
+        """Return replacement/superseded lineage without changing original data."""
+        if not isinstance(candidate_id, UUID):
+            raise TypeError("candidate_id must be UUID")
+        with self._lock:
+            row = self._require_db().execute(
+                "SELECT new_candidate_id,old_candidate_id "
+                "FROM memory_candidate_correction WHERE new_candidate_id=? "
+                "OR old_candidate_id=?",
+                (str(candidate_id), str(candidate_id)),
+            ).fetchone()
+        return None if row is None else (UUID(row[0]), UUID(row[1]))
 
     def reject(self, candidate_id: UUID) -> None:
         self._transition(
