@@ -1406,6 +1406,25 @@ CA relevance: CA-3701, CA-3704, CA-5201, CA-5204, CA-6101,
 CA-6401, CA-6807. Tests/CI unexecuted. No disk/VM/host configuration
 or live database was altered.
 
+### Phase 04/05: One-snapshot credential and canonical delivery receipt lookup
+
+The existing authenticated `/v1/mobile/delivery/status` recovery
+route first establishes an explicit SQLite `BEGIN` read transaction
+before checking `mobile_device_credential` and the matching
+`mobile_turn_receipt`. SQLite autocommit SELECTs on the same connection
+were previously independent snapshots; an operator pairing rotation
+between the two statements could have mixed generations. The pinned
+snapshot makes the two authorization/source reads consistent, without
+holding a write lock for a mobile status request. The existing HTTP
+post-dispatch bearer recheck remains an additional denial gate against
+a revocation that occurs after the response was generated.
+
+Production `17899509081e13af07902f28af9a0d4cfcec2543`.
+Deferred real-gateway SQL transaction-trace regression
+`267a56f1bf9bc9e10ce56e97d77849fc58e042f0`.
+Source-only change; no tests or live pairing rotation executed.
+CA relevance: CA-4103, CA-4104, CA-5304, CA-6302, CA-6311.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
