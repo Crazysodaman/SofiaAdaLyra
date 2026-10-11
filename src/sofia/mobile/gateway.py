@@ -18,6 +18,7 @@ from sofia.social.principals import SPARKS_PRINCIPAL_ID
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 
 from .pairing import MobileDeviceCredentialStore
+from .main_seen import MobileMainSeenStore
 from .model import MobileSensorReport
 from .notifications import MobileNotificationStore
 from .sensors import MobileSensorProvider, MobileSensorStore
@@ -58,6 +59,7 @@ class MobileCompanionGateway:
         self.credentials = MobileDeviceCredentialStore(self.state_path)
         self.sensors = MobileSensorStore(self.state_path)
         self.notifications = MobileNotificationStore(self.state_path)
+        self.main_seen = MobileMainSeenStore(self.state_path)
         self.permissions = PermissionStore(self.state_path)
         self.private_grants = PrivatePresentationGrantResolver(
             state_path=self.state_path
@@ -215,6 +217,18 @@ class MobileCompanionGateway:
                 return self.main_history(
                     device_id=device, private_mode=payload["private_mode"],
                     before=payload["before"], limit=payload["limit"],
+                )
+            if operation == "/v1/mobile/main/seen":
+                if set(payload) != {
+                    "device_id", "private_mode", "canonical_sequence",
+                    "turn_position", "message_id"
+                }:
+                    raise ValueError("Main seen payload fields are invalid")
+                return self.acknowledge_main_seen(
+                    device_id=device, private_mode=payload["private_mode"],
+                    canonical_sequence=payload["canonical_sequence"],
+                    turn_position=payload["turn_position"],
+                    message_id=payload["message_id"],
                 )
             if operation == "/v1/mobile/notifications/claim":
                 if set(payload) != {"device_id", "private_mode"}:
@@ -622,10 +636,36 @@ class MobileCompanionGateway:
                 )
             ),
             "has_more": len(page) == page_limit,
+            "last_seen": self.main_seen.current(
+                device_id=device, private_mode=private_mode,
+                generation=self.credentials.active_generation(device) or 1,
+            ),
             "audience_id": principal.audience_id,
             "audience_kind": principal.audience_kind.value,
             "cross_channel_mirroring": False,
         }
+
+    def acknowledge_main_seen(
+        self, *, device_id: object, private_mode: object,
+        canonical_sequence: object, turn_position: object,
+        message_id: object,
+    ) -> dict[str, object]:
+        device = self._device(device_id)
+        if type(private_mode) is not bool:
+            raise TypeError("private_mode must be bool")
+        if private_mode and not self.permissions.private_adult_authority().private_chat:
+            raise PermissionError("private Main read receipt requires host grant")
+        generation = self.credentials.active_generation(device)
+        if generation is None:
+            raise PermissionError("active paired mobile device required")
+        with self._lock:
+            return self.main_seen.acknowledge(
+                device_id=device, private_mode=private_mode,
+                generation=generation,
+                principal=self._principal(device, private_mode=private_mode),
+                canonical_sequence=canonical_sequence,
+                turn_position=turn_position, message_id=message_id,
+            )
 
     def claim_notification(
         self, *, device_id: object, private_mode: object = False
