@@ -506,6 +506,7 @@ class LifeStore:
                      ON event.event_id=observation.run_event_id
                     AND event.job_id=observation.job_id
                     AND event.to_status=observation.run_status
+                    AND event.reason=observation.run_reason
                     AND event.occurred_at=observation.run_at
                    JOIN life_project_job AS link
                      ON link.job_id=observation.job_id
@@ -517,11 +518,20 @@ class LifeStore:
             ).fetchone()
         if row is None:
             return None
+        original_at = datetime.fromisoformat(row["run_at"])
+        observed_at = datetime.fromisoformat(row["observed_at"])
+        if (
+            original_at.tzinfo is None
+            or observed_at.tzinfo is None
+            or observed_at < original_at
+        ):
+            # Source-observation chronology may be corrupt or forged.
+            # Invalid proof cannot justify a new LIFE state transition.
+            return None
         return RunOutcomeObservation(
             int(row["run_event_id"]), row["project_id"], row["job_id"],
             row["run_status"], row["run_reason"],
-            datetime.fromisoformat(row["run_at"]),
-            datetime.fromisoformat(row["observed_at"]),
+            original_at, observed_at,
         )
 
     def jobs(self, project_id: str) -> tuple[str, ...]:
