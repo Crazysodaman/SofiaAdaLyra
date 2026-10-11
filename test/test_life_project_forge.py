@@ -1379,3 +1379,86 @@ def test_cancelled_goal_blocks_queued_life_artifact_execution(tmp_path):
         )
     finally:
         life.close()
+
+
+def test_goal_cancellation_first_pauses_unsettled_life_work(tmp_path):
+    """Never abandon while a previous RUN effect is queued or uncertain."""
+    from sofia.goals import SOFIA_GOAL_OWNER_ID
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Stop-on-goal-cancel",
+            specification={"content": "A queued private artifact."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.CANCELLED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now + timedelta(seconds=4), evidence_refs=(evidence,),
+        )
+        first = life.tick(now=now + timedelta(seconds=5), busy=True)
+        assert first["goal_lifecycle_projects_settled"] == 1
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.work_store.get(job.job_id).status is WorkStatus.QUEUED
+        assert first["scheduled"] == 0
+        life.manager.tick(now=now + timedelta(seconds=6))
+        assert wait_for_job(life, job.job_id).status is WorkStatus.BLOCKED
+        second = life.tick(now=now + timedelta(seconds=7), busy=True)
+        assert second["goal_lifecycle_projects_settled"] == 1
+        assert life._project(project.project_id).status is ProjectStatus.ABANDONED
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.tick(now=now + timedelta(seconds=8), busy=True)[
+            "goal_lifecycle_projects_settled"
+        ] == 0
+        final_goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == goal.id
+        )
+        assert final_goal.status is GoalStatus.CANCELLED
+    finally:
+        life.close()
+
+
+def test_goal_pause_propagates_to_private_life_without_goal_mutation(tmp_path):
+    """LIFE respects GOALS pause, without inventing a creative completion."""
+    from sofia.goals import SOFIA_GOAL_OWNER_ID
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience,
+            expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.PAUSED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            now=now + timedelta(seconds=3), evidence_refs=(evidence,),
+        )
+        report = life.tick(
+            now=now + timedelta(seconds=4), generate=authored_foxfire_text,
+        )
+        assert report["goal_lifecycle_projects_settled"] == 1
+        assert report["scheduled"] == 0
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
+        assert life.store.jobs(project.project_id) == ()
+        assert life.store.evaluations(project.project_id) == ()
+        assert next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == goal.id
+        ).status is GoalStatus.PAUSED
+    finally:
+        life.close()
