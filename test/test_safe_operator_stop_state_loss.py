@@ -8,13 +8,11 @@ import sqlite3
 import pytest
 
 from sofia.safe.operator_stop import OperatorStopStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def _canonical_db(tmp_path):
-    path = tmp_path / "sofia.db"
-    with closing(sqlite3.connect(path)) as db:
-        db.execute("PRAGMA user_version")
-    return path
+    return bootstrap_canonical_sqlite(tmp_path / "sofia.db")
 
 
 def test_missing_canonical_db_does_not_bootstrap_an_inactive_stop(tmp_path):

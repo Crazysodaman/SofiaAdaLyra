@@ -2,12 +2,10 @@
 
 Source regressions only. Execute in the final user-approved test campaign.
 """
-from contextlib import closing
-import sqlite3
-
 import pytest
 
 from sofia.safe.permissions import PermissionStore
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 def test_permission_store_requires_a_real_canonical_database(tmp_path):
@@ -19,9 +17,7 @@ def test_permission_store_requires_a_real_canonical_database(tmp_path):
 
 
 def test_grant_reads_cannot_recreate_a_deleted_state_file(tmp_path):
-    path = tmp_path / "sofia.db"
-    with closing(sqlite3.connect(path)) as db:
-        db.execute("PRAGMA user_version")
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = PermissionStore(path)
     assert store.grants() == ()
     path.unlink()
@@ -33,8 +29,6 @@ def test_grant_reads_cannot_recreate_a_deleted_state_file(tmp_path):
 
 
 def test_explicit_canonical_bootstrap_preserves_normal_permission_contract(tmp_path):
-    path = tmp_path / "sofia.db"
-    with closing(sqlite3.connect(path)) as db:
-        db.execute("PRAGMA user_version")
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = PermissionStore(path)
     assert store.private_adult_authority().adult_avatar is False

@@ -7,6 +7,14 @@ import sys
 
 import pytest
 
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+
+
+@pytest.fixture
+def canonical_state_path(tmp_path: Path) -> Path:
+    """Explicit authorized bootstrap for tests that exercise state owners."""
+    return bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+
 
 MODULE_PACKAGE_MARKERS: dict[str, tuple[str, ...]] = {
     "act": ("pkg_act",),

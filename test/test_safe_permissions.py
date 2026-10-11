@@ -11,6 +11,11 @@ from sofia.safe.permissions import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _explicit_canonical_state(canonical_state_path):
+    return canonical_state_path
+
+
 def test_read_only_capability_is_level_one():
     policy = capability_permission_policy("hardware.inspect")
     assert policy.level is PermissionLevel.OBSERVE_READ

@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import conftest
 
 from sofia.verify.package_selection import (
     PackageSelectionProbe, expected_packages,
@@ -17,6 +18,12 @@ def test_package_markers_exactly_match_all_22_ci_matrix_entries():
     names = expected_packages(ROOT)
     assert len(names) == 22
     assert {"pkg_body", "pkg_verify", "pkg_safe"}.issubset(names)
+
+
+def test_body_package_has_a_real_repository_owned_selection_root():
+    path = ROOT / "test" / "test_body_matrix.py"
+    assert path.is_file()
+    assert "pkg_body" in conftest._explicit_package_markers(path)
 
 
 def test_probe_counts_actual_selected_items_not_source_filename():

@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from types import MethodType
 
+import pytest
+
 from sofia.avatar.private_grant import PrivatePresentationGrantResolver
 from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permissions import PermissionStore
 from sofia.social.principals import local_sparks_principal
+
+
+@pytest.fixture(autouse=True)
+def _explicit_canonical_state(canonical_state_path):
+    return canonical_state_path
 
 
 def test_private_grant_fails_closed_when_operator_stop_state_is_unreadable(

@@ -15,6 +15,11 @@ pytestmark = pytest.mark.pkg_safe
 NOW = datetime(2026, 10, 7, 1, 0, tzinfo=timezone.utc)
 
 
+@pytest.fixture(autouse=True)
+def _explicit_canonical_state(canonical_state_path):
+    return canonical_state_path
+
+
 @pytest.mark.parametrize(
     "row_factory",
     (None, sqlite3.Row),

@@ -49,6 +49,11 @@ from sofia.ui.settings_window import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _explicit_canonical_state(canonical_state_path):
+    return canonical_state_path
+
+
 def _registration(registrations, name):
     return next(item for item in registrations if item.capability.name == name)
 

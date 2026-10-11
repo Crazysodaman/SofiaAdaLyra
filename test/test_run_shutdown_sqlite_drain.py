@@ -10,14 +10,14 @@ import pytest
 from sofia.run.work import (
     DurableWorkStore, TaskExecutionManager, WorkResult, WorkStatus,
 )
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 
 
 NOW = datetime(2026, 10, 11, 9, tzinfo=timezone.utc)
 
 
 def _manager(tmp_path, handler):
-    state = tmp_path / "sofia.db"
-    state.touch()
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     store = DurableWorkStore(state)
     manager = TaskExecutionManager(store, {"slow-read": handler})
     job = manager.submit(
