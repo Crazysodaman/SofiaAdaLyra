@@ -595,11 +595,11 @@ class LifelongThreadStore:
         """
         if row["kind"] != "project":
             return False
-        if row["project_audience_id"] is not None:
-            return (
-                row["project_audience_id"] == principal.audience_id
-                and row["project_audience_kind"] == principal.audience_kind.value
-            )
+        if row["project_audience_id"] is not None and (
+            row["project_audience_id"] != principal.audience_id
+            or row["project_audience_kind"] != principal.audience_kind.value
+        ):
+            return False
         counts = db.execute(
             "SELECT COUNT(*),SUM(CASE WHEN "
             "e.visibility='source_audience' AND e.source_audience_id=? "
@@ -615,7 +615,16 @@ class LifelongThreadStore:
              principal.audience_id, principal.audience_kind.value,
              row["thread_id"]),
         ).fetchone()
-        return counts[0] > 0 and counts[1] == counts[0]
+        if counts[0] == 0:
+            # Only a never-linked project with an authenticated creation
+            # scope can be claimed. Legacy source-free rows stay ambiguous.
+            return (
+                row["project_audience_id"] is not None
+                and row["has_linked_source"] == 0
+            )
+        # An origin tag is not permission to ignore later foreign, deleted
+        # or rebound source evidence. All links must still be original-bound.
+        return counts[1] == counts[0]
 
     def get_or_create(
         self, *, owner: PrincipalContext,
