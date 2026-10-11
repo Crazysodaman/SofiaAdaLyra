@@ -645,16 +645,32 @@ class BackupEngine:
                 _reject_redirected_restore_path(destination)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 _reject_redirected_restore_path(destination)
-                temp_target = destination.with_name(
-                    f".{destination.name}.restore"
+                # Never open a predictable ".<name>.restore" alias for
+                # writing: an existing symlink there could escape the
+                # destination even though its final pathname was validated.
+                # mkstemp provides O_EXCL creation and a held regular-file
+                # descriptor under this approved destination directory.
+                descriptor, temporary_name = tempfile.mkstemp(
+                    prefix=f".{destination.name}.restore-",
+                    suffix=".tmp", dir=destination.parent,
                 )
-                shutil.copy2(source, temp_target)
-                # A successful os.replace does not make freshly copied bytes
-                # crash-durable. Flush the exact temporary file first.
-                with temp_target.open("rb") as restored_file:
-                    os.fsync(restored_file.fileno())
-                os.replace(temp_target, destination)
-                published_directories.add(destination.parent)
+                temp_target = Path(temporary_name)
+                try:
+                    with (
+                        os.fdopen(descriptor, "wb") as restored_file,
+                        source.open("rb") as original_file,
+                    ):
+                        shutil.copyfileobj(original_file, restored_file)
+                        restored_file.flush()
+                        os.fsync(restored_file.fileno())
+                    # No file contents may be copied into a caller-controlled
+                    # preexisting temporary pathname; the final rename
+                    # atomically replaces ONLY the verified target name.
+                    _reject_redirected_restore_path(destination)
+                    os.replace(temp_target, destination)
+                    published_directories.add(destination.parent)
+                finally:
+                    temp_target.unlink(missing_ok=True)
             if sys.platform.startswith("linux"):
                 try:
                     _fsync_restored_linux_directories(published_directories)
