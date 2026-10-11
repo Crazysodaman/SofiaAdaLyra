@@ -302,6 +302,11 @@ class SelfDirectedLifeCoordinator:
             ):
                 consume("invalid", "historical evaluation conflicts with source artifact objective checks")
                 continue
+            # Repair only the original reviewed preference, never invent a
+            # judgment from technical results or rewrite newer preferences.
+            # A failed preference CAS leaves the experience pending so the
+            # same application worker can safely retry on the next tick.
+            self._settle_evaluation_preference(project, evaluation)
             judgment = evaluation.personal_judgment
             if judgment is PersonalJudgment.UNKNOWN:
                 consume("no_change", "grounded evaluation made no personal judgment")
@@ -1282,6 +1287,67 @@ class SelfDirectedLifeCoordinator:
             "managed_artifact_created_and_verified",
         )
 
+    def _settle_evaluation_preference(
+        self, project: LifeProject, evaluation: ArtifactEvaluation,
+    ) -> bool:
+        """Apply a reviewed personal judgment without replaying stale taste.
+
+        LIFE's canonical evaluation and experience are committed together,
+        but the existing PreferenceRegistry owns preference revisions. A
+        restart or preference write failure must not turn an already
+        evaluated artifact into a permanent missing preference. Matching
+        preference provenance and the original evaluation timestamp make
+        replay idempotent; a newer preference always wins.
+        """
+        if evaluation.personal_judgment is PersonalJudgment.UNKNOWN:
+            return False
+        if evaluation.project_id != project.project_id:
+            raise PermissionError("evaluation is outside the scoped project")
+        disposition = {
+            PersonalJudgment.LIKE: PreferenceDisposition.LIKE,
+            PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
+            PersonalJudgment.MIXED: PreferenceDisposition.UNKNOWN,
+            PersonalJudgment.INDIFFERENT: PreferenceDisposition.INDIFFERENT,
+        }[evaluation.personal_judgment]
+        scope = dict(
+            subject=PreferenceSubject.SOFIA, category="creation",
+            target_id=evaluation.artifact_id, context="project",
+            audience_id=project.audience_id,
+        )
+        current = self.preferences.current(**scope)
+        if current is not None:
+            # Do not overwrite an independently changed preference from a
+            # later review or operator correction.
+            if current.recorded_at > evaluation.evaluated_at:
+                return False
+            history = self.preferences.history(**scope)
+            if any(
+                item.recorded_at == evaluation.evaluated_at
+                and item.evidence_ref == evaluation.evidence_refs[0]
+                and item.reason == evaluation.reason
+                and item.disposition is disposition
+                for item in history
+            ):
+                return False
+            if current.recorded_at == evaluation.evaluated_at:
+                # Conflicting same-time evidence cannot be arbitrated by
+                # the model or by a background retry.
+                return False
+        self.preferences.revise(
+            **scope, disposition=disposition,
+            strength=(
+                0.75 if evaluation.personal_judgment in {
+                    PersonalJudgment.LIKE, PersonalJudgment.DISLIKE,
+                } else 0.4
+            ),
+            confidence=project.confidence,
+            reason=evaluation.reason,
+            evidence_ref=evaluation.evidence_refs[0],
+            expected_revision=None if current is None else current.revision,
+            now=evaluation.evaluated_at,
+        )
+        return True
+
     def evaluate_artifact(
         self, project_id: str, *, artifact_id: str,
         technical_outcome: TechnicalOutcome,
@@ -1366,6 +1432,7 @@ class SelfDirectedLifeCoordinator:
                 and prior.preserve_for_research is preserve_for_research
                 and prior.reason == reason
             ):
+                self._settle_evaluation_preference(project, prior)
                 return prior
             raise ValueError(
                 "artifact revision already reviewed; conflicting correction "
@@ -1394,27 +1461,7 @@ class SelfDirectedLifeCoordinator:
             persist=False,
         )
         self.store.record_evaluation_with_experience(value, experience)
-        # Independent objective evidence is not evidence of personal taste.
-        # UNKNOWN is deliberate abstention, not a preference observation.
-        if personal_judgment is not PersonalJudgment.UNKNOWN:
-            disposition = {
-                PersonalJudgment.LIKE: PreferenceDisposition.LIKE,
-                PersonalJudgment.DISLIKE: PreferenceDisposition.DISLIKE,
-                PersonalJudgment.MIXED: PreferenceDisposition.UNKNOWN,
-                PersonalJudgment.INDIFFERENT: PreferenceDisposition.INDIFFERENT,
-            }[personal_judgment]
-            current = self.preferences.current(
-                subject=PreferenceSubject.SOFIA, category="creation",
-                target_id=artifact_id, context="project", audience_id=project.audience_id,
-            )
-            self.preferences.revise(
-                subject=PreferenceSubject.SOFIA, category="creation",
-                target_id=artifact_id, context="project", disposition=disposition,
-                strength=0.75 if personal_judgment in {PersonalJudgment.LIKE, PersonalJudgment.DISLIKE} else 0.4,
-                confidence=project.confidence, reason=reason,
-                evidence_ref=evidence_refs[0], audience_id=project.audience_id,
-                expected_revision=None if current is None else current.revision, now=now,
-            )
+        self._settle_evaluation_preference(project, value)
         return value
 
     def update_milestone(
