@@ -70,3 +70,30 @@ def test_failed_encryption_cleans_source_local_cleartext_snapshot(
         folder for folder in backup_root.iterdir()
         if folder.is_dir() and not folder.name.startswith(".")
     ]
+
+
+@pytest.mark.parametrize("surprise", ("raw-sqlite", "extra-directory", "stray-file"))
+def test_verified_encrypted_archive_rejects_unlisted_content(
+    tmp_path, surprise,
+):
+    from sofia.ops.backup import BackupError
+
+    source, engine, backup_root = _fixture(tmp_path)
+    archive, _ = engine.create(
+        state_path=source, destination_root=backup_root,
+        source_host_id="synthetic-venus",
+        failure_domain="independent-offline-fixture",
+    )
+    if surprise == "raw-sqlite":
+        (archive / "sofia.db.snapshot").write_bytes(
+            b"SQLite format 3\\x00synthetic-private-backup-bytes"
+        )
+    elif surprise == "extra-directory":
+        other = archive / "hidden-plaintext"
+        other.mkdir()
+        (other / "candidate.txt").write_text("synthetic private original")
+    else:
+        (archive / "unexpected.log").write_text("synthetic recovery secret")
+
+    with pytest.raises(BackupError, match="unlisted"):
+        engine.verify(archive)
