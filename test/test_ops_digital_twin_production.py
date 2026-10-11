@@ -77,6 +77,8 @@ def test_simulation_fails_closed_on_unknown_or_untrusted_target():
 
 def test_owner_declared_dependencies_persist_in_canonical_db_without_scanning(tmp_path):
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     stored=TwinDependencyStore(state)
     first=edge("Eos","Artemis","dns")
@@ -136,6 +138,8 @@ def test_real_ops_registration_is_readonly_and_has_no_direct_execution():
 
 def test_source_grounded_ops_service_path_never_runs_host_tools(tmp_path):
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     host_data=(host("Artemis"),host("Eos"))
     store=TwinDependencyStore(state)
@@ -176,6 +180,8 @@ def test_duplicate_or_impossible_host_graphs_fail_closed():
 def test_reproducible_capsule_contains_hashed_real_inputs_and_simulation_only(tmp_path):
     from sofia.ops.digital_twin import TwinExperimentStore
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     link=edge("Eos","Artemis","storage")
     TwinDependencyStore(state).record_owner_review(
@@ -242,6 +248,8 @@ def test_cryptographic_capsule_corruption_detected_before_read(tmp_path):
     from sofia.ops.digital_twin import TwinExperimentStore
     from sqlite3 import connect
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     sim=SimpleNamespace(
         state_path=state,
@@ -284,6 +292,8 @@ def test_genuine_source_catalog_rejects_vm_and_docker_fidelity_overclaims(tmp_pa
     assert FIDELITY_COMPARISON["full_vm_replica"]["implemented"] is False
     assert "Hephaestus" in FIDELITY_COMPARISON["full_vm_replica"]["limit"]
     state=tmp_path/"sofia.db"
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(state)
     RuntimeUserSettingsStore(state).load()
     service=SimpleNamespace(
         state_path=state,registry=SimpleNamespace(
