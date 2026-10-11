@@ -175,6 +175,13 @@ def test_life_corrupt_artifact_does_not_revise_or_complete(tmp_path):
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
         assert len(life.store.jobs(project.project_id)) == 1
         assert len(life.store.evaluations(project.project_id)) == 0
+        assert all(
+            milestone.status.value == "planned"
+            for milestone in life.store.milestones(project.project_id)
+        )
+        assert life._current_verified_objective_completion(
+            life._project(project.project_id), now=now + timedelta(seconds=9),
+        ) is False
     finally:
         life.close()
 
