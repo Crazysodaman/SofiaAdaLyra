@@ -73,6 +73,20 @@ _SENSITIVE_AUTO_MEMORY = re.compile(
     re.IGNORECASE,
 )
 
+# A fictional line is still original conversation evidence, but not evidence
+# of a real-world preference, event, location or enduring autobiography.
+# Do not turn explicit roleplay/hypothetical framing into automatic MEM
+# candidates that later require the user to hunt down and revoke.
+_FICTIONAL_AUTO_MEMORY = re.compile(
+    r"^\\s*(?:in\\s+(?:this|our|the)\\s+(?:roleplay|fictional\\s+story|"
+    r"story|simulation|game)\\b|as\\s+(?:my|a|the)\\s+"
+    r"(?:character|npc|role)\\b|pretend\\s+(?:that\\s+)?|"
+    r"hypothetically\\b|for\\s+(?:this|the)\\s+fictional\\s+scenario\\b)|"
+    r"\\b(?:in\\s+(?:this|our)\\s+(?:roleplay|fictional\\s+story)|"
+    r"as\\s+my\\s+character|for\\s+(?:this|the)\\s+story)\\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class LearningResult:
@@ -106,6 +120,8 @@ class ConversationLearningCoordinator:
             return False, "code/binary-like content is not auto-proposed"
         if _SENSITIVE_AUTO_MEMORY.search(text):
             return False, "private credential or identity data is not auto-proposed"
+        if _FICTIONAL_AUTO_MEMORY.search(text):
+            return False, "explicit fiction or roleplay is not autobiographical evidence"
         if _CORRECTION_ONLY.search(text):
             return False, "correction commands are handled by explicit controls"
         if _EXPLICIT_MEMORY.search(text):
