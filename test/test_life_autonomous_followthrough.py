@@ -315,7 +315,12 @@ def test_revision_abstains_if_goal_pauses_during_generator(tmp_path):
         assert first["scheduled"] == 1
         original_job = life.store.jobs(project.project_id)[0]
         assert wait_for_job(life, original_job).status is WorkStatus.COMPLETED
-        initial_review = life.tick(now=now + timedelta(seconds=7))
+        # A new model candidate is available but the same-day draft budget
+        # already belongs to the first attempt, so no generator may run.
+        initial_review = life.tick(
+            now=now + timedelta(seconds=7),
+            generate=lambda _request: _draft("Unauthorized same-day second revision"),
+        )
         assert initial_review["follow_through"] == "deferred_daily_draft_limit"
 
         next_day = now + timedelta(days=1)
