@@ -10,6 +10,7 @@ from threading import RLock
 import re
 import sqlite3
 
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from sofia.safe.permissions import PermissionStore
 from sofia.social.model import AudienceKind, PrincipalContext
 from sofia.social.store import SocialSessionStore
@@ -51,6 +52,7 @@ class MobileCompanionGateway:
             raise TypeError("application must open channel conversations")
         self.application = application
         self.state_path = Path(state_path)
+        self._guard = CanonicalSQLiteGuard(self.state_path)
         # Validate the one configured writer database BEFORE any
         # convenience/sensor layer can seed tables or directories.
         self.credentials = MobileDeviceCredentialStore(self.state_path)
@@ -152,10 +154,7 @@ class MobileCompanionGateway:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(
-            self.state_path.absolute().as_uri() + "?mode=rw",
-            uri=True, timeout=10,
-        )
+        db = self._guard.connect(timeout=10)
         db.execute("PRAGMA busy_timeout=10000")
         return db
 
