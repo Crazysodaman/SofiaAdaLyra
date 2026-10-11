@@ -111,6 +111,7 @@ class OperatorStopStore:
             # requires a new, exact, FIDO2-authenticated SAFE approval.
             # A username literal or Tk confirmation cannot resume autonomy.
             from sofia.safe.execution_approval import ExecutionApprovalVerifier
+            verifier = ExecutionApprovalVerifier(self.path)
             if not approval_id or not expected_updated_at:
                 raise PermissionError(
                     "operator resume requires FIDO2 approval bound to exact stop revision"
@@ -125,7 +126,7 @@ class OperatorStopStore:
             if not active:
                 # Approval receipt, exact state revision and stop mutation are
                 # now one canonical SQLite commit or one shared rollback.
-                ExecutionApprovalVerifier(self.path).consume(
+                verifier.consume(
                     approval_id=approval_id,
                     capability="operator.stop.resume",
                     parameters={
