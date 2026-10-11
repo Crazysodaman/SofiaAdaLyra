@@ -4,6 +4,7 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from uuid import uuid4
 import json
+from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
 import pytest
 
 from sofia.config.user_settings import RuntimeUserSettingsStore
@@ -27,7 +28,7 @@ def source(path,stem):
 
 
 def model_and_sources(tmp_path):
-    state=tmp_path/"sofia.db"
+    state=bootstrap_canonical_sqlite(tmp_path/"sofia.db")
     RuntimeUserSettingsStore(state).load()
     ds=TrainingDatasetStore(state)
     a=tmp_path/"training.jsonl"; b=tmp_path/"evaluation.jsonl"
