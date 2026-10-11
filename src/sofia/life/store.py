@@ -896,7 +896,13 @@ class LifeStore:
             changed = db.execute(
                 """UPDATE life_artifact_authorization SET status='claimed'
                 WHERE request_id=? AND project_id=? AND artifact_id=?
-                  AND request_digest=? AND status='authorized'""",
+                  AND request_digest=? AND status='authorized'
+                  AND EXISTS (
+                    SELECT 1 FROM life_project AS project
+                    WHERE project.project_id=life_artifact_authorization.project_id
+                      AND project.status='active'
+                      AND project.goal_id IS NOT NULL
+                  )""",
                 (request_id, project_id, artifact_id, request_digest),
             )
         return changed.rowcount == 1
