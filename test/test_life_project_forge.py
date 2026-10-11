@@ -2508,3 +2508,61 @@ def test_life_draft_rejects_oversized_model_output_before_artifact_submission(
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
+
+
+def test_optional_life_selector_respects_external_goal_cancellation(tmp_path):
+    """A stale ACTIVE LIFE row cannot override current canonical GOALS."""
+    from sofia.goals import SOFIA_GOAL_OWNER_ID
+
+    life, goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        goal = next(
+            item for item in goals.list_visible(local_sparks_principal())
+            if item.id == project.goal_id
+        )
+        goals.transition(
+            goal_id=goal.id, principal_id=goal.scope_principal_id,
+            audience=goal.scope_audience, expected_status=GoalStatus.ACTIVE,
+            next_status=GoalStatus.CANCELLED,
+            actor_principal_id=SOFIA_GOAL_OWNER_ID,
+            evidence_refs=(evidence,), now=now + timedelta(seconds=3),
+        )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        selected = life.select_activity(
+            now=now + timedelta(seconds=4), busy=False,
+            resource_pressure=0.0,
+        )
+        assert selected.kind.value == "inactivity"
+        assert selected.project_id is None
+        assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_optional_life_selector_does_not_reselect_blocked_run(tmp_path):
+    """A source BLOCKED receipt must be reconciled, not cause more LIFE work."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Blocked original draft",
+            specification={"content": "No unauthorized resubmission."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.BLOCKED,
+            reason="Original SAFE authorization is unavailable.",
+            now=now + timedelta(seconds=4),
+        )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        selected = life.select_activity(
+            now=now + timedelta(seconds=5), busy=False,
+            resource_pressure=0.0,
+        )
+        assert selected.kind.value == "inactivity"
+        assert life.store.jobs(project.project_id) == (job.job_id,)
+    finally:
+        life.close()
