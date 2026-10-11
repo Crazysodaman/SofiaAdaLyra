@@ -2754,6 +2754,51 @@ projects, or global approved cross-channel metadata transfer.
 No tests/CI, automatic live migrations, remote clients,
 host movement or original source edits were performed.
 
+
+
+### Phase 05 item 79: Source-free projects visible only to their creation audience
+
+Review of Items 77–78 showed that a newly created project now
+has an authenticated `project_audience_id` and
+`project_audience_kind`, but the default
+`list_visible_threads` and mutation admission still
+required an existing linked source event. Consequently
+the creator could create a **source-free project** but
+could not see, rename, archive or restore it until
+adding a message. Simply relaxing the owner ID check
+would leak old cross-channel project titles.
+
+The canonical `LifelongThreadStore` now recognizes a
+**source-free, creation-audience-bound project** as
+visible/editable only to the exact authenticated
+originating audience and audience kind. Once any
+original source is linked, the existing source-message
+and CURRENT social-session binding guards still apply;
+a revoked/rebound source cannot be bypassed by the
+old creation-audience stamp. Legacy source-free
+projects without an origin stamp remain denied until
+a separately owner-reviewed migration. Archive
+hides from default lists but supports explicit
+scoped `include_archived=True` discovery and restore.
+Main metadata is never editable as a project.
+
+- Production visibility and edit route
+  `70e0487812ca95af49d0297c457ddcfc60705b42`
+  and SQL grouping correction
+  `96d2664c4f915348cbbdc58694af80029dc7e66e`
+  (`[skip ci]`).
+- Deferred source-free project and legacy-unbound
+  fixture update `test/test_ws2_project_thread_lifecycle.py`,
+  `d00ba75b12ad37e95345884b24db4f0d301abd3b`
+  (`[skip ci]`).
+
+Original relevance: CA-4113, CA-5301, CA-5506.
+Remaining **full** requirements include authenticated
+desktop/mobile editing UX, active-project turn routing,
+cross-project source attribution, pin/export/search
+and final live acceptance. This is source-level coding,
+not a migrated live schema or a successful test.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
