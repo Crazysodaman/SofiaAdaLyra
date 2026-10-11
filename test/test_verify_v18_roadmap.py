@@ -134,3 +134,18 @@ def test_v18_accepted_without_production_wiring_cannot_claim_green(tmp_path):
     ledger.write_text(json.dumps(records), encoding="utf-8")
     with pytest.raises(RoadmapIntegrityError, match="production-wired claim"):
         validate_repository(tmp_path)
+
+def test_v18_crlf_checkout_keeps_original_git_text_binding(tmp_path):
+    master, _, _ = _fixture(tmp_path)
+    original = master.read_bytes()
+    assert b"\r" not in original
+    master.write_bytes(original.replace(b"\n", b"\r\n"))
+    assert validate_repository(tmp_path)["total_original_tasks"] == 700
+
+
+def test_v18_crlf_checkout_does_not_accept_changed_roadmap_content(tmp_path):
+    master, _, _ = _fixture(tmp_path)
+    original = master.read_bytes().replace(b"\n", b"\r\n")
+    master.write_bytes(original.replace(b"CA-001", b"CA-999", 1))
+    with pytest.raises(RoadmapIntegrityError, match="source bytes changed"):
+        validate_repository(tmp_path)
