@@ -12,6 +12,7 @@ from sofia.composition.split_topology import (
     selected_split_deployment,
     validate_split_inference_runtime,
 )
+from sofia.distributed.inference_client import ConfiguredRemoteInferenceClient
 from sofia.config.model import (
     FleetCognitionConfiguration,
     ProviderConfiguration,
@@ -20,9 +21,14 @@ from sofia.config.model import (
 from test.test_memory_runtime_wiring import _configuration
 
 
-class RemoteWorker:
+class InsecureRemoteWorker:
     def infer(self, *_args):
-        raise ConnectionError("Venus GPU node offline")
+        raise ConnectionError("An unpinned transport is never trusted")
+
+
+def _configured_transport():
+    # Validate type-level composition without opening any mTLS connections.
+    return object.__new__(ConfiguredRemoteInferenceClient)
 
 
 def _artemis(tmp_path, **fleet_overrides):
@@ -66,7 +72,7 @@ def test_artemis_accepts_only_exact_remote_worker_without_fallback(tmp_path):
     cfg = _artemis(tmp_path)
     validate_split_inference_runtime(
         configuration=cfg, local_host_id="Artemis",
-        remote_inference_client=RemoteWorker(),
+        remote_inference_client=_configured_transport(),
         deployment=_deployment(),
     )
 
@@ -76,7 +82,7 @@ def test_other_host_cannot_claim_artemis_runtime_role(tmp_path, local_host):
     with pytest.raises(PermissionError, match="authorized host"):
         validate_split_inference_runtime(
             configuration=_artemis(tmp_path), local_host_id=local_host,
-            remote_inference_client=RemoteWorker(),
+            remote_inference_client=_configured_transport(),
             deployment=_deployment(),
         )
 
@@ -104,7 +110,7 @@ def test_unsafe_worker_placement_is_refused(tmp_path, replacement):
     with pytest.raises((PermissionError, ValueError)):
         validate_split_inference_runtime(
             configuration=cfg, local_host_id="Artemis",
-            remote_inference_client=RemoteWorker(),
+            remote_inference_client=_configured_transport(),
             deployment=_deployment(),
         )
 
@@ -133,7 +139,7 @@ def test_operator_rejects_automatic_alternate_model_route(tmp_path):
     with pytest.raises(PermissionError, match="alternate-model"):
         validate_split_inference_runtime(
             configuration=cfg, local_host_id="Artemis",
-            remote_inference_client=RemoteWorker(),
+            remote_inference_client=_configured_transport(),
             deployment=_deployment(),
         )
 
@@ -146,6 +152,32 @@ def test_remote_only_configuration_rejects_local_provider(tmp_path):
     with pytest.raises(PermissionError, match="Ollama"):
         validate_split_inference_runtime(
             configuration=cfg, local_host_id="Artemis",
-            remote_inference_client=RemoteWorker(),
+            remote_inference_client=_configured_transport(),
+            deployment=_deployment(),
+        )
+
+def test_arbitrary_remote_callable_cannot_impersonate_pinned_transport(tmp_path):
+    with pytest.raises(ValueError, match="pinned-mTLS"):
+        validate_split_inference_runtime(
+            configuration=_artemis(tmp_path),
+            local_host_id="Artemis",
+            remote_inference_client=InsecureRemoteWorker(),
+            deployment=_deployment(),
+        )
+
+
+def test_non_gpu_remote_placement_is_refused(tmp_path):
+    cfg = replace(
+        _artemis(tmp_path),
+        fleet_cognition=FleetCognitionConfiguration(
+            enabled=True, allowed_host_ids=("Venus",),
+            gpu_required=False,
+        ),
+    )
+    with pytest.raises(PermissionError, match="GPU worker"):
+        validate_split_inference_runtime(
+            configuration=cfg,
+            local_host_id="Artemis",
+            remote_inference_client=_configured_transport(),
             deployment=_deployment(),
         )
