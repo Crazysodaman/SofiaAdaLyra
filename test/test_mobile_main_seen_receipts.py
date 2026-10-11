@@ -135,3 +135,69 @@ def test_read_receipt_input_validation(tmp_path, bad):
             )
     finally:
         source.close()
+
+
+def test_rotated_token_cannot_write_into_new_generation_mid_dispatch(
+    tmp_path, monkeypatch,
+):
+    """A queued old-bearer request cannot mark history read after rotation."""
+    from sofia.mobile.gateway import MobileCredentialRevoked
+
+    path, source, social, app, gateway = _setup(tmp_path)
+    old_token = gateway.credentials.enroll("android-owner")
+    try:
+        _record(
+            source, social, gateway, private_mode=False,
+            text="Message before pairing rotation", number=1,
+        )
+        _canonical(path, "source-1", 1)
+        original = gateway.main_seen.acknowledge
+        rotated = []
+
+        def rotate_after_gateway_auth(**kwargs):
+            rotated.append(gateway.credentials.enroll(
+                "android-owner", rotate=True,
+            ))
+            return original(**kwargs)
+
+        monkeypatch.setattr(
+            gateway.main_seen, "acknowledge", rotate_after_gateway_auth,
+        )
+        with pytest.raises(PermissionError, match="pairing changed"):
+            _seen(gateway, old_token)
+        assert len(rotated) == 1
+        assert gateway.credentials.authenticate(old_token) is None
+        assert gateway.credentials.authenticate(rotated[0]) == "android-owner"
+        assert gateway.main_seen.current(
+            device_id="android-owner", private_mode=False, generation=2,
+        ) is None
+
+        monkeypatch.setattr(gateway.main_seen, "acknowledge", original)
+        assert _seen(gateway, rotated[0])["last_seen"]["canonical_sequence"] == 1
+    finally:
+        source.close()
+
+
+def test_raw_main_read_cursor_requires_current_bearer_fingerprint(tmp_path):
+    from sofia.mobile.gateway import MobileCredentialRevoked
+
+    path, source, social, app, gateway = _setup(tmp_path)
+    token = gateway.credentials.enroll("android-owner")
+    try:
+        _record(
+            source, social, gateway, private_mode=False,
+            text="Read receipt authority", number=1,
+        )
+        _canonical(path, "source-1", 1)
+        with pytest.raises(MobileCredentialRevoked):
+            gateway.acknowledge_main_seen(
+                device_id="android-owner", private_mode=False,
+                canonical_sequence=1, turn_position=0,
+                message_id="source-1", credential="not-a-valid-bearer",
+            )
+        assert gateway.main_seen.current(
+            device_id="android-owner", private_mode=False, generation=1,
+        ) is None
+        assert _seen(gateway, token)["acknowledged"] is True
+    finally:
+        source.close()
