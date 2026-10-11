@@ -3,6 +3,8 @@ import json
 import sqlite3
 
 import pytest
+
+from test.owner_auth_fixture import record_verified_owner_approval
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -659,7 +661,7 @@ def test_host_generic_approval_preflight_binds_exact_unconsumed_effect(tmp_path)
         approved_at=now - timedelta(seconds=5),
         expires_at=now + timedelta(minutes=10),
     )
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
 
     def allowed(args):
         return authorizer(CapabilityRequest(
@@ -878,7 +880,7 @@ def test_live_authority_includes_active_one_time_execution_approval(tmp_path):
         approved_at=now,
         expires_at=now + timedelta(minutes=15),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    record_verified_owner_approval(ExecutionApprovalVerifier(state), approval)
 
     authority = runtime.current_authority()
 
@@ -901,7 +903,7 @@ def test_consumed_execution_approval_disappears_from_live_authority(tmp_path):
         expires_at=now + timedelta(minutes=15),
     )
     verifier = ExecutionApprovalVerifier(state)
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
     verifier.consume(
         approval_id=approval.approval_id,
         capability="local.host.reboot",
