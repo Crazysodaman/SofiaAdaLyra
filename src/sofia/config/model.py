@@ -179,7 +179,7 @@ class FleetCognitionConfiguration:
     """Optional production placement of cognitive roles onto trusted Fleet nodes."""
 
     enabled: bool = False
-    local_fallback: bool = True
+    local_fallback: bool = False
     min_ram_bytes: int = 0
     min_vram_bytes: int = 0
     gpu_required: bool = False
