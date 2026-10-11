@@ -120,17 +120,21 @@ class OperatorStopStore:
             observed = self.current()
             if observed.updated_at.astimezone(timezone.utc).isoformat() != expected_updated_at:
                 raise PermissionError("operator stop changed since resume was requested")
-            ExecutionApprovalVerifier(self.path).consume(
-                approval_id=approval_id,
-                capability="operator.stop.resume",
-                parameters={
-                    "active": False, "reason": reason.strip(),
-                    "expected_updated_at": expected_updated_at,
-                },
-                now=moment,
-            )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            if not active:
+                # Approval receipt, exact state revision and stop mutation are
+                # now one canonical SQLite commit or one shared rollback.
+                ExecutionApprovalVerifier(self.path).consume(
+                    approval_id=approval_id,
+                    capability="operator.stop.resume",
+                    parameters={
+                        "active": False, "reason": reason.strip(),
+                        "expected_updated_at": expected_updated_at,
+                    },
+                    now=moment,
+                    _transaction_db=db,
+                )
             previous = db.execute(
                 "SELECT active,updated_at FROM safe_operator_stop WHERE singleton=1"
             ).fetchone()
