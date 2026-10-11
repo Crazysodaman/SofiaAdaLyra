@@ -669,3 +669,9 @@ Original CA task ledger coverage for all 175 assigned IDs remains incomplete and
 - **Gap confirmed:** the production `SofiaActService._fresh_life_project_pre_send_decision` checked original Presence source and recipient before sending, but for non-LIFE eligible Presence messages did not revalidate the source audience or the deterministic event→notice identity. If a source observation changed to a foreign/private-channel audience after queue creation, the previously queued local transport could rebroadcast it.
 - **Production change:** every `presence:` notice must still map to the original event ID-derived notice ID, exact original observation ID-derived evidence ID, recipient, previously supported trigger and eligible local audience at the last pre-transport callback. Missing/altered/moved original source is AUTHORIZATION_UNAVAILABLE. LIFE-specific source scope and explicit owner welcome/decline handling remain stricter and unchanged. Other non-Presence ACT queue paths retain their established authority.
 - **Deferred regression:** queued operational source audience is changed to foreign Discord audience; and original event ID is substituted under a queued notice. Neither can send or claim a transport attempt. No tests/CI nor actual messages dispatched.
+
+
+## Deferred regression source repair: original LIFE/GOALS fixture contracts (2026-10-11)
+
+- A static source audit identified two authored-but-unexecuted test fixture defects: `Goal` requires a bounded `blocked_reason` for the BLOCKED status, and `SelfDirectedLifeCoordinator._verify_evidence` rejects empty LIFE transition evidence. The new GOALS-blocked test helper now supplies the original reason, and the atomic RUN admission race creates/passes a verified source observation to pause and resume.
+- Original production authority has not been weakened and no tests, CI or host actions were run. These repairs make future owner acceptance capable of reaching the intended source races.
