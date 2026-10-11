@@ -16,7 +16,7 @@ import tempfile
 from typing import Callable
 
 from sofia.ops.backup import BackupEngine, BackupError
-from sofia.ops.state_mobility import inspect_state_relocation
+from sofia.ops.state_mobility import inspect_state_relocation, _unsafe_ancestor
 
 
 def _publish_new_home_without_replacing(staging: Path, destination: Path) -> None:
@@ -29,6 +29,8 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
     """
     if not isinstance(staging, Path) or not isinstance(destination, Path):
         raise TypeError("staged and destination home must be Paths")
+    if _unsafe_ancestor(staging) or _unsafe_ancestor(destination):
+        raise PermissionError("state-home publication refuses redirected paths")
     if not staging.is_dir():
         raise FileNotFoundError("verified staging directory is missing")
     if destination.exists() or destination.is_symlink():
