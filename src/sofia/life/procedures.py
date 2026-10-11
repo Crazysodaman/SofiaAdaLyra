@@ -705,8 +705,10 @@ class LifeProcedureCatalog:
         """Exact, local-only compatibility view, never skill execution."""
         if type(limit) is not int or not 1 <= limit <= 32:
             raise ValueError("bounded procedure lookup required")
-        key, environment = self._definition(project)
         with closing(self._connect()) as db:
+            key, environment, _version, _parent = (
+                self._current_definition_under_lock(db, project)
+            )
             rows = db.execute(
                 """SELECT * FROM life_procedure_catalog
                 WHERE procedure_id=? AND owner_principal_id=?
