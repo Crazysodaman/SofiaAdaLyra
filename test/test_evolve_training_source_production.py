@@ -148,3 +148,69 @@ def test_adaptation_requires_independent_heldout_and_reverifies_bytes(tmp_path):
 
 def test_no_training_job_is_created_by_a_dataset_admission():
     assert TRAINING_METHODS["lora_qlora"]["may_deploy"] is False
+
+
+
+def test_owner_revocation_prevents_future_lora_use_of_previously_reviewed_source(tmp_path):
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    store=TrainingDatasetStore(state)
+    source=tmp_path/"public_training.jsonl"
+    heldout=tmp_path/"public_eval.jsonl"
+    corpus(source,"owners")
+    corpus(heldout,"heldout")
+    train_review=approve(source,store,"approved-training")
+    hold_review=approve(heldout,store,"approved-heldout")
+    baseline=AdaptationPlan(
+        base_model_digest="a"*64,
+        training_data_digest=train_review.digest,
+        heldout_data_digest=hold_review.digest,
+        data_use_approval_ref=train_review.approval_ref,
+        adaptation_kind="qlora",
+        max_gpu_hours=1.0,max_vram_mb=4096,preserve_source_privacy=True,
+    )
+    assert assess_registered_adaptation(
+        baseline,dataset_store=store,
+    ).research_eligible
+    store.revoke(
+        digest=train_review.digest,
+        at=NOW,owner_receipt="owner-ui:withdraw-1",
+    )
+    assert store.find(train_review.digest) is None
+    result=assess_registered_adaptation(
+        baseline,dataset_store=store,
+    )
+    assert result.research_eligible is False
+    assert "never independently reviewed" in ";".join(result.blockers)
+    brief=store.model_brief()
+    assert any(
+        row["digest"]==train_review.digest and row["status"]=="revoked"
+        for row in brief["reviewed"]
+    )
+    assert brief["actual_training_authorized"] is False
+    with pytest.raises(PermissionError,match="permanently revoked"):
+        store.revoke(
+            digest=train_review.digest,
+            at=NOW,owner_receipt="owner-ui:withdraw-2",
+        )
+
+
+def test_training_data_revocation_requires_verified_review_and_exact_owner_receipt(tmp_path):
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).load()
+    store=TrainingDatasetStore(state)
+    with pytest.raises(LookupError,match="unknown training dataset"):
+        store.revoke(
+            digest="a"*64,
+            at=NOW,owner_receipt="owner-ui:revoke",
+        )
+    with pytest.raises(PermissionError,match="owner dataset"):
+        store.revoke(
+            digest="a"*64,at=NOW,
+            owner_receipt="llm-self:forged",
+        )
+    with pytest.raises(ValueError,match="exact"):
+        store.revoke(
+            digest="missing",at=NOW,
+            owner_receipt="owner-ui:revoke",
+        )
