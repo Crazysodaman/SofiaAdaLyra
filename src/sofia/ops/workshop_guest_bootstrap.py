@@ -216,10 +216,18 @@ def start_owner_approved_installer(
     material.pop("observed_at",None)
     recorded=dict(previous["observation"])
     recorded.pop("observed_at",None)
-    for key in ("os_disk_paths","os_disk_sizes_gib","nic_switches","dvd_paths",
-                "firmware_boot_order"):
-        if isinstance(material.get(key),tuple):
-            material[key]=json.loads(json.dumps(material[key]))
+    # Canonicalize nested dataclass tuple/list representations, but strip
+    # only actual observation timestamps. The reviewed Internal-link facts
+    # (IP, forwarding, DNS, NAT, ICS, other guests) are exact material inputs.
+    if material.get("network_isolation") is not None:
+        material["network_isolation"]["observed_at"]=(
+            observation.network_isolation.observed_at
+            .astimezone(timezone.utc).isoformat()
+        )
+        material["network_isolation"].pop("observed_at",None)
+    if recorded.get("network_isolation") is not None:
+        recorded["network_isolation"].pop("observed_at",None)
+    material=json.loads(json.dumps(material,sort_keys=True))
     if material!=recorded:
         raise PermissionError("VM changed since reviewed handoff; re-inspect")
     media=remote_service.invoke(
