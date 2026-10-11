@@ -144,6 +144,7 @@ def test_unbound_remote_host_is_not_a_remote_cognition_candidate(tmp_path):
             _host("local",cpu=70),
             _host("unbound",cpu=1,node_id=None),
         ),
+        policy=FleetCognitionPolicy(enabled=True, local_fallback=True),
     )
 
     response=engine.respond(CognitiveRequest(messages=()))
@@ -162,6 +163,7 @@ def test_remote_failure_falls_back_local_when_owner_policy_allows(tmp_path):
             _host("local",cpu=80),
             _host("remote",cpu=10,node_id=uuid4()),
         ),
+        policy=FleetCognitionPolicy(enabled=True, local_fallback=True),
         remote=fail,
     )
 
@@ -276,6 +278,7 @@ def test_remote_model_preflight_failure_falls_back_local(tmp_path):
             _host("local",cpu=80),
             _host("remote",cpu=10,node_id=node),
         ),
+        policy=FleetCognitionPolicy(enabled=True, local_fallback=True),
         prepare=lambda *_: (_ for _ in ()).throw(
             RuntimeError("model unavailable")
         ),
@@ -287,3 +290,33 @@ def test_remote_model_preflight_failure_falls_back_local(tmp_path):
     assert len(local.calls)==1
     assert calls==[]
     assert engine.last_remote is False
+
+
+def test_fleet_default_never_silently_uses_local_after_remote_failure(tmp_path):
+    assert FleetCognitionPolicy(enabled=True).local_fallback is False
+    engine, local, calls = _engine(
+        tmp_path,
+        hosts=(
+            _host("local", cpu=80),
+            _host("remote", cpu=5, node_id=uuid4()),
+        ),
+        remote=lambda *_: (_ for _ in ()).throw(
+            OSError("remote worker disappeared")
+        ),
+    )
+    with pytest.raises(CognitiveEngineError, match="fallback is disabled"):
+        engine.respond(CognitiveRequest(messages=()))
+    assert len(calls) == 1
+    assert local.calls == []
+
+
+def test_disabled_fleet_placement_is_normal_local_inference_not_fallback(tmp_path):
+    engine, local, calls = _engine(
+        tmp_path,
+        hosts=(_host("local", cpu=5),),
+        policy=FleetCognitionPolicy(enabled=False),
+    )
+    response = engine.respond(CognitiveRequest(messages=()))
+    assert response.content == "local"
+    assert len(local.calls) == 1
+    assert calls == []
