@@ -123,3 +123,28 @@ def test_unclassified_optional_tasks_are_never_cost_free():
     assert reserve_profile("presence_refresh").tokens==0
     assert reserve_profile("neuro_refresh").gpu_ms==0
     assert capability_permission_policy("ops.autonomy.budget").level is PermissionLevel.OBSERVE_READ
+
+
+def test_optional_budget_never_accounts_without_one_sqlite_transaction(tmp_path):
+    state=tmp_path/"sofia.db"
+    coordinator=BackgroundBudget(state)
+    accounting=coordinator.optional_resources
+    with sqlite3.connect(state) as db:
+        with pytest.raises(RuntimeError,match="write transaction"):
+            accounting.reserve_in_transaction(
+                db,claim_id="direct-claim",task_kind="neuro_refresh",now=T,
+            )
+        db.execute("BEGIN IMMEDIATE")
+        assert accounting.reserve_in_transaction(
+            db,claim_id="direct-claim",task_kind="neuro_refresh",now=T,
+        )
+        with pytest.raises(ValueError,match="aware"):
+            accounting.settle_in_transaction(
+                db,claim_id="direct-claim",failed=False,
+                now=T.replace(tzinfo=None),
+            )
+        accounting.settle_in_transaction(
+            db,claim_id="direct-claim",failed=False,now=T,
+        )
+    assert accounting.report(now=T)["attempts"]==1
+    assert accounting.report(now=T)["unfinished"]==0
