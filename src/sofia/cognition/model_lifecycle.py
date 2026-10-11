@@ -34,6 +34,7 @@ class ModelResidencyMode(str, Enum):
     FAST_ALWAYS_RESIDENT = "fast_always_resident"
     DUAL_RESIDENT = "dual_resident"
     RESOURCE_AWARE = "resource_aware"
+    HYBRID_GAMING_IDLE = "hybrid_gaming_idle"
 
 
 class ModelLifecycleError(RuntimeError):
@@ -71,6 +72,7 @@ class ModelResourceObservation:
     vram_available_bytes: int | None = None
     throttled: bool | None = None
     gaming: bool | None = None
+    desktop_idle: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +139,7 @@ class ModelLifecycleManager:
         managed_provider: str = "ollama",
         resource_observer: Callable[[], Any] | None = None,
         gaming_observer: Callable[[], bool | None] | None = None,
+        idle_observer: Callable[[], bool | None] | None = None,
         runtime_state_store: CognitionRuntimeStateStore | None = None,
         local_host_id: str | None = None,
         policy_observer: Callable[[], ModelLifecycleConfiguration] | None = None,
@@ -153,6 +156,7 @@ class ModelLifecycleManager:
         self.managed_provider = managed_provider.strip()
         self.resource_observer = resource_observer
         self.gaming_observer = gaming_observer
+        self.idle_observer = idle_observer
         self.runtime_state_store = runtime_state_store
         self.local_host_id = local_host_id
         self.policy_observer = policy_observer
@@ -239,6 +243,10 @@ class ModelLifecycleManager:
             gaming = self.gaming_observer() if self.gaming_observer else None
         except Exception:
             gaming = None
+        try:
+            desktop_idle = self.idle_observer() if self.idle_observer else None
+        except Exception:
+            desktop_idle = None
         return ModelResourceObservation(
             cpu_percent=utilization("cpu_percent"),
             ram_available_bytes=available_bytes("ram_total_bytes", "ram_used_bytes"),
@@ -249,6 +257,7 @@ class ModelLifecycleManager:
                 if type(getattr(observed, "throttled", None)) is bool else None
             ),
             gaming=gaming if type(gaming) is bool else None,
+            desktop_idle=desktop_idle if type(desktop_idle) is bool else None,
         )
 
     def statuses(self, *, now: datetime | None = None) -> tuple[ModelLifecycleStatus, ...]:
@@ -587,6 +596,47 @@ class ModelLifecycleManager:
             return ModelResidencyDecision(mode, (fast,), ("fast role kept resident",))
         if mode is ModelResidencyMode.DUAL_RESIDENT:
             return ModelResidencyDecision(mode, roles, ("operator selected dual residency",))
+        if mode is ModelResidencyMode.HYBRID_GAMING_IDLE:
+            if observation.gaming is True:
+                # Reconcile immediately evicts idle models through the
+                # existing pressure path; active cognitive turns are spared.
+                return ModelResidencyDecision(
+                    mode, (), ("gaming observed; release idle local models",)
+                )
+            if observation.gaming is not False or observation.desktop_idle is not True:
+                return ModelResidencyDecision(
+                    mode, (), ("verified non-gaming desktop idle not observed; on demand",)
+                )
+            if (
+                observation.throttled is True
+                or observation.cpu_percent is None
+                or observation.cpu_percent >= 90
+                or observation.gpu_percent is None
+                or observation.gpu_percent >= 95
+                or observation.ram_available_bytes is None
+                or observation.vram_available_bytes is None
+            ):
+                return ModelResidencyDecision(
+                    mode, (), ("host CPU/GPU pressure or capacity unknown; no idle preload",)
+                )
+            names = tuple(dict.fromkeys(
+                self.provider_for(role).model for role in roles
+            ))
+            if any(name not in model_sizes for name in names):
+                return ModelResidencyDecision(
+                    mode, (), ("unobserved model bytes; no idle preload",)
+                )
+            required=sum(model_sizes[name] for name in names)
+            if (
+                required > observation.ram_available_bytes
+                or required > observation.vram_available_bytes
+            ):
+                return ModelResidencyDecision(
+                    mode, (), ("idle capacity below model bytes; no preload",)
+                )
+            return ModelResidencyDecision(
+                mode, roles, ("verified desktop idle and resource headroom; preload",)
+            )
 
         if observation.gaming is True:
             return ModelResidencyDecision(
@@ -709,6 +759,8 @@ class ModelLifecycleManager:
                     "GPU pressure",
                     "available VRAM is zero",
                     "below model bytes",
+                    "CPU/GPU pressure or capacity unknown",
+                    "idle capacity below model bytes",
                 )
             )
             if pressure:
