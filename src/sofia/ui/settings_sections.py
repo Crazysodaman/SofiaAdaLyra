@@ -506,131 +506,135 @@ class SettingsSections:
         self.sql_panel(frames["Fleet"], "Enrolled nodes", "distributed_node_identity")
         self.sql_panel(frames["Fleet"], "Software and capability health evidence", "ops_dependency_observation")
         self.sql_panel(frames["Fleet"], "Verified platform installation receipts", "ops_platform_install_receipt")
-        # Hephaestus first-stage operator preflight. Read-only Artemis mTLS
-        # inspection and a plan preview never create or install a guest.
+        # Owner-created blank VM handoff. No generic Artemis PowerShell or
+        # auto-provision route; only pinned Fleet read-only VM/media operations.
         from queue import Empty, Queue
         from threading import Thread
         from sofia.distributed.capability import create_configured_remote_fleet_service
-        from sofia.ops.workshop_provision import (
-            preview_owner_hephaestus_plan, WorkshopPreviewStore,
+        from sofia.ops.workshop_handoff import (
+            WorkshopHandoffStore, preview_owner_created_vm,
         )
 
         ttk.Label(
             frames["Fleet"],
-            text="HEPHAESTUS / ARTEMIS (Hyper-V) - read-only workshop plan",
+            text="HEPHAESTUS: OWNER-CREATED BLANK VM HANDOFF (Hyper-V)",
         ).pack(anchor="w", pady=(10, 2))
         ttk.Label(
             frames["Fleet"],
             text=(
-                "Use the exact enrolled Artemis node UUID and a locally "
-                "approved/pinned Debian image path and SHA-256. The provisional "
-                "guest is Hephaestus, 2 vCPU, 4 GiB RAM, 60 GiB disk, PRIVATE "
-                "network only. Preview cannot create a VM, network or enrollment."
+                "First, you create an OFF, Generation-2 VM named Hephaestus "
+                "with one 60-128 GiB empty VHDX and a PRIVATE switch named "
+                "Sofia-Hephaestus-Private. Then Sofía can inspect it. "
+                "Booting/installing Debian requires a separate Level-4 approval; "
+                "Fleet enrollment is separate after verified OS installation."
             ),
             wraplength=660,
         ).pack(anchor="w", pady=4)
-        lab_node = tk.StringVar(root, value="")
-        lab_root = tk.StringVar(root, value="")
-        lab_image = tk.StringVar(root, value="")
-        lab_digest = tk.StringVar(root, value="")
+        handoff_node = tk.StringVar(root, value="")
+        handoff_vm = tk.StringVar(root, value="")
+        handoff_disk = tk.StringVar(root, value="")
+        handoff_media = tk.StringVar(root, value="")
+        handoff_digest = tk.StringVar(root, value="")
+        handoff_empty = tk.BooleanVar(root, value=False)
         for text, var in (
-            ("Artemis verified Fleet node UUID", lab_node),
-            ("Dedicated Windows VM root (for example D:\\SofiaLab\\Hephaestus)", lab_root),
-            ("Approved local Debian image path on Artemis", lab_image),
-            ("Independent installer image SHA-256", lab_digest),
+            ("Exact enrolled Artemis Fleet node UUID", handoff_node),
+            ("Exact Hyper-V Hephaestus VM GUID, not only its display name", handoff_vm),
+            ("Exact existing OS VHDX on Artemis", handoff_disk),
+            ("Host-approved OFFLINE unattended Debian ISO path", handoff_media),
+            ("Independent SHA-256 of unattended boot ISO", handoff_digest),
         ):
             ttk.Label(frames["Fleet"], text=text).pack(anchor="w", pady=(4, 2))
             ttk.Entry(frames["Fleet"], textvariable=var).pack(fill="x")
-        lab_preview = {"text": (
-            "No Artemis preflight has been observed. Source identity, "
-            "capacity, reserved VMs, switch, image and approval remain UNKNOWN."
+        ttk.Checkbutton(
+            frames["Fleet"], variable=handoff_empty,
+            text=(
+                "I created this VM and confirm its exact OS disk is EMPTY "
+                "(installation may overwrite it). This is my declaration, "
+                "not independent proof that the disk is blank."
+            ),
+        ).pack(anchor="w", pady=(4, 7))
+        handoff_text = {"value":(
+            "No owner-provided Hephaestus VM observed. Host, disk, switch, "
+            "image, permissions and guest OS status remain UNKNOWN."
         )}
-        lab_view = self.viewer(
-            frames["Fleet"], "Hephaestus review-only plan and blockers",
-            lambda: lab_preview["text"],
+        handoff_view=self.viewer(
+            frames["Fleet"],
+            "Owner-created Hephaestus handoff review (read only)",
+            lambda:handoff_text["value"],
         )
-        lab_result_queue = Queue()
-        lab_busy = {"busy": False}
+        handoff_queue=Queue()
+        handoff_busy={"active":False}
 
-        def review_hephaestus_plan():
-            if lab_busy["busy"]:
+        def preview_blank_hephaestus():
+            if handoff_busy["active"]:
                 return
-            inputs = (
-                lab_node.get().strip(), lab_root.get().strip(),
-                lab_image.get().strip(), lab_digest.get().strip().lower(),
+            inputs=(
+                handoff_node.get().strip(),handoff_vm.get().strip(),
+                handoff_disk.get().strip(),handoff_media.get().strip(),
+                handoff_digest.get().strip().lower(),
             )
             if not all(inputs):
-                raise ValueError(
-                    "Artemis node UUID, VM root, local Debian image path "
-                    "and verified SHA-256 must be supplied before preview"
-                )
-            lab_busy["busy"] = True
-            lab_preview_button.configure(state="disabled")
+                raise ValueError("Complete the exact Artemis/VM/disk/ISO handoff fields")
+            if not handoff_empty.get():
+                raise PermissionError("Owner must confirm the reviewed OS disk is empty")
+            handoff_busy["active"]=True
+            handoff_button.configure(state="disabled")
 
-            def inspect_worker():
-                service = None
+            def inspect_handoff_worker():
+                service=None
                 try:
-                    service = create_configured_remote_fleet_service(
-                        config.state_path,
-                    )
+                    service=create_configured_remote_fleet_service(config.state_path)
                     if service is None:
-                        raise PermissionError(
-                            "authenticated pinned-mTLS Fleet service unavailable"
-                        )
-                    preview = preview_owner_hephaestus_plan(
-                        remote_service=service,
-                        artemis_node_id=inputs[0],
-                        vm_root=inputs[1],
-                        installer_image_path=inputs[2],
-                        installer_image_sha256=inputs[3],
+                        raise PermissionError("pinned-mTLS Artemis Fleet connection unavailable")
+                    preview=preview_owner_created_vm(
+                        remote_service=service,artemis_node_id=inputs[0],
+                        exact_vm_id=inputs[1],disk_path=inputs[2],
+                        boot_media_path=inputs[3],boot_media_sha256=inputs[4],
+                        owner_confirms_blank_disk=True,
                         at=datetime.now(timezone.utc),
                     )
-                    # Persist only observed dry-run evidence in canonical
-                    # state for Sofía's read-only OPS planning tool.
-                    WorkshopPreviewStore(config.state_path).record(preview)
-                    lab_result_queue.put(("ok", preview.readable()))
+                    WorkshopHandoffStore(config.state_path).record(preview)
+                    handoff_queue.put(("ok",preview.readable()))
                 except Exception as exc:
-                    lab_result_queue.put((
+                    handoff_queue.put((
                         "error", f"{type(exc).__name__}: {exc}. "
-                        "No host operation was authorized or performed.",
+                        "No Hyper-V changes or guest installation authorized.",
                     ))
                 finally:
                     if service is not None:
                         service.close()
 
             Thread(
-                target=inspect_worker,
-                name="sofia-hyperv-workshop-readonly-preflight",
+                target=inspect_handoff_worker,
+                name="sofia-owner-created-hephaestus-preflight",
                 daemon=False,
             ).start()
 
-        lab_preview_button = ttk.Button(
+        handoff_button=ttk.Button(
             frames["Fleet"],
-            text="Inspect Artemis and preview Hephaestus plan (read only)",
-            command=self.guarded(review_hephaestus_plan),
+            text="Inspect my blank Hephaestus VM (read only)",
+            command=self.guarded(preview_blank_hephaestus),
         )
-        lab_preview_button.pack(anchor="w", pady=(4, 8))
+        handoff_button.pack(anchor="w", pady=(3, 8))
 
-        def poll_lab_preview():
+        def poll_handoff():
             try:
-                outcome, detail = lab_result_queue.get_nowait()
+                status,detail=handoff_queue.get_nowait()
             except Empty:
                 pass
             else:
-                lab_busy["busy"] = False
-                lab_preview_button.configure(state="normal")
-                lab_preview["text"] = detail
-                lab_view.refresh()
-                if outcome == "error":
+                handoff_busy["active"]=False
+                handoff_button.configure(state="normal")
+                handoff_text["value"]=detail
+                handoff_view.refresh()
+                if status=="error":
                     self.messagebox.showerror(
-                        "Artemis read-only preflight denied",
-                        detail,
-                        parent=root,
+                        "Hephaestus handoff blocked",detail,parent=root,
                     )
             if root.winfo_exists():
-                root.after(350, poll_lab_preview)
+                root.after(350,poll_handoff)
 
-        root.after(350, poll_lab_preview)
+        root.after(350,poll_handoff)
         self.identity_panel(frames["Sofía"])
         self.avatar_panel(frames["Avatar"])
         from .wardrobe_panel import WardrobePanel, current_mood
