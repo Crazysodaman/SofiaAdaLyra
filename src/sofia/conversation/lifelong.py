@@ -686,6 +686,100 @@ class LifelongThreadStore:
             ).fetchall()
         return tuple(self._decode(row) for row in rows)
 
+    @staticmethod
+    def _authorize_project_edit(
+        db: sqlite3.Connection, *, principal: PrincipalContext, thread_id: str,
+    ) -> sqlite3.Row:
+        """Require current exact-source audience admission before title edits.
+
+        A shared principal alone cannot rename/archive another device's
+        protected project. Source-free projects lack such evidence and stay
+        unmodifiable through this API until an authorized source is linked.
+        """
+        row = db.execute(
+            "SELECT * FROM lifelong_thread WHERE thread_id=? "
+            "AND owner_principal_id=? AND kind='project' "
+            "AND EXISTS (SELECT 1 FROM lifelong_thread_event AS e "
+            "JOIN conversation_messages AS m ON m.id=e.source_message_id "
+            "AND m.session_id=e.source_session_id "
+            "JOIN social_session_principal AS s ON s.session_id=m.session_id "
+            "WHERE e.thread_id=lifelong_thread.thread_id "
+            "AND e.visibility='source_audience' "
+            "AND e.source_audience_id=? "
+            "AND s.principal_id=? AND s.audience_id=? "
+            "AND s.audience_kind=?)",
+            (thread_id, principal.principal_id, principal.audience_id,
+             principal.principal_id, principal.audience_id,
+             principal.audience_kind.value),
+        ).fetchone()
+        if row is None:
+            raise PermissionError(
+                "project edit requires current original-source audience access"
+            )
+        return row
+
+    def rename_project(
+        self, *, principal: PrincipalContext, thread_id: str, new_name: str,
+    ) -> LifelongThread:
+        """Rename a source-visible project without editing source messages."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated project principal required")
+        if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
+            raise ValueError("bounded project thread ID required")
+        if not isinstance(new_name, str) or _NAME.fullmatch(new_name) is None:
+            raise ValueError("bounded project name required")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            current = self._authorize_project_edit(
+                db, principal=principal, thread_id=thread_id,
+            )
+            if current["name"] == new_name:
+                return self._decode(current)
+            duplicate = db.execute(
+                "SELECT 1 FROM lifelong_thread WHERE owner_principal_id=? "
+                "AND kind='project' AND name=? AND thread_id<>?",
+                (principal.principal_id, new_name, thread_id),
+            ).fetchone()
+            if duplicate is not None:
+                raise ValueError("project name already exists")
+            db.execute(
+                "UPDATE lifelong_thread SET name=? WHERE thread_id=? "
+                "AND owner_principal_id=? AND kind='project'",
+                (new_name, thread_id, principal.principal_id),
+            )
+            row = db.execute(
+                "SELECT * FROM lifelong_thread WHERE thread_id=?", (thread_id,),
+            ).fetchone()
+            return self._decode(row)
+
+    def set_project_archived(
+        self, *, principal: PrincipalContext, thread_id: str, archived: bool,
+    ) -> LifelongThread:
+        """Archive or restore one project without deleting original evidence."""
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated project principal required")
+        if not isinstance(thread_id, str) or not 8 <= len(thread_id) <= 128:
+            raise ValueError("bounded project thread ID required")
+        if type(archived) is not bool:
+            raise TypeError("archived must be a bool")
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            current = self._authorize_project_edit(
+                db, principal=principal, thread_id=thread_id,
+            )
+            if (current["archived_at"] is not None) == archived:
+                return self._decode(current)
+            stamp = datetime.now(timezone.utc).isoformat() if archived else None
+            db.execute(
+                "UPDATE lifelong_thread SET archived_at=? WHERE thread_id=? "
+                "AND owner_principal_id=? AND kind='project'",
+                (stamp, thread_id, principal.principal_id),
+            )
+            updated = db.execute(
+                "SELECT * FROM lifelong_thread WHERE thread_id=?", (thread_id,),
+            ).fetchone()
+            return self._decode(updated)
+
     def link_message(
         self, *, thread_id: str, source_message_id: str,
         principal: PrincipalContext,
