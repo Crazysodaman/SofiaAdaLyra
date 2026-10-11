@@ -6,6 +6,9 @@ from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sys
+from uuid import uuid4
+
+from sofia.safe.owner_browser import authorize_exact_action
 
 from sofia.config import production_state_path
 from sofia.safe.permissions import (
@@ -14,6 +17,8 @@ from sofia.safe.permissions import (
     capability_permission_policy,
     explicitly_classified_capabilities,
     grantable_capabilities,
+    standing_grant_parameters,
+    private_authority_parameters,
 )
 
 
@@ -79,10 +84,14 @@ def main(argv: list[str] | None = None) -> int:
     grant_cmd.add_argument("--scope-json", default="{}")
     grant_cmd.add_argument("--expires-minutes", type=int)
     grant_cmd.add_argument("--granted-by", default="Sparks")
+    grant_cmd.add_argument("--credential-id", required=True,
+                           help="Enrolled FIDO2 key for a durable grant")
 
     revoke_cmd = sub.add_parser("revoke")
     revoke_cmd.add_argument("grant_id")
     revoke_cmd.add_argument("--revoked-by", default="Sparks")
+    revoke_cmd.add_argument("--credential-id", required=True,
+                            help="Enrolled FIDO2 key to revoke a standing grant")
 
     private = sub.add_parser("private")
     private_sub = private.add_subparsers(
@@ -102,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
             choices=("on", "off"),
         )
     private_set.add_argument("--updated-by", default="Sparks")
+    private_set.add_argument("--credential-id", required=True,
+                             help="Enrolled FIDO2 key for Level-5 authority")
 
     args = parser.parse_args(argv)
 
@@ -149,11 +160,22 @@ def main(argv: list[str] | None = None) -> int:
                     datetime.now(timezone.utc)
                     + timedelta(minutes=args.expires_minutes)
                 )
+            grant_id = str(uuid4())
+            approved = authorize_exact_action(
+                store.path, capability="safe.permission.standing.grant",
+                parameters=standing_grant_parameters(
+                    args.capability, scope=scope, grant_id=grant_id,
+                    expires_at=expires_at,
+                ),
+                credential_id=args.credential_id, expires_seconds=120,
+            )
             grant = store.grant(
                 args.capability,
                 scope=scope,
                 granted_by=args.granted_by,
                 expires_at=expires_at,
+                grant_id=grant_id,
+                approval_id=approved.approval_id,
             )
             print(json.dumps({
                 "grant_id": grant.grant_id,
@@ -167,9 +189,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "revoke":
+            approved = authorize_exact_action(
+                store.path, capability="safe.permission.standing.revoke",
+                parameters={"grant_id": args.grant_id},
+                credential_id=args.credential_id, expires_seconds=120,
+            )
             grant = store.revoke(
                 args.grant_id,
                 revoked_by=args.revoked_by,
+                approval_id=approved.approval_id,
             )
             print(json.dumps({
                 "grant_id": grant.grant_id,
@@ -197,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                 }, indent=2, sort_keys=True))
                 return 0
 
-            updated = store.set_private_adult_authority(
+            flags = private_authority_parameters(
                 private_chat=_switch(args.private_chat, current.private_chat),
                 adult_chat=_switch(args.adult_chat, current.adult_chat),
                 adult_avatar=_switch(args.adult_avatar, current.adult_avatar),
@@ -205,7 +233,15 @@ def main(argv: list[str] | None = None) -> int:
                     args.adult_external_delivery,
                     current.adult_external_delivery,
                 ),
-                updated_by=args.updated_by,
+            )
+            approved = authorize_exact_action(
+                store.path, capability="safe.permission.private_authority.change",
+                parameters=flags, credential_id=args.credential_id,
+                expires_seconds=120,
+            )
+            updated = store.set_private_adult_authority(
+                **flags, updated_by=args.updated_by,
+                approval_id=approved.approval_id,
             )
             print(json.dumps({
                 "private_chat": updated.private_chat,
