@@ -666,3 +666,79 @@ def test_catalog_writer_rejection_does_not_abort_other_completed_learning(
         assert len(life.store.jobs(second.project_id)) == 1
     finally:
         life.close()
+
+
+
+def test_procedure_precedent_rejects_tampered_original_job_receipt(tmp_path):
+    """A different valid original artifact cannot launder a forged proof row."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        later = now + timedelta(minutes=1)
+        second, source = _second_same_capability_project(life, first, later)
+        _original_authorized_completion(life, second, source, later)
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8),
+        ) == 2
+        future, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        found = life._current_verified_procedures_for_draft(
+            future, now=now + timedelta(minutes=2, seconds=4),
+        )
+        assert len(found) == 1
+        procedure_id = found[0].procedure_id
+        real = life.procedures.proof_receipts_for_procedure(procedure_id)
+        assert len(real) == 2
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_procedure_proof SET evidence_ref=? "
+                "WHERE procedure_id=? AND project_id=?",
+                ("goal-evidence:forged-elsewhere", procedure_id, first.project_id),
+            )
+        assert life._current_verified_procedures_for_draft(
+            future, now=now + timedelta(minutes=2, seconds=5),
+        ) == ()
+        assert life._audit_procedure_sources(
+            now=now + timedelta(minutes=2, seconds=6),
+        ) == 1
+        assert life.procedures.available_for_project(future) == ()
+        assert life.store.jobs(future.project_id) == ()
+        assert life.work_store.get(
+            life.store.jobs(second.project_id)[0],
+        ).status is WorkStatus.COMPLETED
+    finally:
+        life.close()
+
+
+def test_procedure_proof_check_rejects_original_job_mismatch(tmp_path):
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, evidence, now)
+        later = now + timedelta(minutes=1)
+        second, source = _second_same_capability_project(life, first, later)
+        _original_authorized_completion(life, second, source, later)
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8),
+        ) == 2
+        third, _ = _second_same_capability_project(
+            life, first, now + timedelta(minutes=2),
+        )
+        procedure_id = life.procedures.available_for_project(third)[0].procedure_id
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE life_procedure_proof SET job_id=? "
+                "WHERE procedure_id=? AND project_id=?",
+                ("job:unrelated", procedure_id, first.project_id),
+            )
+        assert life._current_verified_procedures_for_draft(
+            third, now=now + timedelta(minutes=2, seconds=8),
+        ) == ()
+    finally:
+        life.close()
