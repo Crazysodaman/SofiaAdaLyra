@@ -76,6 +76,14 @@ def test_rendered_installer_is_hash_pinned_and_exact_controller_scoped():
     assert "Get-FileHash -Algorithm SHA256" in script
     assert "-RemoteAddress $ControllerIp -Profile Private" in script
     assert "-RemoteAddress LocalSubnet" not in script
+    assert "Approved Private Windows network profile is required." in script
+    assert script.index("Existing Fleet firewall rule requires") < script.index(
+        "$TouchedService = $true"
+    )
+    assert "$FirewallCreated = $true" in script
+    assert "if ($FirewallCreated)" in script
+    assert "if ($TouchedService -and $AgentPython" in script
+    assert "if ($TouchedService)" in script
     assert "sofia.distributed.agent_main" in script
     assert "bootstrap-receipt.json" in script
     assert "Get-CimInstance Win32_Process" in script
