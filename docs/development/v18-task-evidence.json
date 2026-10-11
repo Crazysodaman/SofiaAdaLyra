@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+  "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -16567,22 +16567,33 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1048,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_provision.py",
+        "test/test_ops_workshop_hyperv_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Typed immutable Hyper-V Hephaestus plan now includes cryptographically enrolled Artemis Fleet node UUID, observed Windows/Hyper-V build, exact guest name, approved VM root, SHA-256 pinned local Debian installer, dedicated private switch, Gen-2 firmware, provisional 2 vCPU/4 GiB/60 GiB quotas, 15-minute TTL and plan-owned-only cleanup boundary. Manifest SHA-256 is deterministic; owner UI prepares plan from read-only mTLS host evidence. Regression tests authored, unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -16593,30 +16604,32 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/ops/workshop_provision.py",
-        "src/sofia/ops/capability.py"
+        "src/sofia/ops/capability.py",
+        "test/test_ops_workshop_hyperv_production.py"
       ],
       "evidence_commits": [
-        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0"
+        "31d9419ea6ee7b719aca0c3bbd1790721e4dd8d0",
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
       ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md",
+        "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "source_confirmed_partial_2026_10_11",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Real Artemis agent publishes static read-only Hyper-V host CPU/RAM/disk/VM/switch facts and independently root-scoped media SHA-256 over pinned mTLS. Owner Fleet Settings previews resource/isolation/image blockers without provisioning; canonical bounded plan evidence is available via actual read-only OPS cognitive tool ops.workshop.preview. Unknown host/image/version/expiry/name collision denies admission and may_provision always false absent distinct Level-4 executor. Regression tests authored, not run.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
       },
       "audit_observation": {
         "source_review_date": "2026-10-11",
-        "observed": "Task-specific existing and newly edited production source paths confirmed present on main: src/sofia/ops/workshop_provision.py, src/sofia/ops/capability.py. Partial wiring and source review, not all clauses complete.",
-        "missing": "Validated real Artemis hardware capacity, OS-installed Hephaestus, independent guest attestation and isolated real laboratory canary.",
-        "acceptance": "Partially source-backed and not coding-complete; CI source tests underway, no valid live acceptance and no deployment."
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_provision.py, test/test_ops_workshop_hyperv_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -16624,22 +16637,33 @@
       "phase": "13",
       "source_topic": "29",
       "master_line": 1050,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/safe/permissions.py",
+        "test/test_ops_workshop_vm_separation.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "SAFE five-level production classification now explicitly exposes workshop.vm.inspect and workshop.vm.plan as Level 1 observation, workshop.vm.provision/quarantine/cleanup, workshop.network.create and workshop.guest.bootstrap as Level 4 protected without standing grants, with independent fleet.enroll Level 4 and permissions.grant Level 5. Existing authority engine applies these classifications. Regression tests authored but not executed; no Hyper-V action performed.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/safe/permissions.py, test/test_ops_workshop_vm_separation.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17061,22 +17085,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1072,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Production OPS twin compares three explicit research scopes: implemented reviewed dependency graph vs unavailable disposable Docker replica and unavailable full VM clone. Source-grounded fidelity choices are surfaced in Settings/OPS; none silently claimed installed. Tests authored not executed.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17084,22 +17119,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1073,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Read-only topology snapshot derives only authenticated/trusted host IDs, lifecycle, timestamp/unknown telemetry from canonical OPS Fleet, with owner-reviewed dependency links in canonical sofia.db, no network scanning, auto-enrollment or secrets. OPS and Settings wired; tests authored not run.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17107,22 +17153,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1074,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Eight bounded synthetic scenarios (DNS, Fleet outage, disk pressure, SQLite lock, container crash, stale clock, weather sensor and conflicting identity) now run through real OPS digital twin, propagating hypothetical impact only on compatible reviewed edge types. Tests written not run.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17130,22 +17187,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1075,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Every report has enforced dependency_graph_v1 fidelity, absent docker/VM clone explicitly unimplemented, real outage/provenance and host-action assertions false; synthetic output never provides actual authority or real-world success evidence. Settings and cognitive OPS tool wired.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17153,22 +17221,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1076,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Production synthetic experiments persist SHA-256 checked, source-versioned, deterministic-seed, evaluator-tagged canonical capsules with exact Fleet source timestamps, owner-reviewed edges, snapshot hash and result/abandonment, bounded to 32. Tests authored not run.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17199,22 +17278,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1078,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Production OPS digital twin now exposes Gaia-specific simulation-to-physical discrepancy matrix: 3DOF gait geometry modeled, mixed continuous/180 servos, deadband, current, power and SSC-32 latency explicitly unmeasured, and servo pulses separated under robot.motion authority. Source tests authored unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17222,22 +17312,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1079,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Production OPS digital twin now distinguishes hypothetical JMRI route/roster scenarios from independently authenticated occupancy observation, real track power, turnout and locomotive commands. No physical action or grant from simulated outcomes; matrix available to Sofía and Settings, tests written.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17245,22 +17346,33 @@
       "phase": "13",
       "source_topic": "36",
       "master_line": 1080,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/digital_twin.py",
+        "test/test_ops_digital_twin_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Bounded experimental abandonment policy now marks ABANDON_RESEARCH for unfalsifiable hypothesis, stale/missing source facts, three unproductive failures, resource budget excess or missing reviewed topology. Integrated into every canonical synthetic capsule, no real action authority; source tests written.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/digital_twin.py, test/test_ops_digital_twin_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17291,22 +17403,33 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1085,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_handoff.py",
+        "test/test_ops_workshop_handoff_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Typed owner-created blank Hephaestus handoff binds exact Artemis pinned-mTLS node UUID, Hyper-V VM GUID, existing VHDX, Gen2/CPU/RAM/disk, Private NIC, observed boot order, Linux-compatible Secure Boot and hash-pinned offline installer. Host INSPECT path plus owner Fleet Settings preview/source receipts are real production wiring, with unexecuted regressions. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17314,22 +17437,33 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1086,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "test/test_ops_workshop_guest_bootstrap_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "No-OS bootstrap paradox implemented: independent Artemis Hyper-V host side can read the exact blank VM before any guest agent. An opt-in, host-admin pinned VM/disk/ISO operation rechecks offline hash and starts only that VM's unattended Debian installer after one-use Level-4 grant. No in-guest calls or VM creation. Tests written, unexecuted; OS installation proof remains separate. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17337,22 +17471,33 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1087,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_media_attestation.py",
+        "test/test_ops_workshop_media_attestation_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Operator-selected owner-created Hyper-V Gen2 VM now has a production offline Debian 13 DVD-1 ISO remaster path: owner compares cloud-image/NoCloud, manual and preseed ISO alternatives in architecture guide; actual signed UEFI GRUB automatic-installer media builder uses independently pinned Debian DVD SHA, locally entered SHA-512 crypt password, password-required console admin, locked root/nonlogin worker, SSH masked, no network mirror and halt-on-install. Artemis Fleet checks an independently pinned owner Ed25519 manifest and actual ISO digest before preflight or protected boot. Regression tests authored not run; final Hyper-V UEFI/installer completion still unverified. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_media_attestation.py, test/test_ops_workshop_media_attestation_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17383,22 +17528,33 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1089,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_guest_bootstrap.py",
+        "test/test_ops_workshop_guest_bootstrap_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Production Fleet Settings owner confirmation writes exact single-use SAFE receipt for Artemis node/VM GUID/VHDX/unattended ISO SHA/handoff fingerprint. RemoteFleetToolService consumes one-use approval before mTLS transport and requires exact protected Fleet grant; short scoped grant is revoked after attempt. Bootstrap records STARTED vs UNCERTAIN, never claims guest OS installed or authorizes future Fleet enrollment. Tests written, not run. Owner chose Internal host-only /30 on 2026-10-11; source handoff/installer/signed ISO now enforce exact Internal network, no routing/NAT/ICS and host Public firewall, plus isolated guest nftables. Existing reviewed Private-network receipts no longer authorize boot. Deferred tests remain unexecuted.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_guest_bootstrap.py, test/test_ops_workshop_guest_bootstrap_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -17429,22 +17585,33 @@
       "phase": "13",
       "source_topic": "43",
       "master_line": 1091,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/workshop_handoff.py",
+        "test/test_ops_workshop_handoff_production.py"
+      ],
+      "evidence_commits": [
+        "84bb12545fd3f10e0ee8ee89d43ba2c6e69c146a"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
         "source_report": "docs/development/v18-workstream4-task-evidence.json",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "code_path_integrated_unverified",
+        "evidence_level": "source_review_with_linux_synthetic_evidence_partial",
         "code_ready_for_tests_claimed_by_workstream": true,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Owner decision to supply an already-created OS-less Hyper-V VM is implemented in production: Settings/OPS handoff now inspects instead of provisioning, installer operation cannot create new VMs or change networking, and documented comparison covers manually installed VM, cloud image and whole-VM self-provision alternatives; no live host writes yet.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phases-08-09-12-13-implementation-audit-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Workstream 4 original source candidate was traced to inspected production paths src/sofia/ops/workshop_handoff.py, test/test_ops_workshop_handoff_production.py. Phase13 Ubuntu workshop + twin CI 168 tests passed on 2026-10-11.",
+        "missing": "Full V18 requirement not accepted: Artemis real Hyper-V host, independently verified guest operating system, signed media, restricted worker, isolation/rollback/recovery proof and Windows physical acceptance as applicable. No real host action performed.",
+        "acceptance": "Source-backed partial. CI synthetic only; no OS-installed guest or operational end-to-end acceptance."
       }
     },
     {
@@ -18627,5 +18794,33 @@
       "type": "synthetic only"
     },
     "warning": "Linux SAFE browser approval still Windows-host restricted; independent signed per-device Linux owner enrollment remains required. No live host pairing or guest OS screen use."
+  },
+  "phase13_source_reconciliation_2026_10_11": {
+    "reviewed_main_sha": "b3461b677fcf8464a100a956f224ea0d6a73bd75",
+    "source": "docs/development/v18-workstream4-task-evidence.json",
+    "promoted_partial_ids": [
+      "CA-2902",
+      "CA-2903",
+      "CA-2904",
+      "CA-3601",
+      "CA-3602",
+      "CA-3603",
+      "CA-3604",
+      "CA-3605",
+      "CA-3607",
+      "CA-3608",
+      "CA-3609",
+      "CA-4301",
+      "CA-4302",
+      "CA-4303",
+      "CA-4305",
+      "CA-4307"
+    ],
+    "ubuntu_ci_run": 38178497493,
+    "ubuntu_result": "168 synthetic tests passed",
+    "windows_result": "pending at source review",
+    "host_deployed": false,
+    "owner_cutover": false,
+    "accepted_task_ids": []
   }
 }
