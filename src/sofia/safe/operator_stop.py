@@ -92,6 +92,7 @@ class OperatorStopStore:
         updated_by:str,
         reason:str,
         at:datetime|None=None,
+        approval_id:str|None=None,
     )->OperatorStopState:
         if not isinstance(active,bool):
             raise TypeError("active must be boolean")
@@ -104,6 +105,19 @@ class OperatorStopStore:
         moment=at or datetime.now(timezone.utc)
         if moment.tzinfo is None or moment.utcoffset() is None:
             raise ValueError("at must be timezone-aware")
+        if not active:
+            # The emergency PAUSE remains immediate. Only lifting that stop
+            # requires a new, exact, FIDO2-authenticated SAFE approval.
+            # A username literal or Tk confirmation cannot resume autonomy.
+            from sofia.safe.execution_approval import ExecutionApprovalVerifier
+            if not approval_id:
+                raise PermissionError("operator resume requires fresh authenticated approval")
+            ExecutionApprovalVerifier(self.path).consume(
+                approval_id=approval_id,
+                capability="operator.stop.resume",
+                parameters={"active": False, "reason": reason.strip()},
+                now=moment,
+            )
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             previous = db.execute(
