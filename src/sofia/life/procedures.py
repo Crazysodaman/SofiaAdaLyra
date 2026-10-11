@@ -509,6 +509,49 @@ class LifeProcedureCatalog:
                 raise ValueError(
                     "original LIFE/RUN/evaluation proof changed before skill promotion"
                 )
+            key, environment, version, _predecessor = (
+                self._current_definition_under_lock(db, project)
+            )
+            previous_id = None
+            if version > 1:
+                previous_id, _ = self._definition(project, version=version - 1)
+                previous = db.execute(
+                    "SELECT status,updated_at FROM life_procedure_catalog "
+                    "WHERE procedure_id=?", (previous_id,),
+                ).fetchone()
+                if (
+                    not self._auto_recovery_eligible(project)
+                    or previous is None
+                    or previous["status"] != "quarantined"
+                ):
+                    raise PermissionError(
+                        "skill successor requires owner approval outside "
+                        "non-executable local creative knowledge"
+                    )
+                # A second look at an old successful RUN cannot rebuild the
+                # quarantined skill under a shiny new revision number. Two
+                # wholly new completed projects must independently prove it.
+                try:
+                    quarantined_at = datetime.fromisoformat(
+                        previous["updated_at"]
+                    )
+                except (ValueError, TypeError, OverflowError) as exc:
+                    raise ValueError(
+                        "corrupt original quarantine timestamp"
+                    ) from exc
+                if (
+                    quarantined_at.tzinfo is None
+                    or quarantined_at.utcoffset() is None
+                    or project.created_at <= quarantined_at
+                    or db.execute(
+                        "SELECT 1 FROM life_procedure_proof "
+                        "WHERE project_id=? AND procedure_id<>? LIMIT 1",
+                        (project.project_id, key),
+                    ).fetchone() is not None
+                ):
+                    raise ValueError(
+                        "recovery needs new independent post-quarantine source work"
+                    )
             existing = db.execute(
                 "SELECT * FROM life_procedure_catalog WHERE procedure_id=?",
                 (key,),
@@ -518,7 +561,7 @@ class LifeProcedureCatalog:
                     """INSERT INTO life_procedure_catalog
                     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
-                        key, 1, project.owner_principal_id,
+                        key, version, project.owner_principal_id,
                         project.audience_id,
                         "Reproduce independently verified, original LIFE creative objectives",
                         json.dumps(("LifeProject", "CreativeArtifactCapability")),
@@ -539,6 +582,16 @@ class LifeProcedureCatalog:
                         json.dumps((original_run_evidence_ref,)), None,
                     ),
                 )
+                if previous_id is not None:
+                    db.execute(
+                        "INSERT INTO life_procedure_replacement "
+                        "(successor_id,quarantined_predecessor_id,"
+                        "disposition,created_at) VALUES(?,?,?,?)",
+                        (
+                            key, previous_id,
+                            "auto_nonexecutable_creative_knowledge", now_iso,
+                        ),
+                    )
             elif existing["status"] == "quarantined":
                 # Historical bad procedures cannot self-promote just by
                 # recording new results. Independent reviewed reinstatement
