@@ -514,7 +514,7 @@ class NeuroRuntime:
                     "and salience margins retain precedence"
                 )
                 self._last_competition_error = None
-            except (ValueError, TypeError, ArithmeticError, OverflowError) as exc:
+            except Exception as exc:
                 # Invalid engineered computation must not disrupt conversation.
                 self._last_competition_error = type(exc).__name__
                 selection_reason = "circuit invalid; deterministic salience retained"

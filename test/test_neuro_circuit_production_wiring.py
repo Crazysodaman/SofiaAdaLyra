@@ -62,3 +62,17 @@ def test_invalid_circuit_falls_back_and_disable_restores_baseline():
 def test_nonfinite_neural_input_is_rejected_not_promoted():
     with pytest.raises(ValueError, match="0..1"):
         signal("bad", float("nan"))
+
+
+class UnexpectedBackendFailure(CircuitCompetition):
+    def run(self, inputs, *, iterations=6):
+        raise RuntimeError("experimental circuit backend unavailable")
+
+
+def test_unexpected_circuit_backend_error_also_falls_back_without_losing_turn():
+    runtime = NeuroRuntime(competition=UnexpectedBackendFailure())
+    runtime.observe_signal(signal("a", 0.7))
+    snapshot = runtime.observe_signal(signal("b", 0.68))
+    assert snapshot.focus.key == "diagnostic:a"
+    assert snapshot.selection_method == "salience-v1"
+    assert runtime.last_competition_error == "RuntimeError"
