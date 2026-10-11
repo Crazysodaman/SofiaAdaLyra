@@ -1,11 +1,13 @@
 """Production StatePlane composition, including opt-in fenced replication."""
 from __future__ import annotations
 
+from contextlib import closing
 from pathlib import Path
 import os
 import shutil
 import socket
 import sqlite3
+import tempfile
 
 from sofia.state.plane import StatePlane
 from sofia.state.replication import ReplicatedStatePlane, SQLiteReplicationWitness
@@ -46,15 +48,67 @@ def _replica_specs(raw: str) -> tuple[tuple[str, Path], ...]:
 
 
 def _seed_sqlite(source: Path, destination: Path) -> None:
+    """Publish a consistent replica snapshot atomically, without replacing data.
+
+    A staging database is verified and all SQLite handles are closed *before*
+    publication. Creating a replica directly at its canonical path would
+    expose an incomplete database after a crash and may leave it locked on
+    Windows. The final hard link is an atomic create-if-absent operation on
+    the same local filesystem; unsupported filesystems fail closed.
+    """
+    source = Path(source)
+    destination = Path(destination)
+    if not source.is_file() or source.is_symlink():
+        raise FileNotFoundError("verified local primary SQLite source required")
+    if destination == source or destination.resolve() == source.resolve():
+        raise ValueError("replica and primary must be distinct files")
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.is_symlink():
+        raise ValueError("symlinked replica destination is not allowed")
     if destination.exists():
-        return
-    with sqlite3.connect(str(source)) as src, sqlite3.connect(str(destination)) as dst:
-        src.backup(dst)
-        row = dst.execute("PRAGMA integrity_check").fetchone()
-        if row is None or row[0] != "ok":
-            destination.unlink(missing_ok=True)
-            raise RuntimeError("replica seed failed SQLite integrity_check")
+        return  # Existing replicas must be validated by SQLiteStatePlane.
+    if destination.parent.is_symlink():
+        raise ValueError("replica parent must not be a symbolic link")
+
+    with tempfile.NamedTemporaryFile(
+        prefix=".sofia-replica-seed-", suffix=".db",
+        dir=destination.parent, delete=False,
+    ) as handle:
+        staged = Path(handle.name)
+    try:
+        # backup() sees a transactionally consistent source, including WAL.
+        # closing(), unlike sqlite3's transaction context, releases Windows
+        # file handles even if backup or integrity_check fails.
+        with (
+            closing(sqlite3.connect(
+                source.resolve().as_uri() + "?mode=ro",
+                uri=True, timeout=10,
+            )) as src,
+            closing(sqlite3.connect(str(staged), timeout=10)) as dst,
+        ):
+            src.backup(dst)
+            row = dst.execute("PRAGMA integrity_check").fetchone()
+            if row is None or row[0] != "ok":
+                raise RuntimeError("replica seed failed SQLite integrity_check")
+            dst.commit()
+            checkpoint = dst.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if checkpoint is not None and checkpoint[0] != 0:
+                raise RuntimeError("replica seed could not checkpoint SQLite WAL")
+
+        # Only the closed, verified main DB is published. WAL sidecars, if
+        # created during snapshotting, must be empty after checkpointing.
+        wal = Path(str(staged) + "-wal")
+        if wal.exists() and wal.stat().st_size:
+            raise RuntimeError("replica seed has uncheckpointed WAL bytes")
+        with staged.open("rb") as content:
+            os.fsync(content.fileno())
+        # os.link fails with FileExistsError on a concurrent published target.
+        # os.replace is forbidden here because it would destroy the winner.
+        os.link(staged, destination)
+    finally:
+        staged.unlink(missing_ok=True)
+        for suffix in ("-wal", "-shm", "-journal"):
+            Path(str(staged) + suffix).unlink(missing_ok=True)
 
 
 def create_state_plane(state_path: Path | str) -> StatePlane:

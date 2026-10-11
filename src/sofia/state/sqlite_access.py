@@ -59,25 +59,31 @@ class SQLiteAccess:
 
     def connect(self, *, row_factory=None) -> sqlite3.Connection:
         self._readers.acquire()
+        db: _ObservedConnection | None = None
         try:
             db = sqlite3.connect(
                 str(self.path), timeout=10.0, check_same_thread=False,
                 factory=_ObservedConnection,
             )
+            # The connection owns the semaphore as soon as SQLite opens.
+            # A failed PRAGMA or invalid row factory must close the actual
+            # handle, not just release the reader slot. Windows will retain
+            # an open database otherwise, blocking state backup/relocation.
             db._access = self
             db._access_released = False
             db.row_factory = row_factory
             db.execute("PRAGMA busy_timeout = 10000")
             db.execute("PRAGMA foreign_keys = ON")
-            # journal_mode persists in the database. Avoid asking SQLite to
-            # renegotiate it on every short-lived store connection.
             if not self._wal_configured:
                 with self._setup_lock:
                     if not self._wal_configured:
                         db.execute("PRAGMA journal_mode = WAL")
                         self._wal_configured = True
-        except Exception:
-            self._readers.release()
+        except BaseException:
+            if db is None:
+                self._readers.release()
+            else:
+                db.close()  # _ObservedConnection.close releases exactly once
             raise
         with self._metrics_lock:
             self._connections += 1

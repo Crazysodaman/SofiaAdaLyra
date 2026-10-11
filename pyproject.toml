@@ -26,6 +26,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 python_classes = ["*Test"]
 pythonpath = [".", "src"]
+# Only owned tests are collected. Clean release snapshots and provider
+# implementation modules must not be mistaken for another pytest suite.
+testpaths = ["test"]
 markers = [
     "integration: tests requiring external services",
     "cross_package: test intentionally spans more than one package boundary",
