@@ -150,7 +150,7 @@ class ExecutionApprovalVerifier:
                 # Do not accept a submitted actor label or guessed event ID.
                 digest = authentication_event_id.partition(":")[2]
                 row = db.execute(
-                    "SELECT ch.action_fingerprint,ch.consumed_at,cr.credential_kind "
+                    "SELECT ch.action_fingerprint,ch.consumed_at,cr.credential_kind,cr.revoked_at "
                     "FROM safe_owner_challenge ch JOIN safe_owner_credential cr "
                     "ON cr.credential_id=ch.credential_id "
                     "JOIN safe_audit_event au ON au.event_id=? "
@@ -158,8 +158,8 @@ class ExecutionApprovalVerifier:
                     "AND au.event_type='owner.webauthn.verified'",
                     (authentication_event_id, digest),
                 ).fetchone()
-                if row is None or row["consumed_at"] is None:
-                    raise PermissionError("owner authentication evidence unavailable")
+                if row is None or row["consumed_at"] is None or row["revoked_at"] is not None:
+                    raise PermissionError("owner authentication evidence unavailable or revoked")
                 if row["action_fingerprint"] != approval.request_fingerprint:
                     raise PermissionError("authenticated action fingerprint mismatch")
                 verified_at = datetime.fromisoformat(row["consumed_at"])
@@ -238,7 +238,14 @@ class ExecutionApprovalVerifier:
                 SELECT capability, approved_by, approved_at, expires_at,
                        EXISTS(
                          SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_challenge ch
+                           ON b.authentication_event_id =
+                              ('owner-webauthn:' || ch.challenge_digest)
+                         JOIN safe_owner_credential cr
+                           ON cr.credential_id = ch.credential_id
                          WHERE b.approval_id = a.approval_id
+                           AND ch.consumed_at IS NOT NULL
+                           AND cr.revoked_at IS NULL
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE consumed_at IS NULL
@@ -303,7 +310,14 @@ class ExecutionApprovalVerifier:
                        approved_at, expires_at, consumed_at,
                        EXISTS(
                          SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_challenge ch
+                           ON b.authentication_event_id =
+                              ('owner-webauthn:' || ch.challenge_digest)
+                         JOIN safe_owner_credential cr
+                           ON cr.credential_id = ch.credential_id
                          WHERE b.approval_id = a.approval_id
+                           AND ch.consumed_at IS NOT NULL
+                           AND cr.revoked_at IS NULL
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE approval_id = ?
@@ -365,7 +379,14 @@ class ExecutionApprovalVerifier:
                        approved_at, expires_at, consumed_at,
                        EXISTS(
                          SELECT 1 FROM safe_execution_owner_auth_binding b
+                         JOIN safe_owner_challenge ch
+                           ON b.authentication_event_id =
+                              ('owner-webauthn:' || ch.challenge_digest)
+                         JOIN safe_owner_credential cr
+                           ON cr.credential_id = ch.credential_id
                          WHERE b.approval_id = a.approval_id
+                           AND ch.consumed_at IS NOT NULL
+                           AND cr.revoked_at IS NULL
                        ) AS owner_proof_bound
                 FROM safe_execution_approval a
                 WHERE approval_id = ?
