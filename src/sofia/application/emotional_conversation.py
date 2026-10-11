@@ -1100,6 +1100,7 @@ class EmotionalConversationService(ConversationService):
         if neuro_snapshot is not None and neuro_runtime is not None:
             if neuro_runtime.read_workspace(
                 consumer="personality", at=current_user.created_at,
+                expected_snapshot=neuro_snapshot,
             ) is None:
                 neuro_snapshot = None
         modulation = derive_expression_modulation(
