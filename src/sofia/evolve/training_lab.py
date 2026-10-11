@@ -168,8 +168,13 @@ def assess_training_lab(
             or observed_guest.get("artemis_node_id")!=str(plan.artemis_node_id)
             or observed_guest.get("vm_guid")!=str(plan.hephaestus_vm_id)
             or observed_guest.get("guest_name")!="Hephaestus"
+            or observed_guest.get("ready_for_bootstrap_review") is not True
+            or observed_guest.get("internal_isolation_observed") is not True
         ):
-            blockers.append("reviewed Hyper-V Hephaestus host/VM identity missing or stale")
+            blockers.append(
+                "exact Hephaestus host/VM identity or independently reviewed "
+                "Internal network isolation missing, stale or blocked"
+            )
     # A reviewed draft does not acquire guest trust or host GPU availability.
     if not guest_debian_attested:
         blockers.append("no independently attested Debian Hephaestus worker")
