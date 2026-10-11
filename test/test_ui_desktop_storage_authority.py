@@ -85,3 +85,29 @@ def test_legacy_remote_chat_setting_is_migrated_to_local(tmp_path):
     assert settings.remote_chat_mode is RemoteChatMode.LOCAL
     assert settings.pinned_chat_endpoint is None
     assert app.chat_state_path == config.state_path
+
+
+def test_detached_desktop_refuses_to_bootstrap_missing_canonical_state(tmp_path):
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    config = configuration(tmp_path)
+    config.state_path.unlink()
+    with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+        create_desktop_application(config)
+    assert not config.state_path.exists()
+
+
+def test_detached_desktop_rejects_redirected_canonical_state(tmp_path):
+    import pytest
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    config = configuration(tmp_path)
+    prior = config.state_path.with_name("safe.db")
+    config.state_path.rename(prior)
+    try:
+        config.state_path.symlink_to(prior)
+    except (OSError, NotImplementedError):
+        pytest.skip("Host symlink privileges unavailable")
+    with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
+        create_desktop_application(config)
