@@ -1225,3 +1225,43 @@ def test_independent_failed_artifact_critique_accepts_exact_failure(tmp_path):
         assert len(life.store.evaluations(project.project_id)) == 1
     finally:
         life.close()
+
+
+def test_life_interest_learning_refuses_unlinked_credible_evaluation(tmp_path):
+    """A real evidence ref plus a fabricated evaluation row is not an experience."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence_ref = active_project(life, now)
+        fake = ArtifactEvaluation(
+            "evaluation:unlinked-interest", project.project_id,
+            "artifact:never-created", 1, TechnicalOutcome.INCONCLUSIVE,
+            PersonalJudgment.LIKE,
+            {objective: None for objective in project.brief.objectives},
+            "A plausible critique with no source artifact or RUN job.",
+            (evidence_ref,), False, now + timedelta(seconds=3),
+        )
+        life.store.record_evaluation(fake)
+        life.store.record_experience(ExperienceRecord(
+            "experience:unlinked-interest", project.project_id,
+            "artifact_evaluated", "Claimed personal interest from a fake file.",
+            (evidence_ref,), project.audience_id, True,
+            fake.evaluated_at, fake.evaluated_at,
+            {"interest_learning": {
+                "schema": 1, "evaluation_id": fake.evaluation_id,
+                "originating_interest": project.originating_interest,
+                "confidence": project.confidence,
+            }},
+        ))
+        before = life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        result = life.learn_from_experiences(now=now + timedelta(seconds=4))
+        after = life.store.interest_by_id(
+            project.originating_interest, audience_id=project.audience_id,
+        )
+        assert result["invalid"] == 1
+        assert result["applied"] == 0
+        assert before is not None and after is not None
+        assert after.revision == before.revision
+    finally:
+        life.close()
