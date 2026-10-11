@@ -30,6 +30,7 @@ def test_runtime_stop_remains_a_distinct_explicit_tray_command():
             (kind, action, kwargs)
         )
     )
+    app._queue_service_control = lambda operation: operation()
 
     keep_running = app.handle(TrayCommand.RUNTIME_STOP)
 
@@ -63,6 +64,29 @@ def test_slow_model_control_runs_off_the_tray_event_thread():
 
     app._queue_model_control(operation)
 
+    assert started.wait(timeout=1)
+    assert app._model_control_active is True
+    release.set()
+    assert finished.wait(timeout=1)
+
+
+def test_slow_signed_service_control_runs_outside_tray_event_thread():
+    from threading import Event, Lock
+
+    app = object.__new__(TrayAgentApplication)
+    app._model_control_lock = Lock()
+    app._model_control_active = False
+    app._last_error = None
+    started = Event()
+    release = Event()
+    finished = Event()
+
+    def operation():
+        started.set()
+        assert release.wait(timeout=5)
+        finished.set()
+
+    app._queue_service_control(operation)
     assert started.wait(timeout=1)
     assert app._model_control_active is True
     release.set()
