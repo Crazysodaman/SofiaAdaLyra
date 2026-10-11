@@ -97,3 +97,76 @@ def relocation_preflight_text(source: Path, destination: Path) -> str:
         "Blockers: " + (", ".join(p.blockers) or "none"),
         "Warnings: " + "; ".join(p.warnings),
     ))
+
+
+@dataclass(frozen=True, slots=True)
+class StateCandidate:
+    """Possible old/copied Sofía home; never proof of canonical authority."""
+    state_path: Path
+    database_size: int
+    protected_identity_present: bool
+    is_configured_path: bool
+
+
+def discover_local_state_candidates(
+    *, configured_path: Path, extra_roots: tuple[Path, ...] = (),
+    max_roots: int = 12,
+) -> tuple[StateCandidate, ...]:
+    """Inspect a bounded explicit candidate set, never enumerate entire disks.
+
+    A discovered file is NOT a verified Sofía database, a grant, or a valid
+    replacement for the one canonical path currently configured. Real
+    verification requires schema, protected identity and operator ownership.
+    """
+    if not isinstance(configured_path, Path) or not isinstance(extra_roots, tuple):
+        raise TypeError("configured path and candidate roots have invalid types")
+    if type(max_roots) is not int or not 1 <= max_roots <= 32:
+        raise ValueError("max_roots must be bounded")
+    from pathlib import Path as _Path
+    import os as _os
+    guessed_roots: list[Path] = [
+        configured_path.parent,
+        _Path.home() / "SofiaAdaLyra",
+    ]
+    if _os.name == "nt":
+        guessed_roots.append(_Path(_os.environ.get("PROGRAMDATA", r"C:\ProgramData")) / "SofiaAdaLyra")
+        appdata = _os.environ.get("LOCALAPPDATA")
+        if appdata:
+            guessed_roots.append(_Path(appdata) / "SofiaAdaLyra")
+    else:
+        guessed_roots += [
+            _Path("/var/lib/sofia-ada-lyra"),
+            _Path.home() / ".local/share/sofia-ada-lyra",
+        ]
+    if any(not isinstance(root, Path) for root in extra_roots):
+        raise TypeError("extra roots must be paths")
+    guessed_roots.extend(extra_roots)
+    seen: set[Path] = set()
+    results: list[StateCandidate] = []
+    for root in guessed_roots[:max_roots]:
+        directory = root.absolute()
+        if directory in seen or _unsafe_ancestor(directory):
+            continue
+        seen.add(directory)
+        database = directory / "sofia.db"
+        if not database.is_file() or database.is_symlink():
+            continue
+        results.append(StateCandidate(
+            state_path=database,
+            database_size=database.stat().st_size,
+            protected_identity_present=(directory / "protected/identity.json").is_file(),
+            is_configured_path=database == configured_path.absolute(),
+        ))
+    return tuple(results)
+
+
+def describe_state_candidates(configured_path: Path) -> str:
+    candidates = discover_local_state_candidates(configured_path=configured_path)
+    if not candidates:
+        return "No Sofía database files were found at configured or known local roots."
+    return "\n".join(
+        f"{item.state_path} | {item.database_size:,} bytes | "
+        f"protected identity: {item.protected_identity_present} | "
+        f"configured: {item.is_configured_path}"
+        for item in candidates
+    ) + "\nThese are unverified candidates, not alternate canonical databases."
