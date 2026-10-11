@@ -306,3 +306,113 @@ def observed_owner_vm(payload: dict) -> WorkshopVMObservation:
         dvd_paths=tuple(raw_dvds),
         secure_boot=security,observed_at=moment,
     )
+
+
+
+@dataclass(frozen=True, slots=True)
+class WorkshopHandoffPreview:
+    handoff: WorkshopBlankVMHandoff
+    observation: WorkshopVMObservation
+    review: WorkshopHandoffReview
+    observed_boot_sha256: str | None
+    fleet_vm_receipt: str
+    fleet_media_receipt: str | None
+
+    def readable(self) -> str:
+        return "\n".join((
+            "OWNER-CREATED HEPHAESTUS: HYPER-V HANDOFF REVIEW ONLY",
+            "VM exact GUID: "+str(self.handoff.hyperv_vm_id),
+            "Artemis enrolled node UUID: "+str(self.handoff.artemis_node_id),
+            "Handoff SHA-256: "+self.handoff.fingerprint,
+            "VM state: "+self.observation.state,
+            "OS target: Debian / Gen2 / UNATTENDED offline installer",
+            "Disk: "+self.handoff.expected_os_disk_path,
+            "Unattended boot media: "+self.handoff.installer_iso_path,
+            "Media expected: "+self.handoff.approved_boot_media_sha256,
+            "Media observed: "+str(self.observed_boot_sha256 or "UNKNOWN"),
+            "Network: "+str(self.observation.nic_switches),
+            "No self-created guest, network change, or implicit Fleet enrollment.",
+            "Owner confirmed empty OS disk: "+str(self.handoff.owner_declares_empty_disk),
+            "Eligible for separate boot approval: "
+            +str(self.review.ready_for_owner_bootstrap_review),
+            "May install now: FALSE; separate exact Level-4 grant required",
+            "Blockers: "+("; ".join(self.review.blockers) or "none at read-only boundary"),
+            "OS installed: UNKNOWN; guest heartbeats require later trust decision.",
+        ))
+
+
+def preview_owner_created_vm(
+    *,
+    remote_service,
+    artemis_node_id: str,
+    exact_vm_id: str,
+    disk_path: str,
+    boot_media_path: str,
+    boot_media_sha256: str,
+    owner_confirms_blank_disk: bool,
+    at: datetime,
+) -> WorkshopHandoffPreview:
+    """Authenticated read-only handoff, no arbitrary hypervisor control."""
+    from sofia.distributed.capability import RemoteFleetToolService
+    from uuid import uuid4
+    if not isinstance(remote_service,RemoteFleetToolService):
+        raise TypeError("canonical pinned-mTLS Fleet service required")
+    node=UUID(artemis_node_id)
+    vm=UUID(exact_vm_id)
+    handoff=WorkshopBlankVMHandoff(
+        plan_id="hephaestus:handoff:"+uuid4().hex,
+        artemis_node_id=node,hyperv_vm_id=vm,
+        expected_os_disk_path=disk_path,
+        installer_iso_path=boot_media_path,
+        installer_sha256=boot_media_sha256,
+        approved_boot_media_sha256=boot_media_sha256,
+        created_at=at,expires_at=at+timedelta(minutes=15),
+        owner_declares_empty_disk=owner_confirms_blank_disk,
+    )
+    response=remote_service.invoke(str(node),"workshop.inspect","blank_vm",{})
+    if (
+        not isinstance(response,dict)
+        or response.get("node_id")!=str(node)
+        or response.get("outcome")!="reported_success"
+        or not isinstance(response.get("request_id"),str)
+        or not isinstance(response.get("message"),str)
+        or len(response["message"])>65_536
+    ):
+        raise RuntimeError("Artemis blank VM identity inspection unavailable")
+    obs=observed_owner_vm(json.loads(response["message"]))
+    review=inspect_blank_vm_handoff(handoff,obs,now=at)
+    observed_hash=None
+    media_receipt=None
+    try:
+        media=remote_service.invoke(
+            str(node),"workshop.inspect","media",
+            {"image_path":boot_media_path},
+        )
+        if (
+            isinstance(media,dict)
+            and media.get("node_id")==str(node)
+            and media.get("outcome")=="reported_success"
+            and isinstance(media.get("message"),str)
+            and len(media["message"])<4096
+        ):
+            result=json.loads(media["message"])
+            if isinstance(result,dict) and isinstance(result.get("sha256"),str):
+                observed_hash=result["sha256"]
+                media_receipt=media.get("request_id")
+    except (PermissionError,ValueError,RuntimeError,LookupError,OSError):
+        pass
+    blockers=list(review.blockers)
+    if observed_hash is None:
+        blockers.append("offline unattended image SHA-256 not observed on Artemis")
+    elif observed_hash != handoff.approved_boot_media_sha256:
+        blockers.append("boot media SHA-256 changed or mismatched")
+    final=WorkshopHandoffReview(
+        handoff.fingerprint,not blockers,tuple(blockers),
+        may_install=False,may_enroll=False,
+    )
+    return WorkshopHandoffPreview(
+        handoff=handoff,observation=obs,review=final,
+        observed_boot_sha256=observed_hash,
+        fleet_vm_receipt=response["request_id"],
+        fleet_media_receipt=media_receipt,
+    )
