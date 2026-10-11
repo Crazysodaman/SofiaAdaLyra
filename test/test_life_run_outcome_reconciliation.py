@@ -385,3 +385,87 @@ def test_original_run_source_rejects_malformed_observation_timestamp(tmp_path):
         assert life._project(project.project_id).status is ProjectStatus.ACTIVE
     finally:
         life.close()
+
+
+
+def test_run_outcome_waits_for_real_original_event_time(tmp_path):
+    """Do not permanently ingest future RUN chronology before it becomes real."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        future = now + timedelta(hours=2)
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="original worker outcome must await its timestamp",
+            now=future,
+        )
+        assert life.store.reconcile_run_outcomes(
+            now=now + timedelta(hours=1),
+        ) == ()
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id,
+            status="uncertain",
+        ) is None
+        receipts = life.store.reconcile_run_outcomes(
+            now=future + timedelta(seconds=1),
+        )
+        assert len(receipts) == 1
+        assert receipts[0].run_at == future
+        assert receipts[0].observed_at > receipts[0].run_at
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id,
+            status="uncertain",
+        ) == receipts[0]
+        assert life.store.reconcile_run_outcomes(
+            now=future + timedelta(seconds=2),
+        ) == ()
+    finally:
+        life.close()
+
+
+def test_malformed_original_run_timestamp_is_not_ingested(tmp_path):
+    """Bad original event time is unknown, not a durable false observation."""
+    import sqlite3
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, job = _queued_job(life, now)
+        life.work_store.transition(
+            job.job_id, expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.BLOCKED,
+            reason="original SAFE decision blocked the work",
+            now=now + timedelta(seconds=4),
+        )
+        with sqlite3.connect(life.path) as db:
+            event_id = db.execute(
+                "SELECT event_id FROM autonomous_work_event "
+                "WHERE job_id=? AND to_status='blocked'",
+                (job.job_id,),
+            ).fetchone()[0]
+            db.execute(
+                "UPDATE autonomous_work_event SET occurred_at=? "
+                "WHERE event_id=?",
+                ("invalid-source-event-time", event_id),
+            )
+        assert life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=6),
+        ) == ()
+        assert life.store.exact_original_run_outcome(
+            project_id=project.project_id, job_id=job.job_id,
+            status="blocked",
+        ) is None
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "UPDATE autonomous_work_event SET occurred_at=? "
+                "WHERE event_id=?",
+                ((now + timedelta(seconds=4)).isoformat(), event_id),
+            )
+        receipts = life.store.reconcile_run_outcomes(
+            now=now + timedelta(seconds=7),
+        )
+        assert len(receipts) == 1
+        assert receipts[0].run_event_id == event_id
+        assert receipts[0].run_at <= receipts[0].observed_at
+    finally:
+        life.close()
