@@ -1464,6 +1464,37 @@ old-writer hard stop, external journal continuity, rollback procedure and
 supervised acceptance are unchanged. No tests, CI or live host/filesystem
 operation performed.
 
+
+
+### Phase 03 item 48: Reconfirm independent writer fence after recovery staging
+
+Actual Phase 03 `stage_verified_state_home` was checking the privileged
+`independently_verify_authorization` callback **once before** the potentially
+long backup, encrypted verification, whole-home restore and Linux fsync pass.
+A legitimate externally revoked authorization during those operations could
+still be followed by successful publication of a stale candidate. The
+existing helper now accepts a final authorization callback used by the real
+staging entrypoint, and checks it immediately before invoking Linux kernel
+`renameat2(RENAME_NOREPLACE)` or the Windows no-replace directory rename.
+An unavailable, denied, withdrawn or exceptional late check aborts the
+publication and removes only the operator-owned temporary staging directory.
+Old state and pre-existing destinations remain untouched.
+
+Production `src/sofia/ops/state_relocation.py`:
+`0df0ea680225da6e422aacb4d229732cadd8fcc9` (`[skip ci]`).
+Deferred regression `test/test_venus_artemis_relocation_evidence.py`:
+`77deed7d9e20775a66aa2305db4388c55d837bf1` (`[skip ci]`),
+using revocation after the first approval to prove no candidate publication.
+
+Original CA relevance: CA-3704, CA-5202, CA-6101, CA-6311.
+This is a secondary recheck of an **existing independent privileged
+verifier**, not an implemented privileged fencing broker. It cannot
+atomically bind a remote host shutdown to a local rename or guarantee
+the absence of reactivation after the final check. The old writer remains
+Venus, no promotion or pointer activation is allowed, and the original
+tasks remain only partially coded. Tests/CI **not run**, no live hosts or
+runtime/database/credentials changed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
