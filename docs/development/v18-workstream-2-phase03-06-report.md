@@ -377,6 +377,31 @@ CA relevance: CA-6306, CA-6312, CA-4111, CA-5306. Tests and CI
 **not run**. TLS handshake accept behavior, connection liveness and
 end-to-end load measurement remain separate acceptance work.
 
+### Exact authenticated HTTP request framing (Phase 04/05)
+
+Production route: `MobileCompanionServer.Handler.do_POST` →
+authenticated per-device bearer →
+`Handler._json` bounded body admission →
+`MobileCompanionGateway.dispatch_authenticated` →
+canonical mobile chat, history, sensors or notification operations.
+
+The parser previously accepted arbitrary `int(Content-Length)` and read
+up to that amount; it did not reject duplicate/conflicting
+`Content-Length` headers, unsupported `Transfer-Encoding`, or
+short reads that happened to decode to a complete JSON object.
+The production server now requires exactly one decimal Content-Length,
+refuses transfer-encoded bodies, enforces the existing 64-KiB ceiling,
+and verifies exact bytes received before JSON parsing or gateway dispatch.
+Malformed requests become HTTP 400 and cannot produce canonical actions.
+
+Commits:
+- `82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2` source.
+- `473e382f646e307295388bd837a6e123051c0414` deferred HTTP
+  duplicate/truncation/recovery regressions; **not executed**.
+
+CA relevance: CA-6302, CA-6304, CA-6306, CA-4111 and CA-6312.
+No host deployment or CA acceptance is claimed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
