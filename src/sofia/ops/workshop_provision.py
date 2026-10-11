@@ -386,3 +386,62 @@ def preview_authenticated_artemis(
     return WorkshopRemotePreview(
         plan,observation,review,result["request_id"],
     )
+
+
+
+def preview_owner_hephaestus_plan(
+    *,
+    remote_service,
+    artemis_node_id: str,
+    vm_root: str,
+    installer_image_path: str,
+    installer_image_sha256: str,
+    at: datetime,
+) -> WorkshopRemotePreview:
+    """Construct the exact plan from actual Hyper-V host data, not a guessed build."""
+    from uuid import UUID, uuid4
+    from sofia.distributed.capability import RemoteFleetToolService
+
+    if not isinstance(remote_service, RemoteFleetToolService):
+        raise TypeError("existing pinned-mTLS Fleet transport required")
+    node=UUID(artemis_node_id)
+    if not isinstance(at,datetime) or at.tzinfo is None or at.utcoffset() is None:
+        raise ValueError("aware owner preview time required")
+    response=remote_service.invoke(
+        str(node),"workshop.inspect","host",{},
+    )
+    if (
+        not isinstance(response,dict)
+        or response.get("node_id") != str(node)
+        or response.get("outcome") != "reported_success"
+        or not isinstance(response.get("message"),str)
+        or len(response["message"]) > 128_000
+        or not isinstance(response.get("request_id"),str)
+    ):
+        raise RuntimeError("Artemis host observation not authenticated or failed")
+    payload=json.loads(response["message"])
+    observed=observed_hyperv_host(
+        payload=payload,authenticated_fleet_host_id=str(node),
+        vm_root=vm_root,
+    )
+    plan=WorkshopProvisionPlan(
+        plan_id="hephaestus:"+uuid4().hex,
+        hypervisor_host_id=str(node),
+        hypervisor_version=observed.hypervisor_version,
+        guest_name=EXPECTED_VM,
+        vm_root=vm_root,
+        installer_image_path=installer_image_path,
+        installer_image_sha256=installer_image_sha256,
+        switch_name=EXPECTED_SWITCH,
+        vcpu=2,
+        memory_mb=4096,
+        disk_gib=60,
+        duration_minutes=60,
+        created_at=at,
+        expires_at=at+timedelta(minutes=15),
+    )
+    return WorkshopRemotePreview(
+        plan=plan,observation=observed,
+        review=inspect_workshop_plan(plan,observed,at=at),
+        fleet_request_id=response["request_id"],
+    )
