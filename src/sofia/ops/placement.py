@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Mapping
 
-from .activity import HostActivityState
+from .activity import ActivityMode, HostActivityState
 from .model import FleetHost, HostLifecycle, WorkloadContract
 
 @dataclass(frozen=True)
@@ -35,13 +35,26 @@ class PlacementEngine:
         # Foreground use outranks momentary CPU idleness. A gaming/busy host is
         # deprioritized for ordinary movable background work whenever another
         # eligible host exists. Workloads may explicitly opt into foreground hosts.
+        # A stale AUTO observation is not proof that the user stopped gaming.
+        # Penalize missing, stale or future activity when we have an actual
+        # placement clock, while respecting an explicit operator override.
+        def activity_pressure(host_id:str)->int:
+            if workload.allow_interactive_host:
+                return 0
+            state=activity_map.get(host_id)
+            if state is None:
+                return 3 if now is not None else 0
+            if now is not None and state.override is ActivityMode.AUTO:
+                observed=state.observed_at
+                if observed is None or observed.tzinfo is None or observed.utcoffset() is None:
+                    return 3
+                age=now.astimezone(timezone.utc)-observed.astimezone(timezone.utc)
+                if not -timedelta(seconds=30)<=age<=timedelta(seconds=120):
+                    return 3
+            return state.interactive_pressure
+
         def key(host:FleetHost):
-            state=activity_map.get(host.host_id)
-            pressure=(
-                state.interactive_pressure
-                if state is not None and not workload.allow_interactive_host
-                else 0
-            )
+            pressure=activity_pressure(host.host_id)
             cpu=(
                 101.0
                 if host.telemetry is None or host.telemetry.cpu_percent is None
