@@ -876,6 +876,33 @@ Decision document `d69bf464d49599bb46d8bb9a15dc9fe2dfa5516a`.
 No staging, restoration, live DB migration or host promotion performed.
 Independent physical writer fencing and accepted failback are still open.
 
+### Phase 03 independent replication witness loss/replacement refusal
+
+Source trace: opt-in `create_state_plane` →
+`ReplicatedStatePlane` →
+`SQLiteReplicationWitness` outside canonical data targets →
+writer lease/epoch journal, replica prepare/acks and promotion operations.
+Previously the witness constructor unconditionally made its parent directory
+and `sqlite3.connect` could create a missing independent witness,
+potentially restarting a split-brain fence at epoch 1. Now runtime uses
+`CanonicalSQLiteGuard` and mode=rw pinned file identity on **every**
+witness operation, refuses a missing witness or an existing file without
+the installed witness tables, and cannot silently replace a lost witness.
+First witness initialization is explicit via
+`SQLiteReplicationWitness(path,allow_first_bootstrap=True)` for a trusted
+offline provisioning/fixture path; normal `state.factory` has no such
+first-create authority. Existing isolated tests explicitly opt in.
+This witness still fences **only the replicated StatePlane records**, not
+every legacy table in full `sofia.db`. Independent witness hosting and
+hardware-fenced startup remain unverified.
+
+Source: `cf5062bfc665c6d501beb8833960d6d76b856ac2`.
+Fixture: `8a6d8ab741045fadf1b1aa38dd985971dec232e2`.
+Deferred loss/replacement/schema/epoch regression cases:
+`faa15c29e78a72eb5823060d51c711142b0b5e86`.
+No independent witness file was created on a live host, and no
+replication/failover was executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
