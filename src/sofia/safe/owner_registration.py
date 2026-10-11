@@ -168,15 +168,32 @@ def persist_enrollment(
     _unb64(credential_id, limit=1024)
     if not isinstance(registration_challenge_digest, str) or len(registration_challenge_digest) != 64:
         raise PermissionError("registration challenge identity required")
-    if first:
-        # Even a direct internal call cannot silently bootstrap another owner.
-        # Test fixtures bypass this only by patching the platform guard.
-        from sofia.safe.owner_enroll_browser import require_venus_interactive_windows
-        require_venus_interactive_windows()
+    # Both first and subsequent enrollments are bound to the original
+    # operator's actual Windows token SID. This blocks another local account
+    # on Venus from inheriting enrollment rights from a file alone.
+    from sofia.safe.owner_enroll_browser import require_venus_interactive_windows
+    owner_sid = require_venus_interactive_windows()
+    if not isinstance(owner_sid, str) or not owner_sid.startswith("S-1-5-"):
+        raise PermissionError("owner Windows token identity is unavailable")
     moment = _utc(at or datetime.now(timezone.utc))
     with closing(verifier._db()) as db, db:
         db.execute("BEGIN IMMEDIATE")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS safe_owner_host_identity (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                windows_sid TEXT NOT NULL,
+                first_enrolled_at TEXT NOT NULL
+            )
+        """)
         known = db.execute("SELECT COUNT(*) FROM safe_owner_credential").fetchone()[0]
+        pinned = db.execute(
+            "SELECT windows_sid FROM safe_owner_host_identity WHERE singleton=1",
+        ).fetchone()
+        if first:
+            if pinned is not None:
+                raise PermissionError("existing owner identity prevents first trust reset")
+        elif pinned is None or pinned["windows_sid"] != owner_sid:
+            raise PermissionError("enrollment requested from another Windows owner account")
         if first:
             if known:
                 raise PermissionError("first enrollment cannot be reopened after any credential")
@@ -212,6 +229,12 @@ def persist_enrollment(
             "VALUES(?,?,?,?,?)",
             (credential_id, public_key_der, kind, count, moment.isoformat()),
         )
+        if first:
+            db.execute(
+                "INSERT INTO safe_owner_host_identity "
+                "(singleton,windows_sid,first_enrolled_at) VALUES(1,?,?)",
+                (owner_sid, moment.isoformat()),
+            )
         if not first:
             db.execute(
                 "INSERT INTO safe_owner_enrollment_authorization "
@@ -245,8 +268,15 @@ def revoke_enrollment(
     if not isinstance(verifier, OwnerWebAuthnVerifier):
         raise TypeError("canonical credential verifier required")
     _unb64(credential_id, limit=1024)
+    from sofia.safe.owner_enroll_browser import require_venus_interactive_windows
+    owner_sid = require_venus_interactive_windows()
     moment = _utc(now or datetime.now(timezone.utc))
     with closing(verifier._db()) as db:
+        pinned = db.execute(
+            "SELECT windows_sid FROM safe_owner_host_identity WHERE singleton=1",
+        ).fetchone()
+        if pinned is None or pinned["windows_sid"] != owner_sid:
+            raise PermissionError("credential revocation requires original Windows owner SID")
         row = db.execute(
             "SELECT credential_kind,revoked_at FROM safe_owner_credential "
             "WHERE credential_id=?", (credential_id,),
