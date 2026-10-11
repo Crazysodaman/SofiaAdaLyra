@@ -1927,10 +1927,24 @@
       "phase": "01",
       "source_topic": "30",
       "master_line": 226,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "Setup-SofiaFleetArtemis.ps1",
+        "src/sofia/ops/discovery_canary.py",
+        "requirements.build.lock.windows-py312.txt"
+      ],
+      "evidence_commits": [
+        "4b315c8e8bff4aa96ee745568e44970ebc353604",
+        "b21211201206e395f94fa00692b2c184e0b95628"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "ea5ea316374a813b70eba66b6e7129461e7c6a50",
+        "depth": "human-supervised Windows Artemis Fleet canary source trace",
+        "observed": "Script has explicit Prepare, Artemis and Verify phases. Prepare uses a committed-HEAD Git archive to build a wheel, records its SHA-256, uses a build dependency hash lock, stages node and mTLS identity, restricts and cleans temporary keys. Artemis checks staged wheel hash and dependency lock, requires exact reviewed controller IP for Private-profile firewall, then starts foreground agent. Verify performs read-only pinned mTLS node/certificate canary without enrollment.",
+        "missing": "Supervised operator preflight and verified exact source SHA attestation beyond the displayed short HEAD need review; re-run into already staged remote TLS key is deliberately rejected rather than idempotently reconciled. Actual Windows/SMB ACL, key lifecycle, fresh start/stop and mTLS acceptance were not performed. Original CA-3009 audit/verification therefore remains incomplete.",
+        "acceptance": "source-partial, tests and operator host verification deferred"
+      }
     },
     {
       "id": "CA-3010",
@@ -3085,10 +3099,26 @@
       "phase": "02",
       "source_topic": "19",
       "master_line": 277,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/agent_discovery.py",
+        "test/test_ops_agent_discovery.py",
+        "docs/development/v18-ws1-untrusted-input-boundary-inventory-2026-10-11.md"
+      ],
+      "evidence_commits": [
+        "6ef64f1bcb4823033902835d0ea688af7b71e08f",
+        "800de4d69206ed05e6f758fd654aad54818f8bad",
+        "30b1ba502500698ed91236d96d9e3cac286f4660",
+        "87e7b8f2559b8e22b3408c3be52d2c58e951069b"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "ea5ea316374a813b70eba66b6e7129461e7c6a50",
+        "depth": "production Fleet discovery network-input boundary",
+        "observed": "Real configured Fleet discovery calls MtlsAgentDiscoverySource over pinned mTLS to read untrusted identity and capabilities JSON. The previous response.read() was unbounded. Production now caps each HTTP response at 256 KiB, rejects announced or actually overlong responses and treats malformed HTTP framing as unavailable discovery evidence. Four focused regression fixtures were authored without execution.",
+        "missing": "Broader original CA-1906 malicious SVG/files, huge Docker logs, hostile memory associations, fabricated receipts, secret-bearing tool outputs and runaway model retries remain unproven. No current-main tests, CI or host proof.",
+        "acceptance": "source-partial, not coding-complete"
+      }
     },
     {
       "id": "CA-1907",
