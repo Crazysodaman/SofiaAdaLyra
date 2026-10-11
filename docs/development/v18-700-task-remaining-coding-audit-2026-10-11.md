@@ -2,11 +2,23 @@
 **Date:** 2026-10-11  **Base GitHub main:** `1925361e1362520c11980987167a410a6635deb0`  **Method:** read-only static source/tree and original task-by-task metadata; no tests, CI, deployment or live-host exercise.
 **Authority:** original unchanged 700-ID, 17-phase V18 master. Evidence ledger is not an implementation oracle.
 
+## New Phase 09 production code checkpoint (2026-10-11)
+
+**Source reviewed through `2c159415`; no tests or live deployment.** LIFE's existing application startup composes `SelfDirectedLifeCoordinator`; `create_background_coordinator` invokes `learn_from_experiences()` and `tick()` every 300 seconds. This wave modifies THAT production path:
+
+- `23a9c3d`: real completed RUN operation evidence and independently rechecked exact original artifact bytes now settle ordinal-aligned original objective milestones through existing `LifeStore.update_milestone` CAS and original evidence references.
+- `fddddaf`: the background tick retries interruption after an evaluation commit but before milestone settlement, without a new draft, alternate scheduler, permission grant or effect replay.
+- `6308b97`: removes the canned `_initial_specification()` path for autonomous projects. TEXT/STORY require actual validated tool-free model draft. Other native adapters may still serve explicitly authorized manual creation, but cannot silently issue auto-finished artwork, cubes, tones or JSON templates.
+- `2c15941`: create a project-selection creative admission receipt only when original drafting succeeds, not when no model/authoring is available.
+- Regression source files authored for real capability receipts, typed objectives, recovery and rejected placeholders. Older LIFE creation fixtures now provide a real, explicitly mocked model response rather than depending on implicit boilerplate. **Tests not run.**
+
+**Updated strict audit classification:** **6** code-present/unverified, **64** partial/not-coding-complete, **630** not individually inspected, **0** accepted. The original `CA-2202` has gained partial source evidence. **CA-113** has real production milestone advancement but remains partial: broad critique/option policy, all outcomes and reviewed abandonment are not complete. Do not call Codex Job 5 or Phase 09 done.
+
 ## Strict production-wiring interpretation (owner requirement)
 
 **Coding-complete means fully wired into the real production path, with only tests/CI/live evidence left.** A partial implementation, dormant module, unused adapter, test fixture, research contract or uncalled helper is **NOT coded-complete**, regardless of code volume. The [enforced production-wiring standard](v18-production-wiring-gate-2026-10-11.md) now requires an explicit application/CI entrypoint, actual composition, calling path, implementation, side-effect/output path and exact reviewed revision before any `code_present_unverified` label is allowed.
 
-**The six code-present tasks** have source-traced candidate production paths but are not tested or deployed. **All 63 partial tasks are coding-incomplete under this stricter definition.** Their existence is not counted as finished implementation. The 631 unassessed tasks are genuinely unknown and must not be called placeholders simply because they have not been traced.
+**The six code-present tasks** have source-traced candidate production paths but are not tested or deployed. **All 63 partial tasks are coding-incomplete under this stricter definition.** Their existence is not counted as finished implementation. The 630 unassessed tasks are genuinely unknown and must not be called placeholders simply because they have not been traced.
 
 **Progress reporting must not infer an overall coding-done percentage from the 6/63/631 counts.** The 6 are fully-wired source candidates, not accepted; the remaining 694 are a mixture of unfinished, unknown and research/verification requirements, not a validated list of 694 missing features.
 
@@ -14,10 +26,10 @@
 
 - **700 / 700** original stable IDs and phases reconciled to the GitHub ledger. This is **inventory coverage**, not full semantic implementation inspection.
 - **6** tasks have individually traced source coded in the ledger, **unverified**.
-- **63** tasks have individually traced *some* production code, but task scope remains partial or acceptance proof missing.
-- **631** tasks have **insufficient task-specific source tracing**. They are NOT automatically missing code. A repository inventory cannot turn them into "uncoded."
+- **64** tasks have individually traced *some* production code, but task scope remains partial or acceptance proof missing.
+- **630** tasks have **insufficient task-specific source tracing**. They are NOT automatically missing code. A repository inventory cannot turn them into "uncoded."
 - **0 / 700** tasks production-accepted under the ledger's exact-SHA test and relevant live-host gate.
-- **69 / 700 = 9.9%** now have an **individual source-status classification**. This is an **audit progress** percentage only, never a percent of remaining coding.
+- **70 / 700 = 10.0%** now have an **individual source-status classification**. This is an **audit progress** percentage only, never a percent of remaining coding.
 - **No defensible exact "% coding left" yet**: incomplete tasks may require only test evidence, extensive implementation, research, or a human decision. Treating all unchecked original boxes as missing code is wrong.
 
 ## Original roadmap is not 700 equivalent coding tickets
