@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "82b06c8ef47de8b2c4bd5a529fe8a627ce88f6f2",
+  "reviewed_main_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 Phase01 Fleet canary and persistent Windows bootstrap hardening: CA-3010/3011/3012 partial, new explicit controller IPv4 and hashed dependency lock needed at operator deployment, tests/CI and live host acceptance deferred. No host mutation or trust granted. Other workstream evidence entries retained.",
+  "notice": "WS1: CA-914/CA-2708 source release-gate acceptance integrity reinforced, tests unrun; CA-1904 persistent operator-authentication blocker recorded without inventing a credential. CA-3010/3011/3012 Fleet input and Windows-host acceptance blockers remain. All source tasks not production accepted; preserve other workstreams.",
   "tasks": [
     {
       "id": "CA-001",
@@ -853,10 +853,21 @@
       "phase": "01",
       "source_topic": "9",
       "master_line": 180,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/gate.py",
+        "test/test_verify_gate_contract.py"
+      ],
+      "evidence_commits": [
+        "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
+        "0464dfac3cd73d833985cd5d016230f7e16549d4"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
+        "depth": "production_revision_bound_release_gate_acceptance_logic",
+        "interpretation": "VerificationEvidence.accepted now requires full phase manifest in order, exact subcommands/approved installed-wheel pytest override, clean release revision and zero exit results. Regression cases authored not run. Phase promotion and external live receipts still unaccepted."
+      }
     },
     {
       "id": "CA-2201",
@@ -1792,6 +1803,11 @@
         "at_sha": "0a036177f72a91d40fb585a7edbc256785aa4956",
         "depth": "production_authorization_result_and_effect_boundary",
         "interpretation": "Pre-handler PermissionError is reported as UNAUTHORIZED; handler errors remain FAILED because effects may have occurred. Earlier generic approval/standing scope/revocation checks retained. Source and regression authored, tests deferred. Full task remains partial."
+      },
+      "operator_authentication_blocker": {
+        "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
+        "kind": "operator_decision_and_host_isolation",
+        "explanation": "PermissionStore and permissions_cli/approve_execution CLI accept literal actor string Sparks; actor equality is not cryptographic/OS authenticated owner identity. A separately authenticated operator UI/IPC or protected host principal is not yet selected. Do not claim full approval authority enforcement until service/operator trust boundary is designed and tested."
       }
     },
     {
@@ -1920,10 +1936,21 @@
       "phase": "02",
       "source_topic": "27",
       "master_line": 289,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/gate.py",
+        "test/test_verify_gate_contract.py"
+      ],
+      "evidence_commits": [
+        "83746a777f4703fdfbd6eec14f18bcf58a72d69e",
+        "0464dfac3cd73d833985cd5d016230f7e16549d4"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "351321fae91d2b8c0359ed7487e940fdf8ed9245",
+        "depth": "production_revision_bound_release_gate_acceptance_logic",
+        "interpretation": "VerificationEvidence.accepted now requires full phase manifest in order, exact subcommands/approved installed-wheel pytest override, clean release revision and zero exit results. Regression cases authored not run. Phase promotion and external live receipts still unaccepted."
+      }
     },
     {
       "id": "CA-6501",
