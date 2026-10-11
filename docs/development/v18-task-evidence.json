@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "8cafe53555d8ce8b753da5a1ed98a2de4f304264",
+  "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -15467,22 +15467,34 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 986,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/capture.py",
+        "src/sofia/vision/desktop_control.py",
+        "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "partially_implemented_unverified",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Source-to-sink audit matrix written to docs/development/v18-ws4-phase12-vision-source-audit-2026-10-11.md: distinguishes proposal/receipt/SAFE classification from no genuine active-user Windows.Graphics.Capture or Hyprland ScreenCast picker, no watch/stop/redaction/VLM/action backend. Exact test/acceptance statuses remain not run; this is an audit and does not close live vision.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/capture.py, src/sofia/vision/desktop_control.py, docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15490,22 +15502,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 987,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/windows_capture.py",
+        "src/sofia/vision/desktop_control_cli.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/windows_capture.py, src/sofia/vision/desktop_control_cli.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15513,22 +15536,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 988,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/linux_desktop.py",
+        "src/sofia/vision/capture.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/linux_desktop.py, src/sofia/vision/capture.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15592,22 +15626,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 991,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/journeys.py",
+        "src/sofia/vision/capture.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "partially_implemented_unverified",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Receipt metadata path currently accepts synthetic adapter-attested frames, not real Windows/Hyprland OS capture. Tightened ScreenFrameEvidence principal binding, denied comparing different principals, canonical receipt schema adds exact principal, old receipts quarantined rather than guessed. Production Settings history reads exact principal+audience, not merely audience. Host/session/geometry/source-bound OS frame evidence and genuine inference still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun. Source hardening: exact principal+audience+device and all immutable receipt metadata checked on idempotent collision; frame evidence requires timestamp consistency and lowercase digest. Does NOT verify OS-issued target/consent; real picker missing. src/sofia/vision/journeys.py, test/test_vision_principal_receipt_isolation.py unrun.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/journeys.py, src/sofia/vision/capture.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15615,22 +15660,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 992,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/capture.py",
+        "src/sofia/vision/interpret.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "partially_implemented_unverified",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Existing metadata-only screen receipts persisted no raw pixels but audience-only lookup could leak observation timestamps across principals. Fixed exact principal+audience filtering and legacy row quarantine via additive canonical SQLite schema migration; owner UI uses scoped lookup, tests authored. OS protected-surface, sensitive-app denylist, model prompt egress and live redaction gates still missing. Paths: src/sofia/vision/journeys.py, src/sofia/ui/settings_sections.py; tests unrun. Source-visible metadata-only receipts now reject cross-scope ID aliasing and malformed frame claims, but screenshot redaction/secure desktop privacy cannot be proven absent native OS provider. src/sofia/vision/journeys.py tests unrun.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/capture.py, src/sofia/vision/interpret.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15638,22 +15694,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 993,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/interpret.py",
+        "src/sofia/vision/capture.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/interpret.py, src/sofia/vision/capture.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15684,22 +15751,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 995,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/interpret.py",
+        "test/test_vision_cross_platform.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/interpret.py, test/test_vision_cross_platform.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15742,22 +15820,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 997,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/desktop_control_cli.py",
+        "src/sofia/vision/capture.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/desktop_control_cli.py, src/sofia/vision/capture.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15788,22 +15877,33 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 999,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/desktop_control_cli.py",
+        "src/sofia/vision/journeys.py"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: src/sofia/vision/desktop_control_cli.py, src/sofia/vision/journeys.py. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -15834,22 +15934,34 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 1001,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
+      "status": "partial_wiring",
+      "code_paths": [
+        "test/test_vision_cross_platform.py",
+        "test/test_vision_desktop_control.py",
+        ".github/workflows/v18-vision-windows-linux.yml"
+      ],
+      "evidence_commits": [
+        "af381a51d90acd9937b5ec4f49ff8e4a6047145e"
+      ],
       "accepted": false,
       "workstream_reconciliation": {
         "workstream": 4,
-        "source_report": "docs/development/v18-workstream4-task-evidence.json",
+        "source_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md",
         "review_date": "2026-10-11",
-        "reviewed_main_sha": "021cac7e0d214c0a9eee11d4275db1bb31f6583b",
-        "tests_executed": false,
+        "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+        "tests_executed": true,
         "accepted_by_review": false,
-        "evidence_level": "phase_inventory_only",
+        "evidence_level": "cross_platform_source_backed_partial",
         "code_ready_for_tests_claimed_by_workstream": false,
-        "workstream_tests_executed": false,
+        "workstream_tests_executed": true,
         "workstream_finding": "Separate workstream inventory only; no task-specific source proof.",
-        "phase_audit_report": null
+        "phase_audit_report": "docs/development/v18-phase12-windows-linux-screen-and-input-2026-10-11.md"
+      },
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Original Phase 12 requirement partially supported by exact newly reviewed code paths: test/test_vision_cross_platform.py, test/test_vision_desktop_control.py, .github/workflows/v18-vision-windows-linux.yml. Windows and Ubuntu synthetic platform tests passed at 38176750619.",
+        "missing": "Original requirement not fully closed: Windows.Graphics.Capture, Hyprland ScreenCast/PipeWire portals, generic Wayland, full user-facing UI/model proposal, independent Linux host credential enrollment, pixel redaction, live screen/anti-cheat/physical FIDO2 acceptance, or real VM operator tests as applicable.",
+        "acceptance": "Partial wiring; synthetic tests only, original full V18 task not accepted."
       }
     },
     {
@@ -18492,5 +18604,28 @@
       "Venus no input during gaming/unknown; operator-only per exact action FIDO2",
       "Artemis Hephaestus guest OS absent, no live VM activation or approval"
     ]
+  },
+  "phase12_platform_reconciliation_2026_10_11": {
+    "reviewer": "Source-backed cross-platform implementation, no live deployment",
+    "reviewed_main_sha": "af381a51d90acd9937b5ec4f49ff8e4a6047145e",
+    "ids": [
+      "CA-6202",
+      "CA-6203",
+      "CA-6204",
+      "CA-6207",
+      "CA-6208",
+      "CA-6209",
+      "CA-6211",
+      "CA-6213",
+      "CA-6215",
+      "CA-6217"
+    ],
+    "tests": {
+      "github_run": 38176750619,
+      "windows": "success",
+      "ubuntu": "success",
+      "type": "synthetic only"
+    },
+    "warning": "Linux SAFE browser approval still Windows-host restricted; independent signed per-device Linux owner enrollment remains required. No live host pairing or guest OS screen use."
   }
 }
