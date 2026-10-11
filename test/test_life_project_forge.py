@@ -895,3 +895,73 @@ def test_unlinked_terminal_run_event_cannot_change_personal_goal(tmp_path):
         assert goal.status is GoalStatus.ACTIVE
     finally:
         life.close()
+
+
+def test_life_completed_artifact_with_unrelated_receipt_is_not_reviewed(tmp_path):
+    """A source-verified file without its original operation receipt is not success."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job_id = life.store.jobs(project.project_id)[0]
+        finished = wait_for_job(life, job_id)
+        assert finished.status is WorkStatus.COMPLETED
+        unrelated = life.record_observation(
+            kind="diagnostic", source="test:unrelated",
+            assertion="Unrelated evidence cannot prove an artifact operation.",
+            now=now + timedelta(seconds=4),
+        )
+        life.work_store.transition(
+            job_id, expected=(WorkStatus.COMPLETED,),
+            status=WorkStatus.COMPLETED,
+            result={**finished.result, "evidence_ref": unrelated},
+            reason="tampered receipt pointer",
+            now=now + timedelta(seconds=5),
+        )
+        outcome = life.tick(
+            now=now + timedelta(seconds=6), generate=authored_foxfire_text,
+        )
+        assert outcome["follow_through"] == "missing_verified_artifact_receipt"
+        assert life.store.evaluations(project.project_id) == ()
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        assert life.store.jobs(project.project_id) == (job_id,)
+    finally:
+        life.close()
+
+
+def test_life_completion_rechecks_canonical_run_after_valid_evaluation(tmp_path):
+    """A historical success cannot complete an objective after RUN turns uncertain."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job_id = life.store.jobs(project.project_id)[0]
+        job = wait_for_job(life, job_id)
+        assert job.status is WorkStatus.COMPLETED
+        life.evaluate_artifact(
+            project.project_id, artifact_id=str(job.result["artifact_id"]),
+            technical_outcome=TechnicalOutcome.VALID,
+            personal_judgment=PersonalJudgment.UNKNOWN,
+            objective_results={"text_contains:Foxfire": True},
+            reason="Original independent byte inspection passed.",
+            evidence_refs=(str(job.result["evidence_ref"]),),
+            preserve_for_research=False, now=now + timedelta(seconds=4),
+        )
+        life.work_store.transition(
+            job_id, expected=(WorkStatus.COMPLETED,),
+            status=WorkStatus.UNCERTAIN,
+            reason="later source contradiction",
+            now=now + timedelta(seconds=5),
+        )
+        with pytest.raises(ValueError, match="independent PASS"):
+            life.complete(
+                project.project_id, reason="This no longer has a verified RUN receipt.",
+                now=now + timedelta(seconds=6),
+            )
+        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+    finally:
+        life.close()
