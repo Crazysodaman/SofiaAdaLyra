@@ -23,7 +23,8 @@
     "2026-10-11 continuation: Hephaestus VM exists OS-less. One-time owner-approved, host-admin pinned Hyper-V unattended ISO boot and read-only installer status are integrated with real Artemis Fleet; Debian installation not attempted; no completed guest OS or Fleet enrollment asserted. Source regressions written, none run.",
     "2026-10-11: Eight Phase-13 digital-twin design/research items source-wired through real OPS and Fleet Settings with bounded synthetic scenarios, immutable reproducibility capsules, abandonment and explicit Gaia/JMRI no-actuation boundaries. No simulations/tests were executed.",
     "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete.",
-    "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished."
+    "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished.",
+    "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -217,7 +218,13 @@
     "bdcacfd3a91dece123b6fdeaf59ebef1c95bf0d2",
     "d23a0900292fdd693a3bff09ab2a3f3b4756f8e9",
     "f68ccd8a9f579e658ad16ec4e632939da182a852",
-    "0bd9e2eac01060dde941e49933248713f3e07dc8"
+    "0bd9e2eac01060dde941e49933248713f3e07dc8",
+    "58edccf475ad62bbf2f7499aafad56fb6a0df735",
+    "ea9a99a08dbc61d8543245fa32b59ea10639d367",
+    "71fb58067a7f5560ab3fa9ad0d123c36e8f12eea",
+    "b6a9c625fe503ae1fd501082e3a8ddaa540c36c4",
+    "cda678e4c8baaa6d0a80be8529ffecad0e470c33",
+    "c89792d5ad201639b9dc18d37f97a9ab85c87e02"
   ],
   "tasks": [
     {
@@ -225,11 +232,12 @@
       "phase": "11",
       "master_line": 898,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Actual ApplicationBackgroundCoordinator's canonical RUN BackgroundBudget now atomically reserves global daily optional token, CPU, GPU, storage and occupied-latency credits in the exact existing SQLite single-flight claim transaction before all optional LIFE/NEURO/reflection/ACT/maintenance callbacks. Preserves cross-process fencing, UTC-day caps, conservative fallback for new/unclassified tasks, crash recovery, immutable per-attempt consumption, owner-revisioned Limits UI in Models, and model-visible read-only OPS report. Foreground chats never acquire optional claims. Credits are upper-bound reservations, not fabricated actual GPU/CPU/token usage. Deferred production regression tests authored but not executed."
     },
     {
       "id": "CA-2102",
