@@ -492,6 +492,37 @@ CA relevance: CA-5201, CA-6101, CA-6804, CA-6306 and CA-6404.
 This is a concrete safety gate, not complete operator-fenced failover or
 migrated whole-bundle restore.
 
+### Portable encrypted backup manifest paths (Phase 03)
+
+Production route: `BackupEngine.create` packs canonical SQLite, protected
+identity/constitution, runtime personality/avatar and release pointer →
+`BackupEntry.__post_init__` validates logical archive names and AES-GCM
+payload basenames → HMAC-authenticated `BackupManifest` publication.
+Restore/load follows `BackupManifest.from_bytes` through the **same**
+validation before any target files are written.
+
+Previously relative-path checks relied on host-native `pathlib.Path`.
+A manifest accepted on Unix could contain Windows backslash traversal,
+drive-relative/absolute names, or Windows reserved payload basenames,
+leading to cross-platform recovery ambiguity. Entries now use both
+`PurePosixPath` and `PureWindowsPath` semantics, requiring a canonical
+relative POSIX logical name and single portable payload basename. They
+refuse backslash, NUL, Windows drive/UNC, traversal, dot normalization,
+reserved Windows names and invalid platform filename metacharacters.
+The existing canonical bundle paths remain valid.
+
+Commits:
+- `3da1c9875a98f237cc9d150ea31e92267b9084f2` initial portable source.
+- `1812f56c5ee880ce5904790393e788953f6526e5` raw separator and
+  invalid filename hardening.
+- `c02d8e1950022daa76bae546ecbf7b4539e0fd49` deferred regression
+  cases covering hostile cross-OS paths and legitimate canonical entries.
+
+CA relevance: CA-5202, CA-5206, CA-6404, CA-6805.
+Existing backups were **not** modified, no restore was executed, and
+tests are still deferred. Atomic whole-bundle restoration and Windows ACL
+recovery remain separate acceptance gaps.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
