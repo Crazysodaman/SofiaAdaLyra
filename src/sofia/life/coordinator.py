@@ -1297,6 +1297,89 @@ class SelfDirectedLifeCoordinator:
         self.store.update_milestone(updated, expected_status=expected_status)
         return updated
 
+    def _settle_verified_milestones(
+        self, project: LifeProject, *, artifact_id: str, revision: int,
+        evaluation: ArtifactEvaluation, evidence_ref: str, job_id: str,
+        now: datetime,
+    ) -> int:
+        """Persist actual objective progress from a completed RUN artifact.
+
+        Milestones represent the *original* brief objectives in ordinal order.
+        Neither a model's critique nor a job's COMPLETED status proves any
+        objective. The content is re-read and independently checked before
+        either state transition. The existing milestone CAS keeps restarts
+        idempotent without introducing a parallel LIFE scheduler.
+        """
+        if (
+            project.scope is not ProjectScope.PERSONAL_PRIVATE
+            or project.status is not ProjectStatus.ACTIVE
+            or evaluation.project_id != project.project_id
+            or (evaluation.artifact_id, evaluation.artifact_revision) != (artifact_id, revision)
+            or evidence_ref not in evaluation.evidence_refs
+        ):
+            return 0
+        evidence = self.evidence_index.lookup(evidence_ref)
+        if (
+            evidence is None
+            or evidence.kind != "operation_receipt"
+            or evidence.successful is not True
+            or evidence.goal_id != project.goal_id
+            or evidence.action_id != job_id
+            or evidence.principal_id != local_sparks_principal().principal_id
+            or evidence.audience != project.audience_id
+            or evidence.observed_at > now
+        ):
+            return 0
+        try:
+            report = self.inspect_artifact_objectives(
+                project.project_id, artifact_id=artifact_id,
+            )
+        except (LookupError, PermissionError, OSError, ValueError):
+            return 0
+        from .validation import ObjectiveDisposition
+        if (
+            report.revision != revision
+            or report.integrity is not ObjectiveDisposition.PASS
+        ):
+            return 0
+        milestones = self.store.milestones(project.project_id)
+        completed = 0
+        for milestone in milestones:
+            if (
+                milestone.ordinal >= len(project.brief.objectives)
+                or milestone.title != project.brief.objectives[milestone.ordinal]
+                or milestone.status not in {MilestoneStatus.PLANNED, MilestoneStatus.ACTIVE}
+            ):
+                continue
+            objective = project.brief.objectives[milestone.ordinal]
+            verified = next((
+                finding for finding in report.findings
+                if finding.objective == objective
+                and finding.disposition is ObjectiveDisposition.PASS
+            ), None)
+            if verified is None or evaluation.objective_results.get(objective) is not True:
+                continue
+            if milestone.status is MilestoneStatus.PLANNED:
+                milestone = self.update_milestone(
+                    project.project_id, milestone_id=milestone.milestone_id,
+                    expected_status=MilestoneStatus.PLANNED,
+                    next_status=MilestoneStatus.ACTIVE,
+                    result="Independent artifact objective verified; recording progress.",
+                    evidence_refs=(evidence_ref,), now=now,
+                )
+            self.update_milestone(
+                project.project_id, milestone_id=milestone.milestone_id,
+                expected_status=MilestoneStatus.ACTIVE,
+                next_status=MilestoneStatus.COMPLETED,
+                result=(
+                    f"Objective independently passed for {artifact_id} "
+                    f"revision {revision} using completed RUN job {job_id}."
+                ),
+                evidence_refs=(evidence_ref,), now=now,
+            )
+            completed += 1
+        return completed
+
     def choose_favorite(
         self, *, category: str, target_id: str, context: str,
         reason: str, evidence_ref: str, now: datetime,
@@ -1499,6 +1582,14 @@ class SelfDirectedLifeCoordinator:
                 evidence_refs=(evidence_ref,), preserve_for_research=False,
                 now=now,
             )
+        # Reconcile source-verified milestones before a completion or revision
+        # decision. This also heals interruption after an evaluation was
+        # committed but before its milestone updates were durably written.
+        self._settle_verified_milestones(
+            project, artifact_id=artifact_id, revision=revision,
+            evaluation=evaluation, evidence_ref=evidence_ref,
+            job_id=latest.job_id, now=now,
+        )
         if evaluation.technical_outcome is TechnicalOutcome.VALID:
             if (
                 evaluation.personal_judgment is PersonalJudgment.UNKNOWN
