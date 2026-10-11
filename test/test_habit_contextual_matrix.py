@@ -13,6 +13,8 @@ NOW = datetime(2026, 10, 2, 20, 0, tzinfo=timezone.utc)
 
 
 def coordinator(tmp_path) -> HabitContinuityCoordinator:
+    from sofia.state.canonical_sqlite import bootstrap_canonical_sqlite
+    bootstrap_canonical_sqlite(tmp_path / "state.db")
     return HabitContinuityCoordinator(
         SQLiteStatePlane(tmp_path / "state.db")
     )
