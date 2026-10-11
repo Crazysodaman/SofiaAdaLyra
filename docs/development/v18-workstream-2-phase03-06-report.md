@@ -613,6 +613,25 @@ migration has been performed. These are focused implementation slices, not
 full task-ID or phase acceptance. Owner choice of physical canonical
 writer and future live restore/failback remains intentionally unresolved.
 
+### Deferred test-contract reconciliation
+
+Two previously authored behavior contracts were audited and repaired without
+executing the test suite:
+
+- A newly paired Android generation correctly begins with **no inherited**
+  Main read cursor but may acknowledge a visible message under its own valid
+  credential. The superseded bearer is rejected. Test contract:
+  `8a08af09d2160114d53e5843126278a58c9840dd`.
+- Unlinked memory `promote` still differentiates nonexistent candidate
+  (`LookupError`) from an existing non-proposed candidate (`ValueError`)
+  while preserving transactional promotion and correction supersession.
+  Source: `e7b8214ebf714c86100352943c88d49d02a883ca`;
+  regression: `6e5fb155be207b652ed33b6e495c9c3af91b2e0b`.
+
+**No tests, CI, release or live runtime were run.** The original task
+acceptance ledger is not revised by this focused workstream, and no
+uninspected requirement is marked coding-complete.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
