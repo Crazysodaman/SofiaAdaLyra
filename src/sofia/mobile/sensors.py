@@ -1,6 +1,7 @@
 """Durable latest-value store and ENVIRONMENT provider for owner-phone sensors."""
 from __future__ import annotations
 
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import json
@@ -31,7 +32,7 @@ class MobileSensorStore:
         self.path = Path(state_path)
         if not self.path.is_file() or self.path.is_symlink():
             raise FileNotFoundError("existing canonical state database required for mobile sensors")
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS mobile_sensor_latest (
                     device_id TEXT PRIMARY KEY,
@@ -80,7 +81,7 @@ class MobileSensorStore:
             "step_counter": report.step_counter,
         }
         encoded = json.dumps(data, sort_keys=True, separators=(",", ":"))
-        with self._connect() as db:
+        with closing(self._connect()) as db, db:
             db.execute(
                 """
                 INSERT INTO mobile_sensor_latest(
@@ -101,7 +102,7 @@ class MobileSensorStore:
             )
 
     def latest(self) -> MobileSensorReport | None:
-        with self._connect() as db:
+        with closing(self._connect()) as db:
             row = db.execute(
                 "SELECT payload_json FROM mobile_sensor_latest "
                 "ORDER BY received_at DESC, device_id ASC LIMIT 1"

@@ -121,3 +121,31 @@ def test_mobile_sensors_cannot_resurrect_deleted_canonical_database(tmp_path):
     with pytest.raises(sqlite3.OperationalError):
         store.latest()
     assert not state.exists()
+
+
+def test_sensor_read_and_write_release_sqlite_handles_deterministically(
+    tmp_path, monkeypatch,
+):
+    state = tmp_path / "sofia.db"
+    state.touch()
+    store = MobileSensorStore(state)
+    closed = []
+
+    class TrackedConnection(sqlite3.Connection):
+        def close(self):
+            closed.append(1)
+            return super().close()
+
+    def tracked_connect():
+        return sqlite3.connect(
+            state.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10, factory=TrackedConnection,
+        )
+
+    monkeypatch.setattr(store, "_connect", tracked_connect)
+    store.record(
+        MobileSensorReport.from_payload(payload()),
+        received_at=NOW,
+    )
+    assert store.latest() is not None
+    assert len(closed) == 2
