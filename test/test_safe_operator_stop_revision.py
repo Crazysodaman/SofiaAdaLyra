@@ -79,3 +79,50 @@ def test_unapproved_resume_is_denied_without_weaker_actor_fallback(tmp_path):
             at=NOW + timedelta(seconds=1),
         )
     assert stop.current().active is True
+
+
+def test_operator_resume_audit_failure_rolls_back_approval_consumption(tmp_path, monkeypatch):
+    from test.owner_auth_fixture import record_verified_owner_approval
+
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    stop = OperatorStopStore(state)
+    stop.set(
+        active=True, updated_by="Sparks",
+        reason="stop before critical work", at=NOW,
+    )
+    revision = stop.current().updated_at.isoformat()
+    exact = {
+        "active": False, "reason": "resume after operator verification",
+        "expected_updated_at": revision,
+    }
+    approval = ExecutionApproval(
+        approval_id=str(uuid4()),
+        capability="operator.stop.resume",
+        request_fingerprint=execution_fingerprint(
+            "operator.stop.resume", exact,
+        ),
+        approved_by="Sparks", approved_at=NOW + timedelta(seconds=1),
+        expires_at=NOW + timedelta(minutes=3),
+    )
+    approvals = ExecutionApprovalVerifier(state)
+    record_verified_owner_approval(approvals, approval)
+
+    def fail_audit(*args, **kwargs):
+        raise OSError("synthetic stop audit failure")
+
+    monkeypatch.setattr(stop.audit, "append_in_transaction", fail_audit)
+    with pytest.raises(OSError, match="stop audit"):
+        stop.set(
+            active=False, updated_by="Sparks",
+            reason="resume after operator verification",
+            expected_updated_at=revision,
+            approval_id=approval.approval_id,
+            at=NOW + timedelta(seconds=2),
+        )
+    assert stop.current().active is True
+    assert approvals.matches_unconsumed(
+        approval_id=approval.approval_id,
+        capability="operator.stop.resume",
+        parameters=exact,
+        now=NOW + timedelta(seconds=3),
+    )
