@@ -9,6 +9,8 @@ import json
 
 import pytest
 
+from test.owner_auth_fixture import record_verified_owner_approval
+
 from sofia.config.user_settings import RuntimeUserSettingsStore
 from sofia.distributed.capability import RemoteFleetToolService
 from sofia.integrations.hyperv import HyperVAdapter
@@ -87,7 +89,7 @@ def reviewed_state(tmp_path):
         approved_by="Sparks",approved_at=at,
         expires_at=at+timedelta(minutes=10),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    record_verified_owner_approval(ExecutionApprovalVerifier(state), approval)
     return state,plan,approval,at,params
 
 
