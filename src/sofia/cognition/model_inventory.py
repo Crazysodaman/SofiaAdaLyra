@@ -335,6 +335,54 @@ class ModelInventoryStore:
         return "\n".join(lines)
 
 
+    def candidate_review(self, *, host_id: str) -> str:
+        """Only locally observed unconfigured installs merit operator review.
+
+        These are not capability rankings. No training, benchmarking, license
+        acceptance or role promotion is performed by this read-only method.
+        """
+        if not isinstance(host_id, str) or not host_id.strip():
+            raise ValueError("observed host ID is required")
+        with closing(self._guard.connect(timeout=10)) as db:
+            rows = db.execute(
+                "SELECT snapshot_json FROM cognition_model_inventory "
+                "WHERE host_id=? ORDER BY model LIMIT 66",
+                (host_id,),
+            ).fetchall()
+        candidate_rows = []
+        for (raw,) in rows:
+            row = json.loads(raw)
+            if (
+                row.get("installed") is not True
+                or row.get("provider") != "ollama"
+                or row.get("configured_roles")
+            ):
+                continue
+            candidate_rows.append(row)
+        if not candidate_rows:
+            return (
+                "No unconfigured installed Ollama models observed. "
+                "Unknown or missing metadata is not interpreted as eligibility."
+            )
+        lines = [
+            "DISCOVERY ONLY: Installed and unconfigured, NOT approved for a role.",
+            "Independent capability benchmarks, licensing, operator approval,",
+            "resource budgeting and rollback evidence are required before use.",
+        ]
+        for row in candidate_rows[:16]:
+            lines.append(
+                f"{row['model']} | observed={row['observed_at']} "
+                f"| digest={row.get('digest') or 'unknown'} "
+                f"| bytes={row.get('size_bytes') or 'unknown'} "
+                f"| license={row.get('license_sha256') or 'unknown'} "
+                "| suitability=unverified"
+            )
+        if len(candidate_rows) > 16:
+            lines.append(
+                f"{len(candidate_rows) - 16} more unconfigured models omitted"
+            )
+        return "\n".join(lines)
+
     def license_text(self, *, host_id: str, model: str) -> str:
         """Observed terms for an exact model, never an accepted-license grant."""
         if not isinstance(host_id, str) or not host_id.strip():
