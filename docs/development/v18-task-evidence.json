@@ -1792,7 +1792,9 @@
         "79be61a0f72b784e76f5a0f1fee93096ebaa8071",
         "37c29ec6489df5cc3f68f7303e5dcfe6451ddaed",
         "000c78536e603d1082580b9c6967ae7dfbb880b9",
-        "4b315c8e8bff4aa96ee745568e44970ebc353604"
+        "4b315c8e8bff4aa96ee745568e44970ebc353604",
+        "c2ce83398fe6fe170b098b66e59f47bf842b9a40",
+        "3f668025f4bcf54dd18f62c122d3d2e5365bef13"
       ],
       "accepted": false,
       "audit_observation": {
@@ -1813,6 +1815,20 @@
           "production_route": "Human-supervised Prepare-OnVenus -> canonical Fleet PKI source -> temporary canary bundle -> verified build/lock/SMB stage -> outer finally always scrubs duplicate temporary controller key except explicitly successful -SkipCopy offline transfer.",
           "fulfilled_slice": "Controller bundle private key is cleaned up on previously uncovered pre-transfer failure paths; root PKI remains untouched.",
           "remaining": "Not full CA-3010: certificate rotation and revocation, remote failed-stage cleanup, effective Windows ACL and multi-host live acceptance remain; tests authored but not executed."
+        },
+        {
+          "source_review_sha": "401ad77c94dc266957f9b3aff8ae7ceef69aa682",
+          "commits": [
+            "c2ce83398fe6fe170b098b66e59f47bf842b9a40",
+            "3f668025f4bcf54dd18f62c122d3d2e5365bef13"
+          ],
+          "source_paths": [
+            "Setup-SofiaFleetArtemis.ps1",
+            "test/test_ops_windows_bootstrap.py"
+          ],
+          "production_route": "Human Prepare-OnVenus -> approved SMB administrative connection -> refuse existing staged remote secret -> bundle/wheel transfer -> key hash/ACL admission -> explicit catch cleanup while SMB mapped on failures -> canonical PKI key unchanged.",
+          "fulfilled_slice": "Prevented overwriting existing remote secret and added failure cleanup of newly copied Artemis TLS key, covering copy/verification/ACL failures.",
+          "remaining": "Crash-interrupted host staging and end-to-end TLS lifecycle/rotation/revocation not source-proved; Windows ACL, SMB and host acceptance require deferred supervised verification; remains partial."
         }
       ]
     },
