@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
+  "reviewed_main_sha": "eda2d0cf87a6d68d37b398cd69c3c9051b9ad9c4",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 owner host decision 2026-10-11: Venus current single canonical writer; future operator-approved Artemis runtime/DB with Venus GPU via existing mTLS Fleet inference. Local model lifecycle bypass wired for explicit remote-only canonical host; tests deferred. CA-004/3102/3103/3111 remain partial, original master unchanged, other workstreams preserved.",
+  "notice": "WS1 source checkpoint: VM Sofia is future isolated Artemis guest for canonical runtime/DB; Venus stays sole writer for now and remote GPU later; separate Hephaestus-style lab is NOT a second state writer. Workshop admission and shared local/remote Hyper-V tool layer now refuse canonical Sofia VM manage operations. Source/regressions committed [skip ci], tests deferred; other workstream evidence preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -248,18 +248,29 @@
       "code_paths": [
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
         "src/sofia/composition/engines.py",
-        "test/test_production_dual_cognition.py"
+        "test/test_production_dual_cognition.py",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py"
       ],
       "evidence_commits": [
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
         "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
-        "8202ad16fafef728bcd7860ffa239483bbf04f24"
+        "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "db44dcdc9340b47f3c5d0ef782d78dd0a3b14f89",
+        "7972c49e31454777d0b1c2538d0d32b4f47d4563",
+        "530f15646a91ba0b3e0340c79ea33beda28d12a6",
+        "2d986fac7be4a1d4da7bda24d7e86326e2db045e",
+        "2596ab7bbaa317a9ff310cea293738e62f353f9a",
+        "f0f6c176992a1f1918e0867be08761068cfc48f8",
+        "7b1237057595405aa38d128b78e6c0647aa45eec"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
-        "depth": "owner_decision_and_source_wired_gpu_split",
-        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
+        "at_sha": "eda2d0cf87a6d68d37b398cd69c3c9051b9ad9c4",
+        "depth": "operator_vm_placement_and_real_hyperv_authority_boundary",
+        "interpretation": "User chose dedicated Artemis Hyper-V guest with exact name Sofia for future sole canonical runtime/DB owner; Venus remains current writer and future authenticated inference GPU. Hephaestus is previously proposed separate research/test VM role, not evidence that guest exists. Existing production lab admission now refuses guest named Sofia; the actual local-and-remote HyperVAdapter denies model-facing start/stop of canonical Sofia VM, including force stop, while read-only inspection and other lab VM operations remain intact. Source and regressions committed but unexecuted. Guest OS, exact host/guest IDs, lab switch selection, live provisioning, independent privileged writer-fencing broker and RPO/RTO not yet decided or verified. No live migration or host operations."
       }
     },
     {
@@ -273,19 +284,30 @@
         "src/sofia/ops/backup.py",
         "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
         "src/sofia/composition/engines.py",
-        "test/test_production_dual_cognition.py"
+        "test/test_production_dual_cognition.py",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py"
       ],
       "evidence_commits": [
         "1925361e1362520c11980987167a410a6635deb0",
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
         "99bec15e6b9f2b4ab02c32ad16541b381df9c768",
-        "8202ad16fafef728bcd7860ffa239483bbf04f24"
+        "8202ad16fafef728bcd7860ffa239483bbf04f24",
+        "db44dcdc9340b47f3c5d0ef782d78dd0a3b14f89",
+        "7972c49e31454777d0b1c2538d0d32b4f47d4563",
+        "530f15646a91ba0b3e0340c79ea33beda28d12a6",
+        "2d986fac7be4a1d4da7bda24d7e86326e2db045e",
+        "2596ab7bbaa317a9ff310cea293738e62f353f9a",
+        "f0f6c176992a1f1918e0867be08761068cfc48f8",
+        "7b1237057595405aa38d128b78e6c0647aa45eec"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "8202ad16fafef728bcd7860ffa239483bbf04f24",
-        "depth": "owner_decision_and_source_wired_gpu_split",
-        "interpretation": "Owner chose Venus as current single canonical runtime/database writer, with Artemis future sole writer and Venus independently approved GPU inference worker. Existing composition FleetPlacedCognitiveEngine and pinned-mTLS remote inference reused; create_model_lifecycle now avoids local Ollama residency on explicit remote-only excluded host. Tests authored, unrun. Artemis Windows host vs dedicated VM, remote Venus enrollment, independent fencing broker, operator authentication and RPO/RTO remain unresolved. No live data moved or authority granted."
+        "at_sha": "eda2d0cf87a6d68d37b398cd69c3c9051b9ad9c4",
+        "depth": "operator_vm_placement_and_real_hyperv_authority_boundary",
+        "interpretation": "User chose dedicated Artemis Hyper-V guest with exact name Sofia for future sole canonical runtime/DB owner; Venus remains current writer and future authenticated inference GPU. Hephaestus is previously proposed separate research/test VM role, not evidence that guest exists. Existing production lab admission now refuses guest named Sofia; the actual local-and-remote HyperVAdapter denies model-facing start/stop of canonical Sofia VM, including force stop, while read-only inspection and other lab VM operations remain intact. Source and regressions committed but unexecuted. Guest OS, exact host/guest IDs, lab switch selection, live provisioning, independent privileged writer-fencing broker and RPO/RTO not yet decided or verified. No live migration or host operations."
       }
     },
     {
@@ -313,10 +335,29 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 90,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py"
+      ],
+      "evidence_commits": [
+        "db44dcdc9340b47f3c5d0ef782d78dd0a3b14f89",
+        "7972c49e31454777d0b1c2538d0d32b4f47d4563",
+        "530f15646a91ba0b3e0340c79ea33beda28d12a6",
+        "2d986fac7be4a1d4da7bda24d7e86326e2db045e",
+        "2596ab7bbaa317a9ff310cea293738e62f353f9a",
+        "f0f6c176992a1f1918e0867be08761068cfc48f8",
+        "7b1237057595405aa38d128b78e6c0647aa45eec"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "eda2d0cf87a6d68d37b398cd69c3c9051b9ad9c4",
+        "depth": "operator_vm_placement_and_real_hyperv_authority_boundary",
+        "interpretation": "User chose dedicated Artemis Hyper-V guest with exact name Sofia for future sole canonical runtime/DB owner; Venus remains current writer and future authenticated inference GPU. Hephaestus is previously proposed separate research/test VM role, not evidence that guest exists. Existing production lab admission now refuses guest named Sofia; the actual local-and-remote HyperVAdapter denies model-facing start/stop of canonical Sofia VM, including force stop, while read-only inspection and other lab VM operations remain intact. Source and regressions committed but unexecuted. Guest OS, exact host/guest IDs, lab switch selection, live provisioning, independent privileged writer-fencing broker and RPO/RTO not yet decided or verified. No live migration or host operations."
+      }
     },
     {
       "id": "CA-3107",
@@ -2272,10 +2313,29 @@
       "phase": "02",
       "source_topic": "65",
       "master_line": 294,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/ops/workshop_policy.py",
+        "src/sofia/integrations/hyperv.py",
+        "test/test_ops_workshop_vm_separation.py",
+        "test/test_tools_completion_acceptance.py"
+      ],
+      "evidence_commits": [
+        "db44dcdc9340b47f3c5d0ef782d78dd0a3b14f89",
+        "7972c49e31454777d0b1c2538d0d32b4f47d4563",
+        "530f15646a91ba0b3e0340c79ea33beda28d12a6",
+        "2d986fac7be4a1d4da7bda24d7e86326e2db045e",
+        "2596ab7bbaa317a9ff310cea293738e62f353f9a",
+        "f0f6c176992a1f1918e0867be08761068cfc48f8",
+        "7b1237057595405aa38d128b78e6c0647aa45eec"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "eda2d0cf87a6d68d37b398cd69c3c9051b9ad9c4",
+        "depth": "operator_vm_placement_and_real_hyperv_authority_boundary",
+        "interpretation": "User chose dedicated Artemis Hyper-V guest with exact name Sofia for future sole canonical runtime/DB owner; Venus remains current writer and future authenticated inference GPU. Hephaestus is previously proposed separate research/test VM role, not evidence that guest exists. Existing production lab admission now refuses guest named Sofia; the actual local-and-remote HyperVAdapter denies model-facing start/stop of canonical Sofia VM, including force stop, while read-only inspection and other lab VM operations remain intact. Source and regressions committed but unexecuted. Guest OS, exact host/guest IDs, lab switch selection, live provisioning, independent privileged writer-fencing broker and RPO/RTO not yet decided or verified. No live migration or host operations."
+      }
     },
     {
       "id": "CA-6503",
