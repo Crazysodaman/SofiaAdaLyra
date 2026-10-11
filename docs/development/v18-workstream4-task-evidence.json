@@ -96,7 +96,12 @@
     "f7c1f90d6bfeabb7273bf078cb703e58b5af278f",
     "0c21b2106bf1a3257e7d82abfa0008085ac83cb9",
     "c5ee414be63c412a96752c7d7d58cb0b614d6c27",
-    "932a3ad370a25f83257db49e7ccbf50cd3753cdb"
+    "932a3ad370a25f83257db49e7ccbf50cd3753cdb",
+    "872084314b538676f7c341a4c06cd09085a0da9c",
+    "cda34cb6afc2f1056f280afb892a55e135d548ec",
+    "d6eec17d800f8e2c60c07ad73b1387aefaa49b56",
+    "a273aadaa21d7dd6dff8fd32707348e1dfb34eda",
+    "7bc4c541cb903e799e407141b6d7d006b560b8c6"
   ],
   "tasks": [
     {
@@ -626,11 +631,12 @@
       "phase": "11",
       "master_line": 957,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Production cognition router already uses model-independent identity and the canonical Main session; current MatrixTrace persisted executed model steps. W4 adds exact assistant-message-id keyed origin table in canonical sofia.db written on genuine ConversationService persistence, storing observed role/model/host/succeeded without reply text, immutable once recorded, audience-scoped reads and on-delete purge. Unknown/failed model attempts remain unknown. Regressions authored, unexecuted."
     },
     {
       "id": "CA-6612",
