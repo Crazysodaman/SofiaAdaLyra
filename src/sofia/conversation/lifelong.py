@@ -883,6 +883,13 @@ class LifelongThreadStore:
             ).fetchall()
             if len(rows) != len(message_ids):
                 raise LookupError("requested message not in exact reviewed source")
+            # External approval can be revoked during source enumeration.
+            # Verify it again inside the canonical writer boundary before
+            # creating ANY Main import receipt or source links.
+            if independently_verify_operator_review(review_ref, digest) is not True:
+                raise PermissionError(
+                    "independent operator import approval expired before publication"
+                )
             thread = db.execute(
                 "SELECT thread_id FROM lifelong_thread "
                 "WHERE owner_principal_id=? AND kind='main'",
@@ -996,6 +1003,10 @@ class LifelongThreadStore:
                 raise PermissionError("rollback is not owned by this exact audience")
             if owner["status"] == "rejected":
                 raise PermissionError("rejected import created no links")
+            if independently_verify_operator_review(review_ref, digest) is not True:
+                raise PermissionError(
+                    "independent operator rollback approval expired before publication"
+                )
             for identifier in message_ids:
                 record = db.execute(
                     "SELECT removed_at FROM lifelong_historical_import_added "
