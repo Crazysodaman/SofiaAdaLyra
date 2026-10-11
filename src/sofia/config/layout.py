@@ -54,21 +54,31 @@ class RuntimeStorageLayout:
         pointer_file = os.environ.get("SOFIA_STATE_HOME_POINTER", "").strip()
         pointer_key = os.environ.get("SOFIA_STATE_HOME_POINTER_KEY", "").strip()
         writer_host_id = os.environ.get("SOFIA_WRITER_HOST_ID", "").strip()
+        epoch_floor = os.environ.get("SOFIA_MIN_WRITER_EPOCH", "").strip()
         if pointer_file and explicit_state:
             raise ValueError("SOFIA_STATE_ROOT conflicts with signed home pointer")
         if pointer_file:
-            if mode != "production" or not pointer_key or not writer_host_id:
+            if (
+                mode != "production" or not pointer_key
+                or not writer_host_id or not epoch_floor
+            ):
                 raise ValueError(
-                    "signed state-home pointer requires production mode, key and writer host"
+                    "signed state-home pointer requires production mode, key, "
+                    "writer host and a trusted minimum epoch"
                 )
+            try:
+                required_epoch = int(epoch_floor)
+            except ValueError as exc:
+                raise ValueError("invalid SOFIA_MIN_WRITER_EPOCH") from exc
             from sofia.config.state_home_pointer import read_verified_state_home
             approved = read_verified_state_home(
                 pointer_path=Path(pointer_file), key_path=Path(pointer_key),
                 expected_writer_host_id=writer_host_id,
+                minimum_writer_epoch=required_epoch,
             )
             state_root = approved.root
-        elif pointer_key:
-            raise ValueError("state-home key requires a signed pointer")
+        elif pointer_key or epoch_floor:
+            raise ValueError("state-home key or epoch floor requires a signed pointer")
         elif explicit_state:
             state_root = Path(explicit_state)
         elif mode == "production":
