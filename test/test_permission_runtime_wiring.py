@@ -215,6 +215,45 @@ def test_operator_stop_blocks_safe_autonomous_backup_direct_handler(tmp_path):
             rationale="must not run backup when emergency stopped",
         ))
 
+
+def test_integration_handler_rechecks_grant_revocation_before_effect(
+    tmp_path, monkeypatch,
+):
+    state = tmp_path / "sofia.db"
+    with sqlite3.connect(state):
+        pass
+    tools = create_configured_integration_tools(
+        filesystem_root=tmp_path, state_path=state,
+    )
+    registration = _registration(tools, "storage.mkdir")
+    store = PermissionStore(state)
+    grant = store.grant(
+        "storage.mkdir",
+        scope={"root_index": 0, "path": "must-not-create"},
+    )
+    original = PermissionStore.allows_standing
+    visits = []
+
+    def revoke_after_first_check(self, capability, parameters, *, now=None):
+        permitted = original(self, capability, parameters, now=now)
+        if capability == "storage.mkdir":
+            visits.append(permitted)
+            if len(visits) == 1:
+                PermissionStore(state).revoke(grant.grant_id)
+        return permitted
+
+    monkeypatch.setattr(PermissionStore, "allows_standing", revoke_after_first_check)
+    request = CapabilityRequest(
+        capability=registration.capability,
+        parameters={"root_index": 0, "path": "must-not-create"},
+        requested_scope=None,
+        rationale="simulate revocation after first permission read",
+    )
+    with pytest.raises(PermissionError, match="revoked before execution"):
+        registration.handler(request)
+    assert visits == [True, False]
+    assert not (tmp_path / "must-not-create").exists()
+
 def test_level_three_tool_schema_allows_standing_grant_without_approval_id(tmp_path):
     state = tmp_path / "sofia.db"
     with sqlite3.connect(state):
