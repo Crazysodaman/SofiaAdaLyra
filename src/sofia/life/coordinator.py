@@ -1148,9 +1148,18 @@ class SelfDirectedLifeCoordinator:
                 experience_summaries=tuple(item.summary for item in experiences),
                 now=now,
             )
-            evidence_refs = tuple(dict.fromkeys(
-                ref for interest in interests for ref in interest.evidence_refs
-            ))[:32]
+            # Project origin must be the one exact selected eligible
+            # interest, not whichever interest happens to sort first.
+            # Evidence from unrelated interests never launders into a
+            # new LIFE project or its future preference-learning chain.
+            selected_interest = next(
+                (item for item in interests
+                 if item.interest_id == suggestion.originating_interest_id),
+                None,
+            )
+            if selected_interest is None:
+                raise ValueError("suggestion has no eligible original interest")
+            evidence_refs = selected_interest.evidence_refs[:32]
             deterministic_accept = (
                 suggestion.pursue
                 and suggestion.confidence >= 0.65
@@ -1179,7 +1188,7 @@ class SelfDirectedLifeCoordinator:
             idea = ProjectIdea(
                 suggestion.suggestion_id.replace("idea-suggestion:", "idea:"),
                 suggestion.name, suggestion.description,
-                interests[0].interest_id, suggestion.objectives,
+                selected_interest.interest_id, suggestion.objectives,
                 suggestion.optional_success_criteria,
                 suggestion.artifact_kind.value, evidence_refs,
                 suggestion.confidence, suggestion.curiosity, now,
