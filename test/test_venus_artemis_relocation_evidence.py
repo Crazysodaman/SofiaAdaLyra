@@ -39,7 +39,8 @@ def _stage(
     proof, tmp_path, monkeypatch, *,
     manifest_source="Venus", approve=True,
     fail_restore=False, omit_identity=False,
-    revoke_before_publish=False,
+    revoke_before_publish=False, advance_journal_before_publish=False,
+    unapplied_erasure=False,
 ):
     engine = BackupEngine(BackupCipher(b"k" * 32))
     calls = []
@@ -76,6 +77,28 @@ def _stage(
     monkeypatch.setattr(engine, "create", fake_create)
     monkeypatch.setattr(engine, "verify", fake_verify)
     monkeypatch.setattr(engine, "restore", fake_restore)
+    # This fixture deliberately writes synthetic bytes rather than SQLite and
+    # does not provision a real external deletion journal. Mock the existing
+    # independently tested journal reader only for this staging integration
+    # fixture; production must use the real authenticated replay verifier.
+    from sofia.memory.deletion_ledger import MemoryDeletionLedger, MemoryErasureError
+
+    journal_reads = 0
+
+    def fake_journal_entries(_ledger):
+        nonlocal journal_reads
+        journal_reads += 1
+        if advance_journal_before_publish and journal_reads >= 3:
+            return ({"candidate_id": "new-signed-erasure"},)
+        return ()
+
+    def fake_verify_applied(_ledger, _state_path):
+        if unapplied_erasure:
+            raise MemoryErasureError("synthetic unapplied signed deletion")
+        return {"signed_deletions": 0, "verified_absent": 0}
+
+    monkeypatch.setattr(MemoryDeletionLedger, "entries", fake_journal_entries)
+    monkeypatch.setattr(MemoryDeletionLedger, "verify_applied", fake_verify_applied)
     monkeypatch.setattr(
         relocation, "inspect_state_relocation",
         lambda *_args: SimpleNamespace(
@@ -191,6 +214,32 @@ def test_relocation_rechecks_live_fence_after_restore_before_publication(
     proof = _plan(tmp_path)
     with pytest.raises(PermissionError, match="withdrawn before publishing"):
         _stage(proof, tmp_path, monkeypatch, revoke_before_publish=True)
+
+    assert not proof.destination_root.exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+    assert proof.source_state_path.read_bytes() == b"isolated-original-fixture"
+
+
+def test_relocation_refuses_erasures_missing_from_staged_candidate(
+    tmp_path, monkeypatch,
+):
+    proof = _plan(tmp_path)
+    with pytest.raises(BackupError, match="current authenticated erasures"):
+        _stage(proof, tmp_path, monkeypatch, unapplied_erasure=True)
+
+    assert not proof.destination_root.exists()
+    assert not list(tmp_path.glob(".artemis-staged.restore-*"))
+
+
+def test_relocation_refuses_journal_advance_after_restored_candidate_verified(
+    tmp_path, monkeypatch,
+):
+    proof = _plan(tmp_path)
+    with pytest.raises(BackupError, match="advanced before candidate publication"):
+        _stage(
+            proof, tmp_path, monkeypatch,
+            advance_journal_before_publish=True,
+        )
 
     assert not proof.destination_root.exists()
     assert not list(tmp_path.glob(".artemis-staged.restore-*"))
