@@ -485,7 +485,16 @@ class BackupEngine:
                         nonce_b64=b64encode(nonce).decode("ascii"),
                     )
                 )
+                if logical == "sofia.db":
+                    # The SQLite online backup is temporary cleartext input,
+                    # not a member of the published encrypted archive. Remove
+                    # it as soon as its authenticated ciphertext exists.
+                    snapshot.unlink()
 
+            if snapshot.exists() or snapshot.is_symlink():
+                raise BackupError(
+                    "plaintext SQLite snapshot cannot enter encrypted archive"
+                )
             manifest = BackupManifest(
                 backup_id=backup_id,
                 source_host_id=source_host_id,
