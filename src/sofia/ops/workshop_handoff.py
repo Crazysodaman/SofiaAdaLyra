@@ -337,6 +337,7 @@ class WorkshopHandoffPreview:
     observed_boot_sha256: str | None
     fleet_vm_receipt: str
     fleet_media_receipt: str | None
+    approved_media_policy: str | None = None
 
     def readable(self) -> str:
         return "\n".join((
@@ -350,6 +351,7 @@ class WorkshopHandoffPreview:
             "Unattended boot media: "+self.handoff.installer_iso_path,
             "Media expected: "+self.handoff.approved_boot_media_sha256,
             "Media observed: "+str(self.observed_boot_sha256 or "UNKNOWN"),
+            "Signed first-boot policy: "+str(self.approved_media_policy or "UNKNOWN"),
             "Network: "+str(self.observation.nic_switches),
             "No self-created guest, network change, or implicit Fleet enrollment.",
             "Owner confirmed empty OS disk: "+str(self.handoff.owner_declares_empty_disk),
@@ -403,6 +405,7 @@ def preview_owner_created_vm(
     review=inspect_blank_vm_handoff(handoff,obs,now=at)
     observed_hash=None
     media_receipt=None
+    approved_media_policy=None
     try:
         media=remote_service.invoke(
             str(node),"workshop.inspect","media",
@@ -416,14 +419,24 @@ def preview_owner_created_vm(
             and len(media["message"])<4096
         ):
             result=json.loads(media["message"])
-            if isinstance(result,dict) and isinstance(result.get("sha256"),str):
+            from sofia.ops.workshop_media_attestation import POLICY
+            if (
+                isinstance(result,dict)
+                and isinstance(result.get("sha256"),str)
+                and result.get("kind")==".iso"
+                and result.get("owner_signed") is True
+                and result.get("policy_version")==POLICY
+            ):
                 observed_hash=result["sha256"]
+                approved_media_policy=POLICY
                 media_receipt=media.get("request_id")
     except (PermissionError,ValueError,RuntimeError,LookupError,OSError):
         pass
     blockers=list(review.blockers)
     if observed_hash is None:
-        blockers.append("offline unattended image SHA-256 not observed on Artemis")
+        blockers.append(
+            "signed offline console-admin policy and SHA-256 not attested by Artemis"
+        )
     elif observed_hash != handoff.approved_boot_media_sha256:
         blockers.append("boot media SHA-256 changed or mismatched")
     final=WorkshopHandoffReview(
@@ -435,6 +448,7 @@ def preview_owner_created_vm(
         observed_boot_sha256=observed_hash,
         fleet_vm_receipt=response["request_id"],
         fleet_media_receipt=media_receipt,
+        approved_media_policy=approved_media_policy,
     )
 
 
@@ -471,6 +485,7 @@ class WorkshopHandoffStore:
             "observation":o,
             "review":asdict(preview.review),
             "media_sha256":preview.observed_boot_sha256,
+            "owner_approved_media_policy":preview.approved_media_policy,
             "fleet_vm_receipt":preview.fleet_vm_receipt,
             "fleet_media_receipt":preview.fleet_media_receipt,
             "kind":"owner_provided_vm_handoff_read_only",
@@ -532,6 +547,7 @@ class WorkshopHandoffStore:
             "state":data["observation"]["state"],
             "network":data["observation"]["nic_switches"],
             "boot_media_digest":data["media_sha256"],
+            "owner_approved_media_policy":data.get("owner_approved_media_policy"),
             "ready_for_bootstrap_review":(
                 bool(review["ready_for_owner_bootstrap_review"])
                 if current else False
