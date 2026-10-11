@@ -416,3 +416,111 @@ def preview_owner_created_vm(
         fleet_vm_receipt=response["request_id"],
         fleet_media_receipt=media_receipt,
     )
+
+
+
+class WorkshopHandoffStore:
+    """Only non-executable owner-review evidence in the canonical sofia.db."""
+
+    def __init__(self, state_path):
+        from pathlib import Path
+        from contextlib import closing
+        from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
+        self._guard=CanonicalSQLiteGuard(Path(state_path))
+        with closing(self._guard.connect(timeout=10)) as db, db:
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS ops_workshop_blank_vm_handoff("
+                "plan_id TEXT PRIMARY KEY, plan_hash TEXT NOT NULL,"
+                "snapshot_json TEXT NOT NULL, observed_at TEXT NOT NULL)"
+            )
+
+    def record(self, preview: WorkshopHandoffPreview):
+        from contextlib import closing
+        if not isinstance(preview,WorkshopHandoffPreview):
+            raise TypeError("observed pinned-mTLS handoff preview required")
+        if (
+            preview.review.fingerprint!=preview.handoff.fingerprint
+            or preview.observation.hyperv_vm_id!=preview.handoff.hyperv_vm_id
+        ):
+            raise PermissionError("handoff observation and plan identity differ")
+        o=asdict(preview.observation)
+        o["hyperv_vm_id"]=str(preview.observation.hyperv_vm_id)
+        o["observed_at"]=preview.observation.observed_at.astimezone(timezone.utc).isoformat()
+        serialized=json.dumps({
+            "plan":preview.handoff.exact_manifest(),
+            "observation":o,
+            "review":asdict(preview.review),
+            "media_sha256":preview.observed_boot_sha256,
+            "fleet_vm_receipt":preview.fleet_vm_receipt,
+            "fleet_media_receipt":preview.fleet_media_receipt,
+            "kind":"owner_provided_vm_handoff_read_only",
+        },sort_keys=True,separators=(",", ":"))
+        if len(serialized)>65_536:
+            raise ValueError("bounded handoff evidence required")
+        with closing(self._guard.connect(timeout=10)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            existing=db.execute(
+                "SELECT snapshot_json FROM ops_workshop_blank_vm_handoff "
+                "WHERE plan_id=?",(preview.handoff.plan_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing[0]!=serialized:
+                    raise PermissionError("reviewed handoff cannot be rewritten")
+                return
+            db.execute(
+                "INSERT INTO ops_workshop_blank_vm_handoff VALUES(?,?,?,?)",
+                (preview.handoff.plan_id,preview.handoff.fingerprint,
+                 serialized,o["observed_at"]),
+            )
+            db.execute(
+                "DELETE FROM ops_workshop_blank_vm_handoff "
+                "WHERE plan_id NOT IN (SELECT plan_id FROM "
+                "ops_workshop_blank_vm_handoff ORDER BY observed_at DESC,"
+                "plan_id DESC LIMIT 12)"
+            )
+
+    def read_model_brief(self)->dict:
+        from contextlib import closing
+        with closing(self._guard.connect(timeout=10)) as db:
+            row=db.execute(
+                "SELECT snapshot_json FROM ops_workshop_blank_vm_handoff "
+                "ORDER BY observed_at DESC,plan_id DESC LIMIT 1"
+            ).fetchone()
+        if row is None:
+            return {
+                "status":"unobserved",
+                "reason":"No owner-created Hyper-V VM handoff observed.",
+                "may_install":False,"may_enroll":False,
+            }
+        data=json.loads(row[0])
+        plan=data["plan"]
+        review=data["review"]
+        now=datetime.now(timezone.utc)
+        expiry=datetime.fromisoformat(plan["expires_at"])
+        observed=datetime.fromisoformat(data["observation"]["observed_at"])
+        current=(
+            now<expiry
+            and timedelta(0)<=now-observed<=timedelta(minutes=3)
+        )
+        return {
+            "status":"reviewed_read_only" if current else "expired_or_stale",
+            "plan_id":plan["plan_id"],
+            "plan_fingerprint_sha256":review["fingerprint"],
+            "artemis_node_id":plan["artemis_node_id"],
+            "guest_name":plan["guest_name"],
+            "vm_guid":plan["hyperv_vm_id"],
+            "state":data["observation"]["state"],
+            "network":data["observation"]["nic_switches"],
+            "boot_media_digest":data["media_sha256"],
+            "ready_for_bootstrap_review":(
+                bool(review["ready_for_owner_bootstrap_review"])
+                if current else False
+            ),
+            "blockers":(
+                tuple(review["blockers"])
+                if current else ("VM review expired; inspect Artemis again",)
+            ),
+            "may_install":False,"may_enroll":False,
+            "note":"No guest OS or agent proven. A separate owner Level-4 install "
+                   "receipt is required; Fleet enrollment is a later decision.",
+        }
