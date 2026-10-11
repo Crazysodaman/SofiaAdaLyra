@@ -174,8 +174,22 @@ class ProjectIdea:
         text(self.name, "project name", 180)
         text(self.description, "project description", 2000)
         identifier(self.originating_interest, "originating_interest")
-        if not 1 <= len(self.objectives) <= 16 or any(not item.strip() or len(item) > 500 for item in self.objectives):
+        if (
+            not isinstance(self.objectives, tuple)
+            or not 1 <= len(self.objectives) <= 16
+            or any(
+                not isinstance(item, str) or not item.strip() or len(item) > 500
+                for item in self.objectives
+            )
+        ):
             raise ValueError("project idea requires 1..16 bounded objectives")
+        # LIFE's objective reports and historical goal predicates are keyed
+        # by original criterion. Repeating a criterion would collapse
+        # distinct milestones into one validator result.
+        if len({item.strip().casefold() for item in self.objectives}) != len(
+            self.objectives
+        ):
+            raise ValueError("project idea objectives must be distinct")
         if len(self.optional_success_criteria) > 16 or any(
             not item.strip() or len(item) > 500 for item in self.optional_success_criteria
         ):
