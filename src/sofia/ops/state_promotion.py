@@ -93,6 +93,16 @@ def prepare_pending_state_pointer(
         staged, authorization
     ) is not True:
         raise PermissionError("external operator/cutover verifier denied handoff")
+    # Resolve nothing before checking the original spelling. An HMAC over
+    # a pending pointer must never be minted for a redirected candidate home,
+    # SQLite database or protected identity (including parent junctions).
+    _require_unredirected_path(
+        staged.destination_state_path, label="staged canonical database",
+    )
+    _require_unredirected_path(
+        staged.destination_state_path.parent / "protected" / "identity.json",
+        label="staged protected identity",
+    )
     home = staged.destination_state_path.parent.resolve(strict=True)
     if not staged.destination_state_path.is_file():
         raise FileNotFoundError("restored destination database missing")
@@ -122,6 +132,21 @@ def prepare_pending_state_pointer(
     document = (json.dumps(
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ) + "\n").encode("utf-8")
+    # A long sequence of file/path validation and HMAC preparation may
+    # outlive the original privileged handoff approval. Refuse to publish
+    # even a pending artifact once that approval has been withdrawn.
+    if verify_privileged_handoff(staged, authorization) is not True:
+        raise PermissionError(
+            "privileged handoff approval expired before pending pointer creation"
+        )
+    _require_unredirected_path(pending_path, label="pending state-home pointer")
+    _require_unredirected_path(
+        staged.destination_state_path, label="staged canonical database",
+    )
+    _require_unredirected_path(
+        staged.destination_state_path.parent / "protected" / "identity.json",
+        label="staged protected identity",
+    )
     # Atomic exclusive creation. No replace of live files. The operator-owned
     # destination directory and its ACLs must be validated by the broker.
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
