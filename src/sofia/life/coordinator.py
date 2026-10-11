@@ -1854,6 +1854,99 @@ class SelfDirectedLifeCoordinator:
             return 0, "waiting_on_existing_work"
         return 1, "revision_scheduled"
 
+    def _reconcile_canonical_goal_lifecycle(self, *, now: datetime) -> int:
+        """Stop private optional LIFE activity after a canonical GOALS change.
+
+        This is a projection of already persisted GOALS authority, not a
+        new approval or success oracle. An unseen goal is UNKNOWN rather
+        than evidence of absence. A potentially executed RUN effect is
+        never silently labelled abandoned or completed.
+        """
+        visible = {
+            item.id: item for item in self.goals.list_visible(
+                local_sparks_principal()
+            )
+        }
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+            statuses=(ProjectStatus.ACTIVE, ProjectStatus.PAUSED),
+        )
+        settled = 0
+        for project in projects:
+            if project.scope is not ProjectScope.PERSONAL_PRIVATE:
+                continue
+            goal = visible.get(project.goal_id)
+            if goal is None:
+                continue  # no inference about missing/denied GOALS records
+            if (
+                goal.origin is not GoalOrigin.SELF
+                or goal.owner_principal_id != SOFIA_GOAL_OWNER_ID
+                or goal.scope_audience != project.audience_id
+            ):
+                continue  # scope mismatch requires separate operator audit
+            status = goal.status
+            terminal = status in {
+                GoalStatus.CANCELLED, GoalStatus.EXPIRED, GoalStatus.REJECTED,
+            }
+            must_pause = status in {
+                GoalStatus.PAUSED, GoalStatus.COMPLETED,
+                GoalStatus.SUPERSEDED, GoalStatus.CANDIDATE,
+            }
+            if not terminal and not must_pause:
+                continue
+            jobs = tuple(
+                self.work_store.get(job_id)
+                for job_id in self.store.jobs(project.project_id)
+            )
+            unsettled = any(job.status in {
+                WorkStatus.QUEUED, WorkStatus.RUNNING,
+                WorkStatus.WAITING_APPROVAL, WorkStatus.UNCERTAIN,
+            } for job in jobs)
+            # A cancelled goal with a possibly in-flight operation first
+            # pauses LIFE, leaving the original RUN receipt to be settled.
+            # Only a terminal goal with no unsettled work may close the
+            # optional project; completion is NEVER inferred from goal state.
+            disposition = (
+                ProjectStatus.PAUSED if must_pause or unsettled
+                else ProjectStatus.ABANDONED
+            )
+            if project.status is disposition:
+                continue
+            evidence = self.record_observation(
+                kind="goal-lifecycle-reconciliation",
+                source="life:canonical-goals",
+                assertion=(
+                    f"Canonical scoped goal {goal.id} is {status.value}; "
+                    f"optional LIFE project cannot claim ongoing approval."
+                ),
+                now=now,
+                payload={
+                    "project_id": project.project_id,
+                    "goal_id": goal.id,
+                    "goal_revision": goal.revision,
+                    "goal_status": status.value,
+                    "unsettled_run_jobs": unsettled,
+                },
+            )
+            self._transition(
+                project.project_id, disposition,
+                decision="canonical_goal_reconciliation",
+                reason=(
+                    f"Canonical goal {goal.id} is {status.value}; "
+                    + (
+                        "preserving unresolved RUN work for operator review."
+                        if unsettled else
+                        "no optional execution or completion is authorized."
+                    )
+                ),
+                evidence_refs=(evidence,),
+                actor=SOFIA_GOAL_OWNER_ID, now=now,
+                sync_goal=False,  # GOALS is the source, not our mutation target
+            )
+            settled += 1
+        return settled
+
     def _reconcile_terminal_run_projects(self, *, now: datetime) -> int:
         """Settle linked terminal RUN outcomes into LIFE and GOALS once.
 
@@ -1944,6 +2037,7 @@ class SelfDirectedLifeCoordinator:
         # resource-limited project selection. This remains useful while busy.
         observed = self.store.reconcile_run_outcomes(now=now)
         terminal_settled = self._reconcile_terminal_run_projects(now=now)
+        goal_settled = self._reconcile_canonical_goal_lifecycle(now=now)
         # Completion verification is a settlement of an ALREADY STARTED
         # canonical RUN job, not permission to spend new creation budget.
         # A finished artifact must not be orphaned forever merely because
@@ -2070,6 +2164,7 @@ class SelfDirectedLifeCoordinator:
                         self.store.reconcile_run_outcomes(now=now)
                     ),
                     "terminal_run_projects_settled": terminal_settled,
+            "goal_lifecycle_projects_settled": goal_settled,
                     "review_queue": self.pending_work_review(limit=16),
                 }
         selection = self.select_activity(
@@ -2107,6 +2202,7 @@ class SelfDirectedLifeCoordinator:
                             else "model_generation_unavailable"
                         ),
                         "terminal_run_projects_settled": terminal_settled,
+            "goal_lifecycle_projects_settled": goal_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 if not self.store.claim_daily_draft_attempt(project.project_id, now=now):
@@ -2119,6 +2215,7 @@ class SelfDirectedLifeCoordinator:
                         ),
                         "draft_status": "deferred_daily_limit",
                         "terminal_run_projects_settled": terminal_settled,
+            "goal_lifecycle_projects_settled": goal_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 try:
@@ -2135,6 +2232,7 @@ class SelfDirectedLifeCoordinator:
                         ),
                         "draft_status": "failed_unverified",
                         "terminal_run_projects_settled": terminal_settled,
+            "goal_lifecycle_projects_settled": goal_settled,
                         "review_queue": self.pending_work_review(limit=16),
                     }
                 # Do not leave a misleading creative-work evidence record
@@ -2168,6 +2266,7 @@ class SelfDirectedLifeCoordinator:
                 self.store.reconcile_run_outcomes(now=now)
             ),
             "terminal_run_projects_settled": terminal_settled,
+            "goal_lifecycle_projects_settled": goal_settled,
             "review_queue": self.pending_work_review(limit=16),
         }
 
