@@ -45,7 +45,8 @@
     "2026-10-11 Workstream4 continuation4: Ollama model discovery now excludes malformed/missing SHA-256 from candidate review and rejects stale, mixed-time or out-of-order host snapshots without deleting historical inventory. Test source authored, no test executed, no model installation. CA-6601/6604 stay unverified code candidates; CA-6602 remains partial.",
     "2026-10-11 Workstream4 continuation4: Installer-start host receipt now requires correct Hephaestus name/GUID, Running state, ISO digest and fresh source observation at both Hyper-V adapter and authenticated Fleet settlement boundary. Missing/bad evidence stays UNCERTAIN and never indicates Debian installed. Canonical test fixtures bootstrapped, deferred tests added. CA-2805/2912/2914 remain partial.",
     "2026-10-11 WS4 continuation4 Hephaestus host post-attachment verification adds no host DNS and no default route, complementing NAT/ICS/Public-forwarding/sibling checks. Installer stage receipt now requires fresh exact Running VM/ISO proof; deferred fixture bootstrap and negative-case code. No actual live network/VM operation or host acceptance.",
-    "2026-10-11 WS4 Phase16: scientific evidence admission refuses reusing a given independent evidence_ref under the same protocol, even with a contradictory 'supported' result. Original adverse/null observations are preserved; a correction requires independently reviewed new evidence. Test source authored; no scientific experiment or test run."
+    "2026-10-11 WS4 Phase16: scientific evidence admission refuses reusing a given independent evidence_ref under the same protocol, even with a contradictory 'supported' result. Original adverse/null observations are preserved; a correction requires independently reviewed new evidence. Test source authored; no scientific experiment or test run.",
+    "2026-10-11 W4 strictly ordered Phase11 continuation: source audit of all 49 requirements committed; fixed shared-physical-Ollama model accounting/eviction in actual model lifecycle, and rejected NaN/infinity in opt-in perf trace. Deferred test fixtures authored but not run. Eight additional Phase11 requirements classified partial source coverage; no task accepted, no model/VM/CI operations and no measured host efficiency claims."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -313,7 +314,12 @@
     "055b4888db5c3500cffaba65e589cc2af5eca248",
     "698e549af74b8ef4b1c29fd2cf247a4870c93fc5",
     "e88973d8687399d59dc9b5f2f2676b7d57f08c1e",
-    "3137f58fd4829578fe327e37372e55d955772c14"
+    "3137f58fd4829578fe327e37372e55d955772c14",
+    "b99eac30587b969cf426a8654ca025f64f0e6fc1",
+    "fe873ce5b12b18d71d186e0d93a15c61228e841e",
+    "be731ac86c29d431c30290966b49c4c1c0facd61",
+    "6fc522e69d55f2240e1bc9f4607b60bbdd960d3c",
+    "6dc18c7d6f2f33a62158e61f849170ea4eb42a53"
   ],
   "tasks": [
     {
@@ -334,7 +340,7 @@
       "master_line": 899,
       "global_ledger_before": "unassessed",
       "source_review": "partially_implemented_unverified",
-      "finding": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven.",
+      "finding": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven. Existing configured primary/secondary routing, per-route token budgets and resource-aware residency form a partial per-role cost policy; shared Ollama model images are now counted once and cannot be evicted through a nonpreferred alias. Missing empirical role-specific quality/latency/energy thresholds and deterministic/no-model gate. Sources cognition/model_lifecycle.py, cognition/routing.py, cognition/budgets.py and deferred test/test_model_lifecycle.py.",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
@@ -389,33 +395,36 @@
       "phase": "11",
       "master_line": 907,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Source-only baseline measurement plan and acceptance dependencies documented in docs/development/v18-workstream4-phase11-source-audit-2026-10-11.md. verify/cognition_v2_baseline.py provides deterministic control-path measurements, not the required live Venus/Artemis p50/p95, thermal or VRAM baseline. Must remain unverified until supervised host data."
     },
     {
       "id": "CA-3202",
       "phase": "11",
       "master_line": 908,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "CognitiveRoutingPolicy already selects FAST/STANDARD/DEEP/VERIFY/OPEN with primary/secondary role separation. No independent quality-gated deterministic answer/abstain admission before inference, and no calibrated model-cost thresholds. Sources cognition/routing.py and cognition/model_lifecycle.py. Partial, not a completed 3-tier production route."
     },
     {
       "id": "CA-3203",
       "phase": "11",
       "master_line": 909,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Existing cognition/budgets.py caps route-level context/output; application/optional_budget.py caps background approximate resource credits. No measured per-LIFE/NEURO/REL event inference footprint or escalation quality threshold; credit reservation is not measured GPU usage. Partial."
     },
     {
       "id": "CA-3204",
@@ -455,11 +464,12 @@
       "phase": "11",
       "master_line": 913,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Existing canonical SQLite and shared_sqlite_access, RUN background coordinator transactions and opt-in metrics provide partial source coverage. Real Windows WinError 32 lifecycle root cause not demonstrated, nor tested WAL backup/shutdown/concurrent teardown campaign. Partial source audit only."
     },
     {
       "id": "CA-3208",
@@ -477,11 +487,12 @@
       "phase": "11",
       "master_line": 915,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Actual split-runtime/Fleet composition can keep inference on separately enrolled existing hosts and model_lifecycle resource-aware residency operates on local configured Ollama. Same physical model artifact alias accounting and eviction hardened. Guest/host placement cost comparison lacks measured acceptance. Sources composition/engines.py, cognition/model_lifecycle.py."
     },
     {
       "id": "CA-3210",
@@ -510,11 +521,12 @@
       "phase": "11",
       "master_line": 918,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Opt-in content-free performance counters are present in cognition/performance.py with strict finite numeric validation; running instrumentation overhead comparison and bounded queue/log sampling are not proven. Deferred test/test_cognitive_performance_trace.py. Partial."
     },
     {
       "id": "CA-3213",
@@ -754,11 +766,12 @@
       "phase": "11",
       "master_line": 949,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "CognitiveModelSelection primary/secondary role registry and model_lifecycle management are wired without a second identity; vision/embedding/specialist role justification and measured GPU residency/benchmark acceptance remain unimplemented. Partial audit only."
     },
     {
       "id": "CA-6604",
