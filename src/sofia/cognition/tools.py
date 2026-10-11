@@ -22,6 +22,11 @@ from sofia.safe.permissions import (
 )
 
 
+# Tool data can contain large retrieved logs or repository files. The model
+# never receives an unbounded single-tool payload.
+MAX_FORMATTED_TOOL_RESULT_CHARS = 32_000
+
+
 class CognitiveToolError(Exception):
     """Raised when a cognitive tool call cannot be dispatched."""
 
@@ -465,7 +470,16 @@ class CognitiveToolDispatcher:
                     )
                 )
 
-        return "\n".join(lines)
+        formatted = "\n".join(lines)
+        if len(formatted) > MAX_FORMATTED_TOOL_RESULT_CHARS:
+            # Evidence beyond this limit has NOT been observed by the
+            # cognitive engine. Never imply a complete inspection.
+            return (
+                formatted[:MAX_FORMATTED_TOOL_RESULT_CHARS]
+                + "\n[TRUNCATED: tool evidence exceeded the configured"
+                " cognitive context bound; remainder not provided]"
+            )
+        return formatted
 
 
     @staticmethod
