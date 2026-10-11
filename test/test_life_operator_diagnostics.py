@@ -110,6 +110,8 @@ def test_life_goal_dependency_view_shows_original_prerequisites(tmp_path):
         assert row["unsettled_job_ids"] == ()
         assert row["blockers"] == ()
         assert row["eligible_for_new_work"] is True
+        assert row["next_action_candidate"] == "explore"
+        assert row["next_action_source_job_id"] is None
         assert life.operator_diagnostics(now=now + timedelta(seconds=3))[
             "goal_dependencies"
         ] == first
@@ -147,6 +149,8 @@ def test_life_goal_dependency_view_preserves_uncertain_run_and_approval(tmp_path
         assert pending["latest_run_status"] == "waiting_approval"
         assert "operator_approval_pending" in pending["blockers"]
         assert pending["eligible_for_new_work"] is False
+        assert pending["next_action_candidate"] == "ask"
+        assert pending["next_action_source_job_id"] == job.job_id
         life.work_store.transition(
             job.job_id, expected=(WorkStatus.WAITING_APPROVAL,),
             status=WorkStatus.UNCERTAIN,
@@ -158,6 +162,8 @@ def test_life_goal_dependency_view_preserves_uncertain_run_and_approval(tmp_path
         assert unknown["latest_run_status"] == "uncertain"
         assert "run_effect_uncertain" in unknown["blockers"]
         assert unknown["eligible_for_new_work"] is False
+        assert unknown["next_action_candidate"] == "ask"
+        assert "no automatic retry" in unknown["next_action_reason"]
         assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
@@ -182,7 +188,44 @@ def test_goal_dependency_view_reports_budget_exhaustion_without_running_work(
         assert "daily_time_budget_exhausted" in row["blockers"]
         assert "daily_storage_budget_exhausted" in row["blockers"]
         assert row["eligible_for_new_work"] is False
+        assert row["next_action_candidate"] == "rest"
         assert row["unsettled_job_ids"] == ()
         assert life.store.jobs(project.project_id) == ()
+    finally:
+        life.close()
+
+
+def test_life_goal_dependency_completed_run_requires_independent_review(tmp_path):
+    """A completed RUN job never becomes an automatic objective-success oracle."""
+    from sofia.creative import ArtifactKind
+
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job = life.schedule_artifact(
+            project.project_id,
+            artifact_kind=ArtifactKind.TEXT,
+            title="Review-required original artifact",
+            specification={"content": "Foxfire writing with an explicit criterion."},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        life.work_store.transition(
+            job.job_id,
+            expected=(WorkStatus.QUEUED,),
+            status=WorkStatus.COMPLETED,
+            reason="RUN completion by itself is not objective proof",
+            now=now + timedelta(seconds=4),
+            result={"artifact_id": "artifact:unverified", "revision": 1},
+        )
+        row = life.goal_dependency_view(now=now + timedelta(seconds=5))[0]
+        assert row["latest_run_status"] == "completed"
+        assert row["next_action_candidate"] == "verify"
+        assert row["next_action_source_job_id"] == job.job_id
+        assert row["unresolved_milestones"]
+        assert "Completed RUN receipt" in row["next_action_reason"]
+        assert life.store.evaluations(project.project_id) == ()
+        assert life.store.artifacts(project.project_id) == ()
     finally:
         life.close()
