@@ -46,8 +46,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.UUID
+
+/** Only transport unavailability permits a previously authorized offline read-only cache.
+
+HTTP denials, TLS failures and malformed/oversize responses are NOT offline
+permission to reveal a cached private transcript.
+*/
+internal fun isOfflineNetworkFailure(error: Throwable): Boolean =
+    error is UnknownHostException ||
+        error is ConnectException ||
+        error is NoRouteToHostException ||
+        error is SocketTimeoutException ||
+        error is SocketException
 
 data class ChatLine(val speaker: String, val text: String)
 
@@ -289,7 +305,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (failure: Exception) {
                 // An HTTP 401/403/409 is a HOST refusal, never offline
                 // permission to reveal a previously cached transcript.
-                if (reset && failure is IOException && failure !is SofiaHttpFailure) {
+                if (reset && isOfflineNetworkFailure(failure)) {
                     val cached = try {
                         secure.cachedMainPage(config)
                     } catch (_: Exception) {
