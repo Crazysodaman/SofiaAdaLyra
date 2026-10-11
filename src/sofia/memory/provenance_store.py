@@ -518,8 +518,52 @@ class DurableMemoryCandidateStore:
         if type(batch_size) is not int or not 1 <= batch_size <= 512:
             raise ValueError("batch_size must be 1..512")
 
+        with self._lock:
+            existing_tables = {
+                row[0] for row in self._require_db().execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type='table' AND name IN "
+                    "('conversation_messages','social_session_principal')"
+                ).fetchall()
+            }
+        if existing_tables == {"conversation_messages", "social_session_principal"}:
+            # An originally reviewed fact whose source was deleted, edited
+            # or rebound must not take a relevance slot away from other
+            # current facts. This is one indexed correlated SQL eligibility
+            # check per keyset batch, NOT one SQLite fetch per candidate.
+            source_guard = (
+                "NOT EXISTS ("
+                "SELECT 1 FROM memory_candidate_source_review AS r "
+                "WHERE r.candidate_id=memory_candidate.candidate_id "
+                "AND (NOT EXISTS ("
+                "SELECT 1 FROM memory_candidate_source AS src "
+                "WHERE src.candidate_id=r.candidate_id"
+                ") OR EXISTS ("
+                "SELECT 1 FROM memory_candidate_source AS src "
+                "LEFT JOIN conversation_messages AS m "
+                "ON m.id=src.message_id AND m.session_id=src.session_id "
+                "LEFT JOIN social_session_principal AS s "
+                "ON s.session_id=m.session_id "
+                "WHERE src.candidate_id=r.candidate_id AND ("
+                "src.session_id!=r.source_session_id OR m.id IS NULL "
+                "OR m.role!=src.role OR m.content!=src.content "
+                "OR s.principal_id IS NULL OR s.principal_id!=r.principal_id "
+                "OR s.audience_id!=r.audience_id "
+                "OR s.audience_kind!=r.audience_kind"
+                ")"
+                ")))"
+            )
+        else:
+            # Unmarked historic fixtures remain readable. An attested
+            # candidate must never pass when its source tables disappear.
+            source_guard = (
+                "NOT EXISTS (SELECT 1 FROM memory_candidate_source_review AS r "
+                "WHERE r.candidate_id=memory_candidate.candidate_id)"
+            )
+
         clauses = [
             "status=?",
+            source_guard,
             "NOT EXISTS (SELECT 1 FROM memory_candidate_validity AS v "
             "WHERE v.candidate_id=memory_candidate.candidate_id "
             "AND v.expires_at IS NOT NULL AND v.expires_at<=?)",
