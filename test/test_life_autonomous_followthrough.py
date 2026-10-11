@@ -148,7 +148,9 @@ def test_life_abstains_on_uncheckable_subjective_objectives(tmp_path):
         assert wait_for_job(life, life.store.jobs(project.project_id)[0]).status is WorkStatus.COMPLETED
         result = life.tick(now=now + timedelta(seconds=8))
         assert result["follow_through"] == "needs_independent_objective_review"
-        assert life._project(project.project_id).status is ProjectStatus.ACTIVE
+        # The verified outcome is UNKNOWN, so pause future autonomous
+        # spending rather than leave an uncheckable project ACTIVE forever.
+        assert life._project(project.project_id).status is ProjectStatus.PAUSED
         assert len(life.store.jobs(project.project_id)) == 1
         evals = life.store.evaluations(project.project_id)
         assert len(evals) == 1
