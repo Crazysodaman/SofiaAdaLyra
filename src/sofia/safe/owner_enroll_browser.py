@@ -126,6 +126,28 @@ def require_venus_interactive_windows() -> str:
     return value
 
 
+def require_owner_windows_account(state_path: Path | str) -> str:
+    """Refuse local owner approvals from anyone but the pinned Windows SID.
+
+    Future Debian-hosted approval must use a separately authenticated
+    remote-client protocol, never a copied SQLite file or self-stated username.
+    """
+    sid = require_venus_interactive_windows()
+    verifier = OwnerWebAuthnVerifier(
+        state_path, rp_id="localhost", origin="http://localhost:39872",
+    )
+    try:
+        with closing(verifier._db()) as db:
+            row = db.execute(
+                "SELECT windows_sid FROM safe_owner_host_identity WHERE singleton=1"
+            ).fetchone()
+    except (OSError, RuntimeError) as exc:
+        raise PermissionError("canonical owner account binding unavailable") from exc
+    if row is None or row["windows_sid"] != sid:
+        raise PermissionError("local operator is not Sofía's enrolled Windows owner")
+    return sid
+
+
 def enroll_attended(
     state_path: Path | str, *, kind: str, existing_credential_id: str | None = None,
     timeout_seconds: int = 120, open_browser=None,
