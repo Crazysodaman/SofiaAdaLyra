@@ -950,6 +950,7 @@ class LifeStore:
     def provision_artifact_job(
         self, db: sqlite3.Connection, *, project_id: str, job_id: str,
         request_id: str, artifact_id: str, request_digest: str, now: datetime,
+        expected_project_revision: int,
     ) -> None:
         """Atomically bind a RUN job and one-use creative request to LIFE.
 
@@ -962,9 +963,11 @@ class LifeStore:
             raise RuntimeError("artifact admission requires the RUN write transaction")
         if not isinstance(request_digest, str) or len(request_digest) != 64:
             raise ValueError("full creative request digest required")
+        if type(expected_project_revision) is not int or expected_project_revision < 0:
+            raise ValueError("original LIFE project revision required")
         stamp = now.astimezone(timezone.utc).isoformat()
         project = db.execute(
-            "SELECT status,goal_id FROM life_project WHERE project_id=?",
+            "SELECT status,goal_id,revision FROM life_project WHERE project_id=?",
             (project_id,),
         ).fetchone()
         if (
@@ -972,6 +975,11 @@ class LifeStore:
             or not project["goal_id"]
         ):
             raise RuntimeError("project was deactivated before atomic RUN admission")
+        # A project may be paused/revised/resumed between model return
+        # and RUN enqueue. Requiring its original revision in the SAME
+        # transaction prevents stale drafted intent from being admitted.
+        if int(project["revision"]) != expected_project_revision:
+            raise RuntimeError("original LIFE project revision changed before RUN admission")
         owner = db.execute(
             "SELECT project_id FROM life_project_job WHERE job_id=?",
             (job_id,),
