@@ -978,3 +978,52 @@ def test_owner_can_change_project_feedback_with_audited_history(tmp_path):
             ).fetchone()[0] == 3
     finally:
         life.close()
+
+
+def test_owner_decline_terminates_queued_update_before_sender(tmp_path):
+    """An already queued project note cannot reach Desktop or Discord after no."""
+    from sofia.application.background_runtime import bridge_voluntary_life_outreach
+    from sofia.social.principals import local_sparks_principal
+    from sofia.act.diagnostics import OutreachTraceStore
+    import sqlite3
+
+    life, project, now = _verified_private_project_for_unprompted_sharing(tmp_path)
+    try:
+        presence, service, sent = _owner_only_outreach(life)
+        assert bridge_voluntary_life_outreach(
+            life=life, presence=presence, act_service=service,
+            now=now, busy=False, generate=_choose_to_share,
+        ) == 1
+        with sqlite3.connect(life.path) as db:
+            original, notice = db.execute(
+                "SELECT event_id, notice_id FROM presence_initiative_opportunity "
+                "WHERE event_id LIKE 'life-update:%'"
+            ).fetchone()
+        presence.record_owner_life_update_feedback(
+            principal=local_sparks_principal(),
+            project_id=project.project_id,
+            original_event_id=original,
+            feedback="declined",
+            at=now + timedelta(seconds=1),
+        )
+        # This call loads the real ACT candidate and reaches its pre-send
+        # guard. No transport, UI popup, recipient ACK or fake success.
+        assert service.deliver_one(now=now + timedelta(seconds=2)) is None
+        assert sent == []
+        assert service.has_pending() is False
+        with sqlite3.connect(life.path) as db:
+            status, attempts, reason = db.execute(
+                "SELECT status,attempt_count,error_type FROM act_system_notice "
+                "WHERE notice_id=?", (notice,),
+            ).fetchone()
+        assert (status, attempts, reason) == (
+            "failed", 0, "OwnerDeclinedProject",
+        )
+        assert any(
+            row.stage == "suppressed" and row.reason == "user_declined"
+            for row in OutreachTraceStore(life.path).history(notice_id=notice)
+        )
+        assert service.deliver_one(now=now + timedelta(minutes=1)) is None
+        assert sent == []
+    finally:
+        life.close()
