@@ -14,9 +14,54 @@ import shutil
 import sys
 import tempfile
 from typing import Callable
+import stat
 
 from sofia.ops.backup import BackupEngine, BackupError
 from sofia.ops.state_mobility import inspect_state_relocation, _unsafe_ancestor
+
+
+class StateHomePublicationUncertain(BackupError):
+    """A candidate was renamed, but its durable directory entry is unproven."""
+
+
+def _fsync_linux_entry(path: Path, *, directory: bool) -> None:
+    """Flush a real file or directory without following a substituted symlink."""
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW
+    if directory:
+        flags |= os.O_DIRECTORY
+    descriptor = os.open(path, flags)
+    try:
+        mode = os.fstat(descriptor).st_mode
+        if directory and not stat.S_ISDIR(mode):
+            raise BackupError("staged state directory changed type before fsync")
+        if not directory and not stat.S_ISREG(mode):
+            raise BackupError("staged state entry is not a regular file")
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_linux_restored_tree(staging: Path) -> None:
+    """Make restored file bytes and nested directory names durable before rename.
+
+    Restoring authenticated bytes and performing an atomic rename do not, by
+    themselves, guarantee recovery after abrupt power loss. Traversal errors
+    and unsupported filesystem fsync operations must prevent publication.
+    """
+    def fail_walk(error: OSError) -> None:
+        raise BackupError("cannot traverse complete staged state home") from error
+
+    for root, directories, filenames in os.walk(
+        staging, topdown=False, followlinks=False, onerror=fail_walk,
+    ):
+        current = Path(root)
+        for name in filenames:
+            _fsync_linux_entry(current / name, directory=False)
+        for name in directories:
+            _fsync_linux_entry(current / name, directory=True)
+        _fsync_linux_entry(current, directory=True)
+    # Persist the temporary directory entry before the final atomic rename.
+    _fsync_linux_entry(staging.parent, directory=True)
 
 
 def _publish_new_home_without_replacing(staging: Path, destination: Path) -> None:
@@ -36,6 +81,10 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
     if destination.exists() or destination.is_symlink():
         raise FileExistsError("destination home already exists")
     if sys.platform.startswith("linux"):
+        # The backup restore used file-by-file replacement without an explicit
+        # durable directory barrier. Flush the ENTIRE verified candidate
+        # before making its directory name visible to an operator.
+        _fsync_linux_restored_tree(staging)
         import ctypes
 
         try:
@@ -65,6 +114,18 @@ def _publish_new_home_without_replacing(staging: Path, destination: Path) -> Non
             raise OSError(
                 err, os.strerror(err), os.fspath(destination),
             )
+        # The rename is now visible but cannot be rolled back automatically.
+        # Failure to sync its directory entry leaves crash durability UNKNOWN,
+        # and must never produce a verified-staging success receipt.
+        try:
+            _fsync_linux_entry(destination.parent, directory=True)
+            if staging.parent != destination.parent:
+                _fsync_linux_entry(staging.parent, directory=True)
+        except OSError as exc:
+            raise StateHomePublicationUncertain(
+                "candidate home was renamed but publication durability is "
+                "uncertain; do not activate or silently retry over destination"
+            ) from exc
         return
     if os.name == "nt":
         # Windows' os.rename rejects existing destination directories.
