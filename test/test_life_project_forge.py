@@ -1021,3 +1021,30 @@ def test_exhausted_independent_revisions_pause_even_without_model(tmp_path):
         )["scheduled"] == 0
     finally:
         life.close()
+
+
+def test_subjective_artifact_review_remains_visible_after_evaluation(tmp_path):
+    """A stored INCONCLUSIVE critique is not equivalent to reviewer acceptance."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, _evidence = active_project(
+            life, now, objectives=("Write a moving original poem.",),
+        )
+        life.tick(now=now + timedelta(seconds=3), generate=authored_foxfire_text)
+        job_id = life.store.jobs(project.project_id)[0]
+        completed = wait_for_job(life, job_id)
+        assert completed.status is WorkStatus.COMPLETED
+        settled = life.tick(now=now + timedelta(seconds=4), generate=None)
+        assert settled["follow_through"] == "needs_independent_objective_review"
+        reviews = life.pending_work_review()
+        assert any(
+            item["project_id"] == project.project_id
+            and item["job_id"] == job_id
+            and item["disposition"] == "needs_independent_objective_review"
+            for item in reviews
+        )
+        # Repeated ticks must not mint an objective PASS or another artifact.
+        assert life.tick(now=now + timedelta(seconds=5))["scheduled"] == 0
+        assert life.store.jobs(project.project_id) == (job_id,)
+    finally:
+        life.close()
