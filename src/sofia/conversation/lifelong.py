@@ -76,8 +76,8 @@ class LifelongThreadStore:
 
     def __init__(self, state_path: Path | str) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("canonical sofia.db must already exist")
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical sofia.db must already exist and not be redirected")
         with closing(self._connect()) as db, db:
             db.executescript(
                 """
@@ -129,7 +129,14 @@ class LifelongThreadStore:
             )
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, timeout=10)
+        # A lost Main database must never be resurrected by a later page
+        # request or independent device after canonical state relocation.
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical Main state missing or redirected")
+        db = sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10,
+        )
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA busy_timeout=10000")
