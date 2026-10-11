@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 from queue import Empty, Queue
 import secrets
+import sqlite3
 import socket
 import sys
 from threading import Lock, Thread
@@ -141,7 +142,7 @@ def require_owner_windows_account(state_path: Path | str) -> str:
             row = db.execute(
                 "SELECT windows_sid FROM safe_owner_host_identity WHERE singleton=1"
             ).fetchone()
-    except (OSError, RuntimeError) as exc:
+    except (sqlite3.Error, OSError, RuntimeError) as exc:
         raise PermissionError("canonical owner account binding unavailable") from exc
     if row is None or row["windows_sid"] != sid:
         raise PermissionError("local operator is not Sofía's enrolled Windows owner")
