@@ -2010,6 +2010,41 @@ cross-host failover or a guarantee that previously displayed phone
 content can be retracted after revocation. Tests and CI unrun;
 no actual notification, mobile pairing or live host changed.
 
+
+
+### Phase 04 item 62: Notification ACKs cannot inherit a prior pairing claim
+
+The exact-bearer transaction guard from item 61 was necessary but
+insufficient for newly re-paired phones: `mobile_notification` retained
+only a hashed device ID for the outstanding claim. A later bearer
+generation for the same device could acknowledge an older claim,
+producing a durable `displayed` state and potentially an ACT delivery
+receipt without having reclaimed that notice after re-pairing.
+
+Production `src/sofia/mobile/notifications.py` now migrates existing
+canonical `mobile_notification` tables with a nullable
+`claimed_generation` column, and records the authenticated generation
+in the same transaction as a claim. A remote ACK requires **both** a
+currently active original bearer/generation (item 61) **and** that the
+notice's persisted claim generation matches it. Previously claimed
+legacy/null rows cannot be ACKed remotely without first expiring
+and being legitimately reclaimed; expiry clears the old device and
+generation together. Previously direct trusted host callers retain
+their separate local authority. The durable original notification ID,
+at-least-once queue and opaque delivery handle survive this migration.
+
+Production: `def47f49932e48ddff73be8256cd64eb7497e718`
+(`[skip ci]`). Deferred synthetic re-pair/old-claim/lease-reclaim
+regression source in `test/test_ws2_mobile_notification_epoch_fence.py`,
+`c494b5290ceea4cda9f0a01b61985d5d6a202efe`
+(`[skip ci]`). The additional regression has not been run, and
+its future-time claim simulation should be reconciled with
+monotonic mock-clock fixtures in the final test campaign.
+
+Original relevance: CA-4104, CA-4109, CA-5303,
+CA-5304, CA-6304, CA-6309, CA-6311.
+No live pairing, delivery, host cutover or test execution performed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
