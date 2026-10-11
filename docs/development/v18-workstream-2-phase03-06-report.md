@@ -1583,6 +1583,44 @@ not proof that all original Phase 04 tasks are production complete.
 No HTTP request, tests, CI, Android build, pairing change or live
 runtime change was made during this coding slice.
 
+
+
+### Phase 04 item 51: Preserve original admitted mobile credential generation during cognition
+
+Original source: `src/sofia/mobile/gateway.py`. Actual authenticated
+`POST /v1/mobile/chat` → `MobileCompanionGateway.chat` writes a
+`mobile_turn_receipt` at the currently authenticated credential epoch
+under canonical `BEGIN IMMEDIATE`; then the expensive conversation
+selection/model path runs outside that writer transaction. Previously,
+`_conversation` and `_principal` independently queried
+`active_generation`. A rotation during the gap could select the **new
+generation's** conversation/memory audience for the **old epoch's**
+admitted request, even though final result settlement subsequently failed
+because the bearer was revoked.
+
+Production `efb6355c18d507f1c07cdede758342eaba696224`
+(`[skip ci]`) threads the original admitted positive generation through
+`_conversation` and `_principal` for the entire canonical turn,
+including the session binding and cognition principal. A second direct
+SQLite original token + device + epoch check immediately before
+`conversation.respond` refuses model execution if rotation already
+occurred during session selection. Existing post-cognition generation
+recheck remains in effect; mid-model rotation preserves an uncertain
+old-generation receipt instead of exposing it to the new bearer.
+Trusted local callers can continue using current/default generation.
+
+Deferred regression update `test/test_mobile_chat_epoch_fencing.py`:
+`e0bb0ce74adb9ef5ae6a7437075894c659744db9` (`[skip ci]`);
+it observes a credential rotation after durable admission and before
+conversation to require **zero model calls**, an old generation only
+session binding and uncertain old request; existing mid-generation test
+also asserts old-audience provenance.
+
+Original CA relevance: CA-4103, CA-4104, CA-5304, CA-6302,
+CA-6303, CA-6311. **Source hardening only**, not independently
+accepted task completion or a physical writer fence. No tests/CI,
+pairing, mobile request or host action executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
