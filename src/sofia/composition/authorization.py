@@ -15,6 +15,35 @@ from sofia.safe.permissions import (
 )
 
 
+# Only these production handlers consume the generic execution-approval receipt.
+# DEV, EVOLVE and Fleet have independent downstream verifier contracts.
+_EXACT_EXECUTION_APPROVAL_CAPABILITIES = frozenset({
+    "notification.send",
+    "portainer.container.restart",
+    "jmri.power.set",
+    "github.issue.create",
+    "github.pull_request.create",
+    "github.pull_request.merge",
+    "discord.pause",
+    "discord.resume",
+    "discord.revoke",
+    "local.service.start",
+    "local.service.stop",
+    "local.service.restart",
+    "local.host.reboot",
+    "local.package.update",
+    "hyperv.vm.start",
+    "hyperv.vm.stop",
+    "storage.write_text",
+    "storage.mkdir",
+    "storage.copy",
+    "storage.move",
+    "storage.delete",
+    "knowledge.document.write",
+    "home_assistant.service.call",
+})
+
+
 _FILESYSTEM_READ_OPERATIONS = frozenset({
     "list_directory",
     "inspect_path",
@@ -107,15 +136,19 @@ def create_capability_authorizer(
             PermissionLevel.REVERSIBLE_SCOPED,
             PermissionLevel.PROTECTED,
         ):
-            # A model-supplied or stale ID is not operator authorization.
-            # Only an exact durable, unconsumed receipt may pass this gate.
-            # The executing handler still atomically consumes it.
-            return execution_approvals.matches_unconsumed(
-                approval_id=approval_id,
-                capability=name,
-                parameters=parameters,
-                now=datetime.now(timezone.utc),
-            )
+            if name in _EXACT_EXECUTION_APPROVAL_CAPABILITIES:
+                # A generic handler requires its precise durable receipt.
+                # Its effect boundary still performs the atomic consume.
+                return execution_approvals.matches_unconsumed(
+                    approval_id=approval_id,
+                    capability=name,
+                    parameters=parameters,
+                    now=datetime.now(timezone.utc),
+                )
+            # DEV, EVOLVE, OPS and Fleet verify different signed/leased
+            # approvals within their own effect handlers. Do not mistake
+            # these IDs for generic execution approvals.
+            return isinstance(approval_id, str) and bool(approval_id.strip())
 
         # Legacy standing capability configuration is intentionally ignored.
         # The canonical permission store and exact approval verifiers are the
