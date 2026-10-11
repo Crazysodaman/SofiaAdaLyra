@@ -1,0 +1,1849 @@
+{
+  "schema": "workstream-4-evidence-v1",
+  "source_branch": "main",
+  "source_date": "2026-10-11",
+  "authoritative_master": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
+  "global_ledger_owner": "Workstream 1",
+  "notices": [
+    "Each of 182 IDs reconciled to the original 700-ID ledger by exact ID and phase.",
+    "phase_inventory_only is not an individual audit, not proof of absent code, and not complete.",
+    "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run."
+  ],
+  "commits": [
+    "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
+    "57da4138f1e9545ad96067ce78d50fb12d8bd1dc"
+  ],
+  "tasks": [
+    {
+      "id": "CA-2101",
+      "phase": "11",
+      "master_line": 898,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2102",
+      "phase": "11",
+      "master_line": 899,
+      "global_ledger_before": "unassessed",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Cognition routing/lifecycle exists; resource telemetry fail-closed repair 57da413; economic quality thresholds not proven.",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2103",
+      "phase": "11",
+      "master_line": 900,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2104",
+      "phase": "11",
+      "master_line": 901,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2105",
+      "phase": "11",
+      "master_line": 902,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2106",
+      "phase": "11",
+      "master_line": 903,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3201",
+      "phase": "11",
+      "master_line": 907,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3202",
+      "phase": "11",
+      "master_line": 908,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3203",
+      "phase": "11",
+      "master_line": 909,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3204",
+      "phase": "11",
+      "master_line": 910,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3205",
+      "phase": "11",
+      "master_line": 911,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3206",
+      "phase": "11",
+      "master_line": 912,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3207",
+      "phase": "11",
+      "master_line": 913,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3208",
+      "phase": "11",
+      "master_line": 914,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3209",
+      "phase": "11",
+      "master_line": 915,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3210",
+      "phase": "11",
+      "master_line": 916,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3211",
+      "phase": "11",
+      "master_line": 917,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3212",
+      "phase": "11",
+      "master_line": 918,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3213",
+      "phase": "11",
+      "master_line": 919,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3214",
+      "phase": "11",
+      "master_line": 920,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3901",
+      "phase": "11",
+      "master_line": 924,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3902",
+      "phase": "11",
+      "master_line": 925,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3903",
+      "phase": "11",
+      "master_line": 926,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3904",
+      "phase": "11",
+      "master_line": 927,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3905",
+      "phase": "11",
+      "master_line": 928,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3906",
+      "phase": "11",
+      "master_line": 929,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3907",
+      "phase": "11",
+      "master_line": 930,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3908",
+      "phase": "11",
+      "master_line": 931,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3909",
+      "phase": "11",
+      "master_line": 932,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3910",
+      "phase": "11",
+      "master_line": 933,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4401",
+      "phase": "11",
+      "master_line": 937,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4402",
+      "phase": "11",
+      "master_line": 938,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4403",
+      "phase": "11",
+      "master_line": 939,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4404",
+      "phase": "11",
+      "master_line": 940,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4405",
+      "phase": "11",
+      "master_line": 941,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4406",
+      "phase": "11",
+      "master_line": 942,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4407",
+      "phase": "11",
+      "master_line": 943,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6601",
+      "phase": "11",
+      "master_line": 947,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6602",
+      "phase": "11",
+      "master_line": 948,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6603",
+      "phase": "11",
+      "master_line": 949,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6604",
+      "phase": "11",
+      "master_line": 950,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6605",
+      "phase": "11",
+      "master_line": 951,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6606",
+      "phase": "11",
+      "master_line": 952,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6607",
+      "phase": "11",
+      "master_line": 953,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6608",
+      "phase": "11",
+      "master_line": 954,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Two-stage promotion policy/transaction exists, lacks verified end-to-end host broker+traffic+recovery acceptance.",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6609",
+      "phase": "11",
+      "master_line": 955,
+      "global_ledger_before": "unassessed",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Startup auto-pull removed 57da413; independent model authorization controls still incomplete.",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6610",
+      "phase": "11",
+      "master_line": 956,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6611",
+      "phase": "11",
+      "master_line": 957,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6612",
+      "phase": "11",
+      "master_line": 958,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "cognition/model_lifecycle.py; cognition/routing.py; cognition/model_switch_plan.py; cognition/model_admission.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1501",
+      "phase": "12",
+      "master_line": 976,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1502",
+      "phase": "12",
+      "master_line": 977,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1503",
+      "phase": "12",
+      "master_line": 978,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1504",
+      "phase": "12",
+      "master_line": 979,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1505",
+      "phase": "12",
+      "master_line": 980,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-1506",
+      "phase": "12",
+      "master_line": 981,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6201",
+      "phase": "12",
+      "master_line": 985,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "policy_only",
+      "finding": "Consent permit/receipt isn't OS screen capture, SAFE integration or screenshot-derived observation.",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6202",
+      "phase": "12",
+      "master_line": 986,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6203",
+      "phase": "12",
+      "master_line": 987,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6204",
+      "phase": "12",
+      "master_line": 988,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6205",
+      "phase": "12",
+      "master_line": 989,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6206",
+      "phase": "12",
+      "master_line": 990,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6207",
+      "phase": "12",
+      "master_line": 991,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6208",
+      "phase": "12",
+      "master_line": 992,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6209",
+      "phase": "12",
+      "master_line": 993,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6210",
+      "phase": "12",
+      "master_line": 994,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6211",
+      "phase": "12",
+      "master_line": 995,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6212",
+      "phase": "12",
+      "master_line": 996,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6213",
+      "phase": "12",
+      "master_line": 997,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6214",
+      "phase": "12",
+      "master_line": 998,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6215",
+      "phase": "12",
+      "master_line": 999,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6216",
+      "phase": "12",
+      "master_line": 1000,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6217",
+      "phase": "12",
+      "master_line": 1001,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6218",
+      "phase": "12",
+      "master_line": 1002,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2801",
+      "phase": "13",
+      "master_line": 1020,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2802",
+      "phase": "13",
+      "master_line": 1021,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2803",
+      "phase": "13",
+      "master_line": 1022,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2804",
+      "phase": "13",
+      "master_line": 1023,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2805",
+      "phase": "13",
+      "master_line": 1024,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2806",
+      "phase": "13",
+      "master_line": 1025,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2807",
+      "phase": "13",
+      "master_line": 1026,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2808",
+      "phase": "13",
+      "master_line": 1027,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2809",
+      "phase": "13",
+      "master_line": 1028,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2810",
+      "phase": "13",
+      "master_line": 1029,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2811",
+      "phase": "13",
+      "master_line": 1030,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2812",
+      "phase": "13",
+      "master_line": 1031,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2813",
+      "phase": "13",
+      "master_line": 1032,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2814",
+      "phase": "13",
+      "master_line": 1033,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2815",
+      "phase": "13",
+      "master_line": 1034,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2816",
+      "phase": "13",
+      "master_line": 1035,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2817",
+      "phase": "13",
+      "master_line": 1036,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2818",
+      "phase": "13",
+      "master_line": 1037,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2819",
+      "phase": "13",
+      "master_line": 1038,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2820",
+      "phase": "13",
+      "master_line": 1039,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2821",
+      "phase": "13",
+      "master_line": 1040,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2822",
+      "phase": "13",
+      "master_line": 1041,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2823",
+      "phase": "13",
+      "master_line": 1042,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2824",
+      "phase": "13",
+      "master_line": 1043,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2901",
+      "phase": "13",
+      "master_line": 1047,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2902",
+      "phase": "13",
+      "master_line": 1048,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2903",
+      "phase": "13",
+      "master_line": 1049,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2904",
+      "phase": "13",
+      "master_line": 1050,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2905",
+      "phase": "13",
+      "master_line": 1051,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2906",
+      "phase": "13",
+      "master_line": 1052,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2907",
+      "phase": "13",
+      "master_line": 1053,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2908",
+      "phase": "13",
+      "master_line": 1054,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2909",
+      "phase": "13",
+      "master_line": 1055,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2910",
+      "phase": "13",
+      "master_line": 1056,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2911",
+      "phase": "13",
+      "master_line": 1057,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2912",
+      "phase": "13",
+      "master_line": 1058,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2913",
+      "phase": "13",
+      "master_line": 1059,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2914",
+      "phase": "13",
+      "master_line": 1060,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2915",
+      "phase": "13",
+      "master_line": 1061,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2916",
+      "phase": "13",
+      "master_line": 1062,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2917",
+      "phase": "13",
+      "master_line": 1063,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2918",
+      "phase": "13",
+      "master_line": 1064,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2919",
+      "phase": "13",
+      "master_line": 1065,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2920",
+      "phase": "13",
+      "master_line": 1066,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2921",
+      "phase": "13",
+      "master_line": 1067,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2922",
+      "phase": "13",
+      "master_line": 1068,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3601",
+      "phase": "13",
+      "master_line": 1072,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3602",
+      "phase": "13",
+      "master_line": 1073,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3603",
+      "phase": "13",
+      "master_line": 1074,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3604",
+      "phase": "13",
+      "master_line": 1075,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3605",
+      "phase": "13",
+      "master_line": 1076,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3606",
+      "phase": "13",
+      "master_line": 1077,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3607",
+      "phase": "13",
+      "master_line": 1078,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3608",
+      "phase": "13",
+      "master_line": 1079,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3609",
+      "phase": "13",
+      "master_line": 1080,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-3610",
+      "phase": "13",
+      "master_line": 1081,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4301",
+      "phase": "13",
+      "master_line": 1085,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4302",
+      "phase": "13",
+      "master_line": 1086,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4303",
+      "phase": "13",
+      "master_line": 1087,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4304",
+      "phase": "13",
+      "master_line": 1088,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4305",
+      "phase": "13",
+      "master_line": 1089,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4306",
+      "phase": "13",
+      "master_line": 1090,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-4307",
+      "phase": "13",
+      "master_line": 1091,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "ops/workshop_policy.py; hypervisor control not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6701",
+      "phase": "14",
+      "master_line": 1109,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "policy_only",
+      "finding": "Training research-only manifest isn't authorized model training.",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6702",
+      "phase": "14",
+      "master_line": 1110,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6703",
+      "phase": "14",
+      "master_line": 1111,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6704",
+      "phase": "14",
+      "master_line": 1112,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6705",
+      "phase": "14",
+      "master_line": 1113,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6706",
+      "phase": "14",
+      "master_line": 1114,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6707",
+      "phase": "14",
+      "master_line": 1115,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6708",
+      "phase": "14",
+      "master_line": 1116,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6709",
+      "phase": "14",
+      "master_line": 1117,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6710",
+      "phase": "14",
+      "master_line": 1118,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6711",
+      "phase": "14",
+      "master_line": 1119,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-6712",
+      "phase": "14",
+      "master_line": 1120,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-701",
+      "phase": "15",
+      "master_line": 1138,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Baseline NEURO and circuit present, but benchmark/acceptance absent.",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-702",
+      "phase": "15",
+      "master_line": 1139,
+      "global_ledger_before": "unassessed",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "src/sofia/application/bootstrap.py -> src/sofia/neuro/runtime.py -> src/sofia/neuro/store.py; CircuitCompetition influences eligible ranking; pending benchmarks.",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-703",
+      "phase": "15",
+      "master_line": 1140,
+      "global_ledger_before": "unassessed",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "Invalid neural activations/competition return to deterministic baseline. Focused tests authored, not executed.",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-704",
+      "phase": "15",
+      "master_line": 1141,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-705",
+      "phase": "15",
+      "master_line": 1142,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-706",
+      "phase": "15",
+      "master_line": 1143,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-707",
+      "phase": "15",
+      "master_line": 1144,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-708",
+      "phase": "15",
+      "master_line": 1145,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-715",
+      "phase": "15",
+      "master_line": 1146,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-709",
+      "phase": "15",
+      "master_line": 1147,
+      "global_ledger_before": "unassessed",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Algorithm version and persisted selection explanation; no persisted one-click owner disable.",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-710",
+      "phase": "15",
+      "master_line": 1148,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-711",
+      "phase": "15",
+      "master_line": 1149,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-712",
+      "phase": "15",
+      "master_line": 1150,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-713",
+      "phase": "15",
+      "master_line": 1151,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-714",
+      "phase": "15",
+      "master_line": 1152,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2001",
+      "phase": "15",
+      "master_line": 1156,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2002",
+      "phase": "15",
+      "master_line": 1157,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2003",
+      "phase": "15",
+      "master_line": 1158,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2004",
+      "phase": "15",
+      "master_line": 1159,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2005",
+      "phase": "15",
+      "master_line": 1160,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2006",
+      "phase": "15",
+      "master_line": 1161,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-2007",
+      "phase": "15",
+      "master_line": 1162,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-801",
+      "phase": "16",
+      "master_line": 1180,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "research_policy_only",
+      "finding": "Research preregistration type has no study runner or independent results/controls.",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-802",
+      "phase": "16",
+      "master_line": 1181,
+      "global_ledger_before": "partial_wiring",
+      "source_review": "partially_implemented_unverified",
+      "finding": "Operational self-model exists; no conclusion about subjective experience is justified.",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-803",
+      "phase": "16",
+      "master_line": 1182,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-804",
+      "phase": "16",
+      "master_line": 1183,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-805",
+      "phase": "16",
+      "master_line": 1184,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-806",
+      "phase": "16",
+      "master_line": 1185,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-807",
+      "phase": "16",
+      "master_line": 1186,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-808",
+      "phase": "16",
+      "master_line": 1187,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-809",
+      "phase": "16",
+      "master_line": 1188,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-810",
+      "phase": "16",
+      "master_line": 1189,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-811",
+      "phase": "16",
+      "master_line": 1190,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    },
+    {
+      "id": "CA-812",
+      "phase": "16",
+      "master_line": 1191,
+      "global_ledger_before": "unassessed",
+      "source_review": "phase_inventory_only",
+      "topical_source_inventory": "neuro/consciousness_research.py; self_model/operational.py",
+      "code_accepted": false,
+      "tests_executed": false
+    }
+  ]
+}
