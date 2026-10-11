@@ -300,15 +300,105 @@ class NeuroObservabilityStore:
         return None if row is None else dict(row)
 
 
+def neuro_connectome_diagnostics(state_path: str | Path) -> tuple[str, ...]:
+    """Read current NEURO settings and observed association counts.
+
+    Read-only: no association store constructors, no second database, and no
+    cross-audience candidate text or identity in operator diagnostics.
+    Missing receipts remain explicitly unknown.
+    """
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    from sofia.neuro.connectome.competition import CircuitCompetition
+    from sofia.neuro.connectome.associative import SparseAssociativeMemory
+    from sofia.neuro.salience import SalienceNetwork
+
+    settings = RuntimeUserSettingsStore(state_path).load()
+    lines = [
+        "Connectome competition configured: " + (
+            "enabled" if settings.neuro_competition_enabled else "disabled"
+        ),
+        "Circuit algorithm available: " + CircuitCompetition.ALGORITHM_VERSION,
+        "Deterministic feature algorithm: " + SalienceNetwork.FEATURE_VERSION,
+        "Reviewed association learning configured: " + (
+            "enabled" if settings.neuro_association_enabled else "disabled"
+        ),
+        "Association algorithm available: " + SparseAssociativeMemory.ALGORITHM_VERSION,
+        "Configured attention reset generation: "
+        + str(settings.neuro_competition_reset_generation),
+    ]
+    guard = CanonicalSQLiteGuard(state_path)
+    with closing(guard.connect(timeout=10)) as db:
+        known = {
+            row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name IN ('neuro_association_weight','neuro_association_event')"
+            ).fetchall()
+        }
+        if "neuro_association_weight" not in known:
+            lines.append("Reviewed associations: no canonical association table observed")
+            lines.append("Association confidence: UNKNOWN (not measured)")
+            return tuple(lines)
+        count, memories, last_change, mean_weight = db.execute(
+            "SELECT COUNT(*),COUNT(DISTINCT candidate_id),MAX(changed_at),"
+            "AVG(ABS(weight)) FROM neuro_association_weight"
+        ).fetchone()
+        lines.append(
+            "Reviewed association weights: "
+            f"{int(count)} feature weights for {int(memories)} distinct candidates "
+            "(aggregate only; not a count of facts recalled)"
+        )
+        lines.append(
+            "Latest reviewed association weight update: "
+            + (last_change or "none")
+        )
+        lines.append(
+            "Mean absolute association weight: "
+            + ("UNKNOWN" if mean_weight is None else f"{mean_weight:.3f}")
+            + " (learned weight magnitude, NOT a confidence score)"
+        )
+        if "neuro_association_event" in known:
+            total, last = db.execute(
+                "SELECT COUNT(*),MAX(occurred_at) FROM neuro_association_event"
+            ).fetchone()
+            lines.append(
+                f"Reviewed teaching/reversion receipts: {int(total)}; last: "
+                + (last or "none")
+            )
+    lines.append("Association confidence: UNKNOWN (not independently calibrated)")
+    return tuple(lines)
+
+
 def neuro_observability_text(state_path: str | Path) -> str:
     store = NeuroObservabilityStore(state_path)
     current = store.current()
     if current is None:
-        return "NEURO has not recorded a production snapshot yet."
+        return "\\n".join((
+            "NEURO has not recorded a production snapshot yet.",
+            *neuro_connectome_diagnostics(state_path),
+            "Observed fallback: UNKNOWN (no selection receipt)",
+            "Actual NEURO performance: UNKNOWN (no snapshot receipt)",
+        ))
     snapshot = current["snapshot"]
     homeostasis = snapshot["homeostasis"]
     focus = snapshot.get("focus")
+    observed_method = snapshot.get("selection_method")
+    from sofia.neuro.connectome.competition import CircuitCompetition
+    is_circuit = observed_method == CircuitCompetition.ALGORITHM_VERSION
+    from sofia.config.user_settings import RuntimeUserSettingsStore
+    competition_configured = RuntimeUserSettingsStore(state_path).load().neuro_competition_enabled
+    if is_circuit:
+        fallback = "not observed: latest snapshot used the circuit"
+    elif competition_configured:
+        fallback = (
+            "deterministic selection observed while circuit enabled; "
+            "reason NOT independently established"
+        )
+    else:
+        fallback = "not applicable: deterministic selection configured"
     lines = [
+        *neuro_connectome_diagnostics(state_path),
+        "Latest recorded selection algorithm: " + str(observed_method or "UNKNOWN"),
+        "Observed fallback: " + fallback,
         f"Updated: {current['updated_at']}",
         "Primary attention: " + (
             "none" if focus is None else f"{focus['key']} ({focus['score']:.3f})"
