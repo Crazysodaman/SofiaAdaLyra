@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "4ef4b8d69191fa090f9ce54511459e4843e52841",
+  "reviewed_main_sha": "d051d2a4e6bbf68a55808a0031c9aaaef17d4d55",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2374,10 +2374,28 @@
       "phase": "02",
       "source_topic": "11",
       "master_line": 265,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ui/settings_sections.py",
+        "src/sofia/neuro/store.py",
+        "src/sofia/neuro/runtime.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/connectome/association_store.py",
+        "src/sofia/config/user_settings.py",
+        "test/test_neuro_connectome_diagnostics.py"
+      ],
+      "evidence_commits": [
+        "dc5f0d4109632e9ee5ef543c35cb116670bedd79",
+        "687e56d95fc1fda9eb6c5bab61d0705c9e537580",
+        "e2e16dcbb737205d46f8325b44dd43e8c3497b3e"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "source_review_date": "2026-10-11",
+        "observed": "Existing Settings Sections NEURO read-only 5-second viewer uses neuro_observability_text in canonical NeuroObservabilityStore. Config neuro_competition_enabled and neuro_association_enabled, actual latest snapshot selection_method, runtime wake and refresh metrics, and canonical reviewed sparse association counts are now projected with algorithm versions and non-sensitive aggregates. No independent confidence measurement is claimed, and deterministic selection with circuit enabled does not imply a proven failure cause.",
+        "missing": "Host Tk viewer and Windows behavior not tested. Actual circuit-fallback event semantics, cross-session performance and per-principal privacy review remain to be accepted; authored regression tests deferred.",
+        "acceptance": "source partial, no tests/CI/live executed; do not mark accepted"
+      }
     },
     {
       "id": "CA-1105",
