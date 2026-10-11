@@ -36,8 +36,10 @@ def review_capabilities(
     duplicates = {name for name in values if values.count(name) > 1}
     classified = explicitly_classified_capabilities()
     grants = () if permission_store is None else permission_store.grants()
+    # Include orphaned standing grants even when the currently configured
+    # capability inventory doesn't mention them.
     entries = []
-    for name in sorted(set(values)):
+    for name in sorted(set(values) | {grant.capability for grant in grants}):
         policy = capability_permission_policy(name)
         active = tuple(g for g in grants if g.capability == name and g.is_active_at(moment))
         issues = []
