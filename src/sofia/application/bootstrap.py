@@ -58,7 +58,7 @@ from sofia.application.presence import (
     WorldObservation,
 )
 from sofia.application.autonomous_work import AutonomousWorkCoordinator
-from sofia.application.expression_runtime import ExpressionRuntime
+from sofia.application.expression_runtime import ExpressionIntent, ExpressionRuntime
 from sofia.application.act_service import (
     SofiaActService, configure_act_delivery_from_environment,
 )
@@ -849,6 +849,14 @@ class SofiaApplication:
     @property
     def expression_runtime(self) -> ExpressionRuntime:
         return self._expression_runtime
+
+    def expression_intent(
+        self, message_id: str, *, now: datetime | None = None,
+    ) -> ExpressionIntent | None:
+        """Read current text/voice/avatar intent, without claiming unrendered output."""
+        return self._expression_runtime.intent_projection(
+            message_id, now=now or datetime.now(timezone.utc),
+        )
 
     @property
     def stt(self) -> SpeechInputService:
