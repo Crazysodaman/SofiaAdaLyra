@@ -2036,8 +2036,19 @@ class SelfDirectedLifeCoordinator:
                 return 0, "independently_completed"
             return 0, "reviewed_judgment_requires_decision"
         if evaluation.technical_outcome is TechnicalOutcome.INCONCLUSIVE:
-            # No automatic retry can make an unknown free-text objective
-            # independently verifiable; ask for a reviewed criterion instead.
+            # A natural-language/unsupported original criterion cannot
+            # become independently true by making more drafts. Preserve
+            # the real artifact and judgment, pause optional spending, and
+            # keep the original objective accessible for operator review.
+            self.pause(
+                project.project_id,
+                reason=(
+                    "The original project objective is not independently "
+                    "verifiable; pausing rather than manufacturing success "
+                    "or starting speculative revisions."
+                ),
+                evidence_refs=(evidence_ref,), now=now,
+            )
             return 0, "needs_independent_objective_review"
         if evaluation.personal_judgment is not PersonalJudgment.UNKNOWN:
             return 0, "personal_judgment_requires_decision"
