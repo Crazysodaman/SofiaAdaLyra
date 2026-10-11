@@ -90,3 +90,22 @@ def test_valid_source_and_still_approved_handoff_remains_nonactive(tmp_path):
     assert result.activated is False
     assert len(calls) == 2
     assert pending.is_file()
+
+
+def test_pending_rejects_same_writer_epoch_before_artifact_creation(tmp_path):
+    staged, proof, trust = _plan(tmp_path)
+    stale = replace(proof, source_writer_epoch=proof.next_writer_epoch)
+    pending = trust / "same-epoch.pending.json"
+    with pytest.raises(ValueError, match="exceed witnessed old epoch"):
+        _prepare(staged, stale, pending, lambda *_a: True)
+    assert not pending.exists()
+
+
+def test_pending_requires_exact_operation_and_principal(tmp_path):
+    staged, proof, trust = _plan(tmp_path)
+    for field in ("protected_operation_id", "operator_principal_id"):
+        pending = trust / (field + ".pending.json")
+        missing = replace(proof, **{field: ""})
+        with pytest.raises(ValueError, match="operation, principal"):
+            _prepare(staged, missing, pending, lambda *_a: True)
+        assert not pending.exists()
