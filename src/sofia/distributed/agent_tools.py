@@ -112,6 +112,11 @@ def create_default_agent_dispatcher(
         hyperv=HyperVAdapter()
         dispatcher.register("vm.inspect","list",lambda p:_plain(hyperv.vms()))
         dispatcher.register("vm.inspect","get",lambda p:_plain(hyperv.vm(str(p["vm"]))))
+        dispatcher.register(
+            "vm.inspect", "sofia_preflight",
+            lambda p: _plain(hyperv.sofia_guest_inventory()) if not p else
+            (_ for _ in ()).throw(ValueError("Sofia VM inspection takes no parameters")),
+        )
         # Read-only, static Hyper-V host preflight over the already-pinned
         # Fleet mTLS transport. No guest write or generic PowerShell route.
         dispatcher.register(
