@@ -1411,6 +1411,117 @@ class SettingsSections:
             )),
         ).pack(anchor="w",pady=(2,6))
 
+        # Four visual journeys are explicit owner intent only. The OS window
+        # picker and platform capture provider are NOT yet installed. This UI
+        # does not capture a pixel or forge an observed-frame receipt.
+        from sofia.vision.journeys import (
+            ScreenJourney,ScreenJourneyReceiptStore,
+            propose_owner_screen_journey,
+        )
+        import socket
+        ttk.Label(
+            frames["Safety & Authority"],
+            text="SCREEN VISION: explicitly selected-window journeys (no capture yet)",
+        ).pack(anchor="w",pady=(12,3))
+        ttk.Label(
+            frames["Safety & Authority"],
+            text=(
+                "Four scoped actions: look at one approved window, show "
+                "what changed across two independently approved frames, "
+                "briefly watch ONE app, or offer navigation guidance. "
+                "None grants mouse/keyboard action, background capture, "
+                "private memory access or permission to inspect another window."
+            ),wraplength=660,
+        ).pack(anchor="w",pady=4)
+        journey_mode=tk.StringVar(root,value=ScreenJourney.LOOK_AT_WINDOW.value)
+        journey_target=tk.StringVar(root,value="")
+        journey_purpose=tk.StringVar(root,value="")
+        ttk.Label(frames["Safety & Authority"],text="Requested visual journey").pack(anchor="w")
+        ttk.Combobox(
+            frames["Safety & Authority"],textvariable=journey_mode,
+            values=tuple(item.value for item in ScreenJourney),
+            state="readonly",
+        ).pack(fill="x")
+        ttk.Label(
+            frames["Safety & Authority"],
+            text="Requested target identifier (OS picker must independently verify)",
+        ).pack(anchor="w",pady=(3,1))
+        ttk.Entry(
+            frames["Safety & Authority"],textvariable=journey_target,
+        ).pack(fill="x")
+        ttk.Label(
+            frames["Safety & Authority"],
+            text="Why should Sofía inspect this particular window?",
+        ).pack(anchor="w",pady=(3,1))
+        ttk.Entry(
+            frames["Safety & Authority"],textvariable=journey_purpose,
+        ).pack(fill="x")
+        vision_review={"text":(
+            "NOT CAPTURED. No Windows.Graphics.Capture or Hyprland portal "
+            "picker has returned approved frame data. No visual claims allowed."
+        ),"request":None}
+        vision_view=self.viewer(
+            frames["Safety & Authority"],
+            "Actual screen observation and consent status",
+            lambda:vision_review["text"],
+        )
+
+        def propose_visual_journey():
+            principal=local_sparks_principal()
+            request=propose_owner_screen_journey(
+                journey=ScreenJourney(journey_mode.get()),
+                principal_id=principal.principal_id,
+                audience_id=principal.audience_id,
+                device_id=socket.gethostname(),
+                target_id=journey_target.get().strip(),
+                purpose=journey_purpose.get().strip(),
+                at=datetime.now(timezone.utc),
+            )
+            vision_review["request"]=request
+            vision_review["text"]=(
+                "Owner REQUEST recorded in local UI only.\n"
+                f"Journey: {request.journey.value}\n"
+                f"Requested window: {request.permit.target_id}\n"
+                f"Expiry: {request.permit.expires_at.isoformat()}\n"
+                "OS INTERACTIVE WINDOW PICKER: NOT OBSERVED\n"
+                "SCREEN FRAME: NOT CAPTURED\n"
+                "SEMANTIC CONTENT: UNKNOWN\n"
+                "MOUSE/KEYBOARD RIGHTS: NONE\n"
+                "Next: only an installed, independently consented platform "
+                "capture backend may present a real frame. This button "
+                "never calls screen APIs."
+            )
+            vision_view.refresh()
+
+        def cancel_visual_journey():
+            vision_review["request"]=None
+            vision_review["text"]=(
+                "Cancelled; no active visual request. "
+                "No frame observed or stored."
+            )
+            vision_view.refresh()
+
+        ttk.Button(
+            frames["Safety & Authority"],
+            text="Prepare narrow screen-consent request (no pixels)",
+            command=self.guarded(propose_visual_journey),
+        ).pack(anchor="w",pady=(4,7))
+        ttk.Button(
+            frames["Safety & Authority"],
+            text="Cancel pending screen request",
+            command=self.guarded(cancel_visual_journey),
+        ).pack(anchor="w",pady=(0,8))
+        ttk.Label(
+            frames["Safety & Authority"],
+            text=(
+                "Observed frame receipts: "
+                +str(len(ScreenJourneyReceiptStore(
+                    config.state_path,
+                ).status(audience_id=local_sparks_principal().audience_id)["observations"]))
+                +" (metadata only; zero pixels retained)."
+            ),
+        ).pack(anchor="w",pady=(3,7))
+
         self.safety_panel(frames["Safety & Authority"])
         self.advanced_panel(frames["Advanced"])
 
