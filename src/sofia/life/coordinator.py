@@ -982,6 +982,122 @@ class SelfDirectedLifeCoordinator:
                     return tuple(reviews)
         return tuple(reviews)
 
+    def goal_dependency_view(
+        self, *, now: datetime, limit: int = 32,
+    ) -> tuple[dict[str, object], ...]:
+        """Read-only LIFE/GOALS prerequisite, resource and approval view.
+
+        Source only: canonical project brief and milestone rows, original
+        GOALS status/revision and linked RUN jobs. A missing scoped goal is
+        UNKNOWN, not evidence that one does not exist. Priority is the
+        original bounded project value, not invented model motivation.
+        """
+        aware(now, "goal dependency inspection time")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("goal dependency limit must be 1..100")
+        visible = {
+            goal.id: goal
+            for goal in self.goals.list_visible(local_sparks_principal())
+            if goal.origin is GoalOrigin.SELF
+            and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
+            and goal.scope_audience == LOCAL_AUDIENCE
+        }
+        projects = self.store.list_scope(
+            owner_principal_id=SOFIA_PROJECT_OWNER,
+            audience_id=LOCAL_AUDIENCE,
+        )
+        halted = self.operator_stop.current().active
+        view: list[dict[str, object]] = []
+        for project in projects[:limit]:
+            goal = visible.get(project.goal_id)
+            milestone_rows = self.store.milestones(project.project_id)
+            open_milestones = tuple(
+                {
+                    "milestone_id": m.milestone_id,
+                    "objective": m.title,
+                    "status": m.status.value,
+                    "source_evidence_refs": m.evidence_refs,
+                }
+                for m in milestone_rows
+                if m.status not in {
+                    MilestoneStatus.COMPLETED, MilestoneStatus.SKIPPED,
+                }
+            )
+            jobs = tuple(
+                self.work_store.get(job_id)
+                for job_id in self.store.jobs(project.project_id)
+            )
+            latest = jobs[-1] if jobs else None
+            unsettled = tuple(
+                job.job_id for job in jobs
+                if job.status in {
+                    WorkStatus.QUEUED, WorkStatus.RUNNING,
+                    WorkStatus.WAITING_APPROVAL, WorkStatus.BLOCKED,
+                    WorkStatus.UNCERTAIN,
+                }
+            )
+            usage = self.store.usage(
+                project.project_id, now.astimezone(timezone.utc).date(),
+            )
+            budget = project.brief.resource_budget
+            constraints: list[str] = []
+            if halted:
+                constraints.append("operator_stop")
+            if project.status is not ProjectStatus.ACTIVE:
+                constraints.append("project_not_active")
+            if goal is None:
+                constraints.append("canonical_goal_unobserved")
+            elif goal.status is not GoalStatus.ACTIVE:
+                constraints.append("goal_not_active")
+            if float(usage["wall_seconds"]) >= budget.daily_seconds:
+                constraints.append("daily_time_budget_exhausted")
+            if int(usage["storage_bytes"]) >= budget.storage_bytes:
+                constraints.append("daily_storage_budget_exhausted")
+            if latest is not None:
+                if latest.status is WorkStatus.UNCERTAIN:
+                    constraints.append("run_effect_uncertain")
+                elif latest.status is WorkStatus.WAITING_APPROVAL:
+                    constraints.append("operator_approval_pending")
+                elif latest.status is WorkStatus.BLOCKED:
+                    constraints.append("run_blocked")
+                elif latest.status in {WorkStatus.QUEUED, WorkStatus.RUNNING}:
+                    constraints.append("existing_run_job")
+                elif latest.status in {WorkStatus.FAILED, WorkStatus.CANCELLED}:
+                    constraints.append("run_failure_review")
+            view.append({
+                "project_id": project.project_id,
+                "project_revision": project.revision,
+                "project_status": project.status.value,
+                "goal_id": project.goal_id,
+                "goal_revision": None if goal is None else goal.revision,
+                "goal_status": "unknown" if goal is None else goal.status.value,
+                "parent_goal_id": None if goal is None else goal.parent_goal_id,
+                "priority": project.priority,
+                "resource_budget": {
+                    "daily_seconds": budget.daily_seconds,
+                    "storage_bytes": budget.storage_bytes,
+                    "concurrent_jobs": budget.concurrent_jobs,
+                },
+                "usage_today": {
+                    "wall_seconds": float(usage["wall_seconds"]),
+                    "storage_bytes": int(usage["storage_bytes"]),
+                },
+                "unresolved_milestones": open_milestones,
+                "original_evidence_refs": (
+                    () if goal is None else goal.evidence_refs
+                ),
+                "needed_objective_evidence": tuple(
+                    row["objective"] for row in open_milestones
+                ),
+                "latest_run_job_id": None if latest is None else latest.job_id,
+                "latest_run_status": None if latest is None else latest.status.value,
+                "unsettled_job_ids": unsettled,
+                "blockers": tuple(constraints),
+                "eligible_for_new_work": not constraints,
+                "source": "canonical_life_goals_run_projection",
+            })
+        return tuple(view)
+
     def operator_diagnostics(
         self, *, now: datetime, limit: int = 32,
     ) -> dict[str, object]:
@@ -1111,6 +1227,7 @@ class SelfDirectedLifeCoordinator:
             "last_selection_reason": None if last_selection is None else last_selection.reason,
             "quiet_until": None if quiet is None else quiet[0].isoformat(),
             "projects": tuple(records),
+            "goal_dependencies": self.goal_dependency_view(now=now, limit=limit),
             "truncated": len(projects) > limit,
         }
 
