@@ -339,3 +339,38 @@ def test_procedure_source_rot_is_not_reused_for_subsequent_life_draft(
         assert life.store.jobs(third.project_id) == ()
     finally:
         life.close()
+
+
+def test_catalog_writer_rejects_stale_bytes_even_when_original_run_was_completed(
+    tmp_path,
+):
+    """A future direct caller cannot promote old success labels after corruption."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, observation = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        job, receipt = _original_authorized_completion(
+            life, project, observation, now,
+        )
+        artifact = str(job.result["artifact_id"])
+        original, _mime = life.creative_explorer.verified_preview(
+            artifact, owner_principal_id="sofia", audience_id="local:text",
+        )
+        original.write_text(
+            "The source bytes changed after the original RUN receipt.",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="current original creative bytes"):
+            life.procedures.record_verified_attempt(
+                project=life._project(project.project_id),
+                job_id=job.job_id,
+                original_run_evidence_ref=receipt,
+                now=now + timedelta(seconds=8),
+            )
+        assert life.procedures.has_source_project(project.project_id) is False
+        assert life._reconcile_procedure_catalog(
+            now=now + timedelta(seconds=9),
+        ) == 0
+    finally:
+        life.close()
