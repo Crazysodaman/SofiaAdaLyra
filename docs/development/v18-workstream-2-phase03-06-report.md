@@ -1175,6 +1175,41 @@ Deferred end-to-end status/replay revocation and restoration regressions:
 No model call, replay execution, tests, CI or host change performed.
 CA relevance: CA-4107, CA-4108, CA-5304, CA-6304, CA-6310.
 
+### Phase 03 item 41: Staged whole-state candidate publishes only after verified restore
+
+Production relocation path: `stage_verified_state_home` first performs
+existing operator/fencing approval callback, read-only source/destination
+preflight, encrypted online backup and full authenticated manifest/source
+inventory checks. Previously it restored each `sofia.db`, protected
+identity file and companion state directly to the eventual destination.
+An interrupted file loop could leave a **partially reconstructed yet
+apparently valid** candidate home there.
+
+The stage now requires a *fresh absent* target directory, creates a random
+sibling staging directory on the approved local filesystem, runs
+`BackupEngine.restore` with the entire verified SQLite/protected bundle
+inside it, checks the returned archive ID and required canonical
+`sofia.db` and protected `identity.json` presence, rechecks target
+existence/redirection/local filesystem, and then publishes the whole
+candidate directory with `os.rename`. Failed stage attempts remove only
+the temporary candidate and **never** delete or overwrite the caller's
+selected destination. Existing empty homes now require explicit
+operator cleanup or a distinct proposed destination, rather than
+being silently populated.
+
+This is a safer **candidate staging** step, not automatic migration,
+failover, active pointer publication, whole-database cross-host writer
+fencing, adversarial filesystem atomic no-replace protection or a durable
+rollback. The live Venus sole writer is unchanged. A privileged fencing
+broker must still independently gate any actual Artemis activation.
+
+Production: `dd4d525ba4ee00fa72b5d8eac5d40b22ed6a7c99`.
+Deferred fixture contract updates:
+`e14aa15ae431a2ce5d10c2d1dd81854a2fbd3d9d`,
+`a3b3650ebac486af3752dbbef75cefad60b3793a`.
+CA task relevance: CA-3704, CA-5202, CA-5204, CA-6101,
+CA-6311 (cross-writer handoff intent), CA-6404. Tests/CI unrun.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
