@@ -60,6 +60,7 @@ def vm_json(**changes):
         "DvdPaths":[],
         "SecureBoot":"Off",
         "SecureBootTemplate":"",
+        "BootOrder":["HardDiskDrive","NetworkAdapter"],
         "ObservedAtUtc":AT.isoformat(),
     }
     values.update(changes)
