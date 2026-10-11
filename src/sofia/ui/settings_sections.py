@@ -805,6 +805,16 @@ class SettingsSections:
             parent, textvariable=superseded_choice, state="readonly",
         )
         original_combo.pack(fill="x", pady=8)
+        self.ttk.Label(
+            parent, text="Memory expires at (ISO 8601 timezone-aware; blank to clear)"
+        ).pack(anchor="w")
+        expiration_input = self.tk.StringVar(self.root)
+        self.ttk.Entry(parent, textvariable=expiration_input).pack(fill="x")
+        self.ttk.Label(
+            parent, text="Review reason (required, 500 characters maximum)"
+        ).pack(anchor="w")
+        expiration_reason = self.tk.StringVar(self.root)
+        self.ttk.Entry(parent, textvariable=expiration_reason).pack(fill="x", pady=6)
 
         def candidates(action):
             store = DurableMemoryCandidateStore(self.config.state_path)
@@ -839,7 +849,9 @@ class SettingsSections:
                 return (
                     f"Status: {store.status(key).value}\n"
                     f"Content: {candidate.content}\n"
-                    f"Correction lineage: {lineage or 'none'}\n\n"
+                    f"Correction lineage: {lineage or 'none'}\n"
+                    f"Reviewed expiry: {store.expiration(key) or 'none'}\n"
+                    f"Eligible now: {store.is_recall_eligible(key)}\n\n"
                     "Original evidence:\n" +
                     "\n\n".join(
                         f"{source.message_id} ({source.role})\n{source.content}"
@@ -914,6 +926,57 @@ class SettingsSections:
                     parent=self.root,
                 )
 
+        def update_expiration():
+            from datetime import datetime
+            selected = choice.get()
+            if not selected:
+                raise ValueError("Select a promoted memory")
+            raw_deadline = expiration_input.get().strip()
+            reason = expiration_reason.get().strip()
+            if not 1 <= len(reason) <= 500:
+                raise ValueError("Review reason must be 1..500 characters")
+            deadline = None if not raw_deadline else datetime.fromisoformat(
+                raw_deadline.replace("Z", "+00:00")
+            )
+            if deadline is not None and (
+                deadline.tzinfo is None or deadline.utcoffset() is None
+            ):
+                raise ValueError("Expiration requires an explicit timezone")
+            candidate_id = UUID(selected)
+
+            def check_candidate(store):
+                if candidate_id not in store.list_ids(
+                    status=CandidateStatus.PROMOTED,
+                    principal_id=SPARKS_PRINCIPAL_ID,
+                ):
+                    raise PermissionError("Only reviewed, promoted owner memory can expire")
+                return store.get(candidate_id).content
+
+            original = candidates(check_candidate)
+            described = (
+                "Clear the reviewed expiration"
+                if deadline is None else f"Expire this fact at {deadline.isoformat()}"
+            )
+            if self.messagebox.askyesno(
+                "Confirm memory validity review",
+                f"{described}?\n\nMemory: {original[:700]}\n\n"
+                f"Reason: {reason[:500]}\n\nOriginal source evidence is retained.",
+                parent=self.root,
+            ):
+                candidates(lambda store: store.set_expiration(
+                    candidate_id,
+                    expires_at=deadline,
+                    reviewed_by=SPARKS_PRINCIPAL_ID,
+                    reason=reason,
+                ))
+                self.messagebox.showinfo(
+                    "Memory validity",
+                    "Reviewed time validity recorded in canonical memory; "
+                    "original evidence remains unchanged.",
+                    parent=self.root,
+                )
+                frame.refresh()
+
         for action in ("promote", "reject", "revoke"):
             self.ttk.Button(
                 frame, text=action.capitalize(),
@@ -921,6 +984,10 @@ class SettingsSections:
             ).pack(side="left", padx=4)
         self.ttk.Button(
             frame, text="Link correction", command=self.guarded(link_correction),
+        ).pack(side="left", padx=4)
+        self.ttk.Button(
+            frame, text="Review expiration",
+            command=self.guarded(update_expiration),
         ).pack(side="left", padx=4)
 
     def safety_panel(self, parent):
