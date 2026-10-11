@@ -63,6 +63,22 @@ def prepare_pending_state_pointer(
         raise TypeError("typed operator authorization required")
     if type(minimum_next_epoch) is not int or minimum_next_epoch < 1:
         raise ValueError("positive independent epoch floor required")
+    if (
+        type(authorization.source_writer_epoch) is not int
+        or authorization.source_writer_epoch < 1
+        or type(authorization.next_writer_epoch) is not int
+        or authorization.next_writer_epoch <= authorization.source_writer_epoch
+    ):
+        raise ValueError("pending writer epoch must exceed witnessed old epoch")
+    if any(
+        not isinstance(value, str) or not value.strip()
+        for value in (
+            authorization.protected_operation_id,
+            authorization.operator_principal_id,
+            authorization.source_writer_host_id,
+        )
+    ):
+        raise ValueError("exact operation, principal and original writer required")
     if not isinstance(pointer_hmac_key, bytes) or len(pointer_hmac_key) != 32:
         raise ValueError("32-byte external operator-controlled HMAC key required")
     if not isinstance(pending_path, Path) or not pending_path.is_absolute():
