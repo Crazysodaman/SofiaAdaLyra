@@ -9,7 +9,8 @@ class HyperVError(RuntimeError): pass
 
 class HyperVAdapter:
     def __init__(self,runner=None)->None:
-        self._runner=runner or self._powershell
+        self._default_runner=runner is None
+        self._runner=runner if runner is not None else self._powershell
     def vms(self)->list[dict[str,Any]]:
         raw=self._runner("Get-VM | Select-Object Name,State,Status,CPUUsage,MemoryAssigned,Uptime | ConvertTo-Json -Compress")
         data=json.loads(raw) if raw.strip() else []
@@ -222,7 +223,7 @@ class HyperVAdapter:
         # Full-file hashing may take longer than a normal inspection.
         raw=(
             self._powershell(script,timeout_seconds=240)
-            if self._runner is self._powershell
+            if self._default_runner
             else self._runner(script)
         )
         try:
@@ -305,7 +306,7 @@ class HyperVAdapter:
         # inventory. Only the fixed Get-FileHash operation gets this budget.
         result = (
             self._powershell(command, timeout_seconds=120)
-            if self._runner is self._powershell
+            if self._default_runner
             else self._runner(command)
         ).strip().lower()
         import re
