@@ -676,6 +676,36 @@ class LifeStore:
             datetime.fromisoformat(row["recorded_at"]), json.loads(row["metadata_json"]),
         ) for row in rows)
 
+    def experience_by_id(
+        self, experience_id: str, *, audience_id: str,
+    ) -> ExperienceRecord | None:
+        """Read one canonical LIFE source under its exact private audience.
+
+        Used for post-model original-snapshot revalidation, not a new
+        archive or external-memory search.
+        """
+        if (
+            not isinstance(experience_id, str) or not experience_id.strip()
+            or not isinstance(audience_id, str) or not audience_id.strip()
+        ):
+            raise ValueError("exact experience and audience IDs required")
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT * FROM life_experience "
+                "WHERE experience_id=? AND audience_id=?",
+                (experience_id, audience_id),
+            ).fetchone()
+        if row is None:
+            return None
+        return ExperienceRecord(
+            row["experience_id"], row["project_id"], row["kind"],
+            row["summary"], tuple(json.loads(row["evidence_refs_json"])),
+            row["audience_id"], bool(row["private"]),
+            datetime.fromisoformat(row["occurred_at"]),
+            datetime.fromisoformat(row["recorded_at"]),
+            json.loads(row["metadata_json"]),
+        )
+
     def project_experiences(
         self, project_id: str, *, audience_id: str, limit: int = 64,
     ) -> tuple[ExperienceRecord, ...]:
