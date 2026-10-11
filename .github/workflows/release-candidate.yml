@@ -66,6 +66,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes -r requirements.verify.lock.windows-py312.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip install --require-hashes --only-binary=:all: -r requirements.build.lock.windows-py312.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build wheel twice and require reproducibility
         shell: pwsh
@@ -75,9 +77,9 @@ jobs:
           $distA = Join-Path $env:RUNNER_TEMP "sofia-dist-a"
           $distB = Join-Path $env:RUNNER_TEMP "sofia-dist-b"
           New-Item -ItemType Directory -Force $distA,$distB | Out-Null
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distA" "$env:SOFIA_RELEASE_SOURCE"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distA" "$env:SOFIA_RELEASE_SOURCE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-deps --wheel-dir "$distB" "$env:SOFIA_RELEASE_SOURCE"
+          & "$env:SOFIA_RELEASE_VENV\Scripts\python.exe" -m pip wheel --no-build-isolation --no-deps --wheel-dir "$distB" "$env:SOFIA_RELEASE_SOURCE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $WheelA = Get-ChildItem -LiteralPath $distA -Filter *.whl -File | Select-Object -First 1
           $WheelB = Get-ChildItem -LiteralPath $distB -Filter *.whl -File | Select-Object -First 1

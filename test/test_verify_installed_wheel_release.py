@@ -166,3 +166,23 @@ def test_release_workflow_invocation_and_fail_closed_build_tools():
         assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in pipeline[
             start : start + 180
         ]
+
+
+def test_release_build_backend_is_hash_pinned_and_never_re_resolved_in_isolated_build():
+    """Source provenance requires a reviewed backend, not opaque PyPI build isolation."""
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github/workflows/release-candidate.yml").read_text(
+        encoding="utf-8",
+    )
+    lock = (root / "requirements.build.lock.windows-py312.txt").read_text(
+        encoding="utf-8",
+    )
+    assert "setuptools==80.9.0 --hash=sha256:" in lock
+    assert "062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922" in lock
+    assert (
+        "pip install --require-hashes --only-binary=:all: "
+        "-r requirements.build.lock.windows-py312.txt"
+    ) in workflow
+    for output in ("$distA", "$distB"):
+        assert f'pip wheel --no-build-isolation --no-deps --wheel-dir "{output}"' in workflow
+    assert "pip wheel --no-deps --wheel-dir" not in workflow
