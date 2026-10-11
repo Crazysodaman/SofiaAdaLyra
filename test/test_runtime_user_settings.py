@@ -166,7 +166,7 @@ def test_fresh_runtime_settings_enable_dual_cognition_and_residency():
     assert settings.schema_version == CURRENT_RUNTIME_SETTINGS_SCHEMA_VERSION
     assert settings.cognitive_routing_enabled is True
     assert settings.cognitive_model_auto_manage is True
-    assert settings.cognitive_model_auto_install is True
+    assert settings.cognitive_model_auto_install is False
     assert settings.provider_model == settings.cognitive_primary_model
 
 
