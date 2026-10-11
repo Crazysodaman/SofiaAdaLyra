@@ -110,3 +110,75 @@ def test_duplicate_owner_roots_do_not_use_up_distinct_scan_slots(tmp_path):
     assert [candidate.state_path for candidate in found] == [
         configured / "sofia.db", approved / "sofia.db",
     ]
+
+
+def test_candidate_identity_reads_are_bounded_even_if_stat_is_stale(
+    tmp_path, monkeypatch,
+):
+    """A stale 1-byte stat cannot turn discovery into an unbounded read."""
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    configured = tmp_path / "configured"
+    approved = tmp_path / "recovery"
+    _db(configured / "sofia.db")
+    _db(approved / "sofia.db")
+    for directory in (configured, approved):
+        (directory / "protected").mkdir()
+    (configured / "protected" / "identity.json").write_bytes(
+        b"known-identity",
+    )
+    oversized = approved / "protected" / "identity.json"
+    oversized.write_bytes(b"X" * (64 * 1024 + 4096))
+    original_stat = Path.stat
+
+    def stale_stat(self, *args, **kwargs):
+        if self == oversized:
+            return SimpleNamespace(st_size=1)
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", stale_stat)
+    found = discover_local_state_candidates(
+        configured_path=configured / "sofia.db",
+        extra_roots=(approved,),
+        max_roots=2,
+    )
+    by_path = {candidate.state_path: candidate for candidate in found}
+    assert by_path[configured / "sofia.db"].protected_identity_present is True
+    assert by_path[approved / "sofia.db"].protected_identity_present is False
+    assert (
+        by_path[approved / "sofia.db"].identity_matches_configured_home
+        is None
+    )
+
+
+def test_recovery_discovery_never_uses_unbounded_path_read_bytes(
+    tmp_path, monkeypatch,
+):
+    """Both configured and recovery identities must use capped streaming."""
+    from pathlib import Path
+
+    configured = tmp_path / "configured"
+    approved = tmp_path / "recovery"
+    _db(configured / "sofia.db")
+    _db(approved / "sofia.db")
+    for directory in (configured, approved):
+        (directory / "protected").mkdir()
+        (directory / "protected" / "identity.json").write_bytes(
+            b'{"test": "same-identity"}',
+        )
+
+    original_read_bytes = Path.read_bytes
+
+    def deny_unbounded_identity_read(self):
+        if self.name == "identity.json":
+            raise AssertionError("identity discovery used unbounded read_bytes")
+        return original_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", deny_unbounded_identity_read)
+    found = discover_local_state_candidates(
+        configured_path=configured / "sofia.db",
+        extra_roots=(approved,), max_roots=2,
+    )
+    by_path = {candidate.state_path: candidate for candidate in found}
+    assert by_path[approved / "sofia.db"].identity_matches_configured_home is True
