@@ -2570,6 +2570,10 @@ class SelfDirectedLifeCoordinator:
             )
         except (LookupError, PermissionError, OSError, ValueError):
             return 0
+        except RuntimeError as exc:
+            if "failed preview integrity check" not in str(exc):
+                raise
+            return 0
         from .validation import ObjectiveDisposition
         if (
             report.revision != revision
@@ -2786,6 +2790,10 @@ class SelfDirectedLifeCoordinator:
                     project.project_id, artifact_id=artifact_id,
                 )
             except (LookupError, PermissionError, OSError, ValueError):
+                return 0, "artifact_integrity_review_required"
+            except RuntimeError as exc:
+                if "failed preview integrity check" not in str(exc):
+                    raise
                 return 0, "artifact_integrity_review_required"
             if report.revision != revision:
                 return 0, "artifact_revision_changed_requires_review"
