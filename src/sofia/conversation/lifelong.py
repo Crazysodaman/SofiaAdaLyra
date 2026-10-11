@@ -15,6 +15,7 @@ import sqlite3
 from uuid import uuid4
 
 from sofia.social.model import PrincipalContext
+from sofia.conversation.model import ConversationMessage, ConversationRole
 
 
 _NAME = re.compile(r"^[\w][\w .:/()-]{0,119}$", re.UNICODE)
@@ -36,6 +37,16 @@ class ThreadEvent:
     source_audience_id: str
     created_at: datetime
     visibility: str
+
+
+@dataclass(frozen=True, slots=True)
+class LifelongMessage:
+    """Original durable message with its actual source audience and link time."""
+
+    thread_id: str
+    message: ConversationMessage
+    audience_id: str
+    linked_at: datetime
 
 
 class LifelongThreadStore:
@@ -215,4 +226,85 @@ class LifelongThreadStore:
                         r["source_audience_id"], datetime.fromisoformat(r["linked_at"]),
                         r["visibility"])
             for r in reversed(rows)
+        )
+
+    def visible_message_page(
+        self, *, thread_id: str, principal: PrincipalContext,
+        before: tuple[datetime, str] | None = None,
+        limit: int = 50,
+    ) -> tuple[LifelongMessage, ...]:
+        """Page original messages in a single principal AND audience scope.
+
+        Newest-first SQL with a keyset seek avoids OFFSET scans; the returned
+        page is chronological for display. Every row still joins its original
+        conversation session and CURRENT SocialSessionStore binding, so no
+        other audience becomes visible simply by sharing the same Main thread.
+        Caller must authenticate PrincipalContext externally. This returns no
+        LLM context and does not grant a tool or cross-channel disclosure.
+        """
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext required")
+        if not isinstance(thread_id, str) or not thread_id.strip():
+            raise ValueError("thread ID required")
+        if type(limit) is not int or not 1 <= limit <= 200:
+            raise ValueError("page limit must be between 1 and 200")
+        if before is not None and (
+            not isinstance(before, tuple) or len(before) != 2
+            or not isinstance(before[0], datetime)
+            or before[0].tzinfo is None
+            or before[0].utcoffset() is None
+            or not isinstance(before[1], str)
+            or not before[1].strip()
+        ):
+            raise ValueError("before cursor requires aware timestamp and message ID")
+        filters = (
+            "e.thread_id=? AND e.source_audience_id=? "
+            "AND e.visibility='source_audience' "
+            "AND s.principal_id=? AND s.audience_id=? "
+            "AND s.audience_kind=?"
+        )
+        args: list[object] = [
+            thread_id, principal.audience_id, principal.principal_id,
+            principal.audience_id, principal.audience_kind.value,
+        ]
+        if before is not None:
+            cursor = before[0].isoformat()
+            filters += (
+                " AND (e.linked_at < ? OR "
+                "(e.linked_at = ? AND e.source_message_id < ?))"
+            )
+            args.extend((cursor, cursor, before[1]))
+        args.append(limit)
+        with closing(self._connect()) as db:
+            owner = db.execute(
+                "SELECT owner_principal_id FROM lifelong_thread "
+                "WHERE thread_id=?", (thread_id,),
+            ).fetchone()
+            if owner is None or owner["owner_principal_id"] != principal.principal_id:
+                raise PermissionError("lifelong thread is not owned by this principal")
+            rows = db.execute(
+                "SELECT e.source_message_id,e.source_audience_id,e.linked_at,"
+                "m.session_id,m.role,m.content,m.created_at "
+                "FROM lifelong_thread_event e "
+                "JOIN conversation_messages m "
+                "ON m.id=e.source_message_id AND m.session_id=e.source_session_id "
+                "JOIN social_session_principal s ON s.session_id=m.session_id "
+                "WHERE " + filters + " ORDER BY e.linked_at DESC,"
+                "e.source_message_id DESC LIMIT ?",
+                tuple(args),
+            ).fetchall()
+        return tuple(
+            LifelongMessage(
+                thread_id=thread_id,
+                message=ConversationMessage(
+                    id=row["source_message_id"],
+                    session_id=row["session_id"],
+                    role=ConversationRole(row["role"]),
+                    content=row["content"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                ),
+                audience_id=row["source_audience_id"],
+                linked_at=datetime.fromisoformat(row["linked_at"]),
+            )
+            for row in reversed(rows)
         )
