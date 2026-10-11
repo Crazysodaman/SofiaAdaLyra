@@ -355,3 +355,11 @@ This closes the concrete indefinite-ACTIVE decision loop for unknown objective e
 - `b775eeed`: Unexecuted tests cover source-only next-action classification for eligible, approval, uncertain, resource exhausted and completed-but-unverified RUN outcomes.
 
 **Deferred:** independent full 175-ID CA source audit, complete original CA-1601/1604 requirement tracing, simultaneous state-write races, operator diagnostics UI acceptance, pytest, CI, wheel, host testing, model runs and hardware. This is coding evidence, not a fully accepted phase or verified 175-task completion count. Workstream 1 still owns the shared ledger.
+
+## Model-response resource envelope for original LIFE work (coding-only)
+
+- `00dc0384`: The existing `ProjectIdeaAgent.suggest` rejects text-only provider replies larger than 16,384 UTF-8 bytes **before** JSON parsing, new project creation or any persistent action. Original tool-free cognition policy, host validation and exact chosen-interest identity remain intact.
+- `16b1a506`: The existing `ProjectDraftAgent.draft` rejects untrusted provider text larger than 64,000 UTF-8 bytes **before** JSON parsing or the original Project Forge/RUN/SAFE side-effect boundary. The smaller original content-character contract still applies.
+- `47ef7b76`: Two unexecuted regression cases cover oversized original model project ideas and artifact drafts, confirming the expected bounded rejection and absence of a newly minted LIFE job/artifact.
+
+This bounds returned model text, not input token accounting, inference runtime, GPU VRAM allocation or OS isolation. Full model-role resource admission and isolated-worker envelope remain open to Workstream 4/SAFE. All regression/CI/host acceptance execution is explicitly deferred.
