@@ -270,10 +270,25 @@ class SofiaActService:
                 or original["status"] != "queued"
                 or original["value_json"] is None
                 or original["recipient_id"] != payload.recipient_id
+                or original["trigger_kind"] not in {
+                    "approval_request", "conversation_followup",
+                    "dev_finding", "fleet_anomaly", "goal_change",
+                    "operational_alert", "reflection", "task_completed",
+                }
+                or original["audience_id"] not in {
+                    None, "sparks", "local:text",
+                }
+                or payload.message_id != "presence:" + sha256(
+                    original["event_id"].encode("utf-8")
+                ).hexdigest()[:32]
                 or payload.evidence_id != "presence-evidence:" + sha256(
                     original["observation_id"].encode("utf-8")
                 ).hexdigest()[:32]
             ):
+                # The original queued event, typed source observation and
+                # eligible local audience must still match the precise
+                # ACT envelope. No cross-channel rebroadcast after a source
+                # correction, invalidation or untrusted row substitution.
                 return Decision.AUTHORIZATION_UNAVAILABLE
             if not original["event_id"].startswith("life-update:"):
                 return Decision.ELIGIBLE_FOR_AUTHORIZATION
