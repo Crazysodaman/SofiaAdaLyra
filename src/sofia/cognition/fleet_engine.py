@@ -27,7 +27,7 @@ class FleetCognitionPolicy:
     """Placement requirements for one cognitive engine role."""
 
     enabled: bool = False
-    local_fallback: bool = True
+    local_fallback: bool = False
     min_ram_bytes: int = 0
     min_vram_bytes: int = 0
     gpu_required: bool = False
@@ -164,7 +164,11 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
         if not isinstance(request, CognitiveRequest):
             raise TypeError("request must be CognitiveRequest")
         if not self.policy.enabled:
-            return self._local_or_raise(request)
+            # Local cognition is normal execution when remote placement is
+            # disabled; it is not a remote-failure fallback.
+            self.last_host_id = self.local_host_id
+            self.last_remote = False
+            return self.local.respond(request)
 
         hosts = self._eligible_hosts()
         activities = {
