@@ -32,6 +32,58 @@ class HyperVAdapter:
         cmd=f"Stop-VM -Name {self._ps(name)} -ErrorAction Stop"
         if force: cmd+=" -TurnOff"
         self._runner(cmd+" | Out-Null")
+    def sofia_guest_inventory(self) -> dict[str, Any]:
+        """Inspect reserved canonical VM only, WITHOUT guest OS assumptions.
+
+        Source is the Hyper-V HOST, not evidence of an installed Debian guest.
+        Neither this operation nor the returned plan can start, configure,
+        provision, enroll, or promote a production writer.
+        """
+        from dataclasses import asdict
+        from sofia.ops.sofia_guest_readiness import review_sofia_guest_inventory
+
+        command = (
+            "$ErrorActionPreference='Stop'; "
+            "$v=Get-VM -Name 'Sofia' -ErrorAction Stop; "
+            "if ($v.Name -cne 'Sofia') { throw 'VM identity mismatch' }; "
+            "$disks=@(Get-VMHardDiskDrive -VMName 'Sofia' -ErrorAction Stop "
+            "| ForEach-Object { "
+            "$disk=Get-VHD -Path $_.Path -ErrorAction Stop; "
+            "[pscustomobject]@{Path=[string]$_.Path; Size=[long]$disk.Size} }); "
+            "$nics=@(Get-VMNetworkAdapter -VMName 'Sofia' -ErrorAction Stop "
+            "| ForEach-Object { "
+            "$kind='Unknown'; "
+            "if ($_.SwitchName) { "
+            "$sw=Get-VMSwitch -Name $_.SwitchName -ErrorAction Stop; "
+            "$kind=[string]$sw.SwitchType }; "
+            "[pscustomobject]@{SwitchName=[string]$_.SwitchName; "
+            "SwitchType=$kind} }); "
+            "$dvd=@(Get-VMDvdDrive -VMName 'Sofia' -ErrorAction Stop "
+            "| Where-Object {$_.Path} | ForEach-Object {[string]$_.Path}); "
+            "[pscustomobject]@{ "
+            "VmId=[string]$v.Id; Name=[string]$v.Name; "
+            "Generation=[int]$v.Generation; State=[string]$v.State; "
+            "Processors=[int]$v.ProcessorCount; "
+            "StartupMemoryBytes=[long]$v.MemoryStartup; "
+            "Disks=$disks; NetworkAdapters=$nics; DvdPaths=$dvd; "
+            "ObservedAtUtc=[DateTime]::UtcNow.ToString('o') "
+            "} | ConvertTo-Json -Depth 5 -Compress"
+        )
+        raw = self._runner(command)
+        try:
+            observed = json.loads(raw)
+        except (TypeError, ValueError) as exc:
+            raise HyperVError("invalid read-only Sofia VM observation") from exc
+        if not isinstance(observed, dict) or observed.get("Name") != "Sofia":
+            raise HyperVError("reserved Sofia VM identity not observed")
+        return {
+            "host_inventory": observed,
+            "read_only_review": asdict(review_sofia_guest_inventory(observed)),
+            "guest_os_installed": "unverified",
+            "canonical_writer_active": False,
+            "activation_authorized": False,
+        }
+
     def workshop_handoff_vm(self) -> dict[str, Any]:
         """Read the exact OWNER-CREATED Hephaestus VM, no hypervisor writes.
 
