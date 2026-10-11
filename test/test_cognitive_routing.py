@@ -1053,3 +1053,50 @@ def test_enabled_fleet_policy_requires_explicit_owner_local_fallback(monkeypatch
     monkeypatch.setenv("SOFIA_COGNITION_FLEET_LOCAL_FALLBACK", "1")
     opted_in = create_default_configuration().fleet_cognition
     assert opted_in.local_fallback is True
+
+
+
+@pytest.mark.parametrize("misleading_name", [
+    "get_delete_all", "inspect_and_restart", "search_code_and_apply",
+    "inspect_directory_extra", "read_secret_and_export",
+    "list_network_and_reconfigure",
+])
+def test_tool_fallback_never_uses_readonly_sounding_prefix_as_replay_proof(
+    misleading_name,
+):
+    tool = CognitiveToolDefinition(
+        name=misleading_name,
+        description="Untrusted descriptive name must grant nothing.",
+        parameters={"type": "object"},
+    )
+    primary = QueueEngine(CognitiveEngineError("primary failed after attempt"))
+    secondary = QueueEngine(CognitiveResponse(content="never replay"))
+    router = RoutingCognitiveEngine(
+        registry(primary, secondary), fallback_enabled=True,
+    )
+    with pytest.raises(CognitiveEngineError, match="primary failed"):
+        router.respond(request("Inspect this.", tools=(tool,)))
+    assert len(primary.requests) == 1
+    assert len(secondary.requests) == 0
+    assert router.last_execution.fallback_count == 0
+
+
+def test_retry_rejects_mixed_readonly_and_unapproved_tool_set():
+    tools = (
+        CognitiveToolDefinition(
+            name="inspect_directory", description="Read-only project list",
+            parameters={"type":"object"},
+        ),
+        CognitiveToolDefinition(
+            name="inspect_and_delete", description="Unreviewed write-capable alias",
+            parameters={"type":"object"},
+        ),
+    )
+    primary = QueueEngine(CognitiveEngineError("attempt failed"))
+    secondary = QueueEngine(CognitiveResponse(content="not allowed"))
+    router = RoutingCognitiveEngine(
+        registry(primary, secondary), fallback_enabled=True,
+    )
+    with pytest.raises(CognitiveEngineError, match="attempt failed"):
+        router.respond(request("Inspect.", tools=tools))
+    assert len(secondary.requests) == 0
