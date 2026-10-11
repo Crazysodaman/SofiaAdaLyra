@@ -349,8 +349,14 @@ class SettingsSections:
         )
 
     def advanced_panel(self, parent):
+        from pathlib import Path
         from tkinter import filedialog
         self.viewer(parent, "Database diagnostics", lambda: database_diagnostics(self.config.state_path))
+        from sofia.ops.state_mobility import describe_state_candidates
+        self.viewer(
+            parent, "Known local state candidates (not verified canonical homes)",
+            lambda: describe_state_candidates(Path(self.config.state_path)),
+        )
         def preview_relocation():
             from pathlib import Path
             from sofia.ops.state_mobility import relocation_preflight_text
