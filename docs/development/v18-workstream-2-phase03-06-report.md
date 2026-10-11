@@ -3745,11 +3745,14 @@ known conventional locations. The existing bounded maximum is
 preserved; this remains discovery, NOT active-writer selection,
 state creation, credential transfer or cutover.
 
-- Production `579bbb755ff6b2986b1323fdb6c5ae9724634d01`
+- Production `579bbb755ff6b2986b1323fdb6c5ae9724634d01`,
+  plus absolute-path deduplication before applying the root
+  budget `f68b81aeaa7f815ceaa45464bcfa8071b209f95a`
   (`[skip ci]`).
-- Deferred cap-priority fixture in
+- Deferred cap-priority and repeated-root fixtures in
   `test/test_ws2_state_candidate_discovery_resilience.py`,
-  `96a7efc1161e9c52377255529fd28513cd0d0455`
+  `96a7efc1161e9c52377255529fd28513cd0d0455`,
+  `82dec93245cbc1f6c0f6df3a84aa9228240a6dbe`
   (`[skip ci]`).
 
 Original relevance: CA-6803, CA-6804, CA-6807.
