@@ -1328,6 +1328,53 @@ contracts: `b654f739ac878e9a3f88b136b7b918ba982bebd9`.
 Original task relevance CA-3704, CA-5202, CA-5204, CA-6101,
 CA-6311, CA-6404. No tests/CI or host operation.
 
+### Phase 06 item 45: Reviewed memory remains source-bound at future retrieval
+
+Completes the source check from item 43 for newly application-reviewed
+memories, including after restarts and source erasure. The existing canonical
+`DurableMemoryCandidateStore` creates
+`memory_candidate_source_review` with the **exact original session,
+principal, audience, audience kind and review time** only after
+`MemoryReviewService.promote` rereads and compares the exact source
+message tuple and current authenticated `SocialSessionStore` binding.
+The marker persists independently of any model selection; it is a
+*stricter recall condition*, never permission to promote by itself.
+
+On future `MemorySystem.recall_relevant` and
+`project_promoted_memories`, `is_recall_eligible` now checks the candidate
+lifecycle, reviewed expiry and (for marked candidates) every original
+source row's continued presence, exact content, role, timezone-aware UTC
+timestamp and current social principal/audience/kind. A deleted original,
+tampered original, missing source table or changed audience immediately
+stops the reviewed candidate entering a cognitive model request. The
+candidate and immutable source snapshot remain available for owner audit,
+with the original promotion status unchanged. The keyset summary scan
+also removes invalidated reviewed candidates **before lexical ranking**
+through indexed `NOT EXISTS` current-source checks, so stale records
+do not crowd out other eligible memories.
+
+Older low-level/unattested candidate records are preserved rather than
+retroactively erased or falsely described as independently verified.
+A separate offline owner audit/attestation migration is still needed
+for those. The boundary is authority review → canonical source guard →
+promoted eligibility → context projection, not an LLM-generated claim.
+The source guard does not alter source conversation bytes, bind a
+different device, or change original audience grants.
+
+Production commits:
+`720203c2b46abb545ab14496f4cbfaf5f1a4d4f5` durable marker and
+projection checks; `4dbd4caba0109b969424ca62f3538f27c41b5269`
+application integration; `e98fc6bddfa2b6297b78607e3c24ef6cee7a8f8a`
+pre-ranking source filtering; `dccd04eccc2999151d58575a9c1e51a5d915f6ab`
+timezone proof. Deferred actual canonical SQLite,
+source-deletion, audience-rebinding and legacy preservation tests:
+`a58d6c0def8898d494f5cf60fc55a5ccf4d72e10`.
+
+**Not tested, CI/deployment deferred.** Original CA relevance:
+CA-5603, CA-5803, CA-5808, CA-5901, CA-5904,
+CA-5906, CA-5909. Low-level manually promoted legacy facts
+need separate human-reviewed adoption; no live user memory modified.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
