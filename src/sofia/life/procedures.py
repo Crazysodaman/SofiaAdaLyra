@@ -347,6 +347,35 @@ class LifeProcedureCatalog:
                 ).fetchone()[0]),
             ) for row in rows)
 
+    def verified_proof_projects(
+        self, *, limit: int = 16,
+    ) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        """Read original source project IDs for independently verified entries.
+
+        No model-proposed or unverified attempt becomes proof. The result is
+        bounded by catalog entries, never a whole-workspace transcript scan.
+        """
+        if type(limit) is not int or not 1 <= limit <= 64:
+            raise ValueError("bounded procedure source audit required")
+        with closing(self._connect()) as db:
+            entries = db.execute(
+                "SELECT procedure_id FROM life_procedure_catalog "
+                "WHERE status='verified' ORDER BY updated_at DESC,procedure_id "
+                "LIMIT ?", (limit,),
+            ).fetchall()
+            output = []
+            for entry in entries:
+                project_ids = db.execute(
+                    "SELECT DISTINCT project_id FROM life_procedure_proof "
+                    "WHERE procedure_id=? ORDER BY project_id",
+                    (entry["procedure_id"],),
+                ).fetchall()
+                output.append((
+                    entry["procedure_id"],
+                    tuple(item[0] for item in project_ids),
+                ))
+            return tuple(output)
+
     def quarantine(
         self, procedure_id: str, *, reason: str, now: datetime,
     ) -> None:
