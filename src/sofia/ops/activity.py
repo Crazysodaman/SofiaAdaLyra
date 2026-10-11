@@ -195,6 +195,33 @@ class HostActivityStore:
         )
 
 
+def observed_desktop_activity(
+    *, gaming: bool, idle_seconds: float | None, idle_threshold_seconds: int,
+) -> ActivityMode:
+    """Game processes outrank desktop idle; unknown input never enables preload."""
+    import math
+    if type(gaming) is not bool:
+        raise TypeError("observed gaming state must be bool")
+    if (
+        type(idle_threshold_seconds) is not int
+        or not 60 <= idle_threshold_seconds <= 86400
+    ):
+        raise ValueError("bounded desktop idle threshold required")
+    if gaming:
+        return ActivityMode.GAMING
+    if (
+        idle_seconds is None
+        or type(idle_seconds) not in (int, float)
+        or not math.isfinite(idle_seconds)
+        or idle_seconds < 0
+    ):
+        return ActivityMode.UNKNOWN
+    return (
+        ActivityMode.IDLE if idle_seconds >= idle_threshold_seconds
+        else ActivityMode.NORMAL
+    )
+
+
 def windows_desktop_idle_seconds() -> float | None:
     """Active Windows tray-session last-input age, not system service uptime.
 
