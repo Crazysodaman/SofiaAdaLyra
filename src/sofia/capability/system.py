@@ -128,6 +128,15 @@ class CapabilitySystem:
 
         try:
             authorized = self._authorization_checker(request)
+        except PermissionError as exc:
+            # The executing handler has not been called, so this is a
+            # definitive authority refusal rather than an uncertain effect.
+            return CapabilityResult(
+                capability=capability_name,
+                kind=CapabilityResultKind.UNAUTHORIZED,
+                evidence=None,
+                error=f"Authorization denied: {exc}",
+            )
         except Exception as exc:
             return CapabilityResult(
                 capability=capability_name,
