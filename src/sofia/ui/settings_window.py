@@ -701,26 +701,27 @@ def run_settings_window(*, state_path: Path | None = None, section: str = "Gener
                 parent=root,
             ):
                 return
-            approved_at = datetime.now(timezone.utc)
-            approval = ExecutionApproval(
-                approval_id=str(uuid4()),
-                capability="cognition.model.install",
-                request_fingerprint=execution_fingerprint(
-                    "cognition.model.install", exact,
-                ),
-                approved_by="Sparks",
-                approved_at=approved_at,
-                expires_at=approved_at + timedelta(minutes=15),
+            from sofia.safe.owner_approval_ui import select_security_key_for_settings
+            from sofia.safe.owner_browser import authorize_exact_action
+
+            credential_id = select_security_key_for_settings(
+                config.state_path, parent=root,
             )
-            execution_approvals.record(approval)
             installing_model["active"] = True
             install_button.configure(state="disabled")
             status.set(
-                f"Owner-approved local download submitted: {provider.model}"
+                f"Waiting for FIDO2 approval to install: {provider.model}"
             )
 
             def install_in_worker() -> None:
                 try:
+                    approval = authorize_exact_action(
+                        config.state_path,
+                        capability="cognition.model.install",
+                        parameters=exact,
+                        credential_id=credential_id,
+                        expires_seconds=180,
+                    )
                     from .settings_service import (
                         install_approved_configured_model,
                     )
