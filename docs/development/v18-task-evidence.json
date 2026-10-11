@@ -5,7 +5,7 @@
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
   "reviewed_main_sha": "1925361e1362520c11980987167a410a6635deb0",
   "audit_date_utc": "2026-10-11",
-  "notice": "V18 original 700 IDs preserved; refreshed source-status audit at 1925361e1362520c11980987167a410a6635deb0. 6 code_present_unverified; 63 partial_wiring; 631 unassessed; 0 accepted. 19 previously unassessed tasks now source-traced partial. Four Codex job commits reviewed, Job 5 open. This is NOT a coding-left percentage; verification deliberately deferred. Writer host remains undecided.",
+  "notice": "Strict production-wiring gate as of 157a58fd766e31de529f4e1871c2300dc74040e1: the six code_present_unverified items have an application/CI entrypoint, production composition, caller, implementation and effect source trace; tests/CI/live acceptance deferred. The 63 partial_wiring items are NOT coded-complete and cannot be counted toward coding progress. 631 unassessed are unknown, not assumed missing. 0 accepted. Canonical writer host undecided; no host changes.",
   "tasks": [
     {
       "id": "CA-001",
@@ -854,12 +854,24 @@
       "status": "code_present_unverified",
       "code_paths": [
         "src/sofia/life/validation.py",
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "SofiaApplication production LIFE worker",
+        "composition_path": "src/sofia/application/bootstrap.py",
+        "caller_path": "src/sofia/application/background_runtime.py",
+        "implementation_path": "src/sofia/life/coordinator.py",
+        "effect_path": "src/sofia/life/validation.py",
+        "remaining": "tests_only",
+        "explanation": "The real LIFE tick invokes independent artifact objective inspection, and the closed registered validators validate artifact bytes against the original brief; unknown objectives abstain.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-2202",
@@ -891,13 +903,24 @@
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
         "src/sofia/run/work.py",
-        "test/test_life_atomic_admission.py"
+        "test/test_life_atomic_admission.py",
+        "src/sofia/application/bootstrap.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
         "c3ebbf3b7fe4da7a2d74b8e8b0b620dc74cea8f8"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "SelfDirectedLifeCoordinator.schedule_artifact via autonomous LIFE tick",
+        "composition_path": "src/sofia/application/bootstrap.py",
+        "caller_path": "src/sofia/life/coordinator.py",
+        "implementation_path": "src/sofia/run/work.py",
+        "effect_path": "src/sofia/life/store.py",
+        "remaining": "tests_only",
+        "explanation": "RUN durable submit uses an after_enqueue hook to atomically provision the project job and authorization in canonical SQLite; restart/write-boundary tests are deferred.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-2205",
@@ -1205,12 +1228,23 @@
       "code_paths": [
         "src/sofia/creative/paths.py",
         "src/sofia/creative/service.py",
-        "test/test_creative_infrastructure.py"
+        "test/test_creative_infrastructure.py",
+        "src/sofia/application/bootstrap.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "CreativeService.create in production application and Project Forge capability",
+        "composition_path": "src/sofia/application/bootstrap.py",
+        "caller_path": "src/sofia/creative/service.py",
+        "implementation_path": "src/sofia/creative/paths.py",
+        "effect_path": "src/sofia/creative/service.py",
+        "remaining": "tests_only",
+        "explanation": "Production CreativeWorkspaceManager.allocate derives filesystem-safe components while preserving original canonical IDs; exact-SHA Windows verification remains.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-3002",
@@ -1239,7 +1273,17 @@
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
         "a9ec36e94c4e55347d607f337e182d15b4120f03"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "Release Candidate Build workflow on main",
+        "composition_path": ".github/workflows/release-candidate.yml",
+        "caller_path": ".github/workflows/release-candidate.yml",
+        "implementation_path": "src/sofia/verify/source_provenance.py",
+        "effect_path": "src/sofia/verify/gate.py",
+        "remaining": "tests_only",
+        "explanation": "Release workflow archives tracked source outside the checkout and runs isolated installed-package provenance and revision-bound verification; actual CI acceptance remains.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-3004",
@@ -5014,12 +5058,25 @@
       "master_line": 749,
       "status": "code_present_unverified",
       "code_paths": [
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/store.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "SofiaApplication background independent_life task",
+        "composition_path": "src/sofia/application/bootstrap.py",
+        "caller_path": "src/sofia/application/background_runtime.py",
+        "implementation_path": "src/sofia/life/coordinator.py",
+        "effect_path": "src/sofia/life/store.py",
+        "remaining": "tests_only",
+        "explanation": "The application background task invokes LIFE.tick, which reconciles RUN outcomes and reviews eligible finished jobs; live periodic behavior not tested.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-104",
@@ -5124,12 +5181,25 @@
       "status": "code_present_unverified",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/creative/service.py"
+        "src/sofia/creative/service.py",
+        "src/sofia/application/bootstrap.py",
+        "src/sofia/application/background_runtime.py",
+        "src/sofia/life/validation.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_wiring": {
+        "entrypoint": "SofiaApplication background independent_life -> LIFE._settle_personal_project",
+        "composition_path": "src/sofia/application/bootstrap.py",
+        "caller_path": "src/sofia/application/background_runtime.py",
+        "implementation_path": "src/sofia/life/coordinator.py",
+        "effect_path": "src/sofia/life/validation.py",
+        "remaining": "tests_only",
+        "explanation": "Completed RUN receipt checks original linked artifact, uses verified content/revision and typed original objectives, then stores a durable evaluation or requests review; no claim of subjective success.",
+        "source_review_sha": "157a58fd766e31de529f4e1871c2300dc74040e1"
+      }
     },
     {
       "id": "CA-112",
