@@ -509,7 +509,10 @@ class SofiaApplication:
         if not isinstance(principal, PrincipalContext):
             raise TypeError("authenticated client principal required")
         store = LifelongThreadStore(self._conversation_service.database_path)
-        return store.list_threads(owner=principal, limit=limit)
+        # A principal shared by desktop and Discord does not authorize
+        # project titles from another original conversation audience.
+        # Apply source-session access before the requested page limit.
+        return store.list_visible_threads(owner=principal, limit=limit)
 
     def lifelong_messages_for(
         self, principal, *, thread_id: str, limit: int = 100,
