@@ -614,7 +614,9 @@ class ModelLifecycleManager:
             )
         if len(roles) < 2:
             return ModelResidencyDecision(mode, roles, ("only one role is configured",))
-        names = tuple(self.provider_for(role).model for role in roles)
+        # Different cognitive roles may point at the same Ollama artifact.
+        # Count distinct physical model images, not logical role aliases.
+        names = tuple(dict.fromkeys(self.provider_for(role).model for role in roles))
         if observation.ram_available_bytes is None:
             return ModelResidencyDecision(
                 mode, (fast,), ("available RAM is unobserved; dual capacity is unknown",)
@@ -679,6 +681,9 @@ class ModelLifecycleManager:
                 observation=observation,
             )
             desired = set(plan.desired_roles)
+            desired_models = {
+                self.provider_for(role).model for role in plan.desired_roles
+            }
             loaded: list[str] = []
             reasons = list(plan.reasons)
             for role in plan.desired_roles:
@@ -711,6 +716,10 @@ class ModelLifecycleManager:
                     if role in desired:
                         continue
                     model = self.provider_for(role).model
+                    if model in desired_models:
+                        # The same physical model may serve both roles.
+                        # Never evict a desired fast role through its deep alias.
+                        continue
                     if self._busy.get(model, 0) > 0:
                         reasons.append(f"{role.value} is active and was not unloaded")
                         continue
@@ -754,10 +763,15 @@ class ModelLifecycleManager:
             unloaded: list[str] = []
             seen: set[str] = set()
             protected = protected_roles or set()
+            protected_models = {
+                self.provider_for(role).model for role in protected
+            }
             for role, provider in self._managed_providers():
                 if role in protected:
                     continue
                 model = provider.model
+                if model in protected_models:
+                    continue
                 if model in seen:
                     continue
                 seen.add(model)
