@@ -9,6 +9,7 @@ from sofia.capability.model import Capability,CapabilityRequest
 from sofia.cognition.model import CognitiveToolDefinition
 from sofia.cognition.tools import CognitiveToolBinding
 from sofia.safe.execution_approval import ExecutionApprovalVerifier
+from sofia.safe.operator_stop import OperatorStopStore
 from sofia.safe.permissions import PermissionLevel, PermissionStore, capability_permission_policy
 from .github import GitHubAdapter
 from .discord import DiscordOperatorAdapter
@@ -69,6 +70,7 @@ def _with_execution_approval(
     registration: IntegrationToolRegistration,
     verifier: ExecutionApprovalVerifier,
     permission_store: PermissionStore,
+    operator_stop: OperatorStopStore,
 ) -> IntegrationToolRegistration:
     capability_name = registration.capability.name
     policy = capability_permission_policy(capability_name)
@@ -77,6 +79,8 @@ def _with_execution_approval(
     original_handler = registration.handler
 
     def execute(request: CapabilityRequest):
+        if operator_stop.current().active:
+            raise PermissionError("operator stop blocks integration side effects")
         parameters = dict(request.parameters)
         approval_id = parameters.get("approval_id")
         standing_parameters = {
@@ -107,6 +111,10 @@ def _with_execution_approval(
                 now=datetime.now(timezone.utc),
             )
 
+        # Recheck the durable stop at the last locally controlled boundary.
+        # A consumed approval must never override a newly active stop.
+        if operator_stop.current().active:
+            raise PermissionError("operator stop blocks integration side effects")
         parameters.pop("approval_id", None)
         stripped = CapabilityRequest(
             capability=request.capability,
@@ -389,7 +397,8 @@ def create_configured_integration_tools(*,filesystem_root:Path,state_path:Path)-
 
     verifier = ExecutionApprovalVerifier(state_path)
     permission_store = PermissionStore(state_path)
+    operator_stop = OperatorStopStore(state_path)
     return tuple(
-        _with_execution_approval(registration, verifier, permission_store)
+        _with_execution_approval(registration, verifier, permission_store, operator_stop)
         for registration in tools
     )
