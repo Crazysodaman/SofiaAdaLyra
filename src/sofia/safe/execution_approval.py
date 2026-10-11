@@ -114,7 +114,9 @@ class ExecutionApprovalVerifier:
 
     def _connect(self) -> sqlite3.Connection:
         """Never manufacture a new approval/audit authority after state loss."""
-        return self._guard.connect(timeout=10)
+        db = self._guard.connect(timeout=10)
+        db.execute("PRAGMA foreign_keys=ON")
+        return db
 
     def record(
         self, approval: ExecutionApproval, *,
@@ -166,11 +168,6 @@ class ExecutionApprovalVerifier:
                     raise PermissionError("owner verification is stale or from the future")
                 if protected and row["credential_kind"] != "security_key":
                     raise PermissionError("protected execution requires enrolled security key")
-                db.execute(
-                    "INSERT INTO safe_execution_owner_auth_binding "
-                    "(authentication_event_id,approval_id,bound_at) VALUES(?,?,?)",
-                    (authentication_event_id, approval.approval_id, approval_time.isoformat()),
-                )
             db.execute(
                 """
                 INSERT INTO safe_execution_approval (
@@ -193,6 +190,12 @@ class ExecutionApprovalVerifier:
                     approval.expires_at.astimezone(timezone.utc).isoformat(),
                 ),
             )
+            if authentication_event_id is not None:
+                db.execute(
+                    "INSERT INTO safe_execution_owner_auth_binding "
+                    "(authentication_event_id,approval_id,bound_at) VALUES(?,?,?)",
+                    (authentication_event_id, approval.approval_id, approval_time.isoformat()),
+                )
             self.audit.append_in_transaction(
                 db,
                 actor_id=approval.approved_by,
