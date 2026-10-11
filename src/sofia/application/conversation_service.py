@@ -619,6 +619,7 @@ class ConversationService(ConversationMatrixMixin):
             workspace = runtime.read_workspace(
                 consumer="conversation",
                 at=current_user.created_at,
+                expected_snapshot=snapshot,
             )
             if workspace is None:
                 return None
