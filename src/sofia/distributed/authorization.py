@@ -54,6 +54,7 @@ REMOTE_READ_ONLY_OPERATIONS = frozenset({
     ("vm.inspect", "sofia_preflight"),
     ("workshop.inspect", "host"),
     ("workshop.inspect", "blank_vm"),
+    ("workshop.inspect", "installer_status"),
     ("workshop.inspect", "media"),
     ("container.inspect", "list"),
     ("container.inspect", "get"),
