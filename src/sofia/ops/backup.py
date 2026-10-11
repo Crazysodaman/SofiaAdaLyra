@@ -478,7 +478,7 @@ class BackupEngine:
             )
         deletion_ledger = MemoryDeletionLedger(erasure_journal, self.cipher)
         try:
-            deletion_ledger.entries()
+            signed_deletions_before_restore = deletion_ledger.entries()
         except MemoryErasureError as exc:
             raise BackupError("authenticated deletion journal is unavailable") from exc
         manifest = self.verify(backup_dir)
@@ -587,6 +587,19 @@ class BackupEngine:
                     bootstrap_mode=IdentityBootstrapMode.REQUIRE_EXISTING,
                 ).load()
 
+            # The external journal might have gained an operator-approved
+            # deletion while an old multi-gigabyte snapshot was decrypting.
+            # Fail closed rather than publishing a snapshot with stale
+            # erasure replay. The operator may restart the restore.
+            try:
+                if deletion_ledger.entries() != signed_deletions_before_restore:
+                    raise BackupError(
+                        "external erasure journal changed during restore; repeat replay"
+                    )
+            except MemoryErasureError as exc:
+                raise BackupError(
+                    "external erasure journal unavailable before restore publication"
+                ) from exc
             for source in sorted(staging.rglob("*")):
                 if not source.is_file():
                     continue
