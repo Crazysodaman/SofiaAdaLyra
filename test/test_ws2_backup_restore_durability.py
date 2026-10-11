@@ -27,7 +27,7 @@ def _archive(tmp_path):
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux directory fsync")
-def test_restore_flushes_temp_bytes_before_rename_and_directory_afterwards(
+def test_restore_flushes_temp_bytes_before_absence_only_publication_and_directory_afterwards(
     tmp_path, monkeypatch,
 ):
     engine, bundle, journal = _archive(tmp_path)
@@ -37,29 +37,29 @@ def test_restore_flushes_temp_bytes_before_rename_and_directory_afterwards(
     )
     target = tmp_path / "restored" / "sofia.db"
     original_fsync = os.fsync
-    original_replace = os.replace
+    original_link = os.link
     observed = []
 
     def track_fsync(descriptor):
         observed.append(("sync", os.readlink(f"/proc/self/fd/{descriptor}")))
         return original_fsync(descriptor)
 
-    def track_replace(src, dst):
-        observed.append(("rename", str(dst)))
-        return original_replace(src, dst)
+    def track_link(src, dst):
+        observed.append(("publish", str(dst)))
+        return original_link(src, dst)
 
     monkeypatch.setattr(backup_module.os, "fsync", track_fsync)
-    monkeypatch.setattr(backup_module.os, "replace", track_replace)
+    monkeypatch.setattr(backup_module.os, "link", track_link)
 
     result = engine.restore(
         backup_dir=bundle, target_state_path=target,
         verifier="offline-test", erasure_journal=journal,
     )
     assert result.succeeded
-    renames = [(i, path) for i, (kind, path) in enumerate(observed)
-               if kind == "rename" and str(target.parent) in path]
-    assert renames
-    for index, destination in renames:
+    publications = [(i, path) for i, (kind, path) in enumerate(observed)
+                    if kind == "publish" and str(target.parent) in path]
+    assert publications
+    for index, destination in publications:
         # The secure restore temp is an exclusively created random file,
         # never a predictable preexisting ".restore" symlink alias.
         from pathlib import Path
@@ -70,7 +70,7 @@ def test_restore_flushes_temp_bytes_before_rename_and_directory_afterwards(
             kind == "sync" and path.startswith(prefix) and path.endswith(".tmp")
             for kind, path in observed[:index]
         )
-    last_rename = max(index for index, _ in renames)
+    last_rename = max(index for index, _ in publications)
     assert any(
         kind == "sync" and path == str(target.parent)
         for kind, path in observed[last_rename + 1:]
@@ -87,7 +87,7 @@ def test_restore_refuses_rename_before_durable_temporary_file(
         lambda _path: None,
     )
     original_fsync = os.fsync
-    original_replace = os.replace
+    original_link = os.link
     published = []
 
     def failed_temp_fsync(descriptor):
@@ -96,12 +96,12 @@ def test_restore_refuses_rename_before_durable_temporary_file(
             raise OSError("simulated crash durability failure")
         return original_fsync(descriptor)
 
-    def tracked_replace(src, dst):
+    def tracked_link(src, dst):
         published.append(str(dst))
-        return original_replace(src, dst)
+        return original_link(src, dst)
 
     monkeypatch.setattr(backup_module.os, "fsync", failed_temp_fsync)
-    monkeypatch.setattr(backup_module.os, "replace", tracked_replace)
+    monkeypatch.setattr(backup_module.os, "link", tracked_link)
 
     with pytest.raises(OSError, match="simulated crash durability"):
         engine.restore(
