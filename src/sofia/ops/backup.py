@@ -13,6 +13,7 @@ from __future__ import annotations
 from base64 import b64decode, b64encode
 from contextlib import closing
 from dataclasses import dataclass
+import errno
 from datetime import datetime, timezone
 from hashlib import sha256
 import hmac
@@ -53,6 +54,10 @@ class RestorePublicationUncertain(BackupError):
     """Restored files were renamed but their directory durability is unknown."""
 
 
+class BackupPublicationUncertain(BackupError):
+    """Encrypted archive was published, but pathname durability is unknown."""
+
+
 def _fsync_restored_linux_directories(directories: set[Path]) -> None:
     """Persist restored pathnames and newly created parent directory entries.
 
@@ -76,6 +81,85 @@ def _fsync_restored_linux_directories(directories: set[Path]) -> None:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
+
+
+def _durably_prepare_backup_archive(staging: Path) -> None:
+    """Flush every encrypted payload/manifest and nested directory on Linux.
+
+    Ordinary close() and rename() alone do not make an archive restart-safe.
+    A failing fsync before publication denies the success receipt entirely.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+    _reject_redirected_backup_input(staging)
+    for item in sorted(staging.rglob("*")):
+        _reject_redirected_backup_input(item)
+        if not item.is_file():
+            continue
+        fd = os.open(
+            item, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+        )
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise BackupError("encrypted backup entry changed type before fsync")
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    directories = {staging}
+    directories.update(
+        item for item in staging.rglob("*") if item.is_dir()
+    )
+    _fsync_restored_linux_directories(directories)
+
+
+def _publish_backup_archive_without_replacing(staging: Path, final: Path) -> None:
+    """Publish the encrypted archive only at an unoccupied path.
+
+    Linux uses RENAME_NOREPLACE instead of os.replace's overwrite semantics.
+    Windows directory rename denies an occupied name; unsupported hosts fail
+    closed. Crash durability is reported separately from name visibility.
+    """
+    _reject_redirected_backup_input(staging)
+    _reject_redirected_backup_input(final)
+    if final.exists() or final.is_symlink():
+        raise FileExistsError("encrypted backup destination already exists")
+    if sys.platform.startswith("linux"):
+        import ctypes
+
+        try:
+            libc = ctypes.CDLL(None, use_errno=True)
+            renameat2 = libc.renameat2
+        except AttributeError as exc:
+            raise BackupError(
+                "atomic absence-only archive publication is unavailable"
+            ) from exc
+        renameat2.argtypes = (
+            ctypes.c_int, ctypes.c_char_p,
+            ctypes.c_int, ctypes.c_char_p, ctypes.c_uint,
+        )
+        renameat2.restype = ctypes.c_int
+        if renameat2(
+            -100, os.fsencode(staging), -100, os.fsencode(final), 1,
+        ) != 0:
+            err = ctypes.get_errno()
+            if err == errno.EEXIST:
+                raise FileExistsError(
+                    err, "encrypted archive destination appeared during publish",
+                    os.fspath(final),
+                )
+            raise OSError(err, os.strerror(err), os.fspath(final))
+        try:
+            _fsync_restored_linux_directories({final.parent})
+        except OSError as exc:
+            raise BackupPublicationUncertain(
+                "encrypted archive was renamed but durable publication is "
+                "uncertain; inspect and verify before retention or restore"
+            ) from exc
+        return
+    if os.name == "nt":
+        os.rename(staging, final)
+        return
+    raise BackupError("atomic archive publication unsupported on this platform")
 
 
 def _reject_redirected_restore_path(path: Path) -> None:
@@ -364,9 +448,11 @@ class BackupEngine:
             + "-"
             + uuid4().hex[:12]
         )
+        _reject_redirected_backup_input(destination_root)
         destination_root.mkdir(parents=True, exist_ok=True)
+        _reject_redirected_backup_input(destination_root)
         final = destination_root / backup_id
-        if final.exists():
+        if final.exists() or final.is_symlink():
             raise BackupError("backup destination already exists")
 
         with tempfile.TemporaryDirectory(
@@ -415,7 +501,8 @@ class BackupEngine:
                 self.cipher.manifest_mac(manifest_bytes) + "\n",
                 encoding="ascii",
             )
-            os.replace(staging, final)
+            _durably_prepare_backup_archive(staging)
+            _publish_backup_archive_without_replacing(staging, final)
 
         return final, BackupEvidence(
             backup_id=backup_id,
