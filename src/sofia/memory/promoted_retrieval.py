@@ -122,6 +122,7 @@ def retrieve_promoted(
     principal_id: str | None = None,
     audience_id: str | None = None,
     influence: ContinuityInfluence | None = None,
+    association_store=None,
 ) -> MemoryProjection:
     if not isinstance(query, str):
         raise TypeError("query must be a string")
@@ -151,10 +152,35 @@ def retrieve_promoted(
             context_score = len(contextual_tokens & memory_tokens)
             yield (-query_score, -context_score, order, candidate_id)
 
-    ids = [
-        candidate_id
-        for _, _, _, candidate_id in nsmallest(limit, ranked_matches())
-    ]
+    # NEURO sees only a small, already promoted, principal/audience-filtered
+    # and query-overlapping lexical shortlist. It never supplies an ID, query
+    # term, scope or eligibility rule to MEM. Original lexical relevance and
+    # context retain precedence; associations can break eligible ties only.
+    window = nsmallest(
+        (max(limit, 16) if limit <= 64 and association_store is not None else limit),
+        ranked_matches(),
+    )
+    if (
+        association_store is not None and principal_id is not None
+        and audience_id is not None and limit <= 64 and window
+    ):
+        try:
+            strengths = association_store.scores(
+                principal_id=principal_id, audience_id=audience_id,
+                query=query,
+                eligible_ids=tuple(row[3] for row in window),
+            )
+        except Exception:
+            # Invalid/disabled/unavailable association state cannot block
+            # reviewed MEM retrieval or broaden eligibility.
+            strengths = {}
+        window.sort(
+            key=lambda row: (
+                row[0], row[1], -strengths.get(row[3], 0.0),
+                row[2], str(row[3]),
+            )
+        )
+    ids = [row[3] for row in window[:limit]]
     return project_promoted_memories(
         store,
         ids,
