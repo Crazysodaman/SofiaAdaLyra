@@ -33,6 +33,9 @@ class HostInternalIsolation:
     nat_prefixes:tuple[str,...]
     ics_sharing_enabled:bool|None
     other_vm_names:tuple[str,...]
+    firewall_category:str
+    firewall_public_enabled:bool|None
+    firewall_public_default_inbound:str
     observed_at:datetime
 
     def __post_init__(self):
@@ -62,7 +65,9 @@ def decode_host_internal_isolation(payload:Any)->HostInternalIsolation:
         raise ValueError("missing actual Artemis host isolation observation")
     fields=("HostAdapter","HostIPv4Addresses","IPv4Forwarding",
             "IPv6Forwarding","DefaultRoutes","DnsServers","NatPrefixes",
-            "IcsSharingEnabled","OtherVmNames","ObservedAtUtc")
+            "IcsSharingEnabled","OtherVmNames","ObservedAtUtc",
+            "FirewallNetworkCategory","PublicFirewallEnabled",
+            "PublicFirewallDefaultInbound")
     if any(k not in payload for k in fields):
         raise ValueError("incomplete host IP, forwarding, NAT or ICS proof")
     try:
@@ -94,6 +99,14 @@ def decode_host_internal_isolation(payload:Any)->HostInternalIsolation:
         nat_prefixes=tuple(payload["NatPrefixes"]),
         ics_sharing_enabled=payload["IcsSharingEnabled"],
         other_vm_names=tuple(payload["OtherVmNames"]),
+        firewall_category=str(payload["FirewallNetworkCategory"]),
+        firewall_public_enabled=(
+            payload["PublicFirewallEnabled"]
+            if type(payload["PublicFirewallEnabled"]) is bool else None
+        ),
+        firewall_public_default_inbound=str(
+            payload["PublicFirewallDefaultInbound"]
+        ),
         observed_at=at,
     )
 
@@ -128,6 +141,12 @@ def review_internal_network(
         issues.append("Internet Connection Sharing active or unknown")
     if fact.other_vm_names:
         issues.append("other VMs connected to dedicated workshop switch")
+    if fact.firewall_category.casefold()!="public":
+        issues.append("dedicated host adapter not classified as Public firewall network")
+    if fact.firewall_public_enabled is not True:
+        issues.append("Windows host Public firewall not observed enabled")
+    if fact.firewall_public_default_inbound.casefold()!="block":
+        issues.append("Windows host Public firewall default inbound deny not verified")
     for value in fact.nat_prefixes:
         try:
             subnet=ip_network(value,strict=False)
@@ -151,6 +170,10 @@ def guest_network_contract()->dict:
         "internet_connection_sharing_enabled":False,
         "nat_enabled":False,
         "physical_lan_access":"DENIED",
+        "host_firewall_profile":"Public",
+        "host_firewall_enabled":True,
+        "host_firewall_default_inbound":"Block",
+        "host_firewall_exceptions_independently_verified":False,
         "guest_os_installed":False,
         "may_modify_host_network":False,
     }
