@@ -104,3 +104,35 @@ def test_snapshot_expires_exactly_at_its_deadline():
             confirmed_interactive_os_picker=True,
             at=request.permit.expires_at,
         )
+
+
+def test_duplicate_frame_id_cannot_rebind_a_different_principal_or_device(tmp_path):
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    store = ScreenJourneyReceiptStore(state)
+    original = _evidence()
+    store.record(original)
+    store.record(original)
+    with pytest.raises(PermissionError, match="different source, scope"):
+        store.record(replace(original, principal_id="person:other"))
+    with pytest.raises(PermissionError, match="different source, scope"):
+        store.record(replace(original, device_id="other-device"))
+    assert store.status(
+        principal_id="person:other", audience_id="local:text",
+    )["observations"] == ()
+    assert len(store.status(
+        principal_id="person:sparks", audience_id="local:text",
+    )["observations"]) == 1
+
+
+def test_malformed_frame_receipt_cannot_be_promoted_to_observed_evidence():
+    observation = _evidence()
+    with pytest.raises(PermissionError, match="frame hash"):
+        replace(
+            observation,
+            receipt=replace(observation.receipt, digest_sha256="bogus"),
+        )
+    with pytest.raises(PermissionError, match="frame hash"):
+        replace(
+            observation,
+            observed_at=NOW + timedelta(seconds=1),
+        )
