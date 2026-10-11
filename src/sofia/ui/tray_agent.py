@@ -27,6 +27,7 @@ from sofia.ops.activity import (
     HostActivityObservation,
     HostActivityStore,
     detect_windows_game,
+    windows_desktop_idle_seconds,
 )
 from sofia.ops.capability import OpsToolService
 from sofia.system.capability import create_local_system_backend
@@ -178,12 +179,29 @@ class TrayAgentApplication:
             processes,
             known_game_executables=self._known_games,
         )
+        # Game-process proof wins over last-input idle: pausing a still-open
+        # game never causes Sofía to reclaim its VRAM.
+        idle = None if gaming else windows_desktop_idle_seconds()
+        threshold = RuntimeUserSettingsStore(
+            self.config.state_path
+        ).load().cognitive_model_idle_preload_seconds
+        mode = (
+            ActivityMode.GAMING if gaming
+            else ActivityMode.IDLE
+            if idle is not None and idle >= threshold
+            else ActivityMode.NORMAL if idle is not None
+            else ActivityMode.UNKNOWN
+        )
         self.activity_store.record(
             HostActivityObservation(
                 host_id=self.host_id,
-                mode=ActivityMode.GAMING if gaming else ActivityMode.NORMAL,
+                mode=mode,
                 observed_at=datetime.now(timezone.utc),
-                source="windows-process-inspection",
+                source=(
+                    "windows-session-last-input"
+                    if mode is ActivityMode.IDLE
+                    else "windows-process-inspection"
+                ),
                 detail=game,
             )
         )
@@ -783,6 +801,8 @@ class TrayAgentApplication:
                 self._set_residency_mode("dual_resident")
             elif command is TrayCommand.LLM_MODE_RESOURCE:
                 self._set_residency_mode("resource_aware")
+            elif command is TrayCommand.LLM_MODE_HYBRID:
+                self._set_residency_mode("hybrid_gaming_idle")
             elif command is TrayCommand.LLM_REFRESH:
                 self._queue_model_control(self._refresh_model_runtime_state)
             elif command is TrayCommand.LLM_VIEW_ERRORS:
