@@ -372,3 +372,8 @@
 - Prioritize trust-preserving real source bridge, exact tool/host compatibility, source receipt robustness and guarded revision path.
 - Do not add remote model clients, independent schedulers, permanent grants or device actuation.
 - Full proof still requires source semantics, exact-SHA regression tests, CI, and supervised relevant host tests in the owner's final campaign.
+
+
+## Audit follow-up: operator view exact-source correction (2026-10-11)
+
+Previously a stale global `verified_proof_projects(limit=64)` page limited `goal_dependency_view` even after drafting was corrected to use exact scoped proof. Production changed to exact per-project lookup with request-local bounded memoization, preserving source receipt and typed objective revalidation before displaying a verified skill. Regression authored, unexecuted. CA-1403 and CA-1405 remain partial full requirements.
