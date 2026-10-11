@@ -137,6 +137,7 @@ from sofia.distributed.state_paths import migrate_legacy_fleet_sidecars
 from sofia.personality.influence import ContinuityInfluence
 from sofia.habits.continuity import HabitContinuityCoordinator
 from sofia.runtime.runtime import SofiaRuntime, SofiaRuntimeError
+from sofia.social.model import PrincipalContext
 from sofia.social.principals import local_sparks_principal, SPARKS_PRINCIPAL_ID
 from sofia.state.component_schema import verify_production_component_schemas
 from sofia.ui.drafts import UIDraftStore
@@ -472,6 +473,22 @@ class SofiaApplication:
     @property
     def neuro_inputs(self) -> NeuroInputCoordinator:
         return self._neuro_inputs
+
+    def main_thread_page(
+        self, *, principal: PrincipalContext,
+        before: tuple[datetime, str] | None = None,
+        limit: int = 50,
+    ):
+        """Return audience-scoped Main history for an authenticated client.
+
+        The transport adapter must authenticate the principal. The canonical
+        ConversationService rechecks source bindings for every returned row.
+        This read never delivers private content across audiences or executes
+        a cognitive/provider request.
+        """
+        return self._conversation_service.main_thread_page(
+            principal=principal, before=before, limit=limit,
+        )
 
     def latest_companion_decision_trace(self):
         """Read-only, non-authoritative projection of the latest session turn.
