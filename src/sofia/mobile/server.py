@@ -10,7 +10,10 @@ import ssl
 from threading import Thread
 from typing import Any, Protocol
 
-from .gateway import MobileDeliveryConflict, MobileDeliveryUncertain
+from .gateway import (
+    MobileCredentialRevoked, MobileDeliveryConflict,
+    MobileDeliveryUncertain, MobileRouteNotFound,
+)
 from .pairing import MobileDeviceCredentialStore
 
 
@@ -23,12 +26,9 @@ class _MobileHTTPServer(ThreadingHTTPServer):
 
 
 class MobileGatewayProtocol(Protocol):
-    def ingest_sensors(self, payload: object) -> dict[str, object]: ...
-    def chat(self, **kwargs: object) -> dict[str, object]: ...
-    def state(self, **kwargs: object) -> dict[str, object]: ...
-    def main_history(self, **kwargs: object) -> dict[str, object]: ...
-    def claim_notification(self, **kwargs: object) -> dict[str, object]: ...
-    def acknowledge_notification(self, **kwargs: object) -> dict[str, object]: ...
+    def dispatch_authenticated(
+        self, *, credential: str, operation: str, payload: dict[str, object],
+    ) -> dict[str, object]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,10 +61,7 @@ class MobileCompanionServer:
         credentials: MobileDeviceCredentialStore,
         configuration: MobileServerConfiguration = MobileServerConfiguration(),
     ) -> None:
-        for method in (
-            "ingest_sensors", "chat", "state", "main_history",
-            "claim_notification", "acknowledge_notification",
-        ):
+        for method in ("dispatch_authenticated",):
             if not callable(getattr(gateway, method, None)):
                 raise TypeError("gateway must implement the mobile gateway protocol")
         if not isinstance(credentials, MobileDeviceCredentialStore):
@@ -136,54 +133,26 @@ class MobileCompanionServer:
                     if self._authorized_device() != authenticated_device:
                         self._send(401, {"error": "unauthorized"})
                         return
-                    if self.path == "/v1/mobile/sensors":
-                        result = outer.gateway.ingest_sensors(payload)
-                    elif self.path == "/v1/mobile/chat":
-                        if set(payload) != {
-                            "device_id", "message", "private_mode", "request_id"
-                        }:
-                            raise ValueError("chat payload fields are invalid")
-                        result = outer.gateway.chat(
-                            device_id=payload["device_id"],
-                            message=payload["message"],
-                            private_mode=payload["private_mode"],
-                            request_id=payload["request_id"],
-                        )
-                    elif self.path == "/v1/mobile/state":
-                        if set(payload) != {"device_id", "private_mode"}:
-                            raise ValueError("state payload fields are invalid")
-                        result = outer.gateway.state(
-                            device_id=payload["device_id"],
-                            private_mode=payload["private_mode"],
-                        )
-                    elif self.path == "/v1/mobile/main/page":
-                        if set(payload) != {
-                            "device_id", "private_mode", "before", "limit"
-                        }:
-                            raise ValueError("Main page payload fields are invalid")
-                        result = outer.gateway.main_history(
-                            device_id=payload["device_id"],
-                            private_mode=payload["private_mode"],
-                            before=payload["before"],
-                            limit=payload["limit"],
-                        )
-                    elif self.path == "/v1/mobile/notifications/claim":
-                        if set(payload) != {"device_id", "private_mode"}:
-                            raise ValueError("notification claim fields are invalid")
-                        result = outer.gateway.claim_notification(
-                            device_id=payload["device_id"],
-                            private_mode=payload["private_mode"],
-                        )
-                    elif self.path == "/v1/mobile/notifications/ack":
-                        if set(payload) != {"device_id", "notification_id"}:
-                            raise ValueError("notification ack fields are invalid")
-                        result = outer.gateway.acknowledge_notification(
-                            device_id=payload["device_id"],
-                            notification_id=payload["notification_id"],
-                        )
-                    else:
-                        self._send(404, {"error": "not_found"})
+                    # The gateway rechecks this exact bearer inside the
+                    # application owner thread, after any queue delay. A
+                    # revoked credential may not dispatch an old request.
+                    result = outer.gateway.dispatch_authenticated(
+                        credential=self.headers["Authorization"][len("Bearer "):],
+                        operation=self.path, payload=payload,
+                    )
+                    # No reply body is delivered to a credential revoked
+                    # while the model or IO operation was running. Effects
+                    # already committed during that operation are still
+                    # recorded and must not be blindly retried.
+                    if self._authorized_device() != authenticated_device:
+                        self._send(401, {"error": "unauthorized"})
                         return
+                except MobileCredentialRevoked:
+                    self._send(401, {"error": "unauthorized"})
+                    return
+                except MobileRouteNotFound:
+                    self._send(404, {"error": "not_found"})
+                    return
                 except (MobileDeliveryConflict, MobileDeliveryUncertain):
                     # A duplicate with different bytes or uncertain prior
                     # host effect is never auto-replayed on reconnect.

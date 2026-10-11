@@ -34,6 +34,14 @@ class MobileDeliveryUncertain(RuntimeError):
     """The host cannot prove an earlier turn did not execute; never replay."""
 
 
+class MobileCredentialRevoked(PermissionError):
+    """The enrolled credential stopped being valid before actual execution."""
+
+
+class MobileRouteNotFound(LookupError):
+    """No authenticated mobile operation is registered for this route."""
+
+
 
 class MobileCompanionGateway:
     """Serialize one private owner channel per paired phone."""
@@ -108,6 +116,72 @@ class MobileCompanionGateway:
         if not isinstance(value, str) or _DEVICE.fullmatch(value) is None:
             raise ValueError("invalid mobile device_id")
         return value
+
+    def dispatch_authenticated(
+        self, *, credential: str, operation: str,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        """Recheck a mobile credential inside the *actual* owner-thread turn.
+
+        HTTP authentication before enqueue is insufficient: the desktop worker
+        can be busy while an operator revokes or rotates the pairing secret.
+        The bearer travels only through the in-process command queue, never
+        through an LLM prompt or durable work receipt. All public mobile
+        operations pass through the same authority boundary.
+        """
+        if not isinstance(credential, str) or not isinstance(operation, str):
+            raise TypeError("authenticated operation requires a credential and path")
+        if not isinstance(payload, dict):
+            raise TypeError("mobile payload must be a JSON object")
+        with self._lock:
+            device = self.credentials.authenticate(credential)
+            if device is None:
+                raise MobileCredentialRevoked(
+                    "mobile credential revoked or rotated before dispatch"
+                )
+            if payload.get("device_id") != device:
+                raise PermissionError("mobile bearer and device identity disagree")
+            if operation == "/v1/mobile/sensors":
+                # The existing typed sensor parser enforces its own schema.
+                return self.ingest_sensors(payload)
+            if operation == "/v1/mobile/chat":
+                if set(payload) != {
+                    "device_id", "message", "private_mode", "request_id"
+                }:
+                    raise ValueError("chat payload fields are invalid")
+                return self.chat(
+                    device_id=device, message=payload["message"],
+                    private_mode=payload["private_mode"],
+                    request_id=payload["request_id"],
+                )
+            if operation == "/v1/mobile/state":
+                if set(payload) != {"device_id", "private_mode"}:
+                    raise ValueError("state payload fields are invalid")
+                return self.state(
+                    device_id=device, private_mode=payload["private_mode"],
+                )
+            if operation == "/v1/mobile/main/page":
+                if set(payload) != {
+                    "device_id", "private_mode", "before", "limit"
+                }:
+                    raise ValueError("Main page payload fields are invalid")
+                return self.main_history(
+                    device_id=device, private_mode=payload["private_mode"],
+                    before=payload["before"], limit=payload["limit"],
+                )
+            if operation == "/v1/mobile/notifications/claim":
+                if set(payload) != {"device_id", "private_mode"}:
+                    raise ValueError("notification claim fields are invalid")
+                return self.claim_notification(
+                    device_id=device, private_mode=payload["private_mode"],
+                )
+            if operation == "/v1/mobile/notifications/ack":
+                if set(payload) != {"device_id", "notification_id"}:
+                    raise ValueError("notification ack fields are invalid")
+                return self.acknowledge_notification(
+                    device_id=device, notification_id=payload["notification_id"],
+                )
+            raise MobileRouteNotFound("unknown authenticated mobile operation")
 
     def ingest_sensors(self, payload: object) -> dict[str, object]:
         report = MobileSensorReport.from_payload(payload)

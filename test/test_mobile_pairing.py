@@ -9,7 +9,9 @@ import sqlite3
 
 import pytest
 
-from sofia.mobile.gateway import MobileCompanionGateway
+from sofia.mobile.gateway import (
+    MobileCompanionGateway, MobileCredentialRevoked, MobileRouteNotFound,
+)
 from sofia.mobile.pairing import MobileDeviceCredentialStore
 from sofia.mobile.provisioning import MobileProvisioning, mobile_companion_ready
 from sofia.mobile.server import MobileCompanionServer, MobileServerConfiguration
@@ -167,3 +169,87 @@ def test_retired_global_mobile_token_is_not_a_server_fallback(tmp_path):
             gateway, token="legacy-shared-token-that-would-have-worked",
             configuration=MobileServerConfiguration(port=0),
         )
+
+
+def test_queued_request_revalidates_credential_after_operator_revokes_it(tmp_path):
+    _, gateway = _gateway(tmp_path)
+    phone = "android-revoked-before-owner-dispatch"
+    token = gateway.credentials.enroll(phone)
+
+    class RevokedWhileQueued:
+        """The HTTP boundary has authenticated, but the owner thread waits."""
+        def dispatch_authenticated(self, **kwargs):
+            gateway.credentials.revoke(phone)
+            return gateway.dispatch_authenticated(**kwargs)
+
+    server = MobileCompanionServer(
+        RevokedWhileQueued(), credentials=gateway.credentials,
+        configuration=MobileServerConfiguration(port=0),
+    )
+    server.start()
+    try:
+        status, payload = _request(
+            server, token,
+            payload={"device_id": phone, "private_mode": False},
+        )
+        assert status == 401
+        assert payload == {"error": "unauthorized"}
+        assert gateway._conversations == {}
+    finally:
+        server.close()
+
+
+def test_revoked_credential_does_not_receive_result_completed_in_flight(tmp_path):
+    _, gateway = _gateway(tmp_path)
+    phone = "android-revoked-after-owner-dispatch"
+    token = gateway.credentials.enroll(phone)
+    recorded = []
+
+    class RevokeAfterOperation:
+        def dispatch_authenticated(self, **kwargs):
+            result = gateway.dispatch_authenticated(**kwargs)
+            recorded.append(result)
+            gateway.credentials.revoke(phone)
+            return result
+
+    server = MobileCompanionServer(
+        RevokeAfterOperation(), credentials=gateway.credentials,
+        configuration=MobileServerConfiguration(port=0),
+    )
+    server.start()
+    try:
+        status, payload = _request(
+            server, token,
+            payload={"device_id": phone, "private_mode": False},
+        )
+        assert recorded and "session_id" in recorded[0]
+        assert status == 401
+        assert payload == {"error": "unauthorized"}
+    finally:
+        server.close()
+
+
+def test_authenticated_dispatch_never_trusts_unregistered_device_id(tmp_path):
+    _, gateway = _gateway(tmp_path)
+    token = gateway.credentials.enroll("android-valid")
+    with pytest.raises(PermissionError, match="identity disagree"):
+        gateway.dispatch_authenticated(
+            credential=token, operation="/v1/mobile/state",
+            payload={"device_id": "android-other", "private_mode": False},
+        )
+    with pytest.raises(MobileCredentialRevoked, match="revoked"):
+        gateway.dispatch_authenticated(
+            credential="sm1_" + "a" * 64,
+            operation="/v1/mobile/state",
+            payload={"device_id": "android-valid", "private_mode": False},
+        )
+    with pytest.raises(MobileRouteNotFound):
+        gateway.dispatch_authenticated(
+            credential=token, operation="/v1/mobile/secret-internal-route",
+            payload={"device_id": "android-valid"},
+        )
+
+
+def test_mobile_owner_worker_has_exact_authenticated_dispatch_method():
+    from sofia.ui.desktop_worker import _WorkerMobileGateway
+    assert callable(getattr(_WorkerMobileGateway, "dispatch_authenticated"))

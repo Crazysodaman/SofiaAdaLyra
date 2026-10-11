@@ -47,6 +47,9 @@ class _WorkerMobileGateway:
             raise value
         raise RuntimeError("mobile application request failed without an exception")
 
+    def dispatch_authenticated(self, **kwargs):
+        return self._call("dispatch_authenticated", **kwargs)
+
     def ingest_sensors(self, payload):
         return self._call("ingest_sensors", payload)
 
