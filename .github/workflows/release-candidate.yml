@@ -73,7 +73,7 @@ jobs:
             --evidence "source-provenance.json"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-            - name: Run revision-bound verification gate
+      - name: Run revision-bound verification gate
         shell: pwsh
         run: |
           .\.releasevenv\Scripts\python.exe -m sofia.verify.gate --phase full --evidence-path verification-evidence.json
