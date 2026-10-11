@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
+  "reviewed_main_sha": "503904f121a623d943338e40f49ee11e22fd1694",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 production LIFE/ACT/Settings emergency-stop wiring committed. New task source audit marks CA-1102/1907/6507 partial, no tests run per user. All other workstream entries and prior statuses preserved.",
+  "notice": "WS1 coding checkpoint: LIFE/ACT/Settings canonical operator stop, hot owner mute, and UI no-ad-hoc-sqlite-bootstrap code committed, tests intentionally deferred. CA-003/1102/1907/6507/2707 remain partial; unrelated workstream ledger statuses preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -32,10 +32,23 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 66,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ui/settings_window.py",
+        "src/sofia/ui/tray_agent.py",
+        "test/test_ui_settings_persistence.py"
+      ],
+      "evidence_commits": [
+        "664bfc02b518620085300fb7c2c04a6821e4ad45",
+        "b06d86b2cfc81f649e47939ab84eb80e6a4eb2e1",
+        "d7f8c94243c0cd7e35b33815005b6dec3a26c2f1"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+        "depth": "canonical_state_ui_startup_source",
+        "interpretation": "Independent tray/Settings no longer directly creates an empty SQLite state; both require existing canonical regular path. Configuration bootstrap still owns first-install creation; full cross-host fencing/promotion acceptance remains open."
+      }
     },
     {
       "id": "CA-004",
@@ -1689,13 +1702,18 @@
         "bd97361e9dddc297f24f23905958041e66e7b2ad",
         "e911471c9258de82e8900582d597b62f4326eecd",
         "b98ed5f70062060020be2ae352a2ec214fa89a59",
-        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde",
+        "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
+        "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
+        "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
+        "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
-        "depth": "production_life_act_settings_stop_path",
-        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
+        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+        "depth": "operator_stop_and_outreach_runtime_source",
+        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
       }
     },
     {
@@ -1885,13 +1903,18 @@
         "bd97361e9dddc297f24f23905958041e66e7b2ad",
         "e911471c9258de82e8900582d597b62f4326eecd",
         "b98ed5f70062060020be2ae352a2ec214fa89a59",
-        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde",
+        "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
+        "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
+        "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
+        "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
-        "depth": "production_life_act_settings_stop_path",
-        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
+        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+        "depth": "operator_stop_and_outreach_runtime_source",
+        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
       }
     },
     {
@@ -1959,10 +1982,27 @@
       "phase": "02",
       "source_topic": "27",
       "master_line": 288,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/application/act_service.py",
+        "src/sofia/ui/settings_window.py",
+        "test/test_life_project_forge.py",
+        "test/test_act_runtime_wiring.py"
+      ],
+      "evidence_commits": [
+        "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
+        "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
+        "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
+        "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+        "depth": "operator_stop_and_outreach_runtime_source",
+        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
+      }
     },
     {
       "id": "CA-2708",
@@ -2073,13 +2113,18 @@
         "bd97361e9dddc297f24f23905958041e66e7b2ad",
         "e911471c9258de82e8900582d597b62f4326eecd",
         "b98ed5f70062060020be2ae352a2ec214fa89a59",
-        "49840bddd064cf12fea5fab918ca0c0d6ae92cde"
+        "49840bddd064cf12fea5fab918ca0c0d6ae92cde",
+        "c65ea31e9dc4e81f85f85b1d89efa459e87c1413",
+        "5dc4fdd850dde05590d675801bea5c8f2121bc5d",
+        "5a5886d547da4a42a584df5dddbe895fc3db6bd0",
+        "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
+        "5c3420e27bcd73f8693b1889478daa4da579a1bd"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "92186da292093de45ea2d64cb1f65fdaa2f2dd63",
-        "depth": "production_life_act_settings_stop_path",
-        "interpretation": "Existing canonical SAFE stop is now consumed in production LIFE tick/selection/activation/schedule/executor and ACT reflection admission and exposed through existing desktop Settings. Previously ACTION delivery and integration handlers check stop. Regression source authored, not run. Full override matrix, authenticated operator identity, in-flight process cancellation, domain block, muting/reject-project are outstanding."
+        "at_sha": "503904f121a623d943338e40f49ee11e22fd1694",
+        "depth": "operator_stop_and_outreach_runtime_source",
+        "interpretation": "LIFE optional project tick/schedule/worker/idea generation, ACT reflection admission and dynamic delivery mute, and Settings pause/mute UI all check canonical owner state. Test source committed unrun. Domain blocking, authenticated operator identity, in-flight cancellation and complete multi-domain override remain open."
       }
     },
     {
