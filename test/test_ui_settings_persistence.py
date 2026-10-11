@@ -19,6 +19,8 @@ from sofia.ui import settings_service
 
 def profile(tmp_path):
     path = tmp_path / "selected.db"
+    # Authorized first-install fixture, not an implicit settings-store create.
+    path.touch()
     RuntimeUserSettingsStore(path)
     return path
 
@@ -232,3 +234,39 @@ def test_settings_and_tray_reject_symlinked_state_path(tmp_path):
         with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
             consumer_startup(redirected)
     assert canonical.is_file()
+
+
+def test_settings_service_refuses_missing_or_replaced_canonical_database(tmp_path):
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    missing = tmp_path / "unknown.db"
+    with pytest.raises(CanonicalStateUnavailable):
+        settings_service.database_diagnostics(missing)
+    assert not missing.exists()
+
+    path = profile(tmp_path)
+    store = RuntimeUserSettingsStore(path)
+    displaced = tmp_path / "displaced.db"
+    path.rename(displaced)
+    with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+        settings_service.save_settings(
+            path, DesktopControlSettings(), RuntimeUserSettings(), host_id="host",
+        )
+    assert not path.exists()
+
+    path.touch()
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        store.load()
+
+
+def test_settings_service_rejects_redirected_database_diagnostics(tmp_path):
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    source = profile(tmp_path)
+    link = tmp_path / "linked.db"
+    try:
+        link.symlink_to(source)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symbolic link creation unavailable")
+    with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
+        settings_service.database_diagnostics(link)
