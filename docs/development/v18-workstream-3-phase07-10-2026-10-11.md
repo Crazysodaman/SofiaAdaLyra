@@ -399,3 +399,10 @@ All work is source-coded to `main` with `[skip ci]`, not tested, host-accepted o
 - `ba3ad968`: Unexecuted regressions cover actual project → RUN → objective evaluation → LIFE experience links, restart-safe no-write reads, and no narrative resurfacing when a source reference cannot be retrieved.
 
 **Original incomplete requirements:** Phase 07 correction/forgetting propagation through WS2/MEM, export/backup archive retention, full CA-3402 causal scope; Phase 09 multi-stage curricula, physical/sim world work, host resource isolation, exact scoring calibration and bench; Phase 08 proactive shared/private messaging UX; Phase 10 governed skills and independently authenticated provider adapters. This remains source implementation only, not tests/CI/installed/live acceptance; no hardware actions performed.
+
+## Active retirement continuity coding
+
+- `c9b73e2b`: The existing LIFE retirement reconciler now considers both ACTIVE and PAUSED `PERSONAL_PRIVATE` original projects. A newer, evidence-backed original interest retirement closes an idle active personal project through the same canonical LIFE and GOALS status transitions rather than stranding it ACTIVE but forever ineligible for optional selection. Operator stop, audience scope, ownership, original evidence, time order and unspent pending/uncertain RUN work remain hard guards.
+- `04aa8cfa`: Unexecuted regression sources prove settled active retirement, GOALS cancellation and idempotence, and retention of a queued original RUN job without automatic abandonment.
+
+This fixes one coding gap in the existing original lifecycle, not a full determination of all Phase 09 requirements or the shared 175-ID ledger. No tests, CI, model inference, live host change or hardware operations.
