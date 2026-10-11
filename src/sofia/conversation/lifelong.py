@@ -777,7 +777,9 @@ class LifelongThreadStore:
              principal.principal_id, principal.audience_id,
              principal.audience_kind.value),
         ).fetchone()
-        if row is None:
+        if row is None or not LifelongThreadStore._project_scope_allowed(
+            db, row=row, principal=principal,
+        ):
             raise PermissionError(
                 "project edit requires current original-source audience access"
             )
@@ -859,11 +861,17 @@ class LifelongThreadStore:
         with closing(self._connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             thread = db.execute(
-                "SELECT owner_principal_id FROM lifelong_thread WHERE thread_id=?",
+                "SELECT * FROM lifelong_thread WHERE thread_id=?",
                 (thread_id,),
             ).fetchone()
             if thread is None or thread["owner_principal_id"] != principal.principal_id:
                 raise PermissionError("thread does not belong to authenticated principal")
+            if thread["kind"] == "project" and not self._project_scope_allowed(
+                db, row=thread, principal=principal,
+            ):
+                raise PermissionError(
+                    "project link cannot cross original source audiences"
+                )
             row = db.execute(
                 "SELECT m.session_id,s.principal_id,s.audience_id,s.audience_kind "
                 "FROM conversation_messages m JOIN social_session_principal s "
