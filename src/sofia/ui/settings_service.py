@@ -172,6 +172,14 @@ def install_approved_configured_model(
     ):
         raise ValueError("exact model, local host, and owner approval required")
     canonical_path = Path(path)
+    from sofia.machine.discovery import create_machine_discovery
+    actual_host_id = (
+        create_machine_discovery().discover().identity.machine_id
+    )
+    if host_id != actual_host_id:
+        raise PermissionError(
+            "model installation approval is not bound to this local machine"
+        )
     if OperatorStopStore(canonical_path).current().active:
         raise PermissionError("operator stop forbids model installation")
     configuration = create_production_configuration(state_path=canonical_path)
