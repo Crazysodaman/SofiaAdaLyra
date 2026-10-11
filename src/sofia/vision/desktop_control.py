@@ -154,7 +154,8 @@ class WindowsDesktopInput:
         self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
     def foreground(self) -> tuple[int, int]:
-        if int(self.kernel32.WTSGetActiveConsoleSessionId()) == 0xFFFFFFFF:
+        active_console_session = int(self.kernel32.WTSGetActiveConsoleSessionId())
+        if active_console_session == 0xFFFFFFFF:
             raise PermissionError("no active interactive Windows console")
         pid = wintypes.DWORD()
         self.user32.GetForegroundWindow.restype = wintypes.HWND
@@ -167,8 +168,8 @@ class WindowsDesktopInput:
         session = wintypes.DWORD()
         if not self.kernel32.ProcessIdToSessionId(current_pid, ctypes.byref(session)):
             raise PermissionError("cannot verify current user session")
-        if session.value == 0:
-            raise PermissionError("Session 0 services cannot inject desktop input")
+        if session.value == 0 or session.value != active_console_session:
+            raise PermissionError("desktop input requires the active local console, never a service or different session")
         return hwnd, int(pid.value)
 
     def _ensure_click_hits_approved_window(self, action: DesktopAction) -> None:
