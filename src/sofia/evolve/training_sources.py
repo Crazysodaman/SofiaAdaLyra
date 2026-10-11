@@ -121,6 +121,9 @@ class TrainingDatasetStore:
             db.execute("CREATE TABLE IF NOT EXISTS evolve_training_dataset_review("
                        "digest TEXT PRIMARY KEY,approval_ref TEXT NOT NULL UNIQUE,"
                        "metadata TEXT NOT NULL,reviewed_at TEXT NOT NULL)")
+            db.execute("CREATE TABLE IF NOT EXISTS evolve_training_dataset_revocation("
+                       "digest TEXT PRIMARY KEY,revoked_at TEXT NOT NULL,"
+                       "owner_receipt TEXT NOT NULL UNIQUE,reason TEXT NOT NULL)")
     def record(self,review:TrainingDatasetReview)->None:
         if not isinstance(review,TrainingDatasetReview):
             raise TypeError("reviewed typed source required")
@@ -136,24 +139,65 @@ class TrainingDatasetStore:
                 return
             db.execute("INSERT INTO evolve_training_dataset_review VALUES(?,?,?,?)",
                        (review.digest,review.approval_ref,raw,data["reviewed_at"]))
+    def revoke(self,*,digest:str,at:datetime,owner_receipt:str,
+               reason:str="owner_withdrew_training_data_permission")->None:
+        """Append owner withdrawal; reapproving the old digest is forbidden."""
+        if not isinstance(digest,str) or not re.fullmatch(r"[0-9a-f]{64}",digest):
+            raise ValueError("exact reviewed dataset SHA-256 required")
+        if (
+            not isinstance(owner_receipt,str)
+            or not owner_receipt.startswith("owner-ui:")
+            or not isinstance(reason,str)
+            or reason!="owner_withdrew_training_data_permission"
+            or not isinstance(at,datetime) or at.tzinfo is None
+            or at.utcoffset() is None
+        ):
+            raise PermissionError("exact owner dataset withdrawal required")
+        with closing(self._guard.connect(timeout=10)) as db,db:
+            db.execute("BEGIN IMMEDIATE")
+            source=db.execute(
+                "SELECT 1 FROM evolve_training_dataset_review WHERE digest=?",
+                (digest,),
+            ).fetchone()
+            if source is None:
+                raise LookupError("cannot revoke unknown training dataset")
+            existing=db.execute(
+                "SELECT 1 FROM evolve_training_dataset_revocation WHERE digest=?",
+                (digest,),
+            ).fetchone()
+            if existing:
+                raise PermissionError("reviewed source is already permanently revoked")
+            db.execute(
+                "INSERT INTO evolve_training_dataset_revocation VALUES(?,?,?,?)",
+                (digest,at.astimezone(timezone.utc).isoformat(),owner_receipt,reason),
+            )
+
     def find(self,digest:str)->TrainingDatasetReview|None:
         if not re.fullmatch(r"[0-9a-f]{64}",digest):
             raise ValueError("exact source SHA-256 required")
         with closing(self._guard.connect(timeout=10)) as db:
-            row=db.execute("SELECT metadata FROM evolve_training_dataset_review WHERE digest=?",
-                           (digest,)).fetchone()
+            row=db.execute(
+                "SELECT r.metadata FROM evolve_training_dataset_review r "
+                "LEFT JOIN evolve_training_dataset_revocation v ON v.digest=r.digest "
+                "WHERE r.digest=? AND v.digest IS NULL",
+                (digest,),
+            ).fetchone()
         if row is None:return None
         data=json.loads(row[0]);data["reviewed_at"]=datetime.fromisoformat(data["reviewed_at"])
         return TrainingDatasetReview(**data)
     def model_brief(self)->dict:
         with closing(self._guard.connect(timeout=10)) as db:
-            rows=db.execute("SELECT metadata FROM evolve_training_dataset_review "
-                            "ORDER BY reviewed_at DESC LIMIT 12").fetchall()
+            rows=db.execute(
+                "SELECT r.metadata,v.revoked_at FROM evolve_training_dataset_review r "
+                "LEFT JOIN evolve_training_dataset_revocation v ON v.digest=r.digest "
+                "ORDER BY r.reviewed_at DESC LIMIT 12",
+            ).fetchall()
         return {"methods":TRAINING_METHODS,
                 "reviewed":tuple({
                     "digest":json.loads(row[0])["digest"],
                     "license":json.loads(row[0])["license_id"],
                     "source_class":json.loads(row[0])["source_class"],
+                    "status":"revoked" if row[1] is not None else "reviewed_not_authorized",
                 } for row in rows),
                 "raw_chat_screen_discord_training":False,
                 "actual_training_authorized":False,
