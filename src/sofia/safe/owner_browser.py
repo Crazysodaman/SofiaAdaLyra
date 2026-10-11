@@ -109,7 +109,7 @@ def authorize_exact_action(
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Content-Security-Policy",
-                             "default-src 'none'; script-src 'unsafe-inline'")
+                             "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
