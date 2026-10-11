@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "cb1bdcb2e0b0e3e21402725a969938a09e68f17b",
+  "reviewed_main_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
   "audit_date_utc": "2026-10-11",
-  "notice": "WS1 user status 2026-10-11: VM Sofia has been created on Artemis (owner report), Debian OS not yet installed; Venus remains sole live canonical state writer. Real read-only local/Fleet Hyper-V inventory, SAFE classification, preinstall review and regression tests source committed to main [skip ci]. No live observation, host action, tests, grants or migration; affected CA tasks remain partial and other workstreams' evidence preserved.",
+  "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
     {
       "id": "CA-001",
@@ -261,7 +261,8 @@
         "src/sofia/distributed/authorization.py",
         "src/sofia/safe/permissions.py",
         "src/sofia/cognition/matrix/tool_exposure.py",
-        "test/test_ops_sofia_guest_readiness.py"
+        "test/test_ops_sofia_guest_readiness.py",
+        "src/sofia/distributed/capability.py"
       ],
       "evidence_commits": [
         "008a5aef50e00296dc8fafb5a4fc79569f2f094a",
@@ -292,13 +293,21 @@
         "27b98b5d83b5978368aea43e6869cc652bdd476d",
         "17b1e7bb44ec6ac7f29cf66c447fadf9afbee772",
         "1ce8dfff4f43855b312246f8ae4a2e96bbb4d583",
-        "774fa1ed3fad6700d5d3624854c6181d8fe10811"
+        "774fa1ed3fad6700d5d3624854c6181d8fe10811",
+        "5a72ae044892fff38d570bb4b51c29cbb399bf19",
+        "426f5e5a9eaf00d994e8dba05e0bc35f7ad59a85",
+        "b0c65b06959eaf521cb54a10f05c2c19222ab325",
+        "b4f5cb771121482aa0517dc6eda41b84a48395d7",
+        "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
+        "ee395411f1eddd615b72ad39086ca74462a3073e",
+        "099b25710f6ff564393a23c5df091258daee5fe7",
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "cb1bdcb2e0b0e3e21402725a969938a09e68f17b",
-        "depth": "real_vm_preinstall_inventory_and_no_os_no_writer_trust_boundary",
-        "interpretation": "Owner reports Hyper-V VM Sofia created on Artemis, but no operating system installed. This is user-reported, not a Fleet-observed host/guest fact. New read-only HyperVAdapter Sofia inventory + canonical guest review module is wired into local Level-1 hyperv.sofia.inspect and typed remote Fleet vm.inspect/sofia_preflight; reports actual VM/disk/memory/switch host fields without pretending Debian installed, guest authenticated, writer inactive or move approved. Hypervisor changes/guest provisioning intentionally require independent authority. Regression source authored, not run, other workstream status preserved. Venus remains the sole current canonical writer."
+        "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+        "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
+        "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
       }
     },
     {
@@ -948,7 +957,9 @@
       "code_paths": [
         "src/sofia/run/systemd_runtime.py",
         "test/test_run_systemd_runtime.py",
-        "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/distributed/capability.py",
+        "test/test_ops_sofia_guest_readiness.py"
       ],
       "evidence_commits": [
         "f7513b237801fdb748bfe998588d25567e754837",
@@ -958,13 +969,21 @@
         "483457c0fb12b51241056ad5ad58d4a61a9f3b58",
         "41cc92a3fe39f89f8f63d6074a048c74e029c290",
         "1ff96baf4fc30e2f76ba4b87c8fa46fefaecbe3f",
-        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717"
+        "5c3374a2ba6ac53b1ba1f957a00e62c6b958e717",
+        "5a72ae044892fff38d570bb4b51c29cbb399bf19",
+        "426f5e5a9eaf00d994e8dba05e0bc35f7ad59a85",
+        "b0c65b06959eaf521cb54a10f05c2c19222ab325",
+        "b4f5cb771121482aa0517dc6eda41b84a48395d7",
+        "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
+        "ee395411f1eddd615b72ad39086ca74462a3073e",
+        "099b25710f6ff564393a23c5df091258daee5fe7",
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "25556108fa82ddd753b5b7adbcab07864af215f9",
-        "depth": "owner_confirmed_debian_13_runtime_platform_and_preflight",
-        "interpretation": "Owner explicitly selected Debian for the future dedicated headless Hyper-V VM Sofia on Artemis; Debian 13 Stable Trixie is current release. Canonical systemd runtime checks Debian os-release ID, major version and codename at ExecStartPre and again inside real application startup before touching state, using the existing signed-home pointer and non-root service. Regression tests authored not executed. Venus remains sole current writer, no VM provisioned/migrated and independent fencing/failover/live acceptance not implemented. The distro decision is resolved but full design/deployment CA remains partial."
+        "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+        "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
+        "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
       }
     },
     {
@@ -1846,7 +1865,10 @@
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py",
-        "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/distributed/capability.py",
+        "src/sofia/run/systemd_runtime.py",
+        "test/test_run_systemd_runtime.py"
       ],
       "evidence_commits": [
         "9c734d18e3c607fa7aaa8b8df03757090ccaab1b",
@@ -1859,13 +1881,21 @@
         "27b98b5d83b5978368aea43e6869cc652bdd476d",
         "17b1e7bb44ec6ac7f29cf66c447fadf9afbee772",
         "1ce8dfff4f43855b312246f8ae4a2e96bbb4d583",
-        "774fa1ed3fad6700d5d3624854c6181d8fe10811"
+        "774fa1ed3fad6700d5d3624854c6181d8fe10811",
+        "5a72ae044892fff38d570bb4b51c29cbb399bf19",
+        "426f5e5a9eaf00d994e8dba05e0bc35f7ad59a85",
+        "b0c65b06959eaf521cb54a10f05c2c19222ab325",
+        "b4f5cb771121482aa0517dc6eda41b84a48395d7",
+        "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
+        "ee395411f1eddd615b72ad39086ca74462a3073e",
+        "099b25710f6ff564393a23c5df091258daee5fe7",
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "cb1bdcb2e0b0e3e21402725a969938a09e68f17b",
-        "depth": "real_vm_preinstall_inventory_and_no_os_no_writer_trust_boundary",
-        "interpretation": "Owner reports Hyper-V VM Sofia created on Artemis, but no operating system installed. This is user-reported, not a Fleet-observed host/guest fact. New read-only HyperVAdapter Sofia inventory + canonical guest review module is wired into local Level-1 hyperv.sofia.inspect and typed remote Fleet vm.inspect/sofia_preflight; reports actual VM/disk/memory/switch host fields without pretending Debian installed, guest authenticated, writer inactive or move approved. Hypervisor changes/guest provisioning intentionally require independent authority. Regression source authored, not run, other workstream status preserved. Venus remains the sole current canonical writer."
+        "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+        "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
+        "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
       }
     },
     {
@@ -2121,7 +2151,10 @@
         "src/sofia/cognition/matrix/tool_exposure.py",
         "test/test_ops_sofia_guest_readiness.py",
         "test/test_ops_workshop_vm_separation.py",
-        "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md",
+        "src/sofia/distributed/capability.py",
+        "src/sofia/run/systemd_runtime.py",
+        "test/test_run_systemd_runtime.py"
       ],
       "evidence_commits": [
         "71dcd2c550c5a28574ef1caa97d5328d0f4b0428",
@@ -2146,13 +2179,21 @@
         "27b98b5d83b5978368aea43e6869cc652bdd476d",
         "17b1e7bb44ec6ac7f29cf66c447fadf9afbee772",
         "1ce8dfff4f43855b312246f8ae4a2e96bbb4d583",
-        "774fa1ed3fad6700d5d3624854c6181d8fe10811"
+        "774fa1ed3fad6700d5d3624854c6181d8fe10811",
+        "5a72ae044892fff38d570bb4b51c29cbb399bf19",
+        "426f5e5a9eaf00d994e8dba05e0bc35f7ad59a85",
+        "b0c65b06959eaf521cb54a10f05c2c19222ab325",
+        "b4f5cb771121482aa0517dc6eda41b84a48395d7",
+        "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
+        "ee395411f1eddd615b72ad39086ca74462a3073e",
+        "099b25710f6ff564393a23c5df091258daee5fe7",
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "cb1bdcb2e0b0e3e21402725a969938a09e68f17b",
-        "depth": "real_vm_preinstall_inventory_and_no_os_no_writer_trust_boundary",
-        "interpretation": "Owner reports Hyper-V VM Sofia created on Artemis, but no operating system installed. This is user-reported, not a Fleet-observed host/guest fact. New read-only HyperVAdapter Sofia inventory + canonical guest review module is wired into local Level-1 hyperv.sofia.inspect and typed remote Fleet vm.inspect/sofia_preflight; reports actual VM/disk/memory/switch host fields without pretending Debian installed, guest authenticated, writer inactive or move approved. Hypervisor changes/guest provisioning intentionally require independent authority. Regression source authored, not run, other workstream status preserved. Venus remains the sole current canonical writer."
+        "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+        "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
+        "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
       }
     },
     {
@@ -2596,7 +2637,12 @@
         "src/sofia/application/act_service.py",
         "test/test_act_runtime_wiring.py",
         "src/sofia/safe/audit.py",
-        "test/test_safe_operator_stop_state_loss.py"
+        "test/test_safe_operator_stop_state_loss.py",
+        "src/sofia/distributed/capability.py",
+        "src/sofia/run/systemd_runtime.py",
+        "test/test_run_systemd_runtime.py",
+        "test/test_ops_sofia_guest_readiness.py",
+        "docs/development/venus-artemis-runtime-topology-2026-10-11.md"
       ],
       "evidence_commits": [
         "1fa3188a745efb4e122ab8edfe95fd411a8ab586",
@@ -2616,13 +2662,21 @@
         "11f3e5bea3cc85fa08778668bef0eac4165f9b94",
         "5c3420e27bcd73f8693b1889478daa4da579a1bd",
         "896ed561c956fbea101ce25051d2e5966e60b33e",
-        "d6d6f13f9999fdec7bce742302559598f84be72f"
+        "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "5a72ae044892fff38d570bb4b51c29cbb399bf19",
+        "426f5e5a9eaf00d994e8dba05e0bc35f7ad59a85",
+        "b0c65b06959eaf521cb54a10f05c2c19222ab325",
+        "b4f5cb771121482aa0517dc6eda41b84a48395d7",
+        "2cfd27f5f0d1c6b3030fc02b67b6c4a9593aff17",
+        "ee395411f1eddd615b72ad39086ca74462a3073e",
+        "099b25710f6ff564393a23c5df091258daee5fe7",
+        "b8ebd7ec34b68e9ca12fc64e58b7f566526afae3"
       ],
       "accepted": false,
       "audit_observation": {
-        "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
-        "depth": "production_atomic_operator_stop_and_audit_boundary",
-        "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
+        "at_sha": "b76a1c73efeb0c37f097164d13ffcfdb506a2836",
+        "depth": "canonical_guest_readonly_fleet_and_debian_application_ready_receipt",
+        "interpretation": "User reports dedicated Hyper-V VM Sofia created on Artemis without any OS. Existing mTLS Fleet bridge exposes remote.vm.sofia.inspect for true host observation only, never guest OS or writer authority, with tests written not executed. Future Debian 13 canonical systemd runtime now uses Type=notify and sends READY only after real SofiaApplication.start completes, STOPPING on shutdown, fails closed without notify transport. Full external writer-fencing and OS installation/host acceptance still pending; Venus remains sole live database writer. No live operations or tests."
       }
     },
     {
