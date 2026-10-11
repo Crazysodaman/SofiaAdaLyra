@@ -73,3 +73,30 @@ def test_symlinked_parent_is_not_a_canonical_state_home(tmp_path):
     with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
         bootstrap_canonical_sqlite(redirected / "sofia.db")
     assert not (actual / "sofia.db").exists()
+
+def test_guard_refuses_replacement_during_sqlite_open_and_closes_new_handle(
+    tmp_path, monkeypatch,
+):
+    """No swapped-in file may be adopted between stat and sqlite3.connect."""
+    from sofia.state import canonical_sqlite
+
+    path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    guard = CanonicalSQLiteGuard(path)
+    replacement = tmp_path / "replacement.db"
+    with closing(sqlite3.connect(replacement)) as db:
+        db.execute("PRAGMA user_version=17")
+    original_connect = sqlite3.connect
+    opened = []
+
+    def swap_while_opening(*args, **kwargs):
+        replacement.replace(path)
+        db = original_connect(*args, **kwargs)
+        opened.append(db)
+        return db
+
+    monkeypatch.setattr(canonical_sqlite.sqlite3, "connect", swap_while_opening)
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        guard.connect()
+    assert len(opened) == 1
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        opened[0].execute("PRAGMA user_version")
