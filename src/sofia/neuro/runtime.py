@@ -96,6 +96,17 @@ class NeuroRuntime:
             self._competition_enabled = enabled
             self._last_competition_error = None
 
+    def reset_competition(self) -> None:
+        """Return engineered recurrence to reviewed defaults, retaining input facts.
+
+        Does not erase trusted salience observations, operational context,
+        memory, or authority. An owner-controlled reset generation in canonical
+        settings is applied by the application to the one live NEURO instance.
+        """
+        with self._lock:
+            self._competition = CircuitCompetition()
+            self._last_competition_error = None
+
     @property
     def last_observability_error(self) -> str | None:
         with self._lock:
@@ -522,9 +533,14 @@ class NeuroRuntime:
                 else:
                     rule = "bounded circuit selection"
                 selection_reason = (
-                    f"{rule}: selected={selected.key}, "
-                    f"baseline={primary.key} ({primary.score:.3f}), "
-                    f"circuit={winner.key} ({values[winner.key]:.3f})"
+                    f"{rule}: features={SalienceNetwork.FEATURE_VERSION}; "
+                    f"circuit={self._competition.ALGORITHM_VERSION}; "
+                    f"parameters=(excitation:{self._competition.recurrent_excitation:.2f},"
+                    f"inhibition:{self._competition.lateral_inhibition:.2f},"
+                    f"decay:{self._competition.decay:.2f}); "
+                    f"selected={selected.key}; "
+                    f"baseline={primary.key} ({primary.score:.3f}); "
+                    f"winner={winner.key} ({values[winner.key]:.3f})"
                 )
                 self._last_competition_error = None
             except Exception as exc:
