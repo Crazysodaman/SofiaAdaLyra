@@ -61,7 +61,9 @@ class FlakyPlane(StatePlane):
 def make_plane(tmp_path, *, replica=None, writer="writer-a", now=None):
     primary = SQLiteStatePlane(tmp_path / "primary.db")
     secondary = replica or SQLiteStatePlane(tmp_path / "secondary.db")
-    witness = SQLiteReplicationWitness(tmp_path / "witness.db")
+    witness = SQLiteReplicationWitness(
+        tmp_path / "witness.db", allow_first_bootstrap=True,
+    )
     plane = ReplicatedStatePlane(
         {"primary": primary, "secondary": secondary},
         witness=witness,
