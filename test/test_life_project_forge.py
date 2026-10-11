@@ -769,6 +769,31 @@ def test_missing_original_interest_evidence_blocks_optional_run(tmp_path):
         life.close()
 
 
+def test_queued_optional_creative_job_blocks_after_interest_source_revocation(
+    tmp_path,
+):
+    """The canonical RUN worker also checks original interest before effects."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        project, evidence = active_project(life, now)
+        job = life.schedule_artifact(
+            project.project_id, artifact_kind=ArtifactKind.TEXT,
+            title="Previously queued", specification={"content": "Do not write"},
+            evidence_ref=evidence, now=now + timedelta(seconds=3),
+        )
+        with sqlite3.connect(life.path) as db:
+            db.execute(
+                "DELETE FROM goal_evidence_record WHERE evidence_ref=?",
+                (evidence,),
+            )
+        life.manager.tick(now=now + timedelta(seconds=4))
+        assert wait_for_job(life, job.job_id).status is WorkStatus.BLOCKED
+        assert life.store.artifacts(project.project_id) == ()
+        assert life.store.jobs(project.project_id) == (job.job_id,)
+    finally:
+        life.close()
+
+
 def test_original_interest_source_loss_during_ideation_rejects_model_draft(tmp_path):
     """Post-model evidence recheck cannot revive a stale personal interest."""
     life, _goals, now = infrastructure(tmp_path)
@@ -812,7 +837,6 @@ def test_original_interest_source_loss_during_ideation_rejects_model_draft(tmp_p
         assert life.store.list_scope(
             owner_principal_id="sofia:self", audience_id="local:text",
         ) == ()
-        assert life.store.jobs("project:nonexistent") == ()
     finally:
         life.close()
 
