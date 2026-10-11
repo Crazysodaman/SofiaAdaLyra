@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
@@ -726,6 +727,25 @@ class LifeStore:
             datetime.fromisoformat(row["recorded_at"]), json.loads(row["metadata_json"]),
         ) for row in rows)
 
+    @staticmethod
+    def experience_digest(experience: ExperienceRecord) -> str:
+        """Hash original scoped LIFE source fields, not a model summary."""
+        document = {
+            "experience_id": experience.experience_id,
+            "project_id": experience.project_id,
+            "kind": experience.kind,
+            "summary": experience.summary,
+            "evidence_refs": experience.evidence_refs,
+            "audience_id": experience.audience_id,
+            "private": experience.private,
+            "occurred_at": experience.occurred_at.astimezone(timezone.utc).isoformat(),
+            "recorded_at": experience.recorded_at.astimezone(timezone.utc).isoformat(),
+            "metadata": dict(experience.metadata),
+        }
+        return sha256(json.dumps(
+            document, sort_keys=True, separators=(",", ":"),
+        ).encode()).hexdigest()
+
     def record_interest_learning(
         self, *, experience_id: str, experience_digest: str,
         outcome: str, reason: str, processed_at: datetime,
@@ -748,11 +768,28 @@ class LifeStore:
                     raise RuntimeError("processed experience changed after learning")
                 return False
             source = db.execute(
-                "SELECT 1 FROM life_experience WHERE experience_id=?",
+                "SELECT * FROM life_experience WHERE experience_id=?",
                 (experience_id,),
             ).fetchone()
             if source is None:
                 raise RuntimeError("learning source experience disappeared")
+            # The coordinator inspected a snapshot of this experience before
+            # the transaction. Under BEGIN IMMEDIATE, rehash the exact current
+            # original row before an interest revision or learning receipt.
+            # Mere row existence would allow an altered observation to be
+            # consumed as the earlier, verified source.
+            current = ExperienceRecord(
+                source["experience_id"], source["project_id"], source["kind"],
+                source["summary"], tuple(json.loads(source["evidence_refs_json"])),
+                source["audience_id"], bool(source["private"]),
+                datetime.fromisoformat(source["occurred_at"]),
+                datetime.fromisoformat(source["recorded_at"]),
+                json.loads(source["metadata_json"]),
+            )
+            if self.experience_digest(current) != experience_digest:
+                raise RuntimeError("original source experience changed before learning")
+            if interest is not None and interest.audience_id != current.audience_id:
+                raise PermissionError("interest audience differs from original experience")
             if interest is not None:
                 row = db.execute(
                     """SELECT revision FROM life_interest_revision
