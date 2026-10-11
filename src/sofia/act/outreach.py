@@ -27,6 +27,7 @@ class Decision(str, Enum):
     DISABLED = "disabled"
     STOPPED = "stopped"
     MUTED = "muted"
+    USER_DECLINED = "user_declined"
     BUSY = "busy"
     WRONG_RECIPIENT = "wrong_recipient"
     NO_EVIDENCE = "no_evidence"
