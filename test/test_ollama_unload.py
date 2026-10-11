@@ -37,3 +37,19 @@ def test_load_uses_configured_keep_alive_without_generating_text():
         "stream":False,
     }
     assert kwargs["timeout"]==600.0
+
+
+def test_metadata_inventory_calls_are_bounded_read_only_http():
+    adapter=object.__new__(OllamaAdapter)
+    adapter.http=Http()
+    adapter.models()
+    adapter.version()
+    adapter.show("approved:1b")
+    assert adapter.http.calls == [
+        (("GET","/api/tags"), {"max_bytes":1_048_576}),
+        (("GET","/api/version"), {"max_bytes":65_536}),
+        (("POST","/api/show"), {
+            "payload":{"name":"approved:1b"},
+            "max_bytes":2_097_152,
+        }),
+    ]
