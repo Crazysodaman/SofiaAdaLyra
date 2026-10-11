@@ -56,18 +56,26 @@ def vm_json(**changes):
         "Processors":2,
         "StartupMemoryBytes":4096*1024**2,
         "Disks":[{"Path":DISK,"Size":60*1024**3}],
-        "NetworkAdapters":[{"Name":"Sofia-Hephaestus-Private","SwitchType":"Private"}],
+        "NetworkAdapters":[{"Name":"Sofia-Hephaestus-Internal","SwitchType":"Internal"}],
         "DvdPaths":[],
         "SecureBoot":"Off",
         "SecureBootTemplate":"",
         "BootOrder":["HardDiskDrive","NetworkAdapter"],
+        "NetworkIsolation":{
+            "HostAdapter":"vEthernet (Sofia-Hephaestus-Internal)",
+            "HostIPv4Addresses":[{"IPAddress":"172.30.250.1","PrefixLength":30}],
+            "IPv4Forwarding":"Disabled","IPv6Forwarding":"Disabled",
+            "DefaultRoutes":[],"DnsServers":[],"NatPrefixes":[],
+            "IcsSharingEnabled":False,"OtherVmNames":[],
+            "ObservedAtUtc":AT.isoformat(),
+        },
         "ObservedAtUtc":AT.isoformat(),
     }
     values.update(changes)
     return values
 
 
-def test_blank_vm_handoff_checks_actual_guid_offline_disk_private_network_and_resources():
+def test_blank_vm_handoff_checks_actual_guid_offline_disk_internal_isolation_and_resources():
     plan=owner_handoff()
     observed=observed_owner_vm(vm_json())
     outcome=inspect_blank_vm_handoff(plan,observed,now=AT)
@@ -88,8 +96,8 @@ def test_blank_vm_handoff_checks_actual_guid_offline_disk_private_network_and_re
     ({"StartupMemoryBytes":1024*1024**2},"RAM"),
     ({"Disks":[]},"OS disk"),
     ({"Disks":[{"Path":r"D:\Artemis\canonical.vhdx","Size":60*1024**3}]},"OS disk"),
-    ({"NetworkAdapters":[{"Name":"Default Switch","SwitchType":"Internal"}]},"private"),
-    ({"NetworkAdapters":[{"Name":"Hephaestus LAN","SwitchType":"External"}]},"private"),
+    ({"NetworkAdapters":[{"Name":"Default Switch","SwitchType":"Internal"}]},"Internal"),
+    ({"NetworkAdapters":[{"Name":"Hephaestus LAN","SwitchType":"External"}]},"Internal"),
     ({"DvdPaths":[MEDIA]},"DVD"),
     ({"SecureBoot":"On","SecureBootTemplate":"MicrosoftWindows"},"secure boot"),
 ])
