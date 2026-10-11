@@ -14,6 +14,7 @@ from pathlib import Path
 import sqlite3
 
 from sofia.conversation.model import ConversationMessage, ConversationRole
+from sofia.social.model import PrincipalContext
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
@@ -153,14 +154,17 @@ class ConversationFullTextSearch:
     def keyword_search(
         self, *, session_id: str, terms: tuple[str, ...],
         limit: int = 16, user_only: bool = False,
+        principal: PrincipalContext,
     ) -> tuple[ConversationMessage, ...]:
-        """FTS token search over an authorized session. No cross-session joins.
+        """FTS original messages under current authenticated session binding.
 
-        The caller must enforce the session's current authenticated principal
-        and audience binding before using or displaying returned text.
+        No caller may bypass the canonical principal, audience, or audience
+        kind simply by knowing a historical session ID.
         """
         if not isinstance(session_id, str) or not session_id.strip():
             raise ValueError("exact authorized session ID required")
+        if not isinstance(principal, PrincipalContext):
+            raise TypeError("authenticated PrincipalContext is required")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("bounded search limit required")
         if not isinstance(terms, tuple) or not 1 <= len(terms) <= 8 or any(
@@ -173,16 +177,35 @@ class ConversationFullTextSearch:
         expression = " OR ".join('"' + word.lower() + '"' for word in terms)
         extra = "AND m.role='user' " if user_only else ""
         with closing(self._connect()) as db:
+            # Explicitly deny session IDs that were never bound, were moved
+            # to a different audience, or had the wrong audience kind.
+            authorized = db.execute(
+                "SELECT 1 FROM social_session_principal "
+                "WHERE session_id=? AND principal_id=? AND audience_id=? "
+                "AND audience_kind=?",
+                (
+                    session_id, principal.principal_id,
+                    principal.audience_id, principal.audience_kind.value,
+                ),
+            ).fetchone()
+            if authorized is None:
+                raise PermissionError("full-text search session audience mismatch")
             rows = db.execute(
                 "SELECT m.id,m.session_id,m.role,m.content,m.created_at "
                 "FROM conversation_messages_fts "
                 "JOIN conversation_messages AS m "
                 "ON m.rowid=conversation_messages_fts.rowid "
+                "JOIN social_session_principal AS s ON s.session_id=m.session_id "
                 "WHERE conversation_messages_fts MATCH ? "
-                "AND m.session_id=? " + extra +
+                "AND m.session_id=? "
+                "AND s.principal_id=? AND s.audience_id=? "
+                "AND s.audience_kind=? " + extra +
                 "ORDER BY bm25(conversation_messages_fts),"
                 "m.created_at DESC,m.id DESC LIMIT ?",
-                (expression, session_id, limit),
+                (
+                    expression, session_id, principal.principal_id,
+                    principal.audience_id, principal.audience_kind.value, limit,
+                ),
             ).fetchall()
         return tuple(
             ConversationMessage(
