@@ -145,6 +145,15 @@ class OpsToolService:
     def fleet(self)->tuple[dict[str,Any],...]:
         return tuple(self._host(host) for host in self.registry.hosts())
 
+    def workshop_preview(self) -> dict[str,Any]:
+        """Read only the last owner-reviewed Artemis plan evidence.
+
+        Never contacts the hypervisor, performs OS bootstrap, or creates
+        permission from the model's request.
+        """
+        from sofia.ops.workshop_provision import WorkshopPreviewStore
+        return WorkshopPreviewStore(self.state_path).read_model_brief()
+
     @staticmethod
     def _tag_value(tags:tuple[str,...],prefix:str)->str|None:
         for tag in tags:
@@ -681,7 +690,7 @@ class OpsToolService:
         }
 
 class OpsCapabilitySet:
-    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.migration.execute","ops.migration.receipt","ops.maintenance.receipt")
+    NAMES=("ops.fleet.list","ops.fleet.get","ops.fleet.enrollment_evidence","fleet.enroll","ops.fleet.discover","network.discover","ops.telemetry.latest","ops.placement.choose","ops.drift.detect","ops.drift.propose","ops.reconcile.preview","ops.reconcile.active","ops.migration.plan","ops.migration.execute","ops.migration.receipt","ops.maintenance.receipt","ops.workshop.preview")
     def __init__(self,service:OpsToolService)->None: self.service=service
     def capabilities(self)->tuple[Capability,...]:
         descriptions={
@@ -701,6 +710,7 @@ class OpsCapabilitySet:
             "ops.migration.execute":"Execute one exact approved workload migration through typed workload bindings.",
             "ops.migration.receipt":"Read durable workload migration stage/receipts. Read-only.",
             "ops.maintenance.receipt":"Read one durable verified maintenance receipt. Read-only.",
+            "ops.workshop.preview":"Read last owner-observed Hyper-V Hephaestus plan blockers. Never provisions.",
         }
         return tuple(Capability(name,descriptions[name]) for name in self.NAMES)
     def execute(self,request:CapabilityRequest)->Any:
@@ -721,6 +731,7 @@ class OpsCapabilitySet:
         if name=="ops.migration.execute": return self.service.execute_migration(p)
         if name=="ops.migration.receipt": return self.service.migration_receipt(p["migration_id"])
         if name=="ops.maintenance.receipt": return self.service.maintenance_receipt(p["request_id"])
+        if name=="ops.workshop.preview": return self.service.workshop_preview()
         raise ValueError("unsupported OPS capability")
 
 def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
@@ -778,4 +789,7 @@ def create_ops_tool_bindings()->tuple[CognitiveToolBinding,...]:
           {"migration_id":{"type":"string"}},("migration_id",)),
         b("inspect_maintenance_receipt","ops.maintenance.receipt","Read one durable verified maintenance receipt.",
           {"request_id":{"type":"string"}},("request_id",)),
+        b("inspect_hephaestus_workshop_plan","ops.workshop.preview",
+          "Read owner-reviewed Hyper-V workshop preflight and why setup remains blocked; "
+          "never invokes Hyper-V or creates guest resources."),
     )
