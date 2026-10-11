@@ -33,7 +33,7 @@ class GoalEvidenceLedger:
 
     def __init__(self, state_path: str | Path) -> None:
         self.path = Path(state_path)
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS goal_evidence_record (
                     evidence_ref TEXT PRIMARY KEY,
@@ -58,6 +58,15 @@ class GoalEvidenceLedger:
                 db.execute("ALTER TABLE goal_evidence_record ADD COLUMN principal_id TEXT")
             if "audience" not in columns:
                 db.execute("ALTER TABLE goal_evidence_record ADD COLUMN audience TEXT")
+
+    def _connect(self) -> sqlite3.Connection:
+        """Use only the existing canonical evidence ledger; never seed one."""
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical goal evidence state missing or redirected")
+        return sqlite3.connect(
+            self.path.absolute().as_uri() + "?mode=rw",
+            uri=True, timeout=10,
+        )
 
     def record(
         self,
@@ -90,7 +99,7 @@ class GoalEvidenceLedger:
             None if coverage_ended_at is None else coverage_ended_at.isoformat(),
             int(coverage_complete), source, document, principal_id, audience,
         )
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(self._connect()) as db, db:
             cursor = db.execute("""
                 INSERT OR IGNORE INTO goal_evidence_record(
                     evidence_ref,kind,observed_at,successful,goal_id,action_id,
@@ -122,8 +131,8 @@ class GoalEvidenceIndex:
 
     def __init__(self, state_path: str | Path) -> None:
         self.path = Path(state_path)
-        if not self.path.is_file():
-            raise FileNotFoundError("canonical state database is required")
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical state database is required and not redirected")
 
     @staticmethod
     def _has(db: sqlite3.Connection, table: str) -> bool:
@@ -134,7 +143,9 @@ class GoalEvidenceIndex:
     def lookup(self, evidence_ref: str) -> GoalEvidence | None:
         if not isinstance(evidence_ref, str) or not evidence_ref.strip():
             return None
-        uri = self.path.resolve().as_uri() + "?mode=ro"
+        if not self.path.is_file() or self.path.is_symlink():
+            raise FileNotFoundError("canonical goal evidence state missing or redirected")
+        uri = self.path.absolute().as_uri() + "?mode=ro"
         with closing(sqlite3.connect(uri, uri=True, timeout=5)) as db:
             if self._has(db, "goal_evidence_record"):
                 row = db.execute("""
