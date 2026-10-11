@@ -153,9 +153,10 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
             if cause is None:
                 raise error
             raise error from cause
+        response = self.local.respond(request)
         self.last_host_id = self.local_host_id
         self.last_remote = False
-        return self.local.respond(request)
+        return response
 
     def respond(
         self,
@@ -163,12 +164,18 @@ class FleetPlacedCognitiveEngine(CognitiveEngine):
     ) -> CognitiveResponse:
         if not isinstance(request, CognitiveRequest):
             raise TypeError("request must be CognitiveRequest")
+        # Result attribution belongs to THIS attempt, not the last good
+        # GPU worker. If Venus is unreachable, Artemis must not report an
+        # earlier remote success as this request's cognitive execution.
+        self.last_host_id = None
+        self.last_remote = False
         if not self.policy.enabled:
             # Local cognition is normal execution when remote placement is
             # disabled; it is not a remote-failure fallback.
+            response = self.local.respond(request)
             self.last_host_id = self.local_host_id
             self.last_remote = False
-            return self.local.respond(request)
+            return response
 
         hosts = self._eligible_hosts()
         activities = {
