@@ -709,19 +709,49 @@ class SelfDirectedLifeCoordinator:
                 owner_principal_id=SOFIA_PROJECT_OWNER, audience_id=LOCAL_AUDIENCE,
                 statuses=(ProjectStatus.ACTIVE,),
             )
+            # LIFE projects are not a grant. The canonical scoped GOALS
+            # lifecycle may change independently between background ticks.
+            # A disconnected/unknown GOALS record is an abstention, not
+            # evidence of consent or a reason to create a substitute goal.
+            visible_goals = {
+                goal.id: goal
+                for goal in self.goals.list_visible(local_sparks_principal())
+                if goal.origin is GoalOrigin.SELF
+                and goal.owner_principal_id == SOFIA_GOAL_OWNER_ID
+                and goal.scope_audience == LOCAL_AUDIENCE
+            }
             for candidate in candidates:
+                goal = visible_goals.get(candidate.goal_id)
+                if (
+                    candidate.scope is not ProjectScope.PERSONAL_PRIVATE
+                    or goal is None
+                    or goal.status is not GoalStatus.ACTIVE
+                ):
+                    continue
                 usage = self.store.usage(candidate.project_id, now.astimezone(timezone.utc).date())
                 if (
                     float(usage["wall_seconds"]) >= candidate.brief.resource_budget.daily_seconds
                     or int(usage["storage_bytes"]) >= candidate.brief.resource_budget.storage_bytes
                 ):
                     continue
-                open_jobs = sum(
-                    self.work_store.get(job_id).status in {
-                        WorkStatus.QUEUED, WorkStatus.RUNNING, WorkStatus.BLOCKED,
-                        WorkStatus.WAITING_APPROVAL, WorkStatus.UNCERTAIN,
-                    }
+                jobs = tuple(
+                    self.work_store.get(job_id)
                     for job_id in self.store.jobs(candidate.project_id)
+                )
+                # A terminal failure or cancellation needs the original RUN
+                # reconciliation before any optional activity is eligible.
+                # Completed work still needs its independent LIFE review.
+                if jobs and jobs[-1].status in {
+                    WorkStatus.FAILED, WorkStatus.CANCELLED,
+                    WorkStatus.BLOCKED, WorkStatus.UNCERTAIN,
+                }:
+                    continue
+                open_jobs = sum(
+                    job.status in {
+                        WorkStatus.QUEUED, WorkStatus.RUNNING,
+                        WorkStatus.WAITING_APPROVAL,
+                    }
+                    for job in jobs
                 )
                 if open_jobs >= candidate.brief.resource_budget.concurrent_jobs:
                     continue
