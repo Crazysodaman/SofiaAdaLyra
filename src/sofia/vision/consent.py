@@ -33,7 +33,7 @@ class ScreenObservationPermit:
         return (
             (principal_id, audience_id, device_id, target_id)
             == (self.principal_id, self.audience_id, self.device_id, self.target_id)
-            and self.issued_at <= at <= self.expires_at
+            and self.issued_at <= at < self.expires_at
         )
 
 
