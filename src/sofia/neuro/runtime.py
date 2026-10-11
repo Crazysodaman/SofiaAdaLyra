@@ -346,6 +346,9 @@ class NeuroRuntime:
             "expectation": ("habit", "relationship"),
             "reflection": ("emotion", "relationship", "goal"),
             "outreach": ("relationship", "emotion", "goal"),
+            # RUN still enforces readiness, due windows, budget and SAFE.
+            "independent_life": ("goal", "memory", "emotion", "relationship"),
+            "autonomous_work": ("goal", "run", "ops", "fleet"),
             "avatar": ("avatar", "environment", "emotion"),
             "wardrobe": ("avatar", "environment", "emotion"),
             "neuro": ("run",),
