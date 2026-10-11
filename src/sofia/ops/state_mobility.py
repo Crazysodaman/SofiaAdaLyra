@@ -314,6 +314,10 @@ def discover_local_state_candidates(
     selected_roots.extend(
         root for root in guessed_roots[1:] if root not in selected_roots
     )
+    # Deduplicate by absolute spelling before applying the bounded quota.
+    # Repeated aliases of the configured/explicit root must not consume
+    # slots that would otherwise inspect a distinct operator selection.
+    selected_roots = list(dict.fromkeys(root.absolute() for root in selected_roots))
     configured_identity = configured_path.absolute().parent / "protected/identity.json"
     canonical_identity_digest: bytes | None = None
     if (
