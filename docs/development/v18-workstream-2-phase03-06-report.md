@@ -746,6 +746,30 @@ source/audience and keyset-paging regression;
 partial until regression and privacy acceptance. CA relevance: CA-4102,
 CA-4104, CA-4107, CA-4109, CA-4113, CA-5301, CA-5304, CA-5307, CA-6304.
 
+### Restore destination cannot be a redirected local path (Phase 03)
+
+Production route: `BackupEngine.restore` authenticates manifest
+and AES-GCM payloads → validates `target_state_path` and every logical
+entry's final destination via `_reject_redirected_restore_path` **before**
+creating the staging directory or any target file → existing staged SQLite
+integrity/schema, Constitution and identity verification →
+rechecks each destination and parent after creating the directory and
+before `os.replace`. The guard refuses symbolic links and Windows
+junctions in any destination ancestor, including `protected/`,
+`release-runtime/`, the canonical DB file and the target root itself.
+A signed archive alone can no longer redirect protected identity bytes
+into an unrelated location through a preexisting directory junction.
+
+Commits: `10fe7d35fe9c65863c7f300b8857a0eeecc5e215` production,
+`81837f7d254d300131f47274341e6040638861d4` regression contracts
+for symlinked protected path, canonical DB and parent, **unexecuted**.
+
+This is filesystem path preflight/recheck, **not** complete physical
+anti-TOCTOU directory-handle enforcement, whole-bundle atomic replacement,
+independent operator cutover authorization, or a claim that live restoration
+is currently safe. CA relevance: CA-3704, CA-5202, CA-5204, CA-5206,
+CA-6105, CA-6404. No backup, host or live canonical DB was touched.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
