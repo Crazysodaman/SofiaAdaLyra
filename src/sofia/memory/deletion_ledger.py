@@ -311,7 +311,14 @@ class MemoryDeletionLedger:
                     ("memory_candidate_correction", "old_candidate_id"),
                     ("memory_candidate_validity_event", "candidate_id"),
                     ("memory_candidate_validity", "candidate_id"),
+                    ("memory_candidate_source_review", "candidate_id"),
                     ("memory_candidate_source", "candidate_id"),
+                    # NEURO association snapshots and exact teaching receipts
+                    # are derived from this candidate and must not survive.
+                    # Existing NEURO triggers may not be installed on an
+                    # older restored backup, so clean these explicitly too.
+                    ("neuro_association_weight", "candidate_id"),
+                    ("neuro_association_event", "candidate_id"),
                 ):
                     if table in tables:
                         db.execute(
