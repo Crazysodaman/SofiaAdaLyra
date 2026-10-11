@@ -33,12 +33,40 @@ class VerificationEvidence:
 
     @property
     def accepted(self) -> bool:
-        source_state_acceptable = (
-            self.tracked_tree_clean or self.phase == "candidate"
-        )
-        return source_state_acceptable and all(
-            item.returncode == 0 for item in self.commands
-        )
+        expected = _PHASES.get(self.phase)
+        if expected is None or len(self.commands) != len(expected):
+            # An empty, shortened, reordered, or duplicated command
+            # manifest must never satisfy release acceptance.
+            return False
+        if type(self.tracked_tree_clean) is not bool:
+            return False
+        if not self.tracked_tree_clean and self.phase != "candidate":
+            return False
+        if (
+            not isinstance(self.git_revision, str)
+            or len(self.git_revision) != 40
+            or any(char not in "0123456789abcdef" for char in self.git_revision)
+        ):
+            return False
+        for observed, (expected_name, expected_args) in zip(
+            self.commands, expected, strict=True
+        ):
+            if observed.name != expected_name or type(observed.returncode) is not int:
+                return False
+            if observed.returncode != 0 or not observed.argv:
+                return False
+            # The first field is the actual venv Python executable. Verify
+            # the real subcommand and restrict installed-wheel-only override
+            # arguments to the existing pytest invocation.
+            if observed.argv[1:1 + len(expected_args)] != expected_args:
+                return False
+            trailing = observed.argv[1 + len(expected_args):]
+            if trailing and not (
+                expected_name == "pytest"
+                and trailing == ("--override-ini", "pythonpath=.")
+            ):
+                return False
+        return True
 
 
 _STATIC_COMMANDS = (
