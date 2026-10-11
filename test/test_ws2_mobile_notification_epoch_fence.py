@@ -3,7 +3,7 @@
 Only canonical synthetic SQLite and in-process fake gateway objects are used.
 """
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -102,3 +102,44 @@ def test_stable_paired_notification_claim_and_ack_still_succeed(tmp_path):
             "SELECT status FROM mobile_notification "
             "WHERE notification_id='fixture:ordinary-notice'"
         ).fetchone() == ("displayed",)
+
+
+def test_new_pairing_cannot_ack_older_generation_claim_until_reclaimed(
+    tmp_path,
+):
+    _app, gateway = _gateway(tmp_path)
+    old_token = gateway.credentials.enroll("android-owner")
+    gateway.notifications.enqueue(
+        notification_id="fixture:old-generation-claim",
+        title="Deferred note", content="Original delivery", created_at=NOW,
+    )
+    first = _claim(gateway, old_token)
+    handle = first["notification"]["id"]
+    fresh_token = gateway.credentials.enroll("android-owner", rotate=True)
+
+    with pytest.raises(PermissionError, match="another pairing generation"):
+        _ack(gateway, fresh_token, handle)
+    with sqlite3.connect(gateway.state_path) as db:
+        assert db.execute(
+            "SELECT status,claimed_generation FROM mobile_notification "
+            "WHERE notification_id='fixture:old-generation-claim'"
+        ).fetchone() == ("claimed", 1)
+
+    # The original lease can legitimately expire. The new bearer then
+    # claims the same queued notice under its OWN enrolled generation.
+    new_generation = gateway.credentials.active_generation("android-owner")
+    fingerprint = gateway.credentials._digest(fresh_token)
+    reclaimed = gateway.notifications.claim_next(
+        device_id="android-owner",
+        now=datetime.now(timezone.utc) + timedelta(minutes=6),
+        generation=new_generation,
+        credential_sha256=fingerprint,
+    )
+    assert reclaimed is not None
+    assert reclaimed.notification_id == "fixture:old-generation-claim"
+    assert _ack(gateway, fresh_token, handle) == {"acknowledged": True}
+    with sqlite3.connect(gateway.state_path) as db:
+        assert db.execute(
+            "SELECT status,claimed_generation FROM mobile_notification "
+            "WHERE notification_id='fixture:old-generation-claim'"
+        ).fetchone() == ("displayed", 2)
