@@ -1270,6 +1270,45 @@ class SettingsSections:
             text="Review public training DATA only (no training)",
             command=self.guarded(review_training_source),
         ).pack(anchor="w",pady=(5,8))
+        revoked_training_digest=tk.StringVar(root,value="")
+        ttk.Label(
+            frames["EVOLVE"],
+            text="Permanently withdraw future weight-training use of a reviewed dataset SHA-256",
+        ).pack(anchor="w",pady=(8,2))
+        ttk.Entry(
+            frames["EVOLVE"],textvariable=revoked_training_digest,
+        ).pack(fill="x")
+
+        def revoke_training_source():
+            if OperatorStopStore(config.state_path).current().active:
+                raise PermissionError("operator STOP blocks governance changes")
+            digest=revoked_training_digest.get().strip().lower()
+            if not self.messagebox.askyesno(
+                "Withdraw dataset for all FUTURE training?",
+                (
+                    "This permanently invalidates the selected public dataset "
+                    "review for FUTURE model-weight training. It will not delete "
+                    "a local file, undo past external training or remove already "
+                    "released weights. Existing model promotion remains governed "
+                    "separately.\n\nDataset SHA-256: "+digest
+                ),parent=root,
+            ):
+                return
+            TrainingDatasetStore(config.state_path).revoke(
+                digest=digest,at=datetime.now(timezone.utc),
+                owner_receipt="owner-ui:"+uuid4().hex,
+            )
+            training_summary["value"]=json.dumps(
+                TrainingDatasetStore(config.state_path).model_brief(),
+                indent=2,default=str,
+            )
+            training_view.refresh()
+        ttk.Button(
+            frames["EVOLVE"],
+            text="Revoke dataset for future model training",
+            command=self.guarded(revoke_training_source),
+        ).pack(anchor="w",pady=(4,8))
+
         ttk.Button(
             frames["EVOLVE"],
             text="Refresh methods and reviewed source receipts",
