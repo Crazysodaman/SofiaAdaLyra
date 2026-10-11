@@ -618,3 +618,51 @@ def test_exact_draft_source_lookup_is_not_global_recent_catalog_page(
         assert life.store.jobs(third.project_id) == ()
     finally:
         life.close()
+
+
+def test_catalog_writer_rejection_does_not_abort_other_completed_learning(
+    tmp_path, monkeypatch,
+):
+    """A concurrent source invalidation cannot abort the entire LIFE cycle."""
+    life, _goals, now = infrastructure(tmp_path)
+    try:
+        first, first_evidence = active_project(
+            life, now, objectives=("text_contains:Foxfire",),
+        )
+        _original_authorized_completion(life, first, first_evidence, now)
+        later = now + timedelta(minutes=1)
+        second, second_evidence = _second_same_capability_project(
+            life, first, later,
+        )
+        _original_authorized_completion(life, second, second_evidence, later)
+        original = life.procedures.record_verified_attempt
+        seen = []
+        def independently_reject_one_original(*, project, **kwargs):
+            seen.append(project.project_id)
+            if project.project_id == first.project_id:
+                raise ValueError(
+                    "independent original source changed after coordinator inspection"
+                )
+            return original(project=project, **kwargs)
+        monkeypatch.setattr(
+            life.procedures, "record_verified_attempt",
+            independently_reject_one_original,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=8), limit=2,
+        ) == 1
+        assert set(seen) == {first.project_id, second.project_id}
+        assert not life.procedures.has_source_project(first.project_id)
+        assert life.procedures.has_source_project(second.project_id)
+        monkeypatch.setattr(
+            life.procedures, "record_verified_attempt", original,
+        )
+        assert life._reconcile_procedure_catalog(
+            now=later + timedelta(seconds=9), limit=2,
+        ) == 1
+        assert life.procedures.has_source_project(first.project_id)
+        assert life.procedures.has_source_project(second.project_id)
+        assert len(life.store.jobs(first.project_id)) == 1
+        assert len(life.store.jobs(second.project_id)) == 1
+    finally:
+        life.close()
