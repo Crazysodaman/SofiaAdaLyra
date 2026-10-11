@@ -107,7 +107,8 @@ def test_first_hello_once_then_second_key_requires_signed_platform_proof(
     from sofia.safe import owner_enroll_browser
 
     monkeypatch.setattr(
-        owner_enroll_browser, "require_venus_interactive_windows", lambda: None,
+        owner_enroll_browser, "require_venus_interactive_windows",
+        lambda: "S-1-5-21-TEST-OWNER",
     )
     db_path = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
     verifier = OwnerWebAuthnVerifier(
@@ -122,6 +123,10 @@ def test_first_hello_once_then_second_key_requires_signed_platform_proof(
         authorizing_event_id=None, registration_challenge_digest=registration_digest,
         at=NOW,
     )
+    with sqlite3.connect(db_path) as db:
+        assert db.execute(
+            "SELECT windows_sid FROM safe_owner_host_identity"
+        ).fetchone() == ("S-1-5-21-TEST-OWNER",)
     with pytest.raises(PermissionError, match="first enrollment"):
         persist_enrollment(
             verifier, credential_id=b64(b"alternate"),
@@ -184,6 +189,36 @@ def test_first_hello_once_then_second_key_requires_signed_platform_proof(
             registration_challenge_digest=second_digest, at=NOW + timedelta(seconds=4),
         )
 
+
+
+
+def test_other_venus_user_sid_cannot_add_an_owner_key(tmp_path, monkeypatch):
+    from sofia.safe import owner_enroll_browser
+    monkeypatch.setattr(
+        owner_enroll_browser, "require_venus_interactive_windows",
+        lambda: "S-1-5-21-ORIGINAL",
+    )
+    state = bootstrap_canonical_sqlite(tmp_path / "sofia.db")
+    verifier = OwnerWebAuthnVerifier(state, rp_id="localhost", origin=ORIGIN)
+    _, prepared = registered_data()
+    cred, der, cnt = parse_registration(**prepared)
+    persist_enrollment(
+        verifier, credential_id=cred, public_key_der=der,
+        count=cnt, kind="platform", first=True,
+        authorizing_event_id=None,
+        registration_challenge_digest=sha256(b"owner").hexdigest(), at=NOW,
+    )
+    monkeypatch.setattr(
+        owner_enroll_browser, "require_venus_interactive_windows",
+        lambda: "S-1-5-21-DIFFERENT",
+    )
+    with pytest.raises(PermissionError, match="another Windows owner"):
+        persist_enrollment(
+            verifier, credential_id=b64(b"foreign"),
+            public_key_der=der, count=0, kind="security_key",
+            first=False, authorizing_event_id="owner-webauthn:" + "0" * 64,
+            registration_challenge_digest=sha256(b"new").hexdigest(), at=NOW,
+        )
 
 def test_production_host_guard_denies_non_windows_and_unattended(monkeypatch):
     from sofia.safe import owner_enroll_browser
