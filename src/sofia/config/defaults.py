@@ -75,9 +75,11 @@ def _fleet_cognition_configuration_from_environ() -> FleetCognitionConfiguration
             "SOFIA_COGNITION_FLEET_ENABLED",
             default=False,
         ),
+        # No silent local failover from an explicitly placed Fleet role.
+        # The operator can opt in with the exact environment setting.
         local_fallback=_environment_flag(
             "SOFIA_COGNITION_FLEET_LOCAL_FALLBACK",
-            default=True,
+            default=False,
         ),
         min_ram_bytes=_nonnegative_environment_int(
             "SOFIA_COGNITION_FLEET_MIN_RAM_BYTES",
