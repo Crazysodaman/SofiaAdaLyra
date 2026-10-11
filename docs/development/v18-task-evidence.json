@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "2c3b27b9e363c5285f24ea60222c7a3f91e42e17",
+  "reviewed_main_sha": "1925361e1362520c11980987167a410a6635deb0",
   "audit_date_utc": "2026-10-11",
-  "notice": "Original V18 700 exact CA IDs. 19 of the original 44 partially wired tasks received production source repairs this coding campaign; 25 have not received new code this campaign. All 44 remain partially wired, zero accepted, 650 individually unaudited. No test/build/CI/host deployment or model swap. Canonical writer host remains undecided.",
+  "notice": "V18 original 700 IDs preserved; refreshed source-status audit at 1925361e1362520c11980987167a410a6635deb0. 6 code_present_unverified; 63 partial_wiring; 631 unassessed; 0 accepted. 19 previously unassessed tasks now source-traced partial. Four Codex job commits reviewed, Job 5 open. This is NOT a coding-left percentage; verification deliberately deferred. Writer host remains undecided.",
   "tasks": [
     {
       "id": "CA-001",
@@ -62,10 +62,19 @@
       "phase": "00",
       "source_topic": "0",
       "master_line": 69,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/decision_trace.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-007",
@@ -102,10 +111,20 @@
       "phase": "00",
       "source_topic": "12",
       "master_line": 76,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/cognition/budgets.py",
+        "src/sofia/cognition/context_evidence.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-1204",
@@ -182,10 +201,20 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 87,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/state/replication.py",
+        "src/sofia/ops/backup.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-3104",
@@ -242,10 +271,20 @@
       "phase": "00",
       "source_topic": "31",
       "master_line": 93,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/application/presence.py",
+        "src/sofia/cognition/context_evidence.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-3110",
@@ -292,10 +331,20 @@
       "phase": "00",
       "source_topic": "33",
       "master_line": 101,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/verify/v18_roadmap.py",
+        "docs/development/v18-task-evidence.json"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-3303",
@@ -1236,13 +1285,19 @@
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
         "e34fbdbf01953aa32a9124785ae995895a8ba30c",
-        "7390eb39516cfe5baade0bc5f001930790e93d3c"
+        "7390eb39516cfe5baade0bc5f001930790e93d3c",
+        "c3e4809642f17f1c496cafb330f00c7ffc09c142"
       ],
       "accepted": false,
       "coding_update": {
         "latest_code_sha": "7390eb39516cfe5baade0bc5f001930790e93d3c",
         "source_coded_unverified": true,
         "acceptance": "deferred"
+      },
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
       }
     },
     {
@@ -1256,9 +1311,15 @@
         "test/test_body_matrix.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "c3e4809642f17f1c496cafb330f00c7ffc09c142"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-3007",
@@ -1893,9 +1954,15 @@
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "40751acf0bf5fa4d3534528de62857a22899f22c"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-5202",
@@ -1985,9 +2052,15 @@
         "ba9c6d99372e79506ade3ebf33da2a0820baed84",
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
-        "e34fbdbf01953aa32a9124785ae995895a8ba30c"
+        "e34fbdbf01953aa32a9124785ae995895a8ba30c",
+        "40751acf0bf5fa4d3534528de62857a22899f22c"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-6102",
@@ -2084,10 +2157,20 @@
       "phase": "03",
       "source_topic": "68",
       "master_line": 355,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/config/state_home_pointer.py",
+        "src/sofia/ops/state_mobility.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-6802",
@@ -2135,13 +2218,19 @@
         "cfb64405e66276ef4753c0af36011f03bcec7bc3",
         "358ae1d3cd9d95180e1b0bec2fe9d2016ea71f9f",
         "e34fbdbf01953aa32a9124785ae995895a8ba30c",
-        "2c3b27b9e363c5285f24ea60222c7a3f91e42e17"
+        "2c3b27b9e363c5285f24ea60222c7a3f91e42e17",
+        "40751acf0bf5fa4d3534528de62857a22899f22c"
       ],
       "accepted": false,
       "coding_update": {
         "latest_code_sha": "2c3b27b9e363c5285f24ea60222c7a3f91e42e17",
         "source_coded_unverified": true,
         "acceptance": "deferred"
+      },
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
       }
     },
     {
@@ -2455,10 +2544,20 @@
       "phase": "04",
       "source_topic": "63",
       "master_line": 396,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/identity/store.py",
+        "src/sofia/config/state_home_pointer.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-6308",
@@ -2545,10 +2644,20 @@
       "phase": "04",
       "source_topic": "64",
       "master_line": 408,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/ops/backup.py",
+        "src/sofia/ops/backup_topology.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-6405",
@@ -2658,14 +2767,22 @@
       "code_paths": [
         "src/sofia/mobile/pairing.py",
         "src/sofia/mobile/server.py",
-        "src/sofia/ui/desktop_worker.py"
+        "src/sofia/ui/desktop_worker.py",
+        "src/sofia/discord/binding.py",
+        "src/sofia/social/principals.py"
       ],
       "evidence_commits": [
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-4104",
@@ -2729,9 +2846,15 @@
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-4107",
@@ -2816,9 +2939,15 @@
         "bb116083a774ab3c4f00492e367c718775cca8c1",
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-4111",
@@ -2891,9 +3020,15 @@
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-5303",
@@ -2959,9 +3094,15 @@
       "evidence_commits": [
         "9c8e8b1946d9ac45396b7880f0e1bbb0b9388865",
         "caf294974e4b03af8f26a78c770c4f42141c2a3b",
-        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5"
+        "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-5307",
@@ -3083,9 +3224,15 @@
         "1805a8a9ed9382c8ff0a7c1f009443a401f9fec5",
         "f06224cb80cd7a978c17c02adc536e7a2d356dd2",
         "e961de6b69c67238408d466d855aed2dbef19b3a",
-        "e3b92c2493f86ebd91fdc39e76a998657e911bb1"
+        "e3b92c2493f86ebd91fdc39e76a998657e911bb1",
+        "1925361e1362520c11980987167a410a6635deb0"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-5506",
@@ -3794,10 +3941,21 @@
       "phase": "06",
       "source_topic": "58",
       "master_line": 570,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/memory/provenance.py",
+        "src/sofia/memory/archive_segments.py",
+        "src/sofia/memory/promoted_retrieval.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-5802",
@@ -4114,10 +4272,20 @@
       "phase": "07",
       "source_topic": "49",
       "master_line": 625,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/memory/archive_segments.py",
+        "src/sofia/state/sqlite_plane.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-4904",
@@ -4819,9 +4987,15 @@
         "src/sofia/life/coordinator.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "7e506aab0133a8d8369ad1f3a17f44a481152a9d"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-102",
@@ -4858,9 +5032,15 @@
         "src/sofia/life/validation.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "7e506aab0133a8d8369ad1f3a17f44a481152a9d"
       ],
-      "accepted": false
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "commit_and_source_inspection",
+        "interpretation": "Production source changed at this commit; full original task scope and acceptance still unresolved."
+      }
     },
     {
       "id": "CA-105",
@@ -5415,10 +5595,20 @@
       "phase": "09",
       "source_topic": "35",
       "master_line": 821,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/validation.py",
+        "src/sofia/life/coordinator.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-3502",
@@ -5545,10 +5735,20 @@
       "phase": "10",
       "source_topic": "10",
       "master_line": 851,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/integrations/home_assistant.py",
+        "src/sofia/environment/home_assistant.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-1005",
@@ -5565,10 +5765,19 @@
       "phase": "10",
       "source_topic": "10",
       "master_line": 853,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/integrations/portainer.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-1007",
@@ -5635,10 +5844,19 @@
       "phase": "10",
       "source_topic": "14",
       "master_line": 863,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/know/procedural_skills.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-1402",
@@ -6347,10 +6565,19 @@
       "phase": "12",
       "source_topic": "62",
       "master_line": 985,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/vision/consent.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-6202",
@@ -7157,10 +7384,20 @@
       "phase": "14",
       "source_topic": "67",
       "master_line": 1109,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/evolve/training_policy.py",
+        "src/sofia/config/model_catalog.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-6702",
@@ -7277,10 +7514,21 @@
       "phase": "15",
       "source_topic": "7",
       "master_line": 1138,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/neuro/connectome/circuits.py",
+        "src/sofia/neuro/connectome/competition.py",
+        "src/sofia/neuro/runtime.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-702",
@@ -7497,20 +7745,39 @@
       "phase": "16",
       "source_topic": "8",
       "master_line": 1180,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/neuro/consciousness_research.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-802",
       "phase": "16",
       "source_topic": "8",
       "master_line": 1181,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/self_model/operational.py",
+        "src/sofia/neuro/consciousness_research.py"
+      ],
+      "evidence_commits": [
+        "1925361e1362520c11980987167a410a6635deb0"
+      ],
+      "accepted": false,
+      "audit_observation": {
+        "at_sha": "1925361e1362520c11980987167a410a6635deb0",
+        "depth": "source_slice_observed",
+        "interpretation": "Partial production source evidence only; no full task or test acceptance."
+      }
     },
     {
       "id": "CA-803",
