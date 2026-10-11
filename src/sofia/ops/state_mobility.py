@@ -274,6 +274,30 @@ class StateCandidate:
     identity_matches_configured_home: bool | None = None
 
 
+_MAX_DISCOVERED_IDENTITY_BYTES = 64 * 1024
+
+
+def _bounded_identity_digest(path: Path) -> bytes | None:
+    """Never read an unbounded identity even if it grows after stat().
+
+    This is an untrusted recovery-candidate comparison only, not an
+    authenticated original-identity or writer-epoch verifier.
+    """
+    if _unsafe_ancestor(path) or not path.is_file():
+        return None
+    try:
+        if path.stat().st_size > _MAX_DISCOVERED_IDENTITY_BYTES:
+            return None
+        with path.open("rb") as handle:
+            original = handle.read(_MAX_DISCOVERED_IDENTITY_BYTES + 1)
+        if len(original) > _MAX_DISCOVERED_IDENTITY_BYTES:
+            return None
+    except OSError:
+        return None
+    from hashlib import sha256
+    return sha256(original).digest()
+
+
 def discover_local_state_candidates(
     *, configured_path: Path, extra_roots: tuple[Path, ...] = (),
     max_roots: int = 12,
@@ -319,21 +343,7 @@ def discover_local_state_candidates(
     # slots that would otherwise inspect a distinct operator selection.
     selected_roots = list(dict.fromkeys(root.absolute() for root in selected_roots))
     configured_identity = configured_path.absolute().parent / "protected/identity.json"
-    canonical_identity_digest: bytes | None = None
-    if (
-        not _unsafe_ancestor(configured_identity)
-        and configured_identity.is_file()
-    ):
-        from hashlib import sha256
-        # A corrupted or malicious identity file cannot force discovery to
-        # ingest unbounded data or prevent inspection of other candidates.
-        try:
-            if configured_identity.stat().st_size <= 64 * 1024:
-                canonical_identity_digest = sha256(
-                    configured_identity.read_bytes()
-                ).digest()
-        except OSError:
-            canonical_identity_digest = None
+    canonical_identity_digest = _bounded_identity_digest(configured_identity)
     seen: set[Path] = set()
     results: list[StateCandidate] = []
     for root in selected_roots[:max_roots]:
@@ -375,22 +385,11 @@ def discover_local_state_candidates(
                 # Corrupt, locked or incompatible copies never become trusted.
                 has_schema = False
         identity = directory / "protected/identity.json"
-        identity_exists = False
+        candidate_digest = _bounded_identity_digest(identity)
+        identity_exists = candidate_digest is not None
         same_identity: bool | None = None
-        if not _unsafe_ancestor(identity):
-            try:
-                if identity.is_file() and identity.stat().st_size <= 64 * 1024:
-                    identity_exists = True
-                    if canonical_identity_digest is not None:
-                        from hashlib import sha256
-                        same_identity = (
-                            sha256(identity.read_bytes()).digest()
-                            == canonical_identity_digest
-                        )
-            except OSError:
-                # A vanishing or unreadable identity never proves lineage.
-                identity_exists = False
-                same_identity = None
+        if candidate_digest is not None and canonical_identity_digest is not None:
+            same_identity = candidate_digest == canonical_identity_digest
         results.append(StateCandidate(
             state_path=database,
             database_size=database_size,
