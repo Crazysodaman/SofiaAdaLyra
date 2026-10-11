@@ -25,7 +25,8 @@
     "2026-10-11: Operator selected first-boot local console admin with password-required sudo, SSH disabled, root locked, non-login worker no sudo. Offline Debian13 UEFI DVD-1 remaster and owner-signed Ed25519 policy plus pinned Artemis verified media gates coded on main. No password/media generated, no VM installed, no tests/CI/host writes. CA-4303 code-ready only; actual OS hardening/untrusted-worker attestation tasks still incomplete.",
     "2026-10-11: CA-6701 and CA-6704 methods and private-data-denying public JSONL review source-coded into actual EVOLVE Settings and read-only OPS; no training/CI/tests, independent license validation and revocation policy unfinished.",
     "2026-10-11: CA-2101 global optional resources are conservative SQLite reservation credits, not observed GPU/token measurements; actual host resource baselines and seven-day soak remain separate verification tasks. No tests/CI or live host changes.",
-    "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run."
+    "2026-10-11: CA-6703 training-source revocation closure coded, owner-only EVOLVE dataset rights and future LoRA admission integrated. No private memory training supported, no independent validation of external licenses claimed, no tests/CI or training run.",
+    "2026-10-11: Phase 12 four visual consent journeys designed/wired through owner Safety UI and metadata-only genuine-frame path. No OS capture adapter installed; UI explicitly says NOT OBSERVED. No tests/CI/host actions."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -228,7 +229,11 @@
     "c89792d5ad201639b9dc18d37f97a9ab85c87e02",
     "04271d95ce3d07cec74fbe39132f45f6bc101ffd",
     "9bd6d00a28f5e7a218382dcfaa4642b97347fa2d",
-    "2678352de6305b47392e44cb0872c1c7d852aa60"
+    "2678352de6305b47392e44cb0872c1c7d852aa60",
+    "a2c4ad37e366a8829b31a7a3bcc4bd8d28017856",
+    "6be0e56d63cc21fe794073abc759da20abb22867",
+    "5c9c35a3b7c32861d19459beb07f91a04c886e45",
+    "e14dc1448a77d4ffa5775b294b80b8f5ead6714d"
   ],
   "tasks": [
     {
@@ -848,12 +853,12 @@
       "phase": "12",
       "master_line": 985,
       "global_ledger_before": "partial_wiring",
-      "source_review": "policy_only",
-      "finding": "Consent permit/receipt isn't OS screen capture, SAFE integration or screenshot-derived observation.",
+      "source_review": "code_path_integrated_unverified",
+      "finding": "Four explicit production owner-only window-screen journeys now have typed policy: one snapshot, pixel-hash diff of two observed frames, 180s single-app watch, and guidance-only snapshot. Each uses existing scoped ScreenObservationPermit with exact principal/audience/device/window/TTL; no key/mouse or ambient/private screen rights. Source-level actual-frame receipt path only accepts nonempty bounded OS-picked target-matched bytes, metadata-only canonical audience-scoped digest store never pixels, and UI prepares requests while displaying OS picker and capture NOT OBSERVED. Windows.Graphics.Capture and Hyprland ScreenCast implementations remain missing and are separate tasks, so no actual capture has occurred; tests authored not executed.",
       "topical_source_inventory": "vision/consent.py; avatar-screen-interaction-contract.md",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true
     },
     {
       "id": "CA-6202",
