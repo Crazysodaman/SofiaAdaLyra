@@ -50,6 +50,27 @@ _CORRECTION_ONLY = re.compile(
     re.IGNORECASE,
 )
 
+# Conservative admission-only guard. A user message remains in the original
+# conversation under its existing audience/retention policy, but high-risk
+# secrets must not be duplicated into a separate proactive memory candidate
+# merely because they match a first-person or "remember that" pattern.
+_SENSITIVE_AUTO_MEMORY = re.compile(
+    r"\b(?:passwords?|passphrases?|api[ _-]?keys?|private[ _-]?keys?|"
+    r"secret[ _-]?keys?|client[ _-]?secrets?|access[ _-]?tokens?|"
+    r"refresh[ _-]?tokens?|recovery[ _-]?(?:codes?|phrases?|keys?)|"
+    r"seed[ _-]?phrases?|one[ _-]?time[ _-]?(?:passwords?|codes?)|"
+    r"two[ _-]?factor[ _-]?(?:codes?|secrets?)|"
+    r"authenticator[ _-]?(?:secrets?|codes?)|"
+    r"social[ _-]?security[ _-]?numbers?|"
+    r"bank[ _-]?account[ _-]?(?:numbers?|details?)|"
+    r"routing[ _-]?numbers?|credit[ _-]?card[ _-]?(?:numbers?|details?)|"
+    r"debit[ _-]?card[ _-]?(?:numbers?|details?)|"
+    r"passport[ _-]?numbers?)\b|"
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+    r"\b(?:Bearer\s+[A-Za-z0-9._~+/-]{12,})",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class LearningResult:
@@ -81,6 +102,8 @@ class ConversationLearningCoordinator:
             return False, "outside bounded learning length"
         if "\x00" in text or chr(96) * 3 in text:
             return False, "code/binary-like content is not auto-proposed"
+        if _SENSITIVE_AUTO_MEMORY.search(text):
+            return False, "private credential or identity data is not auto-proposed"
         if _CORRECTION_ONLY.search(text):
             return False, "correction commands are handled by explicit controls"
         if _EXPLICIT_MEMORY.search(text):
