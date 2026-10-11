@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "42970b6d873c4120b2ce185e5e4fdf9bf0ce82f4",
+  "reviewed_main_sha": "6614c182ad813a463dc2580c1665442308f8ba7c",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2122,7 +2122,9 @@
         "test/test_act_delivery.py",
         "src/sofia/safe/operator_stop.py",
         "src/sofia/safe/audit.py",
-        "test/test_safe_operator_stop_state_loss.py"
+        "test/test_safe_operator_stop_state_loss.py",
+        "src/sofia/safe/operator_stop_cli.py",
+        "test/test_permission_runtime_wiring.py"
       ],
       "evidence_commits": [
         "481438c6c0bd402647712ae2bcdc98182b780341",
@@ -2145,14 +2147,43 @@
         "05df436675c5b4c0651d1b19aa39cbd283a9908f",
         "9a8c8364855f79af47d2711652b0c8801028ea9e",
         "896ed561c956fbea101ce25051d2e5966e60b33e",
-        "d6d6f13f9999fdec7bce742302559598f84be72f"
+        "d6d6f13f9999fdec7bce742302559598f84be72f",
+        "4ae6cb7f9b6deb91094bc77cadf8859e2d9a33d6",
+        "7afb6bca139ee71f34e162bc6b5bb237c6755bf8",
+        "8093df2f28fcd9758fe3d1ff38ccca1f6f47e438",
+        "1a493941061fa87967c4c6909fdf4f1bb0cec290",
+        "a05c78f39f60b5673780e78dd5174d8c8b04fc58",
+        "1cd417e2585c05f7c4da82a94d3b6d77aea2aaa2"
       ],
       "accepted": false,
       "audit_observation": {
         "at_sha": "d6d6f13f9999fdec7bce742302559598f84be72f",
         "depth": "production_atomic_operator_stop_and_audit_boundary",
         "interpretation": "OperatorStopStore.set now writes operator stop/resume state and hash-chained SAFE audit event in the same SQLite transaction; audit failure rolls back the control update, preserving absence of a false receipt. Regression authored but not run. Human OS authentication, multi-host stop propagation and in-flight external cancellation remain open."
-      }
+      },
+      "latest_coding_slices": [
+        {
+          "source_review_sha": "42970b6d873c4120b2ce185e5e4fdf9bf0ce82f4",
+          "commits": [
+            "4ae6cb7f9b6deb91094bc77cadf8859e2d9a33d6",
+            "7afb6bca139ee71f34e162bc6b5bb237c6755bf8",
+            "8093df2f28fcd9758fe3d1ff38ccca1f6f47e438",
+            "1a493941061fa87967c4c6909fdf4f1bb0cec290",
+            "a05c78f39f60b5673780e78dd5174d8c8b04fc58",
+            "1cd417e2585c05f7c4da82a94d3b6d77aea2aaa2"
+          ],
+          "source_paths": [
+            "src/sofia/safe/operator_stop.py",
+            "src/sofia/safe/operator_stop_cli.py",
+            "src/sofia/ui/settings_window.py",
+            "test/test_safe_operator_stop_state_loss.py",
+            "test/test_life_project_forge.py",
+            "test/test_permission_runtime_wiring.py"
+          ],
+          "fulfilled_slice": "Emergency operator PAUSE remains immediate and audited. Clearing a stop now consumes a fresh exact FIDO2-signed SAFE receipt in the operator-stop store. Settings and CLI supply separate authenticated resume flows; regression fixtures migrated.",
+          "remaining": "No tests or live host proof. Remote in-flight cancellation, all tool enforcement and operator recovery are not established. CA-1102 remains partial."
+        }
+      ]
     },
     {
       "id": "CA-1103",
@@ -2354,7 +2385,18 @@
         "test/test_ops_fleet_discovery_permissions.py",
         "test/test_owner_model_install_production.py",
         "test/test_ops_workshop_guest_bootstrap_production.py",
-        "docs/development/hybrid-owner-authentication-2026-10-11.md"
+        "docs/development/hybrid-owner-authentication-2026-10-11.md",
+        "src/sofia/safe/owner_registration.py",
+        "src/sofia/safe/owner_enroll_browser.py",
+        "src/sofia/safe/owner_enroll_cli.py",
+        "test/test_safe_owner_registration.py",
+        "src/sofia/safe/owner_approval_ui.py",
+        "src/sofia/ui/settings_window.py",
+        "test/test_ui_owner_fido2_wiring.py",
+        "src/sofia/safe/operator_stop.py",
+        "src/sofia/safe/operator_stop_cli.py",
+        "test/test_safe_operator_stop_state_loss.py",
+        "test/test_life_project_forge.py"
       ],
       "evidence_commits": [
         "bb116083a774ab3c4f00492e367c718775cca8c1",
@@ -2405,7 +2447,36 @@
         "731fad0f15d49fbecb26e6ae38dfdecdc311a4eb",
         "4701e5a69ae44f237a49f3f422600255cdb617f7",
         "09acbad83cf449bfc504081a49239425c0a67059",
-        "54ac8716ee4fa5b5fec5141189bd441e318f07b8"
+        "54ac8716ee4fa5b5fec5141189bd441e318f07b8",
+        "0221e220dcc91e07b46d03055ad3ae66cfd8299d",
+        "930e4c222f8a2d0d66dbc5f69bc1b1e81e61e8f0",
+        "548b5862f7cc676abfee166d6daaecae17689101",
+        "eed980383818643a2e8e1d0c15de76a7b82d5025",
+        "d2e75276835e8298043df85f39e24ad1bf14e41e",
+        "923b32f89767f1bc9822c761678bc1d5b4b49196",
+        "35f7f52bae3105875576299ff7902a30c74859d2",
+        "3594490c362f7e38a013a7abc8fe4e709754d5dd",
+        "4c9ad8f4d8d344634f18285733e8bc1dc2d44d1d",
+        "f19a00abeb9bffcd1fb121d203a9a0405ece4c50",
+        "44c7f20d098e22ddf01fe427ac7abd18a547087e",
+        "ed71c512484786a6f90ea0c8cc09f0fff59b3acc",
+        "fddab962371af30c7adfb3f137e54d213ef4333a",
+        "2945af1040b2fef2c8a91842280be354311661c5",
+        "8dd84b4d44143ad6194055885311ab49a12c34af",
+        "6b3d48a08508ef8a5ae6feb62892707b40a0824c",
+        "95e972f5b07e19de450d592e42224dee94c44efd",
+        "eaf9db9c7dbcdaaf3716459f4552366e7e9c1f4c",
+        "3f848ddc62f0579483a606dc822fe4bf66d5e1f9",
+        "d7aba3b020ee2bac16987ef5018973c123f74f91",
+        "4ae6cb7f9b6deb91094bc77cadf8859e2d9a33d6",
+        "7afb6bca139ee71f34e162bc6b5bb237c6755bf8",
+        "8093df2f28fcd9758fe3d1ff38ccca1f6f47e438",
+        "9bcd82db57572b14014e5bef5a9842055774dce4",
+        "1a493941061fa87967c4c6909fdf4f1bb0cec290",
+        "a05c78f39f60b5673780e78dd5174d8c8b04fc58",
+        "1cd417e2585c05f7c4da82a94d3b6d77aea2aaa2",
+        "01c128181cae71798340c1c6c3810213fe2767a8",
+        "5f5f17d985c7bec4ed8e22db4f915e850db6c660"
       ],
       "accepted": false,
       "coding_update": {
@@ -2465,6 +2536,57 @@
           "production_route": "Existing local protected approve_execution CLI -> one-shot loopback WebAuthn ceremony -> canonical owner challenge -> ES256 UP/UV signed assertion + exact action -> atomic SAFE audit -> one-time proof-bound ExecutionApprovalVerifier.record -> existing preflight/consume reject unbound legacy protected approvals -> actual capability boundary.",
           "fulfilled_slice": "Protected approvals refuse unauthenticated actor-only minting via SAFE, while the explicit CLI now uses signed browser WebAuthn challenge verification; owner-proof replay and stale legacy admission are denied in the canonical execution approval store.",
           "remaining": "NOT fully coded: first independently trusted Hello/FIDO2 credential enrollment and physical attestation policy; native Desktop/Tray and Level-5 owner grant integration; other approval stores; operator resume; secure recovery, remote principal binding and real host acceptance. Tests authored not executed. No deployment."
+        },
+        {
+          "source_review_sha": "42970b6d873c4120b2ce185e5e4fdf9bf0ce82f4",
+          "commits": [
+            "0221e220dcc91e07b46d03055ad3ae66cfd8299d",
+            "930e4c222f8a2d0d66dbc5f69bc1b1e81e61e8f0",
+            "548b5862f7cc676abfee166d6daaecae17689101",
+            "eed980383818643a2e8e1d0c15de76a7b82d5025",
+            "d2e75276835e8298043df85f39e24ad1bf14e41e",
+            "923b32f89767f1bc9822c761678bc1d5b4b49196",
+            "35f7f52bae3105875576299ff7902a30c74859d2",
+            "3594490c362f7e38a013a7abc8fe4e709754d5dd",
+            "4c9ad8f4d8d344634f18285733e8bc1dc2d44d1d",
+            "f19a00abeb9bffcd1fb121d203a9a0405ece4c50",
+            "44c7f20d098e22ddf01fe427ac7abd18a547087e",
+            "ed71c512484786a6f90ea0c8cc09f0fff59b3acc",
+            "fddab962371af30c7adfb3f137e54d213ef4333a",
+            "2945af1040b2fef2c8a91842280be354311661c5",
+            "8dd84b4d44143ad6194055885311ab49a12c34af",
+            "6b3d48a08508ef8a5ae6feb62892707b40a0824c",
+            "95e972f5b07e19de450d592e42224dee94c44efd",
+            "eaf9db9c7dbcdaaf3716459f4552366e7e9c1f4c",
+            "3f848ddc62f0579483a606dc822fe4bf66d5e1f9",
+            "d7aba3b020ee2bac16987ef5018973c123f74f91",
+            "8093df2f28fcd9758fe3d1ff38ccca1f6f47e438",
+            "9bcd82db57572b14014e5bef5a9842055774dce4",
+            "1cd417e2585c05f7c4da82a94d3b6d77aea2aaa2",
+            "01c128181cae71798340c1c6c3810213fe2767a8",
+            "5f5f17d985c7bec4ed8e22db4f915e850db6c660"
+          ],
+          "source_paths": [
+            "src/sofia/safe/owner_registration.py",
+            "src/sofia/safe/owner_enroll_browser.py",
+            "src/sofia/safe/owner_enroll_cli.py",
+            "test/test_safe_owner_registration.py",
+            "src/sofia/safe/owner_browser.py",
+            "test/test_safe_owner_browser.py",
+            "src/sofia/safe/owner_approval_ui.py",
+            "src/sofia/ui/settings_window.py",
+            "test/test_ui_owner_fido2_wiring.py",
+            "src/sofia/safe/operator_stop.py",
+            "src/sofia/safe/operator_stop_cli.py",
+            "test/owner_auth_fixture.py",
+            "test/test_safe_operator_stop_state_loss.py",
+            "test/test_life_project_forge.py",
+            "test/test_permission_runtime_wiring.py",
+            "docs/development/hybrid-owner-authentication-2026-10-11.md"
+          ],
+          "production_route": "Signed-in Venus Windows account token SID and operator typed confirmation -> platform WebAuthn registration -> strict fmt-none CTAP ES256/UV/origin validation -> canonical SID-locked one-time first trust -> existing owner signed registration proof for physical/backup security keys -> canonical one-use approved protected action via browser -> real Settings model install/Fleet handlers.",
+          "fulfilled_slice": "Option A first Windows Hello enrollment, additional FIDO2/backup registration and revocation with surviving security-key guard, account SID pinning, local protected browser and two UI effect paths source-coded. No model-trusted alternate writer or actor label can bypass these paths.",
+          "remaining": "Credential attestation policy, actual user-supervised Windows Hello/key tests, offline recovery, original owner portability to Debian canonical host, full UI/Tray and Level-5 permission stores still open; not accepted."
         }
       ]
     },
