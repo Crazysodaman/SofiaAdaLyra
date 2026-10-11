@@ -359,3 +359,10 @@
 4. No new user preference, retention category, digital legacy authority or remote archive destination is silently activated by this audit.
 
 **Verification:** static source/contract inspection only. No model, tests/CI, live archive restore, hardware or cloud services invoked.
+
+## 2026-10-11 follow-up: original chronological causal proof
+
+- **Original CA-3402/3404/3406**, partial: original LIFE causal trace still requires all remaining research/benchmark and correction design deliverables.
+- **Found:** `project_causal_trace` allowed original evidence observed later than the event it ostensibly supported and could raise on corrupt evidence time, despite correct private scope checks. As a read-only memory projection, it risked presenting false observed causal history.
+- **Production `35ebe59`:** per-event/response/evaluation/episode original source chronology now uses the shared fail-closed scoped evidence guard, with no new memory writer or graph index. Correctness depends on the actual original referenced sources; unavailable/corrupt inputs are UNKNOWN, not false absence or deletion.
+- **Regression `e337cef`:** late observation / malformed ISO original source fail closed and suppress affected episode summary. Tests not executed; no live source or benchmark claim.
