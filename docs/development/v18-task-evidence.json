@@ -3,9 +3,9 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "1925361e1362520c11980987167a410a6635deb0",
+  "reviewed_main_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
   "audit_date_utc": "2026-10-11",
-  "notice": "Strict production-wiring gate as of 157a58fd766e31de529f4e1871c2300dc74040e1: the six code_present_unverified items have an application/CI entrypoint, production composition, caller, implementation and effect source trace; tests/CI/live acceptance deferred. The 63 partial_wiring items are NOT coded-complete and cannot be counted toward coding progress. 631 unassessed are unknown, not assumed missing. 0 accepted. Canonical writer host undecided; no host changes.",
+  "notice": "Strict full-production-wiring standard at 2c159415d0ddfe7a8e610bed448c97665dd6fe3f: 6 source-traced coded/tests-only, 64 partial (not coding complete), 630 individually unassessed, 0 accepted. Phase09 RUN-backed objective milestones and no-placeholder autonomous authoring were coded directly on main. CA-2202 is partial because non-text/story autonomously authored media kinds are not fully implemented. Tests and live hosts deferred, canonical writer host undecided.",
   "tasks": [
     {
       "id": "CA-001",
@@ -878,10 +878,23 @@
       "phase": "01",
       "source_topic": "22",
       "master_line": 185,
-      "status": "unassessed",
-      "code_paths": [],
-      "evidence_commits": [],
-      "accepted": false
+      "status": "partial_wiring",
+      "code_paths": [
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/draft_agent.py",
+        "src/sofia/application/background_runtime.py"
+      ],
+      "evidence_commits": [
+        "6308b97eb6755f479472e04b9dc87d8f554bf631",
+        "2c159415d0ddfe7a8e610bed448c97665dd6fe3f"
+      ],
+      "accepted": false,
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "Production autonomous TEXT/STORY authoring uses real bounded tool-free model draft before RUN admission, and unsupported media/no model fail without canned artifacts. Original CA-2202 is NOT fully coded: other approved media kinds still lack original reviewed autonomous authoring.",
+        "coding_complete": false,
+        "tests_executed": false
+      }
     },
     {
       "id": "CA-2203",
@@ -1444,17 +1457,27 @@
       "code_paths": [
         "src/sofia/life/coordinator.py",
         "src/sofia/life/store.py",
-        "test/test_life_postrun_verification.py"
+        "test/test_life_postrun_verification.py",
+        "src/sofia/application/background_runtime.py",
+        "test/test_life_verified_milestone_production.py"
       ],
       "evidence_commits": [
         "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
-        "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1"
+        "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1",
+        "23a9c3d3635f993e43ee3aa62ddfa031625a4d08",
+        "fddddafa6288adb3a6a6f6796d48ab2fbdfa0df5"
       ],
       "accepted": false,
       "coding_update": {
         "latest_code_sha": "a34e1eb3c1fc7bc74fc5c4684c225c13183379f1",
         "source_coded_unverified": true,
         "acceptance": "deferred"
+      },
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "Already completed RUN artifacts now drive independently checked original objective milestone transition. No false autonomous creativity from fallback templates; full iterative critique/revisions still incomplete.",
+        "coding_complete": false,
+        "tests_executed": false
       }
     },
     {
@@ -5107,12 +5130,20 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/life/model.py"
+        "src/sofia/life/model.py",
+        "src/sofia/life/store.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "23a9c3d3635f993e43ee3aa62ddfa031625a4d08"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "Verified objective milestone advancement integrated with existing critique/revision/complete path. Independent policy for all outcome options remains incomplete.",
+        "coding_complete": false,
+        "tests_executed": false
+      }
     },
     {
       "id": "CA-106",
@@ -5122,12 +5153,20 @@
       "status": "partial_wiring",
       "code_paths": [
         "src/sofia/life/coordinator.py",
-        "src/sofia/run/work.py"
+        "src/sofia/run/work.py",
+        "src/sofia/life/store.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "fddddafa6288adb3a6a6f6796d48ab2fbdfa0df5"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "Background LIFE worker replays objective milestones after persisted RUN outcome; failed/uncertain cross-store GOALS reconciliation remains incomplete.",
+        "coding_complete": false,
+        "tests_executed": false
+      }
     },
     {
       "id": "CA-107",
@@ -5166,12 +5205,22 @@
       "master_line": 756,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/application/background_runtime.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "23a9c3d3635f993e43ee3aa62ddfa031625a4d08",
+        "fddddafa6288adb3a6a6f6796d48ab2fbdfa0df5"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "No new scheduler: background tick replays uncommitted objective milestone transitions from original RUN/evaluation records. General review_due/next_milestone_due policy remains incomplete.",
+        "coding_complete": false,
+        "tests_executed": false
+      }
     },
     {
       "id": "CA-111",
@@ -5223,12 +5272,23 @@
       "master_line": 759,
       "status": "partial_wiring",
       "code_paths": [
-        "src/sofia/life/coordinator.py"
+        "src/sofia/life/coordinator.py",
+        "src/sofia/life/store.py",
+        "src/sofia/application/background_runtime.py",
+        "test/test_life_verified_milestone_production.py"
       ],
       "evidence_commits": [
-        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb"
+        "ddab92447ce38a6f3c0bd8f173c7d8a7e7fd51cb",
+        "23a9c3d3635f993e43ee3aa62ddfa031625a4d08",
+        "fddddafa6288adb3a6a6f6796d48ab2fbdfa0df5"
       ],
-      "accepted": false
+      "accepted": false,
+      "production_delta": {
+        "source_review_sha": "2c159415d0ddfe7a8e610bed448c97665dd6fe3f",
+        "interpretation": "Original objective milestones now advance only after independently verified artifact bytes and matching RUN operation receipt; crash-safe replay via production LIFE tick. Broad CREATE/VERIFY/CRITIQUE/REVISE/COMPLETE/PAUSE/ABANDON policy and owner/uncertain outcomes not source-complete.",
+        "coding_complete": false,
+        "tests_executed": false
+      }
     },
     {
       "id": "CA-114",
