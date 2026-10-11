@@ -856,6 +856,26 @@ All tests, host startup, model requests, worker enrollment, recovery
 cutover and deployment remain deferred. The role gate **does not** supply
 cross-host writer fencing or complete whole-bundle failback by itself.
 
+### Phase 03 staged migration distinguishes source and target host
+
+Owner decision: source/current canonical writer Venus, future destination
+Artemis after explicit externally verified cutover. Previously
+`RelocationAuthorization.writer_host_id` was passed both to
+`BackupEngine.create(source_host_id=...)` and to the future signed
+destination writer pointer, misattributing a Venus-origin backup to
+Artemis. The existing privileged stage now explicitly requires a separate
+`source_writer_host_id` (Venus) and proposed `writer_host_id` (Artemis).
+It stamps source backup provenance with Venus and verifies the signed
+manifest agrees before applying any staged restore; destination ownership
+remains Artemis with a separately approved next writer epoch.
+
+Source commit: `99d427d828d4d00b600a7cb724f900ddb0c810e2`.
+Deferred isolated/negative regression source/target, bad backup manifest and
+fencing refusal: `581dc3cc87e5023d5c0042a0bd9e49195ca99fa4`.
+Decision document `d69bf464d49599bb46d8bb9a15dc9fe2dfa5516a`.
+No staging, restoration, live DB migration or host promotion performed.
+Independent physical writer fencing and accepted failback are still open.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
