@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
+from typing import Callable
 
 from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 from uuid import uuid4
@@ -316,6 +317,42 @@ class SystemNoticeQueue:
                     recipient_confirmed=False,
                 )
 
+    def _release_claim_before_send(
+        self, *, payload: DeliveryPayload, reason: str, at: datetime,
+    ) -> None:
+        """Restore a claim when a fresh owner policy vetoed before the send.
+
+        Do not burn an attempt or produce an outcome-unknown receipt when the
+        trusted host KNOWS the sender was never invoked.
+        """
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                """
+                UPDATE act_system_notice
+                SET status='queued',
+                    attempt_count=attempt_count-1,
+                    receipt_id=NULL,
+                    error_type=NULL,
+                    finished_at=NULL
+                WHERE notice_id=? AND status='outcome_unknown'
+                  AND error_type='DeliveryInProgress'
+                  AND attempt_count > 0
+                """,
+                (payload.message_id,),
+            )
+            if changed.rowcount != 1:
+                raise RuntimeError("ACT pre-send claim cannot be safely released")
+            record_outreach_trace(
+                db,
+                notice_id=payload.message_id,
+                stage="deferred",
+                reason=reason,
+                recorded_at=at,
+                channel=payload.channel,
+                destination=payload.destination,
+            )
+
     def deliver_one(
         self,
         *,
@@ -324,9 +361,12 @@ class SystemNoticeQueue:
         now: datetime,
         busy: bool = False,
         max_attempts: int = 3,
+        pre_send_decision: Callable[[], Decision] | None = None,
     ) -> SendResult | None:
         if not callable(sender):
             raise TypeError("sender must be callable")
+        if pre_send_decision is not None and not callable(pre_send_decision):
+            raise TypeError("pre_send_decision must be callable")
         if not isinstance(policy, Policy):
             raise TypeError("policy must be a Policy")
         if not isinstance(busy, bool):
@@ -467,6 +507,19 @@ class SystemNoticeQueue:
 
         if payload is None:
             return None
+
+        # The policy used for claim may be stale by the time a transport is
+        # invoked. The application rechecks owner stop/mute from canonical
+        # storage here, AFTER claim but BEFORE a sender can create an effect.
+        if pre_send_decision is not None:
+            decision = pre_send_decision()
+            if not isinstance(decision, Decision):
+                raise TypeError("pre_send_decision must return Decision")
+            if decision is not Decision.ELIGIBLE_FOR_AUTHORIZATION:
+                self._release_claim_before_send(
+                    payload=payload, reason=decision.value, at=moment,
+                )
+                return None
 
         try:
             result = sender(payload)
