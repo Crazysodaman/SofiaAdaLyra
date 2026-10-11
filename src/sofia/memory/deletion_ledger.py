@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import stat
 from typing import Callable
 from uuid import UUID
 
@@ -46,7 +47,7 @@ class MemoryDeletionLedger:
 
     def _check_path(self) -> None:
         for part in (self.path, *self.path.parents):
-            if part.is_symlink():
+            if part.is_symlink() or getattr(part, "is_junction", lambda: False)():
                 raise MemoryErasureError("redirected deletion journal is forbidden")
 
     def initialize(self) -> None:
@@ -130,11 +131,24 @@ class MemoryDeletionLedger:
     @contextmanager
     def _exclusive(self):
         """Cross-process lock protecting the journal's HMAC chain append."""
+        self._check_path()
         path = self.path.with_suffix(self.path.suffix + ".lock")
-        if path.is_symlink():
-            raise MemoryErasureError("redirected journal lock is forbidden")
-        descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+        for component in (path, *path.parents):
+            if component.is_symlink() or getattr(
+                component, "is_junction", lambda: False
+            )():
+                raise MemoryErasureError("redirected journal lock is forbidden")
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(path, flags, 0o600)
         try:
+            opened = os.fstat(descriptor)
+            named = path.stat()
+            if not stat.S_ISREG(opened.st_mode) or (
+                opened.st_dev, opened.st_ino
+            ) != (named.st_dev, named.st_ino):
+                raise MemoryErasureError("journal lock changed during acquisition")
             if os.name == "nt":
                 import msvcrt
                 # msvcrt locks need one addressable byte on the file.
@@ -208,10 +222,28 @@ class MemoryDeletionLedger:
                 raise MemoryErasureError("bounded deletion journal is full")
             # A writer process needs an external single-writer lock/lease for
             # this separate failure-domain artifact, just as sofia.db does.
-            with self.path.open("ab") as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
+            self._check_path()
+            flags = os.O_WRONLY | os.O_APPEND | getattr(os, "O_CLOEXEC", 0)
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            descriptor = os.open(self.path, flags)
+            try:
+                opened = os.fstat(descriptor)
+                named = self.path.stat()
+                if not stat.S_ISREG(opened.st_mode) or (
+                    opened.st_dev, opened.st_ino
+                ) != (named.st_dev, named.st_ino):
+                    raise MemoryErasureError(
+                        "authenticated journal changed before append"
+                    )
+                with os.fdopen(descriptor, "ab") as handle:
+                    descriptor = -1
+                    handle.write(payload)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            finally:
+                if descriptor >= 0:
+                    os.close(descriptor)
             return True
 
     def verify_applied(self, state_path: Path) -> dict[str, int]:
