@@ -223,6 +223,7 @@ _READ_ONLY = frozenset({
     "evolve.proposal.get",
     "hyperv.vms",
     "hyperv.vm",
+    "hyperv.sofia.inspect",
     "workshop.vm.inspect",
     "workshop.vm.plan",
     "environment.nws.read",
