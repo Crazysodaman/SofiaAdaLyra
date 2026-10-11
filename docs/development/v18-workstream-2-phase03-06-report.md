@@ -3295,6 +3295,59 @@ a successful relocation or trigger
 a real filesystem operation.
 No tests/CI executed.
 
+
+
+### Phase 03 item 89: Encrypted backup creation uses durable absence-only directory publication
+
+Production `BackupEngine.create` staged encrypted
+payloads and authenticated manifest bytes under a
+temporary directory but previously published the
+final backup with `os.replace(staging, final)`.
+A previous `final.exists()` check alone cannot
+stop a concurrent empty owner directory appearing
+between inspection and replace, and closed files
+plus an atomic rename do not prove encrypted
+payloads and directory entries survive power loss.
+Returning a verified backup receipt under these
+circumstances could overstate recovery durability.
+
+The existing backup owner now refuses redirected
+selected backup-root ancestry, flushes **every
+encrypted payload and manifest file** and the
+nested directory entries on Linux before
+publication, and publishes only using Linux
+`renameat2(RENAME_NOREPLACE)`, or Windows'
+nonreplacing directory rename. Unknown platforms
+or missing atomic filesystem primitives fail
+closed. Linux then fsyncs the published archive's
+parent directory; if that fails *after* the name
+is visible, the new typed
+`BackupPublicationUncertain` preserves that
+uncertainty and never returns a verified success.
+Existing archive bytes are never overwritten,
+and no retention rotation is authorized by
+a failed backup create attempt.
+
+- Production `src/sofia/ops/backup.py`
+  `9d2393fe3dd6c90fd8b4c315b37ef9b4a4ae70e1`
+  (`[skip ci]`).
+- Deferred synthetic backup creation,
+  power-loss barrier, kernel no-replace
+  collision, parent sync failure and early
+  payload sync failure tests:
+  `test/test_ws2_backup_archive_publication.py`,
+  `f4a9d88da350e37d41a243e38f370c1960bc436d`
+  (`[skip ci]`).
+
+Original CA relevance: CA-3702, CA-5202,
+CA-5204, CA-5207, CA-6105, CA-6107,
+CA-6810, CA-6812. This is no proof of
+failure-domain independence, two independently
+verified encrypted copies, recovery key escrow
+or full clean-machine restore acceptance.
+No tests/CI, live backup, host change or
+active writer migration was executed.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
