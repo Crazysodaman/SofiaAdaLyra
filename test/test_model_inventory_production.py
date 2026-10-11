@@ -1,5 +1,5 @@
 """Observed Ollama model catalog, source-only regression fixtures."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import pytest
 
@@ -171,7 +171,7 @@ def test_run_owned_readonly_discovery_uses_reviewed_local_ollama_roles(
     assert secondary.installed is False
     unconfigured=next(row for row in rows if row.model=="orphan:old")
     assert unconfigured.details_error=="details_deferred_budget"
-    candidates=ModelInventoryStore(state).candidate_review(host_id="venus")
+    candidates=ModelInventoryStore(state).candidate_review(host_id="venus", at=NOW)
     assert "orphan:old" in candidates
     assert "primary:stable" not in candidates
     assert "suitability=unverified" in candidates
@@ -219,8 +219,42 @@ def test_unreviewed_model_never_gets_a_rank_or_role_from_discovery(tmp_path):
         state_path=state,host_id="venus",at=NOW,
         details_limit=0,backend=LocalOllama(),
     )
-    decision=ModelInventoryStore(state).candidate_review(host_id="venus")
+    decision=ModelInventoryStore(state).candidate_review(host_id="venus", at=NOW)
     assert "DISCOVERY ONLY" in decision
     assert "license" in decision
     assert "unverified" in decision
     assert "switch" not in decision.casefold()
+
+
+def test_old_or_future_inventory_does_not_offer_models_for_current_role_review(
+    tmp_path,
+):
+    from sofia.config.user_settings import RuntimeUserSettings
+    from sofia.cognition.model_inventory import refresh_local_model_inventory
+    state=tmp_path/"sofia.db"
+    RuntimeUserSettingsStore(state).save(RuntimeUserSettings(
+        cognitive_primary_model="primary:stable",
+        cognitive_secondary_model="secondary:missing",
+    ))
+    refresh_local_model_inventory(
+        state_path=state,host_id="venus",at=NOW,
+        backend=LocalOllama(),details_limit=0,
+    )
+    store=ModelInventoryStore(state)
+    assert "orphan:old" in store.candidate_review(host_id="venus",at=NOW)
+    later=store.candidate_review(
+        host_id="venus",at=NOW+timedelta(minutes=16),
+    )
+    assert "No FRESH" in later
+    assert "Stale/invalid observations: 3" in later
+    before=store.candidate_review(
+        host_id="venus",at=NOW-timedelta(seconds=1),
+    )
+    assert "No FRESH" in before
+    # Historical facts remain visible for diagnosis, never repurposed as
+    # a verified current install or a reason to pull/switch models.
+    assert "orphan:old" in store.readable(host_id="venus")
+    with pytest.raises(ValueError,match="aware"):
+        store.candidate_review(
+            host_id="venus",at=NOW.replace(tzinfo=None),
+        )
