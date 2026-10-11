@@ -1017,11 +1017,31 @@ class LifelongThreadStore:
                     raise PermissionError("cannot remove preexisting or foreign Main links")
                 if record["removed_at"] is not None:
                     continue
+                # An import-created source link may later acquire
+                # independent canonical-turn ordering. The old import review
+                # does not own that later Main admission, so never erase it
+                # just because its original source ID appeared in this batch.
+                current_link = db.execute(
+                    "SELECT canonical_sequence,turn_position "
+                    "FROM lifelong_thread_event WHERE thread_id=? "
+                    "AND source_message_id=? AND source_session_id=? "
+                    "AND source_audience_id=? AND visibility='source_audience'",
+                    (owner["thread_id"], identifier,
+                     owner["source_session_id"], principal.audience_id),
+                ).fetchone()
+                if current_link is not None and (
+                    current_link["canonical_sequence"] is not None
+                    or current_link["turn_position"] is not None
+                ):
+                    raise PermissionError(
+                        "historical rollback cannot remove an adopted canonical turn"
+                    )
                 db.execute(
                     "DELETE FROM lifelong_thread_event "
                     "WHERE thread_id=? AND source_message_id=? "
                     "AND source_session_id=? AND source_audience_id=? "
-                    "AND visibility='source_audience'",
+                    "AND visibility='source_audience' "
+                    "AND canonical_sequence IS NULL AND turn_position IS NULL",
                     (owner["thread_id"], identifier,
                      owner["source_session_id"], principal.audience_id),
                 )
