@@ -942,6 +942,49 @@ Deferred redirected ancestor/source-swap regressions:
 `b63602e74ef6d661c723cf9ccf594b943c7a7e68`.
 No replica was seeded on live machines.
 
+### New host-independent source closure: backup inputs, truth in model outages, state home pointer
+
+**Item 31 (Phase 03 CA-5204/5205/6105/6404):** existing
+`BackupEngine.create` now preflights the original canonical and protected
+asset path ancestors, checks each selected source immediately before file
+read, and refuses symlink/junction paths for personality, avatar and release
+pointer. `BackupEngine.verify` refuses redirected archive root, signed
+manifest/MAC and encrypted payload entries; `restore` repeats payload-path
+checks before the second decrypt read. Prevents ordinary accidental/
+malicious redirected file sources from silently entering a signed state
+bundle, but does **not** establish operating-system atomic openat/O_NOFOLLOW
+protection against a hostile same-user process changing paths during a read.
+Production `113e132e558732d01ac0dd8b37b76ece4b29f8f4`; deferred regression
+`f39de409d1e67bc59f92c238d3aa86538e8a5a93`.
+
+**Item 32 (Phase 04 CA-6306/6307/6311):** real
+`FleetPlacedCognitiveEngine.respond` clears prior placement attribution
+before each new request. It records `last_host_id` only *after* the
+provider actually returns. If previously successful Venus GPU inference
+fails while Artemis local fallback is disabled, it raises
+`CognitiveEngineError`, does not call the local engine, and does not keep
+stale `last_remote=True` / previous host ID. This is execution evidence
+truth, not permission to change provider/model policies. Production
+`617d84e85da23c487c4cc8674effb05e1fc41577`; deferred regression
+`0de67433df44f57d432c8602cedd1d15a7cf5d04`.
+
+**Item 33 (Phase 03 CA-3701/3704/5201 and Phase 04 CA-6311):**
+`read_verified_state_home` continues to verify the signed pointer,
+exact host ID, epoch and state home. It now also rejects
+symlink/junction **ancestor components** for external trust files, state
+home, canonical `sofia.db`, and protected identity. The signed state
+root cannot be a redirected parent with a plain final filename.
+Production `b4c573b834fa26d04bc061490d17d7ecab44c062`; synthetic
+signed-pointer regressions `2bf591192b7785a8a218ee9f1fcde2e74b251afd`.
+
+All regression tests are authored only, **never executed**. No live
+backup, signed state pointer, witness, network inference host, DB cutover,
+VM or permissions were modified. The operator's decision remains **Venus
+current writer; Artemis Sofia VM future writer, subject to explicit
+independently fenced and approved migration; remote-only approved GPU
+inference supplied by Venus**. The 182-ID original task ledger is still
+not a verified coding-completion measure.
+
 ## Next coding gates by priority
 
 1. Phase 03: verify each canonical storage writer path uses pinned canonical
