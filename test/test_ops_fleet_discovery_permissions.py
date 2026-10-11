@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from test.owner_auth_fixture import record_verified_owner_approval
+
 from sofia.capability.model import CapabilityRequest
 from sofia.distributed.identity_durable import DurableNodeIdentityRegistry
 from sofia.distributed.model import DistributedNode, NodeEnrollment
@@ -240,7 +242,7 @@ def test_fleet_enrollment_requires_exact_one_time_sparks_approval(tmp_path):
         event_id="fleet-enroll-preexisting-audit",
     )
     verifier = ExecutionApprovalVerifier(state)
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
     assert "fleet.enroll" in verifier.active_capabilities(now=now)
 
     enrolled = service.enroll_candidate(
@@ -282,7 +284,7 @@ def test_fleet_enrollment_approval_cannot_be_replayed_for_changed_identity(tmp_p
         approved_at=now,
         expires_at=now + timedelta(minutes=15),
     )
-    ExecutionApprovalVerifier(state).record(approval)
+    record_verified_owner_approval(ExecutionApprovalVerifier(state), approval)
 
     with pytest.raises(PermissionError):
         service.enroll_candidate({
@@ -374,7 +376,7 @@ def test_fleet_conflict_rejects_before_one_time_approval_is_consumed(tmp_path):
         expires_at=now + timedelta(minutes=15),
     )
     verifier = ExecutionApprovalVerifier(state)
-    verifier.record(approval)
+    record_verified_owner_approval(verifier, approval)
 
     identities = DurableNodeIdentityRegistry(state)
     try:
