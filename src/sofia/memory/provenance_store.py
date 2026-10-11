@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sofia.memory.provenance import CandidateStatus, MemoryCandidate
 from sofia.memory.originals import SourceMessage
+from sofia.state.canonical_sqlite import CanonicalSQLiteGuard
 
 
 def _utc(value: datetime) -> str:
@@ -39,11 +40,17 @@ class DurableMemoryCandidateStore:
 
         self._database_path = target
         self._lock = RLock()
-        self._db: sqlite3.Connection | None = sqlite3.connect(
-            target,
-            timeout=3.0,
-            check_same_thread=False,
+        # Existing canonical state is pinned before opening. Independent
+        # fixture imports may still bootstrap a new test database, but only
+        # the original file identity can be accessed after the first open.
+        self._guard = CanonicalSQLiteGuard(target) if target.is_file() else None
+        self._db: sqlite3.Connection | None = (
+            self._guard.connect(timeout=3.0, check_same_thread=False)
+            if self._guard is not None
+            else sqlite3.connect(target, timeout=3.0, check_same_thread=False)
         )
+        if self._guard is None:
+            self._guard = CanonicalSQLiteGuard(target)
 
         with self._lock:
             db = self._require_db()
@@ -354,8 +361,7 @@ class DurableMemoryCandidateStore:
         with self._lock:
             if self._db is not None:
                 return
-            self._db = sqlite3.connect(
-                self._database_path,
+            self._db = self._guard.connect(
                 timeout=3.0,
                 check_same_thread=False,
             )
@@ -372,4 +378,7 @@ class DurableMemoryCandidateStore:
     def _require_db(self) -> sqlite3.Connection:
         if self._db is None:
             raise RuntimeError("memory candidate store is closed")
+        # An already-open SQLite handle survives POSIX unlink/replace.
+        # Refuse reading or updating orphaned memory after canonical loss.
+        self._guard.validate()
         return self._db
