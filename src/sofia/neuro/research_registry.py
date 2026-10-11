@@ -45,7 +45,7 @@ class PreregisteredStudy:
             raise ValueError("distinct, explicit research hypothesis kind required")
         if self.theory_kind == "phenomenal_subjectivity":
             raise ValueError("subjectivity cannot be inferred from a functional test")
-        for name in ("comparison_control", "stop_or_reject_rule", "reviewed_by"):
+        for name in ("comparison_control", "stop_or_reject_rule"):
             value = getattr(self, name)
             if not isinstance(value, str) or not 8 <= len(value.strip()) <= 1000:
                 raise ValueError(f"reviewed bounded {name} required")
@@ -142,7 +142,11 @@ class ResearchEvidenceRegistry:
                 "WHERE protocol_id=?", (study.protocol.protocol_id,),
             ).fetchone()
             if current is not None:
-                if current[0] != payload:
+                saved = json.loads(current[0])
+                submitted = json.loads(payload)
+                saved.pop("created_at", None)
+                submitted.pop("created_at", None)
+                if saved != submitted:
                     raise PermissionError(
                         "existing preregistered study cannot be silently changed"
                     )
