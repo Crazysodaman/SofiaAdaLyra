@@ -706,9 +706,10 @@ class SelfDirectedLifeCoordinator:
         reviews: list[dict[str, object]] = []
         for project in projects:
             evaluated = {
-                (item.artifact_id, item.artifact_revision)
+                (item.artifact_id, item.artifact_revision): item
                 for item in self.store.evaluations(project.project_id)
             }
+            milestones = self.store.milestones(project.project_id)
             for job_id in self.store.jobs(project.project_id):
                 job = self.work_store.get(job_id)
                 outcome = job.result if isinstance(job.result, dict) else {}
@@ -720,12 +721,31 @@ class SelfDirectedLifeCoordinator:
                     and (artifact_id, revision) in self.store.artifacts(project.project_id)
                 )
                 if job.status is WorkStatus.COMPLETED:
-                    if verified_link and (artifact_id, revision) in evaluated:
-                        continue
-                    disposition = (
-                        "needs_independent_artifact_review"
-                        if verified_link else "missing_or_unlinked_artifact_receipt"
+                    critique = (
+                        evaluated.get((artifact_id, revision))
+                        if verified_link else None
                     )
+                    if critique is None:
+                        disposition = (
+                            "needs_independent_artifact_review"
+                            if verified_link else "missing_or_unlinked_artifact_receipt"
+                        )
+                    elif any(
+                        milestone.status in {
+                            MilestoneStatus.PLANNED, MilestoneStatus.ACTIVE,
+                        }
+                        and critique.objective_results.get(milestone.title) is True
+                        for milestone in milestones
+                    ):
+                        disposition = "needs_verified_milestone_settlement"
+                    elif critique.technical_outcome is TechnicalOutcome.INCONCLUSIVE:
+                        disposition = "needs_independent_objective_review"
+                    elif critique.personal_judgment is not PersonalJudgment.UNKNOWN:
+                        disposition = "needs_personal_critique_review"
+                    elif critique.technical_outcome is TechnicalOutcome.INVALID:
+                        disposition = "needs_revision_or_pause"
+                    else:
+                        continue  # independently reviewed, no outstanding decision
                 elif job.status is WorkStatus.UNCERTAIN:
                     disposition = "uncertain_no_automatic_retry"
                 elif job.status in {WorkStatus.FAILED, WorkStatus.CANCELLED, WorkStatus.BLOCKED}:
