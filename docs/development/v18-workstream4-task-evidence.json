@@ -32,7 +32,8 @@
     "2026-10-11 owner selected Option B Internal host-to-guest Hyper-V dedicated link. Existing source-coded protected staging/inspection was already present from concurrent main writer. Workstream4 audited and tightened training-lab source eligibility against reviewed exact isolated link. No live Artemis changes and no tests/CI. No change to item count.",
     "2026-10-11 continuation 2: protected exact Hephaestus Internal host link staging now rejects incorrect/incomplete/stale host result identity/state/IP/forwarding-related network details as UNCERTAIN, and the host validates /30 and both IPv4/IPv6 forwarding flags before attaching its existing VM NIC. Test source uses actual signed synthetic FIDO2 assertion fixture and new negative receipt cases. NO tests, CI or Artemis effects; CA-2806/2909 remain partial pending complete source audit and supervised isolation proof.",
     "2026-10-11 continuation 2 follow-up: Hyper-V stage source now independently re-reads the original Hephaestus VM identity/Off Gen2 state, exact one guest vNIC, and Internal switch type after potential host mutation, before reporting stage success. Failure/timeout remains UNCERTAIN; no live Artemis operation or tests run.",
-    "2026-10-11 Workstream4 further audit: Phase12 existing UI screen requests/receipts had audience-only history visibility, no principal partition and inclusive exact-expiry permits. Production receipts now record principal, filter principal+audience, quarantine pre-migration unscoped rows and reject frames exactly at consent expiry. Existing UI consumes the scoped path and focused regressions were authored. No OS picker/capture adapter, no screen observation, tests/CI or host changes. Original 6206/6207/6208 remain partial, not code ready."
+    "2026-10-11 Workstream4 further audit: Phase12 existing UI screen requests/receipts had audience-only history visibility, no principal partition and inclusive exact-expiry permits. Production receipts now record principal, filter principal+audience, quarantine pre-migration unscoped rows and reject frames exactly at consent expiry. Existing UI consumes the scoped path and focused regressions were authored. No OS picker/capture adapter, no screen observation, tests/CI or host changes. Original 6206/6207/6208 remain partial, not code ready.",
+    "2026-10-11 Workstream4 Phase14 source audit: production assess_registered_adaptation now independently checks train versus held-out instruction overlap including case/Unicode/whitespace normalization, rereads exact dataset SHA-256 and checks that rights have not been revoked. Canonical training review refuses re-recording permanently revoked digests. Deferred targeted tests authored; no training, host actions, tests or CI. CA-6703 stays coded candidate/test pending; CA-6706/6708 partial."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -260,7 +261,10 @@
     "016f0d815910c564ba9534f97cbbf9ebb2a09da3",
     "b1ce458c922e71004dc4550a68a9f72b51cdb5e4",
     "187ddb2a3713c1ef9f8131ecde3323411e52f6b3",
-    "53540ae115b28977568390e528f66c32e80f96d1"
+    "53540ae115b28977568390e528f66c32e80f96d1",
+    "96e29c115c2c4b8d425e256e66f2056d9ba65e6c",
+    "fc79c33569814a2e02345451f4fd4c7ebb65ccbd",
+    "0a15e190b5e39b0906d2fab63ea269218d6cc203"
   ],
   "tasks": [
     {
@@ -1833,7 +1837,7 @@
       "code_accepted": false,
       "tests_executed": false,
       "code_ready_for_tests": true,
-      "finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run."
+      "finding": "Actual production owner-reviewed EVOLVE JSONL intake now requires explicit source rights and approved public/owner-original/synthetic license class, owner provenance/approval receipt, bounded local file, 20 unique source examples, conservative PII/secret and raw private chat/Discord/screen/voice exclusion with SHA-256 dedup and metadata-only canonical receipts. Independent train+heldout admission reopens source bytes and checks digest. Owner EVOLVE Settings now permanently revokes any previously approved source via canonical tombstone; future LoRA preflight rejects revoked dataset. Sensitive private memory cannot be used as training input at all (stronger than possible consent); no external copyright status was independently verified. Tests authored not run. Further production source preflight rejects overlapping train/held-out example prompts, exact SHA-256 changes during second inspection and re-recording permanently revoked datasets. src/sofia/evolve/training_policy.py and training_sources.py, deferred test/test_evolve_training_holdout_separation.py. Not executed; does not prove comprehensive poisoning detection."
     },
     {
       "id": "CA-6704",
@@ -1863,11 +1867,12 @@
       "phase": "14",
       "master_line": 1114,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Production source currently supports fixed seed, exact base/data digests, bounded plan lifetime and reviewed resource caps, and now evaluates independent train/held-out instruction sets before accepting dataset eligibility. Actual LoRA/QLoRA training runner, immutable tokenizer/adapter lineage, hyperparameter manifest and measured experiment receipts are still missing. Source src/sofia/evolve/training_lab.py; src/sofia/evolve/training_policy.py; test/test_evolve_training_holdout_separation.py authored not run."
     },
     {
       "id": "CA-6707",
@@ -1885,11 +1890,12 @@
       "phase": "14",
       "master_line": 1116,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "partially_implemented_unverified",
       "topical_source_inventory": "evolve/training_policy.py; authorized training worker not traced",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": false,
+      "finding": "Production admission now rejects identical or normalized duplicate instructions crossing train/held-out datasets, even where files and responses differ. Canonical rights revocation prevents previously approved dataset being re-recorded as valid. This is not full poisoning/contamination/overfitting or catastrophic forgetting testing; no real model run/benchmark, no code acceptance. Source src/sofia/evolve/training_policy.py; src/sofia/evolve/training_sources.py and deferred regression test."
     },
     {
       "id": "CA-6709",
