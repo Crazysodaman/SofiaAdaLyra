@@ -10,7 +10,8 @@
     "Tests, CI, host acceptance, OS capture, VM provisioning, model installation, and training not run.",
     "2026-10-11 continuation: owner NEURO toggle and explicit model download approval fencing source-coded on main; no CI, tests, or host action.",
     "2026-10-11 owner clarification: code_ready_for_tests means connected to production with authored regression tests but tests NOT EXECUTED; code_accepted remains false until user verification. Three Phase 15 scoped tasks meet coding-only gate. Models 6608/6609 remain partial pending host switch broker and lifecycle controls.",
-    "2026-10-11: CA-6601 source-coded read-only local Ollama inventory and human license review in owner Settings; code-ready but intentionally untested and does not grant license acceptance."
+    "2026-10-11: CA-6601 source-coded read-only local Ollama inventory and human license review in owner Settings; code-ready but intentionally untested and does not grant license acceptance.",
+    "2026-10-11: CA-707 cross-production wiring traced through conversation expression, ACT initiative, RUN task priority and LIFE; source regression for actual LIFE priority added without bypassing SAFE, marked code-ready for later tests."
   ],
   "commits": [
     "3813b31fc83163048b8aa1a9b5f3e9efdbe14f59",
@@ -53,7 +54,9 @@
     "f32c05455543473f14e72271f33ef00e1adce53b",
     "e399958c239b979316b81d33868b8c48b5fabdad",
     "3584e1b08d462199d02faf61533c2f408b50b775",
-    "536697b57c3d5c928975ea4a78b0b6bbd0636782"
+    "536697b57c3d5c928975ea4a78b0b6bbd0636782",
+    "f1e5a2527d13c992bba067b4532f2288a58755cc",
+    "afad34df65d9c5d32f34df043183eb969c5f4c8e"
   ],
   "tasks": [
     {
@@ -1764,11 +1767,12 @@
       "phase": "15",
       "master_line": 1144,
       "global_ledger_before": "unassessed",
-      "source_review": "phase_inventory_only",
+      "source_review": "code_path_integrated_unverified",
       "topical_source_inventory": "neuro/runtime.py; neuro/connectome/competition.py; neuro/store.py",
       "code_accepted": false,
       "tests_executed": false,
-      "code_ready_for_tests": false
+      "code_ready_for_tests": true,
+      "finding": "Canonical NeuroRuntime already feeds per-turn expression via EmotionalConversationService->derive_expression_modulation, bounded ACT initiative through PresenceInitiativeEngine, and RUN background coordinator task priority. Workstream 4 added exact independent_life/autonomous_work task mapping so eligible selected attention influences their due/readiness-checked priority; no action authority. Source tests authored, unexecuted."
     },
     {
       "id": "CA-708",
