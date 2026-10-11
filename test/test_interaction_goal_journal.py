@@ -62,3 +62,45 @@ def test_missing_source_and_unapproved_delivery_are_rejected(goals):
     assert goals.queue_message(**opts, opted_in=False, mode='queue_only') is None
     with pytest.raises(ValueError):
         goals.queue_message(**opts, opted_in=True, mode='notify')
+
+
+def test_journal_does_not_recreate_or_follow_replaced_canonical_state(goals, tmp_path):
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    path = goals.path
+    moved = tmp_path / "original.db"
+    path.rename(moved)
+    with pytest.raises(CanonicalStateUnavailable, match="unavailable"):
+        goals.pending()
+    assert not path.exists()
+
+    with sqlite3.connect(path) as fresh:
+        fresh.execute("CREATE TABLE conversation_messages(id TEXT PRIMARY KEY, role TEXT)")
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        goals.pending()
+    with pytest.raises(CanonicalStateUnavailable, match="replaced"):
+        goals.cancel_message("anything")
+    # The owner did not read or write the new unrelated database.
+    with sqlite3.connect(path) as fresh:
+        assert fresh.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='interact_queued_messages'"
+        ).fetchone() is None
+
+
+def test_goal_journal_rejects_symlink_and_missing_state(tmp_path):
+    from sofia.state.canonical_sqlite import CanonicalStateUnavailable
+
+    missing = tmp_path / "not-installed.db"
+    with pytest.raises(CanonicalStateUnavailable):
+        GoalJournal(missing)
+    assert not missing.exists()
+
+    original = tmp_path / "original.db"
+    original.touch()
+    redirected = tmp_path / "redirect.db"
+    try:
+        redirected.symlink_to(original)
+    except (OSError, NotImplementedError):
+        pytest.skip("Host lacks symlink creation permission")
+    with pytest.raises(CanonicalStateUnavailable, match="symbolic link"):
+        GoalJournal(redirected)
