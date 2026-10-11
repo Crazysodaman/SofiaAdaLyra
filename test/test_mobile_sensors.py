@@ -9,9 +9,17 @@ from sofia.environment.prompt import environment_prompt
 from sofia.environment.service import EnvironmentService
 from sofia.mobile.model import MobileSensorReport
 from sofia.mobile.sensors import MobileSensorProvider, MobileSensorStore
+from sofia.mobile.pairing import MobileDeviceCredentialStore
 
 
 NOW = datetime(2026, 10, 5, 20, 0, tzinfo=timezone.utc)
+
+def paired_store(tmp_path):
+    state = tmp_path / "state.db"
+    state.touch()
+    MobileDeviceCredentialStore(state).enroll("android-owner-1")
+    return MobileSensorStore(state)
+
 
 
 def payload(**changes):
@@ -37,8 +45,7 @@ def payload(**changes):
 
 def test_mobile_report_is_durable_and_projects_without_coordinates(tmp_path):
     (tmp_path / "state.db").touch()
-    (tmp_path / "state.db").touch()
-    store = MobileSensorStore(tmp_path / "state.db")
+    store = paired_store(tmp_path)
     report = MobileSensorReport.from_payload(payload())
     store.record(report, received_at=NOW)
     service = EnvironmentService(
@@ -63,8 +70,7 @@ def test_mobile_report_is_durable_and_projects_without_coordinates(tmp_path):
 
 
 def test_stale_mobile_report_is_retained_but_not_presented_as_current(tmp_path):
-    (tmp_path / "state.db").touch()
-    store = MobileSensorStore(tmp_path / "state.db")
+    store = paired_store(tmp_path)
     old = NOW - timedelta(minutes=20)
     store.record(
         MobileSensorReport.from_payload(payload(observed_at=old.isoformat())),
@@ -96,8 +102,7 @@ def test_invalid_mobile_sensor_values_fail_closed(changes):
 
 
 def test_store_rejects_future_timestamp(tmp_path):
-    (tmp_path / "state.db").touch()
-    store = MobileSensorStore(tmp_path / "state.db")
+    store = paired_store(tmp_path)
     report = MobileSensorReport.from_payload(
         payload(observed_at=(NOW + timedelta(minutes=6)).isoformat())
     )
@@ -128,6 +133,7 @@ def test_sensor_read_and_write_release_sqlite_handles_deterministically(
 ):
     state = tmp_path / "sofia.db"
     state.touch()
+    MobileDeviceCredentialStore(state).enroll("android-owner-1")
     store = MobileSensorStore(state)
     closed = []
 
@@ -149,3 +155,31 @@ def test_sensor_read_and_write_release_sqlite_handles_deterministically(
     )
     assert store.latest() is not None
     assert len(closed) == 2
+
+
+def test_revoked_phone_is_not_a_current_environment_source(tmp_path):
+    store = paired_store(tmp_path)
+    store.record(
+        MobileSensorReport.from_payload(payload()),
+        received_at=NOW,
+    )
+    assert store.latest() is not None
+    MobileDeviceCredentialStore(tmp_path / "state.db").revoke("android-owner-1")
+    assert store.latest() is None
+    with pytest.raises(PermissionError, match="revoked or unpaired"):
+        store.record(
+            MobileSensorReport.from_payload(payload()),
+            received_at=NOW + timedelta(seconds=1),
+        )
+    assert EnvironmentService(
+        providers=(MobileSensorProvider(store),)
+    ).snapshot(now=NOW).mobile is None
+
+
+def test_unpaired_phone_cannot_inject_sensor_source_even_inside_host(tmp_path):
+    state = tmp_path / "state.db"
+    state.touch()
+    store = MobileSensorStore(state)
+    with pytest.raises(PermissionError, match="revoked or unpaired"):
+        store.record(MobileSensorReport.from_payload(payload()), received_at=NOW)
+    assert store.latest() is None

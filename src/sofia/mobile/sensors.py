@@ -17,6 +17,7 @@ from sofia.environment.model import (
 from sofia.environment.provider import EnvironmentProviderObservation
 
 from .model import MobileSensorReport
+from .pairing import MobileDeviceCredentialStore
 
 
 _MAX_AGE = timedelta(minutes=10)
@@ -32,6 +33,9 @@ class MobileSensorStore:
         self.path = Path(state_path)
         if not self.path.is_file() or self.path.is_symlink():
             raise FileNotFoundError("existing canonical state database required for mobile sensors")
+        # Authority still lives in the canonical pairing table, not in a
+        # location/sensor payload claiming an arbitrary device identifier.
+        MobileDeviceCredentialStore(self.path)
         with closing(self._connect()) as db, db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS mobile_sensor_latest (
@@ -82,6 +86,16 @@ class MobileSensorStore:
         }
         encoded = json.dumps(data, sort_keys=True, separators=(",", ":"))
         with closing(self._connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            enrolled = db.execute(
+                "SELECT 1 FROM mobile_device_credential "
+                "WHERE device_id=? AND status='active'",
+                (report.device_id,),
+            ).fetchone()
+            if enrolled is None:
+                raise PermissionError(
+                    "revoked or unpaired phone cannot update environment evidence"
+                )
             db.execute(
                 """
                 INSERT INTO mobile_sensor_latest(
@@ -104,8 +118,10 @@ class MobileSensorStore:
     def latest(self) -> MobileSensorReport | None:
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT payload_json FROM mobile_sensor_latest "
-                "ORDER BY received_at DESC, device_id ASC LIMIT 1"
+                "SELECT sensor.payload_json FROM mobile_sensor_latest AS sensor "
+                "JOIN mobile_device_credential AS device "
+                "ON device.device_id=sensor.device_id AND device.status='active' "
+                "ORDER BY sensor.received_at DESC, sensor.device_id ASC LIMIT 1"
             ).fetchone()
         return None if row is None else MobileSensorReport.from_payload(
             json.loads(row[0])
