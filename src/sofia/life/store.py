@@ -433,10 +433,27 @@ class LifeStore:
                        'completed','failed','blocked','cancelled',
                        'uncertain','waiting_approval'
                      )
+                     AND event.occurred_at <= ?
+                     AND datetime(event.occurred_at) IS NOT NULL
                    ORDER BY event.event_id LIMIT ?""",
-                (limit,),
+                (stamp, limit),
             ).fetchall()
+            accepted = []
             for row in rows:
+                # RUN persists UTC ISO timestamps, but imported or corrupt
+                # original rows cannot mint valid LIFE source history.
+                # Do not mark an event observed before its actual occurrence.
+                try:
+                    occurred_at = datetime.fromisoformat(row["occurred_at"])
+                    valid_time = (
+                        occurred_at.tzinfo is not None
+                        and occurred_at.utcoffset() is not None
+                        and occurred_at <= now
+                    )
+                except (TypeError, ValueError, OverflowError):
+                    valid_time = False
+                if not valid_time:
+                    continue
                 db.execute(
                     """INSERT INTO life_run_outcome_observation(
                        run_event_id,project_id,job_id,run_status,
@@ -448,12 +465,12 @@ class LifeStore:
                         row["occurred_at"], stamp,
                     ),
                 )
+                accepted.append((row, occurred_at))
         return tuple(RunOutcomeObservation(
             int(row["event_id"]), row["project_id"], row["job_id"],
             row["to_status"], row["reason"],
-            datetime.fromisoformat(row["occurred_at"]),
-            datetime.fromisoformat(stamp),
-        ) for row in rows)
+            occurred_at, datetime.fromisoformat(stamp),
+        ) for row, occurred_at in accepted)
 
     def run_outcome_observations(
         self, project_id: str, *, limit: int = 100,
