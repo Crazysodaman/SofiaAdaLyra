@@ -22,6 +22,7 @@ class MemorySystem:
         self,
         candidate_store: DurableMemoryCandidateStore,
         historical_store: ChatGPTExportEvidenceStore | None = None,
+        association_store=None,
     ) -> None:
         if (
             not isinstance(
@@ -48,6 +49,12 @@ class MemorySystem:
 
         self._candidate_store = candidate_store
         self._historical_store = historical_store
+        # Non-authoritative NEURO scorer; reviewed MEM owns eligibility.
+        if association_store is not None:
+            from sofia.neuro.connectome.association_store import ReviewedAssociationStore
+            if not isinstance(association_store, ReviewedAssociationStore):
+                raise TypeError("association_store must be canonical ReviewedAssociationStore")
+        self._association_store = association_store
 
     @property
     def candidate_store(
@@ -169,6 +176,7 @@ class MemorySystem:
             principal_id=principal.principal_id,
             audience_id=principal.audience_id,
             influence=influence,
+            association_store=self._association_store,
         )
 
         records: list[MemoryRecord] = []
