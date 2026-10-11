@@ -119,3 +119,46 @@ def test_same_command_results_are_rejected_if_git_head_moved_mid_gate():
     assert moved.git_revision == stable.git_revision
     assert moved.commands == stable.commands
     assert not moved.accepted
+
+
+def test_release_gate_rejects_dirty_start_even_when_tree_later_cleans():
+    from dataclasses import replace
+
+    passing = _evidence("prelive", clean=True)
+    assert passing.accepted
+    dirty_start = replace(passing, source_clean_at_start=False)
+    assert not dirty_start.accepted
+    # Candidate is explicitly a non-release development gate.
+    assert _evidence("candidate", clean=False).accepted
+    assert replace(
+        _evidence("candidate", clean=False),
+        source_clean_at_start=False,
+    ).accepted
+
+
+def test_git_tree_cleanliness_detects_untracked_source(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    import sofia.verify.gate as gate
+
+    def git_status(argv, **kwargs):
+        assert tuple(argv) == (
+            "git", "status", "--porcelain=v1", "--untracked-files=all", "--",
+        )
+        assert kwargs["cwd"] == tmp_path
+        return SimpleNamespace(returncode=0, stdout="?? src/sofia/unsafe.py\\n")
+
+    monkeypatch.setattr(gate.subprocess, "run", git_status)
+    assert not gate._tracked_tree_clean(tmp_path)
+
+
+def test_git_tree_cleanliness_fails_closed_on_git_error(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    import sofia.verify.gate as gate
+    import pytest
+
+    monkeypatch.setattr(
+        gate.subprocess, "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=128, stdout=""),
+    )
+    with pytest.raises(RuntimeError, match="working-tree"):
+        gate._tracked_tree_clean(tmp_path)
