@@ -3,7 +3,7 @@
   "master_path": "docs/roadmaps/Sofia_Companion_Autonomy_Master_Roadmap_V18_Priority_Phases.md",
   "master_sha256": "08c773e5d8080c2d5606e0a31459e11f78339cbfee069b00ce912b63c59128dc",
   "master_git_blob": "9ea103b551b1e22ce7230202fdcc762eac63f050",
-  "reviewed_main_sha": "76ae8f5df2d7cf539f0531b12c84abe246b6cd00",
+  "reviewed_main_sha": "4a772feaf1d9f70fc09890340c22c4f470371b7e",
   "audit_date_utc": "2026-10-11",
   "notice": "WS1: owner-created Sofia VM on Artemis has NO Debian OS installed yet; Venus remains sole canonical writer. Authenticated read-only Fleet Sofia inspection is fully routed in production source and Debian systemd runtime now issues truthful READY/STOPPING only after application lifecycle. Tests written but not run [skip ci], no host actions/grants/migrations. CA-3102/3015/1107/5406/6507 remain partial and sibling workstreams preserved.",
   "tasks": [
@@ -2582,7 +2582,9 @@
         "7ca1244474c32a734b1fb250d9c5ebb651ee5dc9",
         "5bdb67597de72306844a641c6687366f46e6e78a",
         "6f361e66181e37d2db178bc9bf45954070ad478a",
-        "13a96eba74c750fde0d45a48ec95a9de3dafd223"
+        "13a96eba74c750fde0d45a48ec95a9de3dafd223",
+        "1bc4b93d088b026615824622bbe5f2fffad93400",
+        "dd2236b22526bb5354952fa3f939df5c2d207bff"
       ],
       "accepted": false,
       "coding_update": {
@@ -2768,6 +2770,19 @@
           "production_route": "Sofía owner Windows SID -> supervised WebAuthn register -> exact FIDO2 signed approval -> ExecutionApprovalVerifier -> canonical PermissionStore durable Level-3/5 grants plus operator policies -> Settings/Tray/CLI -> guarded runtime service effect.",
           "fulfilled_slice": "Eliminated graphical TTY gating, authenticated Level-3 standing grant/revoke and Level-5 authority writes, quarantined historical unsigned grants, revoked-key invalidation, and signed model/Fleet/tray service paths. Regression sources migrated; no tests executed.",
           "remaining": "Physical authenticator attestation vs supervised classification, actual Hello/FIDO2, offline recovery, remote Artemis principal, full mutation inventory, host acceptance and source-wide tests are open. Existing consumed-approval/separate-effect crash gap remains."
+        },
+        {
+          "source_review_sha": "76ae8f5df2d7cf539f0531b12c84abe246b6cd00",
+          "commits": [
+            "1bc4b93d088b026615824622bbe5f2fffad93400",
+            "dd2236b22526bb5354952fa3f939df5c2d207bff"
+          ],
+          "source_paths": [
+            "src/sofia/safe/permissions.py",
+            "test/test_safe_permission_owner_auth.py"
+          ],
+          "fulfilled_slice": "Standing-grant and Level-5 permission readers recompute the original signed approval fingerprint from current canonical scope and flags. Post-approval modifications cannot inherit an otherwise valid credential binding.",
+          "remaining": "SQLite/cross-service tamper and crash-consistency host tests deferred, missing independent recovery, physical FIDO2 attestation and full effect consumer inventory. No CI or hardware acceptance."
         }
       ]
     },
