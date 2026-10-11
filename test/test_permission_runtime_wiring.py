@@ -4,6 +4,8 @@ import sqlite3
 
 import pytest
 
+from test.owner_auth_fixture import grant_with_signed_owner, revoke_with_signed_owner, private_with_signed_owner
+
 from test.owner_auth_fixture import resume_with_signed_owner_proof
 
 from test.owner_auth_fixture import record_verified_owner_approval
@@ -150,7 +152,7 @@ def test_level_three_storage_write_needs_grant_or_exact_approval(tmp_path):
     with pytest.raises(PermissionError, match="approval_id"):
         registration.handler(request)
 
-    PermissionStore(state).grant(
+    grant_with_signed_owner(PermissionStore(state), 
         "storage.mkdir",
         scope={"root_index": 0, "path": "allowed"},
         grant_id="mkdir-allowed",
@@ -180,7 +182,7 @@ def test_operator_stop_blocks_direct_integration_handler_even_with_standing_gran
         filesystem_root=tmp_path, state_path=state,
     )
     registration = _registration(tools, "storage.mkdir")
-    PermissionStore(state).grant(
+    grant_with_signed_owner(PermissionStore(state), 
         "storage.mkdir",
         scope={"root_index": 0, "path": "blocked-by-stop"},
     )
@@ -231,7 +233,7 @@ def test_integration_handler_rechecks_grant_revocation_before_effect(
     )
     registration = _registration(tools, "storage.mkdir")
     store = PermissionStore(state)
-    grant = store.grant(
+    grant = grant_with_signed_owner(store, 
         "storage.mkdir",
         scope={"root_index": 0, "path": "must-not-create"},
     )
@@ -243,7 +245,7 @@ def test_integration_handler_rechecks_grant_revocation_before_effect(
         if capability == "storage.mkdir":
             visits.append(permitted)
             if len(visits) == 1:
-                PermissionStore(state).revoke(grant.grant_id)
+                revoke_with_signed_owner(PermissionStore(state), grant.grant_id)
         return permitted
 
     monkeypatch.setattr(PermissionStore, "allows_standing", revoke_after_first_check)
@@ -293,7 +295,7 @@ def test_private_chat_permission_gates_private_matrix_projection(tmp_path):
 
     assert planner.plan(principal).allow_historical_private_scope is True
 
-    store.set_private_adult_authority(
+    private_with_signed_owner(store, 
         private_chat=False,
         adult_chat=False,
         adult_avatar=False,
@@ -307,7 +309,7 @@ def test_private_chat_permission_gates_private_matrix_projection(tmp_path):
 def test_adult_private_authority_is_projected_into_trusted_cognitive_context(tmp_path):
     state = tmp_path / "sofia.db"
     store = PermissionStore(state)
-    authority = store.set_private_adult_authority(
+    authority = private_with_signed_owner(store, 
         private_chat=True,
         adult_chat=True,
         adult_avatar=True,
@@ -348,7 +350,7 @@ def test_runtime_tool_exposure_reads_new_standing_grants_without_restart(tmp_pat
     runtime = compose(configuration)
     assert runtime.current_authority().can_use_capability("storage.mkdir") is False
 
-    PermissionStore(configuration.state_path).grant(
+    grant_with_signed_owner(PermissionStore(configuration.state_path), 
         "storage.mkdir",
         scope={"root_index": 0, "path": "docs"},
         grant_id="live-storage-grant",
@@ -360,7 +362,7 @@ def test_runtime_tool_exposure_reads_new_standing_grants_without_restart(tmp_pat
 def test_permission_inspection_is_owner_private_and_reports_live_state(tmp_path):
     state = tmp_path / "sofia.db"
     store = PermissionStore(state)
-    store.grant(
+    grant_with_signed_owner(store, 
         "storage.mkdir",
         scope={"root_index": 0, "path": "docs"},
         grant_id="inspectable-grant",
@@ -505,7 +507,7 @@ def test_level_three_knowledge_write_honors_exact_standing_scope(tmp_path):
     with pytest.raises(PermissionError, match="approval_id"):
         capabilities.execute(request)
 
-    permissions.grant(
+    grant_with_signed_owner(permissions, 
         "knowledge.document.write",
         scope={
             "path": "docs/permission-notes.md",
