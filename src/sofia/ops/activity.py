@@ -19,6 +19,7 @@ from sofia.system.model import ProcessInspection
 class ActivityMode(str, Enum):
     AUTO = "auto"
     NORMAL = "normal"
+    IDLE = "idle"
     GAMING = "gaming"
     BUSY = "busy"
     DO_NOT_DISTURB = "do_not_disturb"
@@ -108,7 +109,7 @@ class HostActivityStore:
 
     def set_override(self, host_id: str, mode: ActivityMode, *, at: datetime, connection: sqlite3.Connection | None = None) -> None:
         host_id = self._host(host_id)
-        if not isinstance(mode, ActivityMode) or mode is ActivityMode.UNKNOWN:
+        if not isinstance(mode, ActivityMode) or mode in {ActivityMode.UNKNOWN, ActivityMode.IDLE}:
             raise ValueError("override must be AUTO, NORMAL, GAMING, BUSY, or DO_NOT_DISTURB")
         moment = self._time(at)
         with (closing(self._connect()) if connection is None else nullcontext(connection)) as db:
@@ -192,6 +193,40 @@ class HostActivityStore:
             observed_at=observed_at,
             source=source,
         )
+
+
+def windows_desktop_idle_seconds() -> float | None:
+    """Active Windows tray-session last-input age, not system service uptime.
+
+    The interactive tray must run in the user's own session. Never read
+    desktop pixels, key content, process text or another user's session.
+    No API evidence or non-Windows runtime means UNKNOWN, not 'idle'.
+    """
+    import sys
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    class LASTINPUTINFO(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+    value = LASTINPUTINFO(ctypes.sizeof(LASTINPUTINFO), 0)
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32.GetLastInputInfo.argtypes = [ctypes.POINTER(LASTINPUTINFO)]
+    user32.GetLastInputInfo.restype = wintypes.BOOL
+    kernel32.GetTickCount.argtypes = []
+    kernel32.GetTickCount.restype = wintypes.DWORD
+    if not user32.GetLastInputInfo(ctypes.byref(value)):
+        return None
+    ticks = int(kernel32.GetTickCount())
+    elapsed = (ticks - int(value.dwTime)) & 0xFFFFFFFF
+    # A single DWORD wraps in 49.7 days; bound the credible idle signal
+    # and refuse impossible offsets rather than guessing an unattended user.
+    if elapsed > 24 * 60 * 60 * 1000:
+        return None
+    return elapsed / 1000.0
 
 
 _STEAM_NON_GAMES = frozenset({
