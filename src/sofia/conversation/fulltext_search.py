@@ -112,21 +112,37 @@ class ConversationFullTextSearch:
                     "USING fts5(content, content='conversation_messages', "
                     "content_rowid='rowid', tokenize='unicode61')"
                 )
+                # Rebuild/repair is independently authorized offline work.
+                # Upgrade old pre-count triggers transactionally: IF NOT
+                # EXISTS would leave earlier installations with stale
+                # indexed_source_count forever after the initial rebuild.
+                for name in (
+                    "conversation_source_fts_insert",
+                    "conversation_source_fts_delete",
+                    "conversation_source_fts_update",
+                ):
+                    db.execute("DROP TRIGGER IF EXISTS " + name)
                 db.execute(
-                    "CREATE TRIGGER IF NOT EXISTS conversation_source_fts_insert "
+                    "CREATE TRIGGER conversation_source_fts_insert "
                     "AFTER INSERT ON conversation_messages BEGIN "
                     "INSERT INTO conversation_messages_fts(rowid,content) "
-                    "VALUES(new.rowid,new.content); END"
+                    "VALUES(new.rowid,new.content); "
+                    "UPDATE conversation_fts_meta "
+                    "SET indexed_source_count=indexed_source_count+1 "
+                    "WHERE singleton=1 AND is_ready=1; END"
                 )
                 db.execute(
-                    "CREATE TRIGGER IF NOT EXISTS conversation_source_fts_delete "
+                    "CREATE TRIGGER conversation_source_fts_delete "
                     "AFTER DELETE ON conversation_messages BEGIN "
                     "INSERT INTO conversation_messages_fts("
                     "conversation_messages_fts,rowid,content) "
-                    "VALUES('delete',old.rowid,old.content); END"
+                    "VALUES('delete',old.rowid,old.content); "
+                    "UPDATE conversation_fts_meta "
+                    "SET indexed_source_count=indexed_source_count-1 "
+                    "WHERE singleton=1 AND is_ready=1; END"
                 )
                 db.execute(
-                    "CREATE TRIGGER IF NOT EXISTS conversation_source_fts_update "
+                    "CREATE TRIGGER conversation_source_fts_update "
                     "AFTER UPDATE ON conversation_messages BEGIN "
                     "INSERT INTO conversation_messages_fts("
                     "conversation_messages_fts,rowid,content) "
